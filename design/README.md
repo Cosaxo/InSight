@@ -80,7 +80,8 @@ line with its comments gone, so the files there are Babel reprints and
 the README carries the recipe that makes the diff exact), with the plan
 at [`docs/VISION-2026-09-08.md`](../docs/VISION-2026-09-08.md);
 `docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D429). Each
+D429), and three of its five moves were built the same day on the
+owner's word (D430). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

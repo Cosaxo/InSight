@@ -121,9 +121,12 @@ three-column World reveal, the sealed list, the *answer ahead* door and
 the run of rounds at the foot; the reveal clock is deleted, the first
 run loses its *Tonight* beat and its *Start another* row, *days* become
 *rounds* wherever a figure says one, and twelve duel prompts lose their
-calendar words. (2) **The ruler says Groups · 1v1s** where it said
-Circle · 1v1, in the shell and the daily both, and the first run says
-*group* — the Mirror's Circle stop keeps its name. (3) **The paid
+calendar words. (2) **The ruler's second stop says Groups · 1v1s** —
+the name of what it draws, in the shell and the daily both, and the
+first run says *group*; the app's label on the same stop is *Circle*,
+and the owner has said a group is not a circle (D430), so which word the
+app's stop wears is the owner's question, not a rename — the Mirror's
+Circle stop is the other thing and keeps its name. (3) **The paid
 family leaves the prototype**: the four modules above, the feed's and
 the daily's *Suggest a question* doors, the header's ask button, the
 overlays, the Mirror place stops' *Asked for Oslo* section, the
@@ -146,6 +149,18 @@ onto the element, and a sweep — some two hundred dead CSS lines and
 seven modules gone, plus a dozen D182 copy cuts.
 
 ## The files here, and where each would land
+
+**What has landed (D430, the same day):** the paid family's departure
+(the buyer's room with it), the person's page as four tabs, and the
+polish pass — `person-overlay.jsx` below and the `shared-primitives`,
+`compare-breakdown`, `person-mind-map`, `profile-overlay`,
+`world-feed`, `mirror-answers`, `place-stats`, `app`, `trait-web`,
+`mirror-field-pops`, `general-tab` and stylesheet patches, each to the
+tree's own shape. Not landed: the rounds port of the demo twins
+(`duels-data.js`, `group-daily.jsx`, `duo-daily.jsx`, `first-day.jsx`),
+the *Groups · 1v1s* labels (an owner question — a group is not a
+circle), the `role-data` / `roles-panel` / `map-people` unit words, and
+the twelve calendar-word prompts.
 
 Carried whole (regenerated as described above; the upload's bytes come
 back from the recipe):

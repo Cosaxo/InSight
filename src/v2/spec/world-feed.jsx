@@ -376,7 +376,7 @@ const WF_FORM_WORD = {
 };
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -626,7 +626,7 @@ class WorldFeed extends React.Component {
             if (Date.now() - (this._headHold || 0) < 500) { this._lastY = y; return; }
             this._lastY = y;
             const hide = dy > 0 && y > 60 && !this.state.topicsOpen;
-            if (hide !== this.state.headHide) this.setState({ headHide: hide });
+            if (hide !== this._headHidden) this.setHeadHidden(hide);
           };
         }
         next.addEventListener('scroll', this._onScroll, { passive: true });
@@ -848,7 +848,7 @@ class WorldFeed extends React.Component {
               <button key={s} className="press" onClick={() => this.setRate(q, s)} style={{ flex: 1, minWidth: 0, height: big ? 54 : 42, padding: 0, border: '1px solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: 10, background: 'color-mix(in oklch, ' + T.color + ' ' + (4 + s * 2.6).toFixed(1) + '%, var(--surface))', boxShadow: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 15 : 13.5, color: 'var(--ink)', WebkitAppearance: 'none' }}>{s}</button>
             ))}
           </div>
-          <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap a number — 1 rough, 10 superb</span>
+          <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>1 rough · 10 superb</span>
         </div>
       );
     }
@@ -2085,6 +2085,18 @@ class WorldFeed extends React.Component {
   // An unanswered card gets a comfortable floor so the question has air; an
   // answered one shrinks to its result and lets the next question rise into
   // view rather than ending on a screen of empty ground.
+  // The sticky head's hide is written to the element, not to state: a
+  // scroll-direction flip used to re-render the whole feed for one
+  // transform on one node (2026-09-08 standalone, D430). The flag lives on
+  // the instance so render() can paint the same state on a remount.
+  setHeadHidden(hide) {
+    this._headHidden = hide;
+    const h = this._head;
+    if (!h) return;
+    h.style.transform = hide ? 'translateY(-115%)' : 'none';
+    h.style.opacity = hide ? '0' : '1';
+    h.style.pointerEvents = hide ? 'none' : 'auto';
+  }
   cardFloor(answered) {
     const vh = this.state.vh || 620;
     return answered ? 0 : Math.min(Math.max(vh - 300, 260), 400);
@@ -4495,7 +4507,7 @@ class WorldFeed extends React.Component {
         {/* the rule sits ABOVE the chip row: it separates the daily card from
             the feed, and the first feed card brings its own hairline (the v2
             bare skin) — a bottom rule here would double it */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', flexDirection: 'column', gap: 10, margin: '6px -16px 0', padding: '12px 16px 10px', background: 'var(--surface-a, var(--surface))', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 15%)', transform: this.state.headHide ? 'translateY(-115%)' : 'none', opacity: this.state.headHide ? 0 : 1, pointerEvents: this.state.headHide ? 'none' : 'auto', transition: 'transform 0.32s ease, opacity 0.26s ease' }}>
+        <div ref={(n) => { this._head = n; }} style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', flexDirection: 'column', gap: 10, margin: '6px -16px 0', padding: '12px 16px 10px', background: 'var(--surface-a, var(--surface))', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 15%)', transform: this._headHidden ? 'translateY(-115%)' : 'none', opacity: this._headHidden ? 0 : 1, pointerEvents: this._headHidden ? 'none' : 'auto', transition: 'transform 0.32s ease, opacity 0.26s ease' }}>
           {/* the rail folds behind one disclosure chip (2026-09-06): a row
               you had to swipe to see the end of becomes a named door, and
               the head at rest is a kicker and two controls */}
@@ -4503,7 +4515,7 @@ class WorldFeed extends React.Component {
             <span className="kicker" style={{ marginBottom: 0, flex: 1, minWidth: 0 }}>the feed</span>
             {/* the sort control cycles hot → top → new instead of wearing a caret */}
             <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot', shown: WF_PAGE })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
-            <button className="wf-chip" onClick={() => { this._headHold = Date.now(); this.setState({ topicsOpen: !topicsOpen, headHide: false }); }} aria-expanded={topicsOpen}
+            <button className="wf-chip" onClick={() => { this._headHold = Date.now(); this.setHeadHidden(false); this.setState({ topicsOpen: !topicsOpen }); }} aria-expanded={topicsOpen}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0, border: '0.5px solid ' + (topicsOpen || nOff ? 'color-mix(in oklch, var(--ink) 22%, var(--rule))' : 'var(--rule)'), background: topicsOpen ? 'color-mix(in oklch, var(--ink) 9%, var(--surface-2))' : 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>
               {nOff === 0 ? 'all topics' : (chips.length - nOff) + ' of ' + chips.length + ' topics'}
               <span aria-hidden="true" style={{ width: 5, height: 5, borderRight: '1.5px solid currentColor', borderBottom: '1.5px solid currentColor', transform: topicsOpen ? 'translateY(1px) rotate(-135deg)' : 'translateY(-1.5px) rotate(45deg)', opacity: 0.7, transition: 'transform .2s' }}></span>

@@ -86,7 +86,7 @@ export default function TraitWebCard(): React.ReactElement | null {
       {/* a key for a novel encoding, not a caption restating a shape —
           the distinction COPY.md §3 draws */}
       <div style={{ fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.45, marginTop: 13, paddingTop: 11, borderTop: "0.5px solid var(--rule)", textWrap: "pretty" }}>
-        Each pair sits so the usual pattern lands its dots together — a stretched amber thread is a rule you break.
+        A stretched amber thread is a pattern you break.
       </div>
     </div>
   );

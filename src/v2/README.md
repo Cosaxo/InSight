@@ -199,7 +199,7 @@ no `await` — is the same-tick claim asserted on the whole app.
 
 **Three overlays read Mirror globals at render** — `profile-general`'s
 `MirrorFieldBody` and `LENSES`, `profile-overlay`'s `LensesPanel`,
-`person-overlay`'s `CompareCarousel` — so `loadOverlays()` awaits
+`person-overlay`'s `CompareList` — so `loadOverlays()` awaits
 `loadMirrorTab()` first: memoised, so that is the prewarm's own promise
 when `main.jsx` got there first and the fetch itself when a tap did. The
 reader audit that found those three (and nothing eager) is the

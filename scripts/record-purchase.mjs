@@ -38,8 +38,8 @@
 //     person-sized query)
 //   - the window ≤ 366 days (PAID-PLAN §8's one-year line)
 //   - the rate LOCKED at booking is positive, and it is the number the
-//     buyer's room prints for the life of the contract (D164: billed per
-//     answer against a cap)
+//     contract is billed at for its life (D164: billed per answer against
+//     a cap; the buyer's room printed it until D430)
 //   - refuses to overwrite an existing record unless --amend says the
 //     human means it — a contract is append-mostly, and a silent
 //     overwrite is how a signed cap would drift

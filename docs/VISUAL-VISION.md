@@ -40,12 +40,19 @@ it is moving toward.
   a 12 px floor on initials, one reduced-motion switch, one timer for
   every `Lazy` card, the feed's head-hide off React state, a CSS sweep,
   a dozen copy cuts.
-- **Built from it:** nothing yet. The live rounds card and the paid
-  door's removal were already in the tree (D426's second amendment,
-  D368), so the plan's first steps are the DEMO twins and the
-  vocabulary; the person's page is the build that draws something new.
-  One sentence in it — *friends see everything* — is an owner row, not
-  a build (D98, D334); one deletion — the buyer's room — is the other.
+- **Built from it:** three of the five moves, the same day, on the
+  owner's word (D430): the paid family leaves with the buyer's room
+  (`ui/AskedByYouOverlay.tsx`, its store and `CurSwitch` gone), the
+  person's page is four tabs with the swipe, the dot grid, the tiles,
+  the rings and the person's own map (`spec/person-overlay.jsx`,
+  `CompareList`, `useSubSwipe`), and the polish pass — the hit slack,
+  the motion switch, one timer for every `Lazy` card, the feed's
+  head-hide off state, three dead rules, the copy cuts. Not built: the
+  demo twins under rounds (the live card was already built), the live
+  person's page, the duel bank's calendar words. The ruler's *Groups*
+  label is an owner question — a group is not a circle, and the plan
+  had read it as a rename. The map's friends-only sentence stays an
+  owner row for the live page (D98, D334).
 - **Requests it closed:** none. It **draws request 5's third surface a
   third way** (the pair's card on the person's page: the 1v1 tile with
   its figure and type, the reading rings), which still waits on

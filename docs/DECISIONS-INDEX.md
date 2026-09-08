@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 451 lines instead of
-46,628. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 452 lines instead of
+46,763. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -115,10 +115,10 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D425 (+6) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D328 (+12) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D429 (+88) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D430 (+89) | 9129 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9251 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D334 (+5) | 9394 |
-| **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D426 (+11) | 9495 |
+| **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D430 (+12) | 9495 |
 | **D102** | [The D98 surfaces get their bounds, their index, and their bill](DECISIONS.md#d102--the-d98-surfaces-get-their-bounds-their-index-and-their-bill) | D397 (+7) | 9600 |
 | **D103** | [Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice](DECISIONS.md#d103--four-device-readings-a-retired-test-a-rail-the-topics-d96-left-dark-and-one-notch-paid-for-twice) | D156 (+3) | 9717 |
 | **D104** | [Test users: a second real account, and what it is allowed to fake](DECISIONS.md#d104--test-users-a-second-real-account-and-what-it-is-allowed-to-fake) | — | 9817 |
@@ -200,7 +200,7 @@ detect it.
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D424 (+6) | 17776 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17864 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18094 |
-| **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D429 (+6) | 18199 |
+| **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D430 (+7) | 18199 |
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D429 (+15) | 18297 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18456 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18607 |
@@ -395,7 +395,7 @@ detect it.
 | **D365** | [The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped](DECISIONS.md#d365--the-2026-09-05-night-review-two-shifts-merged-as-one-tree--50-commits-kept-one-defect-the-composition-created-and-the-kilobyte-that-finally-tripped) | D387 (+2) | 37975 |
 | **D366** | [Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line](DECISIONS.md#d366--nothing-the-theory-lanes-wrote-is-axiom-theory-and-the-ladder-is-why--the-potential-half-the-salvage-and-the-gate-that-holds-the-line) | — | 38178 |
 | **D367** | [Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key](DECISIONS.md#d367--four-launch-documents-said-things-that-had-stopped-being-true-and-the-one-step-that-needs-no-apple-account-demanded-an-apple-key) | D369 | 38289 |
-| **D368** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d368--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | D429 (+6) | 38656 |
+| **D368** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d368--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | D430 (+7) | 38656 |
 |  | ↳ *amendment 2026-09-05* — [The legacy free-suggestion rows go with the overlay](DECISIONS.md#d368-amendment-2026-09-05--the-legacy-free-suggestion-rows-go-with-the-overlay) | — | 38744 |
 |  | ↳ *amendment 2026-09-05* — [The account is required at the pay tap, and the requirement is an identity rather than Google](DECISIONS.md#d368-amendment-2026-09-05--the-account-is-required-at-the-pay-tap-and-the-requirement-is-an-identity-rather-than-google) | — | 38766 |
 |  | ↳ *amendment 2026-09-05* — [The door is out of the binary, and it had five entry points rather than one](DECISIONS.md#d368-amendment-2026-09-05--the-door-is-out-of-the-binary-and-it-had-five-entry-points-rather-than-one) | — | 38812 |
@@ -409,7 +409,7 @@ detect it.
 | **D376** | [The menu: the door prints a price per reach, and a row opens the composer at it](DECISIONS.md#d376--the-menu-the-door-prints-a-price-per-reach-and-a-row-opens-the-composer-at-it) | — | 39630 |
 | **D377** | [Paid cards get their own places in the feed, and the price counts crowding beyond them](DECISIONS.md#d377--paid-cards-get-their-own-places-in-the-feed-and-the-price-counts-crowding-beyond-them) | D390 | 39699 |
 | **D378** | [A sponsored question may carry one reviewed link, shown after the answer and counted by nobody](DECISIONS.md#d378--a-sponsored-question-may-carry-one-reviewed-link-shown-after-the-answer-and-counted-by-nobody) | D412 (+1) | 39786 |
-| **D379** | [The shareable results page: a sponsored question's numbers as one public web page](DECISIONS.md#d379--the-shareable-results-page-a-sponsored-questions-numbers-as-one-public-web-page) | D380 | 39870 |
+| **D379** | [The shareable results page: a sponsored question's numbers as one public web page](DECISIONS.md#d379--the-shareable-results-page-a-sponsored-questions-numbers-as-one-public-web-page) | D430 (+1) | 39870 |
 | **D380** | [The 2026-09-06 night review: two shifts merged as one tree — 68 commits kept, two defects the composition created, and a fix whose tests a third PR deleted](DECISIONS.md#d380--the-2026-09-06-night-review-two-shifts-merged-as-one-tree--68-commits-kept-two-defects-the-composition-created-and-a-fix-whose-tests-a-third-pr-deleted) | D420 (+2) | 39948 |
 | **D381** | [Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on](DECISIONS.md#d381--build-29-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-again-and-the-gate-built-to-stop-that-has-never-been-switched-on) | D398 (+2) | 40193 |
 |  | ↳ *amendment 2026-09-06* — [Build 30 is delivered, and the whole release happened in one sitting](DECISIONS.md#d381-amendment-2026-09-06--build-30-is-delivered-and-the-whole-release-happened-in-one-sitting) | — | 40343 |
@@ -458,10 +458,11 @@ detect it.
 | **D423** | [The pictures land: five domains fetched from a cloud session, the seventh host nobody knew about, and the two ways a throttled network kills a run](DECISIONS.md#d423--the-pictures-land-five-domains-fetched-from-a-cloud-session-the-seventh-host-nobody-knew-about-and-the-two-ways-a-throttled-network-kills-a-run) | — | 45400 |
 | **D424** | [The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail](DECISIONS.md#d424--the-lanes-create-categories-the-human-gate-becomes-arithmetic-and-the-taxonomy-gets-a-gate-that-can-fail) | D428 (+2) | 45529 |
 | **D425** | [The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so](DECISIONS.md#d425--the-you-maps-ring-is-fixed-and-the-taxonomies-grow-subtopics-first-new-topics-when-the-arithmetic-says-so) | D428 (+1) | 45744 |
-| **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | D429 | 45900 |
+| **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | D430 (+1) | 45900 |
 |  | ↳ *amendment 2026-09-08* — [The model is approved, and notifications are the volley's other half](DECISIONS.md#d426-amendment-2026-09-08--the-model-is-approved-and-notifications-are-the-volleys-other-half) | — | 46042 |
 |  | ↳ *amendment 2026-09-08, later the same day* — [Steps 0–3 are built: the round replaces the day](DECISIONS.md#d426-amendment-2026-09-08-later-the-same-day--steps-03-are-built-the-round-replaces-the-day) | — | 46085 |
 | **D427** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d427--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | D428 | 46243 |
 | **D428** | [Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples](DECISIONS.md#d428--breadth-first-a-room-is-born-with-a-handful-coverage-steers-where-the-next-one-opens-and-learns-cap-triples) | — | 46344 |
 |  | ↳ *amendment 2026-09-08* — [The learn lane runs daily, and its prompt is swapped for the one that can open a field](DECISIONS.md#d428-amendment-2026-09-08--the-learn-lane-runs-daily-and-its-prompt-is-swapped-for-the-one-that-can-open-a-field) | — | 46462 |
-| **D429** | [The 2026-09-08 vision arrives: rounds reach the prototype, the person's page becomes four tabs, and the paid family leaves](DECISIONS.md#d429--the-2026-09-08-vision-arrives-rounds-reach-the-prototype-the-persons-page-becomes-four-tabs-and-the-paid-family-leaves) | — | 46497 |
+| **D429** | [The 2026-09-08 vision arrives: rounds reach the prototype, the person's page becomes four tabs, and the paid family leaves](DECISIONS.md#d429--the-2026-09-08-vision-arrives-rounds-reach-the-prototype-the-persons-page-becomes-four-tabs-and-the-paid-family-leaves) | D430 | 46497 |
+| **D430** | [The owner rules on the 09-08 plan: the paid family leaves with the buyer's room, the person's page is four tabs, the polish pass lands — and a group is not a circle](DECISIONS.md#d430--the-owner-rules-on-the-09-08-plan-the-paid-family-leaves-with-the-buyers-room-the-persons-page-is-four-tabs-the-polish-pass-lands--and-a-group-is-not-a-circle) | — | 46629 |

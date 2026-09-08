@@ -57,3 +57,27 @@ describe('the measured still', () => {
     expect(container.querySelector('.mmt-root.is-still')).toBeTruthy();
   });
 });
+
+describe("the person's own still (2026-09-08, `own`)", () => {
+  it('draws no compare state and leaves a locked answer out rather than dimming it', async () => {
+    // a non-follower's view of a person whose map holds locked answers is
+    // where the two stills differ: the comparison dims them, the portrait
+    // omits them — and never colours a dot same / differ
+    const p = (IS_DATA.people || []).find((x) => x.name && !x.anon);
+    const draw = async (extra) => {
+      const { container } = render(<PersonMindMap p={p} following={false} still centerName="Them" {...extra} />);
+      await act(async () => { vi.advanceTimersByTime(400); });
+      return container;
+    };
+    const cmp = await draw({});
+    const cmpDots = cmp.querySelectorAll('.mmt-dotnode').length;
+    const cmpDim = [...cmp.querySelectorAll('.mmt-dotnode')].filter((n) => n.style.opacity === '0.22').length;
+    cleanup();
+    const own = await draw({ own: true });
+    const ownDots = own.querySelectorAll('.mmt-dotnode').length;
+    expect(own.querySelector('.mmt-dotnode.is-differ'), 'the portrait is not a comparison').toBeNull();
+    expect([...own.querySelectorAll('.mmt-dotnode')].some((n) => n.style.opacity === '0.22'), 'a locked answer is left out, not dimmed').toBe(false);
+    // exactly the dimmed ones are gone — nothing else moved
+    expect(ownDots).toBe(cmpDots - cmpDim);
+  });
+});

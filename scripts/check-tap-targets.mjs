@@ -19,9 +19,11 @@
 // (`<button style={{ width: 20, height: 20 }}>`) and the hyperscript form
 // the ported modules use (`h('button', { style: { width: 20, ... } })`).
 // A control sized only in CSS is invisible here; that is the honest limit
-// of a source scan and the reason the two class-sized cases (.pm-chip,
-// .wf-chip, .mmt-card-x) are handled in the stylesheet with a comment
-// rather than pretended about here.
+// of a source scan and the reason the class-sized cases (.pm-chip,
+// .wf-chip, .mmt-card-x, and since D430 .icon-btn, .avatar-btn, .tab-btn,
+// .mmt-zoomctl button, .pt-pop and .pt-info — each grown to 44px by a
+// pseudo-element) are handled in the stylesheet with a comment rather
+// than pretended about here.
 //
 // Node stdlib only. Client-only, so it belongs on ci.yml and NOT on
 // backend-checks.yml — nothing it says bears on whether a rules fix is

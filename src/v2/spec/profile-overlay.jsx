@@ -4,7 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-import { Av, useDialog } from './primitives.jsx';
+import { Av, useDialog, useSubSwipe } from './primitives.jsx';
 import { ownProgress, ResultProfileCard } from './result-card.jsx';
 import { RP_TESTS } from './result-rose.jsx';
 // Where the instrument currently stands, as a colour and a two-tone split
@@ -214,6 +214,11 @@ function ProfileOverlay({ onClose, me }) {
   // scrollLeft after the effect runs — so place it after layout and again on
   // a beat, instantly, and clamp to the rail (2026-08-24).
   const navRef = React.useRef(null);
+  // a horizontal swipe on the body steps the sub-tab (2026-09-08, D430) —
+  // the same hook the person's page uses; the rail itself keeps its scroll
+  const bodyRef = React.useRef(null);
+  const panelRef = React.useRef(null);
+  useSubSwipe(bodyRef, panelRef, SUBTABS.map((s) => s.id), sub, setSub);
   React.useEffect(() => {
     const sc = navRef.current;
     if (!sc) return;
@@ -286,7 +291,7 @@ function ProfileOverlay({ onClose, me }) {
           <div style={{ width: 32, flexShrink: 0 }} />
         )}
       </div>
-      <div className="app-body" style={{ paddingTop: 0 }}>
+      <div ref={bodyRef} className="app-body" style={{ paddingTop: 0, overflowX: 'hidden' }}>
         {/* compact identity row — the content is the star, not the header.
             Tightened 2026-08-12 with the double-inset fix above it: this
             row sat under ~146px of doubled status-bar padding, so its own
@@ -337,7 +342,7 @@ function ProfileOverlay({ onClose, me }) {
           </div>
         </div>
 
-        <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
+        <div key={sub} ref={panelRef} className="tab-swap" style={{ marginTop: 4, willChange: 'transform' }}>
           {/* LivePrivacyPanel opened this tab from D98 to D344; it lives
               behind the header's gear now — see AccountSheet above. */}
           {sub === 'general' && <GeneralPanel onGo={setSub} />}

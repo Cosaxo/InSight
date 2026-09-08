@@ -52,7 +52,7 @@ const EXPORTS = {};
       <span aria-hidden="true" style={{
         width: size, height: size, borderRadius: 11, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
+        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.max(12, Math.round(size * 0.38)), letterSpacing: '-0.02em',
         color: '#fff', background: WPAL.ink(`oklch(0.52 0.12 ${ghue(g)})`),
       }}>{ginit(g.name)}</span>
     );
@@ -74,7 +74,9 @@ const EXPORTS = {};
         style={{
         width: size, height: size, borderRadius: '50%', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.4),
+        // 12px floor on the initials (D391's floor, one shape over): a 22px
+        // mark drew 9px letters, which is the microtype failure in a circle
+        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.max(12, Math.round(size * 0.4)),
         // every disc is full strength — a row of half-washed circles read as
         // broken. Where a row needs to show who is already in, that ONE site
         // passes `sealed` and gets a hue halo: same colour, one extra ring, so
@@ -144,7 +146,7 @@ const EXPORTS = {};
           const pending = !g.done;
           return (
             <button key={g.id} onClick={() => onPick(g.id)} aria-current={sel ? 'true' : undefined}
-              aria-label={g.name + ' — ' + (pending ? 'still to play' : 'done for today')}
+              aria-label={g.name + ' — ' + (pending ? 'your turn' : 'played')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 6px', WebkitAppearance: 'none', flexShrink: 0, width: 62 }}>
               <span style={{ position: 'relative', display: 'inline-flex', borderRadius: 14, padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : 'none', transition: 'box-shadow .18s' }}>
                 <GDMark g={g} size={38}></GDMark>

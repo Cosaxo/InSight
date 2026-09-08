@@ -10,7 +10,8 @@
 // reads a minute rather than two a view.
 //
 // WHAT IT SHOWS, AND WHAT IT NEVER WILL. Exactly the numbers every
-// signed-in user reads on the card and in the buyer's room — the public
+// signed-in user reads on the answered card (and read in the buyer's room
+// until D430 took that room out of the app) — the public
 // aggregate, `counts` and the bought dims' rows of `by`. Never an answer
 // row, never a uid, never a name but the buyer's own chosen one. The page
 // is the same fold the app draws, rendered as one screen; it is not a

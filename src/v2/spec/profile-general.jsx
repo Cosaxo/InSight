@@ -517,11 +517,10 @@ const EXPORTS = {};
 
   // ── Logic gets its own card — a timed skill test, not a personality profile ──
   // The buyer's shelf ("You asked") stood here until D368 took the
-  // purchase funnel out of the binary. What the account can still see
-  // of its own purchases lives in ui/AskedByYouOverlay.tsx, which is
-  // untouched: it reads this account's own purchase docs and the same
-  // public aggregates everyone reads — already the reader shape, which
-  // is why shape A was cheap.
+  // purchase funnel out of the binary, and the room it opened onto
+  // (ui/AskedByYouOverlay.tsx) left at D430 with the rest of the paid
+  // family. A buyer's reading is the results page on the web, whose
+  // address the answered card copies.
 
   function LogicCard() {
     const lg = LOGIC.load();

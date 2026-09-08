@@ -134,8 +134,13 @@ than being cut out of a mixed file.
 - **`src/v2/ui/AskedByYouOverlay.tsx` is untouched.** It carries no
   purchase CTA at all (checked, not assumed): it reads this account's
   own purchase docs and the same public aggregates everyone reads. That
-  is already the reader shape, which is why A is cheap.
-- `src/v2/ui/CurSwitch.tsx` stays — AskedByYou renders it too.
+  is already the reader shape, which is why A is cheap. **Gone since
+  D430 (2026-09-08)**: the owner's upload took the whole paid family out
+  of the prototype and the owner said so in words — the room, its store
+  (`data/purchases.ts`) and `CurSwitch` left the app; the results page
+  on the web is a buyer's reading.
+- `src/v2/ui/CurSwitch.tsx` stays — AskedByYou renders it too. *(Left
+  with the room, D430.)*
 - **A legacy tail to scope:** `SgMine` also draws the old free-suggestion
   rows (`status: 'picked'`, `onResend`). Decide whether those rows have
   anything left to show before deleting their only surface.

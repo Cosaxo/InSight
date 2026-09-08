@@ -262,11 +262,9 @@ export function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, po
 // Used on person profiles where vertical space is precious. `aligns` lets the
 // caller pin each card's % to the numbers it shows elsewhere; `extra` appends
 // custom slides ({kind,title,sub,align,body}).
-export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
-  const [idx, setIdx] = React.useState(0);
-  const railRef = React.useRef(null);
-  if (!pop) return null;
-  const who = label || pop.label || 'them';
+// One slide per assessment the two of you both have a result for, plus the
+// caller's extras — shared by the carousel and the list below (2026-09-08).
+function cbSlides(pop, who, aligns = {}, extra = []) {
   const slides = [];
   CB_ASSESS.forEach(a => {
     const R = IS_TEST_RESULTS[a.kind];
@@ -283,6 +281,15 @@ export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns =
     });
   });
   extra.forEach(s => slides.push(s));
+  return slides;
+}
+
+export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
+  const [idx, setIdx] = React.useState(0);
+  const railRef = React.useRef(null);
+  if (!pop) return null;
+  const who = label || pop.label || 'them';
+  const slides = cbSlides(pop, who, aligns, extra);
   if (!slides.length) return null;
 
   const step = (el) => (el.firstElementChild ? el.firstElementChild.getBoundingClientRect().width + 10 : el.clientWidth);
@@ -328,5 +335,54 @@ export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns =
   );
 }
 
+// ── list variant (2026-09-08 standalone, D430): the same slides as an
+//    accordion sorted by alignment, one open at a time — the person's page's
+//    Match tab, where a swipeable rail fought the page's own swipe between
+//    tabs. Each row: title · sub · the alignment figure · the glyph · a
+//    chevron; the open row's body is the slide's. The you / them key sits
+//    under the list once rather than under every card.
+export function CompareList({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
+  const who = label || (pop && pop.label) || 'them';
+  const slides = pop ? cbSlides(pop, who, aligns, extra).sort((a, b) => b.align - a.align) : [];
+  const [open, setOpen] = React.useState(() => (slides[0] ? slides[0].kind : null));
+  if (!slides.length) return null;
+  const legendTxt = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: CB_INK, letterSpacing: '0.09em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 6 };
+  return (
+    <div>
+      <div style={{ borderTop: '0.5px solid var(--rule)' }}>
+        {slides.map((s) => {
+          const on = open === s.kind;
+          return (
+            <div key={s.kind} style={{ borderBottom: '0.5px solid var(--rule)' }}>
+              <button className="press" onClick={() => setOpen(on ? null : s.kind)} aria-expanded={on} style={{
+                display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 52, padding: '8px 0',
+                border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left',
+                WebkitAppearance: 'none', appearance: 'none',
+              }}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 15, fontWeight: on ? 700 : 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>{s.title}</span>
+                  {s.sub ? <span style={{ display: 'block', marginTop: 1, fontFamily: 'var(--sans)', fontSize: 11.5, color: CB_INK }}>{s.sub}</span> : null}
+                </span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: accent, fontVariantNumeric: 'tabular-nums' }}>{s.align}</span>
+                <CBAlignGlyph align={s.align} accent={accent} />
+                <span aria-hidden="true" style={{
+                  width: 7, height: 7, flexShrink: 0, marginLeft: 2,
+                  borderRight: '1.5px solid var(--ink-3)', borderBottom: '1.5px solid var(--ink-3)',
+                  transform: on ? 'translateY(2px) rotate(-135deg)' : 'translateY(-2px) rotate(45deg)',
+                  transition: 'transform 0.22s var(--ease-out)',
+                }}></span>
+              </button>
+              {on ? <div className="fade-in" style={{ paddingBottom: 18 }}>{s.body}</div> : null}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+        <span style={legendTxt}><span style={{ width: 11, height: 11, borderRadius: 99, background: accent }}></span>you</span>
+        <span style={legendTxt}><span style={{ width: 11, height: 11, borderRadius: 99, background: cbSoft(accent, 52) }}></span>{who}</span>
+      </div>
+    </div>
+  );
+}
 
 ;globalThis.CBAlignGlyph = typeof CBAlignGlyph === 'undefined' ? globalThis.CBAlignGlyph : CBAlignGlyph;

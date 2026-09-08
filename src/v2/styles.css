@@ -916,9 +916,10 @@ button.card:active,
    turns both off — they carry no information the still frame lacks. */
 .sg-rise { animation: sgRise 0.44s var(--ease-out) both; }
 @keyframes sgRise { from { opacity: 0; transform: translateY(10px); } }
-.sg-tick { transform-origin: bottom; animation: sgTick 0.5s var(--ease-spring) both; }
-@keyframes sgTick { from { transform: scaleY(0.15); } }
-@media (prefers-reduced-motion: reduce) { .sg-rise, .sg-tick { animation: none !important; } }
+/* .sg-tick (the paid door's day-strip pop) left with the door: the 2026-09-08
+   sweep measured it referenced by nothing (D430). .sg-rise stays — the
+   walkthrough's pages rise in on it. */
+@media (prefers-reduced-motion: reduce) { .sg-rise { animation: none !important; } }
 @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
 
 /* Vote reveals — result settles in, bars grow, chips pop.
@@ -1291,6 +1292,25 @@ button.card:active,
    25px beside two 32px round buttons, the topic chips 27px. */
 .pm-chip { min-height: 31px; box-sizing: border-box; }
 .wf-chip { min-height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; }
+/* The small round controls, grown the same way but by CLASS (2026-09-08
+   standalone, D430): the header's 32px .icon-btn and .avatar-btn, the map's
+   30px zoom buttons, and the tab bar's three stops (33px drawn) each reach
+   44px through a pseudo-element that changes nothing you can see. Class-
+   sized, so check:tap-targets cannot read them — this comment is the
+   gate's own rule for that case (its header names them). .mmt-card-x has
+   carried the same box since it was found at 26px. */
+.icon-btn, .avatar-btn, .mmt-zoomctl button, .tab-btn { position: relative; }
+.icon-btn::after, .avatar-btn::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+.mmt-zoomctl button::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
+.tab-btn::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); border-radius: 999px; }
+/* The ⓘ: the Patterns lens explainer since D391, and the person's page's
+   "what the names mean" since D430 — 28px drawn (an ink hairline, no fill,
+   the serif i), 44px to the finger through its pseudo. Here rather than in
+   ui/patterns.css because the person overlay can open before the Patterns
+   chunk, and its sheet, has ever loaded. */
+.pt-info { position: relative; flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid color-mix(in oklch, var(--ink) 38%, transparent); background: transparent; box-shadow: none; color: var(--ink); font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0 0 1px; -webkit-appearance: none; transition: background .18s, color .18s, border-color .18s; }
+.pt-info::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; }
+.pt-info.is-on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 
 /* 13 · Motion honesty. Three animations were still playing under a
    reduce-motion request: the duel tile filling to its share, the first-run
@@ -2186,4 +2206,20 @@ button.card:active,
 @media (prefers-reduced-motion: reduce) {
   .pp-choice { transition: border-color 0.15s ease; }
   .pp-choice:hover { transform: none; }
+}
+
+/* 14 · One switch honours reduced motion for everything the app animates
+   (the 2026-09-08 standalone, D430). The targeted rules above each name
+   what they turn off, and none of them reaches an animation set inline —
+   the daily cards' popIn, the pulse tints, the ink-in delays — so this
+   reaches everything under the root at once. Durations go to a hundredth
+   of a millisecond rather than `none` on purpose: `animationend` still
+   fires, so a sheet whose dismissal waits on its slide still unmounts. */
+@media (prefers-reduced-motion: reduce) {
+  #root *, #root *::before, #root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

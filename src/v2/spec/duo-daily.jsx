@@ -74,7 +74,7 @@ let DuoDomainsImpl;
           const sel = p.id === cur;
           return (
             <button key={p.id} onClick={() => onPick(p.id)} aria-current={sel ? 'true' : undefined}
-              aria-label={first(p) + ' — ' + (invited ? 'invited, waiting' : pending ? 'still to play' : 'done for today')}
+              aria-label={first(p) + ' — ' + (invited ? 'invited, waiting' : pending ? 'your turn' : 'waiting on ' + first(p))}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 7px', WebkitAppearance: 'none', flexShrink: 0 }}>
               <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : pending ? `0 0 0 1.5px color-mix(in oklch, ${ACC} 45%, transparent)` : '0 0 0 1px var(--rule)', transition: 'box-shadow .18s' }}>
                 <GDAv p={p} size={38} plain></GDAv>
@@ -193,7 +193,7 @@ let DuoDomainsImpl;
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 13 }} key="inv">
           <GDAv p={p} size={52}></GDAv>
           <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 21, letterSpacing: -0.4 }}>Waiting for {first(p)}</div>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', maxWidth: 250, textWrap: 'pretty' }}>Invite sent — unlocks when they accept.</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', maxWidth: 250, textWrap: 'pretty' }}>Invite sent — your first round opens when they accept.</div>
           <button className="press" onClick={() => DUELS.cancelDuo(pid)} style={{ border: LINE, background: 'var(--surface)', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, padding: '8px 18px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Cancel invite</button>
         </div>
       );

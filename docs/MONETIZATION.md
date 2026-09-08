@@ -105,8 +105,9 @@ as its bare domain only after a person has answered, opened in the system
 browser, and counted by nobody (the review reads the address; the app
 never fetches it) — the **results page** (D379, `functions/src/share.ts`
 at the hosting rewrite `/q/{qid}`): the same public numbers as one web
-page anyone can open, which the buyer's room and the answered card copy
-the address of — and `sponsor` as a provenance source `check:quality` holds in both
+page anyone can open, which the answered card copies the address of (the
+in-app buyer's room did too, until D430 took it out with the rest of the
+paid family) — and `sponsor` as a provenance source `check:quality` holds in both
 directions. Since D228 the buyer may be an **individual** as well as a
 company, and the printed name is the buyer's to wear or omit — the word
 PAID is not: the band renders from the sponsor block's presence, because

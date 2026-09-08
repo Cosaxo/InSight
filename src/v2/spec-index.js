@@ -527,7 +527,7 @@ export const loadMirrorTab = retryable(async () => {
 export const loadOverlays = retryable(async () => {
   // The Mirror's family first (D355): three members of this group read
   // Mirror globals at render — profile-general's MirrorFieldBody and
-  // LENSES, profile-overlay's LensesPanel, person-overlay's CompareCarousel
+  // LENSES, profile-overlay's LensesPanel, person-overlay's CompareList
   // — so no overlay may be able to open before that chunk has landed.
   // Memoised, so this is the prewarm's own promise when main.jsx got here
   // first, and the fetch itself when a tap did.

@@ -46625,3 +46625,138 @@ against until a full sync.
 every cited path resolving), `check:figures`, `test:scripts` — this PR
 is documents and provenance only, so the client suites are untouched by
 construction.
+
+## D430 · The owner rules on the 09-08 plan: the paid family leaves with the buyer's room, the person's page is four tabs, the polish pass lands — and a group is not a circle
+
+**2026-09-08.** **Status:** binding. The owner read the 2026-09-08 plan
+(D429) and answered in one message: *"here there is a misunderstanding
+group and circle is not the same. implement these: The paid family
+leaves the prototype, including the buyer's room. The person's page
+becomes four tabs (Match, Answers, Together, Map) with a swipe between
+them, and a grid of topic-hued dots for shared answers. A polish pass:
+44px hit slack, one reduced-motion switch, one shared timer for lazy
+cards, a CSS sweep, copy cuts."* Three of the plan's five moves are
+therefore built on the same branch (`claude/new-visuals-implementation-7927k8`),
+one owner row is answered, and one reading in the plan is corrected.
+
+### The correction: a group is not a circle
+
+`VISION-2026-09-08.md` §2 read the design's *Groups · 1v1s* ruler as a
+RENAME of the app's *Circle · 1v1* — the same stop wearing a new word —
+and planned a vocabulary sweep that reached `web/privacy.html`. The
+owner's first sentence says that reading is wrong: a **group** (a named
+room that plays rounds) and a **circle** (your friends — the follow
+graph, D101, the Mirror's Circle stop) are two different things, not
+one thing with two names. What the design's ruler says is that the
+daily's second stop draws GROUPS. What the app's ruler says today is
+*Circle*. Whether that label changes, and to what, is a decision about
+the app's vocabulary the plan has no standing to make on its own — it
+goes to `OWNER-LIST.md` as a question, the sweep step is withdrawn, and
+§2 is rewritten to say the two things apart. Nothing in the tree moved
+on it.
+
+### What is built
+
+- **The paid family leaves, and the buyer's room with it.** The owner's
+  word answers the plan's §7.2 row: `ui/AskedByYouOverlay.tsx`, its
+  store `data/purchases.ts`, the currency switch `ui/CurSwitch.tsx` (the
+  room was its last consumer) and their suites are deleted; the shell's
+  lazy mount and the `openAskedByYou` door in `data/nav.ts` are gone;
+  the account sheet's *Asked by you* row and its one session-cached
+  purchases query are gone; `scripts/quote-copy.test.mjs`, whose only
+  subject was the room's figures, retires with it. **D368 is amended by
+  this**: its *"the app keeps the results room"* no longer holds — a
+  buyer's reading is the results page on the web (`/q/{qid}`, D379),
+  whose address the answered card still copies. What does NOT move:
+  `v2_purchases` and its rule (the webhook and `record-purchase.mjs`
+  still write it, erasure still deletes it, the inventory row stands),
+  `data/pricing.ts` (the rate card's client store — no consumer in the
+  app now, kept because `check:content` and `check:pricing` describe it
+  and it is where the currency preference lives if a price is ever
+  printed in the app again), and `COSTS.md` loses its *One buyer's-room
+  open* row.
+- **The person's page is four tabs.** `spec/person-overlay.jsx` is
+  redrawn from the standalone: a smaller hero carrying the answers' lead
+  sentence, then *Match* (`CompareList` in `spec/compare-breakdown.jsx`
+  — the instruments as an accordion sorted by alignment; the carousel
+  stays for its other consumers), *Answers* (a `listbox` of one 44 px
+  option per shared question, seven across, filled in the topic's hue
+  for the same answer and ringed for a split, the first split selected,
+  the tapped one read in a card), *Together* (the 1v1 tile with the
+  record's figure and the pair's named type, the type's line behind an
+  ⓘ, group tiles two across with the members clustered, the reading as
+  two `MatchRing`s over the domain runs) and *Map* (the person's own
+  still — `own` on `spec/person-mindmap.jsx` drops a locked answer
+  rather than dimming it and draws no same / differ — and the full
+  map's key now says what the full map encodes: *with the crowd · a
+  rarer take*, which the old key had wrong). `useSubSwipe` in
+  `spec/primitives.jsx` is the swipe: a 66 px throw on the overlay's
+  body steps the tab, a short drag springs back, a sideways wheel steps
+  once per gesture; the profile overlay's sub-tabs take the same hook.
+  The tiles' figure prints *rounds*, the unit the product counts in
+  since D426, over the demo engine's count. **Still the demo page**: it
+  opens from the demo surfaces alone and folds from the sample people;
+  the live page over a real person's answers is the plan's §4.6 and
+  stays open. The two friends-only sentences the plan's §4.5 refused
+  are written on the demo page after all, because the demo map already
+  said *N details hidden · friends see everything* about its own sample
+  data before this build; the refusal stands for the LIVE page, where
+  D98 applies and the owner row is unanswered.
+- **The polish pass.** 44 px hit slack by pseudo-element on `.icon-btn`,
+  `.avatar-btn`, `.tab-btn`, the map's zoom buttons, `.pt-pop` (with
+  `.pt-pops` trading 7 px of padding for the same negative margin) and
+  `.pt-info`, each commented beside `.tap44` in `styles.css` §12 and
+  named in `check-tap-targets.mjs`'s header as the class-sized cases the
+  gate cannot read; `.pt-info` itself redrawn at 28 px on an ink
+  hairline and moved from `ui/patterns.css` into `styles.css`, because
+  the person's page reuses it and can open before the Patterns chunk
+  ever loads; one reduced-motion switch (§14) at `0.01ms` over
+  everything under `#root`, stacked on the 27 targeted rules; `Lazy`'s
+  per-card intervals collapsed into one shared timer (`lazyWatch`,
+  pinned: twelve pending cards hold one interval and the last cleanup
+  clears it) with the scroll check under `requestAnimationFrame`; the
+  feed's sticky head hides through a ref (`setHeadHidden`) instead of a
+  `setState` that re-rendered the whole feed on every scroll flip; a 12
+  px floor on avatar initials in the daily bodies; and the sweep and
+  the cuts below.
+- **The CSS sweep, measured again.** The plan's §6.1 said the tree
+  carried no dead twin of the prototype's sweep; measured with an exact
+  class-token search rather than a substring one, it carried **three**:
+  `.sg-tick` with its `sgTick` keyframes (the paid door's day-strip pop,
+  referenced by nothing since D368) and `.pt-dot`. Deleted. `.pt-slide-*`
+  survive because `PatternsTab.tsx` builds the class name at runtime,
+  which a token search cannot see and a substring search over-counted —
+  the reason the plan's first measurement said *nothing*.
+- **The copy cuts** (D182): `TraitWebCard`'s caption to *A stretched
+  amber thread is a pattern you break*; Kindred's sub-line to *Strangers
+  most like you.*; the feed's rating hint to *1 rough · 10 superb*; the
+  demo rails' labels to *your turn* / *played* / *waiting on Ada*; the
+  invite line to *your first round opens when they accept*. The twelve
+  duel prompts' calendar words are content, not copy, and stay on the
+  worklist for the content lane.
+
+### What this changes elsewhere
+
+`VISION-2026-09-08.md` is marked mixed — three moves built, one
+withdrawn to a question, one open; its §2 is rewritten, §3 and §7.2
+carry the ruling, §6.1 its correction. `WORKLIST.md` ticks the person's
+page (demo), the polish pass and the copy cuts, adds the buyer's room as
+a ticked line, and turns the vocabulary line into an `[owner]` line.
+`OWNER-LIST.md` closes the buyer's-room row with the owner's word and
+adds the label question. `VISUAL-VISION.md` says what is built from the
+vision. Request 5's note says its third surface is drawn on the demo
+page.
+
+### Gates
+
+`test:unit` (2 938, four suites new or rewritten: `person-page-tabs`,
+`play-together`, `lazy-watch`, `person-mindmap-still`'s `own` case),
+`test:scripts` (1 197), `lint`, `tsc -b`, `check:globals` (30 — the
+swipe imports `HAPTIC` rather than reading it off `window`, which was
+the one thing that would have raised it), `check:a11y` (6, unmoved:
+the listbox is options with labels), `check:tap-targets`,
+`check:labels`, `check:panel-suites` (46/46), `check:purge`,
+`check:public-copy`, `check:figures`, `check:docs`, `check:bundle` —
+the shipping build at `2243 KB total / 549 KB eager (max 2440 / 552)`,
+one kilobyte of eager for the slack rules, the switch and the moved
+button, against 548 before.

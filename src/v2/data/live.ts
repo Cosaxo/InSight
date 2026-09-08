@@ -512,8 +512,9 @@ const state = {
   // Set when loadSimilarity throws. `testAggsLoaded` stays false on a
   // throw, which is right — nothing was read — but it makes "failed"
   // indistinguishable from "never asked", and a reader that treats either
-  // as "nobody has answered" states an absence it did not measure. Same
-  // distinction purchases.ts keeps, and for the same reason.
+  // as "nobody has answered" states an absence it did not measure. (The
+  // buyer's room's store kept the same distinction, for the same reason,
+  // until D430 retired it.)
   testAggsFailed: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says

@@ -78,7 +78,7 @@ const MFP_KINDRED_WORLD = [
 function KindredLensCard({ people = MFP_KINDRED }) {
   return (
     <div>
-      <TabSection title="Kindred" sub="strangers most aligned with you — the fuller the ring, the closer" />
+      <TabSection title="Kindred" sub="Strangers most like you." />
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {people.map((p, i) => (

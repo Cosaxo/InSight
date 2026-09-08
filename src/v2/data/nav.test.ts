@@ -28,7 +28,7 @@ beforeEach(() => {
   registerNav({
     goTab: () => {}, goNav: () => true, openOverlay: () => {},
     openProfileTab: () => {}, openCity: () => {}, openPerson: () => {},
-    openAskedByYou: () => {}, openLogicTest: () => {},
+    openLogicTest: () => {},
   })();
 });
 
@@ -43,7 +43,6 @@ describe("before the shell registers", () => {
       NAV.openProfileTab("general");
       NAV.openCity("Oslo");
       NAV.openPerson({ id: 1 });
-      NAV.openAskedByYou();
       NAV.openLogicTest();
     }).not.toThrow();
   });
@@ -64,27 +63,27 @@ describe("registration", () => {
   });
 
   it("is additive, so a second effect does not wipe the first", () => {
-    // app-shell's real shape: `openAskedByYou`/`openLogicTest` register in
-    // an effect keyed on `openDeferred`, the rest in a mount-only one. A
-    // whole-object set would drop whichever registered first.
+    // app-shell's real shape: `openLogicTest` registers in an effect keyed
+    // on `openDeferred`, the rest in a mount-only one. A whole-object set
+    // would drop whichever registered first.
     const goTab = vi.fn();
-    const openAskedByYou = vi.fn();
+    const openLogicTest = vi.fn();
     registerNav({ goTab });
-    registerNav({ openAskedByYou });
+    registerNav({ openLogicTest });
     NAV.goTab("you");
-    NAV.openAskedByYou();
+    NAV.openLogicTest();
     expect(goTab).toHaveBeenCalled();
-    expect(openAskedByYou).toHaveBeenCalled();
+    expect(openLogicTest).toHaveBeenCalled();
   });
 
   it("tears down only its own keys", () => {
     const goTab = vi.fn();
-    const openAskedByYou = vi.fn();
+    const openLogicTest = vi.fn();
     registerNav({ goTab });
-    const dropAsked = registerNav({ openAskedByYou });
-    dropAsked();
+    const dropLogic = registerNav({ openLogicTest });
+    dropLogic();
 
-    expect(canNav("openAskedByYou")).toBe(false);
+    expect(canNav("openLogicTest")).toBe(false);
     expect(canNav("goTab"), "the other effect's door was torn down too").toBe(true);
     NAV.goTab("you");
     expect(goTab).toHaveBeenCalled();

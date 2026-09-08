@@ -383,8 +383,8 @@ audience bought and the breakdown by those dims, the window, the PAID
 mark, the buyer's link as its domain — rendered server-side by
 `functions/src/share.ts` on the admin SDK, cached five minutes, with
 the security headers a page under `web/` carries. A *share results*
-control in the buyer's room and on the answered card copies the
-address. The payoff a buyer points at; every post is the app's own
+control on the answered card copies the address (the buyer's room
+carried one too, until D430 took the room out of the app). The payoff a buyer points at; every post is the app's own
 advertisement. The privacy page says the page exists and never names
 who answered, pinned by `check:policy-claims`.
 

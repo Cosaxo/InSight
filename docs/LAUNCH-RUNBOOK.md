@@ -2344,7 +2344,8 @@ That is a tester-count problem, not a workflow problem.
       `spec/suggestions.*`, `data/suggestions.ts` and `data/paidBookings.ts`;
       two `smoke-live` assertions are inverted from present to absent, so
       the door cannot come back without a red suite. `AskedByYouOverlay`
-      and `CurSwitch` are kept for the web page. Three callables now have
+      and `CurSwitch` are kept for the web page. *(Both left at D430,
+      2026-09-08, on the owner's word — the results page is the reading.)* Three callables now have
       no caller — retiring them is an `OWNER-LIST.md` row, not free.
 
       **What is still owed:** the web page itself. The design is extracted

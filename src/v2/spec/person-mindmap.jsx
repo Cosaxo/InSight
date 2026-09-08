@@ -175,7 +175,11 @@ function pmmBuild(p) {
 // every answer dot carries the ONE thing a profile is for: solid where the two
 // of you said the same, hollow where you diverged, faint where there's nothing
 // to compare. Tapping the still opens this same map full-screen and live.
-function PersonMindMap({ p, following, centerName, still }) {
+// `own` (2026-09-08 standalone, D430) makes the still the PERSON'S map rather
+// than a comparison: the same / differ colouring is not drawn, and a locked
+// answer is left out instead of dimmed — the Map tab's portrait, not the
+// affinity's.
+function PersonMindMap({ p, following, centerName, still, own }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   const built = useMemo(() => pmmBuild(p), [p && p.id, following]);
   const allCats = built.CATS, nodes0 = built.nodes, seed = built.seed, counts = built.counts;
@@ -742,7 +746,9 @@ function PersonMindMap({ p, following, centerName, still }) {
             if (!pt) return null;
             const cat = catOf(n);
             const isHid = hidden(n);
-            const sz = n.sub ? 9 : n.daily ? (still ? 15 : 12.5) : 11 + pmmHash(seed + n.id) * 3;
+            if (isHid && still && own) return null;
+            const cmp = still && !own;
+            const sz = n.sub ? 9 : n.daily ? (cmp ? 15 : 12.5) : 11 + pmmHash(seed + n.id) * 3;
             const showLab = !still && !n.quiet && labKeep.has(n.id);
             const labL = (pt.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             const dim = !inHl(n);
@@ -750,11 +756,11 @@ function PersonMindMap({ p, following, centerName, still }) {
               <button
                 type="button"
                 key={n.id}
-                className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (sel === n.id ? ' is-sel' : '') + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (labL ? ' is-labL' : '') + (!still && n.daily && !n.maj ? ' is-rare' : '') + (still && n.same === false ? ' is-differ' : '')}
+                className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (sel === n.id ? ' is-sel' : '') + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (labL ? ' is-labL' : '') + (!still && n.daily && !n.maj ? ' is-rare' : '') + (cmp && n.same === false ? ' is-differ' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
                   width: sz, height: sz,
-                  opacity: isHid ? 0.22 : (still && !n.sub && n.same == null ? 0.3 : undefined),
+                  opacity: isHid ? 0.22 : (cmp && !n.sub && n.same == null ? 0.3 : undefined),
                   pointerEvents: isHid ? 'none' : undefined,
                   transform: `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}

@@ -401,9 +401,10 @@ tab on the person's page: a wide 1v1 tile with the pair as a cluster,
 a 26 px figure over *rounds* and the pair's type, its line behind an ⓘ;
 group tiles two across with the members clustered and *N people*; and
 the reading as two rings (*you read Ada* / *Ada reads you*) over the
-clustered domain runs (`VISION-2026-09-08.md` §4.1, its steps 4–5).
-The tiles' figures are the fold this plan names; the call still gates
-what the type says.
+clustered domain runs (`VISION-2026-09-08.md` §4.1, its steps 4–5). **Built on the demo page
+2026-09-08 (D430)** — the tiles, the ⓘ and the rings are in
+`spec/person-overlay.jsx`; the live page, and what its types say, still
+wait on the call.
 
 - **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
   (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
@@ -835,7 +836,8 @@ what the type says.
   anonymous uid cannot be reached from another browser, so the buyer's
   campaign would be invisible in their own app — and
   `AskedByYouOverlay` is exactly the surface that stays in the app after
-  the door leaves. **A purchase you cannot come back to is not a
+  the door leaves (it left too at D430; the results page `/q/{qid}` is
+  where a buyer comes back to). **A purchase you cannot come back to is not a
   purchase**, least of all one that refunds 29 days later. And it must
   not lose the ask: `linkWithPopup` upgrades an anonymous user **in
   place**, so a booking written under the anonymous web uid keeps its id

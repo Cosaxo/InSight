@@ -16,6 +16,7 @@
 // counts what is left.
 import React from 'react';
 import { pushBackLayer } from '../data/backLayers';
+import { HAPTIC } from './haptics.js';
 
 // Shared primitives — small components used across tabs
 const { useState, useEffect, useMemo, useRef } = React;
@@ -83,6 +84,24 @@ export function TabSection({ title, sub, art }) {
 // `minHeight` so the scrollbar doesn't lurch, and mounts ~700px early so the
 // user almost never sees the placeholder while scrolling. Uses a scroll-rect
 // check (IntersectionObserver with a custom root is unreliable in this host).
+// One shared fallback timer for every pending Lazy card (2026-09-08
+// standalone, D430). Each card used to own a 400ms setInterval until it
+// showed, and a long feed mounts dozens at once — dozens of timers ticking
+// dozens of getBoundingClientRect calls. Now the pending checks sit in one
+// set behind one interval, which starts with the first card and stops with
+// the last. Exported for the suite that counts the intervals.
+const LAZY_PENDING = new Set();
+let lazyTimer = null;
+export function lazyWatch(fn) {
+  LAZY_PENDING.add(fn);
+  if (!lazyTimer) lazyTimer = setInterval(() => { LAZY_PENDING.forEach((f) => f()); }, 400);
+  return () => {
+    LAZY_PENDING.delete(fn);
+    if (!LAZY_PENDING.size && lazyTimer) { clearInterval(lazyTimer); lazyTimer = null; }
+  };
+}
+export const lazyPendingCount = () => LAZY_PENDING.size;
+
 export function Lazy({ minHeight = 240, children }) {
   const ref = React.useRef(null);
   const [show, setShow] = React.useState(false);
@@ -102,19 +121,123 @@ export function Lazy({ minHeight = 240, children }) {
     };
     if (check()) return;
     const target = sp || window;
-    const onScroll = () => { if (check()) cleanup(); };
+    // the scroll check runs once per frame, not once per scroll event, and
+    // `dead` stops a frame that was queued before cleanup from checking a
+    // card that has already shown or unmounted
+    let ticking = false, dead = false;
+    const onScroll = () => {
+      if (ticking || dead) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; if (!dead && check()) cleanup(); });
+    };
     target.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    const iv = setInterval(() => { if (check()) cleanup(); }, 400);
+    const unwatch = lazyWatch(() => { if (check()) cleanup(); });
     function cleanup() {
+      dead = true;
       target.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      clearInterval(iv);
+      unwatch();
     }
     return cleanup;
   }, [show]);
   if (show) return children;
   return <div ref={ref} style={{ minHeight }} aria-hidden="true" />;
+}
+
+// ─── a horizontal swipe between an overlay's sub-tabs (2026-09-08
+//     standalone, D430). A drag of 66px on the overlay's body steps the
+//     tab in the direction of travel; the panel follows the finger at 0.7
+//     and springs back below the throw; a horizontal wheel steps it too.
+//     Things that own their own horizontal gesture keep it — SVGs and
+//     canvases, the scrollers, the sub-nav rail itself, the mind map, the
+//     compare rail, fields, and anything marked [data-nopan]. Bound once
+//     per body element; the live tab and its setter ride a ref so the
+//     listeners never go stale. This is an overlay's own axis: the daily
+//     ruler's swipe and D166's `goNav` joint are not involved. ───
+export const SUBSWIPE_SKIP = 'svg, canvas, .h-scroll, .subnav, .mmt-swipe, .mmt-root, .cb-rail, [data-nopan], input, textarea, [type=range]';
+export function useSubSwipe(bodyRef, panelRef, ids, cur, set) {
+  const live = useRef(null);
+  // refreshed in an effect, not assigned during render: the latter is a
+  // react-hooks/refs error, and the rule is right (see Sheet below)
+  useEffect(() => { live.current = { ids, cur, set }; });
+  useEffect(() => {
+    const sc = bodyRef.current;
+    if (!sc || sc._subSwipe) return;
+    sc._subSwipe = true;
+    const T = () => panelRef.current;
+    const step = (dir) => {
+      const L = live.current;
+      if (!L) return false;
+      const i = L.ids.indexOf(L.cur), ni = i + dir;
+      if (i < 0 || ni < 0 || ni >= L.ids.length) return false;
+      HAPTIC.tick();
+      const b = T();
+      if (b) {
+        b.style.transition = 'transform 0.17s ease, opacity 0.17s ease';
+        b.style.transform = 'translateX(' + (dir > 0 ? -34 : 34) + 'px)';
+        b.style.opacity = '0';
+      }
+      setTimeout(() => L.set(L.ids[ni]), 150);
+      return true;
+    };
+    const spring = () => {
+      const b = T();
+      if (!b) return;
+      b.style.transition = 'transform 0.25s cubic-bezier(0.2,0.9,0.2,1), opacity 0.25s ease';
+      b.style.transform = 'translateX(0)';
+      b.style.opacity = '1';
+    };
+    let sx = 0, sy = 0, dx = 0, horiz = null, dragging = false;
+    const onStart = (e) => {
+      const t = e.touches[0];
+      if (e.target.closest && e.target.closest(SUBSWIPE_SKIP)) { dragging = false; return; }
+      sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true;
+      const b = T();
+      if (b) b.style.transition = 'none';
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const t = e.touches[0], mx = t.clientX - sx, my = t.clientY - sy;
+      if (horiz === null && (Math.abs(mx) > 9 || Math.abs(my) > 9)) horiz = Math.abs(mx) > Math.abs(my) * 1.4;
+      if (!horiz) return;
+      e.preventDefault();
+      dx = mx;
+      const b = T();
+      if (b) {
+        b.style.transform = 'translateX(' + (mx * 0.7) + 'px)';
+        b.style.opacity = String(1 - Math.min(Math.abs(mx) / 520, 0.4));
+      }
+    };
+    const onEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      if (horiz && Math.abs(dx) > 66) { if (!step(dx < 0 ? 1 : -1)) spring(); } else spring();
+    };
+    let lock = false;
+    const onWheel = (e) => {
+      if (e.target.closest && e.target.closest(SUBSWIPE_SKIP)) return;
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) + 4) return;
+      e.preventDefault();
+      if (lock || Math.abs(e.deltaX) < 24) return;
+      lock = true;
+      step(e.deltaX > 0 ? 1 : -1);
+      setTimeout(() => { lock = false; }, 650);
+    };
+    sc.addEventListener('touchstart', onStart, { passive: true });
+    sc.addEventListener('touchmove', onMove, { passive: false });
+    sc.addEventListener('touchend', onEnd);
+    sc.addEventListener('touchcancel', onEnd);
+    sc.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      sc._subSwipe = false;
+      sc.removeEventListener('touchstart', onStart);
+      sc.removeEventListener('touchmove', onMove);
+      sc.removeEventListener('touchend', onEnd);
+      sc.removeEventListener('touchcancel', onEnd);
+      sc.removeEventListener('wheel', onWheel);
+    };
+  }, [bodyRef, panelRef]);
 }
 
 // ─── a ring that IS the match figure — arc sweep = how alike you are.

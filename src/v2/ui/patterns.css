@@ -49,21 +49,25 @@
    on. The facts line and the oracle's progress track retired into the
    instruments — the Map's hub and the Oracle's kicker say the numbers. */
 .pt-sub{min-height:44px;display:flex;align-items:center}
-.pt-pops{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:1px 0}
+/* .pt-pops clips its children (overflow-x:auto), so the pops' 44px hit band
+   below trades 7px of padding for the same negative margin — same place on
+   the page, room for the pseudo inside the clip box (2026-09-08, D430) */
+.pt-pops{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:7px 0;margin:-7px 0}
 .pt-pops>*{flex-shrink:0}
-.pt-pop{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:12px;font-weight:650;padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.pt-pop{position:relative;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:12px;font-weight:650;padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.pt-pop::after{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%);border-radius:999px}
 .pt-pop em{font-style:normal;font-size:12px;font-weight:750;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .pt-pop.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .pt-pop.is-on em{color:color-mix(in oklch,var(--surface),transparent 25%)}
-.pt-dot{width:7px;height:7px;border-radius:999px;flex:none}
 .pt-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px}
 .pt-meta .pt-pops{flex:none;justify-content:flex-end}
 /* the ⓘ: the lens explainer, on demand. 44px for the same reason as
    .pt-topic below — class-sized, so check-tap-targets cannot see it, and
    measured here so the next reader knows it was. (The design draws it at
    32; the repo's tap floor wins, as it did for the topic pill.) */
-.pt-info{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-3);font-family:var(--serif);font-style:italic;font-size:15px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 0 2px;-webkit-appearance:none;transition:background .18s,color .18s,border-color .18s}
-.pt-info.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+/* .pt-info — the lens explainer's ⓘ — lives in styles.css §12 since D430:
+   the person's page reuses it, and that overlay can open before this sheet
+   has ever loaded */
 /* the oracle's 1·2·3, under the guide only (2026-09-06) */
 .or2-how{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
 .or2-how>span{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;text-align:center;font-family:var(--sans);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}

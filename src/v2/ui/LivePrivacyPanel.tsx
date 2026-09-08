@@ -18,8 +18,6 @@
 // publication left for check:globals rule 5 to hold.
 import React from "react";
 import LIVE, { localName } from "../data/live";
-import NAV from "../data/nav";
-import { loadMine as loadPurchases, mine as myPurchases, subscribePurchases } from "../data/purchases";
 import Avatar from "./Avatar";
 // The handle is a FACT here, never a control (D211). The claim control
 // this panel carried for accounts that predate D190's first-run screen
@@ -99,15 +97,6 @@ function LivePrivacyPanel() {
   // where the store is, which is the honest place for it.
   const pol = LIVE.politicalConsented();
   const [confirmPol, setConfirmPol] = React.useState(false);
-  // whether this account holds any purchase — decides the room's door row
-  // below (one session-cached mine-only query; empty for almost everyone)
-  React.useEffect(() => {
-    if (!LIVE.enabled) return;
-    const un = subscribePurchases(() => tick((t) => t + 1));
-    void loadPurchases().catch(() => { /* no row, which is the true state we can show */ });
-    return un;
-  }, []);
-  const bought = LIVE.enabled && (myPurchases() || []).length > 0;
   if (!LIVE.enabled) return null;
 
   // The three outcomes worth a sentence, and "removed" is the one that
@@ -360,17 +349,10 @@ function LivePrivacyPanel() {
         })}
       </LpRow>
 
-      {/* The buyer's room's door — the account sheet is its natural home
-          (PAID-PLAN §7, D288). Rendered only for an account that HAS
-          purchases: the buying path's own door is the composer, and a
-          standing row about contracts almost nobody holds is furniture.
-          One session-cached mine-only query decides it. */}
-      {bought && (
-        <LpRow title="Asked by you"
-          sub="Your paid questions and their reports — live public numbers, nothing private.">
-          {btn("Open →", () => NAV.openAskedByYou())}
-        </LpRow>
-      )}
+      {/* The buyer's room's door stood here from D288 to D430 — a row shown
+          only to an account holding a purchase. The room left the app with
+          the rest of the paid family; a buyer's reading is the results page
+          on the web, whose address the answered card copies. */}
 
       {/* THE POLITICAL COMPASS, AND WHY IT IS A ROW RATHER THAN A SETTING
           (D331). The app folds ordinary feed answers into a six-axis
