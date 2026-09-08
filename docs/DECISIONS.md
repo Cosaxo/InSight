@@ -45896,3 +45896,104 @@ Revert the commits with D424's. Nothing is stranded: no question
 carries `sub` in the bank, so the generator's output is byte-identical
 with or without the emission, the ledger is empty, and the ring's
 ratchet reads the count that is there.
+
+## D426 · The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way
+
+**2026-09-08.** **Status:** binding, built. The owner, the day the path
+in merged: *"build the removal path too"*.
+
+D424 made creation cheap and D425 said where it lands; both left removal
+impossible and said so under *What this does NOT do*. That asymmetry
+compounds — every room opened under the evidence rule would be a room
+that could never be wrong — and it is the reason the old "never create"
+rule had felt safe: a taxonomy nobody can add to is one nobody has to
+prune.
+
+### The principle
+
+**A room is retired by FOLDING its questions into another room, never by
+deleting them.** Answers are public (D98) and immutable but for one edit
+shape (D86); every daily answer is filed on somebody's Map by its
+question's branch; a learn card mastered is a dot under its field. A
+deleted question is an orphaned answer, and the app's product is the
+link between answers. So a fold rewrites where a question is *met* —
+`cat`, `sub`, `alts` or `f` — and nothing else about it. This is the
+same posture the banks already take toward a single question
+(`active: false`, never a deletion), one level up.
+
+### The decisions
+
+**1 · What licenses a fold differs by level, on purpose.**
+
+| Room | Licence | Why this and not the other |
+| --- | --- | --- |
+| a leaf | **thin** — stock under its floor — or the owner's word | feed leaves are not levelled by their lane (`feed-budget.mjs` counts topics), so a thin leaf has two futures, fill or fold; and the fold is free — dropping `sub` leaves every question the parent's |
+| a top | **silence** — the lane's own demand signal readable (past `DEMAND_MIN_ANSWERS`) and the room's share under `RETIRE_SHARE` (0.1) of an even share — or the owner's word | *thin* is not a signal for a top: the lane levels tops thinnest-first, so a thin top gets filled, never retired; and while the crowd is too small to read (34 feed answers today), a top-level fold is the owner's, because the alternative is retiring content on noise |
+| a hub | the owner's, both directions | D425 |
+
+A top with leaves under it folds **after** its leaves, each with its own
+row — a leaf re-parented in passing is a placement nobody argued.
+`retireVerdict` in `scripts/topic-budget.mjs` is the arithmetic;
+`demandReading` turns the lane's `laneSignal` weights into a share, and
+a blind signal reads as *no share*, never as silence.
+
+**2 · What a fold moves, and what it costs** — stated because the daily
+one is not free. A feed leaf: strip `sub`, into is the parent always,
+costs nothing. A learn field: `f` → a field of the **same** subject,
+because the Map files mastered cards under `lrn-<subject>` and a
+cross-subject fold would move them between hubs, which is a top-level
+move. A feed topic: `cat` → into, doors onto it dropped or replaced,
+palette row + wire row + `WF_BRANCH` caption gone; feed answers do not
+file on the Map tab, so what moves is where the cards are met and the
+demand credit. **A daily top moves answers on every user's Map** — the
+archive rows' `cat[0]` (and alts) → into, and the `CAT_META` row, the
+hub's `cats` entry and the `FALLBACK` row go — which is why a daily fold
+takes the owner's word or a real crowd's silence, never a run's
+tidiness.
+
+**3 · `check:taxonomy` rule 7 makes "retired" mean retired.** The
+ledger gains `retirements` (proposals) and `retired` (done). For every
+retired id the gate walks every site — a row on any list (palette, wire
+topics, wire channels, subtopics as id or parent, `CAT_META`, subjects,
+fields), every question met through it (feed `cat`/`sub`/`also`, learn
+`f`/subject, daily `cat[0]`/alts), the hub's `cats`, the caption table,
+the anchor fallbacks, and every ledger row pointing at it — and fails a
+fold that stopped part way, naming each site. A proposed retirement is
+held to its `into`: present, not itself, at the right level, on the same
+surface, a feed leaf's parent, a learn field's sibling, never a format
+or `now`. A `created` row keeps its history once the id is in `retired`.
+A retired id or label is never reused: the proposal rules already
+refuse a rename.
+
+**4 · Three orphan rules the fold made worth stating**, all true today
+and each with a test that breaks them: every learn card's `f` is a live
+field (nothing checked this — `checkLearnFields` measures difficulty
+span, not membership); the wire's `channels` are wire topics; and the
+daily's `FALLBACK` table in `map-anchors.js` keys **exactly** `CAT_META`'s
+tops, both directions. The last one found a **site D425 had missed for
+creation**: a daily top written at every site D425 named and not there
+reads no anchor fallback, silently. `TOPS.daily.sites` names it now.
+
+**5 · Hard rule 2 gains its fourth carve-out.** A fold rewrites `cat`,
+`sub`, `alts` or `f` on existing rows — not an append — and nothing
+else about them; the verdict states the rewrite and the gate bounds it.
+
+### What this does NOT do
+
+- **No room is retired here.** `retirements` and `retired` ship empty.
+  On this tree the feed's three demo leaves are at 0 live stock — under
+  the floor — and would read as *thin* the day a run proposes them;
+  nothing proposes them, because they are the demo's furniture and the
+  live bank tags nothing yet.
+- **Device follows are not a signal.** A leaf's follow state lives in
+  `localStorage` (`insight.subtopics.v1`), not on the server, so
+  "nobody follows it" cannot be read. Stock and answers are what the
+  tree can measure.
+- **A retired daily top's answers keep their old `branch` on already
+  seeded docs** until the next seed run rewrites them; the Map re-files
+  on the next boot after that. Stated so the lag is a known limit.
+
+### Reversal
+
+Revert the commit. The ledger's two lists are empty, the gate's rule 7
+walks nothing, and the orphan rules read the tree that is there.

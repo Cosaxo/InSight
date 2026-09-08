@@ -10,7 +10,8 @@ import { describe, it, expect } from "vitest";
 import {
   leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
   loadTops, loadLeaves, loadLedger, loadRing, isPlaced, feedPageCost, parentDeficitOf,
-  EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, TOPS, LEAVES, SURFACES,
+  retireVerdict, demandReading,
+  EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, RETIRE_SHARE, TOPS, LEAVES, SURFACES,
 } from "./topic-budget.mjs";
 import { TOP_FLOOR, RUN_CAP as DAILY_CAP } from "./farm-budget.mjs";
 import { TOPIC_FLOOR, RUN_CAP as FEED_CAP } from "./feed-budget.mjs";
@@ -214,5 +215,89 @@ describe("the tree it actually runs on", () => {
     const led = loadLedger();
     expect(Array.isArray(led.proposals)).toBe(true);
     expect(Array.isArray(led.created)).toBe(true);
+  });
+});
+
+describe("retireVerdict — fold, never delete (D426)", () => {
+  const leaf = { level: "leaf", surface: "feed", id: "sub_tennis", into: "sport", intoExists: true, stock: 3, floor: LEAF_FLOOR };
+  const top = { level: "top", surface: "feed", id: "culture", into: "people", intoExists: true, stock: 30, floor: TOPIC_FLOOR };
+  const readable = { mode: "demand", weights: { culture: 0.001, people: 0.5, sport: 0.499 }, note: "" };
+
+  it("folds a thin feed leaf into its parent — the free fold", () => {
+    const v = retireVerdict(leaf);
+    expect(v.retire).toBe(true);
+    expect(v.licence).toMatch(/thin/);
+    expect(v.reason).toMatch(/strip `sub: "sub_tennis"`/);
+    expect(v.reason).toMatch(/world-subtopics\.js/);
+  });
+
+  it("keeps a stocked leaf unless the owner says", () => {
+    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR }).retire).toBe(false);
+    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR }).blockers[0]).toMatch(/a stocked leaf stays/);
+    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR, ownerSaid: true }).retire).toBe(true);
+  });
+
+  it("a feed leaf folds only into its own parent", () => {
+    const v = retireVerdict({ ...leaf, into: "food", intoExists: false });
+    expect(v.retire).toBe(false);
+    expect(v.blockers[0]).toMatch(/own parent/);
+  });
+
+  it("never deletes: no `into`, or `into` itself, is refused", () => {
+    expect(retireVerdict({ ...leaf, into: undefined }).blockers[0]).toMatch(/never deleted/);
+    expect(retireVerdict({ ...leaf, into: "sub_tennis" }).blockers[0]).toMatch(/itself/);
+  });
+
+  it("thin is NOT a licence for a top — the lane fills it", () => {
+    const v = retireVerdict({ ...top, stock: 2 });
+    expect(v.retire).toBe(false);
+    expect(v.blockers[0]).toMatch(/blind/);
+    expect(v.blockers[0]).toMatch(/never on a run's tidiness/);
+  });
+
+  it("a top folds on a real crowd's silence", () => {
+    const { share, evenShare } = demandReading(readable, "culture", ["culture", "people", "sport"]);
+    expect(share).toBeLessThan(RETIRE_SHARE * evenShare);
+    const v = retireVerdict({ ...top, signal: readable, share, evenShare });
+    expect(v.retire).toBe(true);
+    expect(v.licence).toMatch(/nobody answers it/);
+    expect(v.reason).toMatch(/rewrite `cat: "culture"` → "people"/);
+    expect(v.reason).toMatch(/WF_BRANCH/);
+  });
+
+  it("a top the crowd answers stays, even when the signal is readable", () => {
+    const { share, evenShare } = demandReading(readable, "people", ["culture", "people", "sport"]);
+    const v = retireVerdict({ ...top, id: "people", into: "culture", signal: readable, share, evenShare });
+    expect(v.retire).toBe(false);
+    expect(v.blockers[0]).toMatch(/the crowd answers it/);
+  });
+
+  it("a blind signal reads as no share, never as silence", () => {
+    expect(demandReading({ mode: "blind", weights: null, note: "x" }, "culture", ["culture"])).toEqual({ share: null, evenShare: null });
+    expect(demandReading(readable, "nowhere", ["culture", "people", "sport"]).share).toBe(0);
+  });
+
+  it("folds the leaves before the parent", () => {
+    const v = retireVerdict({ ...top, ownerSaid: true, leaves: 2 });
+    expect(v.retire).toBe(false);
+    expect(v.blockers[0]).toMatch(/fold the leaves first/);
+  });
+
+  it("the owner's word licenses a top with the signal blind, and says what a daily fold costs", () => {
+    const v = retireVerdict({ level: "top", surface: "daily", id: "Travel", into: "Interests", intoExists: true, stock: 10, floor: TOP_FLOOR, ownerSaid: true });
+    expect(v.retire).toBe(true);
+    expect(v.reason).toMatch(/answers move branch on every user's Map/);
+    expect(v.reason).toMatch(/map-anchors\.js/);
+  });
+
+  it("a learn field folds within its subject", () => {
+    const v = retireVerdict({ level: "leaf", surface: "learn", id: "gene", into: "solar", intoExists: false, stock: 3, floor: FIELD_FLOOR });
+    expect(v.retire).toBe(false);
+    expect(v.blockers[0]).toMatch(/same subject/);
+    expect(retireVerdict({ level: "leaf", surface: "learn", id: "gene", into: "cell", intoExists: true, stock: 3, floor: FIELD_FLOOR }).retire).toBe(true);
+  });
+
+  it("the daily's FALLBACK table is a site a creating run must write", () => {
+    expect(TOPS.daily.sites.some((x) => /map-anchors\.js/.test(x))).toBe(true);
   });
 });

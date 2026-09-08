@@ -59,9 +59,13 @@ nothing, loudly, if no topic is thin.
    in `content/topic-proposals.json` and, when `npm run topic:budget` says
    to create, writes the category at every site that regulator names —
    which for the feed is two files and for the daily is `CAT_META` plus
-   the archive entries that stock it. That carve-out is bounded by
-   `check:taxonomy`, which fails a category written at some of its sites
-   and not the others. Everything else under `content/` stays
+   the archive entries that stock it. Fourth (D426): when that regulator
+   says RETIRE, the run FOLDS the room — rewriting `cat`, `sub`, `alts`
+   or `f` on existing rows so their questions are met elsewhere, and
+   nothing else about them — and removes every site the verdict names.
+   Both carve-outs are bounded by `check:taxonomy`, which fails a
+   category written at some of its sites and not the others, and a
+   retired one found at any. Everything else under `content/` stays
    untouchable.
 3. **The You map's ring is fixed; the taxonomies grow, by ARITHMETIC.**
    Reversed at D424 and shaped at D425, on the owner's direction: the
@@ -1530,9 +1534,11 @@ written on the question and never created.
    verdict's `write` count of new ones, and append the row to the
    ledger's `created` with the PR number. For a learn field: the row in
    `fields`, cards with `f` set. For a top: every site the verdict names
-   — the daily's `CAT_META` row AND its hub's `cats` entry, the feed's
-   palette row AND wire row AND `WF_BRANCH` caption, a learn `subjects`
-   row — with `hueFor()` for the colour. `check:taxonomy` fails a
+   — the daily's `CAT_META` row AND its hub's `cats` entry AND its
+   `FALLBACK` row in `map-anchors.js` (the anchor readings its questions
+   fall back to — a top without one reads nothing), the feed's palette
+   row AND wire row AND `WF_BRANCH` caption, a learn `subjects` row —
+   with `hueFor()` for the colour. `check:taxonomy` fails a
    half-written room at either level and `check:quality` a tag under
    the wrong parent.
 6. Log it on issue #31 as usual, with the verdict line verbatim.
@@ -1552,6 +1558,71 @@ real topic this project created, for the reason it was created. The
 numbers are in `topic-budget.mjs`'s header so nobody derives it twice.
 Distinctness is the run's argument in the PR body; the gate is on the
 consequences.
+
+## Retiring a room — fold, never delete (D426)
+
+Creation without removal compounds: every room opened under the
+evidence rule would be a room that could never be wrong. The path out
+is the mirror of the path in — a proposal in the ledger, a verdict from
+`npm run topic:budget`, every site written in one PR, a gate that fails
+a job stopped part way.
+
+**The principle: a room is retired by FOLDING its questions into another
+room, never by deleting them.** Answers are public and immutable but for
+one edit shape (D86); every daily answer is filed on somebody's Map; a
+deleted question is an orphaned answer. So a fold rewrites where a
+question is *met* — its `cat`, `sub` or `f` — and nothing else about it.
+
+**What licenses a fold, per level — the levels differ on purpose:**
+
+- **A leaf that is thin** (under its floor: 12 for a feed subtopic).
+  Feed leaves are not levelled by their lane, so a thin leaf has exactly
+  two futures — fill it this run, or fold it — and the fold is free:
+  dropping `sub` leaves every question exactly where it was, the
+  parent's. A learn field folds into a field of the *same* subject,
+  because the Map files mastered cards under `lrn-<subject>` and a
+  cross-subject fold would move them between hubs.
+- **A top that nobody answers.** The lane's own demand signal, once
+  readable (past `DEMAND_MIN_ANSWERS`, 100 credited answers), and the
+  room's share under `RETIRE_SHARE` (a tenth) of an even share. *Thin*
+  is not a signal for a top — the lane levels tops thinnest-first, so a
+  thin top gets filled, never retired. While the crowd is too small to
+  read, a top-level fold is **the owner's word**: a date in the ledger
+  row's `owner`.
+- **The owner's word** licenses either level at any time.
+- **A top with leaves under it folds after its leaves** — each leaf its
+  own row; a leaf re-parented in passing is a placement nobody argued.
+
+**What a fold moves, and what it costs:**
+
+| Room | The fold | Sites removed | Cost |
+| --- | --- | --- | --- |
+| feed subtopic | strip `sub` (into = the parent, always) | `WORLD_SUBTOPICS` row | none |
+| learn field | cards' `f` → into, same subject | `fields` row | mastered cards move sub-branch, same hub |
+| feed topic | questions' `cat` → into; doors onto it dropped or replaced | palette row · wire row · `WF_BRANCH` caption | where the cards are met, and the demand credit — feed answers do not file on the Map tab |
+| daily top | archive rows' `cat[0]` (and alts) → into | `CAT_META` row · the hub's `cats` entry · `FALLBACK` row | **answers move branch on every user's Map** — which is why this one takes the owner's word or a real crowd's silence, never a run's tidiness |
+| hub | the owner's, both directions (D425) | branches re-hubbed first; `GROUPS_TODAY` moved in the same PR | the ring |
+
+**The procedure, per run:**
+
+1. Notice. A leaf under its floor in `topic:budget`'s summary line; a top
+   the demand line says nobody answers; a row the owner wrote. Add a row
+   to the ledger's `retirements`: `id`, `level`, `surface`, `parent` (a
+   leaf's), `into`, `reason`, and `owner` if it is the owner's word.
+2. Run `npm run topic:budget`. RETIRE names the licence and the fold;
+   HOLD names what is missing — no `into`, the wrong `into`, leaves
+   still under it, a stocked leaf nobody has ruled on, a top the crowd
+   still answers or a signal too blind to read.
+3. On RETIRE, in the same PR: the fold (the rewrite the verdict states,
+   on every row that carries the id), every site the verdict names, and
+   the row moved from `retirements` to `retired` with the PR number and
+   the licence. `check:taxonomy` rule 7 fails a retired id found at any
+   site — a row on a list, a question still met through it, a hub entry,
+   a caption, an anchor fallback, a ledger row pointing at it.
+4. Log it on issue #31 with the verdict line verbatim.
+
+A retired id is never reused: the ledger keeps it, and a proposal
+carrying a retired id or label fails the gate as a rename.
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 

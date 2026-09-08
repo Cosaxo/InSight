@@ -373,8 +373,9 @@ Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
 written at every site or not at all — the feed's palette against its
 wire list, `CAT_META` against `map-branches.js`, the leaf lists, the
 You map's ring, and the proposal ledger the lanes grow the tree from:
-the ring's hubs stay as they are and every new topic on any surface
-lands in one, D424/D425), `check:public-copy` (the retired
+the ring's hubs stay as they are, every new topic on any surface
+lands in one, and a retired room is at no site — folded, never
+deleted, D424–D426), `check:public-copy` (the retired
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —

@@ -34,6 +34,9 @@ describe("the tree as it ships", () => {
     expect(s.feedQuestions.length).toBeGreaterThan(0);
     expect(s.groups.length).toBe(GROUPS_TODAY);
     expect(Object.keys(s.ripples).length).toBeGreaterThan(0);
+    expect(Object.keys(s.fallback).length).toBeGreaterThan(0);
+    expect(s.dailyQuestions.length).toBeGreaterThan(0);
+    expect(s.learnCards.length).toBeGreaterThan(0);
   });
 });
 
@@ -265,5 +268,83 @@ describe("6 · the ring", () => {
     fires((s) => s.ledger.proposals.push(proposal({ surface: "feed", nearest: "sport", group: "Gaming" })), /a WF_BRANCH target/);
     expect(errs((s) => s.ledger.proposals.push(proposal()))).toEqual([]);
     expect(errs((s) => s.ledger.proposals.push(proposal({ group: "g-people" })))).toEqual([]);
+  });
+});
+
+describe("7 · retirement is complete, and nothing is orphaned", () => {
+  const retired = (over = {}) => ({ id: "sub_tennis", level: "leaf", surface: "feed", into: "sport", retiredAt: "2026-09-08", ...over });
+
+  it("catches a retired leaf still on the list, and one still tagged", () => {
+    fires((s) => s.ledger.retired.push(retired()), /still at WORLD_SUBTOPICS/);
+    fires((s) => {
+      s.subtopics = s.subtopics.filter((l) => l.id !== "sub_tennis");
+      s.feedQuestions[0].sub = "sub_tennis";
+      s.ledger.retired.push(retired());
+    }, /still at a feed question's sub/);
+  });
+
+  it("accepts a leaf retired at every site — and its created row keeps its history", () => {
+    const e = errs((s) => {
+      s.subtopics = s.subtopics.filter((l) => l.id !== "sub_tennis");
+      s.ledger.created.push({ id: "sub_tennis", level: "leaf", surface: "feed", parent: "sport", label: "Tennis" });
+      s.ledger.retired.push(retired());
+    });
+    expect(e).toEqual([]);
+  });
+
+  it("catches a retired feed topic left at any of its sites", () => {
+    const gone = (s) => {
+      s.palette = s.palette.filter((t) => t.id !== "culture");
+      s.wire = s.wire.filter((t) => t.id !== "culture");
+      delete s.ripples.culture;
+      for (const q of s.feedQuestions) { if (q.cat === "culture") q.cat = "people"; if (Array.isArray(q.also)) q.also = q.also.filter((a) => a !== "culture"); }
+    };
+    fires((s) => s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })), /still at WORLD_TOPICS/);
+    fires((s) => { gone(s); s.ripples.culture = "Values"; s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })); }, /still at WF_BRANCH/);
+    fires((s) => { gone(s); s.feedQuestions[0].also = ["culture"]; s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })); }, /still at a feed question's also/);
+    fires((s) => { gone(s); s.wireChannels.push("culture"); s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })); }, /still at feed-questions.json channels/);
+    expect(errs((s) => { gone(s); s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })); }).filter((m) => /culture/.test(m))).toEqual([]);
+  });
+
+  it("catches a retired daily top left in a hub, in FALLBACK, or on an archive row", () => {
+    const gone = (s) => {
+      delete s.catMeta.Travel;
+      delete s.fallback.Travel;
+      for (const g of s.groups) g.cats = g.cats.filter((c) => c !== "top-travel");
+      for (const q of s.dailyQuestions) {
+        if (q.cat?.[0] === "Travel") q.cat = ["Interests", q.cat[1]];
+        if (Array.isArray(q.alts)) q.alts = q.alts.map((a) => (a?.[0] === "Travel" ? ["Interests", a[1]] : a));
+      }
+    };
+    const row = { id: "Travel", level: "top", surface: "daily", into: "Interests", retiredAt: "2026-09-08" };
+    fires((s) => { gone(s); s.groups[1].cats.push("top-travel"); s.ledger.retired.push(row); }, /still at a hub's cats/);
+    fires((s) => { gone(s); s.fallback.Travel = []; s.ledger.retired.push(row); }, /still at map-anchors FALLBACK/);
+    fires((s) => { gone(s); s.dailyQuestions[0].alts = [["Travel", "x"], ["Mind", "y"]]; s.ledger.retired.push(row); }, /still at an archive row's alts/);
+    expect(errs((s) => { gone(s); s.ledger.retired.push(row); }).filter((m) => /Travel/.test(m))).toEqual([]);
+  });
+
+  it("catches a retired learn field still carried by a card", () => {
+    fires((s) => {
+      s.learnFields = s.learnFields.filter((f) => f.id !== "gene");
+      s.ledger.retired.push({ id: "gene", level: "leaf", surface: "learn", into: "cell", retiredAt: "2026-09-08" });
+    }, /still at a learn card's f|is not a live field/);
+  });
+
+  it("a proposed retirement names a real room and a real `into` at the right level", () => {
+    fires((s) => s.ledger.retirements.push({ id: "sub_padel", level: "leaf", surface: "feed", parent: "sport", into: "sport" }), /nothing to retire/);
+    fires((s) => s.ledger.retirements.push({ id: "sub_tennis", surface: "feed", parent: "sport", into: "food" }), /folds into its own parent/);
+    fires((s) => s.ledger.retirements.push({ id: "culture", surface: "feed", into: "culture" }), /is the room itself/);
+    fires((s) => s.ledger.retirements.push({ id: "culture", surface: "feed" }), /never deleted/);
+    fires((s) => s.ledger.retirements.push({ id: "culture", surface: "feed", into: "fav" }), /a format or `now`/);
+    fires((s) => s.ledger.retirements.push({ id: "gene", surface: "learn", parent: "biology", into: "solar" }), /same subject/);
+    fires((s) => s.ledger.retirements.push({ id: "culture", surface: "feed", into: "people", owner: "yes" }), /the date the owner said so/);
+    expect(errs((s) => s.ledger.retirements.push({ id: "culture", surface: "feed", into: "people", owner: "2026-09-08", reason: "x" }))).toEqual([]);
+  });
+
+  it("holds the three orphan rules on the tree that ships", () => {
+    fires((s) => { s.learnCards[0].f = "nowhere"; }, /is not a live field/);
+    fires((s) => s.wireChannels.push("nowhere"), /is not a wire topic/);
+    fires((s) => { delete s.fallback.Music; }, /has no FALLBACK row/);
+    fires((s) => { s.fallback.Gaming = []; }, /is not a CAT_META top/);
   });
 });

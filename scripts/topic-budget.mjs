@@ -95,11 +95,11 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TOP_FLOOR, RUN_CAP as DAILY_CAP, loadDailyTops } from "./farm-budget.mjs";
+import { TOP_FLOOR, RUN_CAP as DAILY_CAP, loadDailyTops, farmSignal } from "./farm-budget.mjs";
 // LANE_EXCLUDED is deliberately NOT imported: loadFeedTopics already drops
 // it, so a parent the lane cannot stock (`now`) is never counted as thin.
-import { TOPIC_FLOOR, RUN_CAP as FEED_CAP, loadFeedTopics } from "./feed-budget.mjs";
-import { FIELD_FLOOR, RUN_CAP as LEARN_CAP, loadLearnFields } from "./learn-budget.mjs";
+import { TOPIC_FLOOR, RUN_CAP as FEED_CAP, loadFeedTopics, feedSignal } from "./feed-budget.mjs";
+import { FIELD_FLOOR, RUN_CAP as LEARN_CAP, loadLearnFields, learnSignal } from "./learn-budget.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -139,6 +139,7 @@ export const TOPS = {
     sites: [
       "src/v2/spec/daily-cats.js (CAT_META)",
       "src/v2/spec/map-groups.js (the hub's cats — never the silent World default)",
+      "src/v2/spec/map-anchors.js (FALLBACK — the anchor readings a top's questions fall back to)",
     ],
   },
   learn: {
@@ -414,6 +415,119 @@ export function parentDeficitOf(surface, parent, tops, leaves) {
   return null;
 }
 
+// ── retirement (D426): fold, never delete ──
+//
+// WHY A PATH OUT EXISTS. D424 and D425 made creation cheap and left removal
+// impossible — a room that stopped earning its place had nowhere to go, and
+// the ledger had nowhere to say so. That asymmetry compounds: every room
+// created under the evidence rule was a room that could never be wrong.
+// The owner asked for the path out the day the path in merged.
+//
+// THE PRINCIPLE: a room is retired by FOLDING its questions into another
+// room, never by deleting them. Answers are public and immutable but for one
+// edit shape (D86), every daily answer is filed on somebody's Map, and a
+// deleted question is an orphaned answer. So a fold rewrites where a
+// question is MET — its `cat`, `sub` or `f` — and nothing else about it, and
+// the ledger's `retired` list is what makes "retired" mean retired:
+// check:taxonomy rule 7 fails a retired id found at any site.
+//
+// WHAT LICENSES A FOLD, per level — and the levels differ on purpose:
+//   · a LEAF that is thin (stock under its floor). Feed leaves are not
+//     levelled by their lane, so a thin leaf has exactly two futures — fill
+//     it this run or fold it — and the fold is free: dropping `sub` leaves
+//     every question exactly where it was, the parent's.
+//   · a TOP that nobody answers: the lane's own demand signal readable
+//     (laneSignal, past DEMAND_MIN_ANSWERS) and the room's share under
+//     RETIRE_SHARE of an even share. "Thin" is NOT a signal for a top — the
+//     lane levels tops thinnest-first, so a thin top gets filled, never
+//     retired. While the crowd is too small to read, a top-level fold is
+//     the OWNER'S word: a date in the ledger row.
+//   · the owner's word licenses either level at any time — D334's ask, the
+//     other way round: the ruling, recorded where the run reads it.
+//   · a top with leaves under it is folded AFTER its leaves (a blocker): a
+//     leaf re-parented in passing is a placement nobody argued.
+//
+// WHAT A FOLD MOVES, and what it costs:
+//   · feed leaf → strip `sub`; `into` is the parent, always. Costs nothing.
+//   · learn field → the cards' `f` → into, a field of the SAME subject: the
+//     Map files mastered cards under lrn-<subject>, so a cross-subject fold
+//     moves them between hubs — a top-level move, the owner's.
+//   · feed topic → the questions' `cat` → into; a door onto it is dropped,
+//     or replaced by into where into is not already carried; the palette
+//     row, the wire row and the WF_BRANCH caption go. Feed answers do not
+//     file on the Map tab, so what moves is where the cards are met, and
+//     the demand credit.
+//   · daily top → the archive rows' cat[0] (and any alts) → into; the
+//     CAT_META row, the hub's `cats` entry and the FALLBACK row go. THIS
+//     ONE MOVES ANSWERS ON EVERY USER'S MAP — a daily answer is filed by its
+//     question's branch and the branch is gone — which is why a daily fold
+//     takes the owner's word or a real crowd's silence, never a run's
+//     tidiness.
+//   · a HUB is the owner's in both directions (D425): branches re-hubbed
+//     first, GROUPS_TODAY moved in the same PR.
+export const RETIRE_SHARE = 0.1;
+
+//   into        the room the questions fold into
+//   intoExists  whether it exists at the right level, on the same surface,
+//               and (feed leaf) is the parent / (learn field) shares the subject
+//   stock       the room's stock; floor its level's floor
+//   leaves      leaves still under a top (must be 0)
+//   ownerSaid   the ledger row carries the owner's dated word
+//   signal      the lane's laneSignal result, or null; share the room's share
+//               of its weights; evenShare 1/N — the demand half of a licence
+export function retireVerdict({ level, surface, id, into, intoExists, stock, floor, leaves = 0, ownerSaid = false, signal = null, share = null, evenShare = null }) {
+  const s = level === "leaf" ? LEAVES[surface] : TOPS[surface];
+  if (!s) throw new Error(`topic-budget: no ${level} on surface ${JSON.stringify(surface)}`);
+  const blockers = [];
+  if (!into) blockers.push("no `into` — a room is folded into another, never deleted; name where its questions go");
+  else if (into === id) blockers.push("`into` is the room itself");
+  else if (!intoExists) {
+    blockers.push(level === "leaf" && surface === "feed"
+      ? `\`into\` must be the leaf's own parent — a leaf's questions are already the parent's, and the fold just drops the tag`
+      : level === "leaf"
+        ? `\`into\` must be a ${s.noun} of the same ${s.parentNoun} — across ${s.parentNoun}s is a move between hubs, the owner's`
+        : `\`into\` is not a ${surface} ${s.noun} that exists`);
+  }
+  if (leaves > 0) blockers.push(`${plural(leaves, "leaf")} still under it — fold the leaves first, each with its own row`);
+  const thin = stock < floor;
+  const readable = signal && signal.mode !== "blind";
+  const silent = readable && share !== null && evenShare !== null && share < RETIRE_SHARE * evenShare;
+  const licence = ownerSaid ? "the owner's word"
+    : level === "leaf" && thin ? `thin: ${stock} of ${floor}, and a ${surface} ${s.noun} its lane does not level has two futures — fill it this run, or fold`
+    : level === "top" && silent ? `nobody answers it: ${(share * 100).toFixed(1)}% of the crowd's share against an even ${(evenShare * 100).toFixed(1)}% (under ${RETIRE_SHARE} of even)`
+    : null;
+  if (!licence) {
+    blockers.push(level === "leaf"
+      ? `no licence: it is at ${stock} of ${floor} (not thin) and the owner has not said — a stocked leaf stays`
+      : readable
+        ? `no licence: the crowd answers it (${share === null ? "share unread" : (share * 100).toFixed(1) + "%"} against an even ${evenShare === null ? "?" : (evenShare * 100).toFixed(1) + "%"}) and the owner has not said`
+        : `no licence: the demand signal is blind (${signal ? signal.note : "no signal"}) and the owner has not said — a top folds on a real crowd's silence or the owner's word, never on a run's tidiness`);
+  }
+  const fold = level === "leaf" && surface === "feed" ? `strip \`sub: "${id}"\` from every feed question carrying it (they stay ${into}'s)`
+    : level === "leaf" ? `rewrite \`f: "${id}"\` → "${into}" on every card`
+    : surface === "feed" ? `rewrite \`cat: "${id}"\` → "${into}" on every feed question; drop each \`also\` door onto it (or replace with "${into}" where not already carried)`
+    : surface === "daily" ? `rewrite cat[0] "${id}" → "${into}" on every archive row, and every alt naming it — answers move branch on every user's Map`
+    : `rewrite each field's subject "${id}" → "${into}"`;
+  return {
+    retire: blockers.length === 0,
+    licence,
+    blockers,
+    reason: blockers.length === 0
+      ? `retire it — ${licence}. Fold: ${fold}; then remove every site: ${s.sites.join(" · ")}; then move the row from \`retirements\` to \`retired\` with the PR`
+      : blockers[0],
+  };
+}
+
+/** The demand reading a retirement licence needs: the lane's own signal over
+ * its own rows, the room's share of the weights, and an even share. Null
+ * share when the room has no weight — which, with the signal readable, is
+ * the strongest silence there is. */
+export function demandReading(signal, id, rowIds) {
+  if (!signal || signal.mode === "blind" || !signal.weights) return { share: null, evenShare: null };
+  const sum = Object.values(signal.weights).reduce((n, w) => n + w, 0) || 1;
+  return { share: (signal.weights[id] ?? 0) / sum, evenShare: 1 / Math.max(1, rowIds.length) };
+}
+
 // ── CLI ──
 const invokedDirectly =
   process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -474,6 +588,50 @@ if (invokedDirectly) {
     } else {
       console.log("    HOLD:");
       for (const b of v.blockers) console.log(`      · ${b}`);
+    }
+  }
+  const retirements = ledger.retirements ?? [];
+  if (retirements.length) {
+    let scorecard = null;
+    try { scorecard = JSON.parse(readFileSync(join(root, "content", "scorecard.json"), "utf8")); } catch { /* absent is a state the signal names */ }
+    console.log(`\n  ${plural(retirements.length, "retirement")} proposed — fold, never delete (D426):`);
+    for (const r of retirements) {
+      const level = levelOf(r);
+      const t = tops[r.surface], l = leaves[r.surface];
+      if (!t) { console.log(`  ${r.surface}/${r.id}: unknown surface — check:taxonomy fails on this`); continue; }
+      let stock = 0, floor = 0, leavesUnder = 0, intoExists = false, signal = null, rowIds = [];
+      if (level === "leaf") {
+        const row = (l ?? []).find((x) => x.id === r.id);
+        stock = row?.stock ?? 0; floor = LEAVES[r.surface]?.floor ?? 0;
+        intoExists = r.surface === "feed" ? r.into === row?.parent
+          : (l ?? []).some((x) => x.id === r.into && x.parent === row?.parent);
+      } else {
+        floor = TOPS[r.surface].floor;
+        if (r.surface === "learn") {
+          const fields = (l ?? []).filter((x) => x.parent === r.id);
+          stock = fields.reduce((n, f) => n + f.stock, 0); leavesUnder = fields.length;
+          const learnJson = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
+          intoExists = learnJson.subjects.some((sj) => sj.id === r.into);
+          const sig = learnSignal(scorecard, loadLearnFields());
+          // a subject's share is its fields' shares summed
+          if (sig.weights) { const w = {}; for (const f of loadLearnFields()) { const fid = learnJson.fields.find((x) => x.id === f.id)?.subject; if (fid) w[fid] = (w[fid] ?? 0) + (sig.weights[f.id] ?? 0); } signal = { ...sig, weights: w }; } else signal = sig;
+          rowIds = learnJson.subjects.map((sj) => sj.id);
+        } else {
+          const row = t.rows.find((x) => x.id === r.id);
+          stock = row?.stock ?? 0;
+          leavesUnder = (l ?? []).filter((x) => x.parent === r.id).length;
+          intoExists = t.rows.some((x) => x.id === r.into);
+          signal = r.surface === "feed" ? feedSignal(scorecard, loadFeedTopics()) : farmSignal(scorecard, await loadDailyTops());
+          rowIds = t.rows.map((x) => x.id);
+        }
+      }
+      const { share, evenShare } = demandReading(signal, r.id, rowIds);
+      const v = retireVerdict({ level, surface: r.surface, id: r.id, into: r.into, intoExists, stock, floor, leaves: leavesUnder,
+        ownerSaid: /^\d{4}-\d{2}-\d{2}/.test(String(r.owner ?? "")), signal, share, evenShare });
+      console.log(`\n  ${r.surface}/${r.id} (${level}) → ${r.into ?? "?"} — ${r.reason ?? "no reason given"}`);
+      console.log(`    stock ${stock} of ${floor}${leavesUnder ? ` · ${plural(leavesUnder, "leaf")} under it` : ""}${r.owner ? ` · owner ${r.owner}` : ""}${signal ? ` · signal: ${signal.mode === "blind" ? "blind" : "readable"}` : ""}`);
+      if (v.retire) console.log(`    RETIRE — ${v.reason}`);
+      else { console.log("    HOLD:"); for (const b of v.blockers) console.log(`      · ${b}`); }
     }
   }
   process.exit(0);

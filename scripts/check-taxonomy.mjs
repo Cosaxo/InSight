@@ -47,6 +47,17 @@
 //      how a new top arrives); every subject feed topic has a WF_BRANCH
 //      caption row that resolves to a branch or a hub, except the one
 //      stated exception; and a top-level proposal names a hub that exists.
+//
+//   7. RETIREMENT is complete (D426 — fold, never delete): a retired id is
+//      at NO site — no row on any list, no question met through it (feed
+//      `cat`/`sub`/`also`, learn `f`/subject, daily `cat[0]`/`alts`), no
+//      hub entry, no caption, no anchor fallback, no ledger row pointing at
+//      it; a proposed retirement names an `into` that exists at its level
+//      and is not itself. And three orphan rules the fold made worth
+//      stating: every learn card's `f` is a live field, the wire's
+//      `channels` are wire topics, and the daily's FALLBACK table keys are
+//      exactly CAT_META's tops (a top created without a fallback row reads
+//      nothing; one retired with the row left behind is the drift class).
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,6 +113,10 @@ export function loadSources() {
     feedQuestions: JSON.parse(read("content", "feed-questions.json")).questions,
     groups: extractLiteral(read("src", "v2", "spec", "map-groups.js"), "const GROUPS = [", "map-groups.js"),
     ripples: extractLiteral(read("src", "v2", "spec", "world-feed.jsx"), "const WF_BRANCH = {", "world-feed.jsx", "{", "}"),
+    fallback: extractLiteral(read("src", "v2", "spec", "map-anchors.js"), "const FALLBACK = {", "map-anchors.js", "{", "}"),
+    dailyQuestions: extractLiteral(read("src", "v2", "spec", "daily-questions.js"), "const Q = [", "daily-questions.js"),
+    learnCards: JSON.parse(read("content", "learn-questions.json")).cards,
+    wireChannels: JSON.parse(read("content", "feed-questions.json")).channels ?? [],
     ledger: JSON.parse(read("content", "topic-proposals.json")),
   };
 }
@@ -122,7 +137,8 @@ export const RIPPLES_TO_INTERESTS = new Set(["now"]);
 export const LEAFLESS = new Set([...["places", "fav"], "now"]);
 
 export function checkTaxonomy(sources = loadSources()) {
-  const { palette, wire, catMeta, seedBranches, learnFields, learnSubjects, subtopics, feedQuestions, groups, ripples, ledger } = sources;
+  const { palette, wire, catMeta, seedBranches, learnFields, learnSubjects, subtopics, feedQuestions, groups, ripples,
+    fallback, dailyQuestions, learnCards, wireChannels, ledger } = sources;
   const errors = [];
   const err = (m) => errors.push(m);
 
@@ -289,7 +305,8 @@ export function checkTaxonomy(sources = loadSources()) {
       continue;
     }
     const exists = levelOf(c) === "leaf" ? knownLeaves[c.surface].has(c.id) : known[c.surface].has(c.id);
-    if (!exists) {
+    const retiredSince = (ledger.retired ?? []).some((r) => r.surface === c.surface && r.id === c.id);
+    if (!exists && !retiredSince) {
       err(`topic-proposals.json records ${c.surface}/${c.id} as created, and no such ${levelOf(c)} exists — `
         + "either the creation was reverted and this row should go, or it was half-written");
     }
@@ -350,6 +367,78 @@ export function checkTaxonomy(sources = loadSources()) {
     }
   }
 
+  // ── 7 · retirement is complete, and nothing is orphaned ──
+  const slugOf = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const hubCats = new Set(groups.flatMap((g) => g.cats ?? []));
+  const fieldIdSet = new Set(learnFields.map((f) => f.id));
+  const wireTopicIds = new Set(wire.map((t) => t.id));
+  for (const r of ledger.retired ?? []) {
+    const where = `topic-proposals.json retired ${JSON.stringify(r.id ?? "(no id)")}`;
+    if (!TOPS[r.surface]) { err(`${where}: unknown surface ${JSON.stringify(r.surface)}`); continue; }
+    const id = r.id;
+    const sites = [];
+    if (r.surface === "feed") {
+      if (paletteById.has(id)) sites.push("WORLD_TOPICS");
+      if (wireById.has(id)) sites.push("feed-questions.json topics");
+      if (wireChannels.includes(id)) sites.push("feed-questions.json channels");
+      if (subtopics.some((l) => l.id === id)) sites.push("WORLD_SUBTOPICS");
+      if (subtopics.some((l) => l.parent === id)) sites.push("WORLD_SUBTOPICS as a parent");
+      if (id in ripples) sites.push("WF_BRANCH");
+      if (feedQuestions.some((q) => q.cat === id)) sites.push("a feed question's cat");
+      if (feedQuestions.some((q) => q.sub === id)) sites.push("a feed question's sub");
+      if (feedQuestions.some((q) => Array.isArray(q.also) && q.also.includes(id))) sites.push("a feed question's also");
+    } else if (r.surface === "daily") {
+      if (id in catMeta) sites.push("CAT_META");
+      if (hubCats.has(`top-${slugOf(id)}`) || (catMeta[id]?.seedId && hubCats.has(catMeta[id].seedId))) sites.push("a hub's cats in map-groups.js");
+      if (id in fallback) sites.push("map-anchors FALLBACK");
+      if (dailyQuestions.some((q) => Array.isArray(q.cat) && q.cat[0] === id)) sites.push("an archive row's cat[0]");
+      if (dailyQuestions.some((q) => Array.isArray(q.alts) && q.alts.some((a) => Array.isArray(a) && a[0] === id))) sites.push("an archive row's alts");
+    } else if (r.surface === "learn") {
+      if (learnSubjects.some((x) => x.id === id)) sites.push("learn subjects");
+      if (fieldIdSet.has(id)) sites.push("learn fields");
+      if (learnFields.some((f) => f.subject === id)) sites.push("a learn field's subject");
+      if (learnCards.some((c) => c.f === id)) sites.push("a learn card's f");
+    }
+    for (const p of ledger.proposals ?? []) {
+      if (p.surface === r.surface && (p.id === id || p.parent === id || p.nearest === id || p.group === id)) sites.push(`proposal ${p.id}`);
+    }
+    for (const x of ledger.retirements ?? []) {
+      if (x.surface === r.surface && (x.id === id || x.into === id)) sites.push(`retirement row ${x.id}`);
+    }
+    if (sites.length) err(`${where}: retired, and still at ${sites.join(", ")} — a fold removes every site (D426); this one stopped part way`);
+    if (!r.into) err(`${where}: no \`into\` — where did its questions go?`);
+  }
+  for (const r of ledger.retirements ?? []) {
+    const where = `topic-proposals.json retirement ${JSON.stringify(r.id ?? "(no id)")}`;
+    if (!TOPS[r.surface]) { err(`${where}: unknown surface ${JSON.stringify(r.surface)}`); continue; }
+    const level = levelOf(r);
+    const live = level === "leaf" ? knownLeaves[r.surface] : known[r.surface];
+    if (!live.has(r.id)) err(`${where}: no such ${level} on ${r.surface} — nothing to retire`);
+    if (!r.into) err(`${where}: no \`into\` — a room folds into another, it is never deleted`);
+    else if (r.into === r.id) err(`${where}: \`into\` is the room itself`);
+    else if (level === "leaf" && r.surface === "feed") {
+      const leaf = subtopics.find((l) => l.id === r.id);
+      if (leaf && r.into !== leaf.parent) err(`${where}: a feed leaf folds into its own parent (${leaf.parent}), not ${JSON.stringify(r.into)}`);
+    } else if (level === "leaf" && r.surface === "learn") {
+      const f = learnFields.find((x) => x.id === r.id), g = learnFields.find((x) => x.id === r.into);
+      if (f && (!g || g.subject !== f.subject)) err(`${where}: a learn field folds into a field of the same subject (${f.subject})`);
+    } else if (!known[r.surface].has(r.into)) {
+      err(`${where}: \`into\` ${JSON.stringify(r.into)} is not a ${r.surface} ${TOPS[r.surface].noun}`);
+    } else if (r.surface === "feed" && LEAFLESS.has(r.into)) {
+      err(`${where}: \`into\` ${r.into} is a format or \`now\` — subject questions do not fold into either`);
+    }
+    if (r.owner !== undefined && !/^\d{4}-\d{2}-\d{2}/.test(String(r.owner))) err(`${where}: \`owner\` is the date the owner said so, not ${JSON.stringify(r.owner)}`);
+  }
+  for (const c of learnCards) {
+    if (!fieldIdSet.has(c.f)) { err(`learn card ${JSON.stringify(c.id)}: f ${JSON.stringify(c.f)} is not a live field — an orphan the Map cannot file`); }
+  }
+  for (const ch of wireChannels) {
+    if (!wireTopicIds.has(ch)) err(`feed-questions.json channels names ${JSON.stringify(ch)}, which is not a wire topic`);
+  }
+  const fbKeys = new Set(Object.keys(fallback));
+  for (const top of Object.keys(catMeta)) if (!fbKeys.has(top)) err(`CAT_META top ${JSON.stringify(top)} has no FALLBACK row in map-anchors.js — its questions fall back to no anchor reading`);
+  for (const k of fbKeys) if (!(k in catMeta)) err(`map-anchors FALLBACK names ${JSON.stringify(k)}, which is not a CAT_META top — a row left behind, or a typo`);
+
   return errors;
 }
 
@@ -365,6 +454,6 @@ if (invokedDirectly) {
     console.error("\nA category is written at every site or not at all (D424).");
     process.exit(1);
   }
-  console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, leaf lists sound, ring held, ledger clean");
+  console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, leaf lists sound, ring held, nothing retired half way, ledger clean");
   process.exit(0);
 }
