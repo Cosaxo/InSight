@@ -84,6 +84,51 @@ const mount = async () => {
   return render(<PulseTrends />);
 };
 
+// ── which thing is short (D146) ─────────────────────────────────────
+//
+// The "not a trend yet" branch is decided on COMPARABLE days — ones you
+// answered where the crowd also cleared PULSE.THIN — while the sentence
+// counts days YOU answered, and the line under it said "Answer again
+// tomorrow and the line starts" whatever the reason.
+//
+// When the crowd is what is short, answering again does nothing: the scope
+// defaults to your city and needs THIN answers PER DAY. So somebody who
+// answered ten days running, every one of them read, was told "10 days in
+// — not a trend yet. Answer again tomorrow."
+describe("PulseTrends · not a trend yet, and whose fault that is", () => {
+  const answerDays = (n: number, over: Record<string, unknown>) => {
+    for (let i = DAYS - n; i < DAYS; i++) {
+      setDay(i, { v: 3 });
+      setScope(i, over);
+    }
+  };
+
+  it("does not tell you to answer again when the CROWD is what is thin", async () => {
+    // Ten days answered, every one of them read, every one under THIN.
+    answerDays(10, { mean: 3.2, n: 6, placed: false, thin: true });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text, "the count is still yours, which is right — you did answer ten days")
+      .toMatch(/10 days in — not a trend yet/);
+    expect(
+      text,
+      "told to answer again on a day the crowd is what is missing",
+    ).not.toMatch(/Answer again tomorrow/);
+    expect(text).toMatch(/the line starts when the crowd fills in/);
+  });
+
+  it("…and DOES tell you to answer again when YOU are what is thin", async () => {
+    // THE CONTROL. Two days answered, both with a full crowd behind them:
+    // the blocker really is you, and the instruction really is the answer.
+    answerDays(2, { mean: 3.2, n: 44, placed: true, thin: false });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/2 days in — not a trend yet/);
+    expect(text, "the one case where answering again is the actual advice")
+      .toMatch(/Answer again tomorrow/);
+  });
+});
+
 describe("PulseTrends · absent is not zero", () => {
   it("says a crowd day has no answers rather than reading it as a score", () => {
     // THE rule. `n: 0, mean: null` must reach the reader as "no answers",
