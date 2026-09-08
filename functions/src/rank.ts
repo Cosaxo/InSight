@@ -325,7 +325,11 @@ export function firestoreRankStore(db: Firestore): RankStore {
       for (let i = 0; i < qids.length; i += 300) {
         const chunk = qids.slice(i, i + 300);
         const refs = chunk.map((qid) => db.collection("v2_question_aggs").doc(qid));
-        const snaps = await db.getAll(...refs);
+        // Two scalars are read; the document also carries the `by`
+        // breakdown — up to ~40 KB — which the wire would otherwise
+        // carry 500+ times a night for nothing. Billed reads are the
+        // same either way (DATA-EFFICIENCY-RUNBOOK 1.2).
+        const snaps = await db.getAll(...refs, { fieldMask: ["total", "counts"] });
         snaps.forEach((snap, j) => {
           if (snap.exists) {
             out.set(chunk[j], {
