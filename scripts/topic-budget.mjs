@@ -1,74 +1,81 @@
 // topic-budget.mjs — when a lane may CREATE a category, as arithmetic
-// (D421), and WHERE in the tree it creates it (D422).
+// (D421), and what on the You map stays fixed while it does (D422).
 //
 // WHY THIS EXISTS. Until D421 the answer was never: "A new category is never
 // created by a run" (QUESTION-FARM.md hard rule 3, restated at D145). The
-// owner reversed it — the lanes create categories now — and then ruled on
-// the shape the same day (D422): "most topics should be subtopics, there
-// should only be a limited number of topics". So the tree has two levels
-// with two different rules:
+// owner reversed it — the lanes create categories now — and then, reading
+// the first two cuts the same day, said what the fixed thing actually is:
+// "the amount of topics shown at the top in the You map should stay
+// roughly the same unless a new one is really needed, but learn, feed,
+// daily — all of these can get new topics."
 //
-//   THE TOP LEVEL IS FIXED. A top-level category — a feed topic, a daily
-//   top, a learn subject — is a chip in the row, a branch on the Map, and
-//   (for the feed) a page of FEED_PAGE reads for every new install, because
-//   feed topics are always-on (D96/D321). TOPS[surface].max is today's
-//   count, and it is the OWNER'S number: the regulator holds a top-level
-//   proposal until the owner raises the constant. The machinery below it
-//   stays whole so that raising it is one edit.
+// So the thing that is fixed is the MAP'S RING, and the thing that grows is
+// the content taxonomies:
 //
-//   THE LEAVES GROW. A subtopic under a levelled parent inherits the
-//   parent's hue (colour = family, world-subtopics.js), adds no chip and no
-//   Map branch, costs a new install no page (leaf cards ride their parent's
-//   page), and is reached by following the parent. Every cost the top level
-//   pays, a leaf does not — which is why the tree is where growth goes.
+//   THE RING IS FIXED. The top of the You map is MAP_GROUPS (map-groups.js)
+//   — eight hubs, six of them answer groups (Self · Taste · Beliefs ·
+//   Knowledge · World · People) and two aims (Foresight · Crossroads).
+//   Branches sit INSIDE hubs and draw only once they hold an answer; a new
+//   hub is the one thing that changes what the ring shows, and that is the
+//   owner's call — "unless a new one is really needed" is a judgement no
+//   arithmetic here makes. check-taxonomy.mjs holds the ring at today's
+//   count as a ratchet the owner moves.
+//
+//   THE TAXONOMIES GROW. A feed topic, a learn subject, a daily top — each
+//   may be created by a lane through the blockers below, with NO cap on
+//   their number. What each must do is LAND IN AN EXISTING HUB, explicitly:
+//   a daily top by an entry in a hub's `cats` (never the silent "unplaced
+//   lands in World" default — a new Family top in World is wrong by
+//   default); a learn subject by its `lrn-` prefix (Knowledge, automatic);
+//   a feed topic by a WF_BRANCH row, which is the "added to Taste →"
+//   caption and not a placement at all — feed answers do not file on the
+//   Map tab. A proposal that can only land in a hub that does not exist
+//   HOLDs for the owner.
+//
+//   SUBTOPICS STAY THE CHEAPER SHAPE. A leaf inherits its parent's hue,
+//   adds no chip, no branch and no install page (feed topics are always-on,
+//   D96/D321), and is reached by following the parent — so the manual says
+//   prefer a leaf when the questions are a PART of a topic that exists.
+//   That is a preference of fit, not a cap: a subject that is nobody's part
+//   is a topic.
 //
 // The reversal is not a licence, because everything the old rule was
 // protecting is still true: a category is structure, not a label, and the
 // old rule's failure was WHERE its caution sat — on a human who left the
 // loop at D212 and never arrived (one category created in the project's
 // life, `now`, D231, by the owner in person). The caution is arithmetic
-// now, and it fires on a schedule.
+// now, and it fires on a schedule. The shape is farm-budget.mjs's, one
+// layer up: that regulator answers "how many questions may this run
+// write", this one "may this run open a new room to write them into".
 //
-// The shape is farm-budget.mjs's, one layer up: that regulator answers "how
-// many questions may this run write", this one "may this run open a new
-// room to write them into". Same self-closing property: taxonomy growth
-// tracks the lanes' stocking throughput.
+// BLOCKERS FOR A TOP — each something the old rule asserted in prose:
 //
-// BLOCKERS FOR A LEAF, each something the old rule asserted in prose:
-//
-//   1. EVIDENCE. D145's own sentence — "three runs proposing the same
+//   1. PLACED. It names an existing hub to land in (see above). Not placed
+//      is the owner's question, never a run's.
+//   2. EVIDENCE. D145's own sentence — "three runs proposing the same
 //      missing top is an argument; one is an anecdote" — made literal:
-//      EVIDENCE_MIN questions wanting the leaf, over RUNS_MIN distinct run
-//      DAYS. Two kinds count: questions PARKED in the ledger (new ones the
-//      lane wrote and could not place below the parent), and questions
-//      RETAGGED — existing questions under the parent that the proposal
-//      names as the leaf's (`retag`), which is free stock: TAGS-PLAN's "a
-//      door on an existing question is the free first fix" one level down.
-//      Days are counted on the parked entries only; a retag list carries
-//      no day, so a pure carve still needs three runs to say so.
+//      EVIDENCE_MIN parked questions from RUNS_MIN distinct run days.
+//   3. NO BREADTH DEBT. Every existing category on that surface at or above
+//      its floor. A new room while the old ones are thin is breadth owed
+//      twice. The number is the lane regulator's OWN deficit, so this file
+//      cannot disagree with the lane about what thin means.
+//   4. SETTLING. The last category created on that surface is at floor.
 //
-//   2. PARENT LEVELLED. The parent at or above its own floor — the farm's
-//      deferral made literal: "a leaf below a levelled parent is depth where
-//      breadth is still owed". The number is the lane regulator's, not
-//      recounted here.
+// BLOCKERS FOR A LEAF: evidence (parked plus RETAGGED existing questions
+// under the parent — free stock, TAGS-PLAN's "a door on an existing
+// question is the free first fix" one level down; days on the parked
+// only), the parent levelled ("a leaf below a levelled parent is depth
+// where breadth is still owed"), and settling per parent.
 //
-//   3. SETTLING. The last leaf created under the SAME parent is at its
-//      floor. One leaf per parent at a time; different parents grow in
-//      parallel, because leaves are cheap.
-//
-//   THE WRITE RULE. The creating run writes min(budget, floor − parked −
-//   retag) into the leaf in the PR that opens it. Learn fields are then
-//   levelled by the learn regulator (loadLearnFields counts per field);
-//   feed leaves are NOT — feed-budget.mjs counts topics, and deliberately
-//   lets leaf doors "fall out at the taxonomy guard" — so a feed leaf has
-//   to be born full, and it always can be: FEED_CAP (60) ≥ LEAF_FLOOR (12),
-//   pinned by the test, so the capacity check below cannot fire on the
-//   feed and exists only to say so if the constants ever cross.
-//
-// BLOCKERS FOR A TOP: the cap above first, then the same evidence,
-// breadth-debt (every existing category at floor) and settling rules
-// D421 wrote. The cap is what a run will actually meet; the rest is what
-// applies the day the owner raises it.
+// THE WRITE RULE, both levels: the creating run writes min(budget, floor −
+// stock) into the room in the PR that opens it, and the lane's own
+// floor-first levelling finishes it — a room at 3 is the largest deficit
+// on its surface (feed-budget.mjs's LANE_EXCLUDED comment describes exactly
+// that pull). Settling holds the door meanwhile. Capacity was a BLOCKER in
+// D421's first cut and locked learn out by arithmetic (cap 10, floor 24);
+// it is a write rule since. The one exception is a feed LEAF: feed-budget
+// levels topics, not leaves, so a feed leaf must be born full — and it
+// always can be, FEED_CAP (60) ≥ LEAF_FLOOR (12), pinned.
 //
 // WHAT IS DELIBERATELY NOT A BLOCKER, and the measurement that decided it
 // (D421 §5): a semantic "is this distinct?" gate. question-neighbors.mjs's
@@ -81,9 +88,10 @@
 //
 // This is an operator/run tool, not a CI gate — the CI half is
 // check-taxonomy.mjs (check:taxonomy), which holds every site of a created
-// category written together. Import-safe: the CLI runs only when invoked
-// directly, so the arithmetic is unit-testable (topic-budget.test.mjs, via
-// test:scripts — the runner CLAUDE.md warns hides in the lint job).
+// category written together, the ring included. Import-safe: the CLI runs
+// only when invoked directly, so the arithmetic is unit-testable
+// (topic-budget.test.mjs, via test:scripts — the runner CLAUDE.md warns
+// hides in the lint job).
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -111,23 +119,32 @@ export const RUNS_MIN = 3;
 // two cannot drift the way D197's copies did.
 export const LEAF_FLOOR = 12;
 
-// The top level: today's counts, the owner's numbers (D422). A top-level
-// proposal holds at the cap with the owner's words, and the rest of the
-// machinery stays whole so raising a max is one edit. Floors and caps are
-// the LANES' own, imported rather than restated (D197).
+// The top level, per surface: floors and caps are the LANES' own, imported
+// rather than restated (D197). `sites` is what a creating run must write,
+// and the list check:taxonomy holds together — the hub site is on it for
+// the daily and the feed, because a top written at every other site and
+// not there lands in World (daily) or captions "added to Interests" (feed)
+// without anybody having decided so.
 export const TOPS = {
   feed: {
-    max: 13, floor: TOPIC_FLOOR, cap: FEED_CAP, noun: "topic",
-    sites: ["src/v2/spec/world-feed-topics.js (WORLD_TOPICS)", "content/feed-questions.json (topics)"],
+    floor: TOPIC_FLOOR, cap: FEED_CAP, noun: "topic",
+    sites: [
+      "src/v2/spec/world-feed-topics.js (WORLD_TOPICS)",
+      "content/feed-questions.json (topics)",
+      "src/v2/spec/world-feed.jsx (WF_BRANCH — the 'added to …' caption; a branch or hub label)",
+    ],
   },
   daily: {
-    max: 14, floor: TOP_FLOOR, cap: DAILY_CAP, noun: "top",
-    sites: ["src/v2/spec/daily-cats.js (CAT_META)"],
+    floor: TOP_FLOOR, cap: DAILY_CAP, noun: "top",
+    sites: [
+      "src/v2/spec/daily-cats.js (CAT_META)",
+      "src/v2/spec/map-groups.js (the hub's cats — never the silent World default)",
+    ],
   },
   learn: {
     // A subject is levelled when every field under it is (loadLearnFields).
-    max: 5, floor: FIELD_FLOOR, cap: LEARN_CAP, noun: "subject",
-    sites: ["content/learn-questions.json (subjects)"],
+    floor: FIELD_FLOOR, cap: LEARN_CAP, noun: "subject",
+    sites: ["content/learn-questions.json (subjects — Knowledge by the lrn- prefix, automatic)"],
   },
 };
 
@@ -224,21 +241,24 @@ export function leafVerdict({ surface, parked, retag = 0, days, parentDeficit, b
   };
 }
 
-//   count    top-level categories the surface has today
+//   placed   whether the proposal names an existing hub to land in (the CLI
+//            resolves it: a daily `group` is a hub id, a feed `group` is a
+//            WF_BRANCH target — a CAT_META key or a hub label — and learn is
+//            always placed, by prefix)
 //   parked   questions waiting for this top
 //   days     distinct run days among them
 //   deficit  the lane regulator's own total shortfall below its floor
 //   budget   what the lane grants this run
 //   settling the last top created on this surface: its stock, or null
-export function topVerdict({ surface, count, parked, days, deficit, budget, settling = null }) {
+export function topVerdict({ surface, placed = true, parked, days, deficit, budget, settling = null }) {
   const s = TOPS[surface];
   if (!s) throw new Error(`topic-budget: unknown surface ${JSON.stringify(surface)}`);
   const blockers = [];
-  if (count >= s.max) {
+  if (!placed) {
     blockers.push(
-      `top level fixed: ${surface} has ${count} ${s.noun}s and the owner's limit is ${s.max} (D422 — "there should only be a ` +
-      `limited number of topics") — propose it as a ${LEAVES[surface] ? LEAVES[surface].noun : "path"} under \`nearest\` instead; ` +
-      "raising TOPS.max is the owner's edit",
+      `not placed: no existing hub on the You map takes it (D422 — the ring stays as it is "unless a new one is really ` +
+      `needed", and that is the owner's call, on docs/OWNER-LIST.md) — name a \`group\` that exists, or propose it as a ` +
+      `${LEAVES[surface] ? LEAVES[surface].noun : "path"} under \`nearest\``,
     );
   }
   if (parked < EVIDENCE_MIN || days < RUNS_MIN) {
@@ -318,6 +338,31 @@ export function loadLedger() {
   return JSON.parse(readFileSync(join(root, "content", "topic-proposals.json"), "utf8"));
 }
 
+/** The You map's ring — MAP_GROUPS' hubs, with the branch ids each holds —
+ * and the feed's caption table. Read through check:quality's extractor,
+ * the one parser (D197). */
+export async function loadRing() {
+  const { extractLiteral } = await import("./question-quality.mjs");
+  const groups = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "map-groups.js"), "utf8"), "const GROUPS = [", "map-groups.js");
+  const ripples = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed.jsx"), "utf8"), "const WF_BRANCH = {", "world-feed.jsx", "{", "}");
+  const catMeta = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "daily-cats.js"), "utf8"), "export const CAT_META = {", "daily-cats.js", "{", "}");
+  return { groups, ripples, catMeta };
+}
+
+/** Whether a top-level proposal lands in a hub that exists. Daily: `group`
+ * is a hub id. Feed: `group` is a WF_BRANCH target — a CAT_META key (a
+ * branch) or a hub label. Learn: always, by the lrn- prefix. */
+export function isPlaced(p, ring) {
+  if (p.surface === "learn") return true;
+  if (!p.group) return false;
+  if (p.surface === "daily") return ring.groups.some((g) => g.id === p.group);
+  if (p.surface === "feed") return Object.keys(ring.catMeta).includes(p.group) || ring.groups.some((g) => g.label === p.group);
+  return false;
+}
+
 /** Every surface's top level: count, per-category stock, and the lane's own
  * shortfall — summed the way each lane regulator sums it, which is why this
  * reads their loaders instead of counting again. */
@@ -379,15 +424,17 @@ if (invokedDirectly) {
   const leaves = await loadLeaves();
   const proposals = ledger.proposals ?? [];
 
+  const ring = await loadRing();
   console.log(`topic-budget: ${plural(proposals.length, "proposal")} in the ledger (evidence ${EVIDENCE_MIN} over ${RUNS_MIN} run days)`);
-  console.log("  the top level is fixed (D422) — growth goes into the tree:");
+  console.log(`  the You map's ring is fixed (D422): ${ring.groups.length} hubs — ${ring.groups.map((g) => g.label).join(" · ")} — a new one is the owner's`);
+  console.log("  the taxonomies grow, each new room landing in a hub that exists:");
   for (const [name, s] of Object.entries(TOPS)) {
     const t = tops[name];
     const leafRows = leaves[name];
     const leafLine = LEAVES[name] === null
       ? "second level is the free path [Top, Sub]"
       : `${plural(leafRows.length, LEAVES[name].noun)}, floor ${LEAVES[name].floor}, ${leafRows.filter((l) => l.stock < LEAVES[name].floor).length} under it`;
-    console.log(`    ${name}: ${t.count} of ${s.max} ${s.noun}s, lane owes ${t.deficit}${t.deficit === 0 ? " (levelled)" : ""} · ${leafLine}`);
+    console.log(`    ${name}: ${plural(t.count, s.noun)}, lane owes ${t.deficit}${t.deficit === 0 ? " (levelled)" : ""} · ${leafLine}`);
   }
   if (proposals.length === 0) {
     console.log("  no proposals — nothing to rule on. A lane parks a question that fits nothing under its nearest parent"
@@ -411,8 +458,9 @@ if (invokedDirectly) {
     } else {
       const prior = (ledger.created ?? []).filter((c) => c.surface === p.surface && levelOf(c) === "top").at(-1);
       const settling = prior ? (tops[p.surface].rows.find((r) => r.id === prior.id)?.stock ?? 0) : null;
-      v = topVerdict({ surface: p.surface, count: tops[p.surface].count, parked, days, deficit: tops[p.surface].deficit, budget: TOPS[p.surface].cap, settling });
-      console.log(`    ${parked} parked over ${plural(days, "run day")} · ${tops[p.surface].count} of ${TOPS[p.surface].max} · lane owes ${tops[p.surface].deficit}`);
+      const placed = isPlaced(p, ring);
+      v = topVerdict({ surface: p.surface, placed, parked, days, deficit: tops[p.surface].deficit, budget: TOPS[p.surface].cap, settling });
+      console.log(`    ${parked} parked over ${plural(days, "run day")} · hub ${p.group ? JSON.stringify(p.group) : "unstated"}${placed ? "" : " (none such)"} · lane owes ${tops[p.surface].deficit}`);
     }
     if (v.create) {
       console.log(`    CREATE — ${v.reason}`);

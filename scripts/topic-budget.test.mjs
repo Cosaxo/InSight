@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
-  loadTops, loadLeaves, loadLedger, feedPageCost, parentDeficitOf,
+  loadTops, loadLeaves, loadLedger, loadRing, isPlaced, feedPageCost, parentDeficitOf,
   EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, TOPS, LEAVES, SURFACES,
 } from "./topic-budget.mjs";
 import { TOP_FLOOR, RUN_CAP as DAILY_CAP } from "./farm-budget.mjs";
@@ -93,17 +93,19 @@ describe("leafVerdict — the normal case", () => {
   });
 });
 
-const top = { surface: "feed", count: 0, parked: EVIDENCE_MIN, days: RUNS_MIN, deficit: 0, budget: FEED_CAP, settling: null };
+const top = { surface: "feed", placed: true, parked: EVIDENCE_MIN, days: RUNS_MIN, deficit: 0, budget: FEED_CAP, settling: null };
 
-describe("topVerdict — the exception", () => {
-  it("holds at the owner's cap, with the owner's words, and points at the tree", () => {
-    const v = topVerdict({ ...top, count: TOPS.feed.max });
+describe("topVerdict — a new topic lands in a hub that exists", () => {
+  it("holds an unplaced top for the owner, with the owner's words, and points at the tree", () => {
+    const v = topVerdict({ ...top, placed: false });
     expect(v.create).toBe(false);
-    expect(v.blockers[0]).toMatch(/top level fixed/);
+    expect(v.blockers[0]).toMatch(/not placed/);
+    expect(v.blockers[0]).toMatch(/really needed/);
     expect(v.blockers[0]).toMatch(/subtopic under `nearest`/);
   });
 
-  it("is D421's regulator, whole, beneath the cap", () => {
+  it("has no cap on the count of topics — D421's blockers are the whole rule", () => {
+    expect(TOPS.feed.max).toBeUndefined();
     expect(topVerdict(top).create).toBe(true);
     expect(topVerdict({ ...top, parked: 50, days: 1 }).blockers[0]).toMatch(/anecdote/);
     expect(topVerdict({ ...top, deficit: 1 }).blockers.some((b) => /breadth debt/.test(b))).toBe(true);
@@ -111,16 +113,23 @@ describe("topVerdict — the exception", () => {
     expect(topicVerdict).toBe(topVerdict);
   });
 
-  it("the caps are today's counts — raising one is the owner's edit", async () => {
-    const t = await loadTops();
-    expect(t.feed.count).toBeLessThanOrEqual(TOPS.feed.max);
-    expect(t.daily.count).toBe(TOPS.daily.max);
-    expect(t.learn.count).toBe(TOPS.learn.max);
-  });
-
-  it("names every site a creating run must write", () => {
+  it("names the hub site among the sites a creating run must write", () => {
     expect(topVerdict(top).reason).toContain("world-feed-topics.js");
     expect(topVerdict(top).reason).toContain("feed-questions.json");
+    expect(topVerdict(top).reason).toContain("WF_BRANCH");
+    expect(TOPS.daily.sites.some((x) => /map-groups\.js/.test(x))).toBe(true);
+  });
+
+  it("resolves placement per surface off the real ring", async () => {
+    const ring = await loadRing();
+    expect(ring.groups.length).toBeGreaterThan(0);
+    expect(isPlaced({ surface: "daily", group: "g-people" }, ring)).toBe(true);
+    expect(isPlaced({ surface: "daily", group: "g-nowhere" }, ring)).toBe(false);
+    expect(isPlaced({ surface: "daily" }, ring)).toBe(false);
+    expect(isPlaced({ surface: "feed", group: "Taste" }, ring)).toBe(true);   // a hub label
+    expect(isPlaced({ surface: "feed", group: "Food" }, ring)).toBe(true);    // a branch
+    expect(isPlaced({ surface: "feed", group: "Gaming" }, ring)).toBe(false);
+    expect(isPlaced({ surface: "learn" }, ring)).toBe(true);                   // lrn- prefix, automatic
   });
 });
 

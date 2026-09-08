@@ -45204,112 +45204,158 @@ Revert the commit. `check:taxonomy` and `topic:budget` leave the tree with
 it; hard rule 3 and § When no category fits return to the human gate. The
 ledger is empty, so nothing is stranded.
 
-## D422 · The top level is fixed, and the tree grows: subtopics are where the lanes create
+## D422 · The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so
 
 **2026-09-08.** **Status:** binding, built. The owner, reading D421's
 first cut the same day: *"yeah most topic should be sub topics there
 should only be a limeted nummber of topics i assumed that was
-established. this should focus mainly on creating new subtopics"*.
+established. this should focus mainly on creating new subtopics"* — and
+then, reading the cut that took "a limited number of topics" as a cap on
+the count: *"no i see i confuse you the amount of topics show at the top
+in the you map should stay roughly the same unless a new one is relly
+needed but learn feed daily all of these can get new topics."*
 
-D421 let the lanes create categories and built the brakes it could
-justify from the tree. What it had not asked was WHERE in the tree a new
-room belongs, and the answer changes the cost arithmetic entirely.
+Two rulings in one day, and the second is the record: what stays fixed
+is the **ring at the top of the You map**, and what grows is the content
+taxonomies — feed topics, learn subjects, daily tops — each new room
+landing inside the ring that exists.
 
-### Why the level matters
+### What the ring is, measured
 
-A top-level category — a feed topic, a daily top, a learn subject — is a
-chip in the row, a branch on the Map, and for the feed **a page of
-`FEED_PAGE` (12) reads for every new install** until its cache
-converges, because feed topics are always-on (D96) and the install
-fetches a page per topic (D321). D421's own top speed — one category
-per three run days per surface, up to ten feed topics a month — was a
-real product-shape question, and it went to `OWNER-LIST.md`. This is
-the answer.
+The Map tab draws *You → group → branch → sub → answer* (`map-tab.jsx`),
+and *"at the top level the ring is groups"*: `MAP_GROUPS` in
+`map-groups.js` — eight hubs, six of them answer groups (Self · Taste ·
+Beliefs · Knowledge · World · People) and two aims (Foresight ·
+Crossroads). Its own header already says the owner's rule from the
+other side: *"The set is deliberately wider than what is populated
+today — a new branch should always have an obvious home. Empty groups
+never render, so the map grows a hub the first time you answer into
+one."* Branches sit inside hubs and draw only once they hold an answer
+(`allCats` keeps a branch only while `built.counts[c.id] > 0`).
 
-A **subtopic** pays none of that. `world-subtopics.js` has said since
-the port what a leaf is: *colour = family (the parent topic's hue),
-label = the leaf, one pill; followable exactly like a topic; following a
-parent gives you everything under it.* So a leaf inherits its hue, adds
-no chip and no branch, costs an install no page — its cards ride the
-parent's page — and is reached by following the parent. The one thing a
-leaf costs is stock, and a thin leaf is *"a broken room"* (the same
-file), which is why `SUBTOPICS.offers()` shows only stocked leaves.
+How each surface reaches the ring, verified rather than assumed:
+
+- **Daily** — a top's `catId` (`seedId`, else `top-<slug>`) is filed by
+  `MAP_GROUPS.of()`: an explicit entry in a hub's `cats`, else the
+  *"unplaced topical branch lands in World"* default. All 14 tops are
+  explicitly placed today.
+- **Learn** — a mastered card files under `lrn-<subject>`, and the
+  `lrn-` prefix is Knowledge, automatically. A new subject adds a branch
+  inside Knowledge and nothing to the ring.
+- **Feed** — feed answers **do not file on the Map tab** at all. The
+  feed's `WF_BRANCH` table (`world-feed.jsx`) feeds one thing: the
+  *"added to Taste →"* caption that appears after a vote and navigates
+  to the You tab. Its targets are branch names or hub labels; a topic
+  without a row captions "added to Interests" by default. `now` and
+  `places` have no row today.
+
+So a new feed topic changes the ring by nothing, a new learn subject by
+nothing, and a new daily top by nothing **provided it is written into a
+hub** — and only a new hub changes what the ring shows. That is exactly
+the line the owner drew.
 
 ### The decisions
 
-**1 · The top level is capped at today's count, and the cap is the
-owner's number.** `TOPS[surface].max` in `scripts/topic-budget.mjs`: 13
-feed topics, 14 daily tops, 5 learn subjects. A top-level proposal HOLDs
-at the cap with the owner's words and stands in the ledger as evidence;
-everything D421 built beneath the cap — evidence, breadth debt,
-settling, the write rule, `hueFor()` — stays whole, so raising a max is
-one edit and nothing has to be rebuilt to use it.
+**1 · The ring is held at today's count, as the owner's ratchet.**
+`GROUPS_TODAY` (8) in `check-taxonomy.mjs`, rule 6: `map-groups.js` must
+hold exactly that many hubs. A hub that is *"really needed"* is the
+owner's judgement — no arithmetic here makes it — and the owner adds it
+by moving the constant in the same PR as the hub, with the ruling.
+D334's shape: the ask goes to the owner with what it costs, and the
+owner rules.
 
-**2 · A leaf is what a lane creates — three blockers and a write rule.**
+**2 · No cap on the count of topics, on any surface.** D422's first cut
+capped feed at 13, daily at 14 and learn subjects at 5 — the count, when
+the owner meant the ring. Those caps are gone; `TOPS[surface].max` does
+not exist. A new topic is created through D421's blockers — evidence
+(3 over 3 run days), breadth debt (the lane's own deficit at 0),
+settling (the last one at floor), the write rule — **plus one: it is
+placed.** A top-level proposal carries `group`: for the daily a hub id
+(the top's `catId` goes into that hub's `cats`); for the feed a
+`WF_BRANCH` target (a `CAT_META` key or a hub label); for learn nothing.
+`topVerdict` HOLDs an unplaced proposal with the owner's words and
+points at the tree.
 
-| Blocker | Arithmetic | Where it comes from |
-| --- | --- | --- |
-| Evidence | 3 questions wanting the leaf over 3 distinct run **days** — parked ones plus **retagged** ones (existing questions under the parent the proposal claims), days counted on the parked only | D145's "three runs is an argument"; TAGS-PLAN's "a door on an existing question is the free first fix", one level down |
-| Parent levelled | the parent at or above its own floor (24 for a feed topic; every field at 24 for a learn subject) | this manual's month-old deferral, *"a leaf below a levelled parent is depth where breadth is still owed"* |
-| Settling | the last leaf under the **same** parent is at its floor | one leaf per parent at a time; parents grow in parallel, because leaves are cheap |
+**3 · A subtopic is the preferred shape, not a mandated one.** A leaf
+inherits its parent's hue (*colour = family*, `world-subtopics.js`),
+adds no chip and no branch, costs a new install no page — feed topics
+are always-on (D96) and the install fetches a page per topic (D321), so
+each topic is `FEED_PAGE` (12) reads per new device until its cache
+converges, and a leaf's cards ride the parent's page — and is reached by
+following the parent. The manual says prefer a leaf when the questions
+are a **part** of a topic that exists (Football under Sport). That is a
+preference of fit: a subject that is nobody's part is a topic, and the
+lane may create it. Three blockers on a leaf: evidence — parked plus
+**retagged** existing questions under the parent (free stock,
+TAGS-PLAN's *"a door on an existing question is the free first fix"*
+one level down; days counted on the parked only); the parent levelled
+(this manual's month-old deferral, *"a leaf below a levelled parent is
+depth where breadth is still owed"*); settling per parent. A feed leaf's
+floor is `LEAF_FLOOR` 12 — one page — pinned equal to `bankPager.ts`'s
+`FEED_PAGE`, and born full always: `feed-budget.mjs` levels topics, not
+leaves, and the feed cap (60) covers 12, pinned. A learn field is the
+lane's own 24 and the learn regulator levels fields.
 
-A feed leaf's floor is `LEAF_FLOOR` 12 — one page, the shelf a device
-holds — pinned equal to `bankPager.ts`'s `FEED_PAGE` by the test. It is
-born full, always: `feed-budget.mjs` levels topics, not leaves (it lets
-leaf doors *"fall out at the taxonomy guard"*), so a thin feed leaf
-would stay thin, and the feed lane's cap (60) covers 12 — pinned, so
-the capacity check in `leafVerdict` cannot fire on the feed and exists
-only to say so if the constants ever cross. A learn field's floor is
-the lane's own 24 and the learn regulator levels fields, so a field may
-be born at 13 and full two runs later — D421's write rule.
+**4 · Placement is a SITE, and `check:taxonomy` holds it.** Rule 6:
+every `CAT_META` top is in some hub's `cats` — the "unplaced lands in
+World" default is never how a new top arrives, because a Family top in
+World is wrong by default and nobody decided it; every subject feed
+topic has a `WF_BRANCH` row that resolves to a branch or a hub, except
+the stated exception (`RIPPLES_TO_INTERESTS`: `now`, D231's time, which
+has no branch); every `WF_BRANCH` key is a `WORLD_TOPICS` id; and a
+proposal's `group`, when given, names something that exists. The
+regulator's `sites` lists name the hub site for the daily and the feed,
+so the verdict says it out loud.
 
-**3 · The daily's second level is written, never created.** `cat` is
+**5 · The daily's second level is written, never created.** `cat` is
 `[Top, Sub]` and `Sub` is free text — 129 distinct pairs over 154
-questions, measured. There is no registry to add a row to; a daily
-"leaf" proposal is refused by `check:taxonomy` with that sentence.
-`LEAVES.daily` is `null` for the same reason.
+questions, measured. `LEAVES.daily` is `null`; a daily "leaf" proposal
+is refused with that sentence.
 
-**4 · The lane is wired, and it was four small pieces.** The client
-already had the whole second level: `wfFeedMatch` fast-paths on
-`q.sub`, `SUBTOPICS.count` reads it off the pool, `WF_SUB` draws the
-pill in the family's colour, and `deck.ts`'s `buildS` passes `sub`
+**6 · The feed's subtopic lane is wired, and it was four small pieces.**
+The client already had the second level whole — `wfFeedMatch`
+fast-paths on `q.sub`, `SUBTOPICS.count` reads it off the pool, `WF_SUB`
+draws the pill in the family's colour, `deck.ts`'s `buildS` passes `sub`
 through for every surface. What was missing, in order down the pipe:
 `content/feed-questions.json` entries may carry `sub`; `check:quality`
 holds it (a committed leaf, under the question's own home, not repeated
 in `also`); `gen-v2content.mjs` emits it on feed entries, emit-when-set;
-and `live.ts`'s vote mapper passes it into the pool — which is the
-moment `offers()` starts offering the leaf, exactly as its own comment
-said it would (*"leaves return by themselves the day live questions
-carry their tag"*). The same wire field carries the daily's sub-branch
-NAME; the surface tells them apart, and `deck.ts` now says so at both
-declarations. Feed leaves are not yet a paged shelf of their own — a
-device meets a leaf's cards on the parent's page, so a leaf of 12
-inside a parent of 30 shows a device the four it happens to hold. The
-order doc carrying leaves is the next step if that reads thin.
+`live.ts`'s vote mapper passes it into the pool — the moment `offers()`
+starts offering the leaf, exactly as its own comment said it would
+(*"leaves return by themselves the day live questions carry their
+tag"*). Pinned in `vote.test.ts` beside the doors pin, absence included.
+One wire field carries the daily's sub-branch NAME and the feed's leaf
+ID; the surface tells them apart and `deck.ts` says so at both
+declarations. A leaf is not yet a paged shelf of its own — a device
+meets its cards on the parent's page — and the order doc carrying
+leaves is the next step if that reads thin.
 
-**5 · `check:taxonomy` holds the leaf lists** — rule 5: a feed leaf is
-`sub_`-prefixed, unique, under a subject topic that may carry leaves
-(not `fav`/`places`, and not `now` — D231 built it as a time, and a
-leaf of a time would be a subject wearing an expiry it does not have),
-with a label unique within its parent; a learn field names a subject
-that exists. The ledger rules grow to match: a leaf proposal needs a
-real `parent`, a `sub_` id on the feed, `retag` ids that exist under
-that parent and carry no tag yet, and a label that is not already a
-category's.
+**7 · `check:taxonomy` rule 5 holds the leaf lists**: `sub_`-prefixed,
+unique, under a subject topic that may carry leaves (not `fav`/`places`,
+and not `now` — a leaf of a time would be a subject wearing an expiry it
+does not have), label unique within its parent; a learn field names a
+subject that exists. The ledger rules match: a leaf needs a real
+`parent`, `retag` ids under that parent and untagged, and no label that
+already names a category.
 
 ### What this does NOT do
 
-- **No leaf is created here.** The ledger ships empty. `npm run
-  topic:budget` prints three surfaces at their caps, the feed's three
-  demo leaves at 0 live stock, and nothing to rule on.
-- **`feed-budget.mjs` does not level leaves.** Born-full is what makes
-  that unnecessary today; the day a leaf can go thin (a retirement, a
-  question retired from under it) the regulator learns to count `sub`.
+- **No room is created here, at either level.** The ledger ships empty.
+  `npm run topic:budget` prints the ring (8 hubs), each surface levelled
+  or not, the feed's three demo leaves at 0 live stock, and nothing to
+  rule on.
+- **`feed-budget.mjs` does not level leaves.** Born-full makes that
+  unnecessary; the day a leaf can go thin, the regulator learns `sub`.
+- **Feed answers on the Map** stay where they are — not on the Map tab.
+  Whether the Mirror's constellation (D112) should read feed topics
+  through the same hub table is a separate question; nothing here moves
+  it.
 - **Retirement is still not built** — D421's open asymmetry, now for
-  leaves too.
+  leaves and hubs too.
 
 ### Reversal
 
-Revert the commit with D421's. Nothing is stranded: no question carries
-`sub` in the bank, so the generator's output is byte-identical with or
-without the emission, and the ledger is empty.
+Revert the commits with D421's. Nothing is stranded: no question
+carries `sub` in the bank, so the generator's output is byte-identical
+with or without the emission, the ledger is empty, and the ring's
+ratchet reads the count that is there.

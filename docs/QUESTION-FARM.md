@@ -63,20 +63,23 @@ nothing, loudly, if no topic is thin.
    `check:taxonomy`, which fails a category written at some of its sites
    and not the others. Everything else under `content/` stays
    untouchable.
-3. **The top level is fixed; the tree grows, by ARITHMETIC.** Reversed
-   at D421 and shaped at D422, on the owner's direction: the lanes create
-   categories now, and *"most topics should be subtopics — there should
-   only be a limited number of topics."* A feed topic, a daily top or a
-   learn subject is capped at today's count (`TOPS[surface].max` in
-   `scripts/topic-budget.mjs`, the owner's number); a **subtopic** under a
-   levelled parent — a feed leaf, a learn field — is what a lane creates.
-   What a run may not do is decide alone — `npm run topic:budget` rules on
-   the proposal ledger and a run creates exactly what it says to create,
-   at every site, in the same PR. A question fitting nothing below its
-   nearest parent is PARKED in `content/topic-proposals.json`, not
-   dropped. § When no category fits has the whole procedure; hard rule 2's
-   ledger carve-out is what lets a run write it. The daily's second level
-   is the path `cat: [Top, Sub]` and is written, never created.
+3. **The You map's ring is fixed; the taxonomies grow, by ARITHMETIC.**
+   Reversed at D421 and shaped at D422, on the owner's direction: the
+   lanes create categories now — *"learn, feed, daily: all of these can
+   get new topics"* — and what stays as it is is *"the amount of topics
+   shown at the top in the You map"*: the hubs of `map-groups.js`, held
+   at today's count by `check:taxonomy`, a new one being the owner's.
+   A new feed topic, learn subject or daily top lands IN a hub that
+   exists (`group` on the proposal; the daily's `MAP_GROUPS` entry, the
+   feed's `WF_BRANCH` caption row, learn's `lrn-` prefix), and a
+   **subtopic** is the cheaper shape whenever the questions are a part of
+   a topic that exists. What a run may not do is decide alone — `npm run
+   topic:budget` rules on the proposal ledger and a run creates exactly
+   what it says to create, at every site, in the same PR. A question
+   fitting nothing is PARKED in `content/topic-proposals.json`, not
+   dropped. § When no category fits has the whole procedure; hard rule
+   2's ledger carve-out is what lets a run write it. The daily's second
+   level is the path `cat: [Top, Sub]` and is written, never created.
 4. **Never generate answers, votes, takes, or people.** Questions are
    content; activity is fabrication (decision D1). There is no exception.
 5. **Append only, at the end of `Q`.** Ids are positional: entry `i` maps
@@ -1414,12 +1417,17 @@ standing card on the daily tab, not something filed into a topic list,
 and its Map branch is unported by D139's own decision (the seventh
 over-category, the D126 boundary).
 
-**The top level is fixed, and the tree grows — by the lane, when the
-arithmetic says so.** This is D421 and D422 together, and it reverses the
-rule that stood here from the farm's first day: *"A new category is never
-created by a run."* The owner's direction is that the AI creates them,
-and then — the same day, reading the first cut — that *"most topics
-should be subtopics; there should only be a limited number of topics."*
+**The You map's ring is fixed, and the taxonomies grow — by the lane,
+when the arithmetic says so.** This is D421 and D422 together, and it
+reverses the rule that stood here from the farm's first day: *"A new
+category is never created by a run."* The owner's direction is that the
+AI creates them — *"learn, feed, daily: all of these can get new
+topics"* — and that what stays roughly the same is *"the amount of
+topics shown at the top in the You map … unless a new one is really
+needed"*. The top of the You map is the ring of hubs in `map-groups.js`
+(Self · Taste · Beliefs · Knowledge · World · People, plus the two aims);
+branches sit inside hubs and draw only once they hold an answer. A new
+hub is the owner's; everything below it is the lane's.
 
 What the old rule was protecting is still true and is why there is a
 system rather than a permission: a top-level category is not a label. It
@@ -1434,9 +1442,10 @@ not caution, it is a stop.
 A **subtopic** pays none of those costs. It inherits its parent's hue
 (colour = family, `world-subtopics.js`), adds no chip to the row and no
 branch to the Map, costs an install no page — its cards ride the parent's
-page — and following the parent already reaches it. That asymmetry is the
-whole design: **the top level is capped at today's count, and growth
-goes into the tree.**
+page — and following the parent already reaches it. So a leaf is the
+shape to prefer whenever the questions are a *part* of a topic that
+exists (Football under Sport) — a preference of fit, not a cap: a subject
+that is nobody's part is a topic, and the lane may create it.
 
 So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
 schedule. **For a leaf — the normal case — three blockers and a write
@@ -1466,14 +1475,21 @@ always: the feed lane's cap (60) covers it, pinned by the test, because
 thin. A learn field's floor is the lane's own 24, and the learn regulator
 levels fields, so a field may be born at 13 and full two runs later.
 
-**For a top — the exception — the same evidence, breadth-debt and
-settling rules D421 wrote, behind the owner's cap:** `TOPS[surface].max`
-is today's count (13 feed · 14 daily · 5 learn subjects), and a
-top-level proposal HOLDs there with the owner's words until the owner
-raises the constant. The machinery below the cap is whole, so raising it
-is one edit. The daily's second level needs none of this: it is the path
-`cat: [Top, Sub]`, 129 distinct pairs over 154 questions, written on the
-question and never created.
+**For a top — a new feed topic, learn subject or daily top — the same
+evidence, breadth-debt and settling rules D421 wrote, plus one: it is
+PLACED.** The proposal names the hub it lands in — `group`: for the
+daily a hub id in `map-groups.js` (the new top's `catId` goes into that
+hub's `cats`; the file's "unplaced lands in World" default is never how
+a top arrives, and `check:taxonomy` fails one that is in no hub); for
+the feed a `WF_BRANCH` target, which is the *"added to Taste →"* caption
+and not a placement — feed answers do not file on the Map tab; for
+learn nothing, the `lrn-` prefix files a subject under Knowledge by
+itself. A proposal that can only land in a hub that does not exist
+HOLDs for the owner — *"unless a new one is really needed"* is the
+owner's judgement, not arithmetic's. There is no cap on how many topics
+a surface may have. The daily's second level needs none of this: it is
+the path `cat: [Top, Sub]`, 129 distinct pairs over 154 questions,
+written on the question and never created.
 
 **The procedure, per run:**
 
@@ -1502,8 +1518,7 @@ question and never created.
    under the parent that are this leaf's. A parked question still has to
    clear `check:neighbors` like any other; it is a question that has no
    room, not one already asked. (A top-level proposal is parked the same
-   way with `level: "top"` and `nearest`; it holds at the cap and stands
-   as evidence.)
+   way with `level: "top"`, `nearest`, and the `group` it lands in.)
 4. Run `npm run topic:budget`. It prints CREATE or HOLD per proposal, and
    HOLD names which blocker and by how much.
 5. On CREATE, in the same PR: add the row to `WORLD_SUBTOPICS` (`id`,
@@ -1512,8 +1527,12 @@ question and never created.
    they are written into `content/feed-questions.json`, write the
    verdict's `write` count of new ones, and append the row to the
    ledger's `created` with the PR number. For a learn field: the row in
-   `fields`, cards with `f` set. `check:taxonomy` fails a half-written
-   leaf and `check:quality` a tag under the wrong parent.
+   `fields`, cards with `f` set. For a top: every site the verdict names
+   — the daily's `CAT_META` row AND its hub's `cats` entry, the feed's
+   palette row AND wire row AND `WF_BRANCH` caption, a learn `subjects`
+   row — with `hueFor()` for the colour. `check:taxonomy` fails a
+   half-written room at either level and `check:quality` a tag under
+   the wrong parent.
 6. Log it on issue #31 as usual, with the verdict line verbatim.
 
 **There is deliberately no semantic gate**, and this is the one place a

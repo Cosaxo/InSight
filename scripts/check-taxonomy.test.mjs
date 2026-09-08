@@ -8,7 +8,7 @@
 // "the current tree passes" is that bug waiting. So every rule below is
 // driven with a source that breaks it.
 import { describe, it, expect } from "vitest";
-import { checkTaxonomy, loadSources, FORMAT_ONLY, TIER, HUE_MIN_GAP, LEAFLESS } from "./check-taxonomy.mjs";
+import { checkTaxonomy, loadSources, FORMAT_ONLY, TIER, HUE_MIN_GAP, LEAFLESS, GROUPS_TODAY, RIPPLES_TO_INTERESTS } from "./check-taxonomy.mjs";
 
 const src = () => structuredClone(loadSources());
 const errs = (mutate) => { const s = src(); mutate(s); return checkTaxonomy(s); };
@@ -32,6 +32,8 @@ describe("the tree as it ships", () => {
     expect(s.learnSubjects.length).toBeGreaterThan(0);
     expect(s.subtopics.length).toBeGreaterThan(0);
     expect(s.feedQuestions.length).toBeGreaterThan(0);
+    expect(s.groups.length).toBe(GROUPS_TODAY);
+    expect(Object.keys(s.ripples).length).toBeGreaterThan(0);
   });
 });
 
@@ -221,5 +223,47 @@ describe("5 · the leaf lists", () => {
 
   it("catches a learn field on a subject that does not exist", () => {
     fires((s) => s.learnFields.push({ id: "x", subject: "nowhere", label: "X" }), /is not in learn-questions.json subjects/);
+  });
+});
+
+describe("6 · the ring", () => {
+  it("holds the hub count as the owner's ratchet", () => {
+    fires((s) => s.groups.push({ id: "g-new", label: "New", hue: 1, cats: [] }), /the You map's ring is the owner's/);
+    fires((s) => s.groups.pop(), /the You map's ring is the owner's/);
+  });
+
+  it("catches a daily top that no hub holds — the silent World default", () => {
+    fires((s) => { s.catMeta.Gaming = { hue: 3 }; }, /is in no hub's cats/);
+  });
+
+  it("accepts a daily top written into a hub", () => {
+    const e = errs((s) => {
+      s.catMeta.Gaming = { hue: 3 };
+      s.groups.find((g) => g.id === "g-taste").cats.push("top-gaming");
+    });
+    expect(e.filter((m) => /no hub's cats/.test(m))).toEqual([]);
+  });
+
+  it("catches a subject feed topic with no caption row, and lets the stated exception through", () => {
+    expect([...RIPPLES_TO_INTERESTS]).toEqual(["now"]);
+    fires((s) => {
+      s.palette.push({ id: "gaming", label: "Gaming", color: "oklch(0.52 0.14 332)" });
+      s.wire.push({ id: "gaming", label: "Gaming", color: "oklch(0.55 0.14 332)" });
+    }, /has no WF_BRANCH row/);
+    expect(checkTaxonomy().filter((m) => /has no WF_BRANCH row/.test(m))).toEqual([]);
+  });
+
+  it("catches a caption that names a place the map does not have, or a topic that does not exist", () => {
+    fires((s) => { s.ripples.food = "Snacks"; }, /not a CAT_META top nor a hub label/);
+    fires((s) => { s.ripples.gaming = "Taste"; }, /not a WORLD_TOPICS id/);
+  });
+
+  it("catches a top proposal whose group names nothing, and leaves a missing group to the regulator", () => {
+    const proposal = (over = {}) => ({ id: "gap", label: "Gap", surface: "daily", nearest: "Sport",
+      questions: [{ prompt: "A?", run: "2026-09-01" }], ...over });
+    fires((s) => s.ledger.proposals.push(proposal({ group: "g-nowhere" })), /is not a hub id/);
+    fires((s) => s.ledger.proposals.push(proposal({ surface: "feed", nearest: "sport", group: "Gaming" })), /a WF_BRANCH target/);
+    expect(errs((s) => s.ledger.proposals.push(proposal()))).toEqual([]);
+    expect(errs((s) => s.ledger.proposals.push(proposal({ group: "g-people" })))).toEqual([]);
   });
 });

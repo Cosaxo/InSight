@@ -39,11 +39,19 @@
 //      field names a subject that exists. A leaf under a format (`fav`) or
 //      under `now` is refused here — D231 built `now` as a time, and a leaf
 //      of a time would be a subject wearing an expiry it does not have.
+//
+//   6. the RING (D422 — "the amount of topics shown at the top in the You
+//      map should stay roughly the same"): MAP_GROUPS holds today's count
+//      of hubs as a ratchet the owner moves; every daily top is EXPLICITLY
+//      in a hub's `cats` (the "unplaced lands in World" default is never
+//      how a new top arrives); every subject feed topic has a WF_BRANCH
+//      caption row that resolves to a branch or a hub, except the one
+//      stated exception; and a top-level proposal names a hub that exists.
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractLiteral } from "./question-quality.mjs";
-import { TOPS, LEAVES, levelOf } from "./topic-budget.mjs";
+import { TOPS, LEAVES, levelOf, isPlaced } from "./topic-budget.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...p) => readFileSync(join(root, ...p), "utf8");
@@ -92,9 +100,21 @@ export function loadSources() {
     subtopics: extractLiteral(
       read("src", "v2", "spec", "world-subtopics.js"), "const WORLD_SUBTOPICS = [", "world-subtopics.js"),
     feedQuestions: JSON.parse(read("content", "feed-questions.json")).questions,
+    groups: extractLiteral(read("src", "v2", "spec", "map-groups.js"), "const GROUPS = [", "map-groups.js"),
+    ripples: extractLiteral(read("src", "v2", "spec", "world-feed.jsx"), "const WF_BRANCH = {", "world-feed.jsx", "{", "}"),
     ledger: JSON.parse(read("content", "topic-proposals.json")),
   };
 }
+
+// The You map's ring, today: eight hubs — six answer groups and two aims.
+// A ratchet the OWNER moves, in the same PR as the hub: the ring is the one
+// thing on the map a new category may not change on its own (D422).
+export const GROUPS_TODAY = 8;
+
+// Feed topics whose caption falls to "added to Interests" by design rather
+// than by omission: `now` is a time, not a subject (D231), and a time has no
+// branch. A new subject topic without a WF_BRANCH row fails rule 6.
+export const RIPPLES_TO_INTERESTS = new Set(["now"]);
 
 // Topics that may not carry leaves: the two formats (FORMAT_ONLY) and `now`
 // (D231: a TIME, not a subject — its questions expire, and a leaf of a time
@@ -102,7 +122,7 @@ export function loadSources() {
 export const LEAFLESS = new Set([...["places", "fav"], "now"]);
 
 export function checkTaxonomy(sources = loadSources()) {
-  const { palette, wire, catMeta, seedBranches, learnFields, learnSubjects, subtopics, feedQuestions, ledger } = sources;
+  const { palette, wire, catMeta, seedBranches, learnFields, learnSubjects, subtopics, feedQuestions, groups, ripples, ledger } = sources;
   const errors = [];
   const err = (m) => errors.push(m);
 
@@ -248,6 +268,13 @@ export function checkTaxonomy(sources = loadSources()) {
       } else if (!known[p.surface].has(p.nearest)) {
         err(`${where}: nearest ${JSON.stringify(p.nearest)} is not a ${p.surface} category`);
       }
+      // Rule 6's half for a proposal: it lands somewhere that exists. A
+      // missing `group` is not an error here — topic-budget HOLDs it for the
+      // owner — but a `group` that names nothing is a typo waiting to land in
+      // World, and that IS.
+      if (p.group && !isPlaced(p, { groups, catMeta })) {
+        err(`${where}: group ${JSON.stringify(p.group)} is not ${p.surface === "daily" ? "a hub id in map-groups.js" : "a CAT_META key or a hub label (a WF_BRANCH target)"}`);
+      }
     }
     for (const [i, q] of (p.questions ?? []).entries()) {
       if (!q || typeof q.prompt !== "string" || !q.prompt) err(`${where}: questions[${i}] has no prompt`);
@@ -292,6 +319,37 @@ export function checkTaxonomy(sources = loadSources()) {
     if (!subjectIds.has(f.subject)) err(`learn field ${JSON.stringify(f.id)}: subject ${JSON.stringify(f.subject)} is not in learn-questions.json subjects`);
   }
 
+  // ── 6 · the ring ──
+  if (groups.length !== GROUPS_TODAY) {
+    err(`map-groups.js holds ${groups.length} hubs and GROUPS_TODAY says ${GROUPS_TODAY} — the You map's ring is the owner's `
+      + "(D422); if a hub was really needed, move the constant in the same PR, with the ruling");
+  }
+  const hubOf = new Map();
+  for (const g of groups) for (const c of g.cats ?? []) hubOf.set(c, g.id);
+  const slug = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  for (const [top, meta] of Object.entries(catMeta)) {
+    const catId = meta.seedId || `top-${slug(top)}`;
+    if (!hubOf.has(catId)) {
+      err(`CAT_META top ${JSON.stringify(top)} (${catId}) is in no hub's cats in map-groups.js — it would land in World by the `
+        + "unplaced default, which is a placement nobody made (D422: a new top is written INTO a hub)");
+    }
+  }
+  const topKeys = new Set(Object.keys(catMeta));
+  const hubLabels = new Set(groups.map((g) => g.label));
+  for (const t of palette) {
+    if (FORMAT_ONLY.has(t.id) || RIPPLES_TO_INTERESTS.has(t.id)) continue;
+    if (!(t.id in ripples)) {
+      err(`feed topic ${JSON.stringify(t.id)} has no WF_BRANCH row in world-feed.jsx — its cards would caption "added to Interests" `
+        + "by the default; name the branch or hub they read toward, or add the id to RIPPLES_TO_INTERESTS with the reason");
+    }
+  }
+  for (const [id, target] of Object.entries(ripples)) {
+    if (!paletteById.has(id)) err(`WF_BRANCH names ${JSON.stringify(id)}, which is not a WORLD_TOPICS id`);
+    if (!topKeys.has(target) && !hubLabels.has(target)) {
+      err(`WF_BRANCH ${id} -> ${JSON.stringify(target)}: not a CAT_META top nor a hub label — the caption would name a place the map does not have`);
+    }
+  }
+
   return errors;
 }
 
@@ -307,6 +365,6 @@ if (invokedDirectly) {
     console.error("\nA category is written at every site or not at all (D421).");
     process.exit(1);
   }
-  console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, leaf lists sound, ledger clean");
+  console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, leaf lists sound, ring held, ledger clean");
   process.exit(0);
 }
