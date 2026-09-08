@@ -2393,56 +2393,17 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
       duelAnswer({ qid: "duo-retired", optionIdx: 0, guessIdx: 0 })));
-    // Live, on another surface, and NOT an option-index shape: the catalog
-    // is refused by its empty options. (Until ROUNDS-PLAN §6.2 this block
-    // also refused daily-000 — "not this surface" was the whole test —
-    // and the world arm below is what changed that.)
+    // Live, but not this surface: the catalog (empty options — the sharp
+    // case above) and a daily question alike. For one day (2026-09-08,
+    // ROUNDS-PLAN §6.2) a second arm admitted daily-000 here as a round's
+    // content; the owner retired it the same day (D426's third amendment),
+    // so the surface equality is again the whole test and both are refused.
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
       duelAnswer({ qid: "feed-cat0", optionIdx: 0, guessIdx: 0 })));
-    // …and a WORLD question as the round (ROUNDS-PLAN §6.2): a daily or
-    // feed question whose answer is an option index is admitted; the
-    // shapes an optionIdx cannot name — a rank's order, a dial's range —
-    // are refused by type, and the catalog by its empty options.
-    await seed(async (db) => {
-      await setDoc(doc(db, "v2_questions", "feed-f02"), {
-        surface: "feed", seq: 4, type: "vote", prompt: "?", options: ["a", "b"], active: true, core: true,
-      });
-      await setDoc(doc(db, "v2_questions", "feed-rank1"), {
-        surface: "feed", seq: 5, type: "rank", prompt: "?", options: ["a", "b", "c"], active: true,
-      });
-      await setDoc(doc(db, "v2_questions", "feed-dial1"), {
-        surface: "feed", seq: 6, type: "dial", prompt: "?", options: ["lo", "hi"], active: true,
-      });
-      await setDoc(doc(db, "v2_questions", "learn-l1"), {
-        surface: "learn", seq: 7, type: "vote", prompt: "?", options: ["a", "b"], active: true,
-      });
-      await setDoc(doc(db, "v2_questions", "feed-empty"), {
-        surface: "feed", seq: 8, type: "vote", prompt: "?", options: [], active: true,
-      });
-    });
-    await assertSucceeds(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r2`),
-      duelAnswer({ qid: "feed-f02", round: 2, optionIdx: 1, guessIdx: 0 })));
-    await assertSucceeds(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r3`),
-      duelAnswer({ qid: "daily-000", round: 3, optionIdx: 1, guessIdx: 0 })));
     await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r4`),
-      duelAnswer({ qid: "feed-rank1", round: 4, optionIdx: 1, guessIdx: 0 })));
-    await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r5`),
-      duelAnswer({ qid: "feed-dial1", round: 5, optionIdx: 1, guessIdx: 0 })));
-    // The arm is daily-or-feed, not "anything with options": a learn
-    // question of the right type is refused by SURFACE, and a feed vote
-    // with no options by the SIZE test — each of the arm's predicates seen
-    // false once, which is what rules-coverage asks of a new clause.
-    await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r4`),
-      duelAnswer({ qid: "learn-l1", round: 4, optionIdx: 0, guessIdx: 0 })));
-    await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r5`),
-      duelAnswer({ qid: "feed-empty", round: 5, optionIdx: 0, guessIdx: 0 })));
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "daily-000", optionIdx: 0, guessIdx: 0 })));
     // The ordinary round still lands — the refusals above are the
     // narrowing, not a seal on the surface.
     await assertSucceeds(setDoc(

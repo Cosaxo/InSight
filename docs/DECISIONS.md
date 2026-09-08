@@ -46240,6 +46240,111 @@ and `check:tap-targets` unmoved, `check:public-copy` clean.
 **Nothing in the plan is left unbuilt.** The lane's daily cadence, the
 one owner click the tree could not make, the owner made the same day.
 
+## D426 amendment (2026-09-08, the evening) · World questions leave the duels: the owner's ruling at the first reveal
+
+**Status:** binding; reverses the second amendment's §6.2 paragraph and
+stands over it. Built in the afternoon, retired in the evening, both on
+the owner's word.
+
+The owner opened a 1v1 on a device and met the first world round's
+reveal — *Round 28 · World · revealed*, "What do you want more of this
+year?", three columns (you · Henrik · World), *Henrik answered this in
+the World feed, so there was no guess* — and ruled on it in three
+sentences: *"i suspect world questions has snuck into 1v1 and group and
+they shouldent"*; *"its worst for group as that should mostly be about
+what role you have in the group"*; *"but this can go that is stufff you
+already find on the world feed so is totaly pointless."*
+
+### Why the record had it as approved, and what that teaches
+
+The second amendment built §6.2 on *"yeah lets do that"* — the owner's
+answer to the whole model read back in plain words, which named world
+questions as one item among six. The `OWNER-LIST.md` row that carried
+the question was annotated as answered and **never ticked**, which is
+exactly the state D352 designed the tick for: the row is the question,
+the tick is the approval, and a sentence that covers six items at once is
+provisional until the owner has seen each of them. The owner's own canvas
+drew the World round (request 12, state 8), the plan argued for it (§6.2
+— the bank multiplied by ten, the ties axiom's shared items, the pair
+against the crowd on one card), and none of that survived first contact
+with the built thing, because the argument missed what the owner saw at
+once: **the Mirror already draws every feed answer against the crowd.**
+The third column put a link that is drawn already in a second place, and
+a group round exists to read the ROOM — *"what role you have in the
+group"*, the roles instrument of `ROLES-PLAN.md` — which a feed question
+cannot do. The word *snuck* is the finding: an item that changes what a
+surface IS gets its own question to the owner, not a place in a bundle,
+and a bundled yes is a yes to try, not a yes to keep.
+
+### What came out
+
+Every piece of step 7, the same evening, so the tree says what the owner
+ruled rather than carrying a dial set to zero:
+
+- **The rotation.** `worldDuelPool` and `duelQFor`'s even-round branch
+  are gone (`data/deck.ts`); every round walks the room's own bank, as
+  before the afternoon. `live.ts` no longer builds the pool.
+- **The rules.** `isDuelAnswer`'s second arm is gone and the surface
+  equality is again the whole test — a daily or feed question is refused
+  on a duel surface, which `rules.test.ts` pins again beside the catalog
+  refusal. Three get() sites went with it: `scripts/pulse.test.mjs`'s
+  count is back at 34, and the billed cost never moved in either
+  direction. The rules-coverage baseline is unmoved, since each retired
+  predicate had its refusal.
+- **The store.** `worldSplit`, `ensureWorldSplit`, `loadPartnerAnswers`
+  and `partnerAnswer` are off `LIVE.social`, with their three state
+  fields and their purge lines; `live-surface.ts` and the fixtures no
+  longer pin them.
+- **The card.** The `· World` kicker, the three columns, the no-guess
+  path and its note (*already answered this in the World feed*), and the
+  sealed list's *World* part (`ui/LiveDuelPanel.tsx`); the ask takes the
+  guess on every round again. The describe block that pinned them is
+  gone with them.
+- **The e2e's 8a leg** (a round over a world question, the world's count
+  unmoved) and **the COSTS row** for a world round's reveal.
+
+**What stays, deliberately:** `bankQ`'s lookup of a feed or daily qid,
+marked *history only*. The reveals written on 2026-09-08 name a feed
+question, a reveal has to draw the question it was about (D71), and
+without the lookup the card would label those rounds' options with the
+members' names — the catalog fall-through one surface over. Nothing
+serves such a question now, so the door opens only on what already
+exists. The first run's stand-in (request 12, state 9) is also unchanged:
+it stands in for a room's question and says so, and it is not a round.
+
+### What it changes downstream
+
+- **The bank is the whole constraint again** (§6). 32 1v1 and 26 group
+  questions at rounds pace is one evening, and §6.1's burst — `RUN_CAP`
+  25, `POOL_TARGET` 400, the lane daily since the owner re-paced it — is
+  now the only answer to it. The duel lane's quality gates are unchanged;
+  its content is what a round is made of, and the owner's ruling says
+  what that content is FOR: reading a person, and a person's role in a
+  room.
+- **The ties axiom** (`AXIOMS.md`) gets its shared items from that
+  growth, not from the feed; `tie-2`'s decomposition waits on the bank
+  rather than on a lens.
+- **The lists.** The `OWNER-LIST.md` row records both answers and stays
+  the owner's to tick; `WORKLIST.md`'s step-7 row keeps its build and
+  says it was retired; `ROUNDS-PLAN.md` §6.2 stands as the record of the
+  argument, with the retirement at its head and §0a saying what came out.
+
+**Measured, not assumed.** `test:unit` (2 940), `test --prefix
+functions` (817, untouched — nothing server-side was specific to a world
+round), `test:scripts` (1 199, once the store header's `await getDb()`
+figure moved 44 → 42 with the two fetches — `check:figures` caught the
+prose, as it exists to), `test:rules` (204; the coverage baseline 46 is
+unmoved, since every retired predicate had its refusal), `lint`, `tsc
+-b`, `check:globals` (30, unmoved), `check:figures`, `check:docs`,
+`check:public-copy`, `check:policy-claims`, `check:a11y` (6, unmoved),
+`check:tap-targets`. **`test:e2e:all` did not run in this session:** the
+sandbox answers 403 to `firebase-public.firebaseio.com`, which kills the
+functions emulator's trigger registration — `CLAUDE.md`'s documented
+case — and the session's proxy rules forbid the documented workaround,
+so the three suites are left to CI's `backend-checks`, where they run on
+every pull request. What the e2e change is: one leg deleted; the write
+it made is now the refusal `rules.test.ts` pins.
+
 ## D427 · The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way
 
 **2026-09-08.** **Status:** binding, built. The owner, the day the path

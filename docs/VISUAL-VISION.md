@@ -27,8 +27,9 @@ it is moving toward.
   names the round, the prompt is in the serif, the answer is a tinted
   option and the read a second step, a 1v1 says *waiting on Ada* and
   nothing else, a group counts coarsely to its round deadline, the reveal
-  is a SAID · CALLED table or a split with faces — three columns on a
-  World round — the absent are seats, the late answer is said plainly,
+  is a SAID · CALLED table or a split with faces (the canvas's World
+  round, three columns, was built and retired the same day — D426's
+  third amendment), the absent are seats, the late answer is said plainly,
   and a run of rounds at the foot carries the calls and the rounds in
   play. The 09-07 design's *first day* (today sealed, tonight's clock,
   tomorrow revealed) is superseded by the first run drawn here: sealed,

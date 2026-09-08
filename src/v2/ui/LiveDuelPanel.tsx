@@ -760,8 +760,8 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
 // ── the design's grammar (design/rounds-card-2026-09-08, request 12) ──
 //
 // Nine states over one card, and the vocabulary they share: a KICKER
-// (12/700 uppercase, ink-3) that names the round — `Round 9`, `· World`,
-// `· revealed`, `· closed at the deadline` — the prompt in the serif, the
+// (12/700 uppercase, ink-3) that names the round — `Round 9`, `· revealed`,
+// `· closed at the deadline` — the prompt in the serif, the
 // answer as tinted 56px options, people as marks and you as a pill, and
 // the RUN at the foot: one dot per round, filled when your call landed,
 // hollow when it missed, with a tail carrying the rounds still in play
@@ -772,7 +772,6 @@ const KICK: React.CSSProperties = {
   fontSize: 12, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase",
   color: "var(--ink-3)", whiteSpace: "nowrap",
 };
-const WORLD = "var(--c-world)";
 const GROUND = "var(--surface-a, var(--surface))";
 const serif = (size: number): React.CSSProperties => ({
   fontFamily: "var(--serif)", fontWeight: 500, fontSize: size, lineHeight: 1.14,
@@ -828,7 +827,9 @@ function useLeft(until: number | null): string | null {
 // The dots ARE the score, and since request 12 they are also the browser:
 // a revealed round's dot opens that reveal above. Five kinds from the
 // design plus one — `n`, a round you played that carried no call to score
-// (a world round whose guess was a lookup, a reveal from before rounds).
+// (a reveal from before rounds; and the rounds of 2026-09-08 that drew a
+// world question with no guess, before the owner retired those — D426's
+// third amendment).
 type DotKind = 1 | 0 | "s" | "o" | "l" | "n";
 const DOT_TITLE: Record<string, string> = {
   "1": "called it", "0": "missed", s: "sealed · waiting on the others",
@@ -871,11 +872,10 @@ function LdRun({ rows, acc, onPick }: { rows: RunRow[]; acc: string; onPick: (at
 
 // ── a round's reveal ─────────────────────────────────────────────
 //
-// One document, four shapes (request 12): a 1v1's SAID · CALLED table, a
-// group's split with faces on the bars, and for a world round the three
-// columns — you, them, the World's share — on either. Under them, who
-// played and who did not (a seat, never a name), the verdict and the
-// calls, a late answer said plainly, the door to one, and the takes.
+// One document, two shapes (request 12): a 1v1's SAID · CALLED table, or a
+// group's split with faces on the bars. Under them, who played and who did
+// not (a seat, never a name), the verdict and the calls, a late answer said
+// plainly, the door to one, and the takes.
 function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; browsed?: string | null }) {
   // "" rather than null: this component INDEXES the vote map by it, and an
   // anonymous session has no uid. An empty key matches nobody, which is the
@@ -885,16 +885,8 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   const votes = (reveal.votes || {}) as Record<string, RevealVote>;
   const rowQid = reveal.qid || null;
   const bankQ = reveal.qid ? LIVE.social.bankQ(reveal.qid) : null;
-  const world = !!bankQ && (bankQ as { kind?: string }).kind === "world";
   const duo = g.mode === "duo";
   const tint = duo ? ACC_DUO : ACC_GROUP;
-  // A world round's crowd is fetched on the reveal that draws it — one
-  // read per question per session, and none on a room's own question
-  // (ROUNDS-PLAN §0a). `LIVE` is a module binding, so the dependency list
-  // is complete as written.
-  React.useEffect(() => {
-    if (world && rowQid) LIVE.social.ensureWorldSplit(rowQid);
-  }, [world, rowQid]);
   const optsFor = (q: { options?: string[] } | null): string[] =>
     (q && q.options && q.options.length)
       ? q.options
@@ -909,7 +901,6 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   const mine = votes[uid];
   const themUid = duo ? ((g.memberUids || []).find((m) => m !== uid) || "") : "";
   const theirs = themUid ? votes[themUid] : undefined;
-  const themName = firstName(names[themUid]) || "them";
   // Who the reveal says was there (its `members`, the room's roster before
   // it), against who answered: the difference is the open seats.
   const roster: string[] = (Array.isArray(reveal.members) && reveal.members.length
@@ -961,13 +952,12 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
     <div data-testid="ld-reveal" style={col(10)}>
       <div style={{ display: "flex", gap: 5, alignItems: "baseline", flexWrap: "wrap" }}>
         {head && <span style={KICK}>{head}</span>}
-        {world && <span style={{ ...KICK, color: WORLD }}>· World</span>}
         <span style={KICK}>{head ? "· " : ""}{post}</span>
       </div>
       {bankQ && <div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.25, letterSpacing: "-0.01em", textWrap: "pretty" }}>{bankQ.prompt}</div>}
-      {world ? worldCols() : (duo ? duoTable() : (
+      {duo ? duoTable() : (
         <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint} />
-      ))}
+      )}
       {openSeats.length > 0 && seats()}
       {line()}
       {myLate && (
@@ -1083,46 +1073,6 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
     );
   }
 
-  // A world round's three columns (ROUNDS-PLAN §6.2): you, them, and the
-  // World's share of every option — the crowd from the aggregate the feed
-  // holds, fetched once per question when it does not.
-  function worldCols() {
-    const split = rowQid ? LIVE.social.worldSplit(rowQid) : null;
-    const themLabel = duo ? themName : (g.name || "The room");
-    const themW = duo ? "44px" : "minmax(44px, 92px)";
-    const cols = `minmax(0,1fr) 44px ${themW} 64px`;
-    return (
-      <div style={col(0)} aria-label="The world's split">
-        <div style={{ display: "grid", gridTemplateColumns: cols, gap: 8, alignItems: "baseline", padding: "0 0 6px" }}>
-          <span />
-          <span style={KICK}>you</span>
-          <span style={{ ...KICK, overflow: "hidden", textOverflow: "ellipsis" }}>{themLabel}</span>
-          <span style={{ ...KICK, color: WORLD }}>World</span>
-        </div>
-        {opts.map((o, i) => {
-          const chose = Object.keys(votes).filter((u) => u !== uid && onQ(u) && votes[u].optionIdx === i);
-          const meHere = !!mine && onQ(uid) && mine.optionIdx === i;
-          const pct = split && split.total > 0 ? Math.round(((split.counts[i] || 0) / split.total) * 100) : null;
-          return (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: cols, gap: 8, alignItems: "center", padding: "10px 0", borderTop: LD_HAIR }}>
-              <span style={{ fontWeight: 700, fontSize: 14, textWrap: "pretty" }}>{o}</span>
-              <span style={{ display: "flex", alignItems: "center", minHeight: 26 }}>{meHere && <YouChip size={22} />}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 3, minHeight: 26, flexWrap: "wrap" }}>
-                {chose.map((u) => <DuelAv key={u} uid={u} name={names[u]} size={26} />)}
-              </span>
-              <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontWeight: 800, fontSize: 13, fontVariantNumeric: "tabular-nums" }}>{pct == null ? "—" : `${pct}%`}</span>
-                <span style={{ height: 4, borderRadius: 999, background: `color-mix(in oklch, ${WORLD} 18%, transparent)`, overflow: "hidden" }}>
-                  <span style={{ display: "block", height: "100%", width: `${pct ?? 0}%`, borderRadius: 999, background: WORLD }} />
-                </span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
   // Who played, and who did not: marks for the people with an answer, your
   // pill (marked late when it was), and a dashed ring per member the reveal
   // recorded as there who never answered. Drawn only when a seat is open.
@@ -1139,9 +1089,8 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
     );
   }
 
-  // The verdict and the calls, on one line. A group: where the room landed,
-  // and whether you called it. A world round in a 1v1: your call and
-  // theirs, since the table above carries no CALLED column there.
+  // The verdict and the call, on one line — a group's: where the room
+  // landed, and whether you called it. A 1v1's calls are in its table.
   function line() {
     const parts: React.ReactNode[] = [];
     if (!duo && counted >= 2 && winners.length) {
@@ -1151,14 +1100,6 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
           ? <span key="c" style={{ fontWeight: 800, color: good }}><span aria-label="called it">✓</span> you called it</span>
           : <span key="c" style={{ fontWeight: 800, color: MISS }}>{"you called " + labelIn(opts, myCall)}</span>);
       }
-    }
-    if (duo && world && comparable) {
-      parts.push(iCalled
-        ? <span key="m" style={{ fontWeight: 800, color: good }}><span aria-label="called it">✓</span> you called it</span>
-        : <span key="m" style={{ fontWeight: 800, color: MISS }}>{"you called " + labelIn(opts, (mine as RevealVote).guessIdx as number)}</span>);
-      parts.push(theyCalled
-        ? <span key="t" style={{ fontWeight: 800, color: good }}><span aria-label="called it">✓</span> {themName} called it</span>
-        : <span key="t" style={{ fontWeight: 800, color: MISS }}>{`${themName} guessed ${labelIn(opts, (theirs as RevealVote).guessIdx as number)}`}</span>);
     }
     if (!parts.length) return null;
     return (
@@ -1438,18 +1379,6 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
   const past = hist.length ? hist : (reveal ? [reveal] : []);
   const shown: LiveReveal | null = at === 0 ? null : (past[at - 1] || null);
 
-  // A WORLD question as the round (ROUNDS-PLAN §6.2). In a 1v1 the guess
-  // is asked only when it is a read: if the partner has already answered
-  // this question in public, a guess would be a lookup, so the pick seals
-  // on its own and the card says why. A group's world round takes no call
-  // on the room at all — a room of public answers is a lookup too. The
-  // partner's public answers are one capped query per pair per session.
-  const world = !!q && q.kind === "world";
-  React.useEffect(() => {
-    if (world && duo) void S.loadPartnerAnswers(g.id);
-  }, [world, duo, g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton
-  const partnerKnown = world && duo && q ? S.partnerAnswer(g.id, q.id) : null;
-  const guessless = world && (!duo || partnerKnown != null);
   const seal = async (optionIdx: number, guessIdx?: number) => {
     if (busy) return;
     setBusy(true); setVoteErr(null);
@@ -1548,12 +1477,9 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
     </div>
   );
 
-  const kicker = (n: number, isWorld: boolean, right?: string | null) => (
+  const kicker = (n: number, right?: string | null) => (
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-      <span style={{ display: "flex", gap: 5, alignItems: "baseline" }}>
-        <span style={KICK}>{`Round ${n}`}</span>
-        {isWorld && <span style={{ ...KICK, color: WORLD }}>· World</span>}
-      </span>
+      <span style={KICK}>{`Round ${n}`}</span>
       {right && <span style={{ ...KICK, fontVariantNumeric: "tabular-nums" }}>{right}</span>}
     </div>
   );
@@ -1623,7 +1549,6 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
           const rq = S.roundQ(g.id, n) as { prompt: string; options: string[]; kind?: string } | null;
           const call = S.myDuelCall(g.id, n);
           const parts: string[] = [];
-          if (rq && rq.kind === "world") parts.push("World");
           if (rq && call && rq.options[call.optionIdx] != null) parts.push(`you: ${rq.options[call.optionIdx]}`);
           if (rq && call && call.guessIdx != null && rq.options[call.guessIdx] != null) parts.push(`called ${rq.options[call.guessIdx]}`);
           const dl = !duo && n === R.open ? left : null;
@@ -1659,19 +1584,14 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
   // State 1 · your turn: the question, then the read.
   const askBlock = q && pick == null && (
     <div style={col(12)} key="ask">
-      {kicker(R.next ?? R.open, world, !duo && R.next === R.open && left ? `${left} left` : null)}
+      {kicker(R.next ?? R.open, !duo && R.next === R.open && left ? `${left} left` : null)}
       <div style={serif(27)}>{q.prompt}</div>
       <div style={col(9)}>
         {q.options.map((o: string, i: number) => (
           <LdOption key={i} label={o} tint={tint} disabled={busy}
-            onClick={() => (guessless ? void seal(i) : setPick(i))} />
+            onClick={() => setPick(i)} />
         ))}
       </div>
-      {world && duo && partnerKnown != null && (
-        <div role="note" style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.45, color: "var(--ink-2)", textWrap: "pretty" }}>
-          {`${themName} already answered this in the World feed, so there is no guess this round.`}
-        </div>
-      )}
       {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
     </div>
   );

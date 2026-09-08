@@ -16,7 +16,6 @@ import {
   DECK_EPOCH,
   splitBanks,
   duelQFor,
-  worldDuelPool,
   gHash,
   hasPublishedCounts,
   isCore,
@@ -412,45 +411,6 @@ describe("duelQFor (duel question rotation)", () => {
 
   it("round 1 is a question too — the first round a fresh group opens on", () => {
     expect(duelQFor(group, bank, 1)).not.toBeNull();
-  });
-
-  describe("world questions as duel content (ROUNDS-PLAN §6.2)", () => {
-    const feed = [
-      qd("feed-b", { surface: "feed", type: "vote", core: true, options: ["x", "y"] }),
-      qd("feed-a", { surface: "feed", type: "vote", core: true, options: ["p", "q", "r"] }),
-      qd("feed-tail", { surface: "feed", type: "vote", options: ["x", "y"] }),          // not core
-      qd("feed-dial", { surface: "feed", type: "dial", core: true, options: ["lo", "hi"] }), // a range, not options
-      qd("feed-cat", { surface: "feed", type: "catalog", core: true, options: [] }),
-      qd("feed-off", { surface: "feed", type: "vote", core: true, options: ["x", "y"], active: false }),
-    ];
-
-    it("the world pool is the feed's core, option-shaped, sorted by id — and nothing else", () => {
-      expect(worldDuelPool(feed).map((q) => q.id)).toEqual(["feed-a", "feed-b"]);
-    });
-
-    it("even rounds draw the world, odd rounds the room's own bank", () => {
-      const pool = worldDuelPool(feed);
-      for (let r = 1; r <= 8; r++) {
-        const q = duelQFor(group, bank, r, pool)!;
-        if (r % 2 === 0) {
-          expect(q.kind).toBe("world");
-          expect(q.id).toMatch(/^feed-/);
-        } else {
-          expect(q.kind).not.toBe("world");
-          expect(q.id).toMatch(/^g/);
-        }
-      }
-    });
-
-    it("with no world pool every round is the room's own — the pre-core device", () => {
-      for (let r = 1; r <= 4; r++) expect(duelQFor(group, bank, r)!.id).toMatch(/^g/);
-    });
-
-    it("is the same function on every device — member order and the pool's input order are irrelevant", () => {
-      const a = duelQFor({ id: "grp_abc", mode: "group", memberUids: ["u1", "u2"] }, bank, 2, worldDuelPool(feed))!;
-      const b = duelQFor({ id: "grp_abc", mode: "group", memberUids: ["u2", "u1"] }, bank, 2, worldDuelPool([...feed].reverse()))!;
-      expect(a.id).toBe(b.id);
-    });
   });
 
   it("selects the question from the group id alone — member order is irrelevant", () => {

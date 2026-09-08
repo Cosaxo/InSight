@@ -1002,40 +1002,29 @@ service cloud.firestore {
             // public aggregate.
             && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
                  .data.get("active", true) == true
-            // EQUALITY, like isWorldAnswer's — or the world arm beside it.
-            // duelQFor (data/deck.ts) draws a round's question from the
-            // bank whose surface matches the answer's own "group"/"duo",
-            // and since ROUNDS-PLAN §6.2 every other round from the feed's
-            // core: the second arm admits exactly that and nothing else.
-            // Without the equality a group could seal a vote against a
-            // catalog question — whose `options` is empty, so
+            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
+            // the round's question with `q.surface === mode`, so the bank a
+            // group can legitimately answer from is exactly the one whose
+            // surface matches the answer's own "group"/"duo". Without it a
+            // group could seal a vote against a daily, feed or catalog
+            // question — and for a catalog question `options` is empty, so
             // duelIndexSpace() falls through to the member count and the
             // vote is folded as if it were a "pick".
+            //
+            // For one day (2026-09-08, ROUNDS-PLAN §6.2) a second arm stood
+            // beside this equality admitting a daily or feed question of an
+            // option-index type as a round's content. The owner retired it
+            // on seeing the first such reveal — the feed already asks those
+            // — and the equality is again the whole test (D426's third
+            // amendment). Widen it only as an explicit arm, never by
+            // relaxing this line: the catalog hole above is what the
+            // equality closes.
             //
             // The get() is the same document duelIndexSpace() already
             // reads, and rules dedupe identical gets within a request, so
             // neither clause costs an extra read.
-            && (
-              get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                   .data.get("surface", "daily") == request.resource.data.surface
-              // …OR a WORLD question as duel content (ROUNDS-PLAN §6.2, the
-              // owner's word 2026-09-08): a daily or feed question whose
-              // answer is an option index. Written as an explicit second
-              // arm, never as a relaxation of the equality above — that
-              // equality is what stops a catalog question (type catalog,
-              // options []) falling through duelIndexSpace() to the member
-              // count and being folded as a pick, and the type test here
-              // keeps rank (an order, not an index), dial and field (a
-              // position on a range) and path out for the same reason: a
-              // duel answer's optionIdx has to name one of the question's
-              // own options. The same document, deduped: no extra read.
-              || (get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                     .data.get("surface", "daily") in ["daily", "feed"]
-                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                     .data.get("type", "") in ["vote", "binary", "choice"]
-                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                     .data.options.size() > 0)
-            )
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("surface", "daily") == request.resource.data.surface
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
             // SAME bound as optionIdx, and now the SAME COMPARISON — a guess
