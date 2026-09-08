@@ -32,12 +32,19 @@ not a saving — and changes the documents, never the picture.
   same minus the name it then fetches. A precomputed document per person
   and a name on the sample row serve the identical picture at about a
   hundredth of the reads.
-- **Priced: 381 → 58 reads per user per day (−85 %), for one or two
+- **Priced: 381 → 57 reads per user per day (−85 %), for one or two
   extra writes per user per day.** Reads and writes together, straight
-  off the `europe-west1` sheet with no free allowance: **$20 → $5.61 a
-  month at 5,000 DAU, $199 → $56 at 50,000, $1,987 → $561 at 500,000.**
+  off the `europe-west1` sheet with no free allowance: **$20 → $5.57 a
+  month at 5,000 DAU, $199 → $56 at 50,000, $1,987 → $557 at 500,000.**
   Half of the saving is one document (Circle's); the next third is a name
-  on a document the nightly fold already writes.
+  on a document the nightly fold already writes, at no new server read.
+- **The model understates the social reads, so the saving is larger
+  than the table says.** Two client fan-outs have no term at all — the
+  city-scoped Kindred pass (D278: twelve live queries of up to 200 answer
+  documents plus names, per session, for anyone with a city who opens the
+  City stop) and the reveal history (13 reads per group per session) —
+  and the boot term is four documents short. §1 names them; the same
+  documents that fix Kindred fix the city pass.
 - **The write side is near its floor in operations** — three writes per
   world answer (the answer, the ledger entry, the aggregate), each with
   a reader — **and not in what each write carries**: the aggregate is
@@ -71,11 +78,13 @@ client sites, `functions/src` for the server's):
 
 | Term | Reads/user-day | What is read | What is used |
 | --- | ---: | --- | --- |
-| boot | 23 | per boot (1.4 a day): `v2_meta/app`, own profile, own-answers delta query, **7 deck aggregates**, the groups query, 2 group docs, 2 reveals; plus 2 paged cards a day (D401). The `v2_rank` shape documents (D383) are read too and not yet in the model's term | everything but the 7 aggregates is one document each; the deck needs `counts`/`total` of seven `v2_question_aggs` |
+| boot | 23 (really ~29) | per boot (1.4 a day): `v2_meta/app`, own profile, own-answers delta (two queries, modelled as one), **7 deck aggregates**, the groups query, 2 group docs, 2 reveals; plus 2 paged cards a day (D401). **Four unconditional `getDoc`s are in none of the 15**: `v2_rank/daily`, `v2_rank/learn`, `v2_rank/feed`, `taste/profile` — +5.6 reads per user-day | everything but the 7 aggregates is one document each; the deck renders `counts` and `total` of seven `v2_question_aggs` and nothing of their `by` maps |
 | reattach | 28 | **7 deck aggregates on every foreground** (`resubscribeForToday` → `startAggPoll` → `refreshAggs(deckIds)`), 4 cycles a day | today's counts; the six back days barely move |
 | social · Circle | 150 | 0.1 opens × 5 members × **≤300 answer documents each** (`circle.ts` `fetchAnswersOf`: `where surface in …, orderBy answeredAt desc, limit 300`) | `qid → optionIdx` per member, folded by `agreement()` into a percentage and a shared count |
 | social · Kindred / People / pair | 72 | 0.03 views × 12 questions × (1 sample document + **200 profile documents** for names) | uid, option, chips from the sample; `displayName` (and scores) from each profile |
-| social · who-voted | 60 | 0.15 opens × (**200 answer documents** + 200 profiles) | uid, option, `anchors` chips, `displayName` |
+| social · who-voted | 60 | 0.15 opens × (**200 answer documents** + 200 profiles). The sheet's *Everyone* and eight demographic cuts cost nothing — arithmetic on the aggregate the card holds; the reads fire from the Friends, Type and Logic cuts, so the open rate is really a tap rate | uid and option from the answer; `displayName` and `testResults` from the profile. The answer's `anchors` are fetched and not rendered here |
+| **city Kindred (D278)** | **not modelled** | up to **12 live queries × 200 answer documents + names per session**, for a viewer with a city who opens the City stop (`loadCityKindred` calls `fetchVoters`, not the sample — there is no city-scoped sample) | the same fields as Kindred, city-filtered |
+| **reveal history** | **not modelled** | **13 `getDoc`s per group per session** (`REVEAL_HIST_DAYS` = 14, yesterday rides the listener), on the Groups stop and the Roles panel, every group | the day's reveal summary |
 | server | 33 | the trigger's 3 reads per world answer (ledger event, aggregate, author profile) = 12; the velocity scan 4; the nightly pass 4; patterns state 1; the candidate scan 3 (one per MAU); engagement state 1; attention 1; rollups 2; reveals 5 | server folds — none reaches a client |
 | rules | 7 | one `get()` of the question per world answer, three per duel answer | option count, active, surface |
 | poll | 3 | today's aggregate once a minute while visible | today's counts |
@@ -83,14 +92,14 @@ client sites, `functions/src` for the server's):
 | topUp | 2 | aggregates of answered questions with no published counts, ≤120, rechecked 6-hourly | counts |
 
 Per-session reads the per-day model does not carry, with what bounds
-them: the similarity sweep (≤110 test aggregates, **once per device** —
-the filter is `!state.aggs[q.id]` and the aggregate cache persists, so a
-second session reads none); takes (≤100 per question opened, per session);
-faces (`v2_avatars`, per uid drawn, per session — not persisted, D178, on
-purpose); reveal history (13 per group per session); learn aggregates
-(one per card); the pulse (≤5 a day plus 21 on a tap); the ads pool
-(≤200 once per session). All bounded, none a DAU term; the reveal history
-is the only one worth a document (§2.8).
+them: the similarity sweep (the test aggregates the persisted cache does
+not hold — **266** active test items today, not the ~110 the source
+comment says, so up to 266 reads on a device's first City, Country or
+World open and ~0 after); takes (≤100 per question opened, per session);
+faces (`v2_avatars`, one per uid drawn per session on the five surfaces
+that pass a face map — not persisted, D178, on purpose); learn aggregates
+(one per card); the pulse (≤5 a day plus 21 on a tap); the ads pool (≤200
+once per session, one read when empty). All bounded, none a DAU term.
 
 Every term is flat in DAU, which is what D129 bought: nothing above grows
 with the population. What grows is the product of two numbers the app
@@ -106,7 +115,7 @@ allowance; "writes+" is per user-day):
 ```
 reshape                                                                          saved/user-day  writes+   $/mo saved  5k · 50k · 500k DAU
 Circle: one compact answer document per member, not ≤300 answer docs               149.5        1 (+4 if live) $6.59 · $66 · $659
-Kindred / People / pair card: the nightly voter sample carries names                71.0        0              $3.19 · $32 · $320
+Kindred / People / pair card: the nightly voter sample carries names                72.0        0              $3.24 · $32 · $324
 Who-voted sheet: drawn from the same sample (names embedded)                        59.8        0              $2.69 · $27 · $269
 Foreground refresh re-reads today only; the six back days refresh on boot           24.0        0              $1.08 · $11 · $108
 One deck document per day: seven aggregates in one read at boot                      8.4        1              $0.24 · $2.43 · $24
@@ -116,11 +125,11 @@ Candidate-engine scan re-solves only people who answered since the last fit     
 
 all reshapes together — reads and writes per month, straight off the sheet
 scenario                 DAU   reads/user-day        $/mo before → after
-Launch / TestFlight        50        192 → 98             $0.11 → $0.07   (−35%)
-Friends-of-friends        500        291 → 98             $1.58 → $0.74   (−53%)
-Real traction            5000        381 → 58               $20 → $5.61   (−72%)
-Scale                   50000        381 → 58                $199 → $56   (−72%)
-Hit                    500000        381 → 58             $1,987 → $561   (−72%)
+Launch / TestFlight        50        192 → 97             $0.11 → $0.07   (−35%)
+Friends-of-friends        500        291 → 97             $1.58 → $0.74   (−53%)
+Real traction            5000        381 → 57               $20 → $5.57   (−72%)
+Scale                   50000        381 → 57                $199 → $56   (−72%)
+Hit                    500000        381 → 57             $1,987 → $557   (−72%)
 ```
 
 ### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day
@@ -151,6 +160,19 @@ signed-in reader (D98), in one document instead of one per answer, so the
 rule is the same `allow get: if request.auth != null` the answers carry,
 write closed. Under `v2_users/{uid}` it is erased by `deleteAccount`'s
 existing recursive delete with no new arm.
+
+**Two things the map decides.** Its *home*: under `v2_users/{uid}` it is
+erased with the account and rules-gated like the answers; on the
+`v2_patterns/` shelf (`answers-{uid}`, beside the samples) it is already
+signed-in-readable and write-closed and gets the same field-delete arm
+`deleteAccount` gives the samples. Its *basis*: D395's private map covers
+the 536 questions the fit admits (daily, test, core feed), while Circle's
+likeness today runs over all six world surfaces — learn, pulse, call and
+the feed's tail included. Folding the public map over the six keeps the
+number a user sees; folding it over the 536 changes it (arguably a
+correction — a learn card's answer is knowledge, not disposition — and
+still a visible change). Either way the 300-answer recency cap
+disappears, so old accounts compare on everything they have answered.
 
 **Who writes it — the decision.** Two options, both priced in the table:
 
@@ -188,18 +210,20 @@ in `insight.profileCache.v1`. The model's ×2 is a no-overlap ceiling; the
 cache makes the steady state cheaper, but every new crowd is a profile
 read per stranger.
 
-**The change.** The row gains the name the sheet prints: `{ o, a, d,
-n: displayName }`. The nightly pass writes the sample from the day's
-ledger entries (`patterns.ts:880-901`); learning a name costs it one
-profile read per active person per night — the same read the model
-charges the client 200× per view today. A rename reaches every row the
-pass touches within a day; a row it does not touch keeps its name until
-it is refolded, which is the seven-day client cache's own property
-today. Faces stay live and per session, exactly as D178 argues (a
-token cached past a remove verdict is a removed face still rendering);
-only the name moves. Scores (`testResults`) could ride the row for the
-kindred-by-scores fold at a few hundred bytes more per row, or stay a
-per-uid read from the profile cache; either is small beside the name.
+**The change.** The row gains what the readers fetch a profile for:
+`{ o, a, d, n: displayName, s: parsed scores, l: logic percentile }` —
+three small scalars. **It costs the server no new read**: the
+world-answer trigger already reads the author's profile in its
+transaction (D410, `v2.ts` `tx.getAll(eventRef, pubRef, profRef)`), so
+`displayName` and `testResults` are on the wire at every answer and can
+be stamped onto the ledger entry the way `anchors` already are
+(`ledger.ts`, "so the sample builder can take them without a second read
+per entry"); `mergeSample` then embeds them. A rename reaches every row
+the pass touches within a day; a row it does not touch keeps its name
+until it is refolded, which is the seven-day client cache's own property
+today. Faces stay live and per session, exactly as D178 argues (a token
+cached past a remove verdict is a removed face still rendering); only the
+name and the scores move.
 
 ### 2.3 · The who-voted sheet draws from the sample — 60 → 0.15 reads per user-day
 
@@ -212,7 +236,11 @@ today's voters must appear today, a hybrid keeps most of the saving — the
 sample, plus a live query for answers newer than the sample's day with a
 small limit, so a busy question costs 1 + a few dozen reads rather than
 400. The city-scoped cut (`where anchors.city ==`) reads the same sample
-and filters on the device; the chips are already on each row.
+and filters on the device; the chips are already on each row. Two
+things the sample cannot give and the client can: the viewer's own vote
+the moment it lands (unioned in locally from `state.votes`), and — for a
+question older than D397 — a crowd that is only the voters since the
+deploy, which the `≥ 12` floors already report as thin.
 
 ### 2.4 · The foreground refresh reads today only — 28 → 4 reads per user-day
 
@@ -268,15 +296,50 @@ statistics — the memory being the part that fails first (§3).
 
 - **Reveal history** (`REVEAL_HIST_DAYS` = 14): the Groups stop and the
   Roles panel read up to 13 day documents per group per session, every
-  group. `revealGroupDay` could append the day's summary to one
-  `v2_groups/{gid}/history` document in the same batch it already writes
-  — one read per group instead of thirteen, no extra invocation.
+  group — ~18 reads per user-day for a one-group user, comparable to
+  the whole modelled boot, and in no term. `revealGroupDay` could append
+  the day's summary to one `v2_groups/{gid}/history` document in the
+  batch it already writes — one read instead of thirteen. **What it
+  changes**: each day's reveal is rule-gated on its own `members`
+  snapshot, so a late joiner cannot read the days before they joined;
+  one document cannot express that gate, so a history document would
+  show a late joiner the group's earlier day summaries. Whether that is
+  acceptable is a privacy-shaped question and goes to the owner (D334),
+  with this arithmetic; the per-member variant (one history document per
+  member) keeps the gate at one write per member per reveal.
 - **Takes** (≤100 world takes per question per session) are bounded and
   rarely opened; a sample-shaped document per question would be the same
   trade as 2.3 and is not worth it until the open rate says so.
-- **The similarity sweep** needs nothing: it reads only the test
-  aggregates the persisted aggregate cache does not hold, so in practice
-  it is ≤110 reads once per *device*, not per session.
+- **The similarity sweep** needs almost nothing: it reads only the test
+  aggregates the persisted cache does not hold, so it is a first-open
+  cost per device (up to 266 reads today) and ~0 after. A nightly
+  `{ qid: { counts, total } }` norms document would make the first open
+  one read for Compare and the norms — but the places field folds
+  `by.city` and `by.country` per item, hundreds of kilobytes across the
+  bank, so it keeps the sweep or takes two or three documents of its own.
+  Worth it only if first opens are measured to matter.
+
+### 2.9 · The city-scoped Kindred pass — twelve live fan-outs the model does not see
+
+`loadCityKindred` (D278) runs a second Kindred pass narrowed to the
+viewer's city — `fetchVoters` with `where("anchors.city", "==", city)`,
+twelve questions, up to 200 answer documents each plus names — because
+the newest-200 sample holds too few of one city to rank a ring (D278's
+own recall arithmetic: at 100,000 users the ring was choosing from 2.6 %
+of your city). It calls the live query, not the sample: **there is no
+city-scoped sample.** Per session, for any viewer with a city who opens
+the City stop, that is up to 2,400 answer reads plus names — the largest
+client read in the app, and in no term of the model.
+
+Two shapes serve it. A **city-scoped sample** per (question, city) for
+cities above a size floor, written by the same nightly pass off the same
+ledger entries (the chips carry the city), read like the world sample —
+many small documents, one read each, and the recall D278 wanted. Or the
+**answer-map shape of 2.1 turned around**: a per-city roster of active
+answerers, then one map document per person — which is Circle's read
+path with the city as the circle, and the same document serving both.
+Either takes the pass from thousands of reads per session to a dozen;
+the sample is the smaller build, the roster the more general one.
 
 ## 3 · The write side, the wall, and what fails before it costs
 
@@ -476,7 +539,32 @@ costs` once the model's term moves), the pin moved with its constant, the
 rules test, the inventory row, the erasure assertion, the why-comment,
 and the stated effect on what a user sees.
 
-## 6 · How this stays honest
+## 6 · What the model gets wrong, and how this stays honest
+
+Three terms the model does not carry, found by reading the client
+against `readsPerUser`, and one it carries at the wrong size — none
+changes a conclusion above, all say the social reads are *understated*:
+
+- **`boot` is four documents short per boot** — `v2_rank/daily`,
+  `v2_rank/learn`, `v2_rank/feed` and `taste/profile` are unconditional
+  reads in every `hydrate()`; at 1.4 boots that is +5.6 reads per
+  user-day. A merge of `v2_meta/app` and `v2_rank/daily` into one boot
+  manifest (D265's own precedent) would take 1.4 of them back.
+- **The city Kindred pass has no term** (2.9).
+- **The client's reveal history has no term** (2.8); the model's reveal
+  term is the server pipeline's.
+- **Egress prices the deck refresh at the wrong size**: the 28 re-attach
+  reads are aggregate documents (`BYTES.aggDoc`, 2.4 KB) charged at
+  `BYTES.otherDoc` (250 B) — a tenfold understatement of a small line —
+  and `BYTES.aggDoc`'s comment says six dims where `BREAKDOWN_DIMS` has
+  been eight since D328.
+- The similarity sweep's source comment says ~110 core test items; the
+  shipped bank has 266, and nothing pins the number.
+
+Adding the missing terms moves the shipped total from ~381 to roughly
+410–450 reads per user-day before any reshape, and every one of the
+added reads is on the surfaces 2.1–2.3 and 2.9 replace.
+
 
 `scripts/cost-structure.mjs` reads the same constants the cost model
 reads from source — `VOTER_FETCH_CAP`, `KINDRED_QUESTIONS`,

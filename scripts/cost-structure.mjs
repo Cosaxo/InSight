@@ -60,9 +60,10 @@ export const RESHAPES = [
     key: "namesInSample",
     name: "Kindred / People / pair card: the nightly voter sample carries names",
     // cost-arith's kindred term: views × questions × (1 sample + crowd profile
-    // reads); the pass pays one profile read per active person per night to
-    // learn the name it embeds, so the saving is one read short of the term.
-    reads: (dau) => B.kindredViews * KINDRED_QUESTIONS * crowd(dau) - 1,
+    // reads). The name costs the server nothing new: the world-answer trigger
+    // already reads the author's profile (D410) and can stamp the name on the
+    // ledger entry the sample is built from.
+    reads: (dau) => B.kindredViews * KINDRED_QUESTIONS * crowd(dau),
     writes: () => 0,
   },
   {
