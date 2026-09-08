@@ -131,6 +131,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 import { TOP_FLOOR, RUN_CAP as DAILY_CAP, loadDailyTops, farmSignal } from "./farm-budget.mjs";
 // LANE_EXCLUDED is deliberately NOT imported: loadFeedTopics already drops
 // it, so a parent the lane cannot stock (`now`) is never counted as thin.
@@ -408,10 +409,20 @@ export function hueRing(surface, taxonomy) {
  * restated: feed topics are always-on (D96), so a new install fetches a
  * page per topic until its cache converges (bankPager.ts, D321). A leaf
  * costs none of this — its cards ride the parent's page. Returns null if
- * the constant moves, so the line goes quiet instead of inventing (D197). */
+ * the constant moves, so the line goes quiet instead of inventing (D197).
+ *
+ * COMMENTS STRIPPED, because "returns null if the constant moves" was not
+ * what it did: `exec` returns the FIRST hit, and this tree parks a
+ * superseded value in a comment above the live one as a matter of house
+ * style. Measured 2026-09-08 on bankPager.ts — live tree 12, the same
+ * file with `// was: export const FEED_PAGE = 8;` above the declaration
+ * read 8, `topic-budget.test.mjs`'s `expect(feedPageCost()).toBe(...)`
+ * stayed green, and the operator line printed a per-install cost a third
+ * under the truth. `source-pins.test.mjs` could not see the shape either;
+ * it does now. */
 export function feedPageCost() {
   try {
-    const src = readFileSync(join(root, "src", "v2", "data", "bankPager.ts"), "utf8");
+    const src = stripComments(readFileSync(join(root, "src", "v2", "data", "bankPager.ts"), "utf8"));
     const m = /export const FEED_PAGE = (\d+);/.exec(src);
     return m ? Number(m[1]) : null;
   } catch {
