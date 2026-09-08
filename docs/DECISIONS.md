@@ -41912,3 +41912,41 @@ actually computed.
 
 Sixteen axiom papers and seven general ones carry the form, every one
 reviewed and revised. Nothing in the app moves.
+
+## D389 amendment (2026-09-08) · Citations allowed; the three steps that turn the plan into research
+
+Asked to rate the series, the session said what it is: above a PhD
+proposal in breadth and discipline, below a thesis in evidence and
+situating, revolutionary in nothing, and valuable to this project as a
+design specification of what its data can and cannot know. Four things
+would move it, and the owner chose three: *"you are now allowed to use
+citations and these are the next steps we work on: a simulation
+harness that instantiates the setting and checks G7's identification
+table and G6's concordance statistic; the per-paper prior-art pass;
+building one axis in the app under its paper's requirements and
+collecting real data."*
+
+**Citations.** Rule 4 of the research README is rewritten: a citation
+situates and never substitutes. A claim about capability is still
+stated as what would have to hold; a claim about what has been done
+carries a numbered marker into a trailing References block whose entry
+carries a DOI or a URL. The gate now forbids the citation shapes in
+the body only, requires every marker to resolve to an entry and every
+entry to be cited and resolvable, and refuses prose after the block;
+its tests pin both directions. What the gate cannot see is unchanged:
+a citation-shaped universal with no marker is still rule 4's failure
+and only a reader catches it. Every reference is resolved on the web
+by whoever writes it, before it is written.
+
+**The harness.** Lives beside the series, is the sixth test runner,
+and checks identification exactly rather than by estimation: a
+variance component is identified on a design if and only if its
+covariance matrix is linearly independent of the others', so each row
+of G7's table is a design whose null space says which combinations are
+unidentified, with no Monte Carlo noise to argue with. Sizing and G6's
+statistic are Monte Carlo. Where the harness contradicts a paper, the
+paper moves, and this record says so.
+
+**The axis.** Which of the four unbuilt axes is built first is the
+owner's, put with the arithmetic; nothing in the app moves until it is
+chosen.

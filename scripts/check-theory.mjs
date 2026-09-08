@@ -129,27 +129,49 @@ export const REQUIRED = [
   },
 ];
 
-export const FORBIDDEN = [
+// Citation SHAPES. Until 2026-09-08 these were forbidden outright (rule 4:
+// "no citations, and no hedging toward one"), because the first attempt's
+// evidence ladder rewarded matching an existing paper and narrowed every
+// claim until it did. The owner then opened the prior-art pass — "you are
+// now allowed to use citations" — and the rule became: a citation lives
+// in a trailing **References.** block, is pointed at from the body by a
+// numbered marker, and carries a DOI or a URL so it can be checked. So
+// these shapes are forbidden in the BODY (everything before the block)
+// and required in the block. The marker shape `[n]` is the one exception
+// in the body, and only where entry n exists. What the gate still cannot
+// see is a citation-shaped UNIVERSAL with no marker — "no discipline
+// has", "the first" — which rule 4 forbids and only a reader catches.
+export const CITATION_SHAPES = [
   {
     name: "a link",
     re: /https?:\/\/|\bwww\./i,
-    why: "a link is a citation, and a citation is how the last attempt traded ambition for defensibility",
+    why: "a link is a citation; it goes in the References block and is pointed at by a numbered marker",
   },
   {
     name: "a DOI",
     re: /\bdoi\b|\b10\.\d{4,9}\/\S+/i,
-    why: "a DOI is a citation: it points at what a paper found rather than at what would have to hold",
+    why: "a DOI is a citation; it goes in the References block and is pointed at by a numbered marker",
   },
   {
     name: '"et al"',
     re: /\bet al\b/i,
-    why: '"et al" is a citation; say what would have to hold, not who found it',
+    why: '"et al" is a citation; the body carries a numbered marker and the References block carries the authors',
   },
   {
-    name: "a bracketed year or reference number",
-    re: /\(\s*(?:19|20)\d{2}[a-z]?\s*\)|\[\d{1,3}\]/,
-    why: "a bracketed year or number is a citation's shape",
+    name: "a bracketed year",
+    re: /\(\s*(?:19|20)\d{2}[a-z]?\s*\)/,
+    why: "a bracketed year is a citation's shape; the body cites by numbered marker only",
   },
+];
+export const REFERENCES_HEAD = /^\*\*References\.?\*\*\s*$/m;
+const MARKER = /\[(\d{1,3})\]/g;
+// One entry per line, `[n] …`, and it must carry something a reader can
+// resolve: a DOI or a URL. A reference nobody can check is a claim
+// wearing a citation's clothes, which is the failure rule 4 exists for.
+const ENTRY = /^\[(\d{1,3})\]\s+(.+)$/;
+const RESOLVABLE = /\b10\.\d{4,9}\/\S+|https?:\/\//i;
+
+export const FORBIDDEN = [
   {
     name: "a source path or source-file extension",
     re: /\b(?:src|functions|scripts|firestore-tests|design|content|web)\/[\w./-]*|\.(?:tsx?|jsx?|mjs|cjs|json|css|rules)\b/i,
@@ -212,18 +234,89 @@ export function scanPaper(text, kind = "axiom") {
     }
   }
 
+  const flag = (rule, l, i, m) => {
+    const at = m.index;
+    problems.push({
+      rule: `contains ${rule.name}`,
+      why: rule.why,
+      line: i + 1,
+      excerpt: l.slice(Math.max(0, at - 40), at + m[0].length + 40).trim(),
+    });
+  };
+
   for (const rule of forbidden) {
     lines.forEach((l, i) => {
       const m = rule.re.exec(l);
-      if (!m) return;
-      const at = m.index;
-      problems.push({
-        rule: `contains ${rule.name}`,
-        why: rule.why,
-        line: i + 1,
-        excerpt: l.slice(Math.max(0, at - 40), at + m[0].length + 40).trim(),
-      });
+      if (m) flag(rule, l, i, m);
     });
+  }
+
+  // Citations: shapes forbidden in the body, required in the block. The
+  // block is everything from the **References.** line to the end of the
+  // file; a paper without one has no block and no markers.
+  const headAt = lines.findIndex((l) => REFERENCES_HEAD.test(l));
+  const bodyEnd = headAt === -1 ? lines.length : headAt;
+  for (const rule of CITATION_SHAPES) {
+    for (let i = 0; i < bodyEnd; i += 1) {
+      const m = rule.re.exec(lines[i]);
+      if (m) flag(rule, lines[i], i, m);
+    }
+  }
+  const entries = new Map();
+  if (headAt !== -1) {
+    for (let i = headAt + 1; i < lines.length; i += 1) {
+      const l = lines[i];
+      if (!l.trim()) continue;
+      const e = ENTRY.exec(l);
+      if (!e) {
+        problems.push({
+          rule: "a References line that is not an entry",
+          why: "every non-blank line after **References.** is `[n] …`; prose there is a paper continuing past its references",
+          line: i + 1,
+          excerpt: l.slice(0, 80).trim(),
+        });
+        continue;
+      }
+      const n = Number(e[1]);
+      if (entries.has(n)) {
+        problems.push({ rule: "a duplicate reference number", why: `[${n}] is defined twice`, line: i + 1, excerpt: l.slice(0, 80).trim() });
+      }
+      entries.set(n, { line: i + 1, cited: false });
+      if (!RESOLVABLE.test(e[2])) {
+        problems.push({
+          rule: "an unresolvable reference",
+          why: "a reference carries a DOI or a URL so a reader can check it; one nobody can resolve is a claim wearing a citation's clothes",
+          line: i + 1,
+          excerpt: l.slice(0, 80).trim(),
+        });
+      }
+    }
+  }
+  for (let i = 0; i < bodyEnd; i += 1) {
+    for (const m of lines[i].matchAll(MARKER)) {
+      const n = Number(m[1]);
+      const entry = entries.get(n);
+      if (!entry) {
+        problems.push({
+          rule: "a citation marker with no reference",
+          why: `[${n}] points at nothing: every marker in the body matches an entry in the References block`,
+          line: i + 1,
+          excerpt: lines[i].slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).trim(),
+        });
+      } else {
+        entry.cited = true;
+      }
+    }
+  }
+  for (const [n, entry] of entries) {
+    if (!entry.cited) {
+      problems.push({
+        rule: "a reference nothing cites",
+        why: `[${n}] is in the References block and no marker in the body points at it; a reference without a claim is padding`,
+        line: entry.line,
+        excerpt: "",
+      });
+    }
   }
 
   const axes = AXES.filter(([, re]) => re.test(text)).map(([name]) => name);
@@ -295,8 +388,9 @@ if (invokedDirectly) {
 
   console.log(
     `check-theory OK — ${total} paper(s) (${seen.join(", ")}) carry the form:` +
-      " status line, perfect-form test, abstract, conditions and potential, no citations," +
-      " no app internals; axiom papers name two or more axes, general papers state their setting" +
+      " status line, perfect-form test, abstract, conditions and potential, citations only as" +
+      " numbered markers into a References block whose entries resolve, no app internals;" +
+      " axiom papers name two or more axes, general papers state their setting" +
       " and name none of this app's sources.",
   );
 }

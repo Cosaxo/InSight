@@ -69,10 +69,27 @@ mechanism that failure would have needed to be prevented.
 3. **Cross-axis or it does not count.** Every paper names at least two
    axes and says what the crossing makes knowable that neither makes
    alone.
-4. **No citations, and no hedging toward one.** A claim about capability
-   cannot be cited to a literature describing data that does not exist
-   yet. A paper says what could be true and what would have to hold for
-   it to be. No links, no DOIs, no bracketed years, no *et al*.
+4. **A citation situates; it never substitutes.** Until 2026-09-08 this
+   rule read *no citations, and no hedging toward one*, because the
+   first attempt's evidence ladder rewarded matching an existing paper
+   and narrowed every claim until it did. The owner opened the
+   prior-art pass on that date (*"you are now allowed to use
+   citations"*), and the rule is now the discipline pointed the other
+   way. A claim about capability is still stated as what could be true
+   and what would have to hold, never as what a literature found about
+   data that does not exist yet. A claim about what *has* been done —
+   what a method is, who stated a result, what a field already knows —
+   carries a numbered marker `[n]` into a trailing `**References.**`
+   block whose entry carries a DOI or a URL, so a reader can check it;
+   a claim of that shape with no marker is the citation-shaped
+   universal the sweep removed eleven of, and stays forbidden. The body
+   carries no links, DOIs, bracketed years or *et al* — those live in
+   the block — and every reference was resolved by whoever wrote it
+   before it was written, because a reference nobody checked is the
+   first attempt's failure with better clothes. Each paper's *prior
+   art* section says what in it exists already and what is new, and
+   "new" there is a claim about the references listed, not about the
+   world.
 5. **The machinery is theorized at its perfect form, never as it is.**
    How the data should be structured, how patterns should be found and
    what the structure is for are frontier research and are in scope
@@ -80,9 +97,11 @@ mechanism that failure would have needed to be prevented.
 
 `check:theory` holds the form: the status line, the perfect-form
 sentence, an abstract, at least two axes named, a conditions section, a
-potential section, and none of the things that pulled the last attempt
-back to the tree — a link, a DOI, a source path, a gate name, a decision
-number. It holds form, never truth or worth. Worth is the owner's read.
+potential section, citations only as numbered markers that resolve to
+entries in a References block that a reader can resolve, and none of
+the things that pulled the last attempt back to the tree — a citation
+shape in the body, a source path, a gate name, a decision number. It
+holds form, never truth or worth. Worth is the owner's read.
 
 ## The series
 

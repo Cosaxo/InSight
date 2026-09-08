@@ -17,7 +17,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scanPaper, listPapers, PAPERS_DIR, PAPER_SETS, AXES, REQUIRED, FORBIDDEN, GENERAL_REQUIRED, GENERAL_FORBIDDEN } from "./check-theory.mjs";
+import { scanPaper, listPapers, PAPERS_DIR, PAPER_SETS, AXES, REQUIRED, FORBIDDEN, CITATION_SHAPES, GENERAL_REQUIRED, GENERAL_FORBIDDEN } from "./check-theory.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -61,6 +61,75 @@ describe("a well-formed paper passes", () => {
   });
 });
 
+// Citations, since 2026-09-08: allowed as `[n]` markers in the body that
+// resolve to `[n] …` entries in a trailing **References.** block, each
+// entry carrying a DOI or a URL. Both directions are pinned: a paper that
+// cites properly passes, and every way of citing improperly fails — a
+// shape in the body, a marker with no entry, an entry with no marker, an
+// entry nobody can resolve, prose after the block.
+const CITED = GOOD.replace(
+  "Prose about 3D geometry",
+  "The decomposition is the social relations model [1], and the comparison result is classical [2]. Prose about 3D geometry",
+) + `
+**References.**
+
+[1] Kenny, D. A., & La Voie, L. The social relations model. Advances in Experimental Social Psychology, 18, 141–182 (1984). https://doi.org/10.1016/S0065-2601(08)60144-6
+[2] Bradley, R. A., & Terry, M. E. Rank analysis of incomplete block designs: I. The method of paired comparisons. Biometrika, 39, 324–345 (1952). https://doi.org/10.2307/2334029
+`;
+
+describe("citations: markers into a References block, and nothing else", () => {
+  it("a paper that cites by marker into a resolvable References block passes", () => {
+    expect(rules(CITED)).toEqual([]);
+  });
+
+  it("the block may carry every shape the body may not", () => {
+    // The two entries above hold a DOI, a URL, a bracketed year and an
+    // author list; none of that is flagged because it is in the block.
+    expect(CITED).toMatch(/\(1984\)/);
+    expect(CITED).toMatch(/https:\/\/doi\.org/);
+    expect(rules(CITED)).toEqual([]);
+  });
+
+  it("a citation shape in the body still fails, with the block present", () => {
+    for (const shape of ["see https://example.org", "doi 10.1000/xyz", "Kenny et al", "as shown (1984)"]) {
+      const text = CITED.replace("Prose about 3D geometry", `${shape}. Prose about 3D geometry`);
+      expect(rules(text).some((r) => r.startsWith("contains "))).toBe(true);
+    }
+  });
+
+  it("a marker with no entry fails", () => {
+    const text = CITED.replace("classical [2]", "classical [7]");
+    expect(rules(text)).toContain("a citation marker with no reference");
+    expect(rules(text)).toContain("a reference nothing cites");
+  });
+
+  it("an entry nothing cites fails", () => {
+    const text = CITED.replace("classical [2]", "classical");
+    expect(rules(text)).toContain("a reference nothing cites");
+  });
+
+  it("an entry with neither DOI nor URL fails", () => {
+    const text = CITED.replace(/ https:\/\/doi\.org\/10\.2307\/2334029/, "");
+    expect(rules(text)).toContain("an unresolvable reference");
+  });
+
+  it("prose after the References line fails", () => {
+    const text = CITED + "\nAnd one more paragraph of argument.\n";
+    expect(rules(text)).toContain("a References line that is not an entry");
+  });
+
+  it("a duplicate number fails", () => {
+    const text = CITED.replace("[2] Bradley", "[1] Bradley");
+    expect(rules(text)).toContain("a duplicate reference number");
+  });
+
+  it("every citation rule carries a reason", () => {
+    for (const rule of CITATION_SHAPES) {
+      expect(rule.why.length).toBeGreaterThan(20);
+    }
+  });
+});
+
 describe("the shapes that pulled the last attempt back to the tree", () => {
   const WOULD_DRIFT = [
     ["a link", "See https://example.org/paper for the finding."],
@@ -68,8 +137,7 @@ describe("the shapes that pulled the last attempt back to the tree", () => {
     ["a DOI", "Reported in doi:10.1038/nature14659."],
     ["a DOI", "The figure is 14% (10.1038/nature14659)."],
     ['"et al"', "Cai et al found 14%."],
-    ["a bracketed year or reference number", "Heritability is about 50% (2020)."],
-    ["a bracketed year or reference number", "As shown before [12], the effect holds."],
+    ["a bracketed year", "Heritability is about 50% (2020)."],
     ["a source path or source-file extension", "Verified against src/v2/data/similarity.ts first-hand."],
     ["a source path or source-file extension", "The fold lives in functions/src/pure.ts."],
     ["a source path or source-file extension", "The rules are in firestore.rules."],
@@ -87,6 +155,12 @@ describe("the shapes that pulled the last attempt back to the tree", () => {
       expect(found).toContain(`contains ${rule}`);
     });
   }
+
+  it("catches a numbered marker with no References block behind it", () => {
+    // Before 2026-09-08 `[12]` was a forbidden shape outright; now it is a
+    // marker, and a marker into nothing is the same drift by another name.
+    expect(rules(`${GOOD}\nAs shown before [12], the effect holds.\n`)).toContain("a citation marker with no reference");
+  });
 
   it("names a reason and a line for every forbidden finding", () => {
     const { problems } = scanPaper(`${GOOD}\nCai et al found it at https://example.org (2020).\n`);
