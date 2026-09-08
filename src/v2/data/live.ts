@@ -425,6 +425,14 @@ const state = {
   // The world-round questions whose split this session has asked the
   // server for (ensureWorldSplit): one read each, hit or miss.
   worldSplitChecked: {} as Record<string, boolean>,
+  // My CALL on each duel answer — answer id → guessIdx — kept beside the
+  // pick, which `votes` holds alone. The card's sealed list (request 11)
+  // says "you: Ignore · called Answer" for every round waiting on the
+  // others; the pick is on disk with the answers, the call is remembered
+  // for the session and re-read from the answer documents the boot's
+  // delta fetches. A round whose call this device no longer holds shows
+  // the pick alone — nothing invented.
+  duelCalls: {} as Record<string, number>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -2600,6 +2608,13 @@ async function hydrate(): Promise<void> {
       const val = answerValueOf((f) => d.get(f));
       if (val !== null) {
         state.votes[d.id] = val;
+        // A duel answer's CALL rides the same document (request 11's
+        // sealed list names it) — read here because the read is already
+        // paid, never fetched for its own sake.
+        if (d.id.startsWith("g_")) {
+          const gi = d.get("guessIdx");
+          if (typeof gi === "number") state.duelCalls[d.id] = gi;
+        }
         // NOT the server's word when the SDK's persistent cache has laid
         // this device's own unacknowledged mutation over the document
         // (latency compensation: such a query result carries
@@ -3842,6 +3857,19 @@ const SOCIAL = {
     const v = state.votes[`g_${gid}_${roundKey(openRoundOf(g))}`];
     return v != null ? { optionIdx: Number(v) } : null;
   },
+  /**
+   * My answer to a given round, with my call when this device still holds
+   * it (request 11's sealed list: "you: Ignore · called Answer"). Null
+   * for a round I have not sealed; `guessIdx` null for a pick whose call
+   * is not remembered — the card then names the pick alone.
+   */
+  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null } | null {
+    const aid = `g_${gid}_${roundKey(round)}`;
+    const v = state.votes[aid];
+    if (v == null) return null;
+    const gi = state.duelCalls[aid];
+    return { optionIdx: Number(v), guessIdx: typeof gi === "number" ? gi : null };
+  },
   revealFor(gid: string) {
     return state.reveals[gid] || null;
   },
@@ -4122,6 +4150,7 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
     notify();
     return (async () => {
       try {
@@ -4150,6 +4179,7 @@ const SOCIAL = {
         cacheVote(aid, optionIdx);
       } catch (err) {
         delete state.votes[aid];
+        delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
         throw err;
@@ -7713,6 +7743,7 @@ function resetForNewUid(uid: string): void {
   state.partnerAnswers = {};
   state.partnerAnswersLoading = {};
   state.worldSplitChecked = {};
+  state.duelCalls = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never

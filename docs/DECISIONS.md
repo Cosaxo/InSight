@@ -45075,5 +45075,31 @@ the sender after it, a late answer nudging nobody), `reveal-day.test.ts`
 (the reveal's stamps), `push.test.ts` (the channel, the tap, the
 foreground hand-off) and the e2e (the stamps on the real trigger).
 
-**What is NOT built**, so nothing here reads as more than it is: the
-screens (request 11). The card is truthful, not redesigned.
+**The screens are built** (§7.5, request 11, the same day): the owner
+drew the card in Claude Design from the prompt this session wrote —
+nine states for a 1v1 and a group, light and dark — and the canvas is
+extracted to `design/rounds-card-2026-09-08/` with a README that is
+its readable half. `ui/LiveDuelPanel.tsx` now draws that card: the
+kicker that names the round, the prompt in the serif, the answer as
+tinted options and the read as a second step, a 1v1 with no clock and a
+group counting coarsely to its deadline, the reveal as a SAID · CALLED
+table or a split with faces, a World round's three columns, seats for
+the absent, the late answer said plainly, the run of rounds at the foot
+— filled, hollow, sealed, open, late — which is also how a past reveal
+is opened, the rail with a dot on any room that is your turn, and a
+first run that draws one round of the game with a World question
+standing in before the one tap that starts a room. It draws only what
+the card already held — no new read; the call on a sealed round is
+remembered on the device (`myDuelCall`), never fetched. Where the tree
+departs from the canvas is written in the README rather than hidden: a
+1v1 can still close at its deadline and then wears the group's shapes;
+the next round's ask sits under what you sealed, or the lead is worth
+nothing; only the open round carries a deadline; the run has a sixth
+dot for a round with no call to score; and the header's run line, its
+member count and the panel's *N to play* line are gone, because the
+canvas has none of them and the rail's dots are the count. Pinned by
+what a person can see or reach in `LiveDuelPanel.test.tsx`; `check:a11y`
+and `check:tap-targets` unmoved, `check:public-copy` clean.
+
+**Nothing in the plan is left unbuilt.** The lane's daily cadence, the
+one owner click the tree could not make, the owner made the same day.

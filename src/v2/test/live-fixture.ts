@@ -450,6 +450,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     loadPartnerAnswers: async () => {},
     partnerAnswer: () => null,
     myDuelVote: () => null,
+    myDuelCall: () => null,
     revealFor: () => null,
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.

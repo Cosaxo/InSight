@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — steps 0–5, 7 and the regulator half of 6 are BUILT (2026-09-08, D420's second amendment); the lane's cadence is an owner row; step 8 is open.** The follow-through on
+**Status: plan notes — every step is BUILT (2026-09-08, D420's second amendment): 0–5 and 7 in the tree, 6's regulator built and its daily cadence re-paced by the owner, 8 from the owner's canvas of 2026-09-08 (`design/rounds-card-2026-09-08/`).** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -143,6 +143,19 @@ the tree does not do.
   kinds and `check:policy-claims` holds the named list, its pattern now
   naming *it is your turn*. The channel descriptions say *round* and
   *group*, not *day* and *circle* (§9's collision).
+- **The screens are built from the owner's canvas** (§7.5, request 11,
+  2026-09-08): nine states for a 1v1 and a group, extracted to
+  `design/rounds-card-2026-09-08/` with a README that is the readable
+  half of the bundle — every string, the behaviours a static reading
+  loses, and where the tree departs from the canvas. The departures,
+  briefly: a 1v1 can still close at its deadline (this section's own
+  rule) and then wears the group's *closed* shapes; state 2 has the next
+  round's ask under it, or the lead is worth nothing; only the open
+  round carries a deadline in the at-lead list; your call on a sealed
+  round is remembered, never fetched; the run has a sixth dot for a
+  round with no call to score; the header lost its run line and the
+  panel its *N to play* count. The card draws only what it already
+  holds — no new read.
 
 ## 0 · The short version
 
@@ -682,8 +695,11 @@ Each step is shippable and green on its own.
    core with even rounds drawing from it, the partner's public answers
    read as a no-guess signal rather than an exclusion (§0a says why), and
    the reveal's third column.
-8. **The screens** (§7.5) — visual request 11: plan, draft, the owner's
-   refinement, extraction, then build.
+8. **The screens** (§7.5) — **built 2026-09-08** from the owner's own
+   canvas (request 11 went from `requested` to the owner's design in one
+   day): extracted to `design/rounds-card-2026-09-08/`, built as
+   `ui/LiveDuelPanel.tsx`'s card, rail, run and first run; §0a has the
+   departures.
 
 **A note on migration, and the assumption under it.** Steps 2 and 3 are
 written as a clean cutover with no dual-write period: rounds replace
@@ -707,7 +723,7 @@ rules accept both id shapes, and that is a materially bigger change.
 | 5 | `npm run check:policy-claims`, `npm run check:figures`, `npm run test --prefix functions`, `npm run test:unit` | the page names five kinds before the fifth send exists; five rounds in a window send one push naming five (as built: one push per TURN — the stamp, §0a — and the count is named when it clears); the partner who has answered gets the reveal and the one who has not gets *your turn*, never both; a group member is nudged once per round |
 | 6 | `npm run check:content`, `check:neighbors`, `check:figures` | the dedup floor holds across a burst; the budget script's numbers match its prose |
 | 7 | `npm run test:rules`, `npm run test:unit` | a catalog question is still refused on a duel surface; the world split on the reveal costs no extra read (as built: ONE read per question per session, on the reveal — §0a says why the zero was wrong) |
-| 8 | `npm run test:unit`, `check:a11y`, `check:tap-targets`, `check:public-copy` | the 1v1 draws no clock; the group's clock is the deadline; no cadence word in copy (D419 §3) |
+| 8 | `npm run test:unit`, `check:a11y`, `check:tap-targets`, `check:public-copy` | the 1v1 draws no clock; the group's clock is the deadline; no cadence word in copy (D419 §3) — all four green on the build, 2026-09-08 |
 
 ## 13 · What this plan does not decide
 

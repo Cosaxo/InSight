@@ -335,9 +335,12 @@ describe("the lists on this tree", () => {
     // the 1v1 and group card when a round is the unit (item 11): the
     // card's whole grammar is a clock, and a 1v1 that reveals when the
     // other person plays has none — a redraw, so a request under D352.
-    expect(v.requested.length).toBe(11);
+    // …and 10 again the same day: item 11 went from requested to the
+    // owner's canvas to built in one day (ROUNDS-PLAN step 8), so it sits
+    // under Built now — the third one there.
+    expect(v.requested.length).toBe(10);
     expect(v.designed).toEqual([]);
-    expect(v.built.length).toBe(2);
+    expect(v.built.length).toBe(3);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

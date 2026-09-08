@@ -10,7 +10,34 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-07 standalone
+## The current vision — the 2026-09-08 canvas: the 1v1 and group card
+
+- **Source:** the owner's `1v1_and_Group_Cards.html` upload of
+  2026-09-08 — Claude Design, from the prompt the rounds session wrote
+  for request 11 — extracted to `design/rounds-card-2026-09-08/` (its
+  README is the readable half: the nine states, every string, the
+  behaviours a static reading loses, and where the tree departs from the
+  canvas). Made the vision by this page's own rule: the request it
+  answers is crossed out as built.
+- **The plan built on it:** `ROUNDS-PLAN.md` §7.5 and request 11 — the
+  card's whole grammar was a clock, and under rounds a 1v1 has none. §0a
+  records the build's departures beside the model's own.
+- **What it changed over the 2026-09-07 design:** one surface, redrawn
+  whole. The 1v1 and group card stops counting to midnight: a kicker
+  names the round, the prompt is in the serif, the answer is a tinted
+  option and the read a second step, a 1v1 says *waiting on Ada* and
+  nothing else, a group counts coarsely to its round deadline, the reveal
+  is a SAID · CALLED table or a split with faces — three columns on a
+  World round — the absent are seats, the late answer is said plainly,
+  and a run of rounds at the foot carries the calls and the rounds in
+  play. The 09-07 design's *first day* (today sealed, tonight's clock,
+  tomorrow revealed) is superseded by the first run drawn here: sealed,
+  then revealed *when Ada plays*.
+- **Built from it:** the whole card, the same day (D420's second
+  amendment) — `ui/LiveDuelPanel.tsx`.
+- **Requests it closed:** 11.
+
+## The one before — the 2026-09-07 standalone
 
 - **Source:** the owner's `InSight_10.html` upload of 2026-09-07,
   extracted to `design/standalone-2026-09-07/` (its README is the
@@ -52,33 +79,6 @@ it is moving toward.
   request 5** (the pair's card: the doors and the reading table), which
   still waits on `ROLES-PLAN.md`'s owner call.
 
-## The one before — the 2026-09-06 standalone
-
-- **Source:** the owner's `InSight_9.html` upload of 2026-09-06
-  (`InSight_8` was never uploaded here), extracted to
-  `design/standalone-2026-09-06/` (its README is the inventory: the
-  seventeen modules and seven stylesheets that moved, the fourteen
-  patches, the one new stylesheet, the unchanged list). Made the vision
-  by D361's rule and recorded at D390.
-- **The plan built on it:** `VISION-2026-09-06.md` — every item
-  measured against the tree with its backend half named, §8 the build
-  order as worklist lines, §9 the gate per step.
-- **What it changed over the 2026-09-02 design:** one direction — **ink
-  on paper**. `lens-paper` from an unwired hook to the app's default and
-  the boxes gone with it (feed cards on a top-rule ground, the result
-  card and the profile as hairline sections, the ballot one hairline
-  row, the figures drawing themselves in); a **12px floor** under every
-  piece of microtype; the **serif voice reaching further**; **chrome
-  collapsing into words** (the lens legends behind one ⓘ, *why this
-  question*, the folded topic rail, the Patterns dial in the header);
-  and `paid-data.js` drawing the subscription seat split 08-26 §2.2 has
-  waited on.
-- **Built from it:** all six steps of its plan's §8 (D391 steps 1–2,
-  D392 steps 3–6, 2026-09-06); the anonymous-answers words still wait
-  on their owner row.
-- **Requests it closed:** none; it quieted the field request 1 draws
-  in (the in-rim labels share the area its "inner arc" grammar priced).
-
 ## The lineage
 
 | Design | Directory | What it brought | Record |
@@ -91,7 +91,8 @@ it is moving toward.
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
 | 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
-| **2026-09-07** | `design/standalone-2026-09-07/` | **the current vision** — above | `VISION-2026-09-07.md`, D415 |
+| 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
+| **2026-09-08** | `design/rounds-card-2026-09-08/` | **the current vision** — the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D420 |
 
 ## How the next one arrives
 
