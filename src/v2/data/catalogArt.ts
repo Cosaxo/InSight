@@ -26,9 +26,21 @@ import { CATALOG_ART } from "./catalogArtIndex";
 /** The path under hosting, mirrored by scripts/catalog-art-lib.mjs's ART_DIR. */
 export const ART_PATH = "catalog-art";
 
-/** The poster route's attribution sentence — TMDB's terms ask for it
- *  verbatim wherever their images are used. */
-export const TMDB_NOTICE = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
+/**
+ * One notice per RULED source — a source the owner's take-down-on-complaint
+ * ruling admits by name rather than a licence (D420 for TMDB, D421 for
+ * PokéAPI). Keyed by the tag the credits row carries in its licence
+ * column; scripts/catalog-art-lib.mjs's RULED_SOURCE_TAGS is the same
+ * list, pinned to this one by test. TMDB's sentence is what their terms
+ * ask for verbatim; the Pokémon line names the rights-holders the
+ * artwork belongs to, which is the honest credit for a picture we hold
+ * under a policy rather than a licence.
+ */
+export const SOURCE_NOTICES: Readonly<Record<string, string>> = {
+  TMDB: "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+  PokeAPI: "Pokémon artwork © Nintendo, Creatures Inc. and GAME FREAK inc., via PokéAPI.",
+};
+export const TMDB_NOTICE = SOURCE_NOTICES.TMDB;
 /** The free-content route's header line. */
 export const COMMONS_NOTICE = "Photographs from Wikimedia Commons, each under the licence beside it.";
 

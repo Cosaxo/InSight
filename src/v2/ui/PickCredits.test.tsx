@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("../data/catalogArtIndex", () => ({
-  CATALOG_ART: { athletes: { jpg: [615] }, films: { jpg: [44578] } },
+  CATALOG_ART: { athletes: { jpg: [615] }, films: { jpg: [44578] }, pokemon: { webp: [25] } },
 }));
 
 import PickCredits from "./PickCredits";
@@ -17,6 +17,7 @@ import { SITE_ORIGIN } from "../data/siteOrigin";
 
 const ATHLETES = "# 1 entries.\n615\t615.jpg\tLionel Messi\tКирилл Венедиктов\tCC BY-SA 3.0\thttps://commons.wikimedia.org/wiki/File:Lionel_Messi_20180626.jpg\n";
 const FILMS = "# 1 entries.\n44578\t44578.jpg\tTitanic (1997)\tTMDB\tTMDB\thttps://www.themoviedb.org/movie/597\n";
+const POKEMON = "# 1 entries.\n25\t25.webp\tPikachu\tNintendo / Creatures Inc. / GAME FREAK inc.\tPokeAPI\thttps://github.com/PokeAPI/sprites/blob/master/sprites/pokemon/other/official-artwork/25.png\n";
 
 beforeEach(() => resetCatalogArtForTests());
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -58,6 +59,16 @@ describe("PickCredits", () => {
     fireEvent.click(screen.getByRole("button", { name: "Image credits" }));
     await waitFor(() => expect(screen.getByText(/not endorsed or certified by TMDB/)).toBeTruthy());
     expect(screen.getByText(/^Titanic \(1997\)/).textContent).not.toContain("·");
+    expect(screen.queryByText(/Wikimedia Commons/)).toBeNull();
+  });
+
+  it("names the rights-holders once for Pokémon artwork (D421), a ruled source like TMDB", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => POKEMON })));
+    render(<PickCredits domain="pokemon" accent="var(--ink)" />);
+    fireEvent.click(screen.getByRole("button", { name: "Image credits" }));
+    await waitFor(() => expect(screen.getByText(/© Nintendo, Creatures Inc\. and GAME FREAK inc\., via PokéAPI/)).toBeTruthy());
+    expect(screen.getByText(/^Pikachu/).textContent).not.toContain("·");
+    expect(screen.queryByText(/not endorsed or certified by TMDB/)).toBeNull();
     expect(screen.queryByText(/Wikimedia Commons/)).toBeNull();
   });
 

@@ -44974,3 +44974,199 @@ chunk, so first paint carries none of this. `test:unit` and
 `test:scripts` in full. Not run: the rules and e2e runners (no rule and no
 function changed) and the builder's network half (no egress) — the
 operator run on `OWNER-LIST.md` is where that is proved.
+
+## D421 · The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost
+
+**Date:** 2026-09-08. **Status:** built; the run is the network session's
+(§ 4 is its prompt).
+
+The owner, reading D420's summary the next morning:
+
+> *"yeah this claude session does not have acces to wikidata i have only
+> set it up for the other one i think we do the same system for pokemon
+> and all the other. this will not be expensive firebase wise right.
+> also give me the promt i should pate in to the other session"*
+
+Three things in one message, and this entry takes them in order: the
+ruling now covers every domain, Pokémon included; the cost question,
+answered with arithmetic; and the operator run, which moves from "a
+machine with network" to the owner's other session, with the prompt
+that session needs kept here so it is not lost in a chat.
+
+### 1 · Every domain, and what that took
+
+D420 put Pokémon back to the owner rather than deciding it, with the
+recommendation to leave it text (D334's shape). The owner's answer is
+above, and the recommendation is overruled on the record. What "the same
+system for pokemon and all the other" needed:
+
+- **A re-encoder.** PokéAPI's official artwork is a 475 px PNG of
+  100–300 KB, five times `MAX_IMAGE_BYTES`, and Node has no image codec
+  of its own — which is why D420's builder saved Commons' 184 px renders
+  as they came. `sharp` joins the devDependencies (its Linux and macOS
+  binaries come from the npm registry like every other package, so the
+  release workflows need nothing) and `catalog-art-lib`'s `toThumb`
+  runs every picture through it, whatever the source sent: fitted
+  inside 184 px without enlargement, auto-oriented, metadata dropped (a
+  camera photo carries GPS — avatar.ts's second property, one pipeline
+  over), WebP at quality 78 with alpha kept. A transparent Pokémon sits
+  on the tile's own pattern, a poster keeps its aspect, and every file
+  weighs a fifth of what a JPEG did. Tested on a generated 475 px
+  transparent PNG with EXIF planted in it (184×184, alpha, no EXIF out),
+  a 500×750 poster (123×184), a 96 px source (untouched) and an SVG
+  (rejected with a reason).
+- **The `pokeapi` route** — by dex number, from PokéAPI's sprite
+  repository on GitHub, credited to Nintendo / Creatures Inc. / GAME
+  FREAK inc. under the tag `PokeAPI`. The tag is a RULED SOURCE, like
+  `TMDB`: `licenceAllowed` admits it because the owner's policy does,
+  not because it is a licence, and the lib carries the two tags as
+  `RULED_SOURCE_TAGS` with the app's `SOURCE_NOTICES` pinned to the
+  same list by test — a tag admitted by the builder with no notice in
+  the credits sheet would ship a picture with no credit at all, which
+  for a ruled source is the whole credit. The Pokémon line names the
+  rights-holders, because that is the honest credit for a picture held
+  under a policy rather than a licence.
+- **The dogs, by name.** A minted key has no entity behind it, but the
+  names are Wikipedia's (`build-dogs.mjs`), so the builder matches each
+  against Wikidata's English label or alias among the dog-breed classes
+  (Q39367, Q1418384, Q25409459) and takes that item's P18. A miss keeps
+  its face.
+- **Films without a key** take a free route instead of stopping:
+  Wikidata's P3383 (film poster — Commons holds the public-domain ones),
+  then a still, then the logo. With `TMDB_API_KEY` set the TMDB posters
+  win, now fetched at `w342` and re-encoded, since the re-encoder makes
+  the source size free.
+- **Video games** try the P154 logo after P18.
+- **No route on purpose, said in words**: languages (a language has no
+  picture), elements (a photograph of an element is a photograph of a
+  jar), emoji and colours (drawn by the tile since D308). `--all`
+  prints each reason so a run over "all the other" says why these are
+  not in it.
+- **`--all`** runs every routed domain in its own process, so one
+  failure — a missing key, a host the policy blocks — does not take the
+  rest down, and the exit code says whether any did. A host that answers
+  the proxy's 403 is one printed sentence naming the host, not a stack
+  trace (the first probe here produced the stack trace).
+
+### 2 · What did NOT change
+
+The policy, the gate, the format, the app. `check:catalog-art` admits
+`webp` since D420 and re-derives the same rows; the credits sheet grew
+one notice; `PickArt` draws whatever extension the index names. The
+Pokémon refusal that stood in `CATALOG-QUESTIONS.md` for a year is kept
+in its row as the record of the exposure, above the owner's word that
+overruled it, and the takedown is the same one command for a Pokémon as
+for a poster.
+
+### 3 · What it costs — the owner's question
+
+*"this will not be expensive firebase wise right."* No, and here is the
+arithmetic rather than the reassurance:
+
+- **Firestore, Functions: nothing.** Not one document read or write —
+  the pictures are static files on Hosting, the index that says which
+  keys have one ships inside the app, and the aggregate trigger never
+  sees an image. The Mirror's read budget is untouched.
+- **Hosting storage.** Roughly 4,500 pictures across every routed
+  domain (1,025 Pokémon, 1,000 films, 1,000 games at most, 640
+  athletes, 554 dogs, 250 flags) at ~8 KB WebP each is ~36 MB. Firebase
+  Hosting's free tier holds 10 GB; on Blaze the paid rate is $0.026 per
+  GB-month, so under a tenth of a cent a month.
+- **Hosting transfer**, the only line that scales with use. A browse row
+  is eight tiles, ~64 KB; a reveal is two. A heavy user opening twenty
+  pick cards a day pulls ~1.3 MB; a thousand such users a day is ~40 GB
+  a month, of which the free tier covers 10 GB and the rest is $0.15
+  per GB — **about $4.50 a month at a thousand heavy daily users, ~$60
+  at ten thousand**, and both figures assume every user is a heavy one
+  and the hour's cache never hits. Per user-day it is a fiftieth of a
+  cent.
+- **The repository** carries the ~36 MB once, and grows only when a
+  picture changes or a domain is refreshed.
+- **The one knob** is `Cache-Control: max-age=3600`. A day's cache would
+  roughly halve the transfer and stretch a takedown to a day; at these
+  numbers the hour is the better promise, and the gate holds it.
+
+### 4 · The run moves to the other session — its prompt
+
+The session that built this could reach one of the six hosts —
+`raw.githubusercontent.com`, which is how the Pokémon ran HERE (§ 6) —
+and none of the other five. The owner has an environment whose policy
+allows Wikidata; the builder's header now lists all six hosts a full run
+touches (`query.wikidata.org`,
+`commons.wikimedia.org`, `upload.wikimedia.org` — the thumbnails are
+served from there, not from commons.wikimedia.org —
+`raw.githubusercontent.com`, `api.themoviedb.org`, `image.tmdb.org`),
+and a blocked host fails its domain with one line while the rest run.
+The prompt, kept here verbatim so it is in the tree and not only in a
+chat:
+
+```
+Check out branch claude/catalog-questions-pictures-ngtiwp of Cosaxo/InSight
+(git fetch origin claude/catalog-questions-pictures-ngtiwp && git checkout
+claude/catalog-questions-pictures-ngtiwp), run npm ci, then read the header
+of scripts/build-catalog-art.mjs and docs/CATALOG-QUESTIONS.md § Entity
+images. Do not change the builder, its licence policy, or anything under
+src/.
+
+The Pokémon are already in the tree (web/catalog-art/pokemon/), so do not
+re-run that domain. Run the pictures pipeline for the five that remain,
+one at a time, in this order:
+  node scripts/build-catalog-art.mjs countries
+  node scripts/build-catalog-art.mjs athletes
+  node scripts/build-catalog-art.mjs videogames
+  node scripts/build-catalog-art.mjs dogs
+  node scripts/build-catalog-art.mjs films
+If TMDB_API_KEY is set in your environment the films get TMDB posters; if
+not, the run says so and takes Commons' free ones — do not stop for it. If
+a host is blocked (the header lists the six), say which one, finish the
+domains that work, and do not fetch from anywhere else or hotlink.
+
+Then validate:
+  npm run check:catalog-art
+  npx vitest run scripts/check-catalog-art.test.mjs scripts/catalog-art-lib.test.mjs
+Fix nothing by hand under web/catalog-art/ — if the gate fails, re-run the
+builder for that domain and report what it printed.
+
+Commit web/catalog-art/ and src/v2/data/catalogArtIndex.ts together, with a
+message that lists per domain how many were pictured, how many had no
+image at the source, and how many were refused on licence (the builder
+prints these), and push to the same branch. Do not open a pull request.
+Then tell me the per-domain counts, the total size of web/catalog-art/,
+and which hosts, if any, were blocked.
+```
+
+### 5 · What this does not decide
+
+- The TMDB commercial licence (`OWNER-LIST.md` § Decisions; the row now
+  says what the run does without the key).
+- Video game covers through IGDB — a registration the owner would make;
+  the Commons route runs meanwhile.
+- The reveal's aspect (D420 § 5).
+
+### 6 · Measured
+
+**The Pokémon ran here, end to end.** `--all --limit 1` was meant as an
+offline probe and pictured Bulbasaur instead: `raw.githubusercontent.com`
+is on this sandbox's allowlist (GitHub is), so the `pokeapi` route
+went through while the five Wikidata-and-Commons domains failed with
+one line each. The full run followed — **1,025 pictured, 0 with no
+image at the source, 0 refused, 0 skipped; 9.9 MB in
+`web/catalog-art/pokemon/`, files between 3.2 KB (960) and 14.0 KB
+(947), every one 184 px WebP with alpha and no EXIF** — and
+`check:catalog-art` reads *pokemon 1025 (1025 webp); index agrees;
+hosting rule present*. That is the pipeline proved on one domain:
+download, re-encode, credit, index, gate. The other five wait on § 4.
+
+`sharp` installed from the registry here and resized a transparent
+475 px PNG to a 202-byte WebP before any code depended on it. Every
+offline path of the builder was probed again after the rewrite — usage,
+a no-route domain, an unknown domain, a route that refuses `--source`,
+a takedown, films without a key, `--all` over the whole table — each
+one line, no directory left behind. The lib's and the gate's suites, the
+four app suites the change touches, `lint`, `tsc -b`, `check:docs`,
+`check:figures`, `check:catalog-art`, `test:scripts` in full (1,051),
+`test:unit` in full with the real index in place, and `check:bundle`
+on the shipping build, all green. The bundle: **544 KB eager, unchanged
+from the base commit and from D420; 2201 KB total** against D420's 2197
+— the index's thousand keys are the 4 KB, and they ride the deferred
+feed chunk.

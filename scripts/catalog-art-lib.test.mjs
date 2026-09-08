@@ -11,6 +11,7 @@ import {
   licenceAllowed, stripHtml, cleanField, extOf, formatCredits, parseCredits,
   artDomains, readCredits, readCatalogue, regenerateCatalogArtIndex,
   ART_DIR, INDEX_FILE, CREDITS_FILE, IMAGE_EXTS, MAX_IMAGE_BYTES, CATALOG_FILES,
+  RULED_SOURCE_TAGS, THUMB_WIDTH, toThumb,
 } from "./catalog-art-lib.mjs";
 
 describe("licenceAllowed — the one policy every path shares", () => {
@@ -25,8 +26,10 @@ describe("licenceAllowed — the one policy every path shares", () => {
     }
   });
 
-  it("admits TMDB as the poster route's own tag", () => {
-    expect(licenceAllowed("TMDB")).toEqual({ ok: true });
+  it("admits the ruled sources by their tags — TMDB (D420) and PokeAPI (D421) — and only those", () => {
+    for (const t of RULED_SOURCE_TAGS) expect(licenceAllowed(t), t).toEqual({ ok: true });
+    expect(RULED_SOURCE_TAGS).toEqual(["TMDB", "PokeAPI"]);
+    expect(licenceAllowed("IGDB").ok).toBe(false);
   });
 
   it("refuses NonCommercial, NoDerivatives, fair use and GFDL-only, each by name", () => {
@@ -160,5 +163,31 @@ describe("the app index, regenerated from the directories", () => {
     expect(IMAGE_EXTS).toEqual(["jpg", "png", "webp"]);
     expect(MAX_IMAGE_BYTES).toBe(64 * 1024);
     expect(CATALOG_FILES.athletes).toBe("athletes.txt");
+  });
+});
+
+describe("toThumb — one shape whatever the source sent", () => {
+  it("fits a big transparent PNG inside the thumbnail square as WebP, alpha kept, metadata gone", async () => {
+    const sharp = (await import("sharp")).default;
+    const big = await sharp({ create: { width: 475, height: 475, channels: 4, background: { r: 200, g: 40, b: 40, alpha: 0.5 } } })
+      .png().withMetadata({ exif: { IFD0: { ImageDescription: "should not survive" } } }).toBuffer();
+    const { bytes, ext } = await toThumb(big);
+    expect(ext).toBe("webp");
+    const m = await sharp(bytes).metadata();
+    expect([m.format, m.width, m.height, m.hasAlpha]).toEqual(["webp", THUMB_WIDTH, THUMB_WIDTH, true]);
+    expect(m.exif).toBeUndefined();
+    expect(bytes.length).toBeLessThan(MAX_IMAGE_BYTES);
+  });
+  it("keeps a portrait's aspect and never enlarges a small source", async () => {
+    const sharp = (await import("sharp")).default;
+    const poster = await sharp({ create: { width: 500, height: 750, channels: 3, background: "#123456" } }).jpeg().toBuffer();
+    const p = await sharp((await toThumb(poster)).bytes).metadata();
+    expect([p.width, p.height]).toEqual([123, THUMB_WIDTH]);
+    const tiny = await sharp({ create: { width: 96, height: 96, channels: 3, background: "#654321" } }).png().toBuffer();
+    const t = await sharp((await toThumb(tiny)).bytes).metadata();
+    expect([t.width, t.height]).toEqual([96, 96]);
+  });
+  it("rejects what is not a bitmap, so the builder skips it with a reason", async () => {
+    await expect(toThumb(Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>"))).rejects.toThrow();
   });
 });

@@ -14,7 +14,7 @@
 // the content, and "source" is the link the licence asks for.
 import React from "react";
 import {
-  hasCatalogArt, loadCatalogCredits, TMDB_NOTICE, COMMONS_NOTICE, type CatalogCredit,
+  hasCatalogArt, loadCatalogCredits, SOURCE_NOTICES, COMMONS_NOTICE, type CatalogCredit,
 } from "../data/catalogArt";
 
 export default function PickCredits({ domain, accent }: { domain: string; accent: string }) {
@@ -35,8 +35,11 @@ export default function PickCredits({ domain, accent }: { domain: string; accent
   }, [open, rows, has, domain]);
 
   if (!has) return null;
-  const tmdb = !!rows && rows.some((r) => r.licence === "TMDB");
-  const commons = !!rows && rows.some((r) => r.licence !== "TMDB");
+  // A ruled source (TMDB, PokéAPI) gets its notice once and no author
+  // line per row — the notice IS the credit; everything else is Commons,
+  // where the author and the licence on each row are the condition.
+  const ruled = rows ? [...new Set(rows.map((r) => r.licence).filter((l) => SOURCE_NOTICES[l]))] : [];
+  const commons = !!rows && rows.some((r) => !SOURCE_NOTICES[r.licence]);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
       {/* Drawn small, pressed at 44 — .tap44 grows the hit box (styles.css §12). */}
@@ -65,14 +68,14 @@ export default function PickCredits({ domain, accent }: { domain: string; accent
         >
           {err && <p role="status" style={{ margin: 0 }}>Couldn&apos;t load the credits. Try again later.</p>}
           {!err && !rows && <p role="status" style={{ margin: 0 }}>Loading…</p>}
-          {rows && tmdb && <p style={{ margin: "0 0 6px" }}>{TMDB_NOTICE}</p>}
+          {ruled.map((tag) => <p key={tag} style={{ margin: "0 0 6px" }}>{SOURCE_NOTICES[tag]}</p>)}
           {rows && commons && <p style={{ margin: "0 0 6px" }}>{COMMONS_NOTICE}</p>}
           {rows && (
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               {rows.map((r) => (
                 <li key={r.key}>
                   {r.name}
-                  {r.licence === "TMDB" ? "" : ` — ${r.author} · ${r.licence}`}
+                  {SOURCE_NOTICES[r.licence] ? "" : ` — ${r.author} · ${r.licence}`}
                   {" "}
                   <a href={r.source} target="_blank" rel="noreferrer noopener" style={{ color: accent }}>source</a>
                 </li>

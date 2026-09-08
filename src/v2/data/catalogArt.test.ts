@@ -14,7 +14,7 @@ vi.mock("./catalogArtIndex", () => ({
 
 import {
   catalogArtUrl, hasCatalogArt, parseCatalogCredits, loadCatalogCredits, resetCatalogArtForTests,
-  TMDB_NOTICE,
+  TMDB_NOTICE, SOURCE_NOTICES,
 } from "./catalogArt";
 import { SITE_ORIGIN } from "./siteOrigin";
 
@@ -50,8 +50,14 @@ describe("parseCatalogCredits", () => {
       { key: 36107, file: "36107.png", name: "Muhammad Ali", author: "Ira Rosenberg", licence: "Public domain", source: "https://c/2" },
     ]);
   });
-  it("pins the TMDB sentence the terms ask for verbatim", () => {
+  it("pins the TMDB sentence the terms ask for verbatim, and one notice per ruled source the builder admits", () => {
     expect(TMDB_NOTICE).toBe("This product uses the TMDB API but is not endorsed or certified by TMDB.");
+    // The builder's policy admits exactly these tags — scripts/catalog-art-lib.test.mjs
+    // pins RULED_SOURCE_TAGS to the same literal list, so a tag added on
+    // either side without the other fails one of the two suites. A tag the
+    // builder admits with no notice here would ship a picture with no
+    // credit at all, which for a ruled source is the whole credit.
+    expect(Object.keys(SOURCE_NOTICES).sort()).toEqual(["PokeAPI", "TMDB"]);
   });
 });
 

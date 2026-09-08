@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 439 lines instead of
-44,977. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 440 lines instead of
+45,173. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -329,7 +329,7 @@ detect it.
 | **D305** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d305--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | D307 (+1) | 31250 |
 | **D306** | [Context reaches the daily's ⓘ, and the banks get their first subject-context pass](DECISIONS.md#d306--context-reaches-the-dailys--and-the-banks-get-their-first-subject-context-pass) | D311 (+2) | 31303 |
 | **D307** | [The scorecard learns to ask: unanswered place questions surface on the Scores lens](DECISIONS.md#d307--the-scorecard-learns-to-ask-unanswered-place-questions-surface-on-the-scores-lens) | D309 (+1) | 31358 |
-| **D308** | [The athletes catalogue, its review file, and the pick card's browse tiles](DECISIONS.md#d308--the-athletes-catalogue-its-review-file-and-the-pick-cards-browse-tiles) | D420 (+1) | 31402 |
+| **D308** | [The athletes catalogue, its review file, and the pick card's browse tiles](DECISIONS.md#d308--the-athletes-catalogue-its-review-file-and-the-pick-cards-browse-tiles) | D421 (+2) | 31402 |
 | **D309** | [A lane batch on the budget's own allocation, and why the interleave cadences stand](DECISIONS.md#d309--a-lane-batch-on-the-budgets-own-allocation-and-why-the-interleave-cadences-stand) | D348 | 31469 |
 | **D310** | [The 2026-08-26 client passes ship; the two owner decisions and the paid family wait](DECISIONS.md#d310--the-2026-08-26-client-passes-ship-the-two-owner-decisions-and-the-paid-family-wait) | D415 (+4) | 31514 |
 | **D311** | [The daily builder dropped `bg`, the seed's own written-count told on it, and the seed-fields gate learns surfaces](DECISIONS.md#d311--the-daily-builder-dropped-bg-the-seeds-own-written-count-told-on-it-and-the-seed-fields-gate-learns-surfaces) | — | 31685 |
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D420 (+15) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D421 (+16) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -452,4 +452,5 @@ detect it.
 | **D417** | [The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint](DECISIONS.md#d417--the-instruments-deep-items-land-in-the-bank-thirty-facets-written-eighteen-positions-carried-and-the-prompts-kept-out-of-first-paint) | — | 44402 |
 | **D418** | [The other two lanes leave first paint, and three stale notes are why they were still there](DECISIONS.md#d418--the-other-two-lanes-leave-first-paint-and-three-stale-notes-are-why-they-were-still-there) | — | 44528 |
 | **D419** | [Build 33 on a real phone: the wall would not lift, the setup sheet did not fit, and the cadence is not the product](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product) | — | 44632 |
-| **D420** | [The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys](DECISIONS.md#d420--the-pick-tiles-get-pictures-the-owner-rules-attempt-and-take-down-the-art-is-hosting-content-so-a-takedown-is-a-commit-and-the-credits-ship-beside-the-keys) | — | 44764 |
+| **D420** | [The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys](DECISIONS.md#d420--the-pick-tiles-get-pictures-the-owner-rules-attempt-and-take-down-the-art-is-hosting-content-so-a-takedown-is-a-commit-and-the-credits-ship-beside-the-keys) | D421 | 44764 |
+| **D421** | [The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost](DECISIONS.md#d421--the-ruling-reaches-every-domain-pokémon-artwork-and-the-dogs-join-the-pipeline-every-picture-is-re-encoded-on-the-way-in-and-what-the-pictures-cost) | — | 44978 |

@@ -106,7 +106,7 @@ picker UX.
 
 ## Entity images — where they come from, and what the owner ruled
 
-**Status: BUILT, PICTURES PENDING THE OPERATOR RUN (D420, 2026-09-07).**
+**Status: BUILT, PICTURES PENDING THE NETWORK SESSION'S RUN (D420, 2026-09-07; extended to every domain at D421, 2026-09-08).**
 The owner's ruling, on being told the copyright map below: *"why is it
 limeted by copyright wikipedia uses images cant we use them as well"*,
 then *"i feel if letterbox can do it so can we i think we can atemt it
@@ -118,11 +118,18 @@ so a takedown is `node scripts/build-catalog-art.mjs <domain> --remove
 <key>`, a commit, and the hosting deploy the merge triggers — never an
 app-store release. A device stops drawing the picture within
 Cache-Control's hour, and `check:catalog-art` holds that hour. The
-tree carries the whole pipeline and no pictures yet: the builder needs
-Wikidata, Commons and TMDB, which the session that wrote it could not
-reach (D15's reason, one artifact over), so the first pictures land when
-an operator runs it from a machine with network and commits what it
-writes (`OWNER-LIST.md` § Clicks).
+tree carries the whole pipeline and, since D421, the Pokémon: PokéAPI's
+GitHub host was the one of the six the building session could reach,
+so `web/catalog-art/pokemon/` is in (D421 § 6 has the count). The
+other five domains need Wikidata, Commons and TMDB, which that session
+could not reach (D15's reason, one artifact over), so their pictures
+land when the owner's session whose environment allows those hosts runs
+the builder for each and commits what it writes — the prompt for that
+session is in D421 § 4, and the row is on `OWNER-LIST.md` § Clicks. On 2026-09-08 the owner extended the
+ruling to Pokémon and every other domain (*"i think we do the same
+system for pokemon and all the other"*), and asked whether it would be
+expensive on Firebase; D421 § 3 has the arithmetic (hosting egress
+only, no Firestore read or write, cents at a thousand daily users).
 
 Names and keys are data: CC0 facts (Wikidata) or nominative use in a
 "favourite" poll. **Images are creative works with their own copyright**,
@@ -136,11 +143,12 @@ the third column is what D420 made of each row):
 | Colours | the key itself | **Solved by construction, drawn since D308.** The key is the hex plus one, so the tile wears the colour. |
 | Elements | the symbol, in the name | Nothing to picture. |
 | Countries | Wikidata P41 → the flag on Commons | **Free, the builder's `countries` route** (ISO numeric → P299 → P41). Flags are public domain almost without exception; the thumbnail is a PNG render of the SVG. |
-| Athletes · Artists · Video games | Wikidata P18 → Wikimedia Commons | **The free-content route, built.** The builder pulls the P18 file, reads its licence and author from Commons' own metadata, admits only what `licenceAllowed` admits (CC0, public domain, CC BY, CC BY-SA, FAL — never NC, ND, GFDL-only or anything unrecognised), and writes the credit beside the key. Coverage is partial and uneven, which is why the generated face stays underneath (D308's pattern is the permanent fallback, the way initials are under a profile photo). One question is not copyright and is recorded rather than decided: Norwegian law protects a person's picture separately (åndsverkloven § 104) and wants consent unless the picture has current and general interest — a famous athlete on a favourite-athlete card is very likely inside that exception, but it is the same judgement D178 made about faces and it is the owner's. |
+| Athletes · Artists · Video games | Wikidata P18 → Wikimedia Commons (video games also P154, the logo) | **The free-content route, built.** The builder pulls the P18 file, reads its licence and author from Commons' own metadata, admits only what `licenceAllowed` admits (CC0, public domain, CC BY, CC BY-SA, FAL — never NC, ND, GFDL-only or anything unrecognised), and writes the credit beside the key. Coverage is partial and uneven, which is why the generated face stays underneath (D308's pattern is the permanent fallback, the way initials are under a profile photo). One question is not copyright and is recorded rather than decided: Norwegian law protects a person's picture separately (åndsverkloven § 104) and wants consent unless the picture has current and general interest — a famous athlete on a favourite-athlete card is very likely inside that exception, but it is the same judgement D178 made about faces and it is the owner's. |
 | Films | posters | **The tolerated route, built as TMDB.** Posters are studio copyright; Commons does not host them, and Wikipedia's own copies sit under a fair-use rationale its policy confines to one article each — a grid of a thousand posters is the gallery use Wikipedia forbids itself. What the owner's Letterboxd comparison names is the industry route: TMDB's API serves posters with attribution, free for non-commercial use and under a commercial licence otherwise, and studios treat posters as the marketing they are. Tolerance is not a licence, and the terms page names Norway, where there is no general fair-use rule to fall back on — so this row runs under the take-down policy on the record, and the key and the licence question are the owner's (`OWNER-LIST.md` § Decisions). |
 | Video games (covers) | publisher cover art | Same class as posters; the API route is IGDB (a Twitch developer registration), for which the builder has no route yet. The P18 route above catches what Commons has, which for games is mostly logos. |
-| Pokémon | official art / game sprites | **Still refused, and the one row the ruling did not reach.** The owner cleared the NAMES on 2026-08-23 with the art refusal standing; the 2026-09-07 ruling was about posters. Nintendo is the rights-holder in this table whose first letter is not a request, and a complaint would land at the stores, not in an inbox. Asked, not decided: `OWNER-LIST.md` § Decisions, with the recommendation to leave it. |
-| Dogs · Languages | catalogue-minted keys | No mechanical route from a minted key to a Commons file — the builder refuses the domain with a sentence rather than matching by name. A name-resolution route is a later addition. |
+| Pokémon | PokéAPI's official artwork, by dex number | **On the pipeline by the owner's word, 2026-09-08 (D421).** The owner cleared the NAMES on 2026-08-23 with the art refusal standing; the 2026-09-07 ruling was about posters, and the session put Pokémon back to the owner with the recommendation to leave it, because Nintendo is the rights-holder in this table whose first letter is not a request. The owner's answer was *"the same system for pokemon and all the other"*, so the `pokeapi` route fetches the 475 px artwork and `toThumb` makes it a 184 px WebP with its transparency kept, credited to Nintendo / Creatures Inc. / GAME FREAK inc. under the tag `PokeAPI` — a ruled source, not a licence, and the credits sheet says whose it is. The refusal that stood in this row for a year is kept as the record of the exposure, and the takedown is the same one command. |
+| Dogs | Commons, found by NAME | **Routed at D421.** A minted key has no entity behind it, but the names are Wikipedia's (`build-dogs.mjs`), so the builder matches each name against Wikidata's English label or alias among the dog-breed classes (Q39367, Q1418384, Q25409459) and takes that item's P18. A miss keeps its face. |
+| Languages · Elements | — | No route on purpose, and the builder says why: a language has no picture, and a photograph of an element is a photograph of a jar. |
 | People in daily/duel prompts (Messi, Tarantino…) | same Commons route | **Out, unchanged.** The text is the product; likeness considerations arrive for zero mechanical benefit to a blind-answer card. |
 
 **What "we don't do anything that violates copyright" gets wrong, kept
@@ -164,8 +172,11 @@ concrete by D420 — each is now code, and the gate names the file):
    scheduled run** (the D15 "never from model memory" rule, applied to
    media: every image needs a verifiable licence, which is a
    human-verifiable-source problem; the source URL is on every row).
-2. **Rehosted on our hosting as sized thumbnails** (184 px wide, under 64
-   KB each, `web/catalog-art/`), **lazy-loaded** by the tile that draws
+2. **Rehosted on our hosting as sized thumbnails** — every picture
+   re-encoded on the way in by `toThumb` (fitted inside 184 px, EXIF
+   dropped, WebP with alpha, under 64 KB; D421 added the re-encoder
+   because PokéAPI's artwork arrives at 475 px and 100–300 KB), under
+   `web/catalog-art/` — **lazy-loaded** by the tile that draws
    them — never in the JS bundle (`check:bundle`/D27 applies verbatim;
    `web/` is not the app), never hotlinked from Commons or anyone's
    CDN (the viewer's IP, and a picture that could change after it was

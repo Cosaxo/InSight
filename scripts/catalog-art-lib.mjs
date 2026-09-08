@@ -41,6 +41,35 @@ export const MAX_IMAGE_BYTES = 64 * 1024;
 
 export { CATALOG_FILES };
 
+/** Source tags admitted by the owner's ruling rather than by a licence
+ *  (lower-cased for the policy; the credits rows carry them as written
+ *  in RULED_SOURCE_TAGS). The app's credits sheet carries one notice per
+ *  tag (src/v2/data/catalogArt.ts SOURCE_NOTICES) and the two lists are
+ *  pinned to each other by test. */
+export const RULED_SOURCE_TAGS = ["TMDB", "PokeAPI"];
+const RULED_SOURCES = new Set(RULED_SOURCE_TAGS.map((t) => t.toLowerCase()));
+
+/**
+ * Every picture is re-encoded on the way in: fitted inside THUMB_WIDTH
+ * square without enlargement, auto-oriented, metadata dropped (a camera
+ * photo carries GPS in its EXIF — avatar.ts's second property, one
+ * pipeline over), and written as WebP with alpha kept, so a Pokémon's
+ * transparent artwork sits on the tile's own pattern. One shape whatever
+ * the source sent — a 475 px PNG from PokéAPI, a JPEG poster, a Commons
+ * render of an SVG flag — and a fifth of the bytes a JPEG would cost.
+ * `sharp` is imported here and nowhere else, dynamically, so the gate
+ * and the tests that never touch a bitmap never load a native module.
+ */
+export async function toThumb(bytes) {
+  const sharp = (await import("sharp")).default;
+  const out = await sharp(bytes)
+    .rotate()
+    .resize({ width: THUMB_WIDTH, height: THUMB_WIDTH, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 78 })
+    .toBuffer();
+  return { bytes: out, ext: "webp" };
+}
+
 /**
  * May an image under this licence ship in the app at all?
  *
@@ -62,7 +91,12 @@ export function licenceAllowed(short) {
   if (/\bnc\b|non-?commercial/.test(s)) return { ok: false, why: "NonCommercial" };
   if (/\bnd\b|no ?derivatives?/.test(s)) return { ok: false, why: "NoDerivatives" };
   if (/fair use|non-?free|all rights reserved|©|\(c\)/.test(s)) return { ok: false, why: "not a free licence" };
-  if (s === "tmdb") return { ok: true };
+  // The RULED sources: not licences but the owner's take-down-on-complaint
+  // ruling applied to a named source (D420 for TMDB's posters, D421 for
+  // PokéAPI's official artwork). The tag is what the credits sheet keys
+  // its notice on, and the gate admits the tag so the rows can exist —
+  // the ruling is the record, this line is only where it is enforced.
+  if (RULED_SOURCES.has(s)) return { ok: true };
   if (/^cc0\b/.test(s)) return { ok: true };
   if (/^(cc-)?pd\b|^pd-|^public domain|^cc-pd-mark|no (known )?(copyright )?restrictions/.test(s)) return { ok: true };
   if (/^cc by(-sa)?( \d(\.\d)?)?( [a-z]{2,3})?$/.test(s)) return { ok: true };
