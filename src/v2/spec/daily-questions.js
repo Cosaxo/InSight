@@ -45,7 +45,7 @@ export let DAILYQ;
     return floor;
   }
 
-  // The five audiences, in tab order.
+  // The six audiences, in tab order.
   const AUDIENCES = [
     { id: 'around', label: 'people near you', short: 'near you', hue: 40 },
     { id: 'city', label: 'Oslo', short: 'Oslo', hue: 150 },

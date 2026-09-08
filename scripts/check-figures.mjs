@@ -801,6 +801,19 @@ const cityPlaces = Number(
   /# (\d+) places in \d+ countries/.exec(read("public/cities.txt"))?.[1] ?? 0,
 );
 
+/** The daily deck's audience list, counted off the array itself. Its
+ *  comment said "five" while the array held six — `country` was added and
+ *  the sentence was not — which is the hand-kept-figure error CLAUDE.md
+ *  names as the one this repo keeps re-committing, sitting one line above
+ *  the data that disproves it. Counted by `{ id:` inside the literal
+ *  rather than by commas, so a trailing comma or a wrapped entry cannot
+ *  move it. */
+const dailyAudiences = (() => {
+  const src = stripComments(read("src/v2/spec/daily-questions.js"));
+  const m = /const AUDIENCES = \[([\s\S]*?)\n\s*\];/.exec(src);
+  return m ? (m[1].match(/\{\s*id:/g) || []).length : 0;
+})();
+
 const FIGURES = [
   {
     file: "docs/SCALE-PLAN.md",
@@ -1355,6 +1368,13 @@ const FIGURES = [
   // The second half's entry went with the sentence rather than being
   // retargeted, per this script's own advice when a figure stops being
   // quoted; the bank's count is still held, by the bank row below.
+  {
+    file: "src/v2/spec/daily-questions.js",
+    what: "audiences on the daily deck",
+    re: /The (\w+) audiences, in tab order/,
+    actual: word(dailyAudiences),
+    fix: (n) => `"The ${n} audiences, in tab order"`,
+  },
   // The two sentences D426's rounds work made false. Both were stale
   // against constants in the same repo — `RULE_READS.duel` went 3 → 2 when
   // the reveal-exists `exists()` left the rule, and the reveal pipeline's
