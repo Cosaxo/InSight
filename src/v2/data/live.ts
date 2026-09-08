@@ -408,7 +408,7 @@ const state = {
   // gid → reveal id → doc. Only documents that exist: the query below
   // returns nothing for a day nobody played, where the old per-key fan-out
   // cached a null (and paid a read) for it. In-memory only: ONE ordered
-  // query of ≤ REVEAL_HIST_DAYS documents per group per session, paid only
+  // query of ≤ REVEAL_HIST_CAP documents per group per session, paid only
   // when the portrait is opened, never at boot. `revealHistLoaded` is the
   // settled flag — an empty history is still a settled one — and a failed
   // query leaves it unset so a later call retries.
@@ -728,12 +728,18 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
-// How far back the Groups portrait reads. 14 ≈ the window a weekly group
-// actually remembers, and its cost ceiling is ONE query returning at most
-// this many reveal documents per group per session — paid only when the
-// portrait is opened. The name says "days" from when a reveal was a day;
-// under rounds (ROUNDS-PLAN) it is simply the newest N reveals.
-const REVEAL_HIST_DAYS = 14;
+// How far back the Groups portrait and the Roles tab read: the newest N
+// reveals per room, ONE query returning at most this many documents per
+// room per session, paid only when a profile is opened. It was 14 while a
+// reveal was a day — "the window a weekly group actually remembers" — and
+// under rounds (D426) fourteen reveals is two days of a pair playing
+// eight a day. Thirty is the stopgap: a few days of an active pair, a
+// month of a slow one, at roughly double the Roles tab's cold cost
+// (COSTS.md's row). The fortnight ROLES-PLAN described would be 112
+// reveals per room at eight a day, which is not a per-session read; its
+// §3.3 ledger — server-written running totals that outlive any window —
+// is the dependency, and an owner row.
+const REVEAL_HIST_CAP = 30;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
 // against work already in flight: the post-vote refresh timer, the agg and
@@ -3881,7 +3887,7 @@ const SOCIAL = {
     return state.reveals[gid] || null;
   },
   // ── reveal history — the Groups portrait's data source ──
-  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_DAYS
+  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_CAP
   // reveal documents by `revealedAt` — not a getDoc per day key
   // (ROUNDS-PLAN §7.1, 2026-09-08).
   //
@@ -3902,7 +3908,7 @@ const SOCIAL = {
   // should charge. A failure is reported and leaves the room unsettled so
   // a later call retries rather than freezing a gap into the portrait for
   // the rest of the session.
-  async loadRevealHistory(gid: string, take = REVEAL_HIST_DAYS): Promise<void> {
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
     if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
     state.revealHistLoading[gid] = true;
     try {

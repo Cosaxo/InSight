@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 447 lines instead of
-46,242. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 448 lines instead of
+46,288. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -461,3 +461,4 @@ detect it.
 | **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | — | 45900 |
 |  | ↳ *amendment 2026-09-08* — [The model is approved, and notifications are the volley's other half](DECISIONS.md#d426-amendment-2026-09-08--the-model-is-approved-and-notifications-are-the-volleys-other-half) | — | 46042 |
 |  | ↳ *amendment 2026-09-08, later the same day* — [Steps 0–3 are built: the round replaces the day](DECISIONS.md#d426-amendment-2026-09-08-later-the-same-day--steps-03-are-built-the-round-replaces-the-day) | — | 46085 |
+|  | ↳ *amendment 2026-09-08, the profiles* — [The 1v1 and group profiles under rounds: keyed by round, worded in rounds, thirty reveals until the ledger](DECISIONS.md#d426-amendment-2026-09-08-the-profiles--the-1v1-and-group-profiles-under-rounds-keyed-by-round-worded-in-rounds-thirty-reveals-until-the-ledger) | — | 46243 |

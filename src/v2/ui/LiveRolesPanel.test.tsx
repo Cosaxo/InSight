@@ -87,8 +87,8 @@ describe("with no settings at all", () => {
     render(<LiveRolesPanel />);
     // "days you both guessed", not "revealed days": the duo gate counts
     // scored days, and a pair can reveal five days and guess on two.
-    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
-    expect(screen.getByText(/No group has 2 revealed days you played yet/)).toBeTruthy();
+    expect(screen.getByText(/No 1v1 has 3 rounds you both guessed yet/)).toBeTruthy();
+    expect(screen.getByText(/No group has 2 revealed rounds you played yet/)).toBeTruthy();
   });
 });
 
@@ -106,7 +106,7 @@ describe("the day's kind (D386)", () => {
       { ...dday("2026-08-03", [0, 0], [0, 0]), qid: "qm" },
     ];
     render(<LiveRolesPanel />);
-    expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
+    expect(screen.getByText("2 of 3 rounds both guessed")).toBeTruthy();
     expect(screen.queryByText("The Mind Reader")).toBeNull();
   });
 
@@ -132,10 +132,10 @@ describe("a setting under the floor", () => {
     HIST.d1 = [dday("2026-08-01", [0, 1], [1, 1]), dday("2026-08-02", [0, 1], [1, 1])];
     render(<LiveRolesPanel />);
     expect(screen.getByText("Ada")).toBeTruthy();
-    expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
+    expect(screen.getByText("2 of 3 rounds both guessed")).toBeTruthy();
     // No role, no sentence: the row IS the explanation.
     expect(screen.queryByText("The Mind Reader")).toBeNull();
-    expect(screen.queryByText(/No 1v1 has 3 days/)).toBeNull();
+    expect(screen.queryByText(/No 1v1 has 3 rounds/)).toBeNull();
   });
 
   it("counts the floor's unit, not revealed days", () => {
@@ -148,7 +148,7 @@ describe("a setting under the floor", () => {
       { day: "2026-08-03", qid: "q1", votes: { me: { optionIdx: 0 }, them: { optionIdx: 1 } }, names: { them: "Ada Lovelace" } },
     ];
     render(<LiveRolesPanel />);
-    expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
+    expect(screen.getByText("2 of 3 rounds both guessed")).toBeTruthy();
     expect(screen.queryByText("The Mind Reader")).toBeNull();
   });
 
@@ -195,7 +195,7 @@ describe("a setting under the floor", () => {
     expect(screen.getByText("The Mind Reader")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Ada/ })).toBeTruthy();
     expect(screen.getByText("Bo")).toBeTruthy();
-    expect(screen.getByText("1 of 3 days both guessed")).toBeTruthy();
+    expect(screen.getByText("1 of 3 rounds both guessed")).toBeTruthy();
   });
 });
 
@@ -218,7 +218,7 @@ describe("with one setting over the floor", () => {
     // is actually in. This fixture reveals four days and both guess on all
     // four, so the two coincide here and the wording is what is under test;
     // the case below separates them.
-    expect(screen.getByText("4 days you both guessed")).toBeTruthy();
+    expect(screen.getByText("4 rounds you both guessed")).toBeTruthy();
   });
 
   it("does not call them revealed days when the pair revealed more", () => {
@@ -240,7 +240,7 @@ describe("with one setting over the floor", () => {
       noGuess("2026-08-07"), noGuess("2026-08-08"),
     ];
     render(<LiveRolesPanel />);
-    expect(screen.getByText("3 days you both guessed")).toBeTruthy();
+    expect(screen.getByText("3 rounds you both guessed")).toBeTruthy();
     // The aggregate line's own shape, not any mention of the phrase: the
     // GROUP empty state says "No group has 2 revealed days you played yet",
     // which is true — its unit is days you played, and those are revealed
@@ -275,7 +275,7 @@ describe("with two settings", () => {
 
   it("says how many settings the average is across, and how many days", () => {
     render(<LiveRolesPanel />);
-    expect(screen.getByText("across 2 · 7 days you both guessed")).toBeTruthy();
+    expect(screen.getByText("across 2 · 7 rounds you both guessed")).toBeTruthy();
   });
 
   // Setting rows are the buttons that expand (aria-expanded); the two ⓘ
@@ -295,7 +295,7 @@ describe("with two settings", () => {
     // The plain count, not the score. A number a reader can check against
     // the reveals they have already seen.
     expect(screen.getByText("right on 3 of your 3 guesses")).toBeTruthy();
-    expect(screen.getByText(/the same answer on 0 of 3 days/)).toBeTruthy();
+    expect(screen.getByText(/the same answer on 0 of 3 rounds/)).toBeTruthy();
   });
 
   it("closes the open row when it is tapped again", () => {
@@ -325,8 +325,8 @@ describe("groups", () => {
     ];
     render(<LiveRolesPanel />);
     // The GROUP unit is days you played, and its wording says so.
-    expect(screen.getByText("3 days you played")).toBeTruthy();
+    expect(screen.getByText("3 rounds you played")).toBeTruthy();
     // …and the 1v1 half still refuses, independently.
-    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
+    expect(screen.getByText(/No 1v1 has 3 rounds you both guessed yet/)).toBeTruthy();
   });
 });

@@ -16,7 +16,7 @@
 //     the matcher still returns a type, just the wrong one. The registry
 //     cases at the foot are the only thing that would notice.
 import { describe, expect, it } from "vitest";
-import { blendRoles, chanceValue, duoRole, duoRoleDays, groupRole, groupRoleDays, optionsOn, steadiness, MIN_DUO, MIN_GROUP, type BankLookup } from "./roles";
+import { blendRoles, chanceValue, duoRole, duoRoleRounds, groupRole, groupRoleRounds, optionsOn, steadiness, MIN_DUO, MIN_GROUP, type BankLookup } from "./roles";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_ARCHETYPES, IS_archScores, IS_matchArchetype } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module
@@ -100,7 +100,7 @@ describe("duoRole", () => {
     // read/seen still see only the four guessed days…
     expect(by.read.note).toBe("right on 3 of your 4 guesses");
     // …while likeness sees all six, and we matched on the last two.
-    expect(by.like.note).toBe("the same answer on 2 of 6 days");
+    expect(by.like.note).toBe("the same answer on 2 of 6 rounds");
     expect(by.like.value).toBe(33);
   });
 
@@ -115,7 +115,7 @@ describe("duoRole", () => {
     const r = duoRole(hist, ME, THEM)!;
     const by = Object.fromEntries(r.dims.map((d) => [d.id, d]));
     expect(by.read.note).toBe("right on 3 of your 3 guesses");
-    expect(by.like.note).toBe("the same answer on 3 of 3 days");
+    expect(by.like.note).toBe("the same answer on 3 of 3 rounds");
   });
 
   it("carries the day count as its weight", () => {
@@ -149,7 +149,7 @@ describe("groupRole", () => {
     const r = groupRole(hist, ME)!;
     const by = Object.fromEntries(r.dims.map((d) => [d.id, d]));
     expect(r.n).toBe(3);
-    expect(by.own.note).toBe("away from the majority on 1 of 3 days");
+    expect(by.own.note).toBe("away from the majority on 1 of 3 rounds");
     expect(by.own.value).toBe(33);
   });
 
@@ -292,10 +292,10 @@ describe("a mirror day is held apart", () => {
     const by = Object.fromEntries(r.dims.map((d) => [d.id, d]));
     expect(r.n).toBe(3);
     expect(by.read.note).toBe("right on 3 of your 3 guesses");
-    expect(by.like.note).toBe("the same answer on 0 of 3 days");
+    expect(by.like.note).toBe("the same answer on 0 of 3 rounds");
     const asides = Object.fromEntries(r.asides!.map((a) => [a.id, a]));
-    expect(asides.mirror.note).toBe("you called how they see you on 2 of 2 days");
-    expect(asides.mirrorBy.note).toBe("they called how you see them on 1 of 2 days");
+    expect(asides.mirror.note).toBe("you called how they see you on 2 of 2 rounds");
+    expect(asides.mirrorBy.note).toBe("they called how you see them on 1 of 2 rounds");
     expect(asides.mirror.n).toBe(2);
   });
 
@@ -305,11 +305,11 @@ describe("a mirror day is held apart", () => {
       day("2026-08-02", [0, 1], [1, 1]),
       day("2026-08-03", [0, 0], [0, 0], "qm"),
     ];
-    expect(duoRoleDays(hist, ME, THEM, bank)).toBe(2);
+    expect(duoRoleRounds(hist, ME, THEM, bank)).toBe(2);
     expect(duoRole(hist, ME, THEM, bank)).toBeNull();
     // Without a bank every day is an ordinary one — what every reveal
     // before the tag was seeded is.
-    expect(duoRoleDays(hist, ME, THEM)).toBe(3);
+    expect(duoRoleRounds(hist, ME, THEM)).toBe(3);
   });
 });
 
@@ -387,7 +387,7 @@ describe("the matcher refuses a type whose defining dim is absent", () => {
 });
 
 describe("the floor's own unit, for thin rows", () => {
-  it("duoRoleDays counts scored days, not revealed days", () => {
+  it("duoRoleRounds counts scored days, not revealed days", () => {
     // Three revealed days, guesses on two — a thin row saying "3 of 3"
     // here would promise a role the fold then refuses.
     const hist = [
@@ -395,17 +395,17 @@ describe("the floor's own unit, for thin rows", () => {
       day("2026-08-02", [0, 1], [1, 1]),
       day("2026-08-03", [0, undefined], [1, undefined]),
     ];
-    expect(duoRoleDays(hist, ME, THEM)).toBe(2);
+    expect(duoRoleRounds(hist, ME, THEM)).toBe(2);
     // The count agrees with the gate: under MIN_DUO here, so no role…
     expect(duoRole(hist, ME, THEM)).toBeNull();
   });
 
-  it("groupRoleDays counts days you played, matching groupRole's gate", () => {
+  it("groupRoleRounds counts days you played, matching groupRole's gate", () => {
     const hist = [
       gday("2026-08-01", { me: 0, a: 0 }),
       gday("2026-08-02", { a: 0, b: 1 }), // revealed, but I sat it out
     ];
-    expect(groupRoleDays(hist, ME)).toBe(1);
+    expect(groupRoleRounds(hist, ME)).toBe(1);
     expect(groupRole(hist, ME)).toBeNull();
   });
 });
@@ -483,5 +483,43 @@ describe("the role instruments are matchable", () => {
     // The Floater goes with them: without cast its signature is 46/46/44,
     // and the matcher weights by |sig − 50|, so it could never be picked.
     expect(names).not.toContain("The Floater");
+  });
+});
+
+// ── rounds (D426): several reveals in one day, and a late answer ─────
+describe("rounds — the fold keeps a day's rounds in order and leaves a late answer out", () => {
+  const round = (n: number, mine: [number, number | undefined], theirs: [number, number | undefined], over: Record<string, unknown> = {}) => ({
+    ...day("2026-09-08", mine, theirs), round: n, ...over,
+  });
+
+  it("orders two rounds revealed on one day by round, not by arrival", () => {
+    // Given newest first, the way revealHistory hands them over: round 12
+    // was a hit and round 11 a miss, so the run has to read miss-then-hit.
+    const res = duoRole([
+      round(12, [0, 1], [1, 0]),
+      round(11, [0, 0], [1, 1]),
+      round(10, [0, 1], [1, 0]),
+    ], ME, THEM);
+    expect(res, "three rounds both guessed is the floor").not.toBeNull();
+    expect(duoRoleRounds([round(12, [0, 1], [1, 0]), round(11, [0, 0], [1, 1]), round(10, [0, 1], [1, 0])], ME, THEM)).toBe(3);
+    const steady = res!.dims.find((d) => d.id === "steady")!;
+    // hit · miss · hit = two flips in three rounds
+    expect(steady.note).toMatch(/2 times in 3 rounds/);
+  });
+
+  it("a late answer counts toward nothing: not the floor, not a read, not likeness", () => {
+    const hist = [
+      round(3, [0, 1], [1, 0]),
+      round(2, [0, 1], [1, 0]),
+      { day: "2026-09-08", round: 1, qid: "q1", votes: { [ME]: { optionIdx: 0, guessIdx: 1 }, [THEM]: { optionIdx: 1, late: true } } },
+    ];
+    expect(duoRoleRounds(hist, ME, THEM), "a late answer was scored as a read").toBe(2);
+    expect(duoRole(hist, ME, THEM), "two blind rounds are under the floor").toBeNull();
+  });
+
+  it("the notes say rounds", () => {
+    const res = duoRole([round(3, [0, 1], [1, 0]), round(2, [0, 1], [1, 0]), round(1, [0, 1], [1, 0])], ME, THEM);
+    expect(res!.dims.map((d) => d.note).join(" ")).toMatch(/rounds/);
+    expect(res!.dims.map((d) => d.note).join(" ")).not.toMatch(/\bdays?\b/);
   });
 });

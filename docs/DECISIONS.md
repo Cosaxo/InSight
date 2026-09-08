@@ -46239,3 +46239,49 @@ and `check:tap-targets` unmoved, `check:public-copy` clean.
 
 **Nothing in the plan is left unbuilt.** The lane's daily cadence, the
 one owner click the tree could not make, the owner made the same day.
+
+## D426 amendment (2026-09-08, the profiles) · The 1v1 and group profiles under rounds: keyed by round, worded in rounds, thirty reveals until the ledger
+
+The owner asked, after the merge, whether the 1v1 and group profiles
+and their tests were in good shape or should be updated, and on the
+answer said *"yes build it and open a pr"*. Measured before answering:
+the card, the rules, the functions and the e2e were tested in rounds;
+the profiles were not.
+
+**What was wrong.** The Groups stop's Answers list keyed and labelled
+its rows by the reveal's `day`, which was the reveal's identity while a
+reveal was a day. A room can now reveal several rounds in one day, so
+two rows got one React key, one tap expanded both, and both wore the
+same date. Every unit in the two profiles' copy said *day* while the
+number counted reveals — *N days revealed*, *shared days*, *N of 3 days
+both guessed*, *days you played*, *older days not shown* — and so did
+the portrait's field names and the fold's two count helpers. The four
+profile suites (the portrait, the roles fold, the runs, the Groups
+body) were written with one reveal per day and had no case for two
+reveals on one day, a late vote inside a fold, or a round-ordered run.
+And the window shrank without anyone deciding it: the profiles read the
+newest 14 reveals, a fortnight while a reveal was a day and two days of
+a pair playing eight rounds a day.
+
+**What is built.** `round` rides `PortraitReveal` onto `PortraitRow`,
+and the Groups stop keys, expands and labels a row by it — *Round 8 ·
+09-08* — with a reveal from before rounds keeping its date. The
+portrait's counts are `rounds` and `roundsPlayed`; the fold's helpers
+are `duoRoleRounds` and `groupRoleRounds`; the copy in both panels and
+the fold's receipts say rounds. The suites gained the cases: two rounds
+on one day as two rows that open one at a time, a late answer counted
+in no row and scored as no read, a day's rounds ordered by round in the
+run and the fold. `REVEAL_HIST_CAP` is 30, renamed for what it is: a
+few days of an active pair, a month of a slow one, at roughly double
+the Roles tab's cold cost (≤30 reads per room per session, sequential,
+paid on the tap — `COSTS.md`). The fortnight `ROLES-PLAN.md` describes
+would be 112 reveals per room at eight a day, which is not a
+per-session read, so its §3.3 ledger — server-written running totals
+that outlive any window — is the dependency, and stays on the owner's
+list under the profile row rather than being built here.
+
+**Left as it was, deliberately.** The demo twins of the card
+(`duo-daily.jsx`, `group-daily.jsx`), the person overlay's
+read-each-other card and the Map's people module draw the old daily
+game from sample data and only a demo build shows them; whether demo
+builds matter is the owner's call, on the same row.

@@ -40,6 +40,10 @@ export interface PortraitVote {
 
 export interface PortraitReveal {
   day: string;
+  /** The round this reveal is of (ROUNDS-PLAN, D426); absent before
+   *  rounds. Carried onto the row so the Groups stop can key and label a
+   *  row by it — a room can reveal several rounds in one day. */
+  round?: number | null;
   qid?: string | null;
   votes?: Record<string, PortraitVote> | null;
   /** Who was in the group ON that day (SCHEMA-V2) — a pick day's option
@@ -71,6 +75,9 @@ export function voteQid(vote: PortraitVote | undefined, revealQid: string | null
 
 export interface PortraitRow {
   day: string;
+  /** The round, when the reveal carries one — the row's identity under
+   *  rounds; `day` alone is not, since D426. Null for a legacy reveal. */
+  round: number | null;
   qid: string | null;
   /** votes per optionIdx, dense from 0..maxIdx */
   counts: number[];
@@ -78,14 +85,14 @@ export interface PortraitRow {
   majorityIdx: number;
   /** how many members picked the majority option */
   majorityN: number;
-  /** everyone who voted that day */
+  /** everyone who voted that round */
   total: number;
-  /** my optionIdx, or null if I did not play that day */
+  /** my optionIdx, or null if I did not play that round */
   mine: number | null;
   /** true when my option's count equals the max — a tie counts as with */
   withMajority: boolean;
   /**
-   * Members who played this day but answered a different question, so their
+   * Members who played this round but answered a different question, so their
    * answer is in none of the counts above. Usually 0. Surfaced rather than
    * hidden because `total` otherwise silently disagrees with the number of
    * people the reveal card shows.
@@ -108,30 +115,30 @@ export interface PortraitRow {
 
 export interface PortraitPerson {
   uid: string;
-  /** days BOTH of us voted */
+  /** rounds BOTH of us voted */
   shared: number;
-  /** of those, days we picked the same option */
+  /** of those, rounds we picked the same option */
   agree: number;
   /** agree/shared as a 0–100 integer; 0 when shared is 0 */
   pct: number;
 }
 
 export interface GroupPortrait {
-  /** revealed days seen (reveals that exist and carry votes) */
-  days: number;
-  /** days I voted */
-  daysPlayed: number;
-  /** days my option's count was the max — see withMajority note */
+  /** revealed rounds seen (reveals that exist and carry votes) */
+  rounds: number;
+  /** rounds I voted */
+  roundsPlayed: number;
+  /** rounds my option's count was the max — see withMajority note */
   meWithMaj: number;
-  /** alignment as 0–100 over daysPlayed; 0 when I never played */
+  /** alignment as 0–100 over roundsPlayed; 0 when I never played */
   alignPct: number;
   /** newest first, same order the reveals were given in */
   rows: PortraitRow[];
   /** everyone but me, most-agreeing first */
   people: PortraitPerson[];
-  /** highest-agreement member with >= MIN_SHARED shared days, else null */
+  /** highest-agreement member with >= MIN_SHARED shared rounds, else null */
   twin: PortraitPerson | null;
-  /** lowest-agreement member with >= MIN_SHARED shared days, else null */
+  /** lowest-agreement member with >= MIN_SHARED shared rounds, else null */
   contrarian: PortraitPerson | null;
 }
 
@@ -158,7 +165,10 @@ export function portraitRow(reveal: PortraitReveal, myUid: string | null): Portr
   const maxN = Math.max(...counts);
   const majorityIdx = counts.indexOf(maxN);
   const mineVote = myUid != null ? votes[myUid] : undefined;
-  const minePlayed = mineVote && typeof mineVote.optionIdx === "number";
+  // A late answer of mine is on the card and in no row: not blind, so not
+  // a round I played for the alignment below (ROUNDS-PLAN §4) — the same
+  // rule `played` applied to everyone else's votes a few lines up.
+  const minePlayed = mineVote && typeof mineVote.optionIdx === "number" && !mineVote.late;
   const mineOffQuestion = !!minePlayed && voteQid(mineVote, rowQid) !== rowQid;
   // `mine` is my answer TO THIS QUESTION. If I answered a different one I
   // have no option in this row's space, so the alignment arithmetic below
@@ -180,6 +190,7 @@ export function portraitRow(reveal: PortraitReveal, myUid: string | null): Portr
   const minePick = mine != null ? (mineVote as PortraitVote).pickUid : null;
   return {
     day: reveal.day,
+    round: typeof reveal.round === "number" ? reveal.round : null,
     qid: rowQid,
     counts,
     majorityIdx,
@@ -204,7 +215,7 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     if (row) rows.push(row);
   }
 
-  const daysPlayed = rows.filter((r) => r.mine != null).length;
+  const roundsPlayed = rows.filter((r) => r.mine != null).length;
   const meWithMaj = rows.filter((r) => r.withMajority).length;
 
   // pairwise agreement, over the same rows the user can see above
@@ -214,11 +225,17 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     if (!votes || myUid == null) continue;
     const mine = votes[myUid];
     if (!mine || typeof mine.optionIdx !== "number") continue;
+    // A late answer — given after the reveal, with the table in view — is
+    // not blind, so it is nobody's shared reading, mine or theirs
+    // (ROUNDS-PLAN §4): the rows above already leave it out, and the
+    // twin and breaks-ranks labels this feeds must not be earned by an
+    // answer that could see the room first.
+    if (mine.late) continue;
     const rowQid = r.qid ?? null;
     const myQid = voteQid(mine, rowQid);
     for (const [uid, v] of Object.entries(votes)) {
-      if (uid === myUid || !v || typeof v.optionIdx !== "number") continue;
-      // A day we answered DIFFERENT questions is not a shared day. Counting
+      if (uid === myUid || !v || typeof v.optionIdx !== "number" || v.late) continue;
+      // A round we answered DIFFERENT questions is not a shared round. Counting
       // it either way is wrong: as agreement it invents a kinship, as
       // disagreement it invents a rift — and both feed the "twin" and
       // "breaks ranks" labels below, which name a real person to their face.
@@ -278,10 +295,10 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     ? low
     : null;
   return {
-    days: rows.length,
-    daysPlayed,
+    rounds: rows.length,
+    roundsPlayed,
     meWithMaj,
-    alignPct: daysPlayed ? Math.round((meWithMaj / daysPlayed) * 100) : 0,
+    alignPct: roundsPlayed ? Math.round((meWithMaj / roundsPlayed) * 100) : 0,
     rows,
     people,
     twin: flatTie ? null : (eligible[0] || null),
