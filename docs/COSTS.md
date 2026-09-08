@@ -648,6 +648,12 @@ hoped for.
 
 ### Finding 3 — anonymous-first auth may be a per-install bill
 
+> **Answered 2026-08-27 (D333): Firebase Authentication, the free
+> edition.** Read off the Identity Toolkit admin config rather than a
+> console (`subtype: FIREBASE_AUTH`, and `identityplatform.googleapis.com`
+> not activated) — `LAUNCH-RUNBOOK.md` 5.2. The arithmetic below is kept
+> as the stakes that made it worth answering; the question is closed.
+
 D3 makes the app anonymous-first: `signInAnonymously` runs on first open,
 before any consent, tap, or interest. Every install that reaches first
 paint becomes an authenticated identity.
@@ -868,6 +874,17 @@ exists to prevent. It becomes worth revisiting when the egress line above
 passes the Firestore one, which the arithmetic here says is a long way off.
 
 ## The controls that are not in this repository
+
+> **Read [`COST-EXPOSURE.md`](COST-EXPOSURE.md) first (2026-09-08).** It
+> reads production rather than this model — the August invoice, the live
+> policies, the deploy log — and ranks what could make the invoice differ
+> from the tables above. Two premises here are corrected there and not
+> yet in the arithmetic: **a named Firestore database has no free
+> quota** (Google's own sentence; production has been on `insight` since
+> D165), so every "$0 below ~177 DAU" on this page is really under a
+> dollar rather than zero, and the fixed-cost table's scheduler row
+> describes two jobs where ten run. Its §6 C1 is the pass that moves
+> `scripts/cost-arith.mjs` and regenerates these tables.
 
 Everything above this line predicts the bill. None of it **caps** the bill,
 and the distinction is the whole difference between "expensive" and "out of
