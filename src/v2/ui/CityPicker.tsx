@@ -180,8 +180,13 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
       <button type="button" className="press" onClick={() => setOpen(true)}
         aria-haspopup="listbox" aria-expanded={false}
         aria-label={value ? `City: ${shown}. Change` : "Choose your city"}
-        style={{ ...base, cursor: "pointer", textAlign: "left", fontWeight: 500,
-          color: value ? "var(--ink)" : "var(--ink-3)" }}>
+        // textAlign from the caller when it says, because the setup sheet
+        // draws this as the right-hand half of a picker ROW (visual request
+        // 10) where every other value is right-aligned against a chevron.
+        // Left stays the default, which is what the profile's Basics card
+        // has always had.
+        style={{ ...base, cursor: "pointer", textAlign: inputStyle?.textAlign || "left",
+          fontWeight: 500, color: value ? "var(--ink)" : "var(--ink-3)" }}>
         {shown || "Choose your city…"}
         {legacy && (
           <span style={{ color: "var(--ink-3)", fontSize: 12, fontWeight: 600 }}> · tap to re-pick</span>

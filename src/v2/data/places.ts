@@ -106,6 +106,40 @@ export function countryOf(key: string): string {
   return parsePlaceKey(key)?.country || "";
 }
 
+/**
+ * Every country the catalogue knows, labelled in the reader's own
+ * language, ordered by that label.
+ *
+ * DERIVED FROM THE CITIES rather than shipped as its own list, and the
+ * reason is the server: `functions/src/pure.ts` validates the `country`
+ * breakdown bucket as `/^[A-Z]{2}$/`, and the only alpha-2 codes in this
+ * app come from this catalogue. `public/countries.txt` is keyed by ISO
+ * NUMERIC code and carries no alpha-2 at all, so a picker built on it
+ * would produce buckets the fold rejects — silently, since a rejected
+ * bucket is simply not counted.
+ *
+ * Deriving also makes the two pickers agree by construction: a country
+ * chosen here is one some city in the list resolves to, so
+ * `countryOf(city)` can never contradict it with a code this list does
+ * not contain.
+ *
+ * Labels come from `countryName`, which is `Intl.DisplayNames` — the same
+ * source the breakdown UI uses, so "Norway" here and "Norway" on the
+ * Mirror are one string in whatever language the phone is set to. Sorted
+ * with `localeCompare` for the same reason: A→Z is not the same order in
+ * every language, and a list sorted by code would read as noise.
+ */
+export function countryList(places: Place[]): Array<{ code: string; name: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ code: string; name: string }> = [];
+  for (const p of places) {
+    if (!p.country || seen.has(p.country)) continue;
+    seen.add(p.country);
+    out.push({ code: p.country, name: countryName(p.country) });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // ── loading ────────────────────────────────────────────────────────────
 
 let cache: Place[] | null = null;
@@ -367,6 +401,7 @@ const PLACES = {
   parse: parsePlaceKey,
   countryOf,
   countryName,
+  countryList,
 };
 
 // No publication since D354's sweep: feed-read.js, its last window reader,

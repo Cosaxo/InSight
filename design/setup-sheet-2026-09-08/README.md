@@ -133,4 +133,9 @@ read as one arrival.
 
 ## Status
 
-`designed`. The build is request 10's row in `VISUAL-REQUESTS.md`.
+`built` 2026-09-08 — D421, which records what the build kept, what it
+added back (the political consent and the height band, both missing from
+the request rather than dropped by the canvas) and the two places it
+departs: the offline banner is reactive and does not disable Continue,
+and Country became a real asked anchor rather than only a fold over the
+city.

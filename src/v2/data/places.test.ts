@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  countryList,
   countryOf,
   nearestPlace,
   parseCatalogue,
@@ -79,6 +80,47 @@ describe("placeKey / parsePlaceKey", () => {
     }
     expect(countryOf("Oslo, Norway")).toBe("");
     expect(countryOf("Oslo, NO")).toBe("NO");
+  });
+});
+
+// The setup sheet's Country row (visual request 10) is a picker over THIS,
+// and the reason it is derived from the cities rather than shipped as its
+// own list is the server: `functions/src/pure.ts` validates the `country`
+// breakdown bucket as /^[A-Z]{2}$/, and `public/countries.txt` is keyed by
+// ISO NUMERIC code with no alpha-2 anywhere in it. A picker built on that
+// file would produce buckets the aggregate silently declines to count.
+describe("countryList", () => {
+  const places = parseCatalogue(SAMPLE);
+
+  it("gives each country once, however many cities it has", () => {
+    // Oslo and Bergen are both NO. A list with NO twice would put two
+    // identical rows in the picker.
+    expect(countryList(places).map((c) => c.code)).toEqual(["NO", "SE"]);
+  });
+
+  it("labels every code, and orders by the LABEL rather than the code", () => {
+    // Ordering by code would read as noise to anyone who does not think in
+    // ISO, and A→Z is not the same order in every language — which is why
+    // this sorts on what `Intl.DisplayNames` returns rather than on the
+    // two letters underneath it.
+    const list = countryList(places);
+    expect(list.every((c) => !!c.name)).toBe(true);
+    const names = list.map((c) => c.name);
+    expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names);
+  });
+
+  it("produces only codes the fold accepts", () => {
+    // The shape functions/src/pure.ts holds the country bucket to. A code
+    // that fails this is a cohort that is never counted, with nothing
+    // anywhere reporting it.
+    for (const c of countryList(places)) expect(c.code).toMatch(/^[A-Z]{2}$/);
+  });
+
+  it("is empty for an empty catalogue rather than throwing", () => {
+    // What the setup sheet holds while the catalogue is still loading —
+    // the row reads "Choose" with nothing behind it, which is what it
+    // reads before you tap it anyway.
+    expect(countryList([])).toEqual([]);
   });
 });
 

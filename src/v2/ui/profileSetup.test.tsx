@@ -46,7 +46,7 @@
 // else is: the gate's arithmetic and the real screen underneath it are
 // what these cases execute.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -67,6 +67,7 @@ const {
   PROFILE_SETUP_LS, profileSetupSeen, markProfileSetupSeen,
   profileSetupNeeded, mountProfileSetup,
 } = await import("./profileSetup");
+const { closeTopBackLayer } = await import("../data/backLayers");
 
 beforeEach(() => {
   localStorage.clear();
@@ -84,6 +85,20 @@ afterEach(cleanup);
 const mount = () => act(() => { mountProfileSetup(); });
 const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 5)); }); };
 const onScreen = () => screen.queryByText(/A few things about you/i) !== null;
+/**
+ * The way out that is left.
+ *
+ * Visual request 10 removed *Skip for now* — a skip you must answer four
+ * questions to reach is not a skip — so the screen's own dismissal is the
+ * platform's: Android's hardware back, which `backLayers.ts` delivers to
+ * the layer this screen pushes. The gate's contract is unchanged and is
+ * what these cases are about: the seen-flag is written on the way out
+ * WHICHEVER way out it was, so a dismissal is remembered exactly as a
+ * Continue is. That is why this helper is the right substitution rather
+ * than filling four fields and pressing Continue: it is the same close
+ * path the old button ran, reached the way a person now reaches it.
+ */
+const dismiss = () => act(() => { closeTopBackLayer(); });
 
 describe("the fact is on the device, not in the process", () => {
   it("honours a flag an earlier session wrote", () => {
@@ -191,7 +206,7 @@ describe("a browser that refuses storage", () => {
     try {
       mount();
       expect(onScreen()).toBe(true);
-      fireEvent.click(screen.getByRole("button", { name: /Skip for now/ }));
+      dismiss();
     } finally { set.mockRestore(); }
     // Restored before the deferred unmount runs, so the tick below is the
     // real teardown and not a second failure being swallowed.
@@ -210,7 +225,7 @@ describe("what closing leaves behind", () => {
     mount();
     expect(document.body.childElementCount).toBe(before + 1);
 
-    fireEvent.click(screen.getByRole("button", { name: /Skip for now/ }));
+    dismiss();
     await settle();
     expect(onScreen()).toBe(false);
     expect(document.body.childElementCount).toBe(before);

@@ -134,7 +134,20 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   skip, so the primary is *Continue* and the counter goes with it — and
   the birthday is a YEAR rather than a date, which costs up to a year of
   precision on the exact age D155 pairs with the band (day and month
-  stay askable in the profile's Basics card). Next is the build.
+  stay askable in the profile's Basics card).
+- **status** — `built` 2026-09-08 (D421). The canvas as drawn, plus two
+  things it does not draw and could not have decided — the political
+  consent (D331, a consent requirement in law, outside D334's ask
+  entirely) and the height band (D140) — because both are omissions in
+  THIS request, which said "eleven controls" and enumerated none of
+  them. Two places the build departs from the canvas, each with its
+  reason in D421: the offline banner is REACTIVE and does not disable
+  Continue (the anchors ride Firestore's offline queue, so disabling it
+  would trap a new account on the first screen), and Country became an
+  asked anchor rather than only a fold over the city, which needed
+  `anchorsFrom` to take a fallback and a country list derived from the
+  cities catalogue — `public/countries.txt` is ISO-numeric-keyed and
+  would mint buckets the aggregate silently declines to count.
 
 ### 0b · The interest profile, shown and editable
 

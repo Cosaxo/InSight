@@ -44988,3 +44988,153 @@ Merged, not decided:
 Each half is its own merge commit and each of the three fixes is its
 own commit; the pull request is one squash. Reverting this record's
 tree restores `main` at `ba80520`.
+
+## D421 · The setup sheet asks for four and stops offering to skip — visual request 10's canvas, built
+
+**2026-09-08.** **Status:** binding. It reverses half of
+`LiveProfileSetup.tsx`'s own stated reasoning, which is the owner's to
+reverse and which they did — *"some of them should ve requierd before
+skiping"* (2026-09-07, on build 33). D419 recorded the sentence and fixed
+only the 44px overflow beside it; this is the other half, designed in
+Claude Design first as D352 requires and extracted to
+`design/setup-sheet-2026-09-08/` before a line was written.
+
+### What the screen used to be, and why that was a design problem
+
+Eleven controls stacked at full width, a three-column day/month/year grid,
+two paragraphs of explanation above the first field, and nothing saying
+which of it mattered. `canSave` was `filled > 0 || newName ||
+typedHandle`, so one answer of any kind unlocked *Save 1 of 7*, and *Skip
+for now* always worked.
+
+The file's own comment defended that: *"It does not block. Every field can
+be skipped and the whole screen can be dismissed, because D3 is
+anonymous-first and 'never a wall' — and because a required demographic
+form is how you teach people to lie to one."*
+
+The first clause died at D414, which put the account wall up; the sentence
+had simply not been re-read since. **The second clause is still true and
+is the actual problem**, and it is the one the canvas was asked to solve:
+a required field does not produce truth, it produces a value. So the
+question was never *where do the asterisks go*.
+
+### What the canvas answered with: structure, not marks
+
+There is no asterisk anywhere on the screen, and no legend.
+
+- **Two groups.** *To start* — display name, year of birth, gender,
+  country. *If you like* — city, education, work, relationship, height,
+  handle — with the heading itself carrying the promise: *Add or change
+  later in your profile*.
+- **One sentence saying what the four buy**, above the first of them:
+  *Your answers are counted with people of your age, gender and country.
+  That takes four things.* That replaced both paragraphs. It is a claim
+  under `docs/COPY.md` §3, not a caption, so D182 does not shorten it.
+- **The four are chosen from what people have no reason to lie about.**
+  Country rather than city, deliberately: a country is cheap to answer
+  honestly and a city is where people start being vague. The Mirror's
+  City and Country stops need a place, its breakdowns need a band, every
+  reveal needs a name (D190).
+- **Rows, not stacked selects.** Two rounded cards of picker rows —
+  question left, answer and chevron right — with the real `<select>` laid
+  over each row at zero opacity, so it is still a native wheel and the hit
+  box is the whole 54px row. Only the two genuinely free-text values are
+  inputs, both at `--field-size`.
+- **Nothing is marked wrong for being empty.** The one red on the screen
+  is a handle somebody else holds. A pinned case asserts both halves, so
+  an implementation that simply never coloured anything cannot pass.
+
+### No Skip, and therefore no counter
+
+*"Required before skipping"* is self-cancelling — a skip you must answer
+four questions to reach is not a skip. So the primary is **Continue**, it
+waits, and one line under it says what for: *Fill in the four above to
+continue.* `Save 3 of 7` is gone with it; a counter was a progress bar for
+a form, and this screen is a question.
+
+**Android's hardware back still dismisses**, and that is not a
+contradiction: a screen that traps the back button is one the store
+rejects, and `profileSetup.tsx` writes the seen-flag on both ways out, so
+a dismissal is remembered exactly as a Continue is. What the screen no
+longer does is *offer* a second, easier button beside the one that asks.
+
+### Two departures the canvas made, with what they cost
+
+**1 · The birthday is a year, not a date.** D155's claim moved to the row
+that earns it — *Saved as an age group, not a date.* — and the three-column
+grid is gone.
+
+The cost, measured rather than waved at: `calcAge` decrements by one when
+the birthday has not come round yet this year, and it can only do that if
+it has the month. With the year alone that test is skipped, so **the exact
+age runs up to a year high** for anyone born later in the calendar year.
+The band is unaffected except exactly at a band edge. Day and month stay
+askable in the profile's Basics card, so the precise number is one tap
+away for anyone who wants it. Taken because a three-control date grid is
+the single most form-like thing on a screen whose whole problem was
+reading as a form.
+
+**2 · Country is now asked, not only derived.** It existed only as a fold
+over the city (D9), which meant the one anchor the Mirror's Country stop
+is built on could not be answered without naming your town.
+
+`anchorsFrom` now reads `PLACES.countryOf(city) || v.country || ''` — the
+**city wins**, so the two can never contradict each other in the
+aggregate, and a profile written before the row existed lands on the old
+behaviour exactly. Picking a city writes the country row too, so the
+screen shows what the fold returns.
+
+The list is **derived from the cities catalogue**, not shipped:
+`functions/src/pure.ts` holds the country bucket to `/^[A-Z]{2}$/`, and
+`public/countries.txt` is keyed by ISO *numeric* code with no alpha-2 in
+it at all — a picker built on that file would mint buckets the fold
+silently declines to count. `places.countryList()` is that derivation,
+labelled through `Intl.DisplayNames` and sorted on the label. Cost: the
+sheet pulls the ~139 KB catalogue on arrival rather than on the City row's
+first open — a local file inside the app package on a native build, and
+one cached fetch on the web. There is no loading state, per the canvas:
+until it lands the row reads *Choose*, which is what it reads anyway.
+
+### Two things the canvas does not draw, kept anyway
+
+Both are omissions in the **request**, which said "eleven controls" and
+enumerated none of them — so neither can have been decided by anyone.
+
+1. **The political consent (D331).** A consent requirement in law, which
+   `CLAUDE.md` puts outside D334's ask entirely: it is satisfied by
+   BUILDING the consent, never by deciding it away. Kept verbatim,
+   including the two-buttons-of-equal-weight rule, and deliberately
+   **not** one of the four — a consent you cannot decline is not one.
+   Pinned.
+2. **The height band (D140).** An anchor with a real consumer; dropping it
+   from the only screen that asks would have quietly retired it. It is the
+   fifth row of *If you like*.
+
+### One bug the build found in itself
+
+*Skip the handle for now* first read `setHandle(""); void finish()` — and
+a state setter does not reach the closure the call already holds, so the
+press cleared the field on screen and then claimed the taken handle again.
+`finish(dropHandle)` takes it as a parameter. The one thing on this screen
+that can fail twice for the same reason is the one thing that must not.
+
+### Offline, and why it is reactive
+
+The canvas draws an offline artboard with the primary disabled. Built
+differently, and the difference is deliberate: the anchors and the name
+ride Firestore's own offline queue, so **disabling Continue offline would
+trap a new account on the first screen with no way forward** — worse than
+anything it prevents. Only the handle claim needs the network, because
+uniqueness is decided by the server.
+
+So the banner is reactive, exactly like the front door's: it appears
+because a claim actually failed on the network, never because
+`navigator.onLine` said so, and it says the front door's sentence word for
+word. Reporting a dropped connection as *that handle is taken* would be a
+claim about somebody else's account made from no evidence.
+
+### Reversal
+
+One commit. `anchorsFrom`'s fallback and `places.countryList()` are
+additive and can stay; reverting the screen restores *Skip for now*, the
+counter and the three-column birthday.

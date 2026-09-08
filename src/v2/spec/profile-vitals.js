@@ -174,7 +174,23 @@ export function anchorsFrom(v) {
     gender: v.gender || '',
     // Imported binding — the (window.PLACES && …) load-order guard died
     // with the conversion, as the README's conversion notes prescribe.
-    country: PLACES.countryOf(city) || '',
+    //
+    // THE CITY WINS, and the fallback is what the setup sheet added
+    // (visual request 10): country is one of the four that screen now
+    // requires, while the city stays optional — a country is cheap to
+    // answer honestly and a city is where people start being vague — so
+    // there has to be a way to hold a country with no city behind it.
+    //
+    // City first rather than the explicit pick first, so the two can
+    // never contradict each other in the aggregate: a catalogue key
+    // CARRIES its country, so "Stockholm, SE" is a more specific answer
+    // than a country row saying Norway, and the more specific answer is
+    // the one that was chosen last in every flow that can produce both
+    // (LiveProfileSetup writes the country row from the city on pick, so
+    // the screen shows what this returns). A profile written before the
+    // country row existed has no `v.country` and lands on the old
+    // behaviour exactly.
+    country: PLACES.countryOf(city) || v.country || '',
     city,
     education: v.education || '',
     profession: v.job || '',
