@@ -725,7 +725,7 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
           the fact, "tomorrow" is a limit intended to loosen. */}
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         Everyone answers the same question, sealed until the reveal — then it opens
-        with names, to anyone signed in who has this invite.
+        with names, to anyone signed in who has the circle’s id.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* ASK, not Join (D240). The link no longer admits its holder —

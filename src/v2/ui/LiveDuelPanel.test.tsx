@@ -1183,7 +1183,7 @@ describe("LiveDuelPanel · a tapped invite link", () => {
     // asserts a stranger, a late joiner and somebody who left can each
     // read one. A consent sentence that understates who reads your answer
     // is worse than none, because it is the sentence somebody agrees on.
-    expect(screen.getByText(/opens[\s\S]*with names, to anyone signed in who has this invite/i)).toBeTruthy();
+    expect(screen.getByText(/opens[\s\S]*with names, to anyone signed in who has the circle\u2019s id/i)).toBeTruthy();
     expect(document.body.textContent, "the retired audience claim is back")
       .not.toMatch(/to the people in it/i);
   });
