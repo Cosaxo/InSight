@@ -25,11 +25,12 @@
 import { reportError } from "../../lib/sentry";
 import NAV from "./nav";
 
-// One origin for every outward link (privacy page, invites). If a real
-// domain ever replaces the .web.app default, this is the single edit —
-// D3's "no code change beyond LP_SITE" promise widened to two consumers
-// by making both read the same constant.
-export const SITE_ORIGIN = "https://prvfire33.web.app";
+// One origin for every outward link (privacy page, invites). Since D421
+// it lives in siteOrigin.ts — the pick tiles' pictures need the origin
+// and nothing else from here — and is re-exported so the two consumers
+// that read it from this module still do. Still the single edit.
+import { SITE_ORIGIN } from "./siteOrigin";
+export { SITE_ORIGIN };
 
 const PENDING_KEY = "insight.pendingJoin";
 
