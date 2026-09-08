@@ -437,6 +437,21 @@ export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
         <span className="mmt-matchwho">of your answers match {who}</span>
       </div>
       <div className="mmt-matchbar"><i style={{ width: pct + '%' }}></i></div>
+      {/* WHAT THE PERCENTAGE IS OVER, when it is not everything. The
+          `thin` guard above drops a one-vote cohort row from the
+          arithmetic AND from both lists — rightly, a cohort of one is
+          you — but the headline still says "of your answers", and with
+          ten answers on the map and one thick cohort that read "100% of
+          your answers match people your age" off a single row, with nine
+          answers in neither list and nothing saying where they went.
+          MTVerdict, in this same file, already holds the opposite
+          standard for the same data (D146): it refuses below two and
+          prints its basis above it. */}
+      {measured.length < rows.length && (
+        <div className="mmt-matchbasis">
+          from {measured.length} of your {rows.length} here — too few of {who} have answered the rest
+        </div>
+      )}
       {diffs.length ? (
         <React.Fragment>
           <div className="mmt-gwho">where you differ</div>
@@ -453,7 +468,9 @@ export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
           </div>
         </React.Fragment>
       ) : (
-        <div className="mmt-allsame">You answered like most of them on every question.</div>
+        <div className="mmt-allsame">{measured.length === rows.length
+          ? 'You answered like most of them on every question.'
+          : 'You answered like most of them on all ' + measured.length + ' counted here.'}</div>
       )}
       {same.length ? (
         <React.Fragment>
