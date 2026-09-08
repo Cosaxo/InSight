@@ -1463,3 +1463,47 @@ describe("retiring a served daily", () => {
       .toBeGreaterThan(0);
   });
 });
+
+// ── a session lost twice ──────────────────────────────────────────────
+//
+// The auth observer answers a lost session by minting a new anonymous one
+// (D3), behind a latch so a session that dies the instant it is minted
+// does not spin. Clearing that latch on SUCCESS is what makes it one
+// attempt per LOSS rather than one per process — and nothing reached the
+// clearing line. It survived a full-suite mutation sweep: deleting
+// `sessionRecoveryTried = false` left every runner green, while a second,
+// later loss (a deliberate sign-out at the wall, a revoked token) became
+// silently unrecoverable for the life of the app.
+describe("recovering a session, twice", () => {
+  it("re-mints on a SECOND loss, not just the first", async () => {
+    h.bankDocs = Array.from({ length: 4 }, (_, i) => q(`q_${i}`, i));
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await releaseAll(LIVE);
+
+    const authCb = h.authCb;
+    expect(authCb, "the auth observer never registered — this case would prove nothing").toBeTruthy();
+    const booted = h.signIns;
+
+    // Loss one: the SDK reports no user while the store still holds a uid.
+    authCb!(null);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.signIns, "the first loss did not re-mint a session at all").toBe(booted + 1);
+    // The observer then reports the new session, the way the SDK does.
+    authCb!({ uid: h.uid });
+    await Promise.resolve();
+
+    // Loss two. This is the one the latch swallowed.
+    authCb!(null);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(
+      h.signIns,
+      "a second lost session was never recovered — the one-attempt latch is set for the life of the "
+      + "app instead of for the life of one loss, so a sign-out at the wall or a revoked token leaves "
+      + "the app on a dead session with no way back",
+    ).toBe(booted + 2);
+  });
+});
