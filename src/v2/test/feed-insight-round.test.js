@@ -81,7 +81,31 @@ describe("the room the surprise line talks about is the room the card drew", () 
   it("reads an unanswered card exactly as it did before", () => {
     // `mine` is null on a card the viewer has not answered, and the
     // baseline must be the plain counts — no accidental +1 on option 0.
-    const question = q([1, 20, 20], [5, 3, 1]);
+    //
+    // THE FIXTURE HAS TO BE ABLE TO TELL, and the one here could not: it
+    // compared `feedInsight(question, null, null)` with
+    // `feedInsight(question)`, and BOTH pass a nullish `mine`, so a
+    // phantom vote on option 0 lands identically on the two sides and the
+    // assertion holds. It named the exact defect it could not see — the
+    // fourth site of the `+1` mismatch feed-read.js's own header records
+    // shipping three times.
+    //
+    // So: counts where the phantom vote CHANGES the winner. [2, 3, 0]
+    // makes the room pick option 1; a stray +1 on option 0 ties it at
+    // 3-3 and `indexOf(Math.max(...))` takes the first, so the room
+    // "picks" option 0 instead. The cell picks option 0 either way, so
+    // the reading flips between "this cohort went against the room" and
+    // "it agreed" — which is the whole sentence under the card.
+    const question = q([2, 3, 0], [5, 3, 1]);
+    const ins = feedInsight(question, null, null);
+    expect(ins, "no insight drawn — the fixture no longer trips the gap").toBeTruthy();
+    expect(
+      ins.kind,
+      "the room's winner was read off counts that include a vote nobody cast",
+    ).toBe("flip");
+    expect(ins.sideIdx).toBe(0);
+    // …and the two nullish spellings still agree, which is what this case
+    // used to assert on its own.
     expect(feedInsight(question, null, null)).toEqual(feedInsight(question));
   });
 });
