@@ -73,7 +73,7 @@ companies' apps or sites.
 
 **Every row below is therefore "Not used for tracking".**
 
-### Collected — declare these eight
+### Collected — declare these eleven
 
 | Apple category | Type | Linked? | Purpose | What it actually is |
 | --- | --- | --- | --- | --- |

@@ -1388,6 +1388,20 @@ const FIGURES = [
     fix: (n) => `"you copy it across: **${n} data types**"`,
   },
   {
+    // The SAME number one file over, and it drifted the same way for the
+    // same reason: the heading over the table said "declare these eight"
+    // while the table under it had eleven rows and check:store-forms
+    // printed "11 collected type(s)" beside it. It went stale at D200 and
+    // has since missed D203's Health row and D272's Product Interaction
+    // row — the two drifts the runbook's own entry above was added for.
+    // A word, not a digit, because that is how the heading reads.
+    file: "docs/STORE-FORMS.md",
+    what: "the collected-row count in the section heading",
+    re: /### Collected — declare these (\w+)/,
+    actual: word(appPrivacyRows),
+    fix: (n) => `"### Collected — declare these ${n}"`,
+  },
+  {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "the shipped version (5.6, version lockstep)",
     re: /holds at (\d+\.\d+\.\d+) build \d+/,
