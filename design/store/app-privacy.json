@@ -42,7 +42,7 @@
    "purposes": [
     "APP_FUNCTIONALITY"
    ],
-   "$why": "Only if the user links Google. linkGoogle() calls new GoogleAuthProvider() with no addScope (src/lib/firebaseImpl.ts:167) and Firebase requests email and profile by default, so the auth record holds it. No Firestore document of ours does \u2014 but the form asks what is collected."
+   "$why": "EVERY ACCOUNT since D414: the sign-in wall takes an email address through all three doors, so this is no longer conditional. It read 'Only if the user links Google' until 2026-09-08, which was true before the wall and false after it. Google's door still supplies one without being asked \u2014 linkGoogle() calls new GoogleAuthProvider() with no addScope and Firebase requests email and profile by default. The auth record holds it; no Firestore document of ours does \u2014 but the form asks what is collected."
   },
   {
    "category": "CONTACT_INFO",
