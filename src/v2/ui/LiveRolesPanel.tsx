@@ -20,9 +20,10 @@
 // for a tab most opens never reach.
 //
 // THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM. Each room's reveal
-// history is up to 14 direct day-key gets (`REVEAL_HIST_DAYS`), cached by
-// the store, and the duel panel already pays it for whichever room you
-// open. This tab is the first surface that wants ALL of them, so it loads
+// history is ONE ordered query of at most `REVEAL_HIST_DAYS` reveal
+// documents (ROUNDS-PLAN §7.1 — it was a getDoc per day key, and round ids
+// are not guessable), cached by the store, and the duel panel already pays
+// it for whichever room you open. This tab is the first surface that wants ALL of them, so it loads
 // them on mount and only on mount — see docs/COSTS.md.
 import React from "react";
 import LIVE from "../data/live";

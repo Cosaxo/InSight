@@ -402,13 +402,16 @@ const state = {
   revealUnsubs: {} as Record<string, () => void>,
   revealDay: "",
   // Reveal HISTORY, fetched on demand for the Mirror's Groups portrait —
-  // gid → day → doc, or null for a day that has no readable reveal
-  // (skipped day, or one revealed before this user joined; the rules
-  // return permission-denied for the latter and that is the rule working).
-  // In-memory only: ≤ REVEAL_HIST_DAYS doc reads per group per session,
-  // paid only when the portrait is opened, never at boot.
+  // gid → reveal id → doc. Only documents that exist: the query below
+  // returns nothing for a day nobody played, where the old per-key fan-out
+  // cached a null (and paid a read) for it. In-memory only: ONE ordered
+  // query of ≤ REVEAL_HIST_DAYS documents per group per session, paid only
+  // when the portrait is opened, never at boot. `revealHistLoaded` is the
+  // settled flag — an empty history is still a settled one — and a failed
+  // query leaves it unset so a later call retries.
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
+  revealHistLoaded: {} as Record<string, boolean>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -704,10 +707,11 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
-// How far back the Groups portrait reads. 14 days ≈ the window a weekly
-// group actually remembers, and its cost ceiling is 13 doc reads per group
-// per session (yesterday rides the existing reveal listener) — paid only
-// when the portrait is opened.
+// How far back the Groups portrait reads. 14 ≈ the window a weekly group
+// actually remembers, and its cost ceiling is ONE query returning at most
+// this many reveal documents per group per session — paid only when the
+// portrait is opened. The name says "days" from when a reveal was a day;
+// under rounds (ROUNDS-PLAN) it is simply the newest N reveals.
 const REVEAL_HIST_DAYS = 14;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
@@ -3689,44 +3693,47 @@ const SOCIAL = {
     return state.reveals[gid] || null;
   },
   // ── reveal history — the Groups portrait's data source ──
-  // Direct doc gets by day key, never a collection query: the reveal read
-  // rule gates on each doc's own `members` snapshot, which a list query
-  // cannot prove, so a query would be denied wholesale while per-doc gets
-  // succeed exactly for the days this user played.
-  async loadRevealHistory(gid: string, days = REVEAL_HIST_DAYS): Promise<void> {
-    if (state.revealHistLoading[gid]) return;
-    const have = (state.revealHist[gid] = state.revealHist[gid] || {});
-    const wanted: string[] = [];
-    // -2 backwards: yesterday (-1) already has a live listener (reveals),
-    // and revealHistory() below merges it in — fetching it twice would
-    // just double the read.
-    for (let i = 2; i <= days; i++) {
-      const key = utcDayKey(-i);
-      if (!(key in have)) wanted.push(key);
-    }
-    if (!wanted.length) return;
+  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_DAYS
+  // reveal documents by `revealedAt` — not a getDoc per day key
+  // (ROUNDS-PLAN §7.1, 2026-09-08).
+  //
+  // It was a fan-out of up to 13 day-key gets, and the comment that stood
+  // here defended it: "the reveal read rule gates on each doc's own
+  // `members` snapshot, which a list query cannot prove, so a query would
+  // be denied wholesale while per-doc gets succeed". True before D98 and
+  // false since: the read rule is `request.auth != null` with no field
+  // condition, so a list is permitted (pinned in rules.test.ts), and the
+  // fan-out had gone on paying a billed read for every day that had NO
+  // reveal. Under rounds the ids stop being date keys altogether
+  // (`r0007`), so a per-key get could not survive anyway. The query reads
+  // only the documents that exist and reads both id shapes, because every
+  // reveal the pipeline writes carries `revealedAt`.
+  //
+  // Never throws, like the fan-out it replaces: two callers `void` it, and
+  // an unhandled rejection from a history read is not a price a portrait
+  // should charge. A failure is reported and leaves the room unsettled so
+  // a later call retries rather than freezing a gap into the portrait for
+  // the rest of the session.
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_DAYS): Promise<void> {
+    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
     state.revealHistLoading[gid] = true;
     try {
       const db = await getDb();
-      await Promise.all(
-        wanted.map(async (key) => {
-          try {
-            const snap = await getDoc(doc(db, "v2_groups", gid, "reveals", key));
-            have[key] = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
-          } catch (err) {
-            // permission-denied = a day revealed before this user joined;
-            // the doc will never become readable, so cache the null.
-            if ((err as { code?: string }).code === "permission-denied") {
-              have[key] = null;
-              return;
-            }
-            // transient (offline, deadline): leave the key absent so a
-            // later call retries it rather than freezing a gap into the
-            // portrait for the rest of the session
-            reportError(err, { where: "revealHistory", gid });
-          }
-        }),
-      );
+      const snap = await getDocs(query(
+        collection(db, "v2_groups", gid, "reveals"),
+        orderBy("revealedAt", "desc"),
+        limit(take),
+      ));
+      const have: Record<string, Record<string, unknown> | null> = {};
+      snap.forEach((d) => { have[d.id] = d.data() as Record<string, unknown>; });
+      state.revealHist[gid] = have;
+      state.revealHistLoaded[gid] = true;
+    } catch (err) {
+      // A refusal cannot be "the rule working" any more — the read is
+      // unconditional since D98 — so it is reported, where the per-key
+      // version swallowed permission-denied as the ordinary late-joiner
+      // case. Transient (offline, deadline) is reported the same way.
+      reportError(err, { where: "revealHistory", gid });
     } finally {
       state.revealHistLoading[gid] = false;
       notify();
@@ -3751,14 +3758,23 @@ const SOCIAL = {
     return !!state.revealHistLoading[gid];
   },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
-    const out: Array<Record<string, unknown> & { day: string }> = [];
-    const yesterday = state.reveals[gid];
-    if (yesterday) out.push({ day: state.revealDay, ...yesterday } as Record<string, unknown> & { day: string });
-    const hist = state.revealHist[gid] || {};
-    for (const [day, docData] of Object.entries(hist)) {
-      if (docData) out.push({ day, ...docData } as Record<string, unknown> & { day: string });
+    type Row = Record<string, unknown> & { day: string; id: string };
+    // Keyed by DOCUMENT ID, because the query and yesterday's live listener
+    // both return yesterday: the fan-out skipped -1 to avoid the double,
+    // and a query has no day to skip. The live copy wins — it is fresher.
+    // `day` is the reveal's own field where it has one (a round-keyed
+    // reveal's is the calendar day it landed) and the id where it does not
+    // (every reveal before rounds was keyed by its day).
+    const byId: Record<string, Row> = {};
+    for (const [id, docData] of Object.entries(state.revealHist[gid] || {})) {
+      if (docData) byId[id] = { day: id, ...docData, id } as Row;
     }
-    out.sort((a, b) => (a.day < b.day ? 1 : -1));
+    const yesterday = state.reveals[gid];
+    if (yesterday) byId[state.revealDay] = { day: state.revealDay, ...yesterday, id: state.revealDay } as Row;
+    const out = Object.values(byId);
+    // Newest first by day, then by id — two reveals on one day (rounds)
+    // keep a stable order instead of the map's.
+    out.sort((a, b) => (a.day === b.day ? (a.id < b.id ? 1 : -1) : (a.day < b.day ? 1 : -1)));
     return out;
   },
   async createGroup(name: string, mode: string, displayName?: string) {
@@ -7485,6 +7501,7 @@ function resetForNewUid(uid: string): void {
   state.reveals = {};
   state.revealHist = {};
   state.revealHistLoading = {};
+  state.revealHistLoaded = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never

@@ -2447,6 +2447,33 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       { votes: {} }));
   });
 
+  // A LIST query on a room's reveals is permitted — the read rule has no
+  // field condition, so Firestore has nothing to hold the query against.
+  // The client relies on it since ROUNDS-PLAN §7.1: reveal history is one
+  // ordered query per room, not a getDoc per day key. Under rounds the ids
+  // stop being guessable (`r0007`, not a date), so the per-key fan-out
+  // could not survive anyway; this pins that the query it became is not
+  // refused wholesale — which is exactly what the loader's old comment
+  // said would happen under the pre-D98 members gate.
+  it("reveal history is readable as an ordered LIST query, by a member and by a stranger", async () => {
+    await seedGroup();
+    await seed(async (db) => {
+      for (const [id, at] of [["2026-07-24", 1], ["2026-07-25", 2], [DAY, 3]] as const) {
+        await setDoc(doc(db, "v2_groups", GID, "reveals", id), {
+          day: id, qid: "group-gu0", votes: { [OWNER]: { optionIdx: 1 } },
+          names: {}, members: [OWNER, FRIEND], revealedAt: new Date(2026, 6, 20 + at),
+        });
+      }
+    });
+    const q = (u: string) => query(
+      collection(asUser(u), "v2_groups", GID, "reveals"),
+      orderBy("revealedAt", "desc"), limit(14));
+    const mine = await assertSucceeds(getDocs(q(FRIEND)));
+    expect((mine as { docs: { id: string }[] }).docs.map((d) => d.id)).toEqual([DAY, "2026-07-25", "2026-07-24"]);
+    // D98: a stranger lists it too, as they read it.
+    await assertSucceeds(getDocs(q(STRANGER)));
+  });
+
   // The `members` snapshot used to be an ACCESS gate: joining a group
   // tomorrow handed you no past day's votes, and leaving did not retract
   // the days you played. D98 retired the access half — that was a privacy

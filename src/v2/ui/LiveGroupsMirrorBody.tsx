@@ -323,8 +323,9 @@ function LiveGroupsMirrorBody() {
   const groups = (LIVE.enabled ? S.groups("group") : []) as LiveGroup[];
   const [gid, setGid] = React.useState<string | null>(null);
   const g = groups.find((x) => x.id === gid) || groups[0] || null;
-  // the history fetch is on-demand and idempotent — ≤13 doc reads per
-  // group per session, only once this stop is actually open
+  // the history fetch is on-demand and idempotent — one ordered query of
+  // ≤REVEAL_HIST_DAYS documents per group per session, only once this
+  // stop is actually open
   React.useEffect(() => {
     if (g) void S.loadRevealHistory(g.id);
   }, [g && g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton

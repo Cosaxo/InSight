@@ -331,8 +331,11 @@ describe("the lists on this tree", () => {
     // (item 10), whose column overflowed every phone by 44px and which
     // the owner also wants to REQUIRE some answers before it can be
     // skipped — a reversal of that file's own "it does not block", so a
-    // request rather than a fix.
-    expect(v.requested.length).toBe(10);
+    // request rather than a fix. 11 since 2026-09-08's ROUNDS-PLAN filed
+    // the 1v1 and group card when a round is the unit (item 11): the
+    // card's whole grammar is a clock, and a 1v1 that reveals when the
+    // other person plays has none — a redraw, so a request under D352.
+    expect(v.requested.length).toBe(11);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(2);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
