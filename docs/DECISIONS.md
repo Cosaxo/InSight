@@ -44760,3 +44760,76 @@ install or a different Google account is what would confirm it.
   the file makes against it (*"a required demographic form is how you
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
+
+## D420 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+
+**Date:** 2026-09-08 · **Status:** Adopted, with one word still the
+owner's (§2). The owner's ruling on
+[`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md), given the same day the page
+was written:
+
+> *"i approve all that dosent reduce any functonality."* — and, on the
+> shape of the largest change: *"as long as the cost diffrence isent huge
+> it think live is best but i want a bit more details on the spesifics
+> before i make a decision."*
+
+### 1 · What is approved
+
+Every step of [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md)
+that keeps what a user sees identical: the index exemptions and field
+masks; names and scores riding the nightly voter samples, the who-voted
+sheet drawn from the sample with a live tail so today's voters still
+show today, per-city samples for the city pass; the answer map one
+document per person that Circle reads instead of up to 300 answer
+documents per member; the four nightly folds repaired before they fail
+silently at scale (the rollup fold's paging, the sample merge's bound,
+the attention channel's sampling, the candidate scan's streaming); the
+increment fold, the sharded daily with the breakdown-cap correction, and
+the trigger's instance ceiling raised with it; the model's missing terms
+and the named database's missing free allowance.
+
+**The arithmetic the approval rests on** (`npm run costs:structure`,
+2026-09-08, regional sheet, no free allowance): reads per user per day
+381 → 57; reads and writes together **$20 → $5.57 a month at 5,000 DAU,
+$199 → $56 at 50,000, $1,987 → $557 at 500,000**. The model understates
+the social reads it replaces (the city pass and the reveal history have
+no term), so the saving is larger than those figures.
+
+**The one cadence item, named so the owner can strike it:** runbook 1.4
+makes a return to the foreground re-read today's card only, the six
+back days refreshing at boot — a three-day-old card's count is as of
+the last cold start rather than the last app switch. Nothing else in
+the runbook changes a number a user sees, except that old accounts
+compare on everything they have answered once the 300-answer cap
+retires (3.5), which is more, not less.
+
+### 2 · Live, recommended — the word is the owner's
+
+The answer map can be written once a night by the pass (a friend's
+answers from today reach your Circle tomorrow) or live by the trigger,
+one merged write per answer on a document only that person's answers
+touch, with the nightly pass healing any entry a crashed function
+missed. Priced: nightly +$0.14 / $1.35 / $13.50 a month at 5,000 /
+50,000 / 500,000 DAU; live +$0.54 / $5.40 / $54 — about 6 % of the
+$6.60 / $66 / $659 the map saves at the same sizes. **Recommended:
+live with the heal**, because it is the only version where nothing a
+user sees changes, which is this record's own rule. The runbook assumes
+it; the owner's confirming word lands here as an amendment before
+Phase 3 ships.
+
+### 3 · What this does not license
+
+Showing less — fewer people in the who-voted list, fewer questions in
+Kindred, fewer answers in a Circle — which `COST-REDUCTION.md` §5
+refused and this record keeps refused. A publish cadence or a floor on
+the aggregate (D98). A loosened rule, or a touch on the three labelled
+denies. The reveal-history document (`DATA-EFFICIENCY.md` §2.8), which
+would show a late joiner a group's days before they joined and is a
+privacy-shaped ask under D334, on `OWNER-LIST.md` until ruled; the
+per-member variant needs no ruling.
+
+### 4 · Held by
+
+`scripts/cost-structure.mjs` for the figures; each runbook step names
+the gate that proves it, and the model's terms move with the code they
+price (`scripts/pulse.test.mjs`) rather than in prose.
