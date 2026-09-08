@@ -55,12 +55,23 @@ nothing, loudly, if no topic is thin.
    `functions/src/v2content.ts`, byte-for-byte through the script and
    never by hand — plus the prose figures `check:figures` then names,
    applying exactly the fix lines the gate prints (§ Promoting questions
-   has the procedure). Everything else under `content/` stays
+   has the procedure). Third (D421): the run parks an unfittable question
+   in `content/topic-proposals.json` and, when `npm run topic:budget` says
+   to create, writes the category at every site that regulator names —
+   which for the feed is two files and for the daily is `CAT_META` plus
+   the archive entries that stock it. That carve-out is bounded by
+   `check:taxonomy`, which fails a category written at some of its sites
+   and not the others. Everything else under `content/` stays
    untouchable.
-3. **No new categories.** Every question's `cat`/`alts` tops must be keys
-   that already exist in `CAT_META` in that same file. Creating one is out
-   of scope for every run on every surface; a question that fits none is
-   dropped and its category proposed — § When no category fits.
+3. **A new category is created by ARITHMETIC, never by a run's opinion.**
+   Reversed at D421, on the owner's direction: the lanes create categories
+   now. What a run may not do is decide alone — `npm run topic:budget`
+   rules on the proposal ledger and a run creates exactly what it says to
+   create, at every site, stocked to the floor in the same PR. A question
+   fitting no existing category is PARKED in
+   `content/topic-proposals.json`, not dropped. § When no category fits has
+   the whole procedure; hard rule 2's ledger carve-out is what lets a run
+   write it.
 4. **Never generate answers, votes, takes, or people.** Questions are
    content; activity is fabrication (decision D1). There is no exception.
 5. **Append only, at the end of `Q`.** Ids are positional: entry `i` maps
@@ -1380,7 +1391,7 @@ a served question. Rules, each load-bearing:
   none is open), never generated activity, never a flag flipped, never
   a shipped question's options edited.
 
-## When no category fits (every question gets one; new ones are human)
+## When no category fits (every question gets one; the lane makes the rest)
 
 Two rules, and they pull in opposite directions on purpose.
 
@@ -1396,36 +1407,85 @@ one deliberate exception: it is a single standing card on the daily tab,
 not something filed into a topic list, and its Map branch is unported by
 D139's own decision (the seventh over-category, the D126 boundary).
 
-**A new category is never created by a run.** Not for daily (hard rule
-3), not for feed topics, not for pick `cat`s, not for learn fields or
-subjects. The reason is that a category is not a label here — it is a
+**A new category is created by the lane, and the arithmetic decides
+when.** This is D421, and it reverses the rule that stood here from the
+farm's first day: *"A new category is never created by a run. Not for
+daily (hard rule 3), not for feed topics, not for pick `cat`s, not for
+learn fields or subjects."* The owner's direction is that the AI creates
+them.
+
+What the old rule was protecting is still true and is why there is a
+system rather than a permission: a category here is not a label. It is a
 `CAT_META` hue, a Map anchor with relations, a chip in a filter row, and
 for learn a group in the Map's layout. Adding one is a structural change
-to the picture the Mirror draws, which is the product; a job that could
-add one on a Tuesday because a question did not fit is a job that
-redraws the Map to make its own writing easier.
+to the picture the Mirror draws, which is the product. What was WRONG
+with the old rule is where it put the caution — on a human who is not in
+the loop (D212) and who therefore never arrived. Nine months, one
+category created: `now`, at D231, by the owner in person. A rule whose
+safe path is never taken is not caution, it is a stop.
 
-**So the fit rule is: place it, or drop it, and say so.** In order:
+So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
+schedule. **Four blockers, and each is something the old rule asserted in
+prose:**
+
+1. **Evidence** — `EVIDENCE_MIN` (3) parked questions from `RUNS_MIN` (3)
+   distinct run days. This is the old section's own sentence made literal:
+   *three runs proposing the same missing top is an argument; one is an
+   anecdote.* A single firing cannot manufacture recurrence by parking
+   more — the count is of DAYS.
+2. **No breadth debt** — every existing category on that surface at or
+   above its floor (8/top daily, 24/topic feed, 24/field learn). A new
+   room while the old ones are thin is breadth owed twice. The number is
+   the lane regulator's own deficit, read from it, so this rule cannot
+   disagree with the lane about what thin means.
+3. **Capacity** — the run's granted budget must cover `floor − parked`,
+   because the room has to be FINISHED in the PR that opens it. A category
+   is born at its floor or not at all; three cards under a chip is the
+   broken room `world-subtopics.js` refuses one level down.
+4. **Settling** — the last category created on that surface must itself be
+   at floor. One room at a time, so a week cannot redraw the Map.
+
+**The procedure, per run:**
 
 1. Fit the question to an existing category, including via `alts` — the
    daily surface's two alternative placements exist precisely because one
-   question legitimately reads under more than one top.
-2. If no existing category fits without distorting the question, **drop
-   the question** rather than filing it somewhere wrong. A question in
-   the wrong category answers correctly and lands on the wrong branch of
-   someone's Map forever, which is worse than not asking it.
-3. Then **propose the category**, in the PR body *and* in the run's
-   issue #31 comment: the proposed id and label, the questions that
-   wanted it, and which existing category they were closest to. Both
-   places, because the PR may be days from review and the run log is
-   where the pattern becomes visible across runs — three runs proposing
-   the same missing top is an argument; one is an anecdote. A human
-   decides, in a PR of their own.
+   question legitimately reads under more than one top. This is still the
+   first move and still the usual outcome.
+2. If no existing category fits without distorting the question, **park
+   it** in `content/topic-proposals.json` under the proposed id: the
+   label, the `nearest` existing category it came closest to, and the
+   question with its run date. Parking is not dropping — the old rule
+   discarded exactly the evidence it then asked a human to recognise a
+   pattern in. A parked question still has to clear `check:neighbors`
+   like any other; it is a question that has no home, not a question
+   that is already asked.
+3. Run `npm run topic:budget`. It prints CREATE or HOLD per proposal, and
+   HOLD names which blocker and by how much.
+4. On CREATE: write the category at **every site the verdict names** — for
+   the feed that is `src/v2/spec/world-feed-topics.js` *and*
+   `content/feed-questions.json`; for the daily, `CAT_META` — take the hue
+   from `hueFor()` (the widest gap's midpoint, D231's own pick
+   mechanised), write the parked questions plus `owed` more into it in the
+   same PR, and append the row to the ledger's `created`. `check:taxonomy`
+   fails a half-written category, which is the failure this whole system
+   is shaped around.
+5. Log it on issue #31 as usual, with the verdict line verbatim.
 
-Rule 3 is the part that was missing rather than merely soft: the older
-wording ("the farm may *note* in a PR body that a category feels
-missing") named no artifact, so a run that placed everything and never
-noticed a gap was indistinguishable from one that noticed and forgot.
+**There is deliberately no semantic gate**, and this is the one place a
+future run is likely to want to add one. The obvious fifth blocker is *is
+this proposal actually distinct, or a synonym of a topic that exists?* —
+and `question-neighbors.mjs` has the machinery. It was built and then
+measured against the live feed corpus before being believed, and the
+measurement refused it: the lowest per-topic self-affinity (0.049) sits
+BELOW the highest cross-topic affinity (0.117), so no threshold separates
+the classes. The topic it fails hardest on is `now`, whose questions look
+more like `event`'s than like each other — exactly as D231 built it,
+*"a TIME rather than a subject … not what a question is about but how
+long it is worth asking"*. A semantic gate would have refused the last
+real topic this project created, for the reason it was created. The
+numbers are in `topic-budget.mjs`'s header so nobody derives it twice.
+Distinctness is the run's argument in the PR body; the gate is on the
+consequences.
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 

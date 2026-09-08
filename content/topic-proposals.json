@@ -1,0 +1,10 @@
+{
+  "note": "The taxonomy ledger (D421). A lane that meets a question fitting no existing category PARKS it here instead of dropping it, and scripts/topic-budget.mjs decides from this file whether the gap has become a topic. Written by lanes through their own PR; read by npm run topic:budget; held honest by check:taxonomy. Empty is the correct state when no lane has met an unfittable question — proposals accumulate, they are not seeded.",
+  "surfaces": {
+    "daily": "cat[0], a key in CAT_META (src/v2/spec/daily-cats.js)",
+    "feed": "cat, an id in WORLD_TOPICS (src/v2/spec/world-feed-topics.js) and in content/feed-questions.json topics",
+    "learn": "f, an id in content/learn-questions.json fields"
+  },
+  "proposals": [],
+  "created": []
+}

@@ -447,7 +447,12 @@ export function installDocs(rows) {
 }
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
-function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
+// EXPORTED since D421 (check-taxonomy.mjs reads the palette literals with
+// it). D197's finding was one bank parser in three copies, one of which
+// swallowed its own failure in a try/catch and reported an invented number;
+// a new gate that needed this shape would have been the fourth copy. Take
+// this one rather than writing another.
+export function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
   const start = src.indexOf(marker);
   if (start < 0) throw new Error(`${at}: marker not found: ${marker}`);
   const open = src.indexOf(openChar, start);

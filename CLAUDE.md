@@ -369,7 +369,10 @@ the table are `check:figures`'s now, off package.json — D279 has what it
 does and does not decide is a runner.
 
 Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
-(question form + provenance, D97), `check:public-copy` (the retired
+(question form + provenance, D97), `check:taxonomy` (a category is
+written at every site or not at all — the feed's palette against its
+wire list, `CAT_META` against `map-branches.js`, and the proposal
+ledger the lanes now create categories from, D421), `check:public-copy` (the retired
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —

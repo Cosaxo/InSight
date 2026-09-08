@@ -44988,3 +44988,169 @@ Merged, not decided:
 Each half is its own merge commit and each of the three fixes is its
 own commit; the pull request is one squash. Reverting this record's
 tree restores `main` at `ba80520`.
+
+## D421 · The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail
+
+**2026-09-08.** **Status:** binding, built. Owner's direction, reading
+this repo's own answer to "how are new topics created and how often?":
+*"this is completly worng: A new category is never created by a run. Not
+for daily (hard rule 3), not for feed topics, not for pick cats, not for
+learn fields or subjects. they should be created by the ai not by human
+and we need a smart system for creating it"*.
+
+### What was actually wrong with the old rule
+
+Not its caution. Every reason it gave is still true: a category here is
+not a label but a `CAT_META` hue, a Map anchor with relations, a chip in
+a filter row, and for learn a group in the Map's layout — adding one is a
+structural change to the picture the Mirror exists to draw. D145 restated
+it and D231 obeyed it.
+
+What was wrong is WHERE the caution sat. The rule ended *"a human decides,
+in a PR of their own"* — and the human left the loop at D212, when the
+lanes started merging their own PRs. The measured consequence: **one
+category created in the project's life** (`now`, D231, by the owner in
+person), against a farm that has been writing questions daily since
+D33. A rule whose safe path is never taken is not caution, it is a stop.
+It is the same finding D329 made about seven written-down refusals and
+D334 generalised — *a preference stated as a rule reads as a rule* — one
+surface over.
+
+So the caution moves into a regulator, where it fires on a schedule.
+
+### The decisions
+
+**1 · Hard rule 3 is reversed.** *"No new categories"* becomes *"a new
+category is created by ARITHMETIC, never by a run's opinion"*. The lanes
+create categories on all four surfaces. `scripts/topic-budget.mjs` is the
+regulator and `content/topic-proposals.json` the ledger it rules on; the
+farm manual's § When no category fits carries the procedure.
+
+**2 · A question that fits nothing is PARKED, not dropped.** The old rule
+discarded the question and asked a human to notice a pattern across PR
+bodies — *"three runs proposing the same missing top is an argument; one
+is an anecdote"* — which is a pattern-recognition task over an artifact
+nobody was reading, on evidence that had been thrown away. The ledger is
+that sentence made into data: the proposal, its `nearest` existing
+category, and each question with its run date.
+
+**3 · Four blockers, each one something the old rule asserted in prose.**
+The shape is `farm-budget.mjs` one layer up — that regulator answers *how
+many questions may this run write*, this one answers *may this run open a
+room to write them into* — and it has the same self-closing property:
+there generation tracks promotion throughput, here taxonomy width tracks
+the lanes' stocking throughput.
+
+| Blocker | Arithmetic | Where it comes from |
+| --- | --- | --- |
+| Evidence | `EVIDENCE_MIN` 3 parked questions over `RUNS_MIN` 3 distinct run **days** | D145's own "three runs is an argument" |
+| Breadth debt | the lane regulator's own deficit must be 0 | `world-subtopics.js`'s "a thin subtopic would feel like a broken room", and the farm's own subtopic deferral |
+| Capacity | the lane's grant must cover `floor − parked` | a category is born AT its floor — three cards under a chip is the broken room |
+| Settling | the last category created on that surface is at floor | one room at a time; a week cannot redraw the Map |
+
+The floors are imported from the lanes (`TOP_FLOOR` 8, `TOPIC_FLOOR` 24,
+`FIELD_FLOOR` 24), never restated — D197's one-copy rule, and the reason
+blocker 2 cannot disagree with the lane about what thin means. Measured
+on the tree the day it shipped: daily and feed are levelled (deficit 0,
+so evidence is the only thing they wait on), learn owes 112 cards across
+its twelve fields and can create nothing until it levels.
+
+**4 · The hue is computed, not chosen.** D231's record says how `now` got
+hue 115: *"the widest gap left in the row (85 → 145), picked for distance
+from its neighbours rather than for a meaning"*. That is an algorithm, so
+`hueFor()` is it, and the test pins that the algorithm reproduces the
+owner's own hand: given the twelve hues the ring carried before `now`, it
+returns 115. The chroma and lightness tiers never move, so a created chip
+cannot invent a visual language — and a row on a surface that already
+exists is not a visual in D352's sense, which is why this ships without a
+`VISUAL-REQUESTS.md` entry.
+
+**5 · There is deliberately NO semantic gate, and the measurement is why.**
+The obvious fifth blocker is *is this proposal distinct, or a synonym of a
+topic that exists?*, and `question-neighbors.mjs` has the machinery. It
+was built, then measured against the live feed corpus before being
+believed — mean nearest-neighbour affinity, each topic's questions against
+their own topic and against every other:
+
+```
+topic     n   self   best other
+now      17   0.049  0.076 (event)     <- self < other
+people   31   0.079  0.066 (dilemma)   <- self < other
+movies   33   0.125  0.107 (sport)
+event    30   0.127  0.099 (dilemma)
+…
+music    35   0.284  0.073 (bigq)
+```
+
+The classes overlap: the lowest self-affinity (0.049) sits **below** the
+highest cross-affinity (0.117), so no threshold separates them. And the
+topic it fails hardest on is `now` — whose questions look more like
+`event`'s than like each other, exactly as D231 built it: *"a TIME rather
+than a subject … not what a question is about but how long it is worth
+asking"*. **A semantic gate would have refused the last real topic this
+project created, for the reason it was created.** Recorded here and in the
+script's header so nobody derives it a second time. What survives is the
+check that is true: a parked question clears `check:neighbors` like any
+other — it is a question with no home, not one already asked.
+
+**6 · `check:taxonomy` — a category is written at every site or not at
+all.** Letting a schedule create categories made half-creation reachable
+on a schedule, and three mirrors turned out to be held by hand with
+nothing comparing them:
+
+1. **The feed's topic lives in two files** — `world-feed-topics.js` (the
+   client palette, lightness tier 0.52) and `content/feed-questions.json`
+   (the wire taxonomy `check:quality` validates a question's `cat`
+   against, tier 0.55). `check-content.mjs` validates each question
+   against the wire list and `check:quality` validates pick cards against
+   the palette; **neither compares the two lists**. A topic in one and not
+   the other fails silently in both directions — a chip that matches
+   nothing, or a question no chip can reach.
+2. **The daily's hues live in two files** — `CAT_META` carries a hue per
+   top, and `map-branches.js` repeats the seven seed hues as its own
+   literal. Also unchecked.
+3. **The ledger itself**, because a regulator reading a file nothing
+   validates is `farm-budget` reading an invented number — D197 again.
+
+The gate holds all three plus hue distinctness (`HUE_MIN_GAP` 15, the
+closest pair that already ships, so the gate holds the row no tighter
+than it is). It is split into `loadSources()` and `checkTaxonomy(sources)`
+specifically so the test can drive **each rule with a source that breaks
+it**: a gate whose only test is "the tree passes today" is the D179/D275
+class — a tripwire that has stopped measuring reports zero and looks
+green. 23 cases, one per rule, plus 18 on the regulator.
+
+**7 · Two figures the sweep found on the way.** `EMERGENT_CATS` is
+**seven** rows — the `CAT_META` tops with no `seedId` — and both
+`daily-cats.js` and `map-branches.js` described it as *fourteen*, which
+is the Map's branch count (7 seed + 7 emergent) attached to the wrong
+name. And `map-branches.js` still guarded `if (Array.isArray(EMERGENT_CATS))`
+around an imported `const` array: the load-order condition outliving the
+load order, which is the exact shape CLAUDE.md's conversion rule names
+(*"an imported binding cannot be unset"*). Both were in the file that
+exists to be the taxonomy's single source, which is the reason to fix them
+in this record rather than a later one. The inner dedup stays — that one
+is a data condition.
+
+### What this does NOT do
+
+- **No category is created by this record.** The ledger ships empty,
+  which is its correct state: proposals accumulate from runs meeting
+  unfittable questions, they are not seeded. `npm run topic:budget` on
+  this tree prints three levelled surfaces and nothing to rule on.
+- **Pick cards get no vocabulary of their own.** They file against
+  `WORLD_TOPICS` (D145 §4) and always did; creating a feed topic is
+  creating theirs.
+- **Subtopic authoring stays deferred** on the farm's own arithmetic (a
+  leaf below a levelled parent is depth where breadth is still owed).
+  D421 licenses the parents.
+- **Retirement is not built.** A category that stops earning its chip has
+  no path out, and the ledger has nowhere to record one. It is the
+  obvious next asymmetry — creation is now cheaper than removal — and it
+  is deferred rather than forgotten.
+
+### Reversal
+
+Revert the commit. `check:taxonomy` and `topic:budget` leave the tree with
+it; hard rule 3 and § When no category fits return to the human gate. The
+ledger is empty, so nothing is stranded.
