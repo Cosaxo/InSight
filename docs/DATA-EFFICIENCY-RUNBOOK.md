@@ -1,7 +1,7 @@
 # Data-efficiency runbook — the ordered build list
 
 > **Reasoning lives in [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md)**, which
-> is canonical, and the decision is D420 — the owner's approval of every
+> is canonical, and the decision is D421 — the owner's approval of every
 > change that keeps the picture identical, 2026-09-08. This file is the
 > same work as an ordered to-do list: open steps only, dependency order,
 > what "done" means, and which gate proves it. If the two disagree,
@@ -14,10 +14,10 @@ they are estimates. **Every step names the gate that proves it.** Every
 figure is `npm run costs:structure`'s or `npm run costs`'s; none is
 typed. **One assumption runs through Phase 3**: the answer map is kept
 *live* by the trigger with a nightly heal — the owner's stated lean,
-priced at about 6 % of what the map saves — and D420 records that the
+priced at about 6 % of what the map saves — and D421 records that the
 word confirming it is still the owner's to give.
 
-**What no step here may do** (D420 §3): show fewer people, questions or
+**What no step here may do** (D421 §3): show fewer people, questions or
 answers than today; change a number a user sees except where the step
 says so; loosen a rule; touch the three labelled denies; skip a test.
 
@@ -25,7 +25,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
 
 ## Phase 0 — record and measure · **DONE with this pull request**
 
-- [x] **0.1 The decision.** D420 in `DECISIONS.md`: what is approved, the
+- [x] **0.1 The decision.** D421 in `DECISIONS.md`: what is approved, the
       one open word (live), the one thing that waits (§2.8's history
       document, a privacy-shaped ask).
 - [x] **0.2 The measurement.** `scripts/cost-structure.mjs` prices every
@@ -98,7 +98,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       new `REATTACH_DOCS` from source and its pin moves. **What a user
       sees:** a card from three days ago shows the count as of the last
       cold start rather than the last app switch; today's card is
-      unchanged. The one cadence item in this file — D420 names it, and
+      unchanged. The one cadence item in this file — D421 names it, and
       the owner may strike it. · **Gate:** `idle-detach.test.ts` gains
       the case (a wake issues one id; a boot issues seven);
       `pulse.test.mjs`; `check:figures` after `npm run costs`.
@@ -170,7 +170,7 @@ sample since D397, and the sheet keeps its live edge (2.4).
 
 ## Phase 3 — the answer map, live with a nightly heal · **M, one pull request**
 
-The owner's word on *live* lands as a D420 amendment before this ships.
+The owner's word on *live* lands as a D421 amendment before this ships.
 
 - [ ] **3.1 The rule and the row.** `firestore.rules`:
       `match /v2_users/{uid}/public/{docId}` — `allow get: if
@@ -297,7 +297,7 @@ and `npm run costs` prints boot ≈ 15.
 
 ## Waiting on the owner, not on this file
 
-- **The word "live"** for Phase 3 (D420 §2 records the recommendation
+- **The word "live"** for Phase 3 (D421 §2 records the recommendation
   and the arithmetic).
 - **The reveal-history document** (`DATA-EFFICIENCY.md` §2.8): one
   document per group would show a late joiner the days before they

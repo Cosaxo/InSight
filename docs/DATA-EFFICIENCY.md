@@ -1,7 +1,7 @@
 # The data structure, priced per user once there are users
 
 **Status: measured 2026-09-08 — §§1–4 read the tree; §5 is the build
-order, approved by the owner the same day (D420) and carried as steps in
+order, approved by the owner the same day (D421) and carried as steps in
 [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md); nothing is
 built yet.** Written on the owner's redirection of the same
 day (*"go through the data structure and see if we could optimize the

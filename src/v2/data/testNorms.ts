@@ -247,9 +247,26 @@ export function sampleAxes(testKey: string): Array<Record<string, number>> {
 export function axisRank(testKey: string, dim: string, value: number): AxisRank | null {
   const people = sampleAxes(testKey).filter((a) => typeof a[dim] === "number");
   if (people.length < NORM_MIN_PEOPLE) return null;
+  // TIES COUNT HALF, which is the midrank convention and is here for a
+  // reason this card can state: `below` was strictly `<`, so everyone who
+  // scored EXACTLY what you scored landed on the far side of the split and
+  // was counted against you. Axis values are rounded 0..100 off short
+  // Likert axes, so an exact tie is the common case rather than an edge.
+  //
+  // What it printed: eight people below you, four level with you, eight
+  // above — a reading dead in the middle — came out as `below = 8` of 20,
+  // 40%, and the card said "lower than 6 in 10 of the 20 people counted
+  // here". Half the tied group belongs on each side, so that split is now
+  // (8 + 2) / 20 = 50%, and the middle refusal three lines down catches it
+  // and says nothing at all. That refusal exists precisely because "5 in
+  // 10 says nothing"; ties were routing around it.
   let below = 0;
-  for (const a of people) if (a[dim] < value) below++;
-  const frac = below / people.length;
+  let tied = 0;
+  for (const a of people) {
+    if (a[dim] < value) below++;
+    else if (a[dim] === value) tied++;
+  }
+  const frac = (below + tied / 2) / people.length;
   const above = frac >= 0.5;
   // Deciles of the side you are on, so the sentence and the number agree:
   // "higher than 7 in 10" reads off `frac`, "lower than 7 in 10" off its

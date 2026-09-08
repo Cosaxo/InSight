@@ -44761,7 +44761,235 @@ install or a different Google account is what would confirm it.
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
 
-## D420 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+## D420 · The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created, and two duplicates one shift had already named
+
+**2026-09-08.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+seventy-five commits are kept as written; nothing was reverted. What this
+review adds is the composition, three fixes for defects no shift could
+see alone, and the two duplicates resolved to one copy each. The owner's
+instruction was *"review tonights night shifts and merge the parts you
+approve"*: every part is approved, and this record says which parts the
+composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260908` | 40 | 2 behind | shift A, Claude 2's, 21:11–05:32 UTC |
+| `nightb-20260908` | 35 | 2 behind | shift B, Claude 1's, 20:11–04:17 UTC |
+
+Both branched from the same console commit (`3f49530`), and `main` took
+nothing but two console commits during the night — so no decision
+number moved, and neither shift claimed one: the night wrote no decision
+record at all, which is a first. Seven files were touched by both, down
+from twenty the night before (D406). Two conflicted; five merged clean;
+and the defects were in the clean five and not in the two, which is the
+D380/D406 pattern a third time.
+
+### The first conflict: the same Play refusal, written twice
+
+Both shifts added the account wall's report-and-refusal to
+`play-release.yml` — B at 22:15 UTC, A at 03:14, with B's branch public
+the whole time. B's closing flow (`92d869d`) measured the composition
+before this review did: `git merge-tree` reported zero conflicts at the
+time, so git kept both blocks, the workflow printed the wall line twice
+and evaluated the refusal twice, and B's own `release-wall.test.mjs` went
+red on its positive control for an unreadable reason. B changed its test
+to count the block and hold it at exactly one, with a failure message
+that says what to do — *"keep one, and prefer the wording that names the
+store."* By morning A's later commits had turned the overlap into a real
+conflict, which is the better outcome: a conflict stops and asks.
+
+**Resolved to B's block, whole.** It is the one B's test pins, and its
+comment carries the reason that is specific to Play rather than
+symmetric — `REQUIRE_SIGNIN` is ONE repository variable read by both
+workflows, so clearing it for a single deliberately wall-less iOS
+archive disarms the Android upload too. One thing from A's block is
+carried over: the target `track` in the job-summary line, because the
+track is what decides whether a build reaches real installs. The two
+shifts' arguments are otherwise the same argument.
+
+### The second conflict: one fixture, two mocks, and a line both sides typed
+
+`src/lib/firebaseImpl.test.ts`. A widened the Firestore mock to record
+`initializeFirestore`'s arguments — the database id and the offline
+cache, neither pinned before. B widened the Auth mock with the email door
+(`EmailAuthProvider`, `createUserWithEmailAndPassword` and the rest),
+recording what each was handed so a case can tell a LINK from a fresh
+account. Both hunks land in the hoisted fixture and both resets in
+`beforeEach`, so the resolution is a union — except for the one line
+both sides edited, `currentUser`'s type, which takes B's (`isAnonymous?`
+added), since A's is a prefix of it. The first cut of that union kept
+both lines, which is a duplicate object key `tsc -b` would have refused;
+written down because it is the shape a union produces whenever two
+sides touch one declaration, and the D406 file class (each half holding
+the other's import) one night over.
+
+### The defect only running the suite could see: a tally left behind
+
+`src/v2/test/passive-fold-live.test.jsx`, merged clean. B added a
+describe that drives `PASSIVE.record` with a domain card against
+`attachment` — chosen deliberately, because it is the one instrument
+whose demo seed is zero, so a recorded card can move the number. A added
+a describe at the foot of the same file that renders the profile's
+landing card and asserts, as its control, that an untouched profile
+draws no arc at all.
+
+On the composed tree the control failed: the Social ring — which IS
+`attachment` — drew a real sweep. Both shifts are right. `passiveCount`
+falls back to the device tally for an instrument the bank serves no
+items for, by design, and B's case had left that tally at one seen card,
+in module state and in localStorage. Vitest runs a file's describes in
+order, so the leak pointed one way and each shift was green alone.
+Measured rather than reasoned: the whole battery was green but for this
+one case.
+
+Fixed in B's describe, which now puts the tally back through the store's
+own purge event (`insight:local-purge`, D51) and removes the key — the
+same reasoning the file's `beforeEach` gives for dispatching the real
+`insight:test-results` event rather than a second definition of "empty".
+Reverting the `afterEach` reproduces the failure.
+
+### The duplicate that merged silently, and was named before it merged
+
+Both shifts wrote a case pinning the paid report's `(qid, surface)`
+composite in `src/v2/data/indexes.test.ts` — B at 20:11, A at 23:21.
+B's `7f6927f` predicted the exact outcome: zero conflicts, twenty cases,
+two of them asserting the same index. A's asserted the composite; B's
+asserts the composite AND that `answers.qid` keeps its full exemption,
+which is what makes the composite load-bearing rather than an
+optimisation. B's is the superset, so A's is dropped and the file is 19
+cases — the count each branch reported alone.
+
+B's row on `OWNER-LIST.md` carries the arithmetic on why this keeps
+happening: shift B's brief says to read `origin/main..origin/night-$D`
+before auditing, and nothing in shift A's brief names `nightb-*`, so B
+can avoid duplicating A and nothing lets A avoid duplicating B. Tonight's
+two duplicates — the Play block and this pin — were both A's later copy
+of B's earlier one, which is what that row says the timestamps would
+show. The fix is one line in a Routine no session here can edit.
+
+### What the composition did NOT have to change, and why
+
+`scripts/source-pins.test.mjs` was touched by both. A blanked comments
+before the first rule scans — it had reported a gate's own explanatory
+comment, quoting the offending shape, as an offender. B widened the
+second rule's detector to see `read(...)` helpers as well as the literal
+`readFileSync`, and raised that rule's ceiling 24 → 36 for the twelve
+sites it uncovered. A's stripping feeds the same `gates` array B's rule
+reads, so B's ceiling was measured on raw source and now counts stripped
+source. It composes because 36 is a CEILING and not a baseline — B's own
+commit keeps it one *"because the other shift repairs gates in this class
+on the same nights"* — and the suite is green with room under it. Worth
+knowing before anyone lowers it: the true count is what a run prints,
+not 36.
+
+`web/privacy.html`: A rewrote the lede (the cadence is not the product);
+B rewrote the account section and the children section — three
+statements the wall does not keep — and added four claim rows to
+`check-policy-claims.mjs`. Disjoint, and the gate reads 52 disclosures.
+
+`docs/OWNER-LIST.md`: four new rows, one from A (a free account can forge
+a day's telemetry, and rules cannot stop it) and three from B (the
+collision guard above; the email door signs in without the warning Apple
+and Google give; an erased buyer's link survives on the public results
+page). All four are asks, and all four bring what D334 says to bring.
+
+### What was reviewed, and approved
+
+Every commit of both shifts, read as one diff. The behaviour changes are
+named here because everything else is a test, a comment or copy:
+
+- **A `4d087a1`** — a group duel's guess is scored against the room
+  WITHOUT the guesser's own vote, which is what the duo arm always did;
+  the published guess rate is comparable from here forward, and D386's
+  tie rule stands untouched. The e2e loop's own expectation moved with
+  it.
+- **A `4b93339`** — Foresight shows its verdict. On every real device the
+  reveal had been skipped, because the store notifies synchronously and
+  the answered card had already left the list by the re-render.
+- **A `e904575`** — a norms percentile counts ties as half (the midrank
+  convention), so an exact tie — the common case on rounded Likert axes
+  — no longer lands on the far side of the split.
+- **A `f88dca4`, `b3172bb`, `eba0dd0`, `ade87ab`, `951c5fb`, `5bbd621`**
+  — honesty corrections on the Map, the place field, the pulse and the
+  profile card: a crowd of one is not a spread, a percentage says what it
+  is over, a capped list says what it hides, "answer again tomorrow" is
+  said only when you are the thin one, and the profile's rings read the
+  fold rather than the device.
+- **A `c15fccf`, `a63170b`** — `check:versions` matches AND repairs the
+  live gradle lines rather than the first hit inside a comment.
+- **A**, copy — the cadence sweep the owner asked for on 2026-09-07,
+  across the web root, the invite page, the terms, the README, the store
+  captions, the duel panel, the Groups stop and two demo sheets; and the
+  D122 consent sentence now says what the rules make true, in the words
+  `privacy.html` already pins. One of the sweep's own edits was reverted
+  by the same shift (`80925cc`): the RevealClock's written fallback is a
+  statement of WHEN, not a framing, and stays "Reveals tomorrow".
+- **B `a357062`, `0123f6e`** — `daily-split`'s two chunk loaders go
+  through `retryable()`, so a second caller is not dropped and a failed
+  chunk does not latch; and a live build stops fetching the duel bank on
+  every daily mount, for a store it never reads.
+- **B `89f8059`, `aaf9294`** — the wall's already-in-use recovery uses
+  the door that was tapped rather than Google whichever it was, and Apple
+  and Google failures read as sentences rather than Firebase codes.
+- **B `2c57586`, `9b04769`, `9e2abe0`** — two workflows stop pasting
+  free-text inputs into run bodies (one of them the step holding the App
+  Store Connect key); the iOS device-screens job no longer persists a
+  write token beside an installer it downloads; `auth-config` proves it
+  can write the credential file BEFORE it rotates the App Review
+  password.
+- **B `43c78c7`** — the public results page says "ran", not "runs", for a
+  campaign the erasure sweep stopped.
+- **B `980fe29`, `c893490`, `80e03fa`, `b029080`, `066db51`, `d21b9d8`**
+  — five gates repaired or widened: `check:figures` reads
+  `BANK_SURFACES` past comments and every remedy it prints now
+  re-satisfies its own pattern; `check:store-forms` compares linkage and
+  purposes; `check:policy-claims` holds the account wall's disclosure;
+  `rules-coverage` says it reads one environment of the suite's two.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module references across 8
+files, at baseline) · `check:figures` (102 figures across 305 files) ·
+`check:docs` · every other CI gate and every backend-checks gate ·
+`test:scripts` 64 files / 1069 · functions 37 files / 802 · `test:unit`
+197 files / 2916 · `test:rules` 201 with `rules-coverage` at baseline 46 ·
+`test:e2e:all` green on one emulator boot, all three suites, ending *"moderation e2e: every leg green"* · the bundle is 2195 KB / 544 KB eager against 2440 / 552.
+
+`firestore.rules` did not change, which is why the rules suite and its
+coverage baseline did not move. `check:store-copy` is red on `main` and
+red here, on the unfilled Play signing SHA D406 already recorded; it is
+not on any CI path and the night did not touch it.
+
+### What is the owner's
+
+Merged, not decided:
+
+1. **The store screenshots are behind their captions.**
+   `design/store/listing.json`'s first and fourth captions changed
+   (*"Answer blind. Nothing to anchor you."*, *"Sealed until the reveal.
+   Did you call it?"*), and the screenshots uploaded when runbook 4.1
+   closed still carry the old words — so a `gen-screenshots.mjs` run and
+   an upload are owed. The app's store NAME, "InSight: Daily
+   Perspective", was deliberately not touched: plain "InSight" is taken,
+   per the file's own note, so that is a question beside the Play
+   un-parking (D42).
+2. **The Email Address row's basis in the store filing** changed in both
+   copies, from *"only if the user links Google"* to *"every account since
+   D414"* (B `b029080`). No declaration flipped — still collected, still
+   linked, still app functionality — but the human-reviewable basis under
+   the tick did, and App Store Connect's copy is transcribed by hand.
+3. **The four `OWNER-LIST.md` rows above.** The collision guard is the
+   one with a one-line fix.
+
+### Reversal
+
+Each half is its own merge commit and each of the three fixes is its
+own commit; the pull request is one squash. Reverting this record's
+tree restores `main` at `ba80520`.
+
+## D421 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
 
 **Date:** 2026-09-08 · **Status:** Adopted, with one word still the
 owner's (§2). The owner's ruling on

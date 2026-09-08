@@ -170,7 +170,7 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
   it("says answers are sealed when the group has no reveals yet", () => {
     LIVE.social.revealHistory = () => [];
     render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/answers stay sealed until the morning after/i)).toBeTruthy();
+    expect(screen.getByText(/answers stay sealed until the reveal/i)).toBeTruthy();
     // Not a zeroed portrait: an alignment of 0 of 0 days would read as
     // "you never agree with these people".
     expect(document.body.textContent).not.toMatch(/0 of 0/);
@@ -183,7 +183,7 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     // answering with a card of prose. The caption names the field and the
     // one action that cannot fill itself stays.
     expect(container.querySelector("svg"), "the empty field lost its drawing").toBeTruthy();
-    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
+    expect(screen.getByText(/then it opens with names/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
   });
 

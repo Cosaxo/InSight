@@ -1390,7 +1390,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // body has rendered" are separated by a dynamic import whose duration
     // is the machine's — the same race Circle's case below documents, and
     // the same fix.
-    expect(await screen.findByText(/revealed with names the morning after/i, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await screen.findByText(/then it opens with names/i, {}, { timeout: 3000 })).toBeTruthy();
     expect(screen.queryByText(/No groups yet/i),
       "Groups still answers an empty stop with a headline").toBeNull();
     // The one action a field cannot fill by itself survives the trim.

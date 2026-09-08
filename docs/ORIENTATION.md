@@ -69,7 +69,7 @@ who decides:
 | Path | What is there | Read first |
 | --- | --- | --- |
 | `src/v2/spec/` | The JSX ported verbatim from the frozen prototype — the largest layer here. Shared-global scope, order-sensitive, shrinking under a ratchet. `mirror-*.jsx` and `map-*.js*` are the Mirror tab | `src/v2/README.md`, then `CLAUDE.md` §1 |
-| `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the two lazy groups (`loadWorldFeed`, `loadOverlays`) | `src/v2/README.md` |
+| `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the FOUR lazy groups (`loadWorldFeed`, `loadMapTab`, `loadMirrorTab`, `loadOverlays`) — the Map's since v28 §5 and the Mirror's since D355, each naming one module whose own static imports carry the rest | `src/v2/README.md` |
 | `src/v2/data/` | The typed client layer — `live.ts` publishes `window.LIVE`; `cohort.ts`, `similarity.ts` and `compare.ts` are the Mirror's folds; the rest is pure, tested logic | `docs/MIRROR.md` §6 |
 | `src/v2/ui/` | The hand-written TSX panels — the live Mirror bodies, the duel, privacy, city and search panels. One test suite each, mutation-checked | `src/v2/README.md` § Panel tests |
 | `src/v2/test/` | The mount smoke tests over `src/v2/test/mount-app.jsx`. The only gate that renders the whole app — the spec layer's other three are all name-level | `src/v2/README.md` § Mount tests |
@@ -159,7 +159,7 @@ directions.
 | [`COST-HUNT.md`](COST-HUNT.md) | The cost hunt's contract: four Opus hunters a night — the device's reads, the server's writes, the data's shape, the bill against the model — each pushing a measured branch, and a Fable reviewer that reviews, adjusts and opens the PRs the owner merges. Designed 2026-09-06 (D403); the five Routines are the owner's to create in a web UI, and this row flips to *tree* when the register carries their ids | plan |
 | [`COST-EXPOSURE.md`](COST-EXPOSURE.md) | Where an unexpected Firebase bill could come from, measured 2026-09-08 against production rather than the model: the invoiced dollar the model calls $0, the named database's missing free quota, the one unbounded exposure (direct Firestore reads until App Check is enforced) with its arithmetic, the bounded ones ranked, what already stands, and the ordered clicks and pull requests that close the gaps | mixed |
 | [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md) | The data structure priced per user-day once there are users, measured 2026-09-08: which documents each read term touches, the three D98 surfaces reading raw answer documents one by one at 74 % of every user's reads, the precomputed shapes that serve the same picture at about a hundredth of the cost, the write side and the daily's contention wall, what looks wasteful and is not, and the build order. Reproduce with `npm run costs:structure` | mixed |
-| [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md) | The same work as an ordered build list — six phases from the configuration-sized exemptions through the answer map, the folds that fail before they cost, and the sharded daily, each step with its files, its gate and its size; approved at D420 | plan |
+| [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md) | The same work as an ordered build list — six phases from the configuration-sized exemptions through the answer map, the folds that fail before they cost, and the sharded daily, each step with its files, its gate and its size; approved at D421 | plan |
 | [`MERGE-LIST.md`](MERGE-LIST.md) | What the automation built, and what the owner approved — every open PR and every branch without one, as rows the console workflow regenerates; the owner's tick is the approval the merge shift acts on (D352) | tree |
 | [`PERMISSIONS.md`](PERMISSIONS.md) | Every permission, secret, install or setting that is limiting a routine — what was refused, what it blocks, the exact fix, and its status; the owner grants (D352) | tree |
 | [`OWNER-LIST.md`](OWNER-LIST.md) | Only the owner can do these — decisions, clicks, designs, approvals, store and legal — folded daily by the console from their sources and appended by any lane (D352) | tree |
@@ -187,7 +187,7 @@ than of a subject:
 | README | What it covers |
 | --- | --- |
 | `README.md` | The product, top to bottom: what it is, how to run it, the repo map, the gates |
-| `src/v2/README.md` | The port, the two lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
+| `src/v2/README.md` | The port, the feed / overlay / Mirror lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
 | `functions/README.md` | The backend's own layout and conventions |
 | `firestore-tests/README.md` | How the rules and e2e suites are structured and run |
 | `content/README.md` | The question bank formats and how content reaches the seed |

@@ -8,7 +8,12 @@
 // reads.
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PROFILES, BOUNDARY_TEXT, slug, pageChecks, classify, summarize, renderReport } from "./device-screens-lib.mjs";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const clean = { checks: { textChars: 900, boundary: false, overflowX: false, clipped: [], offscreen: [], brokenImages: [], fontsFailed: 0, fontStatus: "loaded" },
   pageErrors: [], consoleErrors: [], failedRequests: [], unchanged: false };
@@ -47,13 +52,49 @@ describe("slug", () => {
 
 describe("pageChecks", () => {
   it("is self-contained, because page.evaluate serialises it by source", () => {
-    // A reference to anything outside the function body would be
-    // undefined inside the page. The boundary text is the one constant it
-    // needs, and it arrives as the argument.
-    const src = pageChecks.toString();
-    expect(src).not.toMatch(/BOUNDARY_TEXT/);
-    expect(src).not.toMatch(/\bslug\(/);
-    expect(src).toMatch(/boundaryText/);
+    // A reference to anything outside the function body is `undefined`
+    // inside the page — not a lint error, not a type error, a
+    // ReferenceError at run time in a browser this suite never opens. In
+    // device-screens.mjs that lands in every scene's catch, so `classify`
+    // marks each screen `hard` and the whole nightly pass exits 1 with no
+    // usable check data.
+    //
+    // THE LIST IS DERIVED, NOT WRITTEN. This asserted two names —
+    // BOUNDARY_TEXT and slug( — which is a denylist of the mistakes
+    // already made. Measured: adding
+    // `const _labels = Object.values(PROFILES).map((x) => x.label);` inside
+    // pageChecks passed 15/15, while re-running the serialised source the
+    // way page.evaluate does gave "ReferenceError: PROFILES is not
+    // defined". eslint cannot help either — PROFILES is a legitimate
+    // module binding, and the file is `File ignored` at that.
+    //
+    // So the names come out of the module itself: every top-level
+    // declaration in device-screens-lib.mjs, minus this function and its
+    // own parameter. A new export is covered the day it is added.
+    const lib = readFileSync(join(root, "scripts/device-screens-lib.mjs"), "utf8");
+    const declared = [...lib.matchAll(/^export (?:const|let|function|class)\s+(\w+)/gm)]
+      .map((m) => m[1])
+      .concat([...lib.matchAll(/^(?:const|let|function|class)\s+(\w+)/gm)].map((m) => m[1]))
+      .filter((n) => n !== "pageChecks");
+    // Vacuity guard: a regex that stopped matching would make the sweep
+    // below pass over an empty list, which is this case's own subject.
+    expect(declared.length, "no top-level declarations found in device-screens-lib.mjs").toBeGreaterThan(4);
+    expect(declared, "the module's own exports are no longer in the derived list").toContain("PROFILES");
+
+    // String literals removed first: `pageChecks` legitimately contains
+    // selectors and copy, and a name inside quoted text is not a reference.
+    const src = pageChecks.toString()
+      .replace(/`(?:[^`\\]|\\[\s\S])*`/g, (lit) => [...lit.matchAll(/\$\{([^}]*)\}/g)].map((m) => m[1]).join(" "))
+      .replace(/'(?:[^'\\]|\\[\s\S])*'/g, " ")
+      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, " ");
+    const leaks = declared.filter((n) => new RegExp(`\\b${n}\\b`).test(src));
+    expect(
+      leaks,
+      "pageChecks references a module binding — page.evaluate serialises it by SOURCE, so that name is undefined in the page "
+        + "and every scene lands in its catch",
+    ).toEqual([]);
+    // …and the one thing it must still reach for arrives as an argument.
+    expect(pageChecks.toString()).toMatch(/boundaryText/);
   });
   it("names the boundary's own text", () => {
     expect(BOUNDARY_TEXT).toBe("This view hit a snag.");
