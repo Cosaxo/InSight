@@ -191,13 +191,22 @@ if (source === "tmdb" && !process.env.TMDB_API_KEY) {
 // the alternative is a domain that never finishes. See the 429 branch.
 const RATE_LIMIT_TRIES = 8;
 const RATE_LIMIT_MAX_WAIT = 120_000;
-async function get(url, init = {}, tries = 3) {
+// `fatal: false` says the caller can live without this one answer. An API
+// call cannot — a chunk that never arrives is fifty keys silently counted
+// as having no picture — so those keep the exit. A single IMAGE can: the
+// host refusing it for the next quarter of an hour is a skipped key, which
+// this file already counts and prints, and not a reason to throw away the
+// six hundred pictures already fetched (2026-09-08: upload.wikimedia.org
+// blocked mid-run and took the whole athletes domain down with it).
+async function get(url, init = {}, tries = 3, { fatal = true } = {}) {
+  let waited = 0;
   for (let attempt = 1; ; attempt++) {
     let res;
     try {
       res = await fetch(url, { ...init, headers: { "User-Agent": UA, ...(init.headers || {}) } });
     } catch (e) {
       if (attempt >= tries) {
+        if (!fatal) throw e;
         console.error(
           `build-catalog-art: cannot reach ${new URL(url).host} — this is an operator step and needs\n` +
           `network access to that host (the header lists all six; a sandboxed session may allow\n` +
@@ -223,9 +232,10 @@ async function get(url, init = {}, tries = 3) {
       const limited = res.status === 429;
       const budget = limited ? Math.max(tries, RATE_LIMIT_TRIES) : tries;
       if (attempt >= budget) {
+        if (!fatal) return res;
         console.error(
           `build-catalog-art: ${new URL(url).host} answered HTTP ${res.status} ${budget} times` +
-          (limited ? ` over ${Math.round(RATE_LIMIT_MAX_WAIT / 1000)}s of waiting — the host is rate-limiting this\nnetwork, not refusing the request. Run it from somewhere with its own IP (the header's operator step).` : ""),
+          (limited ? ` over ${Math.round(waited / 1000)}s of waiting — the host is rate-limiting this\nnetwork, not refusing the request. Run it from somewhere with its own IP (the header's operator step).` : ""),
         );
         process.exit(1);
       }
@@ -237,6 +247,7 @@ async function get(url, init = {}, tries = 3) {
       const ladder = limited ? 20_000 * attempt : 2500 * attempt;
       const wait = Math.min(Math.max(asked, ladder), RATE_LIMIT_MAX_WAIT);
       if (limited) console.log(`build-catalog-art: ${new URL(url).host} is rate-limiting — waiting ${Math.round(wait / 1000)}s (try ${attempt} of ${budget})`);
+      waited += wait;
       await pause(wait);
       continue;
     }
@@ -261,7 +272,12 @@ const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 /** The source's bytes as a tile: downloaded, decoded, re-encoded — or
  *  null with the reason. */
 async function fetchThumb(url) {
-  const res = await get(url);
+  let res;
+  try {
+    res = await get(url, {}, 3, { fatal: false });
+  } catch (e) {
+    return { skip: `could not fetch (${e && e.message})` };
+  }
   if (!res.ok) return { skip: `HTTP ${res.status}` };
   const mime = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   if (!/^image\/(jpeg|png|webp|gif|tiff)$/.test(mime)) return { skip: `unsupported type ${mime || "unknown"}` };
