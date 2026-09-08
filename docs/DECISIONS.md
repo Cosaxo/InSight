@@ -45034,19 +45034,36 @@ nobody was reading, on evidence that had been thrown away. The ledger is
 that sentence made into data: the proposal, its `nearest` existing
 category, and each question with its run date.
 
-**3 · Four blockers, each one something the old rule asserted in prose.**
-The shape is `farm-budget.mjs` one layer up — that regulator answers *how
-many questions may this run write*, this one answers *may this run open a
-room to write them into* — and it has the same self-closing property:
-there generation tracks promotion throughput, here taxonomy width tracks
-the lanes' stocking throughput.
+**3 · Three blockers and a write rule, each something the old rule
+asserted in prose.** The shape is `farm-budget.mjs` one layer up — that
+regulator answers *how many questions may this run write*, this one
+answers *may this run open a room to write them into* — and it has the
+same self-closing property: there generation tracks promotion throughput,
+here taxonomy width tracks the lanes' stocking throughput.
 
 | Blocker | Arithmetic | Where it comes from |
 | --- | --- | --- |
 | Evidence | `EVIDENCE_MIN` 3 parked questions over `RUNS_MIN` 3 distinct run **days** | D145's own "three runs is an argument" |
 | Breadth debt | the lane regulator's own deficit must be 0 | `world-subtopics.js`'s "a thin subtopic would feel like a broken room", and the farm's own subtopic deferral |
-| Capacity | the lane's grant must cover `floor − parked` | a category is born AT its floor — three cards under a chip is the broken room |
-| Settling | the last category created on that surface is at floor | one room at a time; a week cannot redraw the Map |
+| Settling | the last category created on that surface is at floor | one room at a time |
+
+**The write rule:** the creating run writes `min(budget, floor − parked)`
+into the room in the PR that opens it, and the lane's own floor-first
+levelling finishes it on the next runs — a category at 3 is the largest
+deficit on its surface, the pull `feed-budget.mjs` documents as the
+reason `now` had to be excluded from it. Settling holds the door
+meanwhile.
+
+That rule was a fourth **blocker** in this record's first cut — "the
+run must be able to finish the room it opens" — and a same-day re-read
+found the arithmetic had locked one surface out: the learn lane's cap is
+10 and its floor 24, so with 3 parked it owed 21 and could grant 10,
+every run, forever. A rule the owner had just reversed would have stood
+on learn by accident, and nothing would have said so — the regulator
+would simply have printed HOLD with a true-looking reason. For feed (cap
+60) and daily (cap 8 = floor) the write rule still produces a category
+born at its floor, which is what the blocker was for; for learn it is
+born at 13 and full two runs later.
 
 The floors are imported from the lanes (`TOP_FLOOR` 8, `TOPIC_FLOOR` 24,
 `FIELD_FLOOR` 24), never restated — D197's one-copy rule, and the reason
@@ -45054,6 +45071,30 @@ blocker 2 cannot disagree with the lane about what thin means. Measured
 on the tree the day it shipped: daily and feed are levelled (deficit 0,
 so evidence is the only thing they wait on), learn owes 112 cards across
 its twelve fields and can create nothing until it levels.
+
+**The evidence stream is made deliberate, not accidental.** A lane
+writing toward "6 into sport" never meets a question that fits nothing,
+so a system fed only by misfits is the old rule wearing arithmetic — the
+input would be zero, as it was under the old rule (D145's own finding
+was that no run had ever proposed). The manual's procedure therefore
+gains a **scouting step**: once per run, before writing, the lane asks
+whether there is a subject it keeps wanting to write toward that has no
+home, and parks at most ONE question for it — *if* there is one. The
+"at most one, only if" is load-bearing: the evidence rule counts days
+because recurrence is the signal, and a lane that parks daily to be
+thorough has replaced the signal with its habit.
+
+**What the system's top speed is, and whose number it is.** With every
+surface levelled the only brake is evidence, and the write rule finishes
+a feed or daily room in the run that opens it — so the ceiling is **one
+category per three run days per surface**. That is fast: ten feed
+topics a month if the scouting step keeps finding gaps, each one a chip,
+a Map branch, and — because feed topics are always-on (D96) — a page of
+`FEED_PAGE` (12) reads for every new install until its cache converges
+(D321). The regulator prints both the speed and the cost and gates on
+neither: a ceiling on the taxonomy is a limit on what the axes can
+connect, and D352 puts that kind of limit to the owner, not into a
+script. The question is on `OWNER-LIST.md`.
 
 **4 · The hue is computed, not chosen.** D231's record says how `now` got
 hue 115: *"the widest gap left in the row (85 → 145), picked for distance
@@ -45141,9 +45182,17 @@ is a data condition.
 - **Pick cards get no vocabulary of their own.** They file against
   `WORLD_TOPICS` (D145 §4) and always did; creating a feed topic is
   creating theirs.
-- **Subtopic authoring stays deferred** on the farm's own arithmetic (a
-  leaf below a levelled parent is depth where breadth is still owed).
-  D421 licenses the parents.
+- **Subtopic authoring is the better growth path and is NOT wired.** A
+  leaf under a levelled parent inherits its hue, adds no chip and no Map
+  branch, costs a new install no page, and is reached by following the
+  parent — every cost this record prices, a subtopic does not pay. The
+  deferral ("a leaf below a levelled parent is depth where breadth is
+  still owed") was written when the parents were thin; the feed's ten are
+  levelled now. The manual says to prefer a leaf-shaped proposal and to
+  park it with `nearest` set until the lane exists. Wiring that lane —
+  `WORLD_SUBTOPICS` as a site, `check:taxonomy` holding leaf→parent, the
+  feed regulator counting leaf stock — is the recorded next step, and
+  most of what this record calls "a new topic" should arrive that way.
 - **Retirement is not built.** A category that stops earning its chip has
   no path out, and the ledger has nowhere to record one. It is the
   obvious next asymmetry — creation is now cheaper than removal — and it

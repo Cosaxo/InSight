@@ -1425,8 +1425,8 @@ category created: `now`, at D231, by the owner in person. A rule whose
 safe path is never taken is not caution, it is a stop.
 
 So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
-schedule. **Four blockers, and each is something the old rule asserted in
-prose:**
+schedule. **Three blockers and a write rule, each something the old rule
+asserted in prose:**
 
 1. **Evidence** — `EVIDENCE_MIN` (3) parked questions from `RUNS_MIN` (3)
    distinct run days. This is the old section's own sentence made literal:
@@ -1438,12 +1438,19 @@ prose:**
    room while the old ones are thin is breadth owed twice. The number is
    the lane regulator's own deficit, read from it, so this rule cannot
    disagree with the lane about what thin means.
-3. **Capacity** — the run's granted budget must cover `floor − parked`,
-   because the room has to be FINISHED in the PR that opens it. A category
-   is born at its floor or not at all; three cards under a chip is the
-   broken room `world-subtopics.js` refuses one level down.
-4. **Settling** — the last category created on that surface must itself be
-   at floor. One room at a time, so a week cannot redraw the Map.
+3. **Settling** — the last category created on that surface must itself be
+   at floor before another opens. One room at a time.
+
+**The write rule:** the creating run writes `min(budget, floor − parked)`
+into the new category in the PR that opens it, and the lane's own
+regulator finishes the job — a category at 3 is the largest deficit on
+its surface, so floor-first levelling points the next run at it
+(`feed-budget.mjs`'s `LANE_EXCLUDED` comment describes exactly that pull).
+For the feed (cap 60) and the daily (cap 8 = floor) that means born at
+the floor anyway; for learn (cap 10, floor 24) it means born at 13 and
+full two runs later. This was a fourth *blocker* in D421's first cut —
+"finish the room you open" — and the arithmetic locked learn out for good
+(21 owed, 10 granted, every run); the write rule is what replaced it.
 
 **The procedure, per run:**
 
@@ -1451,7 +1458,20 @@ prose:**
    daily surface's two alternative placements exist precisely because one
    question legitimately reads under more than one top. This is still the
    first move and still the usual outcome.
-2. If no existing category fits without distorting the question, **park
+2. **Scout, once.** Before writing toward the allocation, ask whether
+   there is a subject this lane keeps wanting to write toward that has no
+   home — a thing the crowd is plainly interested in, a subject the `now`
+   lane has carried for months and is no longer *now*, a question you
+   rewrote three times to fit somewhere it does not belong. If there is
+   one, write ONE question for it and park it (step 3), at most one per
+   run. If there is not, park nothing: the evidence rule counts days
+   precisely because recurrence is the signal, and a run that parks
+   something every day to be thorough has replaced the signal with its
+   own habit. This step exists because a lane writing toward "6 into
+   sport" will otherwise never meet a question that fits nothing, and a
+   system whose evidence stream is accidental is the old rule wearing
+   arithmetic.
+3. If no existing category fits without distorting the question, **park
    it** in `content/topic-proposals.json` under the proposed id: the
    label, the `nearest` existing category it came closest to, and the
    question with its run date. Parking is not dropping — the old rule
@@ -1459,17 +1479,33 @@ prose:**
    pattern in. A parked question still has to clear `check:neighbors`
    like any other; it is a question that has no home, not a question
    that is already asked.
-3. Run `npm run topic:budget`. It prints CREATE or HOLD per proposal, and
-   HOLD names which blocker and by how much.
-4. On CREATE: write the category at **every site the verdict names** — for
+4. Run `npm run topic:budget`. It prints CREATE or HOLD per proposal, and
+   HOLD names which blocker and by how much. For a feed proposal it also
+   prints what the topic costs every new install (a page per always-on
+   topic, D96/D321) and the system's top speed — one category per three
+   run days per surface when levelled — which is the owner's number, on
+   `OWNER-LIST.md`, not this manual's.
+5. On CREATE: write the category at **every site the verdict names** — for
    the feed that is `src/v2/spec/world-feed-topics.js` *and*
    `content/feed-questions.json`; for the daily, `CAT_META` — take the hue
    from `hueFor()` (the widest gap's midpoint, D231's own pick
-   mechanised), write the parked questions plus `owed` more into it in the
-   same PR, and append the row to the ledger's `created`. `check:taxonomy`
-   fails a half-written category, which is the failure this whole system
-   is shaped around.
-5. Log it on issue #31 as usual, with the verdict line verbatim.
+   mechanised), write the parked questions plus the verdict's `write`
+   count into it in the same PR, and append the row to the ledger's
+   `created`. `check:taxonomy` fails a half-written category, which is
+   the failure this whole system is shaped around.
+6. Log it on issue #31 as usual, with the verdict line verbatim.
+
+**Prefer a subtopic when the parent is levelled.** A proposal whose
+`nearest` is a levelled topic and whose questions read as a *part* of it
+(Tennis under Sport, not Gaming beside Tech) is a leaf, not a sibling —
+and a leaf is cheaper in every way that matters: it inherits the parent's
+hue (colour = family, `world-subtopics.js`), adds no chip to the row and
+no branch to the Map, costs a new install no page, and following the
+parent already reaches it. That lane is not wired yet — the deferral above
+("a leaf below a levelled parent is depth where breadth is still owed")
+was written when the parents were thin, and they are levelled now — so
+until it is, a leaf-shaped proposal parks with `nearest` set and waits,
+and the wiring is the recorded next step.
 
 **There is deliberately no semantic gate**, and this is the one place a
 future run is likely to want to add one. The obvious fifth blocker is *is

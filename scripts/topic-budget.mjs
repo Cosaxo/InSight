@@ -21,7 +21,8 @@
 // tracks the lanes' stocking throughput, so the taxonomy can only grow as
 // fast as it can be filled.
 //
-// THE FOUR BLOCKERS, and each is something the old rule asserted in prose:
+// THREE BLOCKERS AND A WRITE RULE, each something the old rule asserted in
+// prose:
 //
 //   1. EVIDENCE. D145's own sentence — "three runs proposing the same
 //      missing top is an argument; one is an anecdote" — made literal:
@@ -41,15 +42,26 @@
 //      computed here: it is the lane regulator's OWN deficit, so this file
 //      cannot disagree with the lane about what thin means.
 //
-//   3. CAPACITY. The creating run's granted budget must cover floor − parked
-//      — the run has to be able to finish the room it opens, in the PR that
-//      opens it. This is what keeps a created topic from being the thing
-//      every gate warns about: it is born AT its floor, never as three cards
-//      under a chip. It also self-paces creation to lane throughput without
-//      a cap, the way D350 removed the feed's ceiling and kept its floor.
+//   3. SETTLING. The last category created on that surface must itself be at
+//      floor before another opens. One room at a time.
 //
-//   4. SETTLING. The last category created on that surface must itself be at
-//      floor. One room at a time, so a week cannot redraw the Map.
+//   THE WRITE RULE. The creating run writes min(budget, floor − parked) into
+//   the new category in the PR that opens it, and the lane's own regulator
+//   finishes the job: a category at 3 is the largest deficit on its
+//   surface, so floor-first levelling points the very next run at it
+//   (feed-budget.mjs's LANE_EXCLUDED comment describes exactly this pull,
+//   as the reason `now` had to be excluded from it). Blocker 3 is what
+//   keeps the door shut meanwhile.
+//
+//   This was a fourth BLOCKER in the first cut of D421 — "the run must be
+//   able to finish the room it opens" — and the arithmetic locked one
+//   surface out without anybody noticing: the learn lane's cap is 10 and
+//   its floor 24, so with 3 parked it could never grant the 21 owed, and a
+//   rule the owner had just reversed would have stood on learn by
+//   accident. Re-read the same day and found. For feed (cap 60, floor 24)
+//   and daily (cap 8, floor 8) the write rule produces a category born at
+//   its floor anyway, which is what the blocker was for; for learn it is
+//   born at 13 and full two runs later.
 //
 // WHAT IS DELIBERATELY NOT A BLOCKER, and the measurement that decided it.
 // The obvious fifth gate is semantic: is this proposal actually distinct, or
@@ -152,7 +164,8 @@ export function runDays(questions) {
 //   parked   how many questions are waiting in the ledger for this category
 //   days     distinct run days among them (runDays above)
 //   deficit  the lane regulator's own total shortfall below its floor
-//   budget   what the lane's regulator grants this run
+//   budget   what the lane's regulator grants this run — it sizes the write,
+//            it never blocks (the header has the learn lockout that decided it)
 //   settling the previous created category's stock, or null if there is none
 export function topicVerdict({ surface, parked, days, deficit, budget, settling = null }) {
   const s = SURFACES[surface];
@@ -171,27 +184,44 @@ export function topicVerdict({ surface, parked, days, deficit, budget, settling 
       "is breadth owed twice",
     );
   }
-  const owed = Math.max(0, s.floor - parked);
-  if (budget < owed) {
-    blockers.push(
-      `capacity: stocking it to ${s.floor} needs ${owed} more question${owed === 1 ? "" : "s"} this run and the ` +
-      `lane grants ${budget} — a category has to be finished in the PR that opens it`,
-    );
-  }
   if (settling !== null && settling < s.floor) {
     blockers.push(
       `settling: the last ${surface} category created is at ${settling} of ${s.floor} — one room at a time`,
     );
   }
+  const owed = Math.max(0, s.floor - parked);
+  const write = Math.max(0, Math.min(budget, owed));
+  const rest = owed - write;
   return {
     create: blockers.length === 0,
     owed,
+    write,
     blockers,
     reason: blockers.length === 0
-      ? `create it, write ${owed} question${owed === 1 ? "" : "s"} into it in the same PR (the ${parked} parked ` +
-        `+ ${owed} = ${s.floor}), and write every site: ${s.sites.join(" · ")}`
+      ? `create it, write ${write} question${write === 1 ? "" : "s"} into it in the same PR (${parked} parked ` +
+        `+ ${write} = ${parked + write} of ${s.floor}` +
+        (rest > 0 ? `; the lane's floor-first levelling writes the other ${rest} on its next runs, and settling holds the door until then` : "") +
+        `), and write every site: ${s.sites.join(" · ")}`
       : blockers[0],
   };
+}
+
+/** What a feed topic costs every device, read off the pager rather than
+ * restated: the feed's topics are always-on (D96), so a new install fetches
+ * a page per topic until its cache converges (bankPager.ts, D321). The
+ * regulator PRINTS this and does not gate on it — a ceiling on the
+ * taxonomy is a limit on what the axes can connect, and D352 puts that
+ * kind of limit to the owner rather than into a script. Returns null if
+ * the constant moves, so the line goes quiet instead of inventing a
+ * number (D197). */
+export function feedPageCost() {
+  try {
+    const src = readFileSync(join(root, "src", "v2", "data", "bankPager.ts"), "utf8");
+    const m = /export const FEED_PAGE = (\d+);/.exec(src);
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** D231's hue pick as an algorithm rather than a judgement: "hue 115 is the
@@ -265,6 +295,12 @@ if (invokedDirectly) {
 
   console.log(`topic-budget: ${proposals.length} proposal${proposals.length === 1 ? "" : "s"} in the ledger`
     + ` (evidence ${EVIDENCE_MIN} questions over ${RUNS_MIN} run days)`);
+  // The system's own top speed, stated so nobody has to derive it: with
+  // every surface levelled the only brake is evidence, and the write rule
+  // finishes a feed or daily room in the run that opens it — so the ceiling
+  // is one category per RUNS_MIN days per surface. Whether that is the
+  // right speed is the owner's (docs/OWNER-LIST.md, D421).
+  console.log(`  top speed: one category per ${RUNS_MIN} run days per surface, when levelled — the owner's number to move`);
   for (const [name, s] of Object.entries(SURFACES)) {
     const sur = surfaces[name];
     console.log(`  ${name}: ${sur.rows.length} categories, floor ${s.floor}/${s.noun}`
@@ -298,6 +334,13 @@ if (invokedDirectly) {
       const hue = p.surface === "learn" ? null : "see hueFor";
       console.log(`    CREATE — ${v.reason}`);
       if (hue) console.log("    hue: run hueFor(hueRing(surface, taxonomy)) — the widest gap's midpoint (D231's pick, mechanised)");
+      if (p.surface === "feed") {
+        const page = feedPageCost();
+        console.log(page === null
+          ? "    cost: FEED_PAGE not found in bankPager.ts — the per-install line is silent rather than invented"
+          : `    cost: every new install fetches a page of ${page} for this topic until its cache converges (D96 always-on, D321)`
+            + ` — ${surfaces.feed.rows.length + 1} topics × ${page} = ${(surfaces.feed.rows.length + 1) * page} first-session reads on the feed`);
+      }
     } else {
       console.log("    HOLD:");
       for (const b of v.blockers) console.log(`      · ${b}`);

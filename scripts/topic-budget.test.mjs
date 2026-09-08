@@ -7,7 +7,7 @@
 // looks exactly like evidence arriving.
 import { describe, it, expect } from "vitest";
 import {
-  topicVerdict, runDays, hueFor, hueRing, loadSurfaces, loadLedger,
+  topicVerdict, runDays, hueFor, hueRing, loadSurfaces, loadLedger, feedPageCost,
   EVIDENCE_MIN, RUNS_MIN, SURFACES,
 } from "./topic-budget.mjs";
 import { TOP_FLOOR } from "./farm-budget.mjs";
@@ -25,12 +25,14 @@ const clear = {
 };
 
 describe("topicVerdict", () => {
-  it("creates when evidence, breadth, capacity and settling are all clear", () => {
+  it("creates when evidence, breadth and settling are all clear", () => {
     const v = topicVerdict(clear);
     expect(v.create).toBe(true);
     expect(v.blockers).toEqual([]);
-    // The room opens finished: parked + owed is exactly the floor.
+    // Owed is what the floor still wants; with a full budget the room
+    // opens finished.
     expect(clear.parked + v.owed).toBe(TOPIC_FLOOR);
+    expect(v.write).toBe(v.owed);
   });
 
   it("blocks one run's opinion however many questions it parked", () => {
@@ -47,14 +49,31 @@ describe("topicVerdict", () => {
     expect(v.blockers.some((b) => /breadth debt/.test(b))).toBe(true);
   });
 
-  it("blocks when the run cannot finish the room it opens", () => {
-    const v = topicVerdict({ ...clear, budget: TOPIC_FLOOR - EVIDENCE_MIN - 1 });
-    expect(v.create).toBe(false);
-    expect(v.blockers.some((b) => /capacity/.test(b))).toBe(true);
+  it("never blocks on capacity — the budget sizes the write", () => {
+    // The first cut of D421 had capacity as a fourth blocker, and the
+    // arithmetic locked learn out for good: cap 10, floor 24, 3 parked ->
+    // 21 owed > 10 granted, every run, forever. A rule the owner had just
+    // reversed would have stood on one surface by accident.
+    const v = topicVerdict({ ...clear, budget: 5 });
+    expect(v.create).toBe(true);
+    expect(v.write).toBe(5);
+    expect(v.owed).toBe(TOPIC_FLOOR - EVIDENCE_MIN);
+    expect(v.reason).toMatch(/floor-first levelling writes the other/);
   });
 
-  it("grants capacity when the budget covers exactly what is owed", () => {
-    expect(topicVerdict({ ...clear, budget: TOPIC_FLOOR - EVIDENCE_MIN }).create).toBe(true);
+  it("writes the whole room when the budget covers it, and says the room is full", () => {
+    const v = topicVerdict({ ...clear, budget: TOPIC_FLOOR });
+    expect(v.write).toBe(TOPIC_FLOOR - EVIDENCE_MIN);
+    expect(v.reason).toContain(`${TOPIC_FLOOR} of ${TOPIC_FLOOR}`);
+    expect(v.reason).not.toMatch(/floor-first levelling/);
+  });
+
+  it("lets learn create a field — the surface the blocker version locked out", () => {
+    const v = topicVerdict({ surface: "learn", parked: EVIDENCE_MIN, days: RUNS_MIN,
+      deficit: 0, budget: SURFACES.learn.cap, settling: null });
+    expect(SURFACES.learn.cap).toBeLessThan(FIELD_FLOOR - EVIDENCE_MIN); // the lockout, as arithmetic
+    expect(v.create).toBe(true);
+    expect(v.write).toBe(SURFACES.learn.cap);
   });
 
   it("blocks a second room while the last one created is still thin", () => {
@@ -136,6 +155,12 @@ describe("the tree it actually runs on", () => {
       expect(s[name].rows.length).toBeGreaterThan(0);
       expect(s[name].deficit).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it("reads the per-topic install cost off the pager rather than restating it", () => {
+    // D96 always-on topics: a new install pays a page per topic. If the
+    // constant moves or is renamed, the line goes silent (null), never wrong.
+    expect(feedPageCost()).toBeGreaterThan(0);
   });
 
   it("ships an empty ledger with both arrays present", () => {
