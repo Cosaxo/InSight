@@ -2803,6 +2803,166 @@
       "p": 26,
       "k": "Sri Lanka: Kotte",
       "w": "The legislative capital since 1982, swallowed by greater Colombo — which is why everyone says Colombo."
+    },
+    {
+      "id": "cell14",
+      "f": "cell",
+      "q": "A cell that can still become many different cell types is…",
+      "a": [
+        "A germ cell",
+        "A stem cell",
+        "A blood cell",
+        "A nerve cell"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 74,
+      "k": "Stem cells can still choose",
+      "w": "Germ cells are the tempting wrong turn — they make eggs and sperm, one committed job. A stem cell is the uncommitted one."
+    },
+    {
+      "id": "cell15",
+      "f": "cell",
+      "q": "Roughly how many cells make up a human body?",
+      "a": [
+        "Around 40 billion",
+        "Around 40 million",
+        "Around 40 trillion",
+        "Nobody has estimated it"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 45,
+      "k": "A body is trillions of cells",
+      "w": "Best current estimates land near 37 trillion — billions sounds enormous and is off by a factor of a thousand."
+    },
+    {
+      "id": "cell16",
+      "f": "cell",
+      "q": "The jelly that fills a cell, where much of its chemistry runs, is…",
+      "a": [
+        "The plasma",
+        "The cytoplasm",
+        "The lymph",
+        "The marrow"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 76,
+      "k": "Cytoplasm fills the cell",
+      "w": "Plasma is the liquid part of blood — a fluid BETWEEN cells, which is exactly why it reads so plausibly here."
+    },
+    {
+      "id": "cell17",
+      "f": "cell",
+      "q": "Is a virus a cell?",
+      "a": [
+        "No — it has no cell machinery",
+        "Yes — a very small one",
+        "Only while infecting one",
+        "Science is split on it"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 54,
+      "k": "A virus is not a cell",
+      "w": "A virus is genetic material in a protein coat — no ribosomes, no metabolism. It borrows a real cell's machinery to copy itself."
+    },
+    {
+      "id": "cell18",
+      "f": "cell",
+      "q": "Nerve impulses travel along a cell called a…",
+      "a": [
+        "A neutron",
+        "A nephron",
+        "A neuron",
+        "A neutrophil"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 82,
+      "k": "Neurons carry nerve signals",
+      "w": "The near-names are the whole trap: a neutron is a particle, a nephron a kidney unit, a neutrophil a white blood cell."
+    },
+    {
+      "id": "con14",
+      "f": "confused",
+      "q": "The one growing UP from a cave floor is a…",
+      "a": [
+        "Stalactite",
+        "Stalagmite",
+        "Stalagnate",
+        "A column"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "Stalagmites grow up",
+      "w": "Stalactites hold tight to the ceiling; stalagmites might reach it one day. Where the two meet, cavers call it a column."
+    },
+    {
+      "id": "con15",
+      "f": "confused",
+      "q": "“e.g.” introduces…",
+      "a": [
+        "A definition",
+        "An example",
+        "An exception",
+        "An emphasis"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 61,
+      "k": "e.g. means for example",
+      "w": "Exempli gratia — for the sake of an example. Defining is i.e.'s job (id est, 'that is'), which is exactly the swap."
+    },
+    {
+      "id": "con16",
+      "f": "confused",
+      "q": "In a pavement, the cement is…",
+      "a": [
+        "The whole mixture",
+        "The gravel in it",
+        "The powder that binds it",
+        "A trade name"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 48,
+      "k": "Cement binds concrete",
+      "w": "Concrete is the finished material — cement plus water, sand and gravel. Calling the slab 'cement' is the everyday slip this pair exists for."
+    },
+    {
+      "id": "con17",
+      "f": "confused",
+      "q": "The singular of “bacteria” is…",
+      "a": [
+        "Bacterium",
+        "Bacteria",
+        "Bacterius",
+        "Bacterial"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 66,
+      "k": "One bacterium, two bacteria",
+      "w": "A Latin neuter plural, like 'data' and 'media' — the plural form is so common it reads as singular."
+    },
+    {
+      "id": "con18",
+      "f": "confused",
+      "q": "Wanting what someone else has is, strictly speaking…",
+      "a": [
+        "Jealousy",
+        "Envy",
+        "Spite",
+        "Greed"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 41,
+      "k": "Envy wants, jealousy guards",
+      "w": "Jealousy strictly fears losing what you already have; envy covets what you don't. Everyday use blurs them — careful writing keeps the line."
     }
   ]
 }
