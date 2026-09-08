@@ -81,6 +81,10 @@ Routines, **nine enabled and two disabled** — the nine below plus the two
 program lanes this account gained at phase 5.1. **Re-verified 2026-09-06
 19:35 UTC**: the same eleven, the same nine enabled — and night shift B's
 schedule had moved again (its row and the 2026-09-06 observations below).
+**Re-verified 2026-09-08 17:00 UTC**: the same eleven, the same nine
+enabled, no other schedule moved — and the duel lane re-paced in that
+same sitting, to daily for the bank burst (its row, and the 2026-09-08
+re-pace below).
 
 The two disabled are `InSight DB scalability` and `Nightly algorithm
 improvement`, both paused by the owner 2026-09-03 14:25/14:30 UTC with no
@@ -102,7 +106,7 @@ row, per this file's own instruction.
 | InSight DB scalability **(DISABLED 2026-09-03)** | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
 | InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
-| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — Wed 10:00 | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
+| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 **for the bank burst, since 2026-09-08** (`0 10 * * 3`, Wed 10:00, before it and again after — the 2026-09-08 re-pace below has the exit condition) | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
 | InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
 | InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
@@ -245,6 +249,45 @@ re-verify; nothing in §2 is edited.
   request ref is deleted by the lane when both platforms are done, so a
   shift's next request is a plain push. Shift A's brief is on the other
   account; the lane already listens for its prefix.
+
+### Re-pace, 2026-09-08 — the duel lane runs daily for the bank burst
+
+- **`InSight duel lane` runs daily from 2026-09-08, for the bank burst
+  (the owner's instruction of 2026-09-08, citing `ROUNDS-PLAN.md` §6.1
+  and D420).** `update_trigger` on `trig_01XNv5D3npQyYhCWoAYX1nr5`, from
+  `0 10 * * 3` to `0 10 * * *` at 17:00 UTC — the schedule only. The
+  prompt and the model were not touched, so the live prompt, and the
+  canonical block in `QUESTION-FARM.md` that has to stay byte-equal to
+  it, still open *"a scheduled job, weekly"*: a summary the manual
+  outranks, and the run re-reads the manual every firing. Id and
+  schedule were read from `list_triggers` first (rule 2) and matched;
+  the same read found the other ten rows unmoved. The hour is the
+  lane's own slot on the clock (§6), so the stagger off 07:00 on the
+  shared dev session holds — only the days changed. Daily is safe
+  because the regulator bounds the lane, not the cadence:
+  `scripts/duel-budget.mjs` grants at most `RUN_CAP` a run, stops at
+  `POOL_TARGET` a pool and grants zero at `OPEN_MAX` unreviewed on an
+  open lane PR, so a firing past the target is a logged no-op. Read
+  that afternoon with nothing open: *group 26 · oneVsOne 32 · romantic
+  24 — 62 short of 48/pool*, which at the cap is about sixteen merged
+  firings — sixteen days instead of sixteen Wednesdays. **Exit:** when
+  `npm run duel:budget` reports every pool at `POOL_TARGET`, re-pace
+  back to `0 10 * * 3` and record it the same way — the row above and
+  a dated line here.
+- **The burst's citation does not resolve on `main` at this commit, and
+  this line says so rather than resolving it quietly.** No
+  `docs/ROUNDS-PLAN.md` exists on `main`, on any open pull request or
+  on any branch on `origin`, and D420 on `main` is the 2026-09-08 night
+  review, which says nothing about a burst. The instruction also
+  described the regulator as capping at 25 a run and 400 a pool; the
+  tree's constants are 4 and 48, and `check:figures` holds § The duel
+  lane to them. The re-pace stands on the instruction and on the
+  regulator's arithmetic, which is safe at either pair. The citation is
+  kept as given so that whoever lands the plan can point it at the
+  number the record takes on merge (D408: the hole a move leaves is a
+  printed note, not a failure) — rule 2's finding one file over: a
+  belief written down is worth nothing until something in the tree can
+  be read against it.
 
 ---
 
@@ -605,7 +648,7 @@ all.
 07 ·  question farm 07:00 · merge shift 07:15
 08 ·  catalog question · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
 09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · merge shift 09:15 · feed lane 09:30
-10 ·  duel lane (Wed) 10:00 · theory 10:02
+10 ·  duel lane 10:00 (daily since 09-08 for the bank burst; Wed before and after) · theory 10:02
 11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02 · merge shift 11:15
 12 ·  axes retro (Sun) 12:00 · theory 12:02
 13 ·  theory ties 13:02 (odd) · merge shift 13:15
