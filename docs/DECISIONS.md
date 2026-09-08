@@ -41998,3 +41998,51 @@ that grows as groups shrink.
 The rule stands as written: where the report contradicts a paper the
 paper moves, and this entry is the first time it did. Nothing in the
 app moves.
+
+## D389 amendment (2026-09-08, third) · The prior-art pass on the general track: what exists, and what is actually new
+
+Every general paper now ends with a section that says which literature
+each of its components comes from and what, relative to the references
+listed, is new — ninety-five references across the seven, every one
+resolved on the web before it was written, each paper's block its own.
+The honest summary of the pass is that almost no individual component
+of the series is new and the compositions are. G1 is partial
+identification, statistical matching, planned missingness, Bayesian
+experimental design, test equating, cross-fitting and the knowledge
+gradient run together under one budget; what is its own is the
+co-observation graph as the design's state with a rank condition for
+linking, roles per observation as a standing line, and the two
+never-selected-on streams as permanent lines. G2 is event sourcing,
+propensity logging, bitemporal storage, federated learning with secure
+aggregation, differential-privacy budgets, unlearning and datasheets;
+its own are the observation attempt as the atom, every release on one
+ledger and one budget, and the type as a return type. G3 is the
+multilevel model, within/between disaggregation, non-ergodicity,
+invariance, method factors, interference, marginal structural models,
+MDL and prequential evaluation, hierarchical shrinkage and posterior
+predictive checks; its own are the two nested information sets, the
+tripwire, the five-clause test with a published failure rate, and
+level separation as a mechanic. G4 sits with the reply to "the end of
+theory" and with research programmes, Goodhart and construct validity;
+its own is the frame with four relocation sites and the ledger's
+identification blindness. G5's nearest prior programme is the
+modelling of human lives as token sequences on registry data, and the
+difference is stated as it is — that corpus is found, this one is
+chosen — which is where the factored objective comes from. G6's
+statistic is Kendall's, in the role representational similarity
+analysis gives a distance matrix and the concordance index gives a
+prediction; its own are the per-target licence with its co-observation
+accounting and unit-resampled interval, the two spaces and a criterion,
+and substitutability against a reference version. G7 is the social
+relations model, Cronbach's assumed similarity, Thurstone and
+Bradley–Terry with Ford's connectivity, the homophily-contagion
+confound, encouragement designs, interference and dyadic variance
+estimation; its own are identification as a rank per design — which
+the harness could check and the literature's derivations could not —
+the sum-type and difference-type quotients side by side, the two
+populations with the assigned stream priced, and the programme-side
+paragraphs the dyadic literature does not owe.
+
+The gate learned one thing in the pass: a decision-number pattern
+matches inside an ACL Anthology DOI, so that rule now reads the body
+only. Nothing in the app moves.

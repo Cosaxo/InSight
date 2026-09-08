@@ -191,6 +191,10 @@ export const FORBIDDEN = [
     name: "a decision number",
     re: /\bD\d{1,3}\b/,
     why: "a decision number ties the claim to the tree's history; a paper argues from what would have to hold, not from what was decided",
+    // Body only: an ACL Anthology DOI is `10.18653/v1/D19-1002`, and a
+    // References entry carrying one is a citation, not a decision. The
+    // first prior-art pass tripped this on the day citations opened.
+    bodyOnly: true,
   },
 ];
 
@@ -244,18 +248,20 @@ export function scanPaper(text, kind = "axiom") {
     });
   };
 
-  for (const rule of forbidden) {
-    lines.forEach((l, i) => {
-      const m = rule.re.exec(l);
-      if (m) flag(rule, l, i, m);
-    });
-  }
-
-  // Citations: shapes forbidden in the body, required in the block. The
-  // block is everything from the **References.** line to the end of the
-  // file; a paper without one has no block and no markers.
+  // The References block is everything from the **References.** line to
+  // the end of the file; a paper without one has no block and no markers.
   const headAt = lines.findIndex((l) => REFERENCES_HEAD.test(l));
   const bodyEnd = headAt === -1 ? lines.length : headAt;
+
+  for (const rule of forbidden) {
+    const end = rule.bodyOnly ? bodyEnd : lines.length;
+    for (let i = 0; i < end; i += 1) {
+      const m = rule.re.exec(lines[i]);
+      if (m) flag(rule, lines[i], i, m);
+    }
+  }
+
+  // Citations: shapes forbidden in the body, required in the block.
   for (const rule of CITATION_SHAPES) {
     for (let i = 0; i < bodyEnd; i += 1) {
       const m = rule.re.exec(lines[i]);

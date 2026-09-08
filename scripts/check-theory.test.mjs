@@ -123,6 +123,15 @@ describe("citations: markers into a References block, and nothing else", () => {
     expect(rules(text)).toContain("a duplicate reference number");
   });
 
+  it("a DOI whose path looks like a decision number is fine in the block and a decision number in the body is not", () => {
+    const text = CITED.replace(
+      "[2] Bradley, R. A., & Terry, M. E. Rank analysis of incomplete block designs: I. The method of paired comparisons. Biometrika, 39, 324–345 (1952). https://doi.org/10.2307/2334029",
+      "[2] Wiegreffe, S., & Pinter, Y. Attention is not not explanation. EMNLP (2019). https://doi.org/10.18653/v1/D19-1002",
+    );
+    expect(rules(text)).toEqual([]);
+    expect(rules(text.replace("Prose about 3D geometry", "D98 made answers public. Prose about 3D geometry"))).toContain("contains a decision number");
+  });
+
   it("every citation rule carries a reason", () => {
     for (const rule of CITATION_SHAPES) {
       expect(rule.why.length).toBeGreaterThan(20);
