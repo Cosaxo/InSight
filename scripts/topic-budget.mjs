@@ -85,8 +85,9 @@
 // What that costs, printed and put to the owner rather than gated: a
 // learn field is a page of LEARN_PAGE (24) reads per device per boot under
 // the follow-everything default (D283) until the interest model narrows
-// it; and the learn lane fires twice a week, which caps its reach more than
-// any constant here (docs/OWNER-LIST.md has both).
+// it. The learn lane's cadence WAS the other cost — twice a week capped its
+// reach more than any constant here — until the owner made it daily the
+// same day (D428 amendment); the page cost stays on docs/OWNER-LIST.md.
 //
 // BLOCKERS FOR A FEED OR DAILY TOP — each something the old rule asserted
 // in prose:

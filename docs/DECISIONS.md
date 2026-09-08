@@ -46458,3 +46458,38 @@ topics).
 Revert the commit. The ledger is empty on every list, the constants
 return to D424's, and `learn:budget` ignores a `--reserve` it no longer
 parses.
+
+## D428 amendment (2026-09-08) · The learn lane runs daily, and its prompt is swapped for the one that can open a field
+
+The owner, reading D428's *"the cadence … is the one change here that is
+not this record's to make"*: *"make learn run daily"*.
+
+**The cadence:** `0 9 * * 1,4` → `0 9 * * *`, daily 09:00 UTC — the same
+slot, half an hour before the feed lane, the spacing the two already had
+on Mondays and Thursdays. At 30 cards a run that is 210 a week against
+the feed's 420; at a field and a half a run, the five subjects reach
+`FIELD_TARGET` in about four weeks instead of nine.
+
+**The prompt, and why the Routine has a new id.** `update_trigger` took
+the cron change and refused the prompt — *"editing the prompt of a
+routine whose fires deliver into a session that is not your own is not
+available"* — the refusal § Scheduled runs records from D148 and D212,
+re-measured today. The prompt needed changing because it carried, under
+*Hard limits*, **the old hard rule 3**: *"Never create a field or
+subject; a card that fits none is dropped and the field proposed."* That
+is the D212 class exactly — a clause in the prompt itself that no manual
+edit can lift, and a daily lane running under it would have obeyed the
+rule D424 reversed and D428 inverted, every morning, while the manual it
+is told to re-read said the opposite. So the D148 mechanism: a
+replacement created and verified first (`trig_01TckXyab4zPHT4NSfSqPjku`,
+same session, same slot, the prompt rewritten — *daily since D428*,
+`topic:budget` first and `learn:budget --reserve` after it, open the
+rooms the coverage line names, `check:taxonomy` in the gate list, a card
+that fits nothing PARKED rather than dropped), then the original
+(`trig_01Qguc3PyigsW7RvQLvC6X5G`) deleted, then the register and the
+canonical block. Cost as before: the id and the fire history; issue #31
+is the run log.
+
+**Verified rather than assumed:** the create response echoes the stored
+prompt, so the canonical block in § Scheduled runs is the live text, not
+a copy of what was sent.
