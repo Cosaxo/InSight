@@ -1903,6 +1903,33 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
+  it("a feed doc's subtopic leaf reaches the mapped card, and absence stays absent (D425)", async () => {
+    // `sub` is how a card belongs to a leaf: world-feed.jsx's filter
+    // fast-paths on it and SUBTOPICS.count reads it off this pool — so the
+    // day a bank doc carries the tag, the leaf is offered ("leaves return
+    // by themselves the day live questions carry their tag",
+    // world-subtopics.js). A mapper that dropped it here would leave every
+    // live leaf at zero stock forever, silently. Emit-when-set, as `also`.
+    h.bankDocs.push(
+      {
+        id: "q_feed_leaf",
+        data: { surface: "feed", seq: 7, type: "vote", prompt: "Best-of-five belongs in the past.",
+          options: ["Keep five", "Three is enough"], topic: "sport", sub: "sub_tennis", test: null, active: true },
+      },
+      {
+        id: "q_feed_noleaf",
+        data: { surface: "feed", seq: 8, type: "vote", prompt: "Vote three",
+          options: ["A", "B"], topic: "sport", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; sub?: string }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_leaf")?.sub).toBe("sub_tennis");
+    expect("sub" in (feed.find((q) => q.id === "q_feed_noleaf") || {})).toBe(false);
+  });
+
   // ── background, the card's `i` (D281) ────────────────────────────
   //
   // Emit-when-set in both directions, and the absent half is the half

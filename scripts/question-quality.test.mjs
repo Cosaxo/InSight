@@ -981,3 +981,26 @@ describe("the background field", () => {
     }
   });
 });
+
+describe("the subtopic tag (D425)", () => {
+  const sport = (over = {}) => ({ surface: "feed", type: "vote", cat: "sport", prompt: "Best surface for tennis?", options: ["Clay", "Grass"], ...over });
+
+  it("accepts a committed leaf under the question's own home", () => {
+    expect(checkQuestion(sport({ sub: "sub_tennis" }), "feed", corpus).errs.filter((e) => e.rule === "sub")).toEqual([]);
+  });
+
+  it("refuses a leaf that is not committed — the vocabulary is closed", () => {
+    const { errs } = checkQuestion(sport({ sub: "sub_padel" }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "sub" && /not a committed subtopic leaf/.test(e.msg))).toBe(true);
+  });
+
+  it("refuses a leaf under another parent — a leaf is a part of its parent", () => {
+    const { errs } = checkQuestion(sport({ cat: "food", prompt: "Best pre-match meal?", sub: "sub_tennis" }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "sub" && /not of this question's home/.test(e.msg))).toBe(true);
+  });
+
+  it("refuses the tag repeated as a door", () => {
+    const { errs } = checkQuestion(sport({ sub: "sub_tennis", also: ["sub_tennis"] }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "sub" && /repeats in `also`/.test(e.msg))).toBe(true);
+  });
+});

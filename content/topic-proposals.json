@@ -1,0 +1,15 @@
+{
+  "note": "The taxonomy ledger (D424, shaped by D425). A lane that meets a question fitting no existing category PARKS it here instead of dropping it, and scripts/topic-budget.mjs decides from this file whether the gap has become a category. What stays fixed is the You map's RING — its hubs (the owner, 2026-09-08: 'the amount of topics shown at the top in the You map should stay roughly the same unless a new one is really needed, but learn, feed, daily can all get new topics'). A new topic on any surface lands in a hub that exists (`group`); a subtopic is the cheaper shape when the questions are a part of a topic that exists. Written by lanes through their own PR; read by npm run topic:budget; held honest by check:taxonomy. Empty is the correct state when no lane has met an unfittable question — proposals accumulate, they are not seeded.",
+  "shape": {
+    "leaf": "{ id: 'sub_<slug>' (feed) | '<slug>' (learn), level: 'leaf', label, surface: 'feed' | 'learn', parent: <a topic or subject id>, retag: [existing feed question ids under the parent that are this leaf's — free stock], questions: [{ prompt, options?, run: 'YYYY-MM-DD' }] }",
+    "top": "{ id, level: 'top', label, surface: 'daily' | 'feed' | 'learn', nearest: <the existing category it came closest to>, group: <daily: a hub id in map-groups.js; feed: a WF_BRANCH target — a CAT_META key or a hub label; learn: omit, Knowledge by prefix>, questions: [{ prompt, options?, run: 'YYYY-MM-DD' }] } — a proposal that can only land in a hub that does not exist holds for the owner",
+    "created": "{ id, level, label, surface, parent?, createdAt: 'YYYY-MM-DD', pr }"
+  },
+  "surfaces": {
+    "daily": "top = cat[0], a key in CAT_META (src/v2/spec/daily-cats.js); the second level is the free path cat[1] — written on the question, never created",
+    "feed": "top = an id in WORLD_TOPICS (src/v2/spec/world-feed-topics.js) and in content/feed-questions.json topics; leaf = an id in WORLD_SUBTOPICS (src/v2/spec/world-subtopics.js), carried by a question as `sub`",
+    "learn": "top = a subject in content/learn-questions.json; leaf = a field there, carried by a card as `f`"
+  },
+  "proposals": [],
+  "created": []
+}
