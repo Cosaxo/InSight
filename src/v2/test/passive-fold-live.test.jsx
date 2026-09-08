@@ -165,6 +165,24 @@ describe("PASSIVE.record and the deep item (D416)", () => {
   // the case would pass for the wrong reason. attachment seeds at zero.
   const K = "attachment";
 
+  // THE TALLY THIS CASE WRITES IS PUT BACK, through the store's own purge
+  // (data/live.ts, D51) rather than a second definition of "empty". The
+  // 2026-09-08 night review found the composition defect: this describe
+  // and the profile-card one at the foot of the file were written by
+  // different shifts, each green on its own branch, and red together —
+  // `record()` here leaves `attachment` at one seen card in module state
+  // AND in localStorage, and the profile card's control below then draws
+  // a Social ring with a real sweep for "an untouched profile". The card is
+  // right to (the fold is empty for an instrument the bank serves no
+  // items for, so `passiveCount` falls back to the tally, by design); the
+  // fixture was wrong to leave it. Vitest runs a file's describes in
+  // order, so the leak only ever pointed one way, which is why neither
+  // shift could see it.
+  afterEach(() => {
+    try { localStorage.removeItem("insight.passive.v1"); } catch { /* jsdom always has it */ }
+    window.dispatchEvent(new Event("insight:local-purge"));
+  });
+
   it("counts a domain question and refuses a facet card", () => {
     expect(PASSIVE.seedCount(K), `${K} is now seeded, so the tally below is capped and this case is vacuous`).toBe(0);
     const before = PASSIVE.passiveDone(K);
