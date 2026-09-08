@@ -1694,12 +1694,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // The panel is behind a React.lazy boundary (profile-overlay is eager
     // and the eager budget had 4 KB left), so the assertion has to wait
     // for the chunk rather than for a render.
-    await screen.findByText(/No 1v1 has 3 days you both guessed yet/);
+    await screen.findByText(/No 1v1 has 3 rounds you both guessed yet/);
     // The fixture has no rooms at all, so both instruments refuse — with
-    // their floors named in the floor's own unit (days both guessed / days
+    // their floors named in the floor's own unit (rounds both guessed / rounds
     // you played, not "revealed days"), not with an empty rose.
-    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).not.toBeNull();
-    expect(screen.getByText(/No group has 2 revealed days you played yet/)).not.toBeNull();
+    expect(screen.getByText(/No 1v1 has 3 rounds you both guessed yet/)).not.toBeNull();
+    expect(screen.getByText(/No group has 2 revealed rounds you played yet/)).not.toBeNull();
     expectNoBoundary();
     // `window.__profileSub` remembers the last-visited subtab so returning
     // from a tracker lands back on it — and it lives on `window`, which

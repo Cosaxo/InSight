@@ -181,12 +181,14 @@ become a person with a reading attached.
 
 **Groups.** The alignment ring, the answer rows and the per-member
 likeness are all computed from `v2_groups/{gid}/reveals/r{n}` documents
-the viewer can already read, over the last fortnight
-(`REVEAL_HIST_DAYS`) — every number is one the user could recompute from
+the viewer can already read, over the newest thirty reveals
+(`REVEAL_HIST_CAP` — a fortnight while a reveal was a day, a few days of
+an active pair under rounds; the ledger ROLES-PLAN §3.3 proposes is what
+outlives the window) — every number is one the user could recompute from
 the reveals themselves. Duos are excluded on purpose: with two voters,
 "with the majority" is always true and the ring would read 100% forever.
 Since D190 the two cards are tabs — **Answers** (what the group landed
-on, one row per revealed day) and **People** (who runs closest to you) —
+on, one row per revealed round) and **People** (who runs closest to you) —
 with **Compare** beside them. A group is one of the two Mirror populations
 with no counts to fold — its history is its own reveals, never the test
 bank — so since D193 its side of the comparison is the MEAN of its

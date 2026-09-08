@@ -98,3 +98,26 @@ describe("revealTally", () => {
     expect(rows).toEqual([{ optionIdx: 4, uids: ["a"] }]);
   });
 });
+
+// ── rounds (D426) ────────────────────────────────────────────────────
+describe("duoRuns — rounds within a day, and a late answer", () => {
+  it("orders two rounds from one day by round, whatever order they arrive in", () => {
+    const runs = duoRuns([
+      { ...day("2026-09-08", { me: { optionIdx: 0, guessIdx: 1 }, you: { optionIdx: 1, guessIdx: 1 } }), round: 8 },
+      { ...day("2026-09-08", { me: { optionIdx: 0, guessIdx: 0 }, you: { optionIdx: 1, guessIdx: 0 } }), round: 7 },
+    ], "me", "you");
+    // round 7: I guessed 0, they picked 1 → miss; they guessed 0, I picked 0 → hit
+    // round 8: I guessed 1, they picked 1 → hit; they guessed 1, I picked 0 → miss
+    expect(runs.read).toEqual([false, true]);
+    expect(runs.by).toEqual([true, false]);
+  });
+
+  it("drops a round either side answered late — not blind, so not a read", () => {
+    const runs = duoRuns([
+      day("2026-09-07", { me: { optionIdx: 0, guessIdx: 1 }, you: { optionIdx: 1, guessIdx: 0 } }),
+      { ...day("2026-09-08", { me: { optionIdx: 0, guessIdx: 1 }, you: { optionIdx: 1, guessIdx: 0, late: true } as never }), round: 2 },
+    ], "me", "you");
+    expect(runs.read).toEqual([true]);
+    expect(runs.by).toEqual([true]);
+  });
+});

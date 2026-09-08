@@ -1088,8 +1088,8 @@ describe("LiveDuelPanel · the pair's read-runs", () => {
 });
 
 describe("LiveDuelPanel · day history is bought, not assumed", () => {
-  it("does not fetch older days just because the tab opened", () => {
-    // REVEAL_HIST_DAYS doc reads per circle per session, on the app's FIRST
+  it("does not fetch older rounds just because the tab opened", () => {
+    // REVEAL_HIST_CAP doc reads per circle per session, on the app's FIRST
     // screen. Anyone with three circles would pay for forty documents to
     // look at today's question.
     const load = vi.fn(async (gid: string) => { void gid; });
