@@ -3781,7 +3781,25 @@ const SOCIAL = {
   worldSplit(qid: string): { counts: number[]; total: number } | null {
     const q = feedById(qid) || dailyById(qid);
     if (!q || !hasPublishedCounts(state.aggs[qid])) return null;
-    const counts = countsFor(q.options, voteCtx(qid));
+    const ctx = voteCtx(qid);
+    const counts = countsFor(q.options, ctx);
+    // THE VIEWER'S OWN VOTE, BACK IN — `wfPcts`'s +1, which every surface
+    // that prints a crowd percentage applies and which `countsFor`'s own
+    // comment says the UI layer owes it ("the UI layer adds its own +1").
+    // The reveal's World column divided these raw, so the one person
+    // guaranteed to have answered the question was the one person missing
+    // from the crowd. It fires in the case `ensureWorldSplit` below calls
+    // normal: the cache holds the aggregates of questions you have
+    // ANSWERED. Measured on one aggregate — a viewer on option 0 of a
+    // crowd split 1–1 read 0% / 100%, and a viewer who was the only voter
+    // made the column vanish entirely.
+    //
+    // Unconditional on the option, in both directions of `pending`: not
+    // pending, the aggregate holds the vote and countsFor took it out;
+    // pending, the aggregate does not hold it yet and countsFor left it
+    // out. Either way exactly one is owed.
+    const mine = typeof ctx.mine === "string" ? Number(ctx.mine) : NaN;
+    if (Number.isInteger(mine) && mine >= 0 && mine < counts.length) counts[mine] += 1;
     const total = counts.reduce((a, b) => a + b, 0);
     return total > 0 ? { counts, total } : null;
   },
