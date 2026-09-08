@@ -1,0 +1,11 @@
+--- recorded/general-tab.jsx
++++ 2026-09-08/general-tab.jsx
+@@ -848,7 +848,7 @@
+       onGo: onGo
+     }), window.TraitWebCard && React.createElement(window.TraitWebCard, null), React.createElement(LensesRowCard, {
+       onGo: onGo
+-    }), React.createElement(LogicCard, null), window.PaidMineCard && React.createElement("div", null, React.createElement(Chapter, null, "You asked"), React.createElement(window.PaidMineCard, null)), typeof window.MirrorFieldBody === "function" && React.createElement("div", null, React.createElement(Chapter, null, "Scenes you follow"), React.createElement(window.MirrorFieldBody, {
++    }), React.createElement(LogicCard, null), typeof window.MirrorFieldBody === "function" && React.createElement("div", null, React.createElement(Chapter, null, "Scenes you follow"), React.createElement(window.MirrorFieldBody, {
+       pop: "groups",
+       worldZoom: "world",
+       levelTrait: "gender",

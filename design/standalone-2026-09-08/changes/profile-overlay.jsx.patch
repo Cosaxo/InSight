@@ -1,0 +1,38 @@
+--- recorded/profile-overlay.jsx
++++ 2026-09-08/profile-overlay.jsx
+@@ -68,6 +68,9 @@
+       clearTimeout(t2);
+     };
+   }, [sub]);
++  const panelRef = React.useRef(null);
++  const bodyRef = React.useRef(null);
++  window.useSubSwipe(bodyRef, panelRef, SUBTABS.map(s => s.id), sub, setSub);
+   const top = [...dims].sort((a, b) => b.v - a.v)[0];
+   const labels = {
+     Openness: {
+@@ -166,9 +169,11 @@
+       flexShrink: 0
+     }
+   })), React.createElement("div", {
++    ref: bodyRef,
+     className: "app-body",
+     style: {
+-      paddingTop: 0
++      paddingTop: 0,
++      overflowX: "hidden"
+     }
+   }, React.createElement("div", {
+     style: {
+@@ -214,9 +219,11 @@
+     className: "subnav-btn" + (s.id === sub ? " is-on" : "")
+   }, s.label)))), React.createElement("div", {
+     key: sub,
++    ref: panelRef,
+     className: "tab-swap",
+     style: {
+-      marginTop: 4
++      marginTop: 4,
++      willChange: "transform"
+     }
+   }, sub === "general" && React.createElement(window.GeneralPanel, {
+     onGo: setSub

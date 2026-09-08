@@ -46493,3 +46493,135 @@ is the run log.
 **Verified rather than assumed:** the create response echoes the stored
 prompt, so the canonical block in § Scheduled runs is the live text, not
 a copy of what was sent.
+
+## D429 · The 2026-09-08 vision arrives: rounds reach the prototype, the person's page becomes four tabs, and the paid family leaves
+
+**2026-09-08.** **Status:** binding for what the vision points at;
+nothing of it is built. The owner's `InSight_11.html` upload of this
+date, made the current vision by D361's standing rule — an owner upload
+is a vision without a request — extracted, measured and named in one PR
+(`claude/new-visuals-implementation-7927k8`), with the owner's ask
+attached to the upload: *"some new visuals — plan the implementation of
+those."* `main` mints numbers while a branch is open, so the standing
+collision pattern (D289, D408) may renumber this at merge; the documents
+cite it by date where they can.
+
+### What arrived, and how it was diffed
+
+The eleventh numbered standalone, in InSight_7's fast-boot shape but
+**minified**: one 1.3 MB bundle of **110 modules** (seven fewer than
+09-07's 117), 11 assets, and every module on one line — whitespace
+stripped, comments gone, strings re-escaped. That is Babel's own
+`minified` output (terser and esbuild were both ruled out by what they
+do to `0.2` and `184000`), so the 09-02 recipe with `minified: true,
+comments: false` added reproduces the upload byte-for-byte: diffed
+against the latest recorded state of every module — v18 + the v28
+patches + the nine later extractions + the two READMEs' prose hunks —
+**89 of 110 modules are byte-identical**, and the residue is exact:
+**21 modules moved, 7 modules and one stylesheet deleted, 4 sheets
+moved**. The cost of the minification is recorded rather than hidden:
+this upload carries none of the design's reasoning as comments, so the
+files under `design/standalone-2026-09-08/` are Babel reprints — four
+whole modules that minify back to the upload's bytes, seventeen module
+patches and four sheet patches whose left side is the record reprinted
+the same way. The inventory is that directory's README; the plan, with
+every item measured against the tree, is
+[`VISION-2026-09-08.md`](VISION-2026-09-08.md).
+
+### What the design says
+
+Five moves. **Rounds reach the prototype**: the demo engine and both
+daily bodies take the card the owner drew the same morning for request
+12 — the five-round lead, deadlines from a round's first answer, the
+late answer, World questions on every even round with the partner's
+public answer as the no-guess signal, the nine states, the SAID · CALLED
+table, the sealed list, the run of rounds; the reveal clock module is
+deleted, the first run loses *Tonight* and its *Start another* row,
+*days* become *rounds*, and twelve duel prompts lose their calendar
+words. **The ruler says Groups · 1v1s** where it said Circle · 1v1, the
+Mirror's Circle stop keeping its name. **The paid family leaves the
+prototype** — the board, the buyer's room, the catalog sheet, the
+report, and every door to them. **The person's page becomes four tabs**
+— Match (an accordion of the instruments), Answers (a seven-wide grid of
+topic-hued dots, filled for the same answer and ringed for a split, the
+tapped question read in a card), Together (tiles with a figure and the
+pair's type, two reading rings, the domain runs), Map (the person's own
+map, taller) — with a horizontal swipe between them that the profile
+overlay's sub-tabs get too. **A polish-and-optimise pass**: 44 px hit
+slack by pseudo-element, a 12 px floor on avatar initials, one
+reduced-motion switch, `Lazy`'s timers collapsed into one, the feed's
+head-hide off React state, some two hundred dead CSS lines swept, a
+dozen D182 copy cuts.
+
+### What the mapping found
+
+- **Most of the first move and all of the third is the prototype
+  catching up with the tree.** The live 1v1 and group card already
+  draws the rounds card from the canvas (D426's second amendment), and
+  the paid door left the app at D368. What is new to the tree is the
+  DEMO half — `spec/group-daily.jsx` and `spec/duo-daily.jsx` still
+  import the reveal clock and say *Reveals tomorrow*, on an engine keyed
+  by `DAYS`, and five mount suites walk them — so the port is demo-only
+  and test-visible, and `spec/reveal-clock.js` loses its last consumers
+  and leaves `spec-index.js` with it. The 2026-09-07 first-day line is
+  closed as superseded: the design deleted the compact row and redrew
+  the beats as the canvas's state 9, which is built.
+- **One deletion the tree made the opposite call on.** D368 kept
+  `ui/AskedByYouOverlay.tsx` deliberately — *"precisely the surface that
+  stays in the app after the door leaves"* — and the prototype shed it
+  with the rest of the family. Two owner words; the row goes to
+  `OWNER-LIST.md` and D368 stands until it ticks.
+- **The person's page is a demo surface today.** `window.openPerson` is
+  called from five demo modules and nothing typed; the live Mirror's
+  rows name people and open nothing. So the redesign splits into the
+  port onto the demo page and the live page as its own step — and every
+  tab has a live source already (`fetchAnswersOf`, the compare folds,
+  `data/roles.ts` over the rooms, the mind map), at one capped read per
+  open. That live page is where the design draws the join CLAUDE.md
+  opens with, and it is the step request 5's third surface lands in.
+- **One sentence the tree cannot make true.** *Some of it stays private
+  until you are friends* and *friends see everything* promise a
+  restriction D98 does not have and the rules do not enforce. Under D1
+  the sentence is not written; under D334 the restriction it proposes is
+  an ASK, brought with the arithmetic — the coarsen shape (strangers see
+  the still, friends the full map; one check, a true sentence) or defer
+  — and the owner rules. The map draws whole until then.
+- **The vocabulary reaches the privacy page.** *Groups* for *Circle* on
+  the daily is two labels and four pinned suites, but `web/privacy.html`
+  says *that circle's id* twice under D98 claims held by
+  `check:policy-claims`, so the page moves first (D183).
+- **The CSS sweep has no dead twin here.** Measured selector by
+  selector: every swept rule the tree's sheets still carry has a
+  consumer, the rest are already gone (D362, D391, D392), and
+  `arena.css` never existed in the tree. Nothing to do.
+- **The slack rules are class-sized, which `check:tap-targets` cannot
+  see** — the gate's own header says class-sized cases live in the
+  stylesheet with a comment, so the port is the rules beside `.tap44`
+  with their comments and the gate's header naming them. The
+  reduced-motion switch stacks on the 27 targeted rules rather than
+  replacing them, and uses `.01ms` so `animationend` still fires for the
+  sheets that wait on it.
+- **The duel bank's calendar words are content, and the seed can move
+  them.** Eleven of the twelve reworded prompts are in
+  `content/duel-questions.json` verbatim; an answer is an option index
+  (D86) and the id never moves (D52), so a prompt-only update on an
+  existing document orphans nothing — the one field the seed may change,
+  proved by `seed.test.ts`.
+
+### What this changes elsewhere
+
+`VISUAL-VISION.md` names the 2026-09-08 standalone the current vision
+and the rounds canvas the one before; the lineage gains its row; request
+5 gains a note; two rows join `OWNER-LIST.md` § Decisions (the map's
+friends-only sentence, the buyer's room); eight `[claude-3]` build lines
+join the worklist in the plan's §8 order and the two superseded 09-07
+lines are closed as such. The committed style-diff reference does not
+move (`design/README.md`'s rule): v18 stays what the tree is measured
+against until a full sync.
+
+### Gates
+
+`check:docs` (the new plan registered as a plan, the vision re-pointed,
+every cited path resolving), `check:figures`, `test:scripts` — this PR
+is documents and provenance only, so the client suites are untouched by
+construction.

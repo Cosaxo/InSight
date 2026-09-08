@@ -1,0 +1,119 @@
+--- recorded/world-feed.jsx
++++ 2026-09-08/world-feed.jsx
+@@ -311,7 +311,6 @@
+     ctrIdx: {},
+     takeSort: "mind",
+     whyFor: null,
+-    headHide: false,
+     sort: "hot",
+     passed: wfLoadMap(WF_PASS_LS),
+     ripple: null,
+@@ -448,9 +447,7 @@
+               return;
+             }
+             const hide = dy > 0 && y > 60 && !this.state.topicsOpen;
+-            if (hide !== this.state.headHide) this.setState({
+-              headHide: hide
+-            });
++            if (hide !== this._headHidden) this.setHeadHidden(hide);
+           };
+         }
+         next.addEventListener("scroll", this._onScroll, {
+@@ -470,6 +467,14 @@
+       });
+     }
+   }
++  setHeadHidden(hide) {
++    this._headHidden = hide;
++    const h = this._head;
++    if (!h) return;
++    h.style.transform = hide ? "translateY(-115%)" : "none";
++    h.style.opacity = hide ? "0" : "1";
++    h.style.pointerEvents = hide ? "none" : "auto";
++  }
+   cardFloor(answered) {
+     const vh = this.state.vh || 620;
+     return answered ? 0 : Math.min(Math.max(vh - 300, 260), 400);
+@@ -662,7 +667,7 @@
+           fontWeight: 500,
+           color: "var(--ink-3)"
+         }
+-      }, "tap a number \u2014 1 rough, 10 superb"));
++      }, "1 rough \xB7 10 superb"));
+     }
+     const avg = c ? c.avg : 5;
+     return React.createElement("div", {
+@@ -3372,7 +3377,7 @@
+         color: "var(--ink-3)",
+         textWrap: "pretty"
+       }
+-    }, "Questions with a right answer, mixed into the feed. Get one right and it lands on your map."), React.createElement("div", {
++    }, "Questions with a right answer. Get one right and it lands on your map."), React.createElement("div", {
+       style: {
+         display: "flex",
+         gap: 4,
+@@ -3409,28 +3414,7 @@
+     })), learnOpen.map(f => row("lrn-" + f.id, window.WPAL.c(L.colorOf(f.id)), f.label, `${(L.subject(f.subject) || {}).label || ""} · ${L.total(f.id)} cards`, () => {
+       L.follow(f.id);
+       this.forceUpdate();
+-    }, true))) : null, React.createElement("button", {
+-      className: "press",
+-      onClick: () => {
+-        this.setState({
+-          sheet: null
+-        });
+-        if (window.openSuggestions) window.openSuggestions();
+-      },
+-      style: {
+-        marginTop: 14,
+-        padding: "11px 0",
+-        border: "0.5px solid var(--rule)",
+-        background: "var(--surface-2)",
+-        borderRadius: 14,
+-        cursor: "pointer",
+-        fontFamily: "var(--sans)",
+-        fontWeight: 700,
+-        fontSize: 13,
+-        color: "var(--ink-2)",
+-        WebkitAppearance: "none"
+-      }
+-    }, "Suggest a question"));
++    }, true))) : null);
+   }
+   renderContext(q, T) {
+     const bg = WF_BGTEXT(q);
+@@ -6401,6 +6385,9 @@
+         marginTop: 8
+       }
+     }, React.createElement("div", {
++      ref: n => {
++        this._head = n;
++      },
+       style: {
+         position: "sticky",
+         top: 0,
+@@ -6412,9 +6399,9 @@
+         padding: "12px 16px 10px",
+         background: "var(--surface-a, var(--surface))",
+         borderTop: "0.5px solid color-mix(in oklch, var(--rule), transparent 15%)",
+-        transform: this.state.headHide ? "translateY(-115%)" : "none",
+-        opacity: this.state.headHide ? 0 : 1,
+-        pointerEvents: this.state.headHide ? "none" : "auto",
++        transform: this._headHidden ? "translateY(-115%)" : "none",
++        opacity: this._headHidden ? 0 : 1,
++        pointerEvents: this._headHidden ? "none" : "auto",
+         transition: "transform 0.32s ease, opacity 0.26s ease"
+       }
+     }, React.createElement("div", {
+@@ -6463,9 +6450,9 @@
+         className: "wf-chip",
+         onClick: () => {
+           this._headHold = Date.now();
++          this.setHeadHidden(false);
+           this.setState({
+-            topicsOpen: !open,
+-            headHide: false
++            topicsOpen: !open
+           });
+         },
+         "aria-expanded": open,

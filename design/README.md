@@ -69,9 +69,18 @@ day of Circle and 1v1, and puts the person overlay's three record
 sections on paper — extracted to `standalone-2026-09-07/` (compiled
 again, same recipe; no stylesheet moved), with the plan at
 [`docs/VISION-2026-09-07.md`](../docs/VISION-2026-09-07.md), which is
-also the plan for how the facets and positions get measured;
+also the plan for how the facets and positions get measured; and the
+**2026-09-08** upload (`InSight_11`) brings the rounds card the owner
+drew the same day (`rounds-card-2026-09-08/`) into the prototype's demo
+engine and both daily bodies, says Groups · 1v1s on the ruler, drops
+the paid family whole, makes the person's page four tabs with a swipe
+between them, and runs a polish-and-optimise pass — extracted to
+`standalone-2026-09-08/` (**a minified bundle**: every module on one
+line with its comments gone, so the files there are Babel reprints and
+the README carries the recipe that makes the diff exact), with the plan
+at [`docs/VISION-2026-09-08.md`](../docs/VISION-2026-09-08.md);
 `docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D415). Each
+D429). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

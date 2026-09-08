@@ -1,0 +1,36 @@
+--- recorded/person-mind-map.jsx
++++ 2026-09-08/person-mind-map.jsx
+@@ -159,7 +159,8 @@
+     p,
+     following,
+     centerName,
+-    still
++    still,
++    own
+   }) {
+     const built = useMemo(() => pmmBuild(p), [p && p.id, following]);
+     const allCats = built.CATS,
+@@ -905,18 +906,20 @@
+       if (!pt) return null;
+       const cat = catOf(n);
+       const isHid = hidden(n);
+-      const sz = n.sub ? 9 : n.daily ? still ? 15 : 12.5 : 11 + pmmHash(seed + n.id) * 3;
++      if (isHid && still && own) return null;
++      const cmp = still && !own;
++      const sz = n.sub ? 9 : n.daily ? cmp ? 15 : 12.5 : 11 + pmmHash(seed + n.id) * 3;
+       const showLab = !still && !n.quiet && labKeep.has(n.id);
+       const labL = pt.x * view.z + view.x > (ref.current ? ref.current.clientWidth : 480) / 2;
+       const dim = !inHl(n);
+       return React.createElement("div", {
+         key: n.id,
+-        className: "mmt-node mmt-dotnode" + (n.sub ? " is-leaf" : "") + (sel === n.id ? " is-sel" : "") + (showLab ? " is-showlab" : "") + (dim ? " is-dim" : "") + (labL ? " is-labL" : "") + (!still && n.daily && !n.maj ? " is-rare" : "") + (still && n.same === false ? " is-differ" : ""),
++        className: "mmt-node mmt-dotnode" + (n.sub ? " is-leaf" : "") + (sel === n.id ? " is-sel" : "") + (showLab ? " is-showlab" : "") + (dim ? " is-dim" : "") + (labL ? " is-labL" : "") + (!still && n.daily && !n.maj ? " is-rare" : "") + (cmp && n.same === false ? " is-differ" : ""),
+         style: {
+           "--hue": cat ? cat.hue : 250,
+           width: sz,
+           height: sz,
+-          opacity: isHid ? 0.22 : still && !n.sub && n.same == null ? 0.3 : undefined,
++          opacity: isHid ? 0.22 : cmp && !n.sub && n.same == null ? 0.3 : undefined,
+           pointerEvents: isHid ? "none" : undefined,
+           transform: `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) scale(${itemScale})`
+         },

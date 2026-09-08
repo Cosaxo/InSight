@@ -1,0 +1,11 @@
+--- recorded/trait-web.jsx
++++ 2026-09-08/trait-web.jsx
+@@ -163,7 +163,7 @@
+         borderTop: "0.5px solid var(--rule)",
+         textWrap: "pretty"
+       }
+-    }, "Each pair sits so the usual pattern lands its dots together \\u2014 a stretched amber thread is a rule you break."));
++    }, "A stretched amber thread is a pattern you break."));
+   }
+   Object.assign(window, {
+     TraitWebCard

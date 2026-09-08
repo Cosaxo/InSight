@@ -1,0 +1,17 @@
+--- recorded/role-data.js
++++ 2026-09-08/role-data.js
+@@ -343,12 +343,12 @@
+         id: "like",
+         label: CFG.duo.labels.like,
+         value: rate(nSame, p.played),
+-        note: `same answer on ${nSame} of ${p.played} days`
++        note: `same answer on ${nSame} of ${p.played} rounds`
+       }, {
+         id: "steady",
+         label: CFG.duo.labels.steady,
+         value: steadiness(readRun),
+-        note: `your read flipped ${flips} time${flips === 1 ? "" : "s"} in ${p.played} days`
++        note: `your read flipped ${flips} time${flips === 1 ? "" : "s"} in ${p.played} rounds`
+       }]
+     };
+   }

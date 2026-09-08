@@ -1,0 +1,30 @@
+--- recorded/roles-panel.jsx
++++ 2026-09-08/roles-panel.jsx
+@@ -173,8 +173,7 @@
+     const toggle = k => setOpenKey(cur => cur === k ? null : k);
+     const results = window.IS_TEST_RESULTS || {};
+     return React.createElement("div", null, React.createElement(window.TabSection, {
+-      title: "In 1v1s",
+-      sub: "How you play one person, averaged across every duel you have running."
++      title: "In 1v1s"
+     }), results.duo ? React.createElement(window.ResultProfileCard, {
+       testKey: "duo",
+       brief: true
+@@ -215,15 +214,14 @@
+     }) : React.createElement(ThinRow, {
+       key: p.id,
+       label: firstName(p.name),
+-      note: p.played ? p.played + " of " + RL.MIN_DUO + " days" : "not started",
++      note: p.played ? p.played + " of " + RL.MIN_DUO + " rounds" : "not started",
+       lead: React.createElement(window.Av, {
+         init: p.init,
+         hue: p.hue,
+         size: 20
+       })
+     }))), React.createElement(window.TabSection, {
+-      title: "In groups",
+-      sub: "How you sit in a circle: with it, against it, or the one it names."
++      title: "In groups"
+     }), results.group ? React.createElement(window.ResultProfileCard, {
+       testKey: "group",
+       brief: true

@@ -1,0 +1,11 @@
+--- recorded/mirror-field-pops.jsx
++++ 2026-09-08/mirror-field-pops.jsx
+@@ -113,7 +113,7 @@
+ }) {
+   return React.createElement("div", null, React.createElement(TabSection, {
+     title: "Kindred",
+-    sub: "strangers most aligned with you \u2014 the fuller the ring, the closer"
++    sub: "Strangers most like you."
+   }), React.createElement("div", {
+     className: "card",
+     style: {

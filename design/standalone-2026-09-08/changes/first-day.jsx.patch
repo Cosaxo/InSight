@@ -1,0 +1,293 @@
+--- recorded/first-day.jsx
++++ 2026-09-08/first-day.jsx
+@@ -21,7 +21,7 @@
+   });
+   const kick = {
+     fontFamily: "var(--sans)",
+-    fontSize: 10.5,
++    fontSize: 12,
+     fontWeight: 700,
+     letterSpacing: "0.09em",
+     textTransform: "uppercase",
+@@ -76,7 +76,7 @@
+         justifyContent: "center",
+         fontFamily: "var(--sans)",
+         fontWeight: 800,
+-        fontSize: Math.round(size * 0.4),
++        fontSize: Math.max(12, Math.round(size * 0.4)),
+         color: "#fff",
+         background: fill,
+         boxShadow: "0 0 0 1.5px var(--surface-2)"
+@@ -116,7 +116,7 @@
+     acc
+   }) {
+     return React.createElement("span", {
+-      "aria-label": "sealed until tomorrow",
++      "aria-label": "sealed until the reveal",
+       role: "img",
+       style: {
+         position: "absolute",
+@@ -171,6 +171,7 @@
+     border: "none",
+     background: "none",
+     padding: "8px 4px",
++    minHeight: 44,
+     cursor: "pointer",
+     WebkitAppearance: "none",
+     fontFamily: "var(--sans)",
+@@ -194,13 +195,15 @@
+   };
+   function Day({
+     mode,
+-    acc
++    acc,
++    who
+   }) {
+     const q = worldToday();
+     const opts = (q.options || []).slice(0, 4);
+     const two = opts.length === 2;
+     const group = mode === "group";
+     const seats = group ? [2, 3] : [0, 1];
++    const when = group ? "when everyone has played, or at the deadline" : who ? "when " + first(who) + " plays" : "when you both have played";
+     return React.createElement("div", {
+       style: col(0)
+     }, React.createElement("div", {
+@@ -208,21 +211,9 @@
+         ...col(12),
+         padding: "4px 0 18px"
+       }
+-    }, React.createElement("div", {
+-      style: {
+-        display: "flex",
+-        alignItems: "baseline",
+-        justifyContent: "space-between",
+-        gap: 10
+-      }
+     }, React.createElement("span", {
+       style: kick
+-    }, "Today"), React.createElement("span", {
+-      style: {
+-        ...kick,
+-        color: acc
+-      }
+-    }, "sealed")), React.createElement("div", {
++    }, "Sealed"), React.createElement("div", {
+       style: {
+         fontFamily: "var(--serif)",
+         fontWeight: 500,
+@@ -261,27 +252,7 @@
+       acc: acc
+     })), React.createElement("div", {
+       style: quiet
+-    }, "Today", "\u2019", "s World question stands in ", "\u2014", " ", group ? "a circle" : "a 1v1", " draws its own each day.")), React.createElement("div", {
+-      style: {
+-        display: "flex",
+-        alignItems: "baseline",
+-        justifyContent: "space-between",
+-        gap: 10,
+-        padding: "14px 0",
+-        borderTop: RULE
+-      }
+-    }, React.createElement("span", {
+-      style: kick
+-    }, "Tonight"), React.createElement("span", {
+-      style: {
+-        fontFamily: "var(--sans)",
+-        fontSize: 13,
+-        fontWeight: 600,
+-        color: "var(--ink-2)"
+-      }
+-    }, window.RevealClock ? React.createElement(window.RevealClock, {
+-      prefix: "Reveals in"
+-    }) : "Reveals at midnight")), React.createElement("div", {
++    }, "A World question stands in ", "\u2014", " ", group ? "a group" : "a 1v1", " draws its own.")), React.createElement("div", {
+       style: {
+         ...col(12),
+         padding: "14px 0 6px",
+@@ -292,18 +263,21 @@
+         display: "flex",
+         alignItems: "baseline",
+         justifyContent: "space-between",
+-        gap: 10
++        gap: 12
+       }
+     }, React.createElement("span", {
+       style: kick
+-    }, "Tomorrow"), React.createElement("span", {
++    }, "Revealed"), React.createElement("span", {
+       style: {
+-        ...kick,
++        fontFamily: "var(--sans)",
++        fontSize: 12.5,
++        fontWeight: 700,
+         color: acc,
+-        whiteSpace: "normal",
+-        textAlign: "right"
++        textAlign: "right",
++        lineHeight: 1.35,
++        textWrap: "pretty"
+       }
+-    }, group ? "revealed with names" : "revealed if you both play")), React.createElement("div", {
++    }, when)), React.createElement("div", {
+       style: col(8)
+     }, opts.slice(0, 2).map((o, i) => React.createElement("div", {
+       key: o,
+@@ -320,7 +294,9 @@
+         display: "flex",
+         alignItems: "center",
+         gap: 10,
+-        padding: "9px 12px"
++        padding: "9px 12px",
++        minHeight: 44,
++        boxSizing: "border-box"
+       }
+     }, React.createElement("span", {
+       style: {
+@@ -337,12 +313,12 @@
+         gap: 4
+       }
+     }, i === 0 ? React.createElement(MyMark, {
+-      size: 20
++      size: 26
+     }) : null, Array.from({
+       length: seats[i]
+     }, (_, k) => React.createElement(OpenSeat, {
+       key: k,
+-      size: 20,
++      size: 26,
+       acc: acc
+     }))))))), React.createElement("div", {
+       style: {
+@@ -356,7 +332,7 @@
+         ...quiet,
+         color: "var(--ink-2)"
+       }
+-    }, group ? "Your call on where the room lands" : "Your guess at their answer"), React.createElement(EmptyRun, {
++    }, group ? "Your call on where the room lands" : "Your guess at " + (who ? first(who) + "\u2019s" : "their") + " answer"), React.createElement(EmptyRun, {
+       n: 7,
+       acc: acc
+     }))));
+@@ -417,7 +393,7 @@
+       acc: acc
+     })), React.createElement("span", {
+       style: quiet
+-    }, group ? `${others.length + 1} people · one question a day, revealed with names` : "one question a day \xB7 answer, then guess theirs")), React.createElement("div", {
++    }, group ? `${others.length + 1} people \u00b7 revealed with names when everyone has played` : "answer, then guess " + first(from) + "\u2019s")), React.createElement("div", {
+       style: {
+         display: "flex",
+         alignItems: "center",
+@@ -429,7 +405,8 @@
+       style: {
+         ...pill(acc),
+         width: "auto",
+-        padding: "10px 20px"
++        padding: "10px 20px",
++        minHeight: 44
+       }
+     }, "Accept"), React.createElement("button", {
+       className: "press",
+@@ -468,7 +445,7 @@
+         lineHeight: 1.25,
+         textWrap: "pretty"
+       }
+-    }, group ? `The Crew · ${first(owner)}\u2019s circle` : `A 1v1 with ${first(owner)}`), React.createElement("div", {
++    }, group ? `The Crew \u00b7 ${first(owner)}\u2019s group` : `A 1v1 with ${first(owner)}`), React.createElement("div", {
+       style: quiet
+     }, "A link asks, it does not admit. ", first(owner), " says yes first."), asked ? React.createElement("div", {
+       style: {
+@@ -513,7 +490,7 @@
+     const pickedNotFollowed = sel.filter(id => !follows.some(f => f.id === id)).map(id => people().find(p => p.id === id)).filter(Boolean);
+     const needName = !hasName && !myName.trim();
+     const ok = group ? gname.trim().length > 0 && sel.length >= 2 && !needName : sel.length === 1 && !needName;
+-    const label = !open ? group ? "Start a circle" : "Start a 1v1" : ok ? group ? "Create \xB7 invites go out now" : `Invite ${first(people().find(p => p.id === sel[0]))}` : needName && (group ? gname.trim() && sel.length >= 2 : sel.length === 1) ? "Add your name" : group ? sel.length < 2 ? "Pick at least 2 people" : "Name your group" : "Pick a friend";
++    const label = !open ? group ? "Start a group" : "Start a 1v1" : ok ? group ? "Create \xB7 invites go out now" : `Invite ${first(people().find(p => p.id === sel[0]))}` : needName && (group ? gname.trim() && sel.length >= 2 : sel.length === 1) ? "Add your name" : group ? sel.length < 2 ? "Pick at least 2 people" : "Name your group" : "Pick a friend";
+     const go = () => {
+       if (!open) {
+         setOpen(true);
+@@ -722,8 +699,10 @@
+       if (group) D.createGroup("The Crew", [from].concat(people().filter(p => p.id !== from.id).slice(0, 3)).map(p => p.id));else if (from && D.startDuo) D.startDuo(from.id);
+       if (onDone) onDone();
+     };
++    const fs = D && D.members ? D.members() : [];
++    const who = !group && (hero === "invited" || hero === "link") ? fs[0] || people()[0] || null : null;
+     return React.createElement("div", {
+-      "data-screen-label": `${group ? "Circle" : "1v1"} — first day`,
++      "data-screen-label": `${group ? "Group" : "1v1"} — first run`,
+       style: {
+         ...col(0),
+         padding: "2px 2px 14px"
+@@ -738,7 +717,8 @@
+       acc: acc
+     }) : null, React.createElement(Day, {
+       mode: mode,
+-      acc: acc
++      acc: acc,
++      who: who
+     }), React.createElement(StartOne, {
+       mode: mode,
+       acc: acc,
+@@ -754,63 +734,7 @@
+       }
+     }, "An invitation reaches you here, and a link a friend sends lands here too."));
+   }
+-  function FirstDayCompact({
+-    mode = "group",
+-    onStart
+-  }) {
+-    const acc = ACCENT[mode] || ACCENT.group;
+-    return React.createElement("button", {
+-      className: "press",
+-      onClick: onStart,
+-      style: {
+-        display: "flex",
+-        alignItems: "center",
+-        gap: 12,
+-        width: "100%",
+-        textAlign: "left",
+-        padding: "14px 2px",
+-        margin: "4px 0 10px",
+-        border: "none",
+-        borderTop: RULE,
+-        background: "none",
+-        color: "inherit",
+-        cursor: "pointer",
+-        WebkitAppearance: "none",
+-        appearance: "none",
+-        scrollSnapAlign: "start"
+-      }
+-    }, React.createElement(OpenSeat, {
+-      size: 26,
+-      acc: acc
+-    }), React.createElement("span", {
+-      style: {
+-        flex: 1,
+-        minWidth: 0,
+-        display: "flex",
+-        flexDirection: "column",
+-        gap: 2
+-      }
+-    }, React.createElement("span", {
+-      style: {
+-        fontFamily: "var(--sans)",
+-        fontWeight: 700,
+-        fontSize: 14.5,
+-        letterSpacing: "-0.01em"
+-      }
+-    }, mode === "group" ? "Start another circle" : "Start another 1v1"), React.createElement("span", {
+-      style: quiet
+-    }, mode === "group" ? "one question a day, revealed with names" : "one question a day \xB7 revealed if you both play")), React.createElement("span", {
+-      "aria-hidden": "true",
+-      style: {
+-        fontFamily: "var(--sans)",
+-        fontSize: 20,
+-        lineHeight: 1,
+-        color: "var(--ink-3)"
+-      }
+-    }, "\u203A"));
+-  }
+   Object.assign(window, {
+-    FirstDay,
+-    FirstDayCompact
++    FirstDay
+   });
+ })();

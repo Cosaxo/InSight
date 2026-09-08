@@ -1,0 +1,111 @@
+--- recorded/tokens.css
++++ 2026-09-08/tokens.css
+@@ -417,18 +417,6 @@
+ .sd-switch-btn.is-on { color: var(--sw-acc, var(--ink)); font-weight: 800; }
+ .sd-thumb { position: absolute; z-index: 0; bottom: -0.5px; left: 0; width: calc(100% / var(--sw-n, 3)); display: flex; justify-content: center; transition: transform 0.32s var(--ease-spring); }
+ 
+-/* Mode switcher hosted in the app header — one nav band fewer on the page.
+-   Fixed width so the thumb's thirds still line up under unequal labels. */
+-.h-modeslot { flex: 1; min-width: 0; display: flex; justify-content: center; }
+-/* fluid, capped — a fixed width would push the header's right group out of frame */
+-.h-modeslot .sd-switch { width: 100%; max-width: 200px; border-bottom: none; }
+-.h-modeslot .sd-switch-btn { min-height: 32px; padding: 3px 1px; font-size: 12.5px; letter-spacing: -0.01em; }
+-
+-/* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
+-   filled result reveal after answering feels like a real payoff. */
+-.sd-opt:hover { background: color-mix(in oklch, var(--opt, var(--ink)) 6%, var(--surface)) !important; }
+-.sd-opt:hover .sd-mark { border-color: var(--opt, var(--ink)) !important; }
+-
+ /* Pill (wax-seal) */
+ .pill {
+   display: inline-flex; align-items: center; gap: 6px;
+@@ -526,7 +514,6 @@
+   to { transform: translateY(0); }
+ }
+ @media (prefers-reduced-motion: reduce) { .overlay { animation: none; } }
+-@keyframes panelIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+ @keyframes rmSheetUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+ @media (prefers-reduced-motion: reduce) { [style*="panelIn"], [style*="rmSheetUp"] { animation: none !important; } }
+ 
+@@ -634,13 +621,6 @@
+ .press:active { transform: scale(0.95); }
+ @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
+ 
+-/* Paid door & catalog — entrance rise and day-strip tick pop */
+-.sg-rise { animation: sgRise 0.44s var(--ease-out) both; }
+-@keyframes sgRise { from { opacity: 0; transform: translateY(10px); } }
+-.sg-tick { transform-origin: bottom; animation: sgTick 0.5s var(--ease-spring) both; }
+-@keyframes sgTick { from { transform: scaleY(0.15); } }
+-@media (prefers-reduced-motion: reduce) { .sg-rise, .sg-tick { animation: none !important; } }
+-
+ /* Vote reveals — result settles in, bars grow, chips pop.
+    One stagger constant for the whole app: every reveal beat is a multiple of
+    --rv-step, so the frame, the bars and the numbers arrive as ONE motion in
+@@ -819,10 +799,6 @@
+ /* Small-caps labels never wrap — they're labels, not sentences. */
+ .kicker { white-space: nowrap; }
+ 
+-/* Staggered entrance for the home stack and the create sheet.
+-   Transform-only (content is never invisible if animations pause). */
+-@keyframes riseIn { from { transform: translateY(12px); } to { transform: none; } }
+-
+ /* the Daily tab is one full-bleed widget — span edge to edge AND reach all
+    the way down. The bottom nav is in normal flow, so no spacer is needed.
+    DIRECT CHILD only — overlays layered over this tab keep normal padding. */
+@@ -847,16 +823,6 @@
+ }
+ 
+ /* ── Test overlay ─────────────────────────────────────────── */
+-/* Selection cards — gentle lift + accent edge on hover */
+-.test-pick-card {
+-  transition: transform 0.22s var(--ease-spring), box-shadow 0.2s ease, border-color 0.2s ease;
+-}
+-.test-pick-card:hover {
+-  transform: translateY(-1.5px);
+-  box-shadow: var(--shadow-lift);
+-}
+-.test-pick-card:active { transform: translateY(0) scale(0.99); box-shadow: var(--shadow-card); }
+-
+ @media (hover: none) { .kb-hint { display: none; } }
+ 
+ /* Overlay headers shouldn't wrap their title (e.g. "Big Five", "Take a test") */
+@@ -968,8 +934,7 @@
+ /* 7 · Hover is a mouse state. On a touch screen the lift/tint sticks to the
+    last thing tapped, so the pointer-driven transforms stand down there. */
+ @media (hover: none) {
+-  button.card:hover, .card[role="button"]:hover, .test-pick-card:hover,
+-  .icon-btn:hover, .avatar-btn:hover, .press:hover { transform: none; box-shadow: var(--shadow-card); }
++  button.card:hover, .card[role="button"]:hover, .icon-btn:hover, .avatar-btn:hover, .press:hover{ transform: none; box-shadow: var(--shadow-card); }
+   .search-hit:hover { background: none; }
+ }
+ 
+@@ -1063,29 +1028,3 @@
+ /* the band's scrim is set inline in renderDuel (one value over photography, a
+    lighter one over generated art) — nothing to override here */
+ 
+-/* ── Accent ramp experiments · Tweaks → Aesthetic → Accents ──────────────────
+-   Grounded in "Accent ramp study.html", which solves each hue against the sRGB
+-   boundary. The flat :root ramp writes C .14 at L .52 for all seven — a value
+-   three of them cannot hold (World .108, Groups .104, Likeness .086 are clipped
+-   and ship as something duller and hue-shifted) and four of them could far
+-   exceed (violet 282 can hold .277). One number, two opposite errors.
+-
+-   acc-daily  — the front-door option. Violet alone goes to the .20 house
+-     ceiling; petrol drops to the .086 it can actually hold, so the daily's
+-     scene palette stops shipping a colour nobody wrote. Lightness untouched,
+-     so contrast is unchanged and no ink twin is needed.
+-   acc-family — the whole set at one lightness, each hue at its own ceiling.
+-     L .555 is the brightest shared lightness where white-on-fill still clears
+-     4.5:1, and it sits inside World's own .545–.655 band, so chrome and feed
+-     stop reading as two systems. City lands at 4.4:1 — the one ink twin owed. */
+-.app.acc-daily { --c-today: oklch(0.52 0.20 282); --c-likeness: oklch(0.52 0.086 195); }
+-.app.acc-family {
+-  --c-today:    oklch(0.555 0.200 282);
+-  --c-around:   oklch(0.555 0.170 40);
+-  --c-world:    oklch(0.555 0.115 235);
+-  --c-city:     oklch(0.555 0.149 150);
+-  --c-groups:   oklch(0.555 0.111 85);
+-  --c-people:   oklch(0.555 0.200 8);
+-  --c-likeness: oklch(0.555 0.092 195);
+-  --c-city-ink: oklch(0.52 0.144 150);
+-}

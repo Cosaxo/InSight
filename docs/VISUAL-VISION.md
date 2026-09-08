@@ -10,7 +10,49 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-08 canvas: the 1v1 and group card
+## The current vision — the 2026-09-08 standalone: rounds in the prototype, the person's page as four tabs
+
+- **Source:** the owner's `InSight_11.html` upload of 2026-09-08,
+  extracted to `design/standalone-2026-09-08/` (its README is the
+  inventory: the 21 modules that moved, the seven deleted, the four
+  sheets, the unchanged list — and the recipe that reads a MINIFIED
+  bundle exactly, since this upload carries no comments and the files
+  there are Babel reprints). Made the vision by D361's standing rule —
+  the owner's upload moves the vision — and recorded at D429.
+- **The plan built on it:** `VISION-2026-09-08.md` — every item
+  measured against the tree with its backend half named; §8 is the
+  build order as worklist lines, §9 the gate per step; two owner rows
+  in §7. Nothing is built.
+- **What it changed over the 2026-09-08 canvas:** five moves, the first
+  of them the canvas itself arriving in the prototype. **Rounds reach
+  the prototype** — the demo engine and both daily bodies take the
+  rounds card (the lead, the deadline, the late answer, World rounds,
+  the nine states, the run), the reveal clock is deleted, the first run
+  loses *Tonight* and its *Start another* row, *days* become *rounds*,
+  twelve duel prompts lose their calendar words. **The ruler says
+  Groups · 1v1s** for Circle · 1v1; the Mirror's Circle keeps its name.
+  **The paid family leaves the prototype** whole. **The person's page
+  becomes four tabs** — Match · Answers · Together · Map — with a swipe
+  between them: an accordion of the instruments, a grid of topic-hued
+  dots filled for the same answer and ringed for a split, tiles with a
+  figure and the pair's type over two reading rings, the person's own
+  map. **A polish-and-optimise pass** — 44 px slack by pseudo-element,
+  a 12 px floor on initials, one reduced-motion switch, one timer for
+  every `Lazy` card, the feed's head-hide off React state, a CSS sweep,
+  a dozen copy cuts.
+- **Built from it:** nothing yet. The live rounds card and the paid
+  door's removal were already in the tree (D426's second amendment,
+  D368), so the plan's first steps are the DEMO twins and the
+  vocabulary; the person's page is the build that draws something new.
+  One sentence in it — *friends see everything* — is an owner row, not
+  a build (D98, D334); one deletion — the buyer's room — is the other.
+- **Requests it closed:** none. It **draws request 5's third surface a
+  third way** (the pair's card on the person's page: the 1v1 tile with
+  its figure and type, the reading rings), which still waits on
+  `ROLES-PLAN.md`'s owner call; the 2026-09-07 first-day and
+  person-overlay lines are superseded by it.
+
+## The one before — the 2026-09-08 canvas: the 1v1 and group card
 
 - **Source:** the owner's `1v1_and_Group_Cards.html` upload of
   2026-09-08 — Claude Design, from the prompt the rounds session wrote
@@ -37,48 +79,6 @@ it is moving toward.
   amendment) — `ui/LiveDuelPanel.tsx`.
 - **Requests it closed:** 12.
 
-## The one before — the 2026-09-07 standalone
-
-- **Source:** the owner's `InSight_10.html` upload of 2026-09-07,
-  extracted to `design/standalone-2026-09-07/` (its README is the
-  inventory: the three new modules and seven that moved, the six
-  patches, the unchanged list — compiled JSX again, the 09-02 README's
-  recipe applies; no stylesheet moved). Made the vision by D361's
-  standing rule — the owner's upload moves the vision — and recorded
-  at D415.
-- **The plan built on it:** `VISION-2026-09-07.md` — every item
-  measured against the tree with its backend half named, and, on the
-  owner's ask with the upload (*"we need to make a plan for testing
-  them as well"*), its §2 is the plan for how the new sub-scales get
-  MEASURED: the item banks, where they are answered, the fold and its
-  floors, what is stored, what proves it. §6 is the build order as
-  worklist lines, §7 the gate per step. Nothing is built.
-- **What it changed over the 2026-09-06 design:** three additions and a
-  polish pass. **The two instruments most people know get a second
-  level** — the Big Five's five domains unfold into the thirty IPIP-NEO
-  facets (six per domain on a 4–20 track, IPIP-NEO's report text behind
-  each) and the compass's six axes into eighteen positions (three per
-  axis on a 0–100 track with a hollow *most people* ring); the compass
-  carries its own way in (*Six questions place them →*, in place, after
-  which the axis is its positions' mean), while the Big Five draws
-  readings with no questions behind them. **Circle and 1v1 get a first
-  day** — one day of the game drawn with nothing invented (today
-  sealed, tonight's clock, tomorrow revealed) and then the doors;
-  invitation and link heroes; the name field where an account has
-  none; a *Start another* row once circles exist. **The person
-  overlay's three record sections go boxless** — the receipts led by a
-  sentence with the exception side first, *Play together* as doors, the
-  read-each-other card as a two-column hit-rate table. One line on the
-  feed's two-option ballot.
-- **Built from it:** nothing yet. The owner ruled the plan's three rows
-  on 2026-09-07 (D416): the in-place questions do not build (the feed is
-  the only door, D121 stands), the facets and positions stay on the
-  device for now, and the Big Five's facet items are written next — so
-  steps 1–3 and 5–6 build in order and step 4 is struck.
-- **Requests it closed:** none. It **draws the person's-page half of
-  request 5** (the pair's card: the doors and the reading table), which
-  still waits on `ROLES-PLAN.md`'s owner call.
-
 ## The lineage
 
 | Design | Directory | What it brought | Record |
@@ -92,7 +92,8 @@ it is moving toward.
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
 | 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
 | 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
-| **2026-09-08** | `design/rounds-card-2026-09-08/` | **the current vision** — the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
+| 2026-09-08 | `design/rounds-card-2026-09-08/` | the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run — the one before, above | `ROUNDS-PLAN.md` §0a, D426 |
+| **2026-09-08** | `design/standalone-2026-09-08/` | **the current vision** — rounds in the prototype, Groups · 1v1s, the paid family gone, the person's page as four tabs, the polish pass | `VISION-2026-09-08.md`, D429 |
 
 ## How the next one arrives
 

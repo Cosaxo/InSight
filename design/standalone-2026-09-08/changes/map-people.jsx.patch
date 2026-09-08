@@ -1,0 +1,14 @@
+--- recorded/map-people.jsx
++++ 2026-09-08/map-people.jsx
+@@ -132,9 +132,9 @@
+       className: "mpc-gap"
+     }, "Sees you as ", React.createElement("b", null, gap.guessed), " \u2014 you pick ", React.createElement("b", null, gap.actual), "."), React.createElement("div", {
+       className: "mpc-foot"
+-    }, p.streak > 0 && React.createElement("span", {
++    }, p.played > 0 && React.createElement("span", {
+       className: "mpc-align"
+-    }, p.streak, "-day run"), React.createElement("button", {
++    }, p.played, " round", p.played === 1 ? "" : "s"), React.createElement("button", {
+       className: "mpc-open",
+       onClick: () => window.openPerson && window.openPerson(p.id)
+     }, "open profile \u2192")));

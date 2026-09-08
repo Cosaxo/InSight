@@ -1,0 +1,142 @@
+--- recorded/app.jsx
++++ 2026-09-08/app.jsx
+@@ -237,11 +237,11 @@
+   acc: "var(--c-around)"
+ }, {
+   id: "group",
+-  label: "Circle",
++  label: "Groups",
+   acc: "var(--c-likeness)"
+ }, {
+   id: "duo",
+-  label: "1v1",
++  label: "1v1s",
+   acc: "var(--c-people)"
+ }];
+ function App() {
+@@ -250,7 +250,6 @@
+   const [tab, setTab] = useState(validTab(t.tab));
+   const [person, setPerson] = useState(null);
+   const [city, setCity] = useState(null);
+-  const [paidQ, setPaidQ] = useState(null);
+   const [ov, setOv] = useState(null);
+   const [ovBack, setOvBack] = useState(null);
+   const ovRef = React.useRef(null);
+@@ -293,42 +292,14 @@
+     setPerson(null);
+     setCity(null);
+     setTestKind(null);
+-    setPaidQ(null);
+   };
+   useEffect(() => {
+-    window.openSuggestions = () => {
+-      setOv("suggest");
+-    };
+     window.openLogicTest = () => {
+       closeAll();
+       setOv("logic");
+     };
+-    window.openPaidReport = pq => {
+-      closeAll();
+-      setPaidQ(pq);
+-    };
+-    window.openAskedByYou = () => {
+-      closeAll();
+-      setOv("askedby");
+-    };
+-    window.openCatalog = focus => {
+-      closeAll();
+-      setOv(focus === "author" ? "catalog-author" : "catalog");
+-    };
+-    window.goTrends = () => {
+-      closeAll();
+-      window.MAP_OPEN_GROUP = "g-self";
+-      window.MAP_SELECT = "pulse";
+-      setTweak("mirrorPop", "you");
+-      setTab("mirror");
+-    };
+     return () => {
+-      delete window.openSuggestions;
+       delete window.openLogicTest;
+-      delete window.goTrends;
+-      delete window.openPaidReport;
+-      delete window.openAskedByYou;
+-      delete window.openCatalog;
+     };
+   }, []);
+   useEffect(() => {
+@@ -479,31 +450,6 @@
+     }
+   }, window.PassiveMeter && React.createElement(window.PassiveMeter, null), React.createElement("button", {
+     className: "icon-btn",
+-    "aria-label": "Ask a question",
+-    onClick: () => {
+-      closeAll();
+-      setOv("suggest");
+-    }
+-  }, React.createElement("svg", {
+-    viewBox: "0 0 24 24",
+-    width: "16",
+-    height: "16",
+-    fill: "none",
+-    stroke: "currentColor",
+-    strokeWidth: "1.8",
+-    strokeLinecap: "round"
+-  }, React.createElement("line", {
+-    x1: "12",
+-    y1: "5",
+-    x2: "12",
+-    y2: "19"
+-  }), React.createElement("line", {
+-    x1: "5",
+-    y1: "12",
+-    x2: "19",
+-    y2: "12"
+-  }))), React.createElement("button", {
+-    className: "icon-btn",
+     "aria-label": "Search",
+     onClick: () => {
+       closeAll();
+@@ -601,20 +547,10 @@
+   }), city && React.createElement(CityOverlay, {
+     city: city,
+     onClose: () => setCity(null)
+-  }), paidQ && window.PaidReportOverlay && React.createElement(window.PaidReportOverlay, {
+-    q: paidQ,
+-    onClose: () => setPaidQ(null)
+-  }), ov === "askedby" && window.AskedByYouOverlay && React.createElement(window.AskedByYouOverlay, {
+-    onClose: () => setOv(null)
+-  }), (ov === "catalog" || ov === "catalog-author") && window.CatalogSheet && React.createElement(window.CatalogSheet, {
+-    onClose: () => setOv(null),
+-    focus: ov === "catalog-author" ? "author" : null
+   }), ov === "profile" && React.createElement(ProfileOverlay, {
+     onClose: () => setOv(null),
+     me: me,
+     lensBoxed: false
+-  }), ov === "suggest" && React.createElement(SuggestOverlay, {
+-    onClose: () => setOv(null)
+   }), ov === "search" && React.createElement(SearchOverlay, {
+     onClose: () => setOv(null),
+     onPerson: p => {
+@@ -663,7 +599,7 @@
+   }), React.createElement(TweakSection, {
+     label: "Demo state"
+   }), React.createElement(TweakSelect, {
+-    label: "Circle / 1v1 start",
++    label: "Group / 1v1 start",
+     value: t.dailyStart || "seeded",
+     options: [{
+       value: "seeded",
+@@ -691,10 +627,10 @@
+     options: ["typical", "gap", "day1", "perfect"],
+     onChange: v => setTweak("pulseHistory", v)
+   }), React.createElement(TweakButton, {
+-    label: "Reset today's answers",
++    label: "Reset your open rounds",
+     secondary: true,
+     onClick: () => {
+-      if (window.DUELS) window.DUELS.resetToday();
++      if (window.DUELS) window.DUELS.resetRounds();
+       setDailyKey(k => k + 1);
+     }
+   }), React.createElement(TweakButton, {

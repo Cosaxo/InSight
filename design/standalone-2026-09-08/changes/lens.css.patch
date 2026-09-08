@@ -1,0 +1,72 @@
+--- recorded/lens.css+dots.css
++++ 2026-09-08/lens.css
+@@ -4,8 +4,6 @@
+    the SVG they draw) read one set of tokens. .app.lens-paper swaps the field
+    to paper for anyone who wants the light version. */
+ .ln-card{padding:8px 8px 4px}
+-.ln-head{padding:6px 8px 10px}
+-.ln-title{font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+ .ln-sub{margin-top:3px;font-size:12px;font-weight:500;line-height:1.45;color:var(--ink-3);text-wrap:pretty}
+ .ln-field{position:relative;width:100%;aspect-ratio:1;--ln-ink:oklch(0.88 0.03 282);--ln-sub:oklch(0.72 0.04 282);--ln-line:oklch(0.88 0.04 282);--ln-hub:oklch(0.34 0.05 282);--ln-ring:oklch(0.46 0.06 282);--ln-halo:oklch(0.27 0.045 282);--ln-beacon:oklch(0.84 0.11 282);--ln-me:oklch(0.99 0.005 80)}
+ .ln-field::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 46%,oklch(0.31 0.05 282),oklch(0.225 0.035 282) 74%)}
+@@ -20,18 +18,11 @@
+ .ln-key .k-ring{width:8px;height:8px;border-radius:50%;border:1.3px solid var(--ink-3)}
+ .ln-key .k-line{width:14px;height:0;border-top:1.5px solid var(--ink-3)}
+ .ln-key .k-dash{width:14px;height:0;border-top:1.5px dashed var(--ink-3)}
+-.ln-hint{padding:2px 8px 8px;font-size: 12px;font-weight:700;color:var(--accent-ink)}
+ .ln-rail{display:flex;align-items:center;gap:6px;padding:4px 2px 8px;overflow-x:auto;scrollbar-width:none}
+ .ln-rail::-webkit-scrollbar{display:none}
+-.ln-rail-lab{flex:none;font-size: 12px;font-weight:800;letter-spacing: 0.07em;text-transform:uppercase;color:var(--ink-3);margin:0 4px 0 6px}
+-.ln-chip{flex:none;display:flex;align-items:center;gap:7px;height:32px;padding:0 10px 0 4px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;-webkit-appearance:none}
+-.ln-chip.is-on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+-.ln-chip .c-av{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size: 12px;font-weight:800}
+-.ln-chip .c-name{font-size:12.5px;font-weight:700}
+-.ln-chip .c-sub{font-size: 12px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+ @keyframes lnPulse{0%{r:6px;opacity:.85}100%{r:19px;opacity:0}}
+ .ln-pulse{animation:lnPulse 1.9s ease-out infinite}
+-@media (prefers-reduced-motion:reduce){.ln-pulse{animation:none;opacity:.5}}
++@media (prefers-reduced-motion:reduce) {.ln-pulse{animation:none;opacity:.5}}
+ /* the oracle's lens: the guess disc travels on a transform so the move is one
+    spring, and the called half fills behind it */
+ .or2-disc{transition:transform .62s var(--ease-spring)}
+@@ -40,12 +31,7 @@
+ .or2-half{cursor:pointer}
+ .or2-verdict{font-size:14px;font-weight:500;line-height:1.5;color:var(--ink-2);text-wrap:pretty}
+ .or2-verdict b{font-weight:800;color:var(--ink)}
+-/* the daily's position, as dots in the header — tap a dot or swipe */
+-.h-dots{display:flex;align-items:center;justify-content:center;height:32px}
+-.h-dot{position:relative;width:22px;height:32px;border:0;padding:0;background:none;cursor:pointer;-webkit-appearance:none}
+-.h-dot::after{content:'';position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:99px;background:color-mix(in oklch,var(--ink),transparent 72%);transition:width .25s cubic-bezier(.2,.8,.2,1),margin .25s cubic-bezier(.2,.8,.2,1),background .25s}
+-.h-dot.is-on::after{width:18px;margin-left:-9px;background:var(--dacc)}
+-.h-dotlab{margin-left:6px;font-size: 12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
++
+ /* take a test: one row per test */
+ .test-rows{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+ .test-row{display:flex;align-items:center;gap:14px;padding:16px 2px;border-bottom:1px solid var(--rule);cursor:pointer}
+@@ -98,4 +84,25 @@
+ .ln-svg .qm-dot{transform-box:fill-box;transform-origin:center;animation:inkDot .4s cubic-bezier(.2,.8,.2,1) both}
+ .mmt-edges path.mmt-ink{stroke-dasharray:1;animation:inkDraw .5s cubic-bezier(.22,.8,.3,1) both}
+ .mmt-dotnode{animation:inkIn .4s ease both}
+-@media (prefers-reduced-motion:reduce){.ln-svg .qm-arc,.ln-svg .qm-drawin,.ln-svg .qm-fig,.ln-svg .qm-ink,.ln-svg .qm-dot,.mmt-edges path.mmt-ink,.mmt-dotnode{animation:none}}
++@media (prefers-reduced-motion:reduce) {.ln-svg .qm-arc,.ln-svg .qm-drawin,.ln-svg .qm-fig,.ln-svg .qm-ink,.ln-svg .qm-dot,.mmt-edges path.mmt-ink,.mmt-dotnode{animation:none}}
++
++/* ── polish & optimize (Sep 2026) ── */
++/* 44px hit areas on the small round controls — the drawn 32px stays, the pseudo carries the slack */
++.icon-btn,.avatar-btn,.pt-info{position:relative}
++.icon-btn::after,.avatar-btn::after,.mmt-card-x::after{content:"";position:absolute;inset:-6px;border-radius:50%}
++
++/* ── third pass (Sep 2026) ── */
++/* the remaining sub-44px controls get their slack the same way: the tab bar's three stops
++   (33px drawn) reach 44px; the Patterns pops (30px) and the mirror's zoom buttons (30px) too.
++   .pt-pops clips its children (overflow-x:auto), so it trades 7px of padding for the same
++   negative margin — same place on the page, room for the pseudo inside the clip box. */
++.tab-btn{position:relative}
++.tab-btn::after{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%);border-radius:999px}
++.pt-pops{padding:7px 0;margin:-7px 0}
++.pt-pop{position:relative}
++.pt-pop::after{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%);border-radius:999px}
++.mmt-zoomctl button{position:relative}
++.mmt-zoomctl button::after{content:"";position:absolute;inset:-7px;border-radius:50%}
++.pt-info::after{content:"";position:absolute;inset:-8px;border-radius:50%}
++/* one switch honours reduced motion for everything the app animates */
++@media (prefers-reduced-motion:reduce){#root *,#root *::before,#root *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

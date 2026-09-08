@@ -1,0 +1,178 @@
+--- recorded/mirror-answers.jsx
++++ 2026-09-08/mirror-answers.jsx
+@@ -418,164 +418,6 @@
+     label: "Agreed",
+     fn: null
+   }];
+-  const PA_PLACE = {
+-    city: "Oslo",
+-    country: "Norway",
+-    world: "the world"
+-  };
+-  const paPill = ink => ({
+-    flexShrink: 0,
+-    display: "inline-flex",
+-    alignItems: "center",
+-    borderRadius: 999,
+-    fontFamily: "var(--sans)",
+-    fontSize: 9.5,
+-    fontWeight: 800,
+-    letterSpacing: "0.13em",
+-    ...(ink ? {
+-      background: "var(--ink)",
+-      color: "var(--surface)",
+-      padding: "3px 8px"
+-    } : {
+-      border: "1px solid var(--rule)",
+-      color: "var(--ink-3)",
+-      padding: "2px 8px"
+-    })
+-  });
+-  function PlaceAsked({
+-    audId
+-  }) {
+-    const P = window.WF_PAID;
+-    if (!P) return null;
+-    const place = PA_PLACE[audId];
+-    const paid = (P.items || []).filter(q => q.scope === audId);
+-    const mets = (P.CATALOG || []).filter(m => m.scope === audId && m.place === place && m.state === "active");
+-    const n = paid.length + mets.length;
+-    const rowStyle = i => ({
+-      width: "100%",
+-      display: "flex",
+-      alignItems: "center",
+-      gap: 10,
+-      padding: "12px 0",
+-      background: "none",
+-      border: "none",
+-      borderTop: i ? "0.5px solid var(--rule)" : "none",
+-      cursor: "pointer",
+-      textAlign: "left",
+-      WebkitAppearance: "none"
+-    });
+-    const tTxt = {
+-      display: "block",
+-      fontFamily: "var(--sans)",
+-      fontSize: 13.5,
+-      fontWeight: 650,
+-      letterSpacing: "-0.01em",
+-      lineHeight: 1.3,
+-      color: "var(--ink)"
+-    };
+-    const mTxt = {
+-      display: "block",
+-      marginTop: 3,
+-      fontFamily: "var(--sans)",
+-      fontSize: 10.5,
+-      fontWeight: 600,
+-      color: "var(--ink-3)",
+-      fontVariantNumeric: "tabular-nums"
+-    };
+-    const chev = React.createElement("span", {
+-      "aria-hidden": "true",
+-      style: {
+-        flexShrink: 0,
+-        fontFamily: "var(--sans)",
+-        fontSize: 15,
+-        color: "var(--ink-3)"
+-      }
+-    }, "\u203A");
+-    return React.createElement("div", null, React.createElement(TabSection, {
+-      title: "Asked for " + place,
+-      sub: "bought questions and running metrics \u2014 the paid tail, in one place"
+-    }), React.createElement("div", {
+-      className: "card",
+-      style: {
+-        marginBottom: 14,
+-        padding: "2px 14px"
+-      }
+-    }, paid.map((q, i) => React.createElement("button", {
+-      key: q.id,
+-      className: "press",
+-      onClick: () => window.openPaidReport && window.openPaidReport(q),
+-      style: rowStyle(i)
+-    }, React.createElement("span", {
+-      style: paPill(true)
+-    }, "PAID"), React.createElement("span", {
+-      style: {
+-        flex: 1,
+-        minWidth: 0
+-      }
+-    }, React.createElement("span", {
+-      style: tTxt
+-    }, q.prompt), React.createElement("span", {
+-      style: mTxt
+-    }, (q.paid.buyer ? q.paid.buyer + " \xB7 " : "") + (q.paid.closed ? "closed \u2014 final report public" : "asked for " + q.paid.window))), chev)), mets.map((m, i) => React.createElement("button", {
+-      key: m.id,
+-      className: "press",
+-      onClick: () => window.openCatalog && window.openCatalog(),
+-      style: rowStyle(i + paid.length)
+-    }, React.createElement("span", {
+-      style: paPill(false)
+-    }, "METRIC"), React.createElement("span", {
+-      style: {
+-        flex: 1,
+-        minWidth: 0
+-      }
+-    }, React.createElement("span", {
+-      style: tTxt
+-    }, m.q), React.createElement("span", {
+-      style: mTxt
+-    }, "scoring " + m.score + " \xB7 funded by " + m.seats + " \xB7 rates monthly")), chev)), !n && React.createElement("div", {
+-      style: {
+-        padding: "12px 0 2px",
+-        fontFamily: "var(--sans)",
+-        fontSize: 12,
+-        fontWeight: 600,
+-        color: "var(--ink-3)",
+-        lineHeight: 1.45
+-      }
+-    }, "Nothing runs for ", place, " right now \u2014 the catalog takes pledges."), React.createElement("div", {
+-      style: {
+-        display: "flex",
+-        alignItems: "center",
+-        gap: 10,
+-        padding: "11px 0 13px",
+-        borderTop: n ? "0.5px solid var(--rule)" : "none"
+-      }
+-    }, React.createElement("button", {
+-      className: "press",
+-      onClick: () => window.openCatalog && window.openCatalog(),
+-      style: {
+-        minHeight: 36,
+-        padding: "0 15px",
+-        borderRadius: 999,
+-        cursor: "pointer",
+-        WebkitAppearance: "none",
+-        border: "1px solid var(--ink)",
+-        background: "var(--surface)",
+-        color: "var(--ink)",
+-        fontFamily: "var(--sans)",
+-        fontSize: 12.5,
+-        fontWeight: 800,
+-        flexShrink: 0
+-      }
+-    }, "Ask ", place, " a question \u2192"), React.createElement("span", {
+-      style: {
+-        fontFamily: "var(--sans)",
+-        fontSize: 10.5,
+-        fontWeight: 600,
+-        color: "var(--ink-3)",
+-        lineHeight: 1.4
+-      }
+-    }, "catalog & rate card \u2014 no checkout"))));
+-  }
+   function MirrorAnswers({
+     audId
+   }) {
+@@ -788,9 +630,7 @@
+         fontWeight: 600,
+         color: "var(--ink-2)"
+       }
+-    }, "Show ", list.length - LIMIT, " more")), isPlace && React.createElement(PlaceAsked, {
+-      audId: audId
+-    }));
++    }, "Show ", list.length - LIMIT, " more")));
+   }
+   Object.assign(window, {
+     MirrorAnswers

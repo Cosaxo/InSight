@@ -395,7 +395,15 @@ together* as doors whose sub-line carries the named type's one-line
 meaning, and the read-each-other card as a two-column hit-rate table
 under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
 pair's card as this request wants it drawn; the plan's owner call still
-gates what the doors say.
+gates what the doors say. **Noted again 2026-09-08**: the owner's
+`InSight_11` upload draws the same surface a third way — a *Together*
+tab on the person's page: a wide 1v1 tile with the pair as a cluster,
+a 26 px figure over *rounds* and the pair's type, its line behind an ⓘ;
+group tiles two across with the members clustered and *N people*; and
+the reading as two rings (*you read Ada* / *Ada reads you*) over the
+clustered domain runs (`VISION-2026-09-08.md` §4.1, its steps 4–5).
+The tiles' figures are the fold this plan names; the call still gates
+what the type says.
 
 - **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
   (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
