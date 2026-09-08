@@ -5,7 +5,7 @@
 // TWO CLASSES since D236, each on its own Android channel, both sent by
 // functions/src/v2social.ts through one fan-out (sendPushToUids):
 //
-//   · "yesterday is revealed"  — revealGroupDay,   channel "reveals"
+//   · "the round is revealed" — revealRound,      channel "reveals"
 //   · "someone invited you"    — inviteToGroupV2,  channel "invites"
 //   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D240)
 //   · "you're in"              — approveJoinV2,    channel "invites"  (D240)

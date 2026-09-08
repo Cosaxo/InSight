@@ -122,7 +122,7 @@ export const CLAIMS = [
   // The row above pins the SEAL and says nothing about who reads the
   // reveal once it opens, which is how the page went on promising "the
   // people in that group" for a year after D98 removed the membership
-  // arm from `match /reveals/{day}` (it is `request.auth != null`, and
+  // arm from `match /reveals/{revealId}` (it is `request.auth != null`, and
   // rules.test.ts asserts a stranger, a late joiner and someone who left
   // all read a day). Two rows, because the page states the audience
   // twice and a half-corrected promise is the same failure.

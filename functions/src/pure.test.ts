@@ -11,13 +11,17 @@ import {
   RESERVED_HANDLES,
   utcDayKey,
   prevDayKey,
-  shouldReveal,
   movesPresentState,
   nextStreak,
-  PENDING_DAYS_KEEP,
-  prunePendingDays,
-  scanDays,
   revealMembersFor,
+  ROUND_LEAD,
+  ROUND_DEADLINE_MS,
+  roundKey,
+  openRound,
+  playedIn,
+  prunePlayed,
+  roundComplete,
+  roundReveals,
   breakdownBucket,
   foldAnchors,
   honestAnchors,
@@ -150,205 +154,142 @@ describe("utcDayKey / prevDayKey", () => {
 
 // ── reveal conditions ───────────────────────────────────────────
 
-describe("shouldReveal", () => {
-  it("duo is both-or-nothing", () => {
-    expect(shouldReveal("duo", 0)).toBe(false);
-    expect(shouldReveal("duo", 1)).toBe(false);
-    expect(shouldReveal("duo", 2)).toBe(true);
+describe("rounds (ROUNDS-PLAN, D420)", () => {
+  it("the lead and the deadline are the plan's numbers", () => {
+    // ONE constant each. firestore.rules carries the lead as a literal and
+    // rules.test.ts pins the two equal; the deadline is the day's
+    // replacement and is a day long.
+    expect(ROUND_LEAD).toBe(5);
+    expect(ROUND_DEADLINE_MS).toBe(24 * 60 * 60 * 1000);
   });
 
-  it("group reveals from one answer", () => {
-    expect(shouldReveal("group", 0)).toBe(false);
-    expect(shouldReveal("group", 1)).toBe(true);
-    expect(shouldReveal("group", 5)).toBe(true);
+  it("roundKey is r{n}, unpadded — nothing orders by id", () => {
+    expect(roundKey(1)).toBe("r1");
+    expect(roundKey(12)).toBe("r12");
   });
 
-  it("unknown modes behave like group (the pipeline's default)", () => {
-    expect(shouldReveal("", 1)).toBe(true);
-    expect(shouldReveal("", 0)).toBe(false);
-  });
-});
-
-// ── the pending-day marker ──────────────────────────────────────
-
-describe("prunePendingDays", () => {
-  // 6 days back from 2026-07-27, i.e. what revealGroupDay computes as the
-  // oldest day a duel answer could still legally arrive for.
-  const OLDEST = "2026-07-21";
-
-  it("drops the settled day and keeps the rest", () => {
-    expect(prunePendingDays(["2026-07-25", "2026-07-26", "2026-07-27"], "2026-07-26", OLDEST))
-      .toEqual(["2026-07-25", "2026-07-27"]);
+  it("openRound reads absent, null and junk as round 1", () => {
+    expect(openRound(undefined)).toBe(1);
+    expect(openRound(null)).toBe(1);
+    expect(openRound(0)).toBe(1);
+    expect(openRound(-3)).toBe(1);
+    expect(openRound(2.5)).toBe(1);
+    expect(openRound("7")).toBe(1);
+    expect(openRound(7)).toBe(7);
   });
 
-  it("drops days older than the cutoff, so the array cannot grow forever", () => {
-    // The case this exists for: a duo whose partner never plays leaves one
-    // unsettled day per day played. Without the cutoff that is one string
-    // per day on the group document, permanently.
-    const year = Array.from({ length: 365 }, (_, i) => {
-      const d = new Date(Date.UTC(2025, 6, 27) + i * 86400000);
-      return d.toISOString().slice(0, 10);
-    });
-    const out = prunePendingDays(year, "2026-07-27", OLDEST);
-    expect(out).toEqual(["2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24",
-      "2026-07-25", "2026-07-26"]);
-    expect(out.length).toBeLessThanOrEqual(PENDING_DAYS_KEEP);
+  it("playedIn reads one round's uids off the map, strings only, deduplicated", () => {
+    const played = { r7: ["a", "b", "a", 3, null, ""], r8: "nope" };
+    expect(playedIn(played, "r7")).toEqual(["a", "b"]);
+    expect(playedIn(played, "r8")).toEqual([]);
+    expect(playedIn(played, "r9")).toEqual([]);
+    expect(playedIn(undefined, "r7")).toEqual([]);
+    expect(playedIn("r7", "r7")).toEqual([]);
   });
 
-  it("keeps the cutoff day itself — the bound is inclusive", () => {
-    expect(prunePendingDays([OLDEST], "2026-07-27", OLDEST)).toEqual([OLDEST]);
-    expect(prunePendingDays(["2026-07-20"], "2026-07-27", OLDEST)).toEqual([]);
+  it("prunePlayed keeps the new open round and everything sealed ahead of it, drops the rest", () => {
+    // Round 6 just revealed: 7 opens. r6 and r5 go; r7 and r9 (sealed
+    // ahead) stay; a key that is not a round key, or an empty list, goes.
+    const played = { r5: ["a"], r6: ["a", "b"], r7: ["a"], r9: ["b"], rx: ["a"], r8: [] };
+    expect(prunePlayed(played, 7)).toEqual({ r7: ["a"], r9: ["b"] });
+    expect(prunePlayed(undefined, 7)).toEqual({});
+    expect(prunePlayed({ r1: ["a"] }, 2)).toEqual({});
   });
 
-  it("survives a missing, malformed or duplicated field", () => {
-    // A group that has never played has no pendingDays at all, and that is
-    // the normal state — it must read as "nothing pending", not throw.
-    expect(prunePendingDays(undefined, "2026-07-27", OLDEST)).toEqual([]);
-    expect(prunePendingDays(null, "2026-07-27", OLDEST)).toEqual([]);
-    expect(prunePendingDays("2026-07-26", "2026-07-27", OLDEST)).toEqual([]);
-    expect(prunePendingDays([1, null, {}, "2026-07-26"], "2026-07-27", OLDEST))
-      .toEqual(["2026-07-26"]);
-    // arrayUnion cannot produce duplicates, but a hand-repaired document can.
-    expect(prunePendingDays(["2026-07-26", "2026-07-26"], "2026-07-27", OLDEST))
-      .toEqual(["2026-07-26"]);
+  it("roundComplete is every member, and never a room of nobody", () => {
+    expect(roundComplete(2, 2)).toBe(true);
+    expect(roundComplete(1, 2)).toBe(false);
+    expect(roundComplete(3, 2)).toBe(true); // a member who left after playing
+    expect(roundComplete(0, 0)).toBe(false);
   });
 
-  it("compares day keys lexicographically, which is chronological for ISO", () => {
-    // The whole cutoff rests on this, and it is the assumption that breaks
-    // first if the key format ever changes.
-    expect("2026-01-02" < "2026-01-10").toBe(true);
-    expect("2025-12-31" < "2026-01-01").toBe(true);
-    expect(prunePendingDays(["2025-12-31", "2026-01-05"], "x", "2026-01-01"))
-      .toEqual(["2026-01-05"]);
+  it("roundReveals: an answer in it, and complete OR due OR forced", () => {
+    // Nobody's answer: never, whatever else is true — there is nothing to
+    // show and advancing would burn the question for no one.
+    expect(roundReveals(0, 2, true, true)).toBe(false);
+    // A 1v1: the second answer completes it.
+    expect(roundReveals(1, 2, false)).toBe(false);
+    expect(roundReveals(2, 2, false)).toBe(true);
+    // A group of five with one answer: not until the deadline…
+    expect(roundReveals(1, 5, false)).toBe(false);
+    // …at which it reveals for whoever played (the owner's rule).
+    expect(roundReveals(1, 5, true)).toBe(true);
+    // The operator's lever reveals any round with an answer in it.
+    expect(roundReveals(1, 5, false, true)).toBe(true);
   });
 });
-
-// ── which days a reveal run asks about ──────────────────────────
-
-describe("scanDays", () => {
-  const T = Date.UTC(2026, 6, 27, 12, 0, 0); // 2026-07-27T12:00Z
-
-  it("covers the whole pending window, not just yesterday", () => {
-    // The bug: the scan asked about utcDayKey(-1) and the schedule never
-    // passed a day, so a group-day was revealable during the single UTC day
-    // after it and never again — while rules accept a duel answer four days
-    // late and onV2AnswerCreated re-adds the day to pendingDays whenever one
-    // arrives. An answer syncing on D+2 re-opened a day nothing would ask
-    // about again. Both members had answered; the day sat pending forever.
-    expect(scanDays(undefined, T)).toEqual([
-      "2026-07-26", "2026-07-25", "2026-07-24",
-      "2026-07-23", "2026-07-22", "2026-07-21",
-    ]);
-  });
-
-  it("matches the pruning window exactly", () => {
-    // prunePendingDays drops anything older than PENDING_DAYS_KEEP, so a day
-    // outside this window can never gain another answer. Asking about
-    // exactly the days that can still change is the definition pendingDays
-    // was given; the two drifting apart is how the gap reopens.
-    expect(scanDays(undefined, T)).toHaveLength(PENDING_DAYS_KEEP);
-    const oldest = scanDays(undefined, T)[PENDING_DAYS_KEEP - 1];
-    expect(prunePendingDays([oldest], "x", oldest)).toEqual([oldest]);
-    expect(prunePendingDays([prevDayKey(oldest)], "x", oldest)).toEqual([]);
-  });
-
-  it("an explicit day still means that day alone", () => {
-    // The operator lever and every e2e leg pass one, and narrowing is what
-    // an operator reaching for it during an incident usually wants.
-    expect(scanDays("2026-01-01", T)).toEqual(["2026-01-01"]);
-  });
-
-  it("crosses a month boundary", () => {
-    expect(scanDays(undefined, Date.UTC(2026, 7, 2, 3, 0, 0))).toEqual([
-      "2026-08-01", "2026-07-31", "2026-07-30",
-      "2026-07-29", "2026-07-28", "2026-07-27",
-    ]);
-  });
-});
-
-// ── who a day's reveal belongs to ───────────────────────────────
 
 describe("revealMembersFor", () => {
-  const DAY = "2026-07-27";
   const at = (iso: string) => Date.parse(iso);
+  const OPENED = at("2026-07-27T12:00:00Z"); // the round's first answer
 
-  it("excludes someone who joined after the day ended", () => {
-    // The leak, exactly: day D is revealed by the D+1 scan, which runs every
-    // 120 minutes, so a 00:05 joiner was a current member when the snapshot
-    // was taken and read a day they were not in the group for.
+  it("excludes someone who joined after the round opened and did not play", () => {
     const members = ["old", "latecomer"];
     const joined = {
       old: at("2026-07-20T09:00:00Z"),
-      latecomer: at("2026-07-28T00:05:00Z"),
+      latecomer: at("2026-07-27T12:00:01Z"),
     };
-    expect(revealMembersFor(members, joined, DAY)).toEqual(["old"]);
+    expect(revealMembersFor(members, joined, OPENED)).toEqual(["old"]);
   });
 
-  it("includes someone who joined partway through the day", () => {
-    // The bound is the END of the day, not its start — they were there for
-    // it, and duel answers stay writable while the day is unrevealed, so
-    // they may well have played it.
-    const joined = { mid: at("2026-07-27T18:30:00Z") };
-    expect(revealMembersFor(["mid"], joined, DAY)).toEqual(["mid"]);
+  it("includes someone who joined before the round opened", () => {
+    const joined = { mid: at("2026-07-27T11:59:59.999Z") };
+    expect(revealMembersFor(["mid"], joined, OPENED)).toEqual(["mid"]);
   });
 
-  it("includes a member joining in the last second, and excludes the first second after", () => {
-    const joined = {
-      justIn: at("2026-07-27T23:59:59.999Z"),
-      justOut: at("2026-07-28T00:00:00.000Z"),
-    };
-    expect(revealMembersFor(["justIn", "justOut"], joined, DAY)).toEqual(["justIn"]);
+  it("the bound is strict: joining at the opening instant is after it", () => {
+    const joined = { justIn: OPENED - 1, justOut: OPENED };
+    expect(revealMembersFor(["justIn", "justOut"], joined, OPENED)).toEqual(["justIn"]);
   });
 
   it("includes members who predate the field", () => {
-    // Not a fallback — the correct answer. createGroupV2/joinGroupV2 write
-    // this from the day it shipped, so absence means the member joined
-    // before that, which is before any day this is ever asked about.
-    // Reading absence as "exclude" would blank every reveal for every group
-    // that existed on deploy day.
-    expect(revealMembersFor(["a", "b"], {}, DAY)).toEqual(["a", "b"]);
-    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, DAY))
+    // Not a fallback — the correct answer. createGroupV2 and the join paths
+    // write this from the day it shipped, so absence means the member
+    // joined before that, which is before any round this is ever asked
+    // about. Reading absence as "exclude" would blank every reveal for
+    // every group that existed on deploy day.
+    expect(revealMembersFor(["a", "b"], {}, OPENED)).toEqual(["a", "b"]);
+    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, OPENED))
       .toEqual(["a", "b"]);
   });
 
   it("includes a member whose recorded time is unusable", () => {
-    // Same permissive direction, and for the same reason: a reveal its own
-    // members cannot read is a worse failure than one scoped too widely.
+    // Same permissive direction, and for the same reason: a reveal that
+    // credits nobody is a worse failure than one scoped too widely.
     for (const bad of [null, undefined, "2026-07-01", NaN, {}, 0 / 0]) {
-      expect(revealMembersFor(["a"], { a: bad }, DAY)).toEqual(["a"]);
+      expect(revealMembersFor(["a"], { a: bad }, OPENED)).toEqual(["a"]);
     }
   });
 
-  it("includes anyone who played the day, whatever their join time says", () => {
-    // Duel answers are accepted up to four days late, so a member can
-    // legitimately land a vote for a day preceding their join — an offline
-    // client flushing a queue, or a fresh group playing a recent day.
-    // Excluding them would publish a reveal holding their own vote that they
-    // alone could not read.
+  it("includes anyone who played the round, whatever their join time says", () => {
+    // The rules admit an answer from any current member, so somebody who
+    // joined mid-round and sealed one belongs in the reveal that publishes
+    // it — excluding them would publish their own vote naming them nowhere.
     const joined = { player: at("2026-08-01T00:00:00Z"), lurker: at("2026-08-01T00:00:00Z") };
-    expect(revealMembersFor(["player", "lurker"], joined, DAY, ["player"]))
+    expect(revealMembersFor(["player", "lurker"], joined, OPENED, ["player"]))
       .toEqual(["player"]);
   });
 
+  it("a round with no open time includes everyone", () => {
+    // A force-reveal before any answer stamped a clock. Too wide beats
+    // crediting nobody.
+    const joined = { newA: at("2026-08-01T00:00:00Z") };
+    expect(revealMembersFor(["newA"], joined, null)).toEqual(["newA"]);
+    expect(revealMembersFor(["newA"], joined, undefined)).toEqual(["newA"]);
+  });
+
   it("can return an empty array, and says so rather than falling back", () => {
-    // Everyone who played the day has left; everyone now in the group joined
-    // after it. Nobody was there, so nobody may read it — the reveal still
-    // writes, which settles the day for the scan.
+    // Everyone who played has left; everyone now in the group joined after
+    // the round opened. Nobody was there.
     const joined = { newA: at("2026-08-01T00:00:00Z"), newB: at("2026-08-02T00:00:00Z") };
-    expect(revealMembersFor(["newA", "newB"], joined, DAY)).toEqual([]);
+    expect(revealMembersFor(["newA", "newB"], joined, OPENED)).toEqual([]);
   });
 
   it("does not read join times off the prototype", () => {
     // The group document's maps are keyed by uid, and D47 is the record of
     // what a prototype lookup does to a uid-keyed map read from Firestore.
-    expect(revealMembersFor(["constructor"], {}, DAY)).toEqual(["constructor"]);
-    expect(revealMembersFor(["toString"], {}, DAY)).toEqual(["toString"]);
-  });
-
-  it("degrades to the previous behaviour on a malformed day key", () => {
-    // Server-generated (utcDayKey), so unreachable in the pipeline.
-    const joined = { late: at("2030-01-01T00:00:00Z") };
-    expect(revealMembersFor(["late"], joined, "not-a-day")).toEqual(["late"]);
+    expect(revealMembersFor(["constructor"], {}, OPENED)).toEqual(["constructor"]);
+    expect(revealMembersFor(["toString"], {}, OPENED)).toEqual(["toString"]);
   });
 });
 
@@ -361,7 +302,7 @@ describe("movesPresentState — which day may claim to be the present", () => {
   });
 
   it("refuses a day the group has already moved past", () => {
-    // THE regression. scanDays() walks the pending window newest-first and
+    // THE regression, from the day: the scan walked the pending window newest-first and
     // revealDuelsNowV2 defaults to `full` over six days, so a run routinely
     // reveals yesterday and THEN reaches an older day still pending. That
     // older reveal used to write lastRevealDay backwards and recompute the

@@ -232,6 +232,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "revealHistoryLoading",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
+  // Rounds (ROUNDS-PLAN, D420): where the account stands in a room's
+  // rounds, and a given round's question.
+  "roundInfo", "roundQ",
   // The in-flight flag beside `takes` — listed here because the pin is
   // what makes the surface reviewed, and this one existed in state for a
   // long time without it.

@@ -377,7 +377,18 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // bank all month bills fewer rule reads than a single day of their
       // own answering. If takes ever grow a volume story worth modelling,
       // add the term from a measured post rate — not from this note.
-    ).toEqual({ gets: 33, exists: 3 });
+      //
+      // 33 → 35 gets, 3 → 2 exists (ROUNDS-PLAN / D420): the duel answer's
+      // day window became a ROUND bound — two get() sites on the group
+      // document (`round >= open`, `round < open + lead`), the SAME
+      // document the membership clause already fetched, so the site count
+      // moves and the billed cost does not. And the exists() on the reveal
+      // document is GONE: the reveal and the round's advance are one
+      // commit, so "still the open round or later" already says "no reveal
+      // exists for it". That is one billed read fewer per duel answer —
+      // RULE_READS.duel 3 → 2 — and the first time this tripwire has
+      // recorded a cost going down.
+    ).toEqual({ gets: 35, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {
@@ -400,8 +411,11 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "D275 collapsed the private mirror into it); the catalog (D232) and "
       + "rank (D233) branches each read one more — the question doc — which "
       + "the model deliberately absorbs into the vote rate (see the "
-      + "constant's comment). Recount before changing the constant.",
-    ).toBe(9);
+      + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
+      + "D420 — the group document, in the transaction that marks who "
+      + "played and asks whether the round is complete (TRIGGER_READS.duel "
+      + "0 → 1). Recount before changing the constant.",
+    ).toBe(10);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {
@@ -426,39 +440,29 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       .not.toMatch(/\.aggregate\(/);
   });
 
-  it("the reveal pipeline's per-member read count still has its five parts", () => {
-    // revealReadsPerMember(m) = (4 + 3m)/m — the page read, revealRef.get(),
-    // getAll(answers), getAll(profiles), and the committing tx.getAll.
+  it("the reveal pipeline's per-member read count still has its two parts", () => {
+    // revealReadsPerMember(m) = (2 + 2m)/m — getAll(profiles, fieldMask) and
+    // the committing tx.getAll(revealRef, group, ...answers). ROUNDS-PLAN /
+    // D420 took the day's other two out: the standalone revealRef.get()
+    // (redundant, because the reveal and the round's advance are one commit)
+    // and the pre-read of every answer (the verdict comes off `played` on
+    // the group document the page already holds).
     //
     // EXACT, not a floor, and that is the difference between a tripwire and
-    // a decoration. This asserted `>= 3` for as long as it existed, which
-    // can only fail on a REMOVAL — while its own stated purpose is that
-    // ADDING a document access fails here with a pointer to the block that
-    // needs recounting. Its siblings above use equality for exactly this
-    // reason. Measured while fixing it: an extra per-member getAll added to
-    // revealGroupDay left all 556 script tests green.
+    // a decoration: ADDING a document access fails here with a pointer to
+    // the block that needs recounting. COMMENTS ARE STRIPPED FIRST, because
+    // the function carries prose that names getAll, and a tripwire over
+    // billed reads that counts prose is wrong twice.
     //
-    // FOUR getAll SITES, and COMMENTS ARE STRIPPED FIRST — this counted
-    // five, because the function carries a paragraph that says "the
-    // getAll() above is a snapshot". A tripwire over billed reads that
-    // counts prose is wrong twice: it would go red on a comment reword,
-    // and the number it enforces is not the number of reads. Every other
-    // source pin in this tree strips comments before matching, and this
-    // one now does too.
-    //
-    // The four: getAll(answers), the close-the-day transaction's
-    // tx.getAll, getAll(profiles, fieldMask), and the committing tx.getAll.
-    // The close-the-day transaction and the committing one are
-    // ALTERNATIVES — one pass takes one of them — which is why the model's
-    // 4 + 3M counts three of these sites and not four. A new site here
+    // The two getAll sites are the whole per-round read; a new site here
     // means a new billed read on some path: recount cost-arith's block
     // before moving this number.
     const s = read("functions/src/v2social.ts");
-    const fn = s.match(/async function revealGroupDay[\s\S]*?\n\}/)[0]
+    const fn = s.match(/async function revealRound[\s\S]*?\n\}/)[0]
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
-    expect((fn.match(/getAll\(/g) || []).length).toBe(4);
-    expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(1);
+    expect((fn.match(/getAll\(/g) || []).length).toBe(2);
+    expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(0);
   });
 
   it("egress and index storage are billed, not assumed free", () => {

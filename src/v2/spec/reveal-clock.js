@@ -21,6 +21,11 @@ function msToMidnight() {
   n.setHours(24, 0, 0, 0);
   return n - now;
 }
+// The same shape for an explicit instant — read outside the render body,
+// where msToMidnight reads its clock, and re-read on the interval tick.
+function msUntil(until) {
+  return until - Date.now();
+}
 // Minutes are zero-padded past the hour so the string keeps its width as it
 // counts down (12h 9m → 12h 09m); tabular digits below stop the rest from
 // shifting.
@@ -45,7 +50,11 @@ function fmt(ms) {
 // is what makes removing it safe here (D280's own warning is about a name
 // written from two places); `no-undef` covers the other direction, since
 // a bare tag with no import would already fail the spec layer's lint.
-export function RevealClock({ prefix = 'Reveals in', suffix = '', style }) {
+// `until` (ms since the epoch) counts to a given instant instead of local
+// midnight — a group round's deadline (ROUNDS-PLAN, D420), which the group
+// document states exactly, so this one is a promise about the server after
+// all. Absent, the clock is the local-midnight cue it always was.
+export function RevealClock({ prefix = 'Reveals in', suffix = '', until, style }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   // 30s cadence: the display's finest unit is a minute, so anything faster
   // is a re-render nobody can see. One interval per mounted clock, and only
@@ -54,5 +63,6 @@ export function RevealClock({ prefix = 'Reveals in', suffix = '', style }) {
     const t = setInterval(bump, 30000);
     return () => clearInterval(t);
   }, []);
-  return React.createElement('span', { style: { fontVariantNumeric: 'tabular-nums', ...style } }, prefix + ' ' + fmt(msToMidnight()) + suffix);
+  const ms = typeof until === 'number' && Number.isFinite(until) ? msUntil(until) : msToMidnight();
+  return React.createElement('span', { style: { fontVariantNumeric: 'tabular-nums', ...style } }, prefix + ' ' + fmt(ms) + suffix);
 }

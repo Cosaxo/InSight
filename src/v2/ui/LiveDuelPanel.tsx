@@ -1,8 +1,9 @@
 // LiveDuelPanel — the LIVE group/duo panel. Replaces the demo
 // GroupDailyBody / DuoBody when LIVE is enabled: real circles with
-// server-minted invite codes, today's question from the shared
-// deterministic rotation, sealed votes, and yesterday's materialized
-// reveal. With no circles yet, the panel IS the create-or-join flow.
+// server-minted invite codes, the open ROUND's question from the shared
+// deterministic rotation (ROUNDS-PLAN, D420), sealed votes, and the latest
+// round's materialized reveal. With no circles yet, the panel IS the
+// create-or-join flow.
 //
 // REBUILT TO THE v25 PROTOTYPE'S SHAPE (D156). It was a plain vertical list
 // of bordered cards: names as text, one flat reveal list, an always-open
@@ -86,7 +87,7 @@ const ROMANCE = "oklch(0.55 0.13 12)";
  *
  * The server zeroes a duo's streak when a day settles unrevealed — but only
  * for a group the scan LOOKS at, and the twice-hourly scan queries
- * `pendingDays array-contains day`, which `onV2AnswerCreated` writes. So a
+ * `roundDeadlineAt <= now`, whose clock `onV2AnswerCreated` starts. So a
  * duo where NEITHER partner played is never examined and its streak stands
  * untouched, while the pair that missed by half — one partner still
  * playing — is zeroed on the first miss. The more engaged pair lost its
@@ -125,6 +126,17 @@ const agoLabel = (key: string | undefined, index: number): string => {
   if (days <= 0) return "Today";
   return days === 1 ? "Yesterday" : days + " days ago";
 };
+// The open round's deadline, off the group document (a Firestore
+// Timestamp on the client, a number in fixtures), as millis — or null while
+// nobody has played the open round and there is no clock yet.
+const deadlineMs = (raw: unknown): number | null => {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (raw && typeof (raw as { toMillis?: unknown }).toMillis === "function") {
+    const ms = (raw as { toMillis: () => number }).toMillis();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  return null;
+};
 const streakIsLive = (g: { lastRevealDay?: string }): boolean =>
   typeof g.lastRevealDay === "string" && g.lastRevealDay >= dayKeyUTC(-2);
 const GOOD = "var(--c-likeness)";
@@ -135,6 +147,11 @@ const col = (g: number): React.CSSProperties => ({ display: "flex", flexDirectio
 // The store keeps groups/reveals loosely typed at the seam; these are
 // the fields this panel actually renders.
 interface LiveGroup {
+  /** Rounds (ROUNDS-PLAN, D420): the open round, and its clock when the
+   *  open round has an answer in it. A Firestore Timestamp on the client;
+   *  a number in fixtures. */
+  round?: number;
+  roundDeadlineAt?: unknown;
   id: string;
   name?: string;
   mode?: string;
@@ -409,8 +426,8 @@ function LdOnboard({ mode }: { mode?: string }) {
       </div>
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         {duo
-          ? "One question a day, sealed until tomorrow — if you both play."
-          : "One question a day, sealed until tomorrow, then revealed with names."}
+          ? "Answer blind, guess theirs. It reveals the moment you both have — then the next one."
+          : "Everyone answers blind. It reveals with names when everyone has played, or at the deadline."}
       </div>
       {!known && <LdInput value={typedMe} onChange={setTypedMe} placeholder="Your name (what friends see)" />}
       <div style={{ display: "flex", gap: 8 }}>
@@ -713,7 +730,7 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
           and a follow. Somebody arriving from a link has been told
           nothing by the app yet, so this is where it gets said. */}
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-        One question a day, sealed until tomorrow, then revealed with names to the people in it.
+        Everyone answers blind, and each round is revealed with names to the people in it.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* ASK, not Join (D240). The link no longer admits its holder —
@@ -977,7 +994,7 @@ function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
       </div>
       {sealed && (
         <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          Pool is locked until tomorrow — today’s answer is sealed.
+          Pool is locked while an answer of yours is sealed.
         </div>
       )}
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
@@ -1097,8 +1114,17 @@ function LdCard({ g, vh, nextName, newest }: {
   const S = LIVE.social;
   const uid = LIVE.uid || "";
   const duo = g.mode === "duo";
+  // ROUNDS (ROUNDS-PLAN, D420). `q` is the NEXT round this account may
+  // answer — the lowest unsealed one inside the lead — or null at the
+  // lead's edge; `mine` is its answer to the OPEN round; `waiting` is how
+  // many rounds it has sealed that have not revealed. A card is asked for
+  // the next round the moment the last one is sealed: that is the volley.
   const q = S.todayQ(g.id);
   const mine = S.myDuelVote(g.id);
+  const R = S.roundInfo(g.id) || { open: 1, next: 1 as number | null, sealed: [] as number[], lead: 5 };
+  const waiting = R.sealed.length;
+  const atLead = q == null && waiting > 0;
+  const deadline = deadlineMs(g.roundDeadlineAt);
   const reveal = S.revealFor(g.id) as LiveReveal | null;
   const members = g.memberUids || [];
   const names = g.memberNames || {};
@@ -1219,14 +1245,17 @@ function LdCard({ g, vh, nextName, newest }: {
         <LdCopyLink g={g} />
       </div>
     );
-  } else if (mine) {
+  } else if (atLead) {
+    // Every round inside the lead is sealed: nothing to answer until they
+    // catch up. The open round's own question and your answer to it.
+    const openQ = S.roundQ(g.id, R.open);
     body = (
       <div style={{ ...col(16), animation: "popIn .35s cubic-bezier(0.2,0.8,0.2,1)" }} key="done">
-        {q && <LdPrompt size={24}>{q.prompt}</LdPrompt>}
+        {openQ && <LdPrompt size={24}>{openQ.prompt}</LdPrompt>}
         <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-3)" }}>you said</span>
           <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, letterSpacing: -0.3, color: "var(--ink)" }}>
-            {q && q.options[mine.optionIdx] != null ? q.options[mine.optionIdx] : "—"}
+            {openQ && mine && openQ.options[mine.optionIdx] != null ? openQ.options[mine.optionIdx] : "—"}
           </span>
         </div>
         <div style={{ ...col(11), borderTop: LD_HAIR, padding: "14px 0 2px" }}>
@@ -1241,18 +1270,17 @@ function LdCard({ g, vh, nextName, newest }: {
             <YouChip size={34} />
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-            {/* live countdown when this is the card in view; "tomorrow" is
-                the honest fallback, and stays the wording everywhere else —
-                the clock counts to LOCAL midnight while the reveal is keyed
-                on a UTC day (reveal-clock.js says why).
-
-                The CONDITION is the part that cannot be dropped: a duo
-                reveals both-or-nothing (shouldReveal), so a partner who
-                never plays means no reveal, and a bare "reveals tomorrow"
-                would look broken on the morning that happens. */}
-            {newest
-              ? <RevealClock prefix="Reveals in" suffix={duo ? " — if you both play." : ", with names."} />
-              : (duo ? "Reveals tomorrow — if you both play." : "Reveals tomorrow, with names.")}
+            {/* A 1v1 has no clock: it reveals the moment the other person
+                answers, and this account has run as far ahead as it may.
+                A group reveals when everyone has played or at the round's
+                deadline — the clock counts to THAT, only on the card in
+                view (reveal-clock.js). No sentence here names a cadence
+                (D419 §3). */}
+            {duo
+              ? `Reveals when ${themName} plays — you're ${waiting} ${waiting === 1 ? "round" : "rounds"} ahead.`
+              : (newest && deadline != null
+                ? <RevealClock prefix="Reveals when everyone has played, or in" until={deadline} suffix=", with names." />
+                : "Reveals when everyone has played, or at the deadline, with names.")}
             {" Takes open with the reveal."}
           </div>
           {nextName && (
@@ -1303,6 +1331,20 @@ function LdCard({ g, vh, nextName, newest }: {
     body = (
       <div style={col(12)} key="ask">
         {reveal && <LdReveal g={g} reveal={reveal} />}
+        {waiting > 0 && (
+          // The volley's own line: what you have sealed and who it waits on,
+          // above the next question. Who has played is what `roundPlayers`
+          // would say (ROUNDS-PLAN §2.4, an owner row); until then the line
+          // names the person, never a state of theirs the device cannot see.
+          <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+            {waiting === 1 ? `Round ${R.open} sealed` : `${waiting} rounds sealed`}
+            {duo
+              ? ` — waiting on ${themName}.`
+              : (deadline != null && newest
+                ? <> — <RevealClock prefix="reveals when everyone has played, or in" until={deadline} /></>
+                : " — reveals when everyone has played, or at the deadline.")}
+          </div>
+        )}
         <LdPrompt>{q.prompt}</LdPrompt>
         <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>your answer</span>
         <div style={col(9)}>
@@ -1317,7 +1359,7 @@ function LdCard({ g, vh, nextName, newest }: {
   } else {
     body = (
       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)" }} key="noq">
-        No question today — the deck is still loading.
+        No question yet — the deck is still loading.
       </div>
     );
   }
@@ -1344,7 +1386,7 @@ function LdCard({ g, vh, nextName, newest }: {
       // A card fills the view while it still wants something from you, and
       // collapses to its content once it does not — a finished circle
       // should not cost a screen of scrolling to get past.
-      minHeight: mine || shown ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
+      minHeight: atLead || shown ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
       boxSizing: "border-box",
       scrollSnapAlign: "start", scrollSnapStop: "always",
       display: "flex", flexDirection: "column", gap: 16,
@@ -1353,7 +1395,7 @@ function LdCard({ g, vh, nextName, newest }: {
       {header}
       {menu && <LdManage g={g} onClose={() => setMenu(false)} />}
       {menu && duo && members.length === 2 && (S.romanticPoolReady() || romantic) && (
-        <LdModeRow g={g} sealed={mine != null} />
+        <LdModeRow g={g} sealed={waiting > 0} />
       )}
       {body}
       {runRows}

@@ -754,8 +754,8 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   ok("D290 × D400: the rebuild reproduces the tail's shard count from the answers");
 }
 
-// 8 · the duel loop: create → join by code → sealed answers → reveal → streak
-const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+// 8 · the duel loop: create → ask/approve → sealed answers → the reveal on
+// the completing answer → the next round opens → streak (ROUNDS-PLAN, D420)
 const created = await httpsCallable(fns, "createGroupV2")({ name: "The Crew", mode: "duo" });
 const { gid, inviteCode } = created.data;
 if (!gid || !inviteCode) fail("createGroupV2: " + JSON.stringify(created.data));
@@ -847,118 +847,137 @@ if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.dat
 }
 ok("a member let them in; the queue entry and its name are gone");
 
-const aid = `g_${gid}_${YESTER}`;
-// A DUO-surface question, because this group is mode "duo" (line 490) and
-// isDuelAnswer compares the question's surface to the answer's. duelQFor
-// (data/deck.ts) draws with `q.surface === mode`, so "group-gu0" under a
-// duo group was a shape no client could produce — it only ever passed
-// because the rule did not look.
+// Round 1 is what a fresh group opens on. A DUO-surface question, because
+// this group is mode "duo" and isDuelAnswer compares the question's surface
+// to the answer's.
+const aid = `g_${gid}_r1`;
 const duel = (idx, guess) => ({
   qid: "duo-001", surface: "duo", optionIdx: idx, guessIdx: guess,
-  gid, day: YESTER, answeredAt: serverTimestamp(), anchors: {},
+  gid, round: 1, answeredAt: serverTimestamp(), anchors: {},
 });
 await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
 // partner must NOT see the sealed answer pre-reveal
 await expectDenied("sealed answer unreadable to partner pre-reveal", () =>
   getDoc(doc(pDb, "v2_users", uid, "answers", aid)));
-await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", aid), duel(2, 1));
+// …and the first answer started the open round's clock and marked who
+// played — the trigger's transaction, Eventarc-asynchronous, so wait for it.
+{
+  let marked = false;
+  for (let i = 0; i < 25 && !marked; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const g = await getDoc(doc(db, "v2_groups", gid));
+    marked = ((g.get("played") || {}).r1 || []).includes(uid) && !!g.get("roundDeadlineAt");
+  }
+  if (!marked) fail("onV2AnswerCreated never marked played.r1 / started the round's clock");
+  ok("the first answer marked the player and started the round's clock");
+}
+// A round SIX ahead is past the lead; five ahead (r5, with r1 open) is the
+// last one inside it. Both as the same member, both real client shapes.
+await expectDenied("a round past the lead is refused", () =>
+  setDoc(doc(db, "v2_users", uid, "answers", `g_${gid}_r6`), { ...duel(0, 0), round: 6 }));
+await setDoc(doc(db, "v2_users", uid, "answers", `g_${gid}_r5`), { ...duel(0, 1), round: 5 });
+ok("a round inside the lead seals; one past it is refused");
 
-const revealed = await httpsCallable(fns, "revealDuelsNowV2")({ day: YESTER });
-if (revealed.data.revealed < 1) fail("revealDuelsNowV2 revealed nothing");
-const reveal = await getDoc(doc(pDb, "v2_groups", gid, "reveals", YESTER));
-if (!reveal.exists()) fail("reveal doc missing");
+await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", aid), duel(2, 1));
+// THE REVEAL IS WRITTEN BY THE COMPLETING ANSWER'S TRIGGER, not by a scan:
+// wait for it.
+let reveal = null;
+for (let i = 0; i < 25 && !reveal; i++) {
+  await new Promise((r) => setTimeout(r, 400));
+  const snap = await getDoc(doc(pDb, "v2_groups", gid, "reveals", "r1"));
+  if (snap.exists()) reveal = snap;
+}
+if (!reveal) fail("the second answer did not reveal round 1 — the trigger's reveal-on-completion is not running");
 const votes = reveal.get("votes");
 if (votes[uid]?.optionIdx !== 1 || votes[uid]?.guessIdx !== 2
   || votes[partner.user.uid]?.optionIdx !== 2) fail("reveal votes wrong: " + JSON.stringify(votes));
-ok("reveal materialized with both votes + guesses");
+if (reveal.get("round") !== 1 || typeof reveal.get("day") !== "string") fail("reveal lacks its round or day: " + JSON.stringify(reveal.data()));
+ok("round 1 revealed on the second answer, with both votes + guesses");
 
 const gsnap = await getDoc(doc(db, "v2_groups", gid));
+if (gsnap.get("round") !== 2) fail("the reveal did not open round 2: " + gsnap.get("round"));
+if ((gsnap.get("played") || {}).r1) fail("the revealed round is still in played: " + JSON.stringify(gsnap.get("played")));
+if (!((gsnap.get("played") || {}).r5 || []).includes(uid)) fail("the round sealed ahead was pruned: " + JSON.stringify(gsnap.get("played")));
 if (gsnap.get("streak") !== 1) fail("streak != 1: " + gsnap.get("streak"));
-ok("duo streak = 1");
+ok("round 2 opened in the same commit; the round sealed ahead survived; duo streak = 1");
+// …and round 1 is closed to a late-comer now that it has revealed.
+await expectDenied("the revealed round is refused", () =>
+  setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", `g_${gid}_r1`), duel(0, 0)));
 
-// 8b · the pending-day marker, and the INDEXED scan the schedule uses.
-//
-// The reveal above went through revealDuelsNowV2's default FULL scan, which
-// reads every group and therefore cannot tell whether the marker works. The
-// schedule does not do that — it queries
-// `where("pendingDays","array-contains",day)` and only sees groups the
-// answer trigger has marked. So the marker is on the critical path in
-// production and on no path at all in the test above; this leg closes that.
-//
-// The wait is what the full scan exists to avoid: the marker is written by
-// onV2AnswerCreated, so it is Eventarc-asynchronous, and an indexed scan
-// fired immediately would be racing it. In production that race is free (the
-// scan runs every 2h), but a test has to wait for it explicitly.
+// 8b · the deadline scan, and the operator's lever. A group where only one
+// of two members plays: the round is neither complete nor due, so the
+// INDEXED scan (the schedule's query, `roundDeadlineAt <= now`) finds
+// nothing — and the lever's `force` reveals it for whoever played, which
+// is what the deadline does a day later (the owner's rule, 2026-09-08).
 {
   const mkGroup = await httpsCallable(fns, "createGroupV2")({ name: "Marker Crew", mode: "group" });
   const mkGid = mkGroup.data.gid;
-  const mkDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  await httpsCallable(pFns, "requestJoinV2")({ code: mkGroup.data.inviteCode });
+  await httpsCallable(fns, "approveJoinV2")({ gid: mkGid, uid: partner.user.uid });
   // …with a call on where the room lands (D386): a group answer may carry
   // `guessIdx` like a duo's, and the reveal below must publish it.
-  await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_${mkDay}`), {
+  await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_r1`), {
     qid: "group-gu0", surface: "group", optionIdx: 1, guessIdx: 1,
-    gid: mkGid, day: mkDay, answeredAt: serverTimestamp(), anchors: {},
+    gid: mkGid, round: 1, answeredAt: serverTimestamp(), anchors: {},
   });
-
   let marked = false;
   for (let i = 0; i < 25 && !marked; i++) {
     await new Promise((r) => setTimeout(r, 400));
     const s = await getDoc(doc(db, "v2_groups", mkGid));
-    marked = (s.get("pendingDays") || []).includes(mkDay);
+    marked = ((s.get("played") || {}).r1 || []).includes(uid);
   }
-  if (!marked) fail("onV2AnswerCreated never marked pendingDays — the indexed scan would see nothing");
-  ok("answer trigger marked the group's pending day");
+  if (!marked) fail("onV2AnswerCreated never marked played.r1 on the group");
 
-  const idx = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
+  const idx = await httpsCallable(fns, "revealDuelsNowV2")({ scan: "indexed" });
   if (idx.data.mode !== "indexed") fail("scan mode not honoured: " + JSON.stringify(idx.data));
-  if (idx.data.revealed < 1) fail("indexed scan revealed nothing — the marker query missed the group");
-  const mkRevealSnap = await getDoc(doc(db, "v2_groups", mkGid, "reveals", mkDay));
-  if (!mkRevealSnap.exists())
-    fail("indexed scan reported a reveal that is not there");
+  if ((await getDoc(doc(db, "v2_groups", mkGid, "reveals", "r1"))).exists())
+    fail("the indexed scan revealed a round that was neither complete nor due");
+  ok("the indexed scan leaves a round inside its day alone");
+
+  const forced = await httpsCallable(fns, "revealDuelsNowV2")({ force: true });
+  if (forced.data.revealed < 1) fail("the forced lever revealed nothing");
+  const mkRevealSnap = await getDoc(doc(db, "v2_groups", mkGid, "reveals", "r1"));
+  if (!mkRevealSnap.exists()) fail("the lever reported a reveal that is not there");
   const mkVotes = mkRevealSnap.get("votes") || {};
   if (mkVotes[uid]?.guessIdx !== 1)
     fail("the group reveal dropped the call on the room: " + JSON.stringify(mkVotes[uid]));
-  ok("a group reveal carries the member's call on the room (D386)");
-  ok("indexed scan found the marked group and revealed it");
+  if (mkVotes[partner.user.uid]) fail("a member who did not play has a vote in the reveal");
+  ok("a group reveal carries the member's call on the room (D386), for whoever played");
 
-  // Settling the day must clear it, or every later run re-reads this group
-  // for a day it has already published.
   const after = await getDoc(doc(db, "v2_groups", mkGid));
-  if ((after.get("pendingDays") || []).includes(mkDay))
-    fail("the revealed day is still pending — the scan would loop on it");
-  ok("the reveal cleared its own pending day");
+  if (after.get("round") !== 2) fail("the forced reveal did not open round 2");
+  if (after.get("roundDeadlineAt")) fail("round 2 has a clock with nobody in it");
+  ok("the next round opened with no clock, since nobody has played it");
 
-  // …and the query really is a filter: a second indexed run for the same day
-  // now matches nothing, where the full scan would still walk every group.
-  const again = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
-  if (again.data.scanned !== 0)
-    fail("indexed rerun scanned " + again.data.scanned + " groups; expected 0 once nothing is pending");
-  ok("indexed rerun reads nothing once the day is settled");
+  // …and the lever is idempotent: nothing has an answer in it now.
+  const again = await httpsCallable(fns, "revealDuelsNowV2")({ force: true });
+  if (again.data.revealed !== 0)
+    fail("a second forced run revealed " + again.data.revealed + " rounds; expected 0 with nothing sealed");
+  ok("a second forced run reveals nothing");
 }
 
 // 9 · non-membership and post-reveal are SEPARATE denials. The old single
 // check conflated them with a uid fallback of "x", so it had three
 // independent reasons to fail and proved none of them.
 
-// 9a · a non-member cannot answer, even on a day that is still open.
-const OTHERDAY = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+// 9a · a non-member cannot answer, even on the open round.
 const outApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "outsider");
 const outAuth = getAuth(outApp); connectAuthEmulator(outAuth, "http://127.0.0.1:9099", { disableWarnings: true });
 const outDb = getFirestore(outApp, E2E_DB_ID); connectFirestoreEmulator(outDb, "127.0.0.1", 8080);
 const outsider = await signInAnonymously(outAuth);
-await expectDenied("non-member cannot answer an open duel day", () =>
-  setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
+await expectDenied("non-member cannot answer an open round", () =>
+  setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_r2`), {
     // duo-001 for the same reason as the duel helper above: this is the
     // duo group, and the refusal under test is non-membership, so the rest
     // of the shape has to be one a real client would write.
     qid: "duo-001", surface: "duo", optionIdx: 0, guessIdx: 0,
-    gid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
+    gid, round: 2, answeredAt: serverTimestamp(), anchors: {},
   }));
 
-// 9b · a REAL member cannot answer a day that is already revealed — the
-// property D5 actually rests on. Needs a group (mode "group" reveals on
-// one answer, unlike a duo's both-or-nothing) so a genuine member is left
-// un-answered at reveal time.
+// 9b · a REAL member cannot answer a round that has already revealed — the
+// property D5 actually rests on. A group of two where one plays and the
+// operator's lever closes the round for whoever played (the owner's rule
+// at the deadline), so a genuine member is left un-answered at reveal time.
 const gCreated = await httpsCallable(fns, "createGroupV2")({ name: "Late Crew", mode: "group" });
 const lateGid = gCreated.data.gid;
 const lateApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "latecomer");
@@ -1006,52 +1025,49 @@ await httpsCallable(fns, "approveJoinV2")({ gid: lateGid, uid: latecomer.user.ui
   ok("the joiner's membership cap holds on the approval path");
 }
 
-const lateAid = `g_${lateGid}_${OTHERDAY}`;
+const lateAid = `g_${lateGid}_r1`;
 const groupAnswer = (idx) => ({
   qid: "group-gu0", surface: "group", optionIdx: idx,
-  gid: lateGid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
+  gid: lateGid, round: 1, answeredAt: serverTimestamp(), anchors: {},
 });
 // only the creator plays; the latecomer deliberately does not
 await setDoc(doc(db, "v2_users", uid, "answers", lateAid), groupAnswer(1));
-const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ day: OTHERDAY });
-if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer");
-// Read as the CREATOR, who played this day. This used to read as the
-// latecomer, which asserted the leak D55 §9 closed as though it were the
-// contract: OTHERDAY is three days before either account joined the group,
-// and the latecomer never played it.
-if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
-  fail("group reveal doc missing");
-// …and since D98 the latecomer reaches it too. The read used to be scoped
-// to the members the reveal itself recorded, so a joiner got nothing for a
-// day before they joined — a privacy guarantee about answers, and D98
-// retired it: the votes inside a reveal are ordinary answers, readable
-// directly, so withholding the materialized copy protected nothing.
-//
-// What the `members` array still does is bookkeeping — deleteAccount
-// scrubs a departing uid out of it, which e2e-delete-account asserts.
+// The lever's verdict reads `played` off the group document, which the
+// answer trigger writes — Eventarc-asynchronous, so wait for the mark as
+// 8b does. In production the scan is hours behind the trigger; a test
+// forcing the reveal a millisecond after the answer is racing it.
 {
-  const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
-  if (!lateRead.exists()) fail("a joiner could not read a past reveal — D98 opened this");
+  let marked = false;
+  for (let i = 0; i < 25 && !marked; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const s = await getDoc(doc(db, "v2_groups", lateGid));
+    marked = ((s.get("played") || {}).r1 || []).includes(uid);
+  }
+  if (!marked) fail("onV2AnswerCreated never marked played.r1 on the late group");
+}
+const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ force: true });
+if (lateReveal.data.revealed < 1) fail("the group's round did not reveal for the one who played");
+// Read as the CREATOR, who played this round.
+if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", "r1"))).exists())
+  fail("group reveal doc missing");
+// …and since D98 the latecomer reaches it too: the votes inside a reveal
+// are ordinary answers, readable directly, so withholding the materialized
+// copy protected nothing. What the `members` array still does is
+// bookkeeping — deleteAccount scrubs a departing uid out of it, which
+// e2e-delete-account asserts.
+{
+  const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", "r1"));
+  if (!lateRead.exists()) fail("a member could not read the room's reveal — D98 opened this");
   if (!(lateRead.get("members") || []).includes(uid))
     fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
-  ok("a joiner reads a reveal from before they joined, and it still records who was there");
+  ok("a member reads the room's reveal, and it records who was there");
   // …and it names NOBODY it does not list as having been there.
-  //
-  // This fixture is the leak's exact shape and had been sitting here
-  // unasserted: the latecomer joined after OTHERDAY ended and never
-  // played, so `revealMembersFor` drops them from `members` — while the
-  // `names` map was built over the group's whole roster and named them
-  // anyway. Leave the circle after that and `deleteAccount`'s
-  // membership-independent sweep, which walks `members`, cannot reach the
-  // name; it stays in a document every signed-in user may read (D98's
-  // read rule), against what web/privacy.html promises in writing.
   //
   // Asserted as an INVARIANT of the document rather than by naming the
   // latecomer, because the guarantee is about the pair of fields and not
   // about this fixture: any future writer that puts a name in without
   // putting the person in `members` fails here.
   {
-    const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
     const names = lateRead.get("names") || {};
     const listed = lateRead.get("members") || [];
     const stray = Object.keys(names).filter((u) => !listed.includes(u));
@@ -1063,7 +1079,7 @@ if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists()
     ok("the reveal names only the people it records as having been there");
   }
 }
-await expectDenied("member cannot answer a day already revealed", () =>
+await expectDenied("member cannot answer a round already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
 
 // duel answers must NOT leak into world aggregates

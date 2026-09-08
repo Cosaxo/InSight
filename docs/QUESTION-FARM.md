@@ -870,7 +870,8 @@ Governance carries the schedule). Until then it ran only when the
 maintainer asked a dev session, and the measured result was the shape
 every unscheduled lane produced: nothing — twelve straight days without
 a duel question (2026-08-07 → 08-19) while the group pool sat at exactly
-one 24-day rotation, meaning a daily group's day 25 is a rerun. Rules
+one 24-round rotation, meaning a group's 25th round is a rerun (a
+round was a day then; it is a round now, ROUNDS-PLAN / D420). Rules
 for a duel run:
 
 - **Start every run with `npm run duel:budget -- --open <questions on

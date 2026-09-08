@@ -44903,7 +44903,7 @@ amendment reasoning production's duel-answer set to provably empty).
 rules need a transition window accepting both id shapes, and that is a
 materially bigger change than what is planned.
 
-### D420 amendment (2026-09-08) — the model is approved, and notifications are the volley's other half
+## D420 amendment (2026-09-08) · The model is approved, and notifications are the volley's other half
 
 Read the plan back in plain words — a round is a number; a 1v1 reveals
 the moment the other person answers; a group reveals when the last
@@ -44945,3 +44945,58 @@ move. `ROUNDS-PLAN.md` §7.4 is the design; what it commits to:
 Nothing here is a D334 ask: a nudge says *someone played*, which
 `roundPlayers` already discloses to the same people, and a reveal push
 says what today's says.
+
+## D420 amendment (2026-09-08, later the same day) · Steps 0–3 are built: the round replaces the day
+
+Built on the branch the day the model was approved, each step green on
+its own and the whole tree green at the end: `test:unit` (2 875),
+`test --prefix functions` (790), `test:scripts` (1 023), `test:rules`
+(203, coverage baseline unmoved), `test:e2e:all` on one emulator boot,
+`lint`, `tsc -b`, `check:globals` (30, unmoved), `check:figures`,
+`check:docs`, `check:public-copy`, `check:policy-claims`,
+`check:data-inventory`, `check:a11y`, `check:tap-targets`,
+`check:appcheck`, `check:monitoring`, `check:deploy-targets`,
+`check:fn-runtime`.
+
+**What is in the tree now.** A duel answer is `g_{gid}_r{n}` with
+`round` in place of `day`; the group document carries the open `round`,
+a `played` map of who has sealed which round, and the open round's clock
+(`roundOpenedAt`, `roundDeadlineAt`) from its first answer. The rules
+bound an answer to `[open, open + 5)` off the group document the
+membership clause already fetches, and the day regex, both
+`timestamp.date()` clauses and the reveal-exists `exists()` are gone —
+that last one because the reveal and the advance of `round` are one
+commit. A 1v1 reveals on the second answer and a group on the last,
+inside `onV2AnswerCreated`; a round with an answer in it closes at its
+deadline for whoever played, found by an indexed range on
+`roundDeadlineAt` every two hours; the next round opens in the reveal's
+own commit. The streak stays a day streak. Reveal history is one ordered
+query. `revealDuelsNowV2` takes `force` instead of a day. The card says
+*Reveals when Ada plays* and counts a group to its deadline.
+
+**Measured, not assumed, on the way.** `string(int)` resolves in rules
+(the emulator probe, step 0). The reveal reads `2 + 2m` where the day's
+read `4 + 3m`, the duel answer's rule reads are 2 where they were 3, and
+the trigger's are 1 where they were 0 — all three moved in
+`scripts/cost-arith.mjs` and held by the tripwires in
+`scripts/pulse.test.mjs`, which recorded a cost going DOWN for the first
+time. A forced reveal a millisecond after an answer races the trigger's
+mark, so the e2e waits for `played` as production never has to.
+
+**Where the build departed from the plan as written**, recorded in
+`ROUNDS-PLAN.md` §0a rather than by rewriting the plan: `played` as a
+per-round map rather than a single `roundPlayers` list (the lead needs
+it); the clock starting on the first answer rather than at the round's
+opening (a round nobody plays never burns its question); a 1v1 closing
+at the deadline for one player (the owner's rule, both surfaces; it
+fixes the both-or-nothing shape that sealed an abandoned partner's
+answer forever); steps 2 and 3 shipped together (rounds with a two-hour
+wait would have been the day wearing a different clock); and the
+cutover done clean, with reveals from before rounds readable as history,
+because nothing real had played.
+
+**What is NOT built**, so nothing here reads as more than it is: the
+late answer (§4 — an answer to a revealed round is simply refused, as
+before), the notifications (§7.4, behind `web/privacy.html`), the bank
+burst and world questions (§6), and the screens (request 11). The card
+is truthful, not redesigned.

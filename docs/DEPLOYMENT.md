@@ -808,14 +808,17 @@ policy's own runbook tells them to do — would reset the absence timer and
 silence the alert for the outage they are working on.
 
 **Why this one does not wait for "someone is actually reading the alerts",
-unlike the aggregators below.** A missed reveal does **not** self-heal.
-`runDuelReveals` computes `const yester = dayKey || utcDayKey(-1)`, and the
-schedule passes no `dayKey` — so every run handles *yesterday and only
-yesterday*. A three-day outage does not resolve into a catch-up run; it
-leaves two days permanently unrevealed, because no later scheduled run ever
-looks at them again. Recovering them needs a manual `revealDuelsNowV2` with
-an explicit `day`, which needs someone to know which days to name. The
-detection gap and the data loss are the same window.
+unlike the aggregators below.** Under the day, a missed reveal did **not**
+self-heal: every run handled yesterday and only yesterday, so a three-day
+outage left two days permanently unrevealed, and recovering them needed a
+manual `revealDuelsNowV2` naming each day. Under rounds (ROUNDS-PLAN,
+D420) the scan asks for every group whose open round is DUE —
+`roundDeadlineAt <= now` — and a due round stays due until it reveals, so
+the first run after an outage catches up everything the outage missed.
+What the alert still buys is the WAIT: while the scan is quiet, every group
+whose round did not complete sits face-down past its deadline (a 1v1 and a
+group everyone answered reveal in the trigger and are not affected), and a
+recovery is one `revealDuelsNowV2` call with no day to name.
 
 **Known limit, recorded rather than discovered later.** A metric-absence
 condition needs a time series that has existed at least once; against a

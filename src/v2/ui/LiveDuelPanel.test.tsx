@@ -23,12 +23,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => {
+  // The open round's question, for `roundQ` — the same prompt `Q` below
+  // carries; defined here because this factory is hoisted above it.
+  const Q0 = { id: "duo-000", prompt: "Coffee or tea?", options: ["Coffee", "Tea"], kind: "classic" };
   const social = {
     groups: () => [] as Array<Record<string, unknown>>,
-    todayQ: () => null as Record<string, unknown> | null,
+    todayQ: (gid?: string) => { void gid; return null as Record<string, unknown> | null; },
     // Takes the gid since D156 — the rail asks per circle which ones
     // still want you, so a fixture with two circles has to answer for both.
     myDuelVote: (gid?: string) => { void gid; return null as { optionIdx: number } | null; },
+    // Rounds (ROUNDS-PLAN, D420). The fixture's world is "one round is the
+    // lead": a sealed answer to the open round means nothing further to
+    // answer, which is the card's waiting state — the state every case
+    // below written against "you have played today" was about. A case
+    // that wants the volley (a round sealed AND a next question) sets
+    // both `roundInfo` and `todayQ` itself.
+    roundInfo: (gid: string) => (social.myDuelVote(gid)
+      ? { open: 1, next: null as number | null, sealed: [1], lead: 5 }
+      : { open: 1, next: 1 as number | null, sealed: [] as number[], lead: 5 }),
+    roundQ: (gid: string, round: number) => { void gid; void round; return Q0 as Record<string, unknown> | null; },
     revealFor: () => null as Record<string, unknown> | null,
     // Day browsing (D156). The card draws one dot per readable reveal and
     // folds the duo's read-runs out of the same list, so the mock answers
@@ -132,7 +145,14 @@ beforeEach(() => {
   LIVE.enabled = true;
   LIVE.uid = "u_me";
   LIVE.social.groups = () => [DUO];
-  LIVE.social.todayQ = () => Q;
+  // The next question, or nothing once the open round is sealed — the
+  // fixture's one-round lead (see `roundInfo` above). Both reset here,
+  // because a case that sets the volley state (a round sealed AND a next
+  // question) would otherwise leak it into every case after it.
+  LIVE.social.todayQ = (gid?: string) => (LIVE.social.myDuelVote(gid) ? null : Q);
+  LIVE.social.roundInfo = (gid: string) => (LIVE.social.myDuelVote(gid)
+    ? { open: 1, next: null, sealed: [1], lead: 5 }
+    : { open: 1, next: 1, sealed: [], lead: 5 });
   LIVE.social.myDuelVote = () => null;
   LIVE.social.revealFor = () => null;
   LIVE.social.romanticPoolReady = () => false;
@@ -164,29 +184,57 @@ describe("LiveDuelPanel · before the reveal, only your own pick is on screen", 
 
   // The onboarding block below the cards explains the same rules in general
   // terms, so a page-wide text search finds both and cannot say which one
-  // it found. Scope to the countdown line itself: the claim under test is
+  // it found. Scope to the waiting line itself: the claim under test is
   // what the card tells you about the answer you just sealed.
-  const sealedBox = () => screen.getByText(/Reveals in/).textContent || "";
+  const sealedBox = () => screen.getByText(/Reveals when/).textContent || "";
 
-  it("states the duo condition rather than promising a reveal outright", () => {
-    // "revealed after 00:00" alone would be a promise the pipeline does not
-    // keep: shouldReveal() is both-or-nothing for a duo, so a partner who
-    // never plays means no reveal and a streak of zero. The card has to say
-    // the condition, or the product looks broken on the morning it applies.
+  it("a 1v1 reveals when THEY play — no clock, and no cadence (D419 §3)", () => {
+    // Under rounds a 1v1 has no clock at all: it reveals the moment the
+    // other person answers (ROUNDS-PLAN §3). A countdown here would count
+    // to a moment the reveal does not wait on, and "tomorrow" would be a
+    // sentence with an expiry date.
     LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
     render(<LiveDuelPanel mode="duo" />);
-    expect(sealedBox()).toMatch(/if you both play/i);
+    expect(sealedBox()).toMatch(/Reveals when Ada plays/);
+    expect(sealedBox()).toMatch(/1 round ahead/);
+    expect(document.body.textContent).not.toMatch(/tomorrow|Reveals in/i);
   });
 
-  it("promises names for a group, where one answer is enough", () => {
-    // The other branch of the same sentence, and the reason it is a branch:
-    // a group reveals on one answer and does show names, so borrowing the
-    // duo's hedge here would understate what happens.
+  it("a group reveals when everyone has played or at the deadline, with names", () => {
+    // The other branch of the same sentence: a group closes at its round's
+    // deadline for whoever played (the owner's rule), and it shows names.
+    // Without a clock on the group document the card says "at the
+    // deadline"; with one it counts to it (the case below).
     LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     render(<LiveDuelPanel mode="group" />);
     expect(sealedBox()).toMatch(/with names/i);
-    expect(sealedBox()).not.toMatch(/if you both play/i);
+    expect(sealedBox()).toMatch(/everyone has played, or at the deadline/i);
+    expect(sealedBox()).not.toMatch(/Ada plays/i);
+  });
+
+  it("a group with a running clock counts to ITS deadline, not to midnight", () => {
+    LIVE.social.groups = () => [{
+      ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"],
+      roundDeadlineAt: Date.now() + 3 * 3600_000 + 5 * 60_000,
+    }];
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    render(<LiveDuelPanel mode="group" />);
+    expect(sealedBox()).toMatch(/or in 3h 0[45]m, with names/);
+  });
+
+  it("the volley: a sealed round and the next question on one card", () => {
+    // You answered round 1; Ada has not. Round 2 is yours to answer NOW —
+    // the card says what is sealed and who it waits on, above the next
+    // prompt. That line is the whole difference from one a day.
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    LIVE.social.roundInfo = () => ({ open: 1, next: 2, sealed: [1], lead: 5 });
+    LIVE.social.todayQ = () => ({ id: "duo-002", prompt: "Window or aisle?", options: ["Window", "Aisle"], kind: "classic" });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByRole("status").textContent).toMatch(/Round 1 sealed — waiting on Ada/);
+    expect(screen.getByText("Window or aisle?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Window" })).toBeTruthy();
+    expect(screen.queryByText("you said")).toBeNull();
   });
 
   it("offers the options for voting when you have not played", () => {
@@ -344,7 +392,7 @@ describe("LiveDuelPanel · the question-pool picker (D40 part 4)", () => {
     expect(calls).toEqual([["g1", "friends"]]);
   });
 
-  it("locks the picker once today's answer is sealed, and says so", () => {
+  it("locks the picker while an answer of yours is sealed, and says so", () => {
     LIVE.social.romanticPoolReady = () => true;
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     const calls: string[] = [];
@@ -355,7 +403,7 @@ describe("LiveDuelPanel · the question-pool picker (D40 part 4)", () => {
     expect(romantic.disabled).toBe(true);
     fireEvent.click(romantic);
     expect(calls).toEqual([]);
-    expect(screen.getByText(/locked until tomorrow/i)).toBeTruthy();
+    expect(screen.getByText(/locked while an answer of yours is sealed/i)).toBeTruthy();
   });
 
   it("never renders for a solo duo or a group", () => {
@@ -1236,7 +1284,8 @@ describe("LiveDuelPanel · people waiting to be let in", () => {
 //
 // The server zeroes a duo's streak when a day settles unrevealed, but only
 // for a group the scan looks at — and the twice-hourly scan queries
-// `pendingDays array-contains day`, which onV2AnswerCreated writes. A duo
+// `roundDeadlineAt <= now` (ROUNDS-PLAN) — and a 1v1 reveals on the
+// completing answer, not on a scan at all. A duo
 // where NEITHER partner played is never examined, so its streak stood
 // untouched forever, while the pair that missed by half was zeroed on the
 // first miss. The abandoned duo advertised the live run; the more engaged

@@ -442,6 +442,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // data wearing a live badge — the exact thing D9 removed.
     groups: () => [],
     todayQ: () => null,
+    roundQ: () => null,
+    roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
     myDuelVote: () => null,
     revealFor: () => null,
     revealHistory: () => [],

@@ -1434,7 +1434,6 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // duel: the SEAL is the product — an editable sealed answer lets a
     // member re-decide after reading the room.
     const GID = "g_frozen";
-    const DAY = dayOffset(-1);
     await seed(async (db) => {
       await setDoc(doc(db, "v2_questions", "duo-frozen"), {
         surface: "duo", seq: 0, type: "classic",
@@ -1444,10 +1443,10 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         name: "Pair", mode: "duo", memberUids: [OWNER, FRIEND],
       });
     });
-    const dref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_${DAY}`);
+    const dref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r1`);
     await assertSucceeds(setDoc(dref, {
       qid: "duo-frozen", surface: "duo", optionIdx: 0, guessIdx: 1,
-      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+      gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: {},
     }));
     await assertFails(updateDoc(dref, { optionIdx: 1, editedAt: serverTimestamp() }));
   });
@@ -1510,7 +1509,6 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // 21-32 permanently unpickable, surfaced as a generic write failure.
     const GID = "g_big";
     const members = Array.from({ length: 32 }, (_, i) => `m${i}`);
-    const DAY = dayOffset(-1);
     await seed(async (db) => {
       await setDoc(doc(db, "v2_questions", "group-pick0"), {
         surface: "group", seq: 0, type: "pick", prompt: "Who?", options: [],
@@ -1519,11 +1517,11 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         name: "Big", mode: "group", memberUids: members,
       });
     });
-    const aid = `g_${GID}_${DAY}`;
+    const aid = `g_${GID}_r1`;
     const duel = (idx: number, guess?: number) => ({
       qid: "group-pick0", surface: "group", optionIdx: idx,
       ...(guess === undefined ? {} : { guessIdx: guess }),
-      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+      gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: {},
     });
     await assertSucceeds(setDoc(
       doc(asUser("m0"), "v2_users", "m0", "answers", aid), duel(31)));
@@ -1553,7 +1551,6 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // a current member, and only a pick question (empty bank options) may
     // carry one.
     const GID = "g_snap";
-    const DAY = dayOffset(-1);
     await seed(async (db) => {
       await setDoc(doc(db, "v2_questions", "group-pick1"), {
         surface: "group", seq: 0, type: "pick", prompt: "Who?", options: [],
@@ -1565,10 +1562,10 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         name: "Snap", mode: "group", memberUids: ["s0", "s1", "s2"],
       });
     });
-    const aid = `g_${GID}_${DAY}`;
+    const aid = `g_${GID}_r1`;
     const duel = (over: Record<string, unknown>) => ({
       qid: "group-pick1", surface: "group", optionIdx: 1,
-      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {}, ...over,
+      gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: {}, ...over,
     });
     // names a member → in
     await assertSucceeds(setDoc(
@@ -1594,7 +1591,6 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // number reached duelAggDelta, whose range check is the only other
     // thing standing between a fabricated index and a published aggregate.
     const GID = "g_small";
-    const DAY = dayOffset(-1);
     await seed(async (db) => {
       await setDoc(doc(db, "v2_questions", "duo-q0"), {
         surface: "duo", seq: 0, type: "classic", prompt: "Which?",
@@ -1608,10 +1604,10 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         name: "Pair", mode: "duo", memberUids: ["p0", "p1", "p2", "p3", "p4"],
       });
     });
-    const aid = `g_${GID}_${DAY}`;
+    const aid = `g_${GID}_r1`;
     const duel = (guess: number) => ({
       qid: "duo-q0", surface: "duo", optionIdx: 0, guessIdx: guess,
-      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+      gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: {},
     });
     await assertSucceeds(setDoc(
       doc(asUser("p0"), "v2_users", "p0", "answers", aid), duel(2)));
@@ -1890,9 +1886,9 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
   // is the one thing the surface clause exists to hold.
   it("cannot reach a sealed duel answer by adding the city filter", async () => {
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g2_2026-08-10"), {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g2_r1"), {
         qid: "group-gu0", surface: "duo", optionIdx: 1,
-        gid: "g2", day: "2026-08-10", anchors: { city: "Oslo, NO" },
+        gid: "g2", round: 1, anchors: { city: "Oslo, NO" },
       });
     });
     await assertFails(getDocs(query(
@@ -1926,12 +1922,12 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
   // a groupmate however they ask for it, while the owner still sees theirs.
   it("keeps duel answers sealed from other players, by surface", async () => {
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g1_2026-08-10"), {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g1_r1"), {
         qid: "group-gu0", surface: "duo", optionIdx: 1, guessIdx: 0,
-        gid: "g1", day: "2026-08-10",
+        gid: "g1", round: 1,
       });
     });
-    const sealed = ["v2_users", OWNER, "answers", "g_g1_2026-08-10"] as const;
+    const sealed = ["v2_users", OWNER, "answers", "g_g1_r1"] as const;
     await assertSucceeds(getDoc(doc(asUser(OWNER), ...sealed)));
     await assertFails(getDoc(doc(asUser(FRIEND), ...sealed)));
     // and it cannot be reached by widening the collection-group filter
@@ -2217,26 +2213,33 @@ describe("v2 private subcollections stay un-enumerable across users", () => {
 describe("v2 groups + sealed duels (Phase 3)", () => {
   const GID = "g1";
   const DAY = dayOffset(-1);
-  const seedGroup = (members: string[] = [OWNER, FRIEND]) => seed(async (db) => {
-    await setDoc(doc(db, "v2_groups", GID), {
-      name: "The Crew", mode: "duo", ownerUid: OWNER,
-      memberUids: members, inviteCode: "ABCD2345", streak: 0,
-    });
-    // "duo", matching both the group's own mode above and the surface the
-    // answers below claim. duelQFor (data/deck.ts) draws the day's question
-    // with `q.surface === mode`, so a duo group answering a group-surface
-    // question is a shape the client cannot produce — and the create rule
-    // compares the two, so seeding them crossed would test nothing real.
+  // "duo", matching both the group's own mode and the surface the answers
+  // below claim. duelQFor (data/deck.ts) draws the round's question with
+  // `q.surface === mode`, so a duo group answering a group-surface question
+  // is a shape the client cannot produce — and the create rule compares
+  // the two, so seeding them crossed would test nothing real.
+  const seedGroupQuestion = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", "group-gu0"), {
       surface: "duo", seq: 0, type: "choice", prompt: "?",
       options: ["Food", "Banter", "Showing up", "History"], active: true,
     });
   });
+  const seedGroup = async (members: string[] = [OWNER, FRIEND]) => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "The Crew", mode: "duo", ownerUid: OWNER,
+        memberUids: members, inviteCode: "ABCD2345", streak: 0,
+      });
+    });
+    await seedGroupQuestion();
+  };
+  // Round 1, which a group with no `round` field is on (the rules read
+  // `get("round", 1)`, the same default every other reader makes).
   const duelAnswer = (over: Record<string, unknown> = {}) => ({
     qid: "group-gu0", surface: "duo", optionIdx: 1, guessIdx: 2,
-    gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {}, ...over,
+    gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: {}, ...over,
   });
-  const aid = `g_${GID}_${DAY}`;
+  const aid = `g_${GID}_r1`;
 
   it("groups are read-only to clients — even members and would-be creators", async () => {
     await seedGroup();
@@ -2306,24 +2309,31 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
   });
 
   it("refuses a duel answer whose own fields are out of shape", async () => {
-    // Six predicates in `isDuelAnswer()` had never evaluated false — the
-    // gid and day type checks, the day's format, the question-exists read
-    // and both guessIdx bounds — so each could be deleted with the suite
-    // green. The id is checked against `g_{gid}_{day}` elsewhere, which is
-    // why these looked covered: that check reads the ID, and these read
-    // the BODY, and a body can disagree with an id that is itself correct.
+    // Predicates in `isDuelAnswer()` that had never evaluated false — the
+    // gid and round type checks, the question-exists read and both
+    // guessIdx bounds — so each could be deleted with the suite green. The
+    // id is checked against `g_{gid}_r{n}` elsewhere, which is why these
+    // looked covered: that check reads the ID, and these read the BODY,
+    // and a body can disagree with an id that is itself correct.
     await seedGroup();
-    // gid and day, wrong type. The id still says g_{gid}_{day}, so every
+    // gid and round, wrong type. The id still says g_{gid}_r1, so every
     // clause about the id is satisfied and only these can refuse.
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ gid: 7 })));
     await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ day: 20260726 })));
-    // A day that is a string but not a date. Format-checking is what stops
-    // a member pre-sealing days, per the rule's own note.
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ round: "1" })));
     await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_notaday`),
-      duelAnswer({ day: "notaday" })));
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ round: 0 })));
+    // The id and the round disagree: the id IS the round, and the rule
+    // builds it with string(round) rather than trusting either half.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r2`),
+      duelAnswer({ round: 1 })));
+    // …and the day, which is gone from this shape: an answer carrying one
+    // is refused by the key list, so a client that still writes the day
+    // fails loudly rather than sealing an answer no round will ever reveal.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ day: DAY })));
     // A question that does not exist. The read is what stops an answer
     // being filed against nothing and folding into nothing.
     await assertFails(setDoc(
@@ -2346,9 +2356,9 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     // non-member (not in memberUids) is refused even in their own subtree
     await assertFails(setDoc(
       doc(asUser(STRANGER), "v2_users", STRANGER, "answers", aid), duelAnswer()));
-    // id must match g_{gid}_{day}
+    // id must match g_{gid}_r{n}
     await assertFails(setDoc(
-      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", "g_other_2026-07-26"),
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", "g_other_r1"),
       duelAnswer()));
     // sealed answers stay owner-only before the reveal
     await assertFails(getDoc(
@@ -2390,42 +2400,63 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
       duelAnswer({ qid: "daily-000", optionIdx: 0, guessIdx: 0 })));
-    // The ordinary day still lands — the refusals above are the narrowing,
-    // not a seal on the surface.
+    // The ordinary round still lands — the refusals above are the
+    // narrowing, not a seal on the surface.
     await assertSucceeds(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer()));
   });
 
-  it("the duel day must be near now — no pre-sealing the future, no deep backfill", async () => {
-    // Without this, a member could seal every future day in advance:
-    // their half of the streak guaranteed forever, and the bank question
-    // each future reveal would use fixed by whoever wrote first.
-    await seedGroup();
-    const at = (n: number) => {
-      const day = dayOffset(n);
-      return setDoc(
-        doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_${day}`),
-        duelAnswer({ day }),
-      );
-    };
-    await assertSucceeds(at(0));    // today
-    await assertSucceeds(at(-1));   // yesterday — the normal reveal target
-    await assertSucceeds(at(-3));   // a client flushing an offline queue
-    await assertSucceeds(at(1));    // UTC+14 is already "tomorrow"
-    await assertFails(at(-8));      // deep backfill
-    await assertFails(at(8));       // pre-sealing the future
-    await assertFails(at(400));
-  });
-
-  it("answering a day that is already revealed is refused", async () => {
+  it("the round bound: nothing behind the open round, nothing past the lead", async () => {
+    // ROUNDS-PLAN §2.2, §5. A member may seal the open round and up to
+    // ROUND_LEAD - 1 rounds ahead of it; a round behind the open one has
+    // revealed (the reveal and the advance are one commit), and a round
+    // past the lead would let one client pin which question every future
+    // round serves. The bound is read off the group document the
+    // membership clause already fetched.
     await seedGroup();
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
-        day: DAY, qid: "group-gu0", votes: {}, names: {},
+      await setDoc(doc(db, "v2_groups", GID), { round: 3 }, { merge: true });
+    });
+    const at = (n: number) => setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r${n}`),
+      duelAnswer({ round: n }),
+    );
+    await assertSucceeds(at(3));    // the open round
+    await assertSucceeds(at(4));    // one ahead
+    await assertSucceeds(at(7));    // the last round inside the lead
+    await assertFails(at(8));       // one past it
+    await assertFails(at(400));
+    await assertFails(at(2));       // revealed — the round behind the open one
+    await assertFails(at(1));
+  });
+
+  it("the rules' lead literal equals ROUND_LEAD in functions/src/pure.ts", () => {
+    // ONE constant in two files, pinned equal here because neither file can
+    // import the other: rules have no imports, and pure.ts is the server's.
+    const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    const pure = readFileSync(resolve(__dirname, "../functions/src/pure.ts"), "utf8");
+    const inRules = /\.data\.get\("round", 1\) \+ (\d+)/.exec(rules);
+    const inPure = /export const ROUND_LEAD = (\d+);/.exec(pure);
+    expect(inRules, "the rules no longer bound the round by a literal lead").toBeTruthy();
+    expect(inPure, "pure.ts no longer exports ROUND_LEAD").toBeTruthy();
+    expect(Number(inRules![1])).toBe(Number(inPure![1]));
+  });
+
+  it("answering a round that has already revealed is refused", async () => {
+    // Round 1 revealed and round 2 opened, in one commit; a member who
+    // did not play round 1 cannot seal it now with the table in view.
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID), { round: 2 }, { merge: true });
+      await setDoc(doc(db, "v2_groups", GID, "reveals", "r1"), {
+        round: 1, day: DAY, qid: "group-gu0", votes: {}, names: {},
       });
     });
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_users", FRIEND, "answers", aid), duelAnswer()));
+    // …while the open round is theirs to play.
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", `g_${GID}_r2`), duelAnswer({ round: 2 })));
   });
 
   it("reveals are world-readable, never client-writable", async () => {
@@ -2458,9 +2489,9 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
   it("reveal history is readable as an ordered LIST query, by a member and by a stranger", async () => {
     await seedGroup();
     await seed(async (db) => {
-      for (const [id, at] of [["2026-07-24", 1], ["2026-07-25", 2], [DAY, 3]] as const) {
+      for (const [id, at] of [["r1", 1], ["r2", 2], ["r3", 3]] as const) {
         await setDoc(doc(db, "v2_groups", GID, "reveals", id), {
-          day: id, qid: "group-gu0", votes: { [OWNER]: { optionIdx: 1 } },
+          round: at, day: DAY, qid: "group-gu0", votes: { [OWNER]: { optionIdx: 1 } },
           names: {}, members: [OWNER, FRIEND], revealedAt: new Date(2026, 6, 20 + at),
         });
       }
@@ -2469,7 +2500,7 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       collection(asUser(u), "v2_groups", GID, "reveals"),
       orderBy("revealedAt", "desc"), limit(14));
     const mine = await assertSucceeds(getDocs(q(FRIEND)));
-    expect((mine as { docs: { id: string }[] }).docs.map((d) => d.id)).toEqual([DAY, "2026-07-25", "2026-07-24"]);
+    expect((mine as { docs: { id: string }[] }).docs.map((d) => d.id)).toEqual(["r3", "r2", "r1"]);
     // D98: a stranger lists it too, as they read it.
     await assertSucceeds(getDocs(q(STRANGER)));
   });
@@ -3323,7 +3354,6 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   // bank-side clause exists to disagree with.
   const RANKQ_OFF = "feed-b02";
   const GID = "gbind";
-  const DAY = dayOffset(-1);
 
   let enfEnv: RulesTestEnvironment;
 
@@ -3422,10 +3452,10 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     qid: RANKQ_OFF, surface: "feed", order: [2, 0, 1],
     answeredAt: serverTimestamp(), anchors: {},
   });
-  const duelAid = `g_${GID}_${DAY}`;
+  const duelAid = `g_${GID}_r1`;
   const duelAnswer = () => ({
     qid: "group-gu0", surface: "duo", optionIdx: 1, guessIdx: 2,
-    gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+    gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: {},
   });
 
   it("soft mode (the deployed text): the claim is optional in both directions", async () => {

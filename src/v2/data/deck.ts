@@ -648,9 +648,9 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   };
 }
 
-// Every member's client computes the day's question independently — the
-// same pure function of (gid, utcDay, bank) on every device: bank[(hash(gid)
-// + utcDay) % len] over the matching-surface bank. There is NO server-side
+// Every member's client computes a ROUND's question independently — the
+// same pure function of (gid, round, bank) on every device: bank[(hash(gid)
+// + round) % len] over the matching-surface bank. There is NO server-side
 // chooser to mirror: rules only require the answered qid to exist in the
 // bank, and the reveal stores the qid the MOST members answered (plurality,
 // lexical tie-break — revealQid in functions/src/pure.ts) — so a client that
@@ -662,12 +662,15 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 // vote still appears in the reveal — it is only kept out of the cross-group
 // aggregate, which is a claim about one question and must not count answers
 // given to another.
+//
+// The round took the UTC day's place here at ROUNDS-PLAN / D420: the day
+// was what advanced the game when nobody played, and the round's deadline
+// does that now, so the rotation walks rounds. Nothing else about it moved.
 // "pick" questions take the members as options.
 export function duelQFor(
   g: Record<string, unknown> & { id: string },
   duelBank: Array<QuestionDoc & { id: string }>,
-  utcDay: number,
-  dayOffset = 0,
+  round: number,
 ): { id: string; prompt: string; options: string[]; kind: string } | null {
   const mode = g.mode === "duo" ? "duo" : "group";
   // A duo draws from exactly one pool (D40 part 4): the romantic pool when
@@ -683,7 +686,7 @@ export function duelQFor(
     (q) => q.surface === mode && (pool ? q.mode === pool : q.mode == null),
   );
   if (!bank.length) return null;
-  const q = bank[(gHash(g.id) + utcDay + dayOffset + bank.length * 1000) % bank.length];
+  const q = bank[(gHash(g.id) + round + bank.length * 1000) % bank.length];
   const names = (g.memberNames || {}) as Record<string, string>;
   const memberUids = (g.memberUids || []) as string[];
   const options =

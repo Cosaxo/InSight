@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — nothing of it is built; the model is APPROVED.** The follow-through on
+**Status: plan notes — steps 0–3 are BUILT (2026-09-08, D420's second amendment); steps 4–8 are open.** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -21,6 +21,64 @@ is refused once that round's reveal exists. Neither reads a clock. The
 day is doing one job only, and it is a scheduling job: **it is what
 advances the game when somebody does not play.** Replace that one job
 and the calendar has nothing left to do.
+
+## 0a · As built, 2026-09-08 — and where it differs from the plan below
+
+Steps 0–3 landed on this branch the day the owner approved the model,
+each green on its own. The plan below is left as written; this section
+is the delta a reader needs, so the plan does not silently claim what
+the tree does not do.
+
+- **`played: { r7: [uid], r8: [uid] }`, not `roundPlayers`.** A single
+  list for the open round could not hold an answer sealed ahead of it,
+  and the lead allows five. The map is one blind `arrayUnion` on a
+  nested path per answer, pruned to the new open round at each reveal
+  (`prunePlayed`, pure.ts), so it is bounded by the lead times the
+  roster. `roundKey` is unpadded (`r7`): nothing orders by id, history
+  orders by `revealedAt`, and the rules build the answer id with
+  `string(round)` — which step 0's emulator probe confirmed before
+  anything was written against it.
+- **The reveal-exists `exists()` is gone from the rules.** The reveal
+  and the advance of `round` are ONE commit, so `round >= open` already
+  says "no reveal exists for it". One billed rule read fewer per duel
+  answer (`RULE_READS.duel` 3 → 2), not the same count the plan
+  assumed.
+- **The clock starts on the open round's FIRST answer**, not when the
+  round opens. A round nobody plays never closes and never burns its
+  question — which is what "round" means, and what the day did not do.
+  The reveal starts the next round's clock at once when somebody has
+  already sealed it ahead.
+- **A 1v1 closes at the deadline for one player too** — the owner's
+  rule applied to both surfaces, and it fixes a shape that was live: a
+  partner who stopped playing used to seal the other's answer with no
+  reveal, ever, while the calendar handed out fresh questions anyway.
+- **Steps 2 and 3 shipped together.** Rounds with a two-hour delay
+  before the reveal-on-completion would have been a 1v1 waiting on a
+  schedule for an answer that had already landed — the day wearing a
+  different clock — so the trigger's reveal went in with the model.
+  The trigger's branch is one read now (`TRIGGER_READS.duel` 0 → 1).
+- **The reveal reads `2 + 2m`, not `4 + 3m`.** The pre-read of every
+  answer and the standalone reveal-exists get both became unnecessary
+  once `played` sat on the group document; the tripwire in
+  `scripts/pulse.test.mjs` counts the two sites that remain.
+- **The clean cutover happened.** No dual-write period: the answer id,
+  the reveal id and the rules moved together, and reveals written
+  before rounds stay readable as history. This was available only
+  because nothing real had played (§11's assumption, re-checked: the
+  e2e is the only duel history the repo can see).
+- **The scan is the deadline's executor.** `where("roundDeadlineAt",
+  "<=", now)`, an indexed range; `pendingDays`, `PENDING_DAYS_KEEP`,
+  `scanDays` and `shouldReveal` are gone with the day. And a missed
+  scan now self-heals — a due round stays due — where the day's scan
+  left unrevealed days behind forever (`DEPLOYMENT.md`'s alert section
+  says both).
+- **The card is truthful, not redesigned** (step 8 is the redesign): a
+  1v1 says *Reveals when Ada plays — you're N rounds ahead*, a group
+  counts to its deadline through `RevealClock`'s new `until`, and the
+  volley's own line — *Round 7 sealed — waiting on Ada* — sits above
+  the next prompt. No sentence names a cadence (D419 §3).
+- **`test-users.mjs` plays rounds** (`play`, `reveal` = the forced
+  lever, `history --rounds N`); `--day` is gone.
 
 ## 0 · The short version
 
@@ -533,14 +591,11 @@ to make (D352).
 
 Each step is shippable and green on its own.
 
-0. **Probe the rules conversion** (§2.2) — half an hour, and it decides
-   the id shape before anything is written against it.
-1. **Reveal history by query** (§7.1) — independent of rounds, a cost
-   win today, and rounds cannot ship without it.
-2. **The round model** (§2, §3.2) — schema, rules, `duelQFor`, the client
-   write, the deadline scan. Rounds work here, with up to a 2-hour delay.
-3. **Reveal on the completing answer** (§3.1) — the trigger's read and
-   the instant reveal. This is the step the whole idea is for.
+0. **Probe the rules conversion** (§2.2) — **done 2026-09-08**:
+   `string(int)` resolves, and the zero-padded fallback also works.
+1. **Reveal history by query** (§7.1) — **built 2026-09-08**.
+2. **The round model** (§2, §3.2) — **built 2026-09-08**, with step 3.
+3. **Reveal on the completing answer** (§3.1) — **built 2026-09-08**.
 4. **The late answer** (§4) — the flag, the rules requirement, the
    append, the score exclusions.
 5. **Notifications** (§7.4) — `web/privacy.html` first (a fifth kind,

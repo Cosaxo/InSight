@@ -225,7 +225,6 @@ import {
   rankCrowd,
   CANON_BOARD_N,
   splitBanks,
-  utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import type { FeedAd } from "./sponsored";
@@ -397,10 +396,13 @@ const state = {
   stats: { bankSource: "none", dailySource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
+  // gid → the LATEST reveal (the round before the open one), live-subscribed,
+  // or null while none is readable. `revealKeys` is which reveal id each
+  // listener is on, so a round advancing re-points it.
   reveals: {} as Record<string, Record<string, unknown> | null>,
   groupsUnsub: null as null | (() => void),
   revealUnsubs: {} as Record<string, () => void>,
-  revealDay: "",
+  revealKeys: {} as Record<string, string>,
   // Reveal HISTORY, fetched on demand for the Mirror's Groups portrait —
   // gid → reveal id → doc. Only documents that exist: the query below
   // returns nothing for a day nobody played, where the old per-key fan-out
@@ -2657,7 +2659,7 @@ async function hydrate(): Promise<void> {
     // everything past the 1000th was sealed out of that device
     // permanently, not merely deferred to the next boot.
     //
-    // Reachable well before any scale story: duel (`g_{gid}_{day}`) and
+    // Reachable well before any scale story: duel (`g_{gid}_r{n}`) and
     // pulse (`{qid}_{day}`) answers mint a document per day forever, so
     // an engaged account passes 1000 inside a year — and those day-docs,
     // being the newest, are exactly the ones that crowd the static world
@@ -3583,51 +3585,49 @@ function buildFeedGlobals(): void {
   LIVE.feedReady = true;
 }
 
-// (Re)subscribe every group's reveal doc for the CURRENT yesterday —
-// called from the groups snapshot and again on midnight rollover, so a
-// long-lived session (the reveal-push case) doesn't stay pinned to the
-// day it booted on.
+// (Re)subscribe every group's LATEST reveal — the round before the open
+// one (ROUNDS-PLAN, D420). Called from the groups snapshot, which fires on
+// every group-document change, so a round advancing (the reveal writes
+// `round` in the same commit) re-points the listener at the new reveal
+// within the same tick; and again on midnight rollover, harmlessly.
 function subscribeReveals(db: import("firebase/firestore").Firestore): void {
-  const yester = utcDayKey(-1);
-  const dayChanged = state.revealDay !== yester;
-  state.revealDay = yester;
-  const want = new Set(state.groups.map((g) => g.id));
+  const want = new Map<string, string | null>();
+  for (const g of state.groups) {
+    const open = openRoundOf(g);
+    want.set(g.id, open > 1 ? roundKey(open - 1) : null);
+  }
   for (const gid of Object.keys(state.revealUnsubs)) {
-    if (!want.has(gid) || dayChanged) {
+    const key = want.get(gid);
+    if (key === undefined || key === null || state.revealKeys[gid] !== key) {
       state.revealUnsubs[gid]();
       delete state.revealUnsubs[gid];
-      if (!want.has(gid)) delete state.reveals[gid];
+      delete state.revealKeys[gid];
+      if (key === undefined) delete state.reveals[gid];
     }
   }
   state.groups.forEach((g) => {
     if (state.revealUnsubs[g.id]) return;
+    const key = want.get(g.id);
+    if (!key) {
+      // Round 1 is open: nothing has revealed yet, and there is no r0.
+      if (state.reveals[g.id] !== null) { state.reveals[g.id] = null; notify(); }
+      return;
+    }
+    state.revealKeys[g.id] = key;
     state.revealUnsubs[g.id] = onSnapshot(
-      doc(db, "v2_groups", g.id, "reveals", yester),
+      doc(db, "v2_groups", g.id, "reveals", key),
       (rs) => {
         state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
         notify();
       },
       (err) => {
-        // permission-denied here is the RULE WORKING, not a fault: reveal
-        // reads gate on the reveal's own members snapshot, so a member who
-        // joined after this day was revealed is denied by design. It is the
-        // ordinary state of every late joiner's first day in a group, so
-        // reporting it would bury real listener faults in Sentry.
-        //
-        // Deliberately keeps the unsub entry rather than deleting it. The
-        // denial is permanent for this (group, day) pair — re-attaching
-        // would fail identically forever — and the midnight rollover above
-        // tears down every entry on dayChanged, so tomorrow still retries.
-        if ((err as { code?: string }).code === "permission-denied") {
-          state.reveals[g.id] = null;
-          notify();
-          return;
-        }
-        // Dead listener: drop the stale unsub so the next
-        // subscribeReveals pass (groups snapshot or midnight rollover)
-        // can re-attach instead of being blocked by the guard above.
+        // A reveal is world-readable since D98, so a refusal here is not
+        // the rule working any more; it is reported like any dead listener.
+        // Drop the stale unsub so the next subscribeReveals pass (groups
+        // snapshot or midnight rollover) can re-attach.
         reportError(err, { where: "revealListener", gid: g.id });
         delete state.revealUnsubs[g.id];
+        delete state.revealKeys[g.id];
         notify();
       },
     );
@@ -3668,12 +3668,46 @@ async function callable<T>(name: string, data: unknown): Promise<T> {
   return res.data as T;
 }
 
-function duelQFor(g: Record<string, unknown> & { id: string }, dayOffset = 0) {
-  return duelQForPure(g, state.duelBank, utcDayIndexPure(Date.now()), dayOffset);
+/**
+ * How far ahead of the open round a member may seal (ROUNDS-PLAN §5).
+ * The same literal as the rules' bound and functions/src/pure.ts's
+ * ROUND_LEAD; a client that believed a larger number would seal an answer
+ * the rules refuse, so this is the one place the client says it.
+ */
+const ROUND_LEAD = 5;
+const roundKey = (n: number): string => `r${n}`;
+const openRoundOf = (g: Record<string, unknown>): number => {
+  const r = g.round;
+  return typeof r === "number" && Number.isInteger(r) && r >= 1 ? r : 1;
+};
+function duelQFor(g: Record<string, unknown> & { id: string }, round: number) {
+  return duelQForPure(g, state.duelBank, round);
+}
+/**
+ * Where this account stands in a room's rounds: the OPEN round, the rounds
+ * it has sealed that have not revealed yet (the open one and any it ran
+ * ahead into), and the NEXT round it may answer — the lowest unsealed one
+ * inside the lead, or null at the lead's edge, which is "you have run as
+ * far ahead as you may; waiting on them".
+ */
+function roundsOf(g: Record<string, unknown> & { id: string }) {
+  const open = openRoundOf(g);
+  const sealed: number[] = [];
+  let next: number | null = null;
+  for (let n = open; n < open + ROUND_LEAD; n++) {
+    if (state.votes[`g_${g.id}_${roundKey(n)}`] != null) sealed.push(n);
+    else if (next == null) next = n;
+  }
+  return { open, next, sealed, lead: ROUND_LEAD };
 }
 
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
+  /** The account's standing in a room's rounds — see roundsOf. */
+  roundInfo(gid: string): { open: number; next: number | null; sealed: number[]; lead: number } | null {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? roundsOf(g) : null;
+  },
   bankQ(qid: string) {
     const q = state.duelBank.find((x) => x.id === qid);
     return q ? { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" } : null;
@@ -3681,12 +3715,30 @@ const SOCIAL = {
   groups(mode?: string) {
     return mode ? state.groups.filter((g) => (g.mode || "group") === mode) : [...state.groups];
   },
+  /**
+   * The question this account should answer NEXT in this room — the lowest
+   * round it has not sealed, inside the lead — or null at the lead's edge.
+   * The name is from when a room had one question a day; every consumer
+   * and the surface pin still say it, and what it answers is the same
+   * question in the same place: what is in front of you.
+   */
   todayQ(gid: string) {
     const g = state.groups.find((x) => x.id === gid);
-    return g ? duelQFor(g) : null;
+    if (!g) return null;
+    const { next } = roundsOf(g);
+    return next == null ? null : duelQFor(g, next);
   },
+  /** The question of a given round in this room — the reveal card's, for a
+   *  round that has revealed, or a sealed one's prompt. */
+  roundQ(gid: string, round: number) {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? duelQFor(g, round) : null;
+  },
+  /** This account's sealed answer to the OPEN round, or null. */
   myDuelVote(gid: string): { optionIdx: number } | null {
-    const v = state.votes[`g_${gid}_${utcDayKey(0)}`];
+    const g = state.groups.find((x) => x.id === gid);
+    if (!g) return null;
+    const v = state.votes[`g_${gid}_${roundKey(openRoundOf(g))}`];
     return v != null ? { optionIdx: Number(v) } : null;
   },
   revealFor(gid: string) {
@@ -3769,12 +3821,15 @@ const SOCIAL = {
     for (const [id, docData] of Object.entries(state.revealHist[gid] || {})) {
       if (docData) byId[id] = { day: id, ...docData, id } as Row;
     }
-    const yesterday = state.reveals[gid];
-    if (yesterday) byId[state.revealDay] = { day: state.revealDay, ...yesterday, id: state.revealDay } as Row;
+    const latest = state.reveals[gid];
+    const latestKey = state.revealKeys[gid];
+    if (latest && latestKey) byId[latestKey] = { day: latestKey, ...latest, id: latestKey } as Row;
     const out = Object.values(byId);
-    // Newest first by day, then by id — two reveals on one day (rounds)
-    // keep a stable order instead of the map's.
-    out.sort((a, b) => (a.day === b.day ? (a.id < b.id ? 1 : -1) : (a.day < b.day ? 1 : -1)));
+    // Newest first by day, then by round — two reveals on one day keep the
+    // order they landed in instead of the map's. A reveal from before rounds
+    // has no `round` and sorts by its day alone, as it always did.
+    const rnd = (r: Row): number => (typeof r.round === "number" ? r.round : 0);
+    out.sort((a, b) => (a.day === b.day ? rnd(b) - rnd(a) : (a.day < b.day ? 1 : -1)));
     return out;
   },
   async createGroup(name: string, mode: string, displayName?: string) {
@@ -3955,11 +4010,15 @@ const SOCIAL = {
   },
   voteDuel(gid: string, optionIdx: number, guessIdx?: number): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
-    const q = g && duelQFor(g);
     const uid = state.uid;
-    if (!g || !q || !uid) return Promise.resolve();
-    const day = utcDayKey(0);
-    const aid = `g_${gid}_${day}`;
+    if (!g || !uid) return Promise.resolve();
+    // The round this answer is to: the lowest one not yet sealed, inside
+    // the lead. At the lead's edge there is nothing to answer, and the
+    // rules would refuse the write anyway (ROUNDS-PLAN §2.2).
+    const { next: round } = roundsOf(g);
+    const q = round == null ? null : duelQFor(g, round);
+    if (round == null || !q) return Promise.resolve();
+    const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
     notify();
@@ -3971,7 +4030,7 @@ const SOCIAL = {
           surface: g.mode === "duo" ? "duo" : "group",
           optionIdx,
           gid,
-          day,
+          round,
           answeredAt: serverTimestamp(),
           anchors: answerAnchors(),
         };
@@ -7499,6 +7558,7 @@ function resetForNewUid(uid: string): void {
   answersCacheOwner = null;
   state.groups = [];
   state.reveals = {};
+  state.revealKeys = {};
   state.revealHist = {};
   state.revealHistLoading = {};
   state.revealHistLoaded = {};

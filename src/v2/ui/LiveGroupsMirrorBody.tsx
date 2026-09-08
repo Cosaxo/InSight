@@ -1,7 +1,7 @@
 // LiveGroupsMirrorBody — the Mirror's Groups stop, computed from REAL
 // reveal history. Replaces the demo GroupsMirrorBody (sample people) when
 // LIVE is enabled: the alignment ring, the answer rows and the per-member
-// likeness all derive from v2_groups/{gid}/reveals/{day} docs this user
+// likeness all derive from v2_groups/{gid}/reveals/r{n} docs this user
 // can already read, so every number on screen is one the user could
 // recompute from the reveals themselves (groupPortrait.ts holds the
 // arithmetic; groupPortrait.test.ts pins it).

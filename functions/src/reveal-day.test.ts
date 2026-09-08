@@ -1,10 +1,10 @@
-// reveal-day.test.ts — the nightly group reveal, executed rather than
-// described.
+// reveal-day.test.ts — the round reveal, executed rather than described.
+// (The file keeps its name from when a reveal was a day; the subject is
+// `revealRound` since ROUNDS-PLAN / D420.)
 //
-// WHY THIS FILE EXISTS. `revealGroupDay` is the product's one daily
-// moment: it publishes the day's answers to a circle, moves the streak,
-// settles the day and folds the reveal into the cross-group duel
-// aggregate. Until this file it had NO fast-runner coverage at all — the
+// WHY THIS FILE EXISTS. `revealRound` is the product's moment: it
+// publishes a round's answers to a room, opens the next round, moves the
+// streak and folds the reveal into the cross-group duel aggregate. Until this file it had NO fast-runner coverage at all — the
 // pure helpers it calls are exhaustively pinned in pure.test.ts, and what
 // this function does WITH them was pinned nowhere. The emulator suites
 // drive one reveal per group along the happy path, which is precisely the
@@ -100,26 +100,36 @@ const fakeDb = {
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 vi.mock("firebase-admin/messaging", () => ({ getMessaging: () => { throw new Error("no push in this harness"); } }));
 
-const { revealGroupDay } = await import("./v2social");
+const { revealRound } = await import("./v2social");
 
 const GID = "grp1";
-const DAY = "2026-09-05";
+const ROUND = 3;
+const KEY = `r${ROUND}`;
 const groupRef = ref(`v2_groups/${GID}`);
+// A DocumentSnapshot as revealRound reads one: exists, id, ref, get.
 const group = {
   id: GID,
   ref: groupRef,
+  exists: true,
   get: (f: string) => store.get(`v2_groups/${GID}`)?.[f],
 };
+// A due round: the deadline is in the past, so the verdict is "reveal for
+// whoever played" — every case here is about what the transaction then
+// does, not about whether it should run.
+const DUE = { roundDeadlineAt: Date.now() - 1000, roundOpenedAt: Date.now() - 90_000_000 };
 
 const answer = (uid: string, qid: string, optionIdx: number, over: Doc = {}) =>
-  [`v2_users/${uid}/answers/g_${GID}_${DAY}`, { qid, optionIdx, ...over }] as const;
+  [`v2_users/${uid}/answers/g_${GID}_r${ROUND}`, { qid, optionIdx, ...over }] as const;
 
 beforeEach(() => {
   store.clear();
   fresh.clear();
   contendWith = null;
   attempts = 0;
-  store.set(`v2_groups/${GID}`, { mode: "group", memberUids: ["u1", "u2"], pendingDays: [DAY], streak: 0 });
+  store.set(`v2_groups/${GID}`, {
+    mode: "group", memberUids: ["u1", "u2"], round: ROUND,
+    played: { [KEY]: ["u1", "u2"] }, streak: 0, ...DUE,
+  });
   store.set("v2_questions/qA", { options: ["a", "b", "c"] });
   store.set("v2_questions/qB", { options: ["a", "b", "c"] });
 });
@@ -130,11 +140,10 @@ describe("a reveal that lost the race", () => {
     store.set(...answer("u2", "qA", 1));
     // Attempt 1 passes every guard and sets the verdict; then the
     // concurrent reveal lands and attempt 2 bails on `existing.exists`.
-    contendWith = { path: `v2_groups/${GID}/reveals/${DAY}`, doc: { day: DAY, qid: "qA" } };
+    contendWith = { path: `v2_groups/${GID}/reveals/${KEY}`, doc: { round: ROUND, qid: "qA" } };
 
-    const revealed = await revealGroupDay(
-      group as unknown as FirebaseFirestore.QueryDocumentSnapshot,
-      DAY,
+    const revealed = await revealRound(
+      group as unknown as FirebaseFirestore.DocumentSnapshot,
     );
 
     expect(attempts, "the harness did not actually retry the transaction").toBe(2);
@@ -154,13 +163,69 @@ describe("a reveal that lost the race", () => {
     // function that folds nothing ever looks like.
     store.set(...answer("u1", "qA", 0));
     store.set(...answer("u2", "qA", 1));
-    const revealed = await revealGroupDay(
-      group as unknown as FirebaseFirestore.QueryDocumentSnapshot,
-      DAY,
+    const revealed = await revealRound(
+      group as unknown as FirebaseFirestore.DocumentSnapshot,
     );
     expect(revealed).toBe(true);
     expect(store.get("v2_question_aggs/duel-qA")).toMatchObject({ plays: 1, total: 2 });
-    expect(store.get(`v2_groups/${GID}/reveals/${DAY}`)).toBeTruthy();
+    const reveal = store.get(`v2_groups/${GID}/reveals/${KEY}`);
+    expect(reveal).toMatchObject({ round: ROUND, qid: "qA" });
+    expect(typeof reveal!.day).toBe("string");
+    // …and the NEXT round opened in the same commit: the revealed round's
+    // players are gone from `played`, and with nobody sealed ahead there is
+    // no clock on the new round.
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.round).toBe(ROUND + 1);
+    expect(g.played).toEqual({});
+    expect(g.streak).toBe(1);
+    expect(g.lastRevealDay).toBe(reveal!.day);
+  });
+
+  it("opens the next round with its clock running when somebody sealed it ahead", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"], [`r${ROUND + 1}`]: ["u1"] }, streak: 4,
+      lastRevealDay: "2000-01-01", ...DUE,
+    });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.round).toBe(ROUND + 1);
+    expect(g.played).toEqual({ [`r${ROUND + 1}`]: ["u1"] });
+    // A Timestamp, not a FieldValue.delete sentinel: the next round has an
+    // answer, so its day starts now.
+    expect(typeof (g.roundDeadlineAt as { toMillis?: unknown }).toMillis).toBe("function");
+    // A gap of years resets the streak to 1 — nextStreak's rule, unchanged.
+    expect(g.streak).toBe(1);
+  });
+
+  it("does not reveal a round that is neither complete nor due", async () => {
+    // A group of two with one answer and a deadline still ahead: nothing
+    // happens, and nothing is read past the page snapshot.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1"] }, streak: 0,
+      roundDeadlineAt: Date.now() + 3_600_000, roundOpenedAt: Date.now(),
+    });
+    store.set(...answer("u1", "qA", 0));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(false);
+    expect(attempts, "opened a transaction for a round that could not reveal").toBe(0);
+    expect(store.has(`v2_groups/${GID}/reveals/${KEY}`)).toBe(false);
+    // …and forced, it reveals for the one who played (the operator's lever).
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot, { force: true })).toBe(true);
+    expect(Object.keys(store.get(`v2_groups/${GID}/reveals/${KEY}`)!.votes as object)).toEqual(["u1"]);
+  });
+
+  it("a round the page said was open but the re-read says has advanced is left alone", async () => {
+    // The trigger's reveal-on-completion and the scan can race on one
+    // group. The page snapshot says round 3 is open; by the time the
+    // transaction re-reads, the other writer has revealed it and opened 4.
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    fresh.set(`v2_groups/${GID}`, { ...store.get(`v2_groups/${GID}`)!, round: ROUND + 1, played: {} });
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(false);
+    expect(store.has("v2_question_aggs/duel-qA")).toBe(false);
   });
 });
 
@@ -171,7 +236,8 @@ describe("an answer that lands between the two reads", () => {
     // fold must follow it. Folding the first read's choice would publish
     // u3's vote under a question nobody but u3 answered.
     store.set(`v2_groups/${GID}`, {
-      mode: "group", memberUids: ["u1", "u2", "u3"], pendingDays: [DAY], streak: 0,
+      mode: "group", memberUids: ["u1", "u2", "u3"], round: ROUND,
+      played: { [KEY]: ["u3"] }, streak: 0, ...DUE,
     });
     store.set(...answer("u3", "qB", 2));
     fresh.set(...answer("u1", "qA", 0));
@@ -179,7 +245,7 @@ describe("an answer that lands between the two reads", () => {
     fresh.set(...answer("u3", "qB", 2));
 
     expect(
-      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+      await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot),
     ).toBe(true);
 
     const agg = store.get("v2_question_aggs/duel-qA");

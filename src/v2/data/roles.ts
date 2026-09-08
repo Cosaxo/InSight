@@ -200,8 +200,12 @@ const flipsOf = (arr: readonly boolean[]): number => {
   return f;
 };
 
-const byDay = <T extends { day?: string }>(list: readonly T[]): T[] =>
-  [...list].sort((a, b) => String(a.day || "").localeCompare(String(b.day || "")));
+// Oldest first by day, then by round — a room can reveal more than one
+// round in a day (ROUNDS-PLAN, D420), and a run of dots is time.
+const byDay = <T extends { day?: string; round?: number }>(list: readonly T[]): T[] =>
+  [...list].sort((a, b) =>
+    String(a.day || "").localeCompare(String(b.day || ""))
+    || (typeof a.round === "number" ? a.round : 0) - (typeof b.round === "number" ? b.round : 0));
 
 // ── 1v1 ─────────────────────────────────────────────────────────────────
 interface DuoFold {

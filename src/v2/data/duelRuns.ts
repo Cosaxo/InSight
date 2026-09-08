@@ -31,6 +31,8 @@ export interface RevealVoteLike {
 }
 export interface RevealDocLike {
   day?: string;
+  /** The round this reveal is of (ROUNDS-PLAN, D420); absent before rounds. */
+  round?: number;
   qid?: string;
   votes?: Record<string, RevealVoteLike>;
 }
@@ -60,7 +62,11 @@ export function duoRuns(
   const read: boolean[] = [];
   const by: boolean[] = [];
   if (!me || !them) return { read, by };
-  const days = [...history].sort((a, b) => String(a.day || "").localeCompare(String(b.day || "")));
+  // …and by round within a day: a pair can reveal several rounds in one
+  // day (ROUNDS-PLAN, D420), and the run has to keep the order they landed.
+  const days = [...history].sort((a, b) =>
+    String(a.day || "").localeCompare(String(b.day || ""))
+    || (typeof a.round === "number" ? a.round : 0) - (typeof b.round === "number" ? b.round : 0));
   for (const d of days) {
     const votes = d.votes || {};
     const mine = votes[me];
