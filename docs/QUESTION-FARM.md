@@ -865,8 +865,10 @@ docs with `mode: "romantic"`, served only to pairs whose duo doc chose
 the pool). Like learn cards there is no spec-vs-live split to graduate
 across — the same file feeds the demo layer and the seeded bank — so a
 merged duel PR IS the production review: one gate, production-level bar.
-**A Routine fires this lane** (D213; weekly — the inventory under
-Governance carries the schedule). Until then it ran only when the
+**A Routine fires this lane** (D213; weekly by design, and daily from
+2026-09-08 for the bank burst — the inventory under Governance carries
+the schedule, the burst's arithmetic and its exit condition). Until
+D213 it ran only when the
 maintainer asked a dev session, and the measured result was the shape
 every unscheduled lane produced: nothing — twelve straight days without
 a duel question (2026-08-07 → 08-19) while the group pool sat at exactly
@@ -1759,7 +1761,7 @@ re-paced, or retired.
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
 | InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D350) | § The learn-card lane |
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D350) | § The feed lane |
-| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
+| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 since 2026-09-08, for the bank burst; `0 10 * * 3` — weekly, Wednesday 10:00 (D213) — before it and again once the pools are at target (the paragraph below the table) | § The duel lane |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D351) | § The now lane |
 
 **All six live prompts match their canonical blocks below as of
@@ -1794,6 +1796,22 @@ telemetry. One D148 constraint has since lapsed, re-measured 2026-08-19:
 `list_triggers` now returns each Routine's stored prompt verbatim, so
 the canonical blocks below can be VERIFIED against the live prompts
 rather than trusted. Verify after any swap; keep them exact.
+
+**The duel lane runs daily since 2026-09-08 for the bank burst —
+schedule only.** `update_trigger` moved it from `0 10 * * 3` to
+`0 10 * * *` at the owner's instruction; the prompt and the model were
+not touched, so the live prompt and its canonical block below still
+open *"a scheduled job, weekly"* — a summary this manual outranks, and
+the run re-reads the manual every firing. The stagger holds: 10:00 was
+already the lane's hour, only the days changed. Daily is safe because
+the regulator bounds the lane and not the cadence: `npm run
+duel:budget` grants at most `RUN_CAP` a run, stops at `POOL_TARGET` a
+pool and grants zero at `OPEN_MAX` unreviewed on the open lane PR
+(§ The duel lane quotes the figures; `check:figures` holds them), so a
+firing past the target is a logged no-op. **When the budget reports
+every pool at `POOL_TARGET`, re-pace back to `0 10 * * 3` and record
+it the same way** — this table's row, and `ROUTINES.md` §2's dated
+line, which carries the burst's citation and the caveat on it.
 
 All six fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
