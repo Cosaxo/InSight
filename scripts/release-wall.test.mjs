@@ -51,14 +51,38 @@ describe("both release workflows default the account wall ON", () => {
       ).toMatch(/VITE_REQUIRE_SIGNIN:\s*\$\{\{\s*vars\.REQUIRE_SIGNIN\s*\|\|\s*'true'\s*\}\}/);
     });
 
-    it(`${f} refuses an UPLOAD whose build has no wall`, () => {
+    it(`${f} refuses an UPLOAD whose build has no wall — exactly once`, () => {
       const s = src(f);
       // The refusal, in the shape both files use: gated on upload, keyed on
       // the resolved value, and exiting non-zero rather than warning.
+      const REFUSAL = /if \[ "\$\{\{ inputs\.upload \}\}" = "true" \] && \[ "\$VITE_REQUIRE_SIGNIN" != "true" \]; then/g;
+      const found = s.match(REFUSAL) ?? [];
       expect(
-        s,
+        found.length,
         `${f} has no refusal — a store upload can carry a wall-less build with nothing to say so`,
-      ).toMatch(/if \[ "\$\{\{ inputs\.upload \}\}" = "true" \] && \[ "\$VITE_REQUIRE_SIGNIN" != "true" \]; then/);
+      ).toBeGreaterThan(0);
+      // EXACTLY ONE, and the count is the point rather than pedantry.
+      //
+      // Two night shifts audit this repo on the same nights, and on
+      // 2026-09-07/08 both wrote this same block into play-release.yml
+      // independently — 22:15 UTC and 03:14 UTC, five hours apart with the
+      // first branch public the whole time. Neither
+      // branch is wrong and `git merge-tree` reports ZERO conflicts, so
+      // git simply keeps both: the composed workflow prints the wall line
+      // twice and evaluates the same refusal twice. Measured on the
+      // composed tree — the block appears at two line numbers — and it is
+      // the shape D336 names, where every gate stays green and a test
+      // breaks for a reason nobody can read.
+      //
+      // Without this count the composition failed on the POSITIVE CONTROL
+      // below instead, because a non-global `String.replace` removes only
+      // the first of two. That is a true red with an unreadable cause. A
+      // duplicated refusal should say so in one sentence.
+      expect(
+        found.length,
+        `${f} carries the upload refusal ${found.length} times. Two shifts wrote it independently and git `
+          + "merged both without a conflict — keep one, and prefer the wording that names the store.",
+      ).toBe(1);
       const after = s.slice(s.search(/if \[ "\$\{\{ inputs\.upload \}\}" = "true" \] && \[ "\$VITE_REQUIRE_SIGNIN"/));
       expect(after.slice(0, 600), `${f}'s refusal does not exit non-zero`).toMatch(/\n\s*exit 1\n/);
     });
@@ -75,7 +99,10 @@ describe("both release workflows default the account wall ON", () => {
     const good = src("play-release.yml");
     const flipped = good.replace("vars.REQUIRE_SIGNIN || 'true'", "vars.REQUIRE_SIGNIN || 'false'");
     expect(/VITE_REQUIRE_SIGNIN:\s*\$\{\{\s*vars\.REQUIRE_SIGNIN\s*\|\|\s*'true'\s*\}\}/.test(flipped)).toBe(false);
-    const unguarded = good.replace(/if \[ "\$\{\{ inputs\.upload \}\}" = "true" \] && \[ "\$VITE_REQUIRE_SIGNIN" != "true" \]; then/, "if false; then");
+    // GLOBAL, because a duplicated block would otherwise leave the second
+    // copy standing and this control would fail with a message about the
+    // matcher — which is what the composed two-shift tree actually did.
+    const unguarded = good.replace(/if \[ "\$\{\{ inputs\.upload \}\}" = "true" \] && \[ "\$VITE_REQUIRE_SIGNIN" != "true" \]; then/g, "if false; then");
     expect(/if \[ "\$\{\{ inputs\.upload \}\}" = "true" \] && \[ "\$VITE_REQUIRE_SIGNIN" != "true" \]; then/.test(unguarded)).toBe(false);
   });
 });
