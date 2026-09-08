@@ -426,7 +426,7 @@ const state = {
   // server for (ensureWorldSplit): one read each, hit or miss.
   worldSplitChecked: {} as Record<string, boolean>,
   // My CALL on each duel answer — answer id → guessIdx — kept beside the
-  // pick, which `votes` holds alone. The card's sealed list (request 11)
+  // pick, which `votes` holds alone. The card's sealed list (request 12)
   // says "you: Ignore · called Answer" for every round waiting on the
   // others; the pick is on disk with the answers, the call is remembered
   // for the session and re-read from the answer documents the boot's
@@ -2608,7 +2608,7 @@ async function hydrate(): Promise<void> {
       const val = answerValueOf((f) => d.get(f));
       if (val !== null) {
         state.votes[d.id] = val;
-        // A duel answer's CALL rides the same document (request 11's
+        // A duel answer's CALL rides the same document (request 12's
         // sealed list names it) — read here because the read is already
         // paid, never fetched for its own sake.
         if (d.id.startsWith("g_")) {
@@ -3553,6 +3553,13 @@ function buildFeedGlobals(): void {
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.
         ...(q.also && q.also.length ? { also: q.also } : {}),
+        // The subtopic leaf (D425): world-feed.jsx's filter fast-paths on
+        // `q.sub` and SUBTOPICS.count reads it off this pool — so the day a
+        // bank doc carries the tag, the leaf is offered, which is exactly
+        // what world-subtopics.js's offers() comment says will happen
+        // ("leaves return by themselves the day live questions carry their
+        // tag"). Emit-when-set; a doc without one keeps its exact shape.
+        ...(q.sub ? { sub: q.sub } : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
@@ -3859,7 +3866,7 @@ const SOCIAL = {
   },
   /**
    * My answer to a given round, with my call when this device still holds
-   * it (request 11's sealed list: "you: Ignore · called Answer"). Null
+   * it (request 12's sealed list: "you: Ignore · called Answer"). Null
    * for a round I have not sealed; `guessIdx` null for a pick whose call
    * is not remembered — the card then names the pick alone.
    */

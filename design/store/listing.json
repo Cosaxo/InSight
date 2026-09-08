@@ -85,10 +85,10 @@
   },
   "screenshotCaptions": {
     "_comment": "THE single source for screenshot captions. scripts/gen-screenshots.mjs reads these and fails if one is missing; keys are the generated filenames (NN-sceneid) minus .png. They used to be duplicated in that script's SCENES and had already drifted in three of six.",
-    "01-daily": "One blind question a day.",
+    "01-daily": "Answer blind. Nothing to anchor you.",
     "02-reveal": "Answer first — then see how the world split.",
     "03-mirror": "Every answer becomes a dot in your constellation.",
-    "04-duel": "Sealed until tomorrow. Did you call it?",
+    "04-duel": "Sealed until the reveal. Did you call it?",
     "05-group": "Your people, one question, everyone revealed at once.",
     "06-profiles": "Five profiles that fill themselves in as you answer."
   }

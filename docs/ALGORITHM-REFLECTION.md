@@ -394,6 +394,16 @@ candidate for the same block, later, with the same rule.
 
 ### 2.3 · Choose K, λ and the device ridge by the scorecard, and publish them · **S**
 
+**ONE OF THE THREE IS BUILT.** The device ridge is swept nightly and
+published — `patterns.ts` picks `bestLambda` over `ALS_LAMBDAS_U` and
+writes the per-value scorecard as `lambdaSweep`. The other two are not,
+and §6's row 3 claimed this whole section until 2026-09-08. Measured:
+`k = prev?.k ?? PATTERNS_K` and nothing ever publishes a different `k`,
+so K has never varied; `ALS_LAMBDA = 0.15` and `ALS_SWEEPS = 3` are
+constants in `patternsAls.ts`. So the first and third bullets below are
+still proposals, and the K one is the one that matters — the section's
+own argument is that the first-month overfit is K's.
+
 Three constants are fixed today where they could be measured:
 
 - **K = 8.** `PATTERNS_MIN_POOL = 24` is derived from it (three questions
@@ -722,7 +732,7 @@ Sizes are the runbooks' S/M/L. Every step is its own PR, its own
 | --- | --- | --- | --- | --- | --- |
 | 1 | Baseline bits, skill and seed-distance on the scorecard (§2.1) | S | `patternsFit.ts`, `patterns.ts`, tests | `patternsFit.test.ts`: a fit at its seeds publishes skill ≈ 0 | no |
 | 2 | The per-person observation vector and the compaction pass (§4.1) | M | `patterns.ts`, new `patternsState.ts`, `deleteAccount` (already recursive), `data-inventory.md`, `COSTS.md` | store-projection test; e2e erasure; a replay-from-answers test | no |
-| 3 | The batch engine as a `candidates` block with the fortnight rule (§2.2, §2.3) | M | `patternsFit.ts` (ALS, Procrustes), `patterns.ts` | the probe's recovery on the test world; determinism; the crossover rule pinned | no |
+| 3 | The batch engine as a `candidates` block with the fortnight rule (§2.2, and §2.3's device-ridge sweep only — K and the fit's own λ/sweeps are still fixed) | M | `patternsFit.ts` (ALS, Procrustes), `patterns.ts` | the probe's recovery on the test world; determinism; the crossover rule pinned | no |
 | 4 | The canonical basis and the aligned displacement (§2.4) | S | `patternsFit.ts` | displacement of an unchanged model is 0 after a random rotation | no |
 | 5 | Ordinal and one-hot encodings into the fold (§3) | M | `patterns.ts` eligibility, `patternsFit.ts` residuals, `patternsReady.ts`, `data/patterns.ts` pool | `check:figures` on the pool count; encoding tests | instrument items: **yes** |
 | 6 | Nightly voter samples and the erasure arm (§4.3) | M | `patterns.ts`, `firestore.rules`, `voters.ts`, `live.ts`, `data-inventory.md`, e2e | erasure e2e; `voters.test`; `COSTS.md` Kindred row | no |

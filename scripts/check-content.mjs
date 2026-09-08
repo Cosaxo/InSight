@@ -610,6 +610,13 @@ const NOT_SEEDED = {
     + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "
     + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
     + "held to shape by check:pricing; never an input to the bank",
+  "topic-proposals.json":
+    "the taxonomy ledger, not content (D424) — questions a lane met that "
+    + "fit no existing category, parked with their run dates so "
+    + "scripts/topic-budget.mjs can rule on whether the gap has become a "
+    + "category. Read by that regulator and validated by check:taxonomy; "
+    + "a parked question is a CANDIDATE and reaches no bank until the "
+    + "category is created and it is written into one",
   "learn-sample.json":
     "generated OUTPUT, not an input — the fixed slice of learn-questions.json "
     + "the JS bundle carries (D284: the whole bank used to be compiled in, and "

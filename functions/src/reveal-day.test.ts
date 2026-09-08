@@ -271,3 +271,108 @@ describe("an answer that lands between the two reads", () => {
     expect(store.has("v2_question_aggs/duel-qB"), "the odd vote got its own aggregate").toBe(false);
   });
 });
+
+// ── THE STREAK'S PRESENT TENSE ──────────────────────────────────────
+//
+// Main's 2026-09-08 night review found `movesPresentState` pinned as a
+// pure function and NEITHER of its call sites executed by anything — the
+// day model's reveal site and its settle site. Under rounds there is ONE
+// site: revealRound's settle. The day's settle path went with
+// `pendingDays` (ROUNDS-PLAN §0a); nothing zeroes a streak any more, and
+// `nextStreak` alone resets it on a gap. So the guard left to hold is the
+// reveal site's: a SECOND reveal on one day — a pair can reveal several
+// rounds in a day now — leaves the streak and the present where they are.
+describe("a second reveal on the same day cannot move the present", () => {
+  const TODAY = Date.UTC(2026, 8, 8, 12);   // 2026-09-08
+  it("keeps a 40-day streak when another round reveals the same day", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"] }, streak: 40, lastRevealDay: "2026-09-08", ...DUE,
+    });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot, { nowMs: TODAY })).toBe(true);
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.streak, "a second reveal on one day moved the streak").toBe(40);
+    expect(g.lastRevealDay, "the present tense moved for a day it was already on").toBe("2026-09-08");
+    // The reveal itself still happens — the guard is about the group's
+    // present tense, never about whether the round publishes.
+    expect(store.get(`v2_groups/${GID}/reveals/${KEY}`), "the round did not publish").toBeTruthy();
+  });
+
+  it("…and the next day still moves it, which is what the guard is for", async () => {
+    // THE CONTROL. Everything above asserts that a number did not change,
+    // which is also what a reveal that stopped touching the streak looks
+    // like. Same group, its last reveal yesterday: the streak must advance
+    // and today must become the present.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"] }, streak: 40, lastRevealDay: "2026-09-07", ...DUE,
+    });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot, { nowMs: TODAY })).toBe(true);
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.streak, "a consecutive day did not extend the streak").toBe(41);
+    expect(g.lastRevealDay).toBe("2026-09-08");
+  });
+});
+
+// ── WHOSE NAME THE REVEAL CARRIES ───────────────────────────────────
+//
+// The reveal document's `names` map is narrowed to `revealMembersFor(...)`
+// — the roster minus anyone who joined after the round OPENED and did not
+// play. Main's night review found reverting that loop to the whole roster
+// left the functions suite green, and it matters because `names` is a
+// DISPLAY NAME in a document every signed-in user may read, and
+// `deleteAccount` sweeps reveals by walking `members`: a person named in a
+// reveal whose `members` array does not carry them is a person erasure
+// never reaches. Ported from the day to the round: the seam is
+// `roundOpenedAt` now, not the day's end.
+describe("the reveal names only the people its members array carries", () => {
+  const OPENED = Date.now() - 90_000_000;
+  // A Firestore Timestamp, near enough: `joinedAtMs` reads `toMillis()` and
+  // DROPS anything without it, and a dropped join time means "unknown",
+  // which keeps the member. A fixture of raw numbers would therefore keep
+  // everybody and pass whatever the narrowing did.
+  const at = (ms: number) => ({ toMillis: () => ms });
+  const room = (played: string[]) => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], round: ROUND, streak: 0,
+      played: { [KEY]: played },
+      roundOpenedAt: at(OPENED), roundDeadlineAt: at(Date.now() - 1000),
+      // u3 arrived after the round opened — they were not in the room for it.
+      memberJoinedAt: { u1: at(OPENED - 86400000), u2: at(OPENED - 86400000), u3: at(OPENED + 3600000) },
+    });
+    store.set("v2_users/u1", { displayName: "Ada" });
+    store.set("v2_users/u2", { displayName: "Bo" });
+    store.set("v2_users/u3", { displayName: "Cai" });
+  };
+
+  it("leaves out someone who joined after the round opened and did not play", async () => {
+    room(["u1", "u2"]);
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    const reveal = store.get(`v2_groups/${GID}/reveals/${KEY}`)!;
+    expect(Object.keys(reveal.names as Doc).sort(), "the reveal names a non-member").toEqual(["u1", "u2"]);
+    // The two must agree, and THIS is the reason: erasure walks `members`,
+    // so a name outside it is a name erasure cannot find.
+    expect((reveal.members as string[]).slice().sort()).toEqual(["u1", "u2"]);
+    expect(JSON.stringify(reveal.names), "a display name is in a world-readable document that erasure will never sweep").not.toContain("Cai");
+  });
+
+  it("…and DOES name a late joiner who actually played", async () => {
+    // THE CONTROL, and the narrowing's own rule: playing puts you in the
+    // room whatever the timestamps say. Without this the case above passes
+    // the day the map is narrowed to nothing at all.
+    room(["u1", "u2", "u3"]);
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    store.set(...answer("u3", "qA", 2));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    const reveal = store.get(`v2_groups/${GID}/reveals/${KEY}`)!;
+    expect(Object.keys(reveal.names as Doc).sort(), "a late joiner who answered was left out of their own reveal").toEqual(["u1", "u2", "u3"]);
+    expect(JSON.stringify(reveal.names)).toContain("Cai");
+  });
+});

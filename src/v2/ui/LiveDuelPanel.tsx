@@ -633,7 +633,7 @@ function LdInvites({ mode }: { mode?: string }) {
     setBusy(null);
   };
 
-  // The design's hero (request 11, state 9): the invitation leads, with
+  // The design's hero (request 12, state 9): the invitation leads, with
   // the inviter's mark beside the seat that is yours, and one line on what
   // playing is. Accept is the pill; Decline is a word — refusing somebody
   // should not look like a button you pressed by accident.
@@ -726,12 +726,24 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
       <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
       {/* A CLAIM, not a caption (COPY.md §3). What joining does is put
-          your name on a sealed answer that these people read the next
-          day, and D122 made consent the difference between an invitation
-          and a follow. Somebody arriving from a link has been told
-          nothing by the app yet, so this is where it gets said. */}
+          your name on a sealed answer that gets read, and D122 made
+          consent the difference between an invitation and a follow.
+          Somebody arriving from a link has been told nothing by the app
+          yet, so this is where it gets said — which is exactly why it has
+          to be TRUE.
+
+          It said "revealed with names to the people in it". A revealed day
+          is `request.auth != null` (`match /reveals/{day}`), and
+          rules.test.ts asserts that a stranger, a late joiner and somebody
+          who left can each read one. check-policy-claims retired that
+          promise from web/privacy.html under D98 and reads no other file,
+          so the consent sentence went on understating its own audience.
+
+          The cadence went with it (the owner, 2026-09-07): the reveal is
+          the fact, "tomorrow" is a limit intended to loosen. */}
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-        Everyone answers blind, and each round is revealed with names to the people in it.
+        Everyone answers the same question, sealed until the reveal — then it opens
+        with names, to anyone signed in who has the group’s id.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* ASK, not Join (D240). The link no longer admits its holder —
@@ -745,7 +757,7 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
   );
 }
 
-// ── the design's grammar (design/rounds-card-2026-09-08, request 11) ──
+// ── the design's grammar (design/rounds-card-2026-09-08, request 12) ──
 //
 // Nine states over one card, and the vocabulary they share: a KICKER
 // (12/700 uppercase, ink-3) that names the round — `Round 9`, `· World`,
@@ -813,7 +825,7 @@ function useLeft(until: number | null): string | null {
 
 // ── the run of rounds ────────────────────────────────────────────
 //
-// The dots ARE the score, and since request 11 they are also the browser:
+// The dots ARE the score, and since request 12 they are also the browser:
 // a revealed round's dot opens that reveal above. Five kinds from the
 // design plus one — `n`, a round you played that carried no call to score
 // (a world round whose guess was a lookup, a reveal from before rounds).
@@ -859,7 +871,7 @@ function LdRun({ rows, acc, onPick }: { rows: RunRow[]; acc: string; onPick: (at
 
 // ── a round's reveal ─────────────────────────────────────────────
 //
-// One document, four shapes (request 11): a 1v1's SAID · CALLED table, a
+// One document, four shapes (request 12): a 1v1's SAID · CALLED table, a
 // group's split with faces on the bars, and for a world round the three
 // columns — you, them, the World's share — on either. Under them, who
 // played and who did not (a seat, never a name), the verdict and the
@@ -1379,7 +1391,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
 
 // ── one room's card — fills the view, snaps into place ───────────
 //
-// Request 11's nine states, over the documents the card already holds:
+// Request 12's nine states, over the documents the card already holds:
 // the group document (`round`, `played`, `roundDeadlineAt`), the latest
 // reveal, and the history behind it. No new read. Which state draws is a
 // function of three facts — whether you have sealed the open round,
@@ -1791,7 +1803,7 @@ function LdRail({ items, cur, onPick, onNew, duo }: {
   );
 }
 
-// ── the first run (request 11, state 9) ──────────────────────────
+// ── the first run (request 12, state 9) ──────────────────────────
 //
 // One round of the game drawn with nothing invented: a World question
 // stands in for the one a room would draw, SEALED on a hairline ballot,
@@ -1969,7 +1981,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   if (!LIVE.enabled) return null;
 
   // First run: no rail, no stack — one round of the game drawn, and the
-  // one tap that starts a room (request 11, state 9).
+  // one tap that starts a room (request 12, state 9).
   if (!has) {
     return <LdFirstRun mode={mode} pendingCode={pendingCode} onCodeDone={() => setPendingCode("")} />;
   }

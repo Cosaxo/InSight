@@ -1,7 +1,7 @@
 # The 1v1 and group card, when a round is the unit — Claude Design, 2026-09-08
 
 The owner's canvas for [`VISUAL-REQUESTS.md`](../../docs/VISUAL-REQUESTS.md)
-request 11, the card [`ROUNDS-PLAN.md`](../../docs/ROUNDS-PLAN.md) §7.5
+request 12, the card [`ROUNDS-PLAN.md`](../../docs/ROUNDS-PLAN.md) §7.5
 asked for once a round replaced the day. Delivered as one bundled page:
 nine states, each for a 1v1 and for a group, each in light and dark —
 thirty-two artboards at iPhone 390 wide, drawn from one state table

@@ -309,6 +309,13 @@ export function buildEntries(content = loadContent()) {
       // disjoint from the home) so an unknown door — which fails silently,
       // the card just never matches it — cannot reach the bank.
       ...(Array.isArray(q.also) && q.also.length ? { also: q.also.map(String) } : {}),
+      // The subtopic leaf this card belongs to (D425) — the second level of
+      // the feed's tree, read by the client's filter fast path and the
+      // discover sheet's stock count. Emit-when-set like `also`; validated
+      // at check:quality (a committed leaf, under this card's own home).
+      // Same wire field the daily uses for its sub-branch NAME — the
+      // surface tells the two apart, and deck.ts's comment says so.
+      ...(typeof q.sub === "string" && q.sub ? { sub: q.sub } : {}),
       // The range/plane copy the client renders from — emit-when-set, like
       // flags: only continuum entries carry these.
       ...(typeof q.lo === "number" ? { lo: q.lo } : {}),
@@ -694,7 +701,8 @@ const HEADER =
   "// `core` is feed-only (docs/SCALE-PLAN.md §1) and absent means TAIL — a\n" +
   "// question is in the Mirror's corpus only if it says so. Other surfaces do\n" +
   "// not carry the key because they are core by construction.\n" +
-  "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
+  "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path;\n" +
+  "// on a feed doc `sub` is instead the subtopic LEAF id it belongs to (D425)\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
   "// `tag` is the daily bank's short label for a question — the Mirror's\n" +
   "// Scores card is a column of nouns, not of sentences (D187).\n" +
@@ -728,7 +736,24 @@ const HEADER =
   "// on the document so the device joins by id and the prompts stay out\n" +
   "// of first paint. The core items and the lens items carry neither.\n" +
   "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
-  "export const V2_QUESTIONS: V2SeedQuestion[] = ";
+  "// THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather\n" +
+  "// than a taste. `tsc` checks an array literal against its annotation by\n" +
+  "// forming the union of the element types, and V2SeedQuestion has ~45\n" +
+  "// optional members, so the union grows with the bank: at 1085 questions\n" +
+  "// `npm run build --prefix functions` passed and at 1145 it failed with\n" +
+  "// TS2590, \"expression produces a union type that is too complex to\n" +
+  "// represent\" — pointing at the `= [` and naming no question. Slicing\n" +
+  "// bounds that union at BANK_SLICE regardless of how big the bank gets,\n" +
+  "// and every entry is still checked against V2SeedQuestion: a cast would\n" +
+  "// also have compiled and would have stopped checking the content, which\n" +
+  "// is the whole reason this file is typed rather than JSON.\n" +
+  "// Consumers see one array. `scripts/v2content-lib.mjs` is the one thing\n" +
+  "// that reads this file as data and it reads the slices, not the export.\n";
+
+// How many questions per emitted slice. 1145 in one literal is over the
+// limit and 573 was under it, measured; 200 leaves the margin where it
+// cannot be eaten by growth, since the slice count rises instead.
+export const BANK_SLICE = 200;
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the
 // questions, and separate is the whole point: an ad takes no answer, folds
@@ -759,7 +784,18 @@ const ADS_HEADER =
   "export const V2_ADS: V2SeedAd[] = ";
 
 export function generate(content = loadContent()) {
-  return HEADER + JSON.stringify(buildEntries(content), null, 1) + ";\n"
+  const entries = buildEntries(content);
+  const slices = [];
+  for (let i = 0; i < entries.length; i += BANK_SLICE) {
+    slices.push(entries.slice(i, i + BANK_SLICE));
+  }
+  const bank = slices
+    .map((s, i) => `const BANK_${i}: V2SeedQuestion[] = ${JSON.stringify(s, null, 1)};\n`)
+    .join("")
+    + `export const V2_QUESTIONS: V2SeedQuestion[] = [${
+      slices.map((_, i) => `...BANK_${i}`).join(", ")
+    }];\n`;
+  return HEADER + bank
     + ADS_HEADER + JSON.stringify(buildAds(content), null, 1) + ";\n";
 }
 

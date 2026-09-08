@@ -14,12 +14,12 @@ it is moving toward.
 
 - **Source:** the owner's `1v1_and_Group_Cards.html` upload of
   2026-09-08 — Claude Design, from the prompt the rounds session wrote
-  for request 11 — extracted to `design/rounds-card-2026-09-08/` (its
+  for request 12 — extracted to `design/rounds-card-2026-09-08/` (its
   README is the readable half: the nine states, every string, the
   behaviours a static reading loses, and where the tree departs from the
   canvas). Made the vision by this page's own rule: the request it
   answers is crossed out as built.
-- **The plan built on it:** `ROUNDS-PLAN.md` §7.5 and request 11 — the
+- **The plan built on it:** `ROUNDS-PLAN.md` §7.5 and request 12 — the
   card's whole grammar was a clock, and under rounds a 1v1 has none. §0a
   records the build's departures beside the model's own.
 - **What it changed over the 2026-09-07 design:** one surface, redrawn
@@ -35,7 +35,7 @@ it is moving toward.
   then revealed *when Ada plays*.
 - **Built from it:** the whole card, the same day (D426's second
   amendment) — `ui/LiveDuelPanel.tsx`.
-- **Requests it closed:** 11.
+- **Requests it closed:** 12.
 
 ## The one before — the 2026-09-07 standalone
 

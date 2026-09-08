@@ -143,7 +143,7 @@ the tree does not do.
   kinds and `check:policy-claims` holds the named list, its pattern now
   naming *it is your turn*. The channel descriptions say *round* and
   *group*, not *day* and *circle* (§9's collision).
-- **The screens are built from the owner's canvas** (§7.5, request 11,
+- **The screens are built from the owner's canvas** (§7.5, request 12,
   2026-09-08): nine states for a 1v1 and a group, extracted to
   `design/rounds-card-2026-09-08/` with a README that is the readable
   half of the bundle — every string, the behaviours a static reading
@@ -170,7 +170,7 @@ the tree does not do.
 | **Reveal history by query** (§7.1) | build — a strict cost win, ships alone | one `orderBy("revealedAt","desc")` query replaces up to 14 day-key `getDoc`s | Round ids are not guessable, so the day-key fan-out cannot survive anyway. Reads both id shapes |
 | **The ledger** (§7.2) | **already an owner row — rounds make it a dependency** | `ROLES-PLAN.md` §3.3, unchanged | A fortnight of reveals is the roles fold's substrate; rounds put hundreds of reveals in a fortnight |
 | **Notifications: *your turn*, and the reveal, debounced** (§7.4) | build — the owner's ask, 2026-09-08 | one send site in the answer trigger, a per-recipient `pushAt` map on the group document, a third Android channel | **`web/privacy.html` moves first (D183)**: it names four notifications and this is a fifth; `check:policy-claims` holds the list and `check:figures` holds the count against the send sites, so the gates refuse the send until the page says it |
-| **The screens** (§7.5) | visual request 11, then build | none | D352: the first-day screen's three beats are drawn against a clock that a 1v1 no longer has |
+| **The screens** (§7.5) | visual request 12, then build | none | D352: the first-day screen's three beats are drawn against a clock that a 1v1 no longer has |
 
 **Cost, measured** (`scripts/cost-arith.mjs`, 2026-09-08): at **8 rounds a
 day** per user against today's 1, with the trigger's new read included,
@@ -583,7 +583,7 @@ a clock, and it is now the deadline rather than midnight.
 
 The card's states change with it — *your turn* / *their turn* / *N rounds
 waiting for you* is a different grammar from *answered · reveals in
-04:12*. That is a visual, so it is request 11 in `VISUAL-REQUESTS.md`
+04:12*. That is a visual, so it is request 12 in `VISUAL-REQUESTS.md`
 under D352, not a thing a routine draws on its own.
 
 ### 7.6 · Takes — one thread per question, and rounds can repeat one
@@ -696,7 +696,7 @@ Each step is shippable and green on its own.
    read as a no-guess signal rather than an exclusion (§0a says why), and
    the reveal's third column.
 8. **The screens** (§7.5) — **built 2026-09-08** from the owner's own
-   canvas (request 11 went from `requested` to the owner's design in one
+   canvas (request 12 went from `requested` to the owner's design in one
    day): extracted to `design/rounds-card-2026-09-08/`, built as
    `ui/LiveDuelPanel.tsx`'s card, rail, run and first run; §0a has the
    departures.

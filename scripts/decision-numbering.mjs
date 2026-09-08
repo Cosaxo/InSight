@@ -17,6 +17,15 @@
 // untouched — docs/data-inventory.md's D293 and CLAUDE.md's D294 are
 // main's, and a blanket replace would have corrupted a dozen shared files.
 //
+// A blanket replace also reaches where no citation is. 2026-09-08, moving
+// D421/D422 to D424/D425 on a branch: `grep -l 'D421\|D422'` listed
+// design/InSight_standalone_18.html, which cites no decision — the match
+// was inside a base64 data URI, and sed rewrote two characters of a
+// compressed blob. Caught only because the file list was printed and read
+// before the commit; restored from the pre-move commit. Move by the file
+// list you can EXPLAIN, and treat a match in design/ or any encoded blob
+// as a false one until proven otherwise.
+//
 // Hand work at that shape misses one. Until 2026-08-26 nothing caught it:
 // two records numbered D297 passed every gate in this repo, and doc-index
 // cheerfully reported "298 decisions indexed" over 298 headings sharing 297

@@ -25,28 +25,51 @@
 // with a clear message, or none.
 import { readFileSync } from "node:fs";
 
-const HEAD = "V2_QUESTIONS: V2SeedQuestion[] = ";
+// The bank is emitted as `const BANK_0`, `BANK_1`, … and then spread into
+// one exported `V2_QUESTIONS`, because a single literal that big is over
+// `tsc`'s union limit (gen-v2content.mjs says why, with the two measured
+// sizes). So the DATA is in the slices and the export is JavaScript: it
+// reads `[...BANK_0, ...BANK_1]`, which is not JSON and never was meant to
+// be parsed. Read the slices and concatenate them in order.
+const SLICE = /^const BANK_(\d+): V2SeedQuestion\[\] = /m;
 
 /**
  * The seeded question bank, as an array.
  *
- * Terminates on the FIRST `];` after the declaration — the array's own —
- * rather than the last one in the file, which is whatever the last export
- * happens to end with.
+ * Each slice terminates on the FIRST `];` after its declaration — the
+ * slice's own — rather than any later one in the file, which is whatever
+ * the next declaration ends with.
  */
 export function bankArray(src) {
-  const at = src.indexOf(HEAD);
-  if (at === -1) {
+  const out = [];
+  let rest = src;
+  let expect = 0;
+  for (;;) {
+    const m = SLICE.exec(rest);
+    if (!m) break;
+    if (Number(m[1]) !== expect) {
+      throw new Error(
+        `v2content.ts: bank slices are out of order — expected BANK_${expect}, `
+        + `found BANK_${m[1]}. The generated file's shape changed.`,
+      );
+    }
+    const body = rest.slice(m.index + m[0].length);
+    const end = body.indexOf("];");
+    if (end === -1) {
+      throw new Error(`v2content.ts: bank slice BANK_${m[1]} has no terminator.`);
+    }
+    out.push(...JSON.parse(body.slice(0, end + 1)));
+    rest = body.slice(end + 2);
+    expect += 1;
+  }
+  if (expect === 0) {
     throw new Error(
-      "v2content.ts: no `V2_QUESTIONS: V2SeedQuestion[] = ` declaration. "
+      "v2content.ts: no `const BANK_0: V2SeedQuestion[] = ` declaration. "
       + "The generated file's shape changed and every caller of this "
       + "helper is now reading it wrong — fix the helper, not the callers.",
     );
   }
-  const body = src.slice(at + HEAD.length);
-  const end = body.indexOf("];");
-  if (end === -1) throw new Error("v2content.ts: the V2_QUESTIONS array has no terminator.");
-  return JSON.parse(body.slice(0, end + 1));
+  return out;
 }
 
 /** Same, read from a path. */

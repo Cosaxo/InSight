@@ -694,14 +694,23 @@ export async function runSeedV2(
     // "any run that rewrites 450+ documents with at least one map clear"
     // until the 2026-09-06 night review measured it. A clear anywhere else
     // only shifts which document lands on the boundary; `===` and `>=`
-    // behave identically. Today's bank cannot reach it at all: exactly
-    // three documents carry an object-valued seeded field (feed-pt1,
-    // feed-pt2, feed-pt3, at indices 210, 211 and 307), the counter stands
-    // at 210, 212 and 309 when they arrive, and the one tripping index on
-    // an 847-document run is 449. So this is a guard against the bank
-    // gaining a fourth story in the wrong place, not a live bug — kept
-    // because `>=` is free and the failure it prevents is silent data
-    // loss, and pinned in seed.test.ts because nothing else can reach it.
+    // behave identically. Today's bank cannot reach it at all, and that is
+    // now COMPUTED rather than counted here — seed.test.ts asserts that no
+    // document carrying an object-valued seeded field sits on a flush
+    // boundary, worst case, on a run that rewrites everything.
+    //
+    // The count that used to stand in this comment was wrong in every
+    // term: it said three documents (feed-pt1, feed-pt2, feed-pt3, at
+    // indices 210, 211 and 307) on an 847-document run, and the tree has
+    // ten (feed-pt1..pt7 and call-c01..c03) on a bank of 1073. The
+    // conclusion held throughout; the arithmetic under it had not been
+    // true for a while, and it was written down by a night review that
+    // said it had measured it. So the number is gone and the property is
+    // held, which is what CLAUDE.md asks for a figure a gate can compute.
+    //
+    // So this is a guard against the bank gaining a story in the wrong
+    // place, not a live bug — kept because `>=` is free and the failure
+    // it prevents is silent data loss.
     if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();

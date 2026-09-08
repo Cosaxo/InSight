@@ -179,7 +179,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
     // this stop opens on that fetch.
     return LIVE.social.revealHistoryLoading(g.id)
       ? <LgEmpty>Reading the days…</LgEmpty>
-      : <LgEmpty>Nothing revealed yet — answers stay sealed until the morning after.</LgEmpty>;
+      : <LgEmpty>Nothing revealed yet — answers stay sealed until the reveal.</LgEmpty>;
   }
   return (
     <div className="card">
@@ -455,7 +455,7 @@ function LiveGroupsMirrorBody() {
           {P.days === 0 && !LIVE.social.revealHistoryLoading(g.id) && (
             <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
               <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-                Nothing revealed yet — answers stay sealed until the morning after.
+                Nothing revealed yet — answers stay sealed until the reveal.
               </div>
             </div>
           )}
@@ -474,8 +474,15 @@ function LiveGroupsMirrorBody() {
         // restores whatever daily scope was last open, so a user arriving from
         // the 1v1 tab landed back on 1v1 — a button that promises a group and
         // delivers a duel. The nav key pins the mode.
+        // TWO CADENCES IN ONE LINE, and this is the sentence a new account
+        // meets. "One question a day" is the framing the owner retired on
+        // 2026-09-07 — the daily is what OPENS, not what the app is — and
+        // "the morning after" is a limit he intends to loosen, so it is a
+        // sentence with an expiry date on the emptiest screen in the app.
+        // What survives is what a group actually promises: nobody sees
+        // anyone until everybody has answered.
         <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
-          One question a day, revealed with names the morning after.
+          Everyone answers, then it opens with names.
         </EmptyField>
       )}
 

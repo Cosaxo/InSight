@@ -32,7 +32,7 @@ const LIVE = vi.hoisted(() => {
     // Takes the gid since D156 — the rail asks per circle which ones
     // still want you, so a fixture with two circles has to answer for both.
     myDuelVote: (gid?: string) => { void gid; return null as { optionIdx: number } | null; },
-    // Request 11: my answer and call on a given round — the sealed list's
+    // Request 12: my answer and call on a given round — the sealed list's
     // "you: Coffee · called Tea". Follows myDuelVote by default, so a case
     // that seals the open round sees its own pick in the list.
     myDuelCall: (gid: string, round: number) => {
@@ -188,7 +188,7 @@ describe("LiveDuelPanel · before the reveal, only your own pick is on screen", 
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     render(<LiveDuelPanel mode="duo" />);
 
-    // "you: Coffee" — the sealed list's line (request 11, state 5), and the
+    // "you: Coffee" — the sealed list's line (request 12, state 5), and the
     // whole of what a played card asserts about anybody's answer.
     expect(screen.getByText("you: Coffee")).toBeTruthy();
     // The partner exists in memberNames — the panel has their name in hand
@@ -248,10 +248,31 @@ describe("LiveDuelPanel · before the reveal, only your own pick is on screen", 
     LIVE.social.todayQ = () => ({ id: "duo-002", prompt: "Window or aisle?", options: ["Window", "Aisle"], kind: "classic" });
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.getByRole("status").textContent).toMatch(/waiting on Ada/);
-    // …what you sealed, above the next question (request 11, state 2 over 1)
+    // …what you sealed, above the next question (request 12, state 2 over 1)
     expect(screen.getByText("Tea")).toBeTruthy();
     expect(screen.getByText("Window or aisle?")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Window" })).toBeTruthy();
+  });
+
+  // THE CARD BEHIND THE ONE IN VIEW STILL SAYS WHEN. Only the newest
+  // card counts to its deadline (`newest`); every group card behind it
+  // falls back to a written sentence, and that sentence exists to say
+  // when the reveal comes. Main's night review caught this fallback
+  // reduced to a fragment ("Reveals — if you both play."); under request
+  // 12 the sentence is the sealed list's own line, and it has to be whole
+  // on the second card too, with no cadence word in it (D419 §3).
+  it("says WHEN on a card that is not the one in view, whole and without a cadence", () => {
+    LIVE.social.groups = () => [
+      { ...DUO, id: "g1", mode: "group", memberUids: ["u_me", "u_ada", "u_bo"], roundDeadlineAt: Date.now() + 3 * 3600_000 },
+      { ...DUO, id: "g2", mode: "group", name: "The Crew", memberUids: ["u_me", "u_ada", "u_bo"], roundDeadlineAt: Date.now() + 3 * 3600_000 },
+    ];
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    const { container } = render(<LiveDuelPanel mode="group" />);
+    const text = container.textContent || "";
+    // the card in view counts; the one behind it says its whole condition
+    expect(screen.getByText(/^3h 0[05]m$/), "the first card lost its clock").toBeTruthy();
+    expect(screen.getAllByText(/Each reveals when everyone has played, or at its deadline\./)).toHaveLength(2);
+    expect(text).not.toMatch(/tomorrow|midnight|a day/i);
   });
 
   it("offers the options for voting when you have not played", () => {
@@ -355,7 +376,7 @@ describe("LiveDuelPanel · a world question as the round (ROUNDS-PLAN §6.2)", (
       votes: { u_me: { optionIdx: 1, guessIdx: 1 }, u_ada: { optionIdx: 1, guessIdx: 1 } }, names: { u_ada: "Ada" },
     });
     render(<LiveDuelPanel mode="duo" />);
-    // The three columns (request 11, state 8): every option, your pill,
+    // The three columns (request 12, state 8): every option, your pill,
     // their mark, and the World's share.
     const cols = screen.getByLabelText("The world's split").textContent || "";
     expect(cols).toMatch(/Better.*38%/);
@@ -505,7 +526,7 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     // header stops counting the days you actually owe.
     LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me", "u_them"] }];
     render(<LiveDuelPanel mode="duo" />);
-    // The rail's dot is the count now (request 11): a room that wants you
+    // The rail's dot is the count now (request 12): a room that wants you
     // says so on its tile, and nothing else counts the days you owe.
     expect(screen.getByRole("button", { name: /— your turn/ })).toBeTruthy();
   });
@@ -597,7 +618,7 @@ describe("LiveDuelPanel · a reveal whose members answered different questions",
     // buttons, so a page-wide text search cannot tell the reveal's "Tea"
     // from today's. Every assertion below reads the reveal box alone —
     // and the reveal stands only while the next round is open and
-    // unanswered (request 11, state 3), which is this.
+    // unanswered (request 12, state 3), which is this.
     LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
   });
 
@@ -869,7 +890,7 @@ describe("LiveDuelPanel · the rail", () => {
 
     expect(screen.getByRole("button", { name: /^Ada$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Bo — your turn/ })).toBeTruthy();
-    // and no count above it: the tiles' dots are the count (request 11)
+    // and no count above it: the tiles' dots are the count (request 12)
     expect(screen.queryByText(/to play/)).toBeNull();
   });
 
@@ -1047,7 +1068,7 @@ describe("LiveDuelPanel · the pair's read-runs", () => {
 
   it("scores nothing before a single round has revealed — the tail alone", () => {
     // No score is not a zero score. A sealed round is a ring in the run's
-    // tail (request 11) and never a hollow dot, which would read as a miss.
+    // tail (request 12) and never a hollow dot, which would read as a miss.
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     LIVE.social.revealHistory = () => [];
     render(<LiveDuelPanel mode="duo" />);
@@ -1365,7 +1386,15 @@ describe("LiveDuelPanel · a tapped invite link", () => {
   it("says what joining exposes before the tap, not after", () => {
     sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
     render(<LiveDuelPanel mode="group" />);
-    expect(screen.getByText(/revealed with names to the people in it/i)).toBeTruthy();
+    // THE AUDIENCE, and it has to be the real one. This pinned "revealed
+    // with names to the people in it", which a revealed day is not:
+    // `match /reveals/{day}` is `request.auth != null`, and rules.test.ts
+    // asserts a stranger, a late joiner and somebody who left can each
+    // read one. A consent sentence that understates who reads your answer
+    // is worse than none, because it is the sentence somebody agrees on.
+    expect(screen.getByText(/opens[\s\S]*with names, to anyone signed in who has the group\u2019s id/i)).toBeTruthy();
+    expect(document.body.textContent, "the retired audience claim is back")
+      .not.toMatch(/to the people in it/i);
   });
 
   it("takes no for an answer without joining anything", () => {

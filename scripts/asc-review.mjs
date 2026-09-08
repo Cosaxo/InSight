@@ -3,6 +3,7 @@
 //   node scripts/asc-review.mjs                       # report, change nothing
 //   node scripts/asc-review.mjs --apply
 //   node scripts/asc-review.mjs --attach-build 33 --apply
+//   node scripts/asc-review.mjs --set-version 2.0.0 --release-type MANUAL --apply
 //
 // Dry run by default, like asc-push.mjs.
 //
@@ -42,6 +43,8 @@ const argOf = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : 
 const APPLY = argv.includes("--apply");
 const DEMO_FILE = argOf("--demo-file");
 const ATTACH = argOf("--attach-build");
+const SET_VERSION = argOf("--set-version");
+const RELEASE_TYPE = argOf("--release-type");
 
 const listing = JSON.parse(readFileSync(join(root, "design/store/listing.json"), "utf8"));
 const BUNDLE_ID = listing.shared.bundleId;
@@ -80,6 +83,53 @@ if (!version) {
 }
 console.log(`app ${app.attributes.name} · version ${version.attributes.versionString} `
   + `(${version.attributes.appStoreState})`);
+
+// ── the version record, and who decides when it goes public ─────────
+//
+// TWO FIELDS ON THE VERSION, and the second is the one nobody thinks
+// about until it is too late.
+//
+// `versionString` is what the App Store shows and it must agree with the
+// binary's CFBundleShortVersionString. On 2026-09-07 it did not: the
+// record said 1.0 (App Store Connect's default when the app record was
+// created) while every build says 2.0.0, and the attach succeeded anyway
+// — Apple does not refuse the mismatch here, it refuses it later.
+//
+// `releaseType` decides what APPROVAL means:
+//
+//   AFTER_APPROVAL — Apple approves and the app is PUBLIC, immediately,
+//                    with nobody present.
+//   MANUAL         — Apple approves and it waits for a human.
+//   SCHEDULED      — approval, then a date.
+//
+// Submitting is reversible (a submission can be withdrawn); a release is
+// not — an app that has been public cannot be made never-public. So the
+// default this script argues for is MANUAL: it keeps the last step a
+// decision rather than a consequence, and it costs one click on a day
+// somebody chose.
+const versionPatch = {};
+if (SET_VERSION && SET_VERSION !== version.attributes.versionString) {
+  console.log(`  version string: "${version.attributes.versionString}" → "${SET_VERSION}"`);
+  versionPatch.versionString = SET_VERSION;
+}
+if (RELEASE_TYPE) {
+  const want = RELEASE_TYPE.toUpperCase();
+  if (!["MANUAL", "AFTER_APPROVAL", "SCHEDULED"].includes(want)) {
+    console.error(`asc-review: --release-type must be MANUAL, AFTER_APPROVAL or SCHEDULED.`);
+    process.exit(1);
+  }
+  if (want !== version.attributes.releaseType) {
+    console.log(`  release type:   "${version.attributes.releaseType || "(unset)"}" → "${want}"`);
+    if (want === "AFTER_APPROVAL") {
+      console.log("  ! AFTER_APPROVAL makes the app PUBLIC the moment Apple approves,");
+      console.log("    with nobody present. MANUAL keeps that a decision.");
+    }
+    versionPatch.releaseType = want;
+  }
+}
+if (!SET_VERSION && !RELEASE_TYPE) {
+  console.log(`  release type:   ${version.attributes.releaseType || "(unset)"}`);
+}
 
 // ── the demo account ────────────────────────────────────────────────
 let demo = null;
@@ -153,6 +203,17 @@ if (ATTACH) {
 if (!APPLY) {
   console.log("\n(dry run — pass --apply to write it)");
   process.exit(0);
+}
+
+// The version record FIRST, before the review detail: the detail hangs
+// off this version, and a version string that still disagrees with the
+// binary is the thing Apple checks at submission. Getting it right here
+// means the rest is written against a record that can actually be sent.
+if (Object.keys(versionPatch).length) {
+  await call("PATCH", `/v1/appStoreVersions/${version.id}`, {
+    data: { type: "appStoreVersions", id: version.id, attributes: versionPatch },
+  });
+  console.log(`\nversion record updated: ${Object.keys(versionPatch).join(", ")}`);
 }
 
 // ── write ───────────────────────────────────────────────────────────

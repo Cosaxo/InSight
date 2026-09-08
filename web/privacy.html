@@ -121,10 +121,11 @@
   <div class="updated">last updated 2026-09-08</div>
 
   <p class="lead">
-    InSight asks you one question a day, shows you how everyone else
-    answered, and lets you play the same question against people you know.
-    This page is the long version of what that means for your data — what
-    is stored, who can read it, and how to get rid of all of it.
+    InSight asks you questions, shows you how everyone else answered once
+    you have answered blind, and lets you play the same question against
+    people you know. This page is the long version of what that means for
+    your data — what is stored, who can read it, and how to get rid of all
+    of it.
   </p>
 
   <p>
@@ -179,11 +180,13 @@
       <strong>The password goes to Firebase Authentication, which stores
       it hashed; this app never sees it and never stores it.</strong>
       Firebase sends a confirmation link to that address, and the app
-      stays behind its sign-in screen until you open it &mdash; so an
-      address that was mistyped, or that is not yours, does not end up
-      with an InSight account behind it. A reset link is sent the same
-      way at your request. Apple and Google hand us an address they have
-      already confirmed, so neither of those asks you to do this.
+      stays behind its sign-in screen until you open it. The account
+      itself exists from the moment the password is accepted, before
+      anything has looked at the address: if it was mistyped, nothing you
+      do reaches this app, and signing out abandons that account rather
+      than deleting it. A reset link is sent the same way at your
+      request. Apple and Google hand us an address they have already
+      confirmed, so neither of those asks you to do this.
     </li>
   </ul>
 
@@ -192,8 +195,11 @@
     in <em>attaches an identity to that same session</em> rather than
     starting a new one — so anything you answered before signing in is
     kept, with the same identifier behind it. Signing in to an account
-    that already exists is the one exception, and the app says so on the
-    screen before it happens: two histories are not merged.
+    that already exists is the one exception: two histories are not
+    merged, and the one you were building is left behind. With Apple or
+    Google the app says so on the screen before it happens. With an
+    email address it does not &mdash; signing in to an existing account
+    there takes effect immediately.
   </p>
 
   <h2>What is stored</h2>
@@ -607,7 +613,8 @@
     being true when signing in became a requirement, and the sentence was
     removed rather than softened. What signing in hands over is set out
     under <a href="#account">The account, and the three ways in</a>: an
-    identifier, an email address, and nothing else that identifies you.
+    identifier, an email address, the display name Google sends if you
+    use that door, and nothing else that identifies you.
     If you believe a child under 13 has created an account, write to
     <a href="mailto:olaftaule01@gmail.com">olaftaule01@gmail.com</a> and it
     will be deleted.

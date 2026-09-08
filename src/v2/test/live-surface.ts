@@ -235,7 +235,7 @@ export const LIVE_SOCIAL_MEMBERS = [
   // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
   "roundInfo", "roundQ", "voteLate",
-  // Request 11's card: my answer AND my call on any sealed round.
+  // Request 12's card: my answer AND my call on any sealed round.
   "myDuelCall",
   // World questions as duel content (ROUNDS-PLAN §6.2): the crowd's split
   // on a revealed world round — and the one read that fetches it when the

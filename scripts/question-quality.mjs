@@ -447,7 +447,12 @@ export function installDocs(rows) {
 }
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
-function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
+// EXPORTED since D424 (check-taxonomy.mjs reads the palette literals with
+// it). D197's finding was one bank parser in three copies, one of which
+// swallowed its own failure in a try/catch and reported an invented number;
+// a new gate that needed this shape would have been the fourth copy. Take
+// this one rather than writing another.
+export function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
   const start = src.indexOf(marker);
   if (start < 0) throw new Error(`${at}: marker not found: ${marker}`);
   const open = src.indexOf(openChar, start);
@@ -843,6 +848,21 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
 
     checkAlso(q, ctx.feedTopics, ctx, err);
+    // The subtopic tag (D425): a feed question is a leaf's by `sub`, the field
+    // world-feed.jsx's filter fast-paths (`q.sub && leafOn[q.sub]`) and
+    // SUBTOPICS.count reads. A leaf is a PART of its parent, so the tag has
+    // to sit under the question's own home — a tennis question filed under
+    // food with sub_tennis would be met through Sport's leaf and placed on
+    // Food's branch. And it never repeats in `also`: the tag already places
+    // it there, so the door is one claim stated twice.
+    if (q.sub !== undefined) {
+      if (typeof q.sub !== "string" || !ctx.subParents.has(q.sub)) {
+        err("sub", `sub ${JSON.stringify(q.sub)} is not a committed subtopic leaf (world-subtopics.js) — the tree grows through § When no category fits`);
+      } else if (ctx.subParents.get(q.sub) !== q.cat) {
+        err("sub", `sub ${q.sub} is a leaf of ${JSON.stringify(ctx.subParents.get(q.sub))}, not of this question's home ${JSON.stringify(q.cat)} — a leaf is a part of its parent`);
+      }
+      if (Array.isArray(q.also) && q.also.includes(q.sub)) err("sub", `sub ${q.sub} repeats in \`also\` — the tag already places the card there`);
+    }
 
     // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
     //

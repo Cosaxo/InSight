@@ -44761,6 +44761,1142 @@ install or a different Google account is what would confirm it.
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
 
+## D420 · The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created, and two duplicates one shift had already named
+
+**2026-09-08.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+seventy-five commits are kept as written; nothing was reverted. What this
+review adds is the composition, three fixes for defects no shift could
+see alone, and the two duplicates resolved to one copy each. The owner's
+instruction was *"review tonights night shifts and merge the parts you
+approve"*: every part is approved, and this record says which parts the
+composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260908` | 40 | 2 behind | shift A, Claude 2's, 21:11–05:32 UTC |
+| `nightb-20260908` | 35 | 2 behind | shift B, Claude 1's, 20:11–04:17 UTC |
+
+Both branched from the same console commit (`3f49530`), and `main` took
+nothing but two console commits during the night — so no decision
+number moved, and neither shift claimed one: the night wrote no decision
+record at all, which is a first. Seven files were touched by both, down
+from twenty the night before (D406). Two conflicted; five merged clean;
+and the defects were in the clean five and not in the two, which is the
+D380/D406 pattern a third time.
+
+### The first conflict: the same Play refusal, written twice
+
+Both shifts added the account wall's report-and-refusal to
+`play-release.yml` — B at 22:15 UTC, A at 03:14, with B's branch public
+the whole time. B's closing flow (`92d869d`) measured the composition
+before this review did: `git merge-tree` reported zero conflicts at the
+time, so git kept both blocks, the workflow printed the wall line twice
+and evaluated the refusal twice, and B's own `release-wall.test.mjs` went
+red on its positive control for an unreadable reason. B changed its test
+to count the block and hold it at exactly one, with a failure message
+that says what to do — *"keep one, and prefer the wording that names the
+store."* By morning A's later commits had turned the overlap into a real
+conflict, which is the better outcome: a conflict stops and asks.
+
+**Resolved to B's block, whole.** It is the one B's test pins, and its
+comment carries the reason that is specific to Play rather than
+symmetric — `REQUIRE_SIGNIN` is ONE repository variable read by both
+workflows, so clearing it for a single deliberately wall-less iOS
+archive disarms the Android upload too. One thing from A's block is
+carried over: the target `track` in the job-summary line, because the
+track is what decides whether a build reaches real installs. The two
+shifts' arguments are otherwise the same argument.
+
+### The second conflict: one fixture, two mocks, and a line both sides typed
+
+`src/lib/firebaseImpl.test.ts`. A widened the Firestore mock to record
+`initializeFirestore`'s arguments — the database id and the offline
+cache, neither pinned before. B widened the Auth mock with the email door
+(`EmailAuthProvider`, `createUserWithEmailAndPassword` and the rest),
+recording what each was handed so a case can tell a LINK from a fresh
+account. Both hunks land in the hoisted fixture and both resets in
+`beforeEach`, so the resolution is a union — except for the one line
+both sides edited, `currentUser`'s type, which takes B's (`isAnonymous?`
+added), since A's is a prefix of it. The first cut of that union kept
+both lines, which is a duplicate object key `tsc -b` would have refused;
+written down because it is the shape a union produces whenever two
+sides touch one declaration, and the D406 file class (each half holding
+the other's import) one night over.
+
+### The defect only running the suite could see: a tally left behind
+
+`src/v2/test/passive-fold-live.test.jsx`, merged clean. B added a
+describe that drives `PASSIVE.record` with a domain card against
+`attachment` — chosen deliberately, because it is the one instrument
+whose demo seed is zero, so a recorded card can move the number. A added
+a describe at the foot of the same file that renders the profile's
+landing card and asserts, as its control, that an untouched profile
+draws no arc at all.
+
+On the composed tree the control failed: the Social ring — which IS
+`attachment` — drew a real sweep. Both shifts are right. `passiveCount`
+falls back to the device tally for an instrument the bank serves no
+items for, by design, and B's case had left that tally at one seen card,
+in module state and in localStorage. Vitest runs a file's describes in
+order, so the leak pointed one way and each shift was green alone.
+Measured rather than reasoned: the whole battery was green but for this
+one case.
+
+Fixed in B's describe, which now puts the tally back through the store's
+own purge event (`insight:local-purge`, D51) and removes the key — the
+same reasoning the file's `beforeEach` gives for dispatching the real
+`insight:test-results` event rather than a second definition of "empty".
+Reverting the `afterEach` reproduces the failure.
+
+### The duplicate that merged silently, and was named before it merged
+
+Both shifts wrote a case pinning the paid report's `(qid, surface)`
+composite in `src/v2/data/indexes.test.ts` — B at 20:11, A at 23:21.
+B's `7f6927f` predicted the exact outcome: zero conflicts, twenty cases,
+two of them asserting the same index. A's asserted the composite; B's
+asserts the composite AND that `answers.qid` keeps its full exemption,
+which is what makes the composite load-bearing rather than an
+optimisation. B's is the superset, so A's is dropped and the file is 19
+cases — the count each branch reported alone.
+
+B's row on `OWNER-LIST.md` carries the arithmetic on why this keeps
+happening: shift B's brief says to read `origin/main..origin/night-$D`
+before auditing, and nothing in shift A's brief names `nightb-*`, so B
+can avoid duplicating A and nothing lets A avoid duplicating B. Tonight's
+two duplicates — the Play block and this pin — were both A's later copy
+of B's earlier one, which is what that row says the timestamps would
+show. The fix is one line in a Routine no session here can edit.
+
+### What the composition did NOT have to change, and why
+
+`scripts/source-pins.test.mjs` was touched by both. A blanked comments
+before the first rule scans — it had reported a gate's own explanatory
+comment, quoting the offending shape, as an offender. B widened the
+second rule's detector to see `read(...)` helpers as well as the literal
+`readFileSync`, and raised that rule's ceiling 24 → 36 for the twelve
+sites it uncovered. A's stripping feeds the same `gates` array B's rule
+reads, so B's ceiling was measured on raw source and now counts stripped
+source. It composes because 36 is a CEILING and not a baseline — B's own
+commit keeps it one *"because the other shift repairs gates in this class
+on the same nights"* — and the suite is green with room under it. Worth
+knowing before anyone lowers it: the true count is what a run prints,
+not 36.
+
+`web/privacy.html`: A rewrote the lede (the cadence is not the product);
+B rewrote the account section and the children section — three
+statements the wall does not keep — and added four claim rows to
+`check-policy-claims.mjs`. Disjoint, and the gate reads 52 disclosures.
+
+`docs/OWNER-LIST.md`: four new rows, one from A (a free account can forge
+a day's telemetry, and rules cannot stop it) and three from B (the
+collision guard above; the email door signs in without the warning Apple
+and Google give; an erased buyer's link survives on the public results
+page). All four are asks, and all four bring what D334 says to bring.
+
+### What was reviewed, and approved
+
+Every commit of both shifts, read as one diff. The behaviour changes are
+named here because everything else is a test, a comment or copy:
+
+- **A `4d087a1`** — a group duel's guess is scored against the room
+  WITHOUT the guesser's own vote, which is what the duo arm always did;
+  the published guess rate is comparable from here forward, and D386's
+  tie rule stands untouched. The e2e loop's own expectation moved with
+  it.
+- **A `4b93339`** — Foresight shows its verdict. On every real device the
+  reveal had been skipped, because the store notifies synchronously and
+  the answered card had already left the list by the re-render.
+- **A `e904575`** — a norms percentile counts ties as half (the midrank
+  convention), so an exact tie — the common case on rounded Likert axes
+  — no longer lands on the far side of the split.
+- **A `f88dca4`, `b3172bb`, `eba0dd0`, `ade87ab`, `951c5fb`, `5bbd621`**
+  — honesty corrections on the Map, the place field, the pulse and the
+  profile card: a crowd of one is not a spread, a percentage says what it
+  is over, a capped list says what it hides, "answer again tomorrow" is
+  said only when you are the thin one, and the profile's rings read the
+  fold rather than the device.
+- **A `c15fccf`, `a63170b`** — `check:versions` matches AND repairs the
+  live gradle lines rather than the first hit inside a comment.
+- **A**, copy — the cadence sweep the owner asked for on 2026-09-07,
+  across the web root, the invite page, the terms, the README, the store
+  captions, the duel panel, the Groups stop and two demo sheets; and the
+  D122 consent sentence now says what the rules make true, in the words
+  `privacy.html` already pins. One of the sweep's own edits was reverted
+  by the same shift (`80925cc`): the RevealClock's written fallback is a
+  statement of WHEN, not a framing, and stays "Reveals tomorrow".
+- **B `a357062`, `0123f6e`** — `daily-split`'s two chunk loaders go
+  through `retryable()`, so a second caller is not dropped and a failed
+  chunk does not latch; and a live build stops fetching the duel bank on
+  every daily mount, for a store it never reads.
+- **B `89f8059`, `aaf9294`** — the wall's already-in-use recovery uses
+  the door that was tapped rather than Google whichever it was, and Apple
+  and Google failures read as sentences rather than Firebase codes.
+- **B `2c57586`, `9b04769`, `9e2abe0`** — two workflows stop pasting
+  free-text inputs into run bodies (one of them the step holding the App
+  Store Connect key); the iOS device-screens job no longer persists a
+  write token beside an installer it downloads; `auth-config` proves it
+  can write the credential file BEFORE it rotates the App Review
+  password.
+- **B `43c78c7`** — the public results page says "ran", not "runs", for a
+  campaign the erasure sweep stopped.
+- **B `980fe29`, `c893490`, `80e03fa`, `b029080`, `066db51`, `d21b9d8`**
+  — five gates repaired or widened: `check:figures` reads
+  `BANK_SURFACES` past comments and every remedy it prints now
+  re-satisfies its own pattern; `check:store-forms` compares linkage and
+  purposes; `check:policy-claims` holds the account wall's disclosure;
+  `rules-coverage` says it reads one environment of the suite's two.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module references across 8
+files, at baseline) · `check:figures` (102 figures across 305 files) ·
+`check:docs` · every other CI gate and every backend-checks gate ·
+`test:scripts` 64 files / 1069 · functions 37 files / 802 · `test:unit`
+197 files / 2916 · `test:rules` 201 with `rules-coverage` at baseline 46 ·
+`test:e2e:all` green on one emulator boot, all three suites, ending *"moderation e2e: every leg green"* · the bundle is 2195 KB / 544 KB eager against 2440 / 552.
+
+`firestore.rules` did not change, which is why the rules suite and its
+coverage baseline did not move. `check:store-copy` is red on `main` and
+red here, on the unfilled Play signing SHA D406 already recorded; it is
+not on any CI path and the night did not touch it.
+
+### What is the owner's
+
+Merged, not decided:
+
+1. **The store screenshots are behind their captions.**
+   `design/store/listing.json`'s first and fourth captions changed
+   (*"Answer blind. Nothing to anchor you."*, *"Sealed until the reveal.
+   Did you call it?"*), and the screenshots uploaded when runbook 4.1
+   closed still carry the old words — so a `gen-screenshots.mjs` run and
+   an upload are owed. The app's store NAME, "InSight: Daily
+   Perspective", was deliberately not touched: plain "InSight" is taken,
+   per the file's own note, so that is a question beside the Play
+   un-parking (D42).
+2. **The Email Address row's basis in the store filing** changed in both
+   copies, from *"only if the user links Google"* to *"every account since
+   D414"* (B `b029080`). No declaration flipped — still collected, still
+   linked, still app functionality — but the human-reviewable basis under
+   the tick did, and App Store Connect's copy is transcribed by hand.
+3. **The four `OWNER-LIST.md` rows above.** The collision guard is the
+   one with a one-line fix.
+
+### Reversal
+
+Each half is its own merge commit and each of the three fixes is its
+own commit; the pull request is one squash. Reverting this record's
+tree restores `main` at `ba80520`.
+## D421 · The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys
+
+**Date:** 2026-09-07. **Status:** built; the first pictures land when an
+operator runs the builder (`OWNER-LIST.md` § Clicks).
+
+The owner asked whether catalogue questions have pictures and whether
+they could (*"one question for cataloge questions does they have
+pictures, and could they have them with the current system"*). They did
+not: every catalogue file is two columns, key and name; the pick bank
+carries id, domain, category and prompt; the browse row draws generated
+patterns, the emoji glyph and the colour swatch because those are in the
+data by construction (D308), and the reveal's faces draw
+`wfCatArt`, whose own comment says it stands in for *"real posters and
+portraits"*. The session's answer was the licensing map
+`CATALOG-QUESTIONS.md` had carried since 2026-08-01, and the owner
+pushed on it twice, in order:
+
+> *"but why is it limeted by copyright wikipedia uses images cant we use
+> them as well i feel like we dont do anything that violates the
+> copyright"*
+
+> *"i feel if letterbox can do it so can we i think we can atemt it and
+> if we recive a complain we take it down"*
+
+The second is the ruling. This entry records what it decides, what it
+does not, and what was built to carry it.
+
+### 1 · The ruling, and what it is not
+
+**Attempt, and take down on complaint.** That is a *risk* decision, and
+it is the owner's to make: the app is in both stores under their name,
+the exposure is theirs, and D334's rule is that the owner decides. It is
+recorded here as what it is. It is **not** a finding that the use is
+licensed, and nothing in the tree says so. The map that was put to the
+owner, kept short so the next reader does not re-derive it:
+
+- Wikipedia's images are two kinds. **Free images on Wikimedia Commons**
+  (CC0, public domain, CC BY, CC BY-SA) may be reused by anyone, a
+  commercial app included, on the licence's conditions — author and
+  licence shown. **Non-free images hosted on English Wikipedia itself**
+  (posters, cover art, Pokémon art) are shown under a US fair-use
+  rationale that Wikipedia's own policy confines to one article about
+  that one work; its policy forbids their use in lists and galleries even
+  on Wikipedia, and every such file page says that other uses, on
+  Wikipedia or elsewhere, may be infringement. So "Wikipedia does it" is
+  right for the first kind and is Wikipedia's own statement that it does
+  not transfer for the second. (Stated from memory: the sandbox could not
+  fetch either page.)
+- *"We don't do anything that violates copyright"* mistakes what the
+  right is. Copyright is the right to copy and to show; putting a poster
+  in the app copies it to our hosting and displays it to the public,
+  which are the two acts the studio owns, whether or not anything is
+  sold. Whether a studio would act is a separate question — risk — from
+  whether the act is licensed — law. `web/terms.html` names Norway, where
+  there is no general fair-use rule, only narrow exceptions none of which
+  covers a poster as decoration in a store app; so the ground is weaker
+  than Wikipedia's, not equal to it.
+- The Letterboxd comparison names the real industry route: TMDB's API
+  serves posters with attribution, free for non-commercial use and under
+  a commercial licence otherwise, and studios treat posters as the
+  marketing they are. **Tolerance is not a licence**, and this entry
+  does not pretend it is. What the ruling decides is who answers a
+  complaint and how fast: a takedown, within the hour, by a commit.
+
+Two things the session did NOT do with the ruling, and the reasons:
+
+- **Pokémon stays text.** The owner cleared the names on 2026-08-23 with
+  the art refusal standing; the 2026-09-07 ruling was about posters.
+  Nintendo is the one rights-holder in the table whose first letter is
+  not a request, and a complaint would land at the stores rather than in
+  an inbox. Extending the policy to it is the owner's call, put to them
+  on `OWNER-LIST.md` with the recommendation to leave it — D334's shape,
+  the ask going both ways: shipping past the refusal silently would be
+  the same failure pointed the other way.
+- **The TMDB key and its commercial terms are the owner's.** The builder
+  refuses to run the film route without `TMDB_API_KEY`, and the row on
+  `OWNER-LIST.md` names the two shapes (run the free key under the
+  policy and record it, or ask TMDB for the licence Letterboxd holds).
+
+### 2 · What was built
+
+Everything the pipeline needs, and no pictures: the builder fetches from
+Wikidata, Commons and TMDB, and the session could reach none of the
+three (`EGRESS_BLOCKED` on all of them — D15's reason, one artifact
+over), so the machinery and the data land separately, as they did for
+the catalogues themselves.
+
+- **`scripts/build-catalog-art.mjs`** — the operator step. Two routes:
+  `commons` (a QID-keyed domain's keys → Wikidata P18 → Commons'
+  `imageinfo` for the licence, the author and a 184 px thumbnail;
+  countries go ISO numeric → P299 → P41, the flag) and `tmdb`
+  (`/find/Q<qid>?external_source=wikidata_id` → the `w185` poster).
+  Writes `web/catalog-art/<domain>/<key>.<ext>` and `credits.tsv`
+  (key · file · name · author · licence · source), regenerates the app
+  index, deletes what a re-run no longer finds, and refuses: a domain
+  with no mechanical key→entity route (dogs, languages, the range
+  domains), an SVG or a GIF, a file over 64 KB, and every licence the
+  policy refuses. **`--remove <key>` is the takedown.** Every offline
+  path was exercised here — usage, an unknown domain, a routeless
+  domain, the film route without a key, and a takedown on a domain with
+  no art, which must not touch the network and does not; the first draft
+  left an empty directory behind on a refused run, which the gate then
+  caught and the builder now does not do.
+- **`scripts/catalog-art-lib.mjs`** — what the builder and its tests
+  share: `licenceAllowed` (CC0 · public domain · CC BY · CC BY-SA ·
+  FAL · TMDB admitted; NC, ND, fair use, GFDL-only and anything
+  unrecognised refused, each by name), the credits format both ways, the
+  HTML-stripping of Commons' author field, and the writer of
+  `src/v2/data/catalogArtIndex.ts` (any domain's run regenerates every
+  domain's entry — `catalog-keys-lib`'s pattern).
+- **`scripts/check-catalog-art.mjs`**, `check:catalog-art`, on
+  `ci.yml`'s lint job — its own parser, the lib's policy and paths.
+  Image ↔ credits row ↔ catalogue key ↔ index ↔ hosting rule, both
+  directions each, absence included; a licence the policy refuses; a
+  file over the cap or named other than by its key; a stray file at the
+  top level; and `firebase.json` serving `/catalog-art/**` with
+  `Access-Control-Allow-Origin: *` (the credits fetch is cross-origin
+  from the shells) and a `max-age` no longer than 3600 — the hour that
+  makes the takedown promise true on a device. Eleven cases in
+  `check-catalog-art.test.mjs`, each breaking one thing on a green
+  fixture through the gate's `--root` seam.
+- **`src/v2/data/catalogArt.ts`** — the URL is BUILT from
+  `SITE_ORIGIN` and the index, never stored (`avatar.ts`'s third
+  property: a stored URL could name a host we do not control); the app
+  asks the index before it asks the network, so a key with no picture
+  fires no request; the credits load on first open, session-cached,
+  failure forgotten. `SITE_ORIGIN` moved to `siteOrigin.ts` and
+  `links.ts` re-exports it — still the single edit D3 promised, without
+  the feed's tiles dragging the deep-link plumbing in.
+- **`ui/PickArt.tsx`** — one `<img>` over the generated face, in the
+  duel tile's `.wf-tileimg` treatment (shared, not copied): transparent
+  until decoded, fading in, unmounted on a failed load so the face is
+  what remains. Decorative to assistive tech because every surface that
+  draws it already names the entry beside it.
+- **`ui/PickCredits.tsx`** — the *Image credits* door under the browse
+  row and under the reveal's two faces, opening into the domain's list
+  (name — author · licence · *source*), with TMDB's sentence verbatim
+  where a poster is on it. Nothing renders for a domain with no
+  pictures: the door is the licence's condition, not furniture.
+- **`ui/PickTiles.tsx`** and **`world-feed.jsx`'s `renderPick`** draw
+  it — the tiles' faces, the reveal's "your pick" and "the crowd". The
+  search's rows and the demo store's invented catalogues do not.
+- **`firebase.json`** — the `/catalog-art/**` headers rule, and
+  `**/README.md` on the hosting ignore list so the directory's README
+  is not served.
+
+### 3 · Hosting, not the package — the takedown arithmetic
+
+The policy's second half is what chose where the bytes live. A picture
+inside the native package comes down with a release: a build, a review,
+days. A picture on Firebase Hosting comes down with a commit: the
+firebase-deploy workflow already watches `web/**`, the CDN purges on
+deploy, and a device that holds the picture drops it within
+`Cache-Control`'s hour — which is why the gate holds `max-age` to 3600
+rather than leaving it to the default. Three alternatives and why not:
+
+- **The JS bundle** — `check:bundle`/D27, verbatim. Content is not code.
+- **Firebase Storage** — the profile photo's home, and the natural one
+  for a takedown by console click; but a gate cannot see a bucket from
+  CI, and the whole value of `check:catalog-art` is binding files to
+  credits offline on every push. Hosting keeps both in the repo.
+- **Hotlinking Commons or TMDB** — never: the viewer's IP would reach a
+  third party on every tile, the picture could change after it was
+  reported, and Commons asks not to be hotlinked at scale.
+
+The cost accepted: thumbnails in git, roughly 4 MB for the athletes and
+3 MB for the flags at 184 px, growing only when a picture changes.
+
+### 4 · Where each domain stands
+
+The table in `CATALOG-QUESTIONS.md` § Entity images is the record; in
+one line each: emoji and colours drawn by construction since D308;
+athletes, artists and video games on the Commons route (partial
+coverage, the face underneath); countries on the flag route; films on
+TMDB behind the owner's key; Pokémon refused and asked; dogs and
+languages routeless until a name-resolution route exists; people in
+prompts out, unchanged. One question in the athletes row is not
+copyright and is recorded rather than decided: a person's picture has
+its own protection in Norwegian law (åndsverkloven § 104), with an
+exception for pictures of current and general interest that a famous
+athlete on a favourite-athlete card is very likely inside. It is D178's
+judgement about faces, one surface over, and the owner's.
+
+### 5 · What this does not decide
+
+- Whether the films run under the free key or the commercial licence
+  (`OWNER-LIST.md` § Decisions).
+- Pokémon (same list; recommendation: no).
+- Video game covers via IGDB, and a name route for dogs — neither has
+  a builder path; the credits format and the gate need no change for
+  either.
+- The reveal's aspect: its box is 92 px landscape and a poster is
+  portrait, so a film reveal crops to the poster's middle third. A
+  canvas decides that (`VISUAL-REQUESTS.md` § Built, item 11 — built on
+  the direct ask without the canvas step, like item 7, and said so).
+
+### 6 · Measured
+
+Every gate and every runner the change can reach, green: `lint`,
+`tsc -b`, `check:globals` (30, baseline 30), `check:eager-content`,
+`check:web-headers`, `check:csp-hashes`, `check:a11y`,
+`check:tap-targets`, `check:labels`, `check:public-copy`,
+`check:policy-claims`, `check:catalogs`, `check:catalog-art` (*no art
+yet; index agrees; hosting rule present*), `check:store-forms`,
+`check:content`, `check:touch-zoom`, `check:docs`, `check:figures`,
+`check:bundle` on the shipping build, measured against the base commit
+built the same way in a worktree: **544 KB eager before and after**
+(against 552), **2194 → 2197 KB total** (against 2440) — the 3 KB is
+PickArt, PickCredits and the empty index, all in the deferred feed
+chunk, so first paint carries none of this. `test:unit` and
+`test:scripts` in full. Not run: the rules and e2e runners (no rule and no
+function changed) and the builder's network half (no egress) — the
+operator run on `OWNER-LIST.md` is where that is proved.
+
+## D422 · The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost
+
+**Date:** 2026-09-08. **Status:** built; the run is the network session's
+(§ 4 is its prompt).
+
+The owner, reading D421's summary the next morning:
+
+> *"yeah this claude session does not have acces to wikidata i have only
+> set it up for the other one i think we do the same system for pokemon
+> and all the other. this will not be expensive firebase wise right.
+> also give me the promt i should pate in to the other session"*
+
+Three things in one message, and this entry takes them in order: the
+ruling now covers every domain, Pokémon included; the cost question,
+answered with arithmetic; and the operator run, which moves from "a
+machine with network" to the owner's other session, with the prompt
+that session needs kept here so it is not lost in a chat.
+
+### 1 · Every domain, and what that took
+
+D421 put Pokémon back to the owner rather than deciding it, with the
+recommendation to leave it text (D334's shape). The owner's answer is
+above, and the recommendation is overruled on the record. What "the same
+system for pokemon and all the other" needed:
+
+- **A re-encoder.** PokéAPI's official artwork is a 475 px PNG of
+  100–300 KB, five times `MAX_IMAGE_BYTES`, and Node has no image codec
+  of its own — which is why D421's builder saved Commons' 184 px renders
+  as they came. `sharp` joins the devDependencies (its Linux and macOS
+  binaries come from the npm registry like every other package, so the
+  release workflows need nothing) and `catalog-art-lib`'s `toThumb`
+  runs every picture through it, whatever the source sent: fitted
+  inside 184 px without enlargement, auto-oriented, metadata dropped (a
+  camera photo carries GPS — avatar.ts's second property, one pipeline
+  over), WebP at quality 78 with alpha kept. A transparent Pokémon sits
+  on the tile's own pattern, a poster keeps its aspect, and every file
+  weighs a fifth of what a JPEG did. Tested on a generated 475 px
+  transparent PNG with EXIF planted in it (184×184, alpha, no EXIF out),
+  a 500×750 poster (123×184), a 96 px source (untouched) and an SVG
+  (rejected with a reason).
+- **The `pokeapi` route** — by dex number, from PokéAPI's sprite
+  repository on GitHub, credited to Nintendo / Creatures Inc. / GAME
+  FREAK inc. under the tag `PokeAPI`. The tag is a RULED SOURCE, like
+  `TMDB`: `licenceAllowed` admits it because the owner's policy does,
+  not because it is a licence, and the lib carries the two tags as
+  `RULED_SOURCE_TAGS` with the app's `SOURCE_NOTICES` pinned to the
+  same list by test — a tag admitted by the builder with no notice in
+  the credits sheet would ship a picture with no credit at all, which
+  for a ruled source is the whole credit. The Pokémon line names the
+  rights-holders, because that is the honest credit for a picture held
+  under a policy rather than a licence.
+- **The dogs, by name.** A minted key has no entity behind it, but the
+  names are Wikipedia's (`build-dogs.mjs`), so the builder matches each
+  against Wikidata's English label or alias among the dog-breed classes
+  (Q39367, Q1418384, Q25409459) and takes that item's P18. A miss keeps
+  its face.
+- **Films without a key** take a free route instead of stopping:
+  Wikidata's P3383 (film poster — Commons holds the public-domain ones),
+  then a still, then the logo. With `TMDB_API_KEY` set the TMDB posters
+  win, now fetched at `w342` and re-encoded, since the re-encoder makes
+  the source size free.
+- **Video games** try the P154 logo after P18.
+- **No route on purpose, said in words**: languages (a language has no
+  picture), elements (a photograph of an element is a photograph of a
+  jar), emoji and colours (drawn by the tile since D308). `--all`
+  prints each reason so a run over "all the other" says why these are
+  not in it.
+- **`--all`** runs every routed domain in its own process, so one
+  failure — a missing key, a host the policy blocks — does not take the
+  rest down, and the exit code says whether any did. A host that answers
+  the proxy's 403 is one printed sentence naming the host, not a stack
+  trace (the first probe here produced the stack trace).
+
+### 2 · What did NOT change
+
+The policy, the gate, the format, the app. `check:catalog-art` admits
+`webp` since D421 and re-derives the same rows; the credits sheet grew
+one notice; `PickArt` draws whatever extension the index names. The
+Pokémon refusal that stood in `CATALOG-QUESTIONS.md` for a year is kept
+in its row as the record of the exposure, above the owner's word that
+overruled it, and the takedown is the same one command for a Pokémon as
+for a poster.
+
+### 3 · What it costs — the owner's question
+
+*"this will not be expensive firebase wise right."* No, and here is the
+arithmetic rather than the reassurance:
+
+- **Firestore, Functions: nothing.** Not one document read or write —
+  the pictures are static files on Hosting, the index that says which
+  keys have one ships inside the app, and the aggregate trigger never
+  sees an image. The Mirror's read budget is untouched.
+- **Hosting storage.** Roughly 4,500 pictures across every routed
+  domain (1,025 Pokémon, 1,000 films, 1,000 games at most, 640
+  athletes, 554 dogs, 250 flags) at ~8 KB WebP each is ~36 MB. Firebase
+  Hosting's free tier holds 10 GB; on Blaze the paid rate is $0.026 per
+  GB-month, so under a tenth of a cent a month.
+- **Hosting transfer**, the only line that scales with use. A browse row
+  is eight tiles, ~64 KB; a reveal is two. A heavy user opening twenty
+  pick cards a day pulls ~1.3 MB; a thousand such users a day is ~40 GB
+  a month, of which the free tier covers 10 GB and the rest is $0.15
+  per GB — **about $4.50 a month at a thousand heavy daily users, ~$60
+  at ten thousand**, and both figures assume every user is a heavy one
+  and the hour's cache never hits. Per user-day it is a fiftieth of a
+  cent.
+- **The repository** carries the ~36 MB once, and grows only when a
+  picture changes or a domain is refreshed.
+- **The one knob** is `Cache-Control: max-age=3600`. A day's cache would
+  roughly halve the transfer and stretch a takedown to a day; at these
+  numbers the hour is the better promise, and the gate holds it.
+
+### 4 · The run moves to the other session — its prompt
+
+The session that built this could reach one of the six hosts —
+`raw.githubusercontent.com`, which is how the Pokémon ran HERE (§ 6) —
+and none of the other five. The owner has an environment whose policy
+allows Wikidata; the builder's header now lists all six hosts a full run
+touches (`query.wikidata.org`,
+`commons.wikimedia.org`, `upload.wikimedia.org` — the thumbnails are
+served from there, not from commons.wikimedia.org —
+`raw.githubusercontent.com`, `api.themoviedb.org`, `image.tmdb.org`),
+and a blocked host fails its domain with one line while the rest run.
+The prompt, kept here verbatim so it is in the tree and not only in a
+chat:
+
+```
+Check out branch claude/catalog-questions-pictures-ngtiwp of Cosaxo/InSight
+(git fetch origin claude/catalog-questions-pictures-ngtiwp && git checkout
+claude/catalog-questions-pictures-ngtiwp), run npm ci, then read the header
+of scripts/build-catalog-art.mjs and docs/CATALOG-QUESTIONS.md § Entity
+images. Do not change the builder, its licence policy, or anything under
+src/.
+
+The Pokémon are already in the tree (web/catalog-art/pokemon/), so do not
+re-run that domain. Run the pictures pipeline for the five that remain,
+one at a time, in this order:
+  node scripts/build-catalog-art.mjs countries
+  node scripts/build-catalog-art.mjs athletes
+  node scripts/build-catalog-art.mjs videogames
+  node scripts/build-catalog-art.mjs dogs
+  node scripts/build-catalog-art.mjs films
+If TMDB_API_KEY is set in your environment the films get TMDB posters; if
+not, the run says so and takes Commons' free ones — do not stop for it. If
+a host is blocked (the header lists the six), say which one, finish the
+domains that work, and do not fetch from anywhere else or hotlink.
+
+Then validate:
+  npm run check:catalog-art
+  npx vitest run scripts/check-catalog-art.test.mjs scripts/catalog-art-lib.test.mjs
+Fix nothing by hand under web/catalog-art/ — if the gate fails, re-run the
+builder for that domain and report what it printed.
+
+Commit web/catalog-art/ and src/v2/data/catalogArtIndex.ts together, with a
+message that lists per domain how many were pictured, how many had no
+image at the source, and how many were refused on licence (the builder
+prints these), and push to the same branch. Do not open a pull request.
+Then tell me the per-domain counts, the total size of web/catalog-art/,
+and which hosts, if any, were blocked.
+```
+
+### 5 · What this does not decide
+
+- The TMDB commercial licence (`OWNER-LIST.md` § Decisions; the row now
+  says what the run does without the key).
+- Video game covers through IGDB — a registration the owner would make;
+  the Commons route runs meanwhile.
+- The reveal's aspect (D421 § 5).
+
+### 6 · Measured
+
+**The Pokémon ran here, end to end.** `--all --limit 1` was meant as an
+offline probe and pictured Bulbasaur instead: `raw.githubusercontent.com`
+is on this sandbox's allowlist (GitHub is), so the `pokeapi` route
+went through while the five Wikidata-and-Commons domains failed with
+one line each. The full run followed — **1,025 pictured, 0 with no
+image at the source, 0 refused, 0 skipped; 9.9 MB in
+`web/catalog-art/pokemon/`, files between 3.2 KB (960) and 14.0 KB
+(947), every one 184 px WebP with alpha and no EXIF** — and
+`check:catalog-art` reads *pokemon 1025 (1025 webp); index agrees;
+hosting rule present*. That is the pipeline proved on one domain:
+download, re-encode, credit, index, gate. The other five wait on § 4.
+
+`sharp` installed from the registry here and resized a transparent
+475 px PNG to a 202-byte WebP before any code depended on it. Every
+offline path of the builder was probed again after the rewrite — usage,
+a no-route domain, an unknown domain, a route that refuses `--source`,
+a takedown, films without a key, `--all` over the whole table — each
+one line, no directory left behind. The lib's and the gate's suites, the
+four app suites the change touches, `lint`, `tsc -b`, `check:docs`,
+`check:figures`, `check:catalog-art`, `test:scripts` in full (1,051),
+`test:unit` in full with the real index in place, and `check:bundle`
+on the shipping build, all green. The bundle: **544 KB eager, unchanged
+from the base commit and from D421; 2201 KB total** against D421's 2197
+— the index's thousand keys are the 4 KB, and they ride the deferred
+feed chunk.
+## D423 · The pictures land: five domains fetched from a cloud session, the seventh host nobody knew about, and the two ways a throttled network kills a run
+
+**Date:** 2026-09-08. **Status:** built and committed; the pictures are in
+the tree. Supersedes D422 § 4's "pending the network session's run".
+
+D422 § 4 wrote a prompt for a session whose environment could reach the
+picture hosts, and this is that run. It took four hours instead of the
+expected twenty minutes, and everything that cost the difference was
+invisible from the building session — so the point of this entry is not
+the counts (§ 1) but the three things that stood between a correct
+builder and a picture on disk (§ 2), each of which will be waiting for
+whoever refreshes a domain next.
+
+### 1 · What came back
+
+| Domain | Pictured | No image at source | Refused on licence | Skipped |
+| --- | ---: | ---: | ---: | ---: |
+| countries | 246 | 3 | 1 | 0 |
+| athletes | 632 | 1 | 6 | 1 |
+| videogames | 632 | 346 | 20 | 2 |
+| dogs | 410 | 141 | 3 | 0 |
+| films | 731 | 268 | 0 | 1 |
+
+**2,651 new pictures, 14.2 MB**, joining the 1,025 Pokémon D422 put in —
+**3,676 files and 22.3 MB** under `web/catalog-art/`. That is under
+D422 § 3's ~36 MB estimate, and the reason is worth keeping: the tiles
+come back *smaller* than the 8 KB it assumed. Flags average 1.5 KB
+(a flag is flat colour, which WebP eats), athletes 5 KB, films 5.4 KB,
+Pokémon 8 KB. D422 § 3's transfer arithmetic therefore holds with room
+to spare, and nothing about it touches Firestore or Functions.
+
+The 759 keys with no image keep their generated face, which is D308's
+pattern working exactly as the permanent fallback it was built to be.
+Videogames is the domain where the route shows its limit — 346 of 1,005
+have nothing on Commons, because Commons has logos and screenshots for
+games and not cover art, which is the row D421's table already called
+the IGDB gap.
+
+The 30 licence refusals are the gate doing its job, and they are worth
+listing because they are not what one would guess: 13 are the GPL family
+(`GPL` ×10, `GPLv3` ×2, `NetHack GPL`), `MIT` and `WTFPL` one each — free
+software licences applied to screenshots of free software games. Nine are
+GFDL-only, two GODL-India, two OGL, one "OGL-om 1.0". `licenceAllowed`
+recognises none of them and admitted none of them. Whether the
+software-licence rows *should* be admitted is a real question and is
+left open rather than decided here: they are free by any reading, and the
+refusal costs ~13 game pictures.
+
+**Films took the Commons route, not TMDB.** No `TMDB_API_KEY` in the
+environment, so those 731 are P3383's free posters, then stills and
+logos — the classics and few others, not the poster wall. `OWNER-LIST.md`'s
+TMDB row is unchanged and still the owner's.
+
+### 2 · The three things that stood in the way
+
+Each was invisible to the building session, each looked like a different
+failure than it was, and each is a line in the builder's header now.
+
+**A seventh host, and D422 § 4 named the wrong one.** That entry says
+"upload.wikimedia.org — the thumbnails are served from there, not from
+commons.wikimedia.org". They are not. Commons' `imageinfo` now returns
+`thumburl` on **`thumb.wikimedia.org`**, and the builder prefers
+`info.thumburl` over `info.url`. So a run with all six documented hosts
+allowed still fails every picture, and for `countries` there is no
+falling back to the original: `info.url` is the raw `.svg`, which
+`fetchThumb` correctly refuses as an unsupported type. `upload.wikimedia.org`
+is still needed; `thumb.wikimedia.org` is needed too, and the header
+now lists seven.
+
+**Node's `fetch` ignores `HTTPS_PROXY`.** In a sandbox whose egress runs
+through a proxy, `curl` reaching a host proves nothing about whether the
+builder can: Node's built-in fetch does not read the variable and goes
+out on a path the allowlist does not cover. The symptom is an HTTP 403
+that survives every allowlist change, which reads exactly like a policy
+denial and is not one. `NODE_USE_ENV_PROXY=1` (Node ≥ 22.21) fixes it,
+and it is an environment variable rather than a change to anything.
+This cost an hour of adding hosts that were already allowed.
+
+**A shared cloud IP gets ~1 Commons API call a minute.** Measured, not
+inferred — 11 probes at two spacings, successes 62 s and 91 s apart,
+every 429 carrying `x-envoy-ratelimited: true` and `Retry-After: 8`.
+Image downloads from the thumbnail host are not limited at all (50 in a
+row at the builder's own pace, no failures), so the only scarce thing is
+the one API call per fifty pictures. That is ~33 calls for all five
+domains — half an hour of waiting, if anything waits.
+
+### 3 · What the builder learned, and why each is in code
+
+Two changes to `get()` and nothing else; the routes, `licenceAllowed`,
+the credits format and the takedown are untouched. Both were approved by
+the owner mid-run, and both are the same lesson from opposite ends: a run
+that has already spent an hour fetching must not throw that away over one
+answer it could survive.
+
+- **A 429 is a schedule, not a failure.** The old ladder was three tries
+  at 2.5 s and 5 s — seven and a half seconds against a sixty-second
+  window, so it gave up about fifty seconds short, every time, and the
+  domain died on its second chunk of fifty however often it was re-run.
+  It also discarded the `Retry-After` the server was explicitly sending.
+  Now a 429 waits for what the server asks or a `20 s × attempt` ladder,
+  whichever is longer, capped at 120 s, with its own budget of eight
+  tries. 5xx keeps the old short ladder, because a server error is not a
+  promise that waiting helps. Measured effect: `videogames` sat in two
+  blocks of roughly ten minutes each and finished with 632 pictures that
+  the old code could not have reached.
+- **An image the host will not serve is a skipped key, not a dead
+  domain.** A network error on one *image* used to exit the whole run.
+  It fired for real: `upload.wikimedia.org` refused mid-`athletes` and
+  took 452 already-fetched pictures with it. Now such an image takes the
+  same path a 404 already took — `skip`, one printed line, the key keeps
+  its face — while an API call keeps the fatal exit, because a missing
+  chunk of fifty would put a falsehood in `credits.tsv` rather than a
+  gap. The four `skipped` in § 1's table are four runs that would each
+  have been a dead domain.
+
+Neither change is specific to this environment. A laptop on a flaky café
+network meets both.
+
+### 4 · What is still owed
+
+- **TMDB**, unchanged and still the owner's (`OWNER-LIST.md`). With the
+  key and its two hosts, re-running `films` replaces the 731 free
+  pictures with real posters.
+- **The GPL-family refusals** in § 1 — a question, not a defect.
+- **Video game covers** still wait on IGDB, exactly as D421 said.
+
+A refresh of any domain is the same one command it always was, and the
+takedown is still `--remove <key>`, a commit, and the hosting deploy.
+
+## D424 · The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail
+
+**2026-09-08.** **Status:** binding, built. Owner's direction, reading
+this repo's own answer to "how are new topics created and how often?":
+*"this is completly worng: A new category is never created by a run. Not
+for daily (hard rule 3), not for feed topics, not for pick cats, not for
+learn fields or subjects. they should be created by the ai not by human
+and we need a smart system for creating it"*.
+
+### What was actually wrong with the old rule
+
+Not its caution. Every reason it gave is still true: a category here is
+not a label but a `CAT_META` hue, a Map anchor with relations, a chip in
+a filter row, and for learn a group in the Map's layout — adding one is a
+structural change to the picture the Mirror exists to draw. D145 restated
+it and D231 obeyed it.
+
+What was wrong is WHERE the caution sat. The rule ended *"a human decides,
+in a PR of their own"* — and the human left the loop at D212, when the
+lanes started merging their own PRs. The measured consequence: **one
+category created in the project's life** (`now`, D231, by the owner in
+person), against a farm that has been writing questions daily since
+D33. A rule whose safe path is never taken is not caution, it is a stop.
+It is the same finding D329 made about seven written-down refusals and
+D334 generalised — *a preference stated as a rule reads as a rule* — one
+surface over.
+
+So the caution moves into a regulator, where it fires on a schedule.
+
+### The decisions
+
+**1 · Hard rule 3 is reversed.** *"No new categories"* becomes *"a new
+category is created by ARITHMETIC, never by a run's opinion"*. The lanes
+create categories on all four surfaces. `scripts/topic-budget.mjs` is the
+regulator and `content/topic-proposals.json` the ledger it rules on; the
+farm manual's § When no category fits carries the procedure.
+
+**2 · A question that fits nothing is PARKED, not dropped.** The old rule
+discarded the question and asked a human to notice a pattern across PR
+bodies — *"three runs proposing the same missing top is an argument; one
+is an anecdote"* — which is a pattern-recognition task over an artifact
+nobody was reading, on evidence that had been thrown away. The ledger is
+that sentence made into data: the proposal, its `nearest` existing
+category, and each question with its run date.
+
+**3 · Three blockers and a write rule, each something the old rule
+asserted in prose.** The shape is `farm-budget.mjs` one layer up — that
+regulator answers *how many questions may this run write*, this one
+answers *may this run open a room to write them into* — and it has the
+same self-closing property: there generation tracks promotion throughput,
+here taxonomy width tracks the lanes' stocking throughput.
+
+| Blocker | Arithmetic | Where it comes from |
+| --- | --- | --- |
+| Evidence | `EVIDENCE_MIN` 3 parked questions over `RUNS_MIN` 3 distinct run **days** | D145's own "three runs is an argument" |
+| Breadth debt | the lane regulator's own deficit must be 0 | `world-subtopics.js`'s "a thin subtopic would feel like a broken room", and the farm's own subtopic deferral |
+| Settling | the last category created on that surface is at floor | one room at a time |
+
+**The write rule:** the creating run writes `min(budget, floor − parked)`
+into the room in the PR that opens it, and the lane's own floor-first
+levelling finishes it on the next runs — a category at 3 is the largest
+deficit on its surface, the pull `feed-budget.mjs` documents as the
+reason `now` had to be excluded from it. Settling holds the door
+meanwhile.
+
+That rule was a fourth **blocker** in this record's first cut — "the
+run must be able to finish the room it opens" — and a same-day re-read
+found the arithmetic had locked one surface out: the learn lane's cap is
+10 and its floor 24, so with 3 parked it owed 21 and could grant 10,
+every run, forever. A rule the owner had just reversed would have stood
+on learn by accident, and nothing would have said so — the regulator
+would simply have printed HOLD with a true-looking reason. For feed (cap
+60) and daily (cap 8 = floor) the write rule still produces a category
+born at its floor, which is what the blocker was for; for learn it is
+born at 13 and full two runs later.
+
+The floors are imported from the lanes (`TOP_FLOOR` 8, `TOPIC_FLOOR` 24,
+`FIELD_FLOOR` 24), never restated — D197's one-copy rule, and the reason
+blocker 2 cannot disagree with the lane about what thin means. Measured
+on the tree the day it shipped: daily and feed are levelled (deficit 0,
+so evidence is the only thing they wait on), learn owes 112 cards across
+its twelve fields and can create nothing until it levels.
+
+**The evidence stream is made deliberate, not accidental.** A lane
+writing toward "6 into sport" never meets a question that fits nothing,
+so a system fed only by misfits is the old rule wearing arithmetic — the
+input would be zero, as it was under the old rule (D145's own finding
+was that no run had ever proposed). The manual's procedure therefore
+gains a **scouting step**: once per run, before writing, the lane asks
+whether there is a subject it keeps wanting to write toward that has no
+home, and parks at most ONE question for it — *if* there is one. The
+"at most one, only if" is load-bearing: the evidence rule counts days
+because recurrence is the signal, and a lane that parks daily to be
+thorough has replaced the signal with its habit.
+
+**What the system's top speed is, and whose number it is.** With every
+surface levelled the only brake is evidence, and the write rule finishes
+a feed or daily room in the run that opens it — so the ceiling is **one
+category per three run days per surface**. That is fast: ten feed
+topics a month if the scouting step keeps finding gaps, each one a chip,
+a Map branch, and — because feed topics are always-on (D96) — a page of
+`FEED_PAGE` (12) reads for every new install until its cache converges
+(D321). The regulator prints both the speed and the cost and gates on
+neither: a ceiling on the taxonomy is a limit on what the axes can
+connect, and D352 puts that kind of limit to the owner, not into a
+script. The question is on `OWNER-LIST.md`.
+
+**4 · The hue is computed, not chosen.** D231's record says how `now` got
+hue 115: *"the widest gap left in the row (85 → 145), picked for distance
+from its neighbours rather than for a meaning"*. That is an algorithm, so
+`hueFor()` is it, and the test pins that the algorithm reproduces the
+owner's own hand: given the twelve hues the ring carried before `now`, it
+returns 115. The chroma and lightness tiers never move, so a created chip
+cannot invent a visual language — and a row on a surface that already
+exists is not a visual in D352's sense, which is why this ships without a
+`VISUAL-REQUESTS.md` entry.
+
+**5 · There is deliberately NO semantic gate, and the measurement is why.**
+The obvious fifth blocker is *is this proposal distinct, or a synonym of a
+topic that exists?*, and `question-neighbors.mjs` has the machinery. It
+was built, then measured against the live feed corpus before being
+believed — mean nearest-neighbour affinity, each topic's questions against
+their own topic and against every other:
+
+```
+topic     n   self   best other
+now      17   0.049  0.076 (event)     <- self < other
+people   31   0.079  0.066 (dilemma)   <- self < other
+movies   33   0.125  0.107 (sport)
+event    30   0.127  0.099 (dilemma)
+…
+music    35   0.284  0.073 (bigq)
+```
+
+The classes overlap: the lowest self-affinity (0.049) sits **below** the
+highest cross-affinity (0.117), so no threshold separates them. And the
+topic it fails hardest on is `now` — whose questions look more like
+`event`'s than like each other, exactly as D231 built it: *"a TIME rather
+than a subject … not what a question is about but how long it is worth
+asking"*. **A semantic gate would have refused the last real topic this
+project created, for the reason it was created.** Recorded here and in the
+script's header so nobody derives it a second time. What survives is the
+check that is true: a parked question clears `check:neighbors` like any
+other — it is a question with no home, not one already asked.
+
+**6 · `check:taxonomy` — a category is written at every site or not at
+all.** Letting a schedule create categories made half-creation reachable
+on a schedule, and three mirrors turned out to be held by hand with
+nothing comparing them:
+
+1. **The feed's topic lives in two files** — `world-feed-topics.js` (the
+   client palette, lightness tier 0.52) and `content/feed-questions.json`
+   (the wire taxonomy `check:quality` validates a question's `cat`
+   against, tier 0.55). `check-content.mjs` validates each question
+   against the wire list and `check:quality` validates pick cards against
+   the palette; **neither compares the two lists**. A topic in one and not
+   the other fails silently in both directions — a chip that matches
+   nothing, or a question no chip can reach.
+2. **The daily's hues live in two files** — `CAT_META` carries a hue per
+   top, and `map-branches.js` repeats the seven seed hues as its own
+   literal. Also unchecked.
+3. **The ledger itself**, because a regulator reading a file nothing
+   validates is `farm-budget` reading an invented number — D197 again.
+
+The gate holds all three plus hue distinctness (`HUE_MIN_GAP` 15, the
+closest pair that already ships, so the gate holds the row no tighter
+than it is). It is split into `loadSources()` and `checkTaxonomy(sources)`
+specifically so the test can drive **each rule with a source that breaks
+it**: a gate whose only test is "the tree passes today" is the D179/D275
+class — a tripwire that has stopped measuring reports zero and looks
+green. 23 cases, one per rule, plus 18 on the regulator.
+
+**7 · Two figures the sweep found on the way.** `EMERGENT_CATS` is
+**seven** rows — the `CAT_META` tops with no `seedId` — and both
+`daily-cats.js` and `map-branches.js` described it as *fourteen*, which
+is the Map's branch count (7 seed + 7 emergent) attached to the wrong
+name. And `map-branches.js` still guarded `if (Array.isArray(EMERGENT_CATS))`
+around an imported `const` array: the load-order condition outliving the
+load order, which is the exact shape CLAUDE.md's conversion rule names
+(*"an imported binding cannot be unset"*). Both were in the file that
+exists to be the taxonomy's single source, which is the reason to fix them
+in this record rather than a later one. The inner dedup stays — that one
+is a data condition.
+
+### What this does NOT do
+
+- **No category is created by this record.** The ledger ships empty,
+  which is its correct state: proposals accumulate from runs meeting
+  unfittable questions, they are not seeded. `npm run topic:budget` on
+  this tree prints three levelled surfaces and nothing to rule on.
+- **Pick cards get no vocabulary of their own.** They file against
+  `WORLD_TOPICS` (D145 §4) and always did; creating a feed topic is
+  creating theirs.
+- **Subtopic authoring is the better growth path and is NOT wired.** A
+  leaf under a levelled parent inherits its hue, adds no chip and no Map
+  branch, costs a new install no page, and is reached by following the
+  parent — every cost this record prices, a subtopic does not pay. The
+  deferral ("a leaf below a levelled parent is depth where breadth is
+  still owed") was written when the parents were thin; the feed's ten are
+  levelled now. The manual says to prefer a leaf-shaped proposal and to
+  park it with `nearest` set until the lane exists. Wiring that lane —
+  `WORLD_SUBTOPICS` as a site, `check:taxonomy` holding leaf→parent, the
+  feed regulator counting leaf stock — is the recorded next step, and
+  most of what this record calls "a new topic" should arrive that way.
+- **Retirement is not built.** A category that stops earning its chip has
+  no path out, and the ledger has nowhere to record one. It is the
+  obvious next asymmetry — creation is now cheaper than removal — and it
+  is deferred rather than forgotten.
+
+### Reversal
+
+Revert the commit. `check:taxonomy` and `topic:budget` leave the tree with
+it; hard rule 3 and § When no category fits return to the human gate. The
+ledger is empty, so nothing is stranded.
+
+## D425 · The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so
+
+**2026-09-08.** **Status:** binding, built. The owner, reading D424's
+first cut the same day: *"yeah most topic should be sub topics there
+should only be a limeted nummber of topics i assumed that was
+established. this should focus mainly on creating new subtopics"* — and
+then, reading the cut that took "a limited number of topics" as a cap on
+the count: *"no i see i confuse you the amount of topics show at the top
+in the you map should stay roughly the same unless a new one is relly
+needed but learn feed daily all of these can get new topics."*
+
+Two rulings in one day, and the second is the record: what stays fixed
+is the **ring at the top of the You map**, and what grows is the content
+taxonomies — feed topics, learn subjects, daily tops — each new room
+landing inside the ring that exists.
+
+### What the ring is, measured
+
+The Map tab draws *You → group → branch → sub → answer* (`map-tab.jsx`),
+and *"at the top level the ring is groups"*: `MAP_GROUPS` in
+`map-groups.js` — eight hubs, six of them answer groups (Self · Taste ·
+Beliefs · Knowledge · World · People) and two aims (Foresight ·
+Crossroads). Its own header already says the owner's rule from the
+other side: *"The set is deliberately wider than what is populated
+today — a new branch should always have an obvious home. Empty groups
+never render, so the map grows a hub the first time you answer into
+one."* Branches sit inside hubs and draw only once they hold an answer
+(`allCats` keeps a branch only while `built.counts[c.id] > 0`).
+
+How each surface reaches the ring, verified rather than assumed:
+
+- **Daily** — a top's `catId` (`seedId`, else `top-<slug>`) is filed by
+  `MAP_GROUPS.of()`: an explicit entry in a hub's `cats`, else the
+  *"unplaced topical branch lands in World"* default. All 14 tops are
+  explicitly placed today.
+- **Learn** — a mastered card files under `lrn-<subject>`, and the
+  `lrn-` prefix is Knowledge, automatically. A new subject adds a branch
+  inside Knowledge and nothing to the ring.
+- **Feed** — feed answers **do not file on the Map tab** at all. The
+  feed's `WF_BRANCH` table (`world-feed.jsx`) feeds one thing: the
+  *"added to Taste →"* caption that appears after a vote and navigates
+  to the You tab. Its targets are branch names or hub labels; a topic
+  without a row captions "added to Interests" by default. `now` and
+  `places` have no row today.
+
+So a new feed topic changes the ring by nothing, a new learn subject by
+nothing, and a new daily top by nothing **provided it is written into a
+hub** — and only a new hub changes what the ring shows. That is exactly
+the line the owner drew.
+
+### The decisions
+
+**1 · The ring is held at today's count, as the owner's ratchet.**
+`GROUPS_TODAY` (8) in `check-taxonomy.mjs`, rule 6: `map-groups.js` must
+hold exactly that many hubs. A hub that is *"really needed"* is the
+owner's judgement — no arithmetic here makes it — and the owner adds it
+by moving the constant in the same PR as the hub, with the ruling.
+D334's shape: the ask goes to the owner with what it costs, and the
+owner rules.
+
+**2 · No cap on the count of topics, on any surface.** D425's first cut
+capped feed at 13, daily at 14 and learn subjects at 5 — the count, when
+the owner meant the ring. Those caps are gone; `TOPS[surface].max` does
+not exist. A new topic is created through D424's blockers — evidence
+(3 over 3 run days), breadth debt (the lane's own deficit at 0),
+settling (the last one at floor), the write rule — **plus one: it is
+placed.** A top-level proposal carries `group`: for the daily a hub id
+(the top's `catId` goes into that hub's `cats`); for the feed a
+`WF_BRANCH` target (a `CAT_META` key or a hub label); for learn nothing.
+`topVerdict` HOLDs an unplaced proposal with the owner's words and
+points at the tree.
+
+**3 · A subtopic is the preferred shape, not a mandated one.** A leaf
+inherits its parent's hue (*colour = family*, `world-subtopics.js`),
+adds no chip and no branch, costs a new install no page — feed topics
+are always-on (D96) and the install fetches a page per topic (D321), so
+each topic is `FEED_PAGE` (12) reads per new device until its cache
+converges, and a leaf's cards ride the parent's page — and is reached by
+following the parent. The manual says prefer a leaf when the questions
+are a **part** of a topic that exists (Football under Sport). That is a
+preference of fit: a subject that is nobody's part is a topic, and the
+lane may create it. Three blockers on a leaf: evidence — parked plus
+**retagged** existing questions under the parent (free stock,
+TAGS-PLAN's *"a door on an existing question is the free first fix"*
+one level down; days counted on the parked only); the parent levelled
+(this manual's month-old deferral, *"a leaf below a levelled parent is
+depth where breadth is still owed"*); settling per parent. A feed leaf's
+floor is `LEAF_FLOOR` 12 — one page — pinned equal to `bankPager.ts`'s
+`FEED_PAGE`, and born full always: `feed-budget.mjs` levels topics, not
+leaves, and the feed cap (60) covers 12, pinned. A learn field is the
+lane's own 24 and the learn regulator levels fields.
+
+**4 · Placement is a SITE, and `check:taxonomy` holds it.** Rule 6:
+every `CAT_META` top is in some hub's `cats` — the "unplaced lands in
+World" default is never how a new top arrives, because a Family top in
+World is wrong by default and nobody decided it; every subject feed
+topic has a `WF_BRANCH` row that resolves to a branch or a hub, except
+the stated exception (`RIPPLES_TO_INTERESTS`: `now`, D231's time, which
+has no branch); every `WF_BRANCH` key is a `WORLD_TOPICS` id; and a
+proposal's `group`, when given, names something that exists. The
+regulator's `sites` lists name the hub site for the daily and the feed,
+so the verdict says it out loud.
+
+**5 · The daily's second level is written, never created.** `cat` is
+`[Top, Sub]` and `Sub` is free text — 129 distinct pairs over 154
+questions, measured. `LEAVES.daily` is `null`; a daily "leaf" proposal
+is refused with that sentence.
+
+**6 · The feed's subtopic lane is wired, and it was four small pieces.**
+The client already had the second level whole — `wfFeedMatch`
+fast-paths on `q.sub`, `SUBTOPICS.count` reads it off the pool, `WF_SUB`
+draws the pill in the family's colour, `deck.ts`'s `buildS` passes `sub`
+through for every surface. What was missing, in order down the pipe:
+`content/feed-questions.json` entries may carry `sub`; `check:quality`
+holds it (a committed leaf, under the question's own home, not repeated
+in `also`); `gen-v2content.mjs` emits it on feed entries, emit-when-set;
+`live.ts`'s vote mapper passes it into the pool — the moment `offers()`
+starts offering the leaf, exactly as its own comment said it would
+(*"leaves return by themselves the day live questions carry their
+tag"*). Pinned in `vote.test.ts` beside the doors pin, absence included.
+One wire field carries the daily's sub-branch NAME and the feed's leaf
+ID; the surface tells them apart and `deck.ts` says so at both
+declarations. A leaf is not yet a paged shelf of its own — a device
+meets its cards on the parent's page — and the order doc carrying
+leaves is the next step if that reads thin.
+
+**7 · `check:taxonomy` rule 5 holds the leaf lists**: `sub_`-prefixed,
+unique, under a subject topic that may carry leaves (not `fav`/`places`,
+and not `now` — a leaf of a time would be a subject wearing an expiry it
+does not have), label unique within its parent; a learn field names a
+subject that exists. The ledger rules match: a leaf needs a real
+`parent`, `retag` ids under that parent and untagged, and no label that
+already names a category.
+
+### What this does NOT do
+
+- **No room is created here, at either level.** The ledger ships empty.
+  `npm run topic:budget` prints the ring (8 hubs), each surface levelled
+  or not, the feed's three demo leaves at 0 live stock, and nothing to
+  rule on.
+- **`feed-budget.mjs` does not level leaves.** Born-full makes that
+  unnecessary; the day a leaf can go thin, the regulator learns `sub`.
+- **Feed answers on the Map** stay where they are — not on the Map tab.
+  Whether the Mirror's constellation (D112) should read feed topics
+  through the same hub table is a separate question; nothing here moves
+  it.
+- **Retirement is still not built** — D424's open asymmetry, now for
+  leaves and hubs too.
+
+### Reversal
+
+Revert the commits with D424's. Nothing is stranded: no question
+carries `sub` in the bank, so the generator's output is byte-identical
+with or without the emission, the ledger is empty, and the ring's
+ratchet reads the count that is there.
+
 ## D426 · Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal
 
 **Date:** 2026-09-08 · **Status:** binding as a PLAN and as a
@@ -45075,7 +46211,7 @@ the sender after it, a late answer nudging nobody), `reveal-day.test.ts`
 (the reveal's stamps), `push.test.ts` (the channel, the tap, the
 foreground hand-off) and the e2e (the stamps on the real trigger).
 
-**The screens are built** (§7.5, request 11, the same day): the owner
+**The screens are built** (§7.5, request 12, the same day): the owner
 drew the card in Claude Design from the prompt this session wrote —
 nine states for a 1v1 and a group, light and dark — and the canvas is
 extracted to `design/rounds-card-2026-09-08/` with a README that is
