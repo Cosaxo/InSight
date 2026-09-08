@@ -960,9 +960,12 @@ describe("question-bank cache", () => {
   // its `now` cards through `h.rankOrders.feed`, so what it executes is
   // `servableNow`. `publishBank` carries its own copy — the `fresh()`
   // filter over every row it is about to publish — and NOTHING EXECUTED
-  // IT. Measured: deleting it from `publishBank` left the whole vitest
-  // surface green, 285 files and 4548 tests, while the same mutation to
-  // `servableNow` goes red.
+  // IT. Measured: deleting it from `publishBank` left EVERY runner in the
+  // tree green, while the same mutation to `servableNow` goes red.
+  //
+  // (The figure that stood here — "285 files and 4548 tests" — did not
+  // reproduce, and the claim never needed it: what was measured is that
+  // nothing anywhere went red. See the note in vote.test.ts.)
   //
   // It is the copy that matters for a RETURNING device. An expired
   // document stays in the cache on purpose — the archive rule, asserted

@@ -1017,10 +1017,16 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
   // ── ASKED AND GOT NOTHING IS A FAILURE, NOT AN EMPTY CROWD ───────
   //
   // `kindredFailed` is assigned in exactly one place and only the
-  // NOT-a-failure direction was tested. Forcing it to `false` left the
-  // whole vitest surface green — 285 files, 4548 tests — while the City
-  // field says "Nobody from Oslo yet — fills in as the city answers" after
-  // twelve collection-group queries that all threw.
+  // NOT-a-failure direction was tested. Forcing it to `false` left EVERY
+  // runner in the tree green while the City field says "Nobody from Oslo
+  // yet — fills in as the city answers" after twelve collection-group
+  // queries that all threw.
+  //
+  // (This said "285 files, 4548 tests" and neither number reproduced —
+  // the surface was nearer 292 and 4898 the night it was written. The
+  // claim is "nothing anywhere went red", which does not need a count,
+  // and a hand-maintained count is the one documentation error this repo
+  // keeps re-committing. Run the suites for the live figure.)
   //
   // The lens has the arm for it: LiveSimilarityField reads
   // `LIVE.kindredState()` and draws "Couldn't read the crowd here" on
