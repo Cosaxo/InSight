@@ -16,6 +16,8 @@
 // below that reached a surface through the picker now reaches it through the
 // profile, which is where those surfaces live.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
@@ -118,9 +120,14 @@ describe("the overlays with no button — opened through the nav registry", () =
   // bare identifier precisely so a failed load degrades to a blank instead of a
   // ReferenceError that takes the whole shell down.
   //
-  // FOUR, and the table below is the list — it said five while holding four,
-  // which is the drift that matters most in a table that is itself the
-  // coverage claim. The two overlays in that chunk NOT here are the two
+  // THE TABLE BELOW IS THE LIST, and it is no longer a hand-maintained
+  // count. This comment said FIVE while the table held four, was corrected
+  // to FOUR, and then said four while the table held THREE — SuggestOverlay
+  // was dropped on 2026-09-05 and the number was not moved with it. A
+  // figure in the coverage claim itself is the one this repo keeps
+  // re-committing (D39), so the case below now DERIVES the list from
+  // app-shell's own render guards and fails if the two disagree. The two
+  // overlays in that chunk NOT here are the two
   // app-shell renders as bare identifiers: relmap, whose own note gives the
   // reason, and search. Neither can be reached with its name unbound —
   // openOverlay awaits the chunk and returns on failure, so `ov` never
@@ -175,6 +182,20 @@ describe("the overlays with no button — opened through the nav registry", () =
       ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
       ["CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],
     ];
+
+    // The table is the coverage claim, so it is checked against the thing
+    // it claims to cover rather than against a number in a comment. A new
+    // `&& <window.X` render guard in app-shell reddens this until it has a
+    // row here; removing one reddens it until the row goes.
+    it("covers every `window.X &&` render guard app-shell actually has", () => {
+      // `resolve(process.cwd(), …)` rather than `import.meta.url`, which
+      // vitest's jsdom transform does not hand back as a file: URL —
+      // vote.test.ts reads live.ts the same way for the same reason.
+      const shell = readFileSync(resolve(process.cwd(), "src/v2/spec/app-shell.jsx"), "utf8");
+      const guards = [...shell.matchAll(/&&\s*<window\.(\w+)/g)].map((m) => m[1]);
+      expect(guards.length, "no render guards found — the pattern stopped matching").toBeGreaterThan(0);
+      expect([...guards].sort()).toEqual(GUARDED.map(([g]) => g).sort());
+    });
 
     for (const [global, opener, argsFor] of GUARDED) {
       it(`${opener} with ${global} missing renders nothing and does not trip the boundary`, async () => {
