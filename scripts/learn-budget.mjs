@@ -35,9 +35,10 @@
 //                      of all the surfaces ("especially in learn … almost
 //                      become like reddit"), to half the feed's 60 — a
 //                      learn card costs more at the bar than a feed vote,
-//                      and the lane fires twice a week, which is the other
-//                      lever (docs/OWNER-LIST.md). Seven chunks of four a
-//                      run, one field per chunk, is the writer's shape now.
+//                      and the lane fires daily since the D428 amendment
+//                      (twice a week until 2026-09-08 — the other lever, and
+//                      the owner pulled it the same day). Seven chunks of
+//                      four a run, one field per chunk, is the writer's shape.
 //   FIELD_FLOOR  = 24  cards per field, reached first — three times the
 //                      scheduler's 8-card spacing floor, and the depth at
 //                      which a single followed field carries a default-rate

@@ -1980,13 +1980,18 @@ re-paced, or retired.
 | --- | --- | --- | --- |
 | InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212, D350) | this file, the sections above |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
-| InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D350) | § The learn-card lane |
+| InSight learn lane | `trig_01TckXyab4zPHT4NSfSqPjku` | `0 9 * * *` — daily 09:00 (D145 Mon+Thu; recreated D212, D350, and again 2026-09-08 for D428 — daily, and the prompt's old hard rule 3 lifted) | § The learn-card lane |
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D350) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 since 2026-09-08, for the bank burst; `0 10 * * 3` — weekly, Wednesday 10:00 (D213) — before it and again once the pools are at target (the paragraph below the table) | § The duel lane |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D351) | § The now lane |
 
 **All six live prompts match their canonical blocks below as of
-2026-09-02.** The farm, learn and feed Routines were swapped
+2026-09-08** (five as of 2026-09-02; the learn lane's was swapped
+2026-09-08 for D428 — daily, and its prompt had carried the old hard
+rule 3, *"Never create a field or subject"*, as a hard limit, which is
+the D212 class: a clause in the prompt no manual edit can lift. Same
+mechanism, same reason, same cost: created and verified first, the
+original deleted, this table last).** The farm, learn and feed Routines were swapped
 2026-09-02 for D350's blocks — delete-and-recreate from a sibling
 session, the D148/D212 mechanism for the D148 reason (`update_trigger`
 still refuses a prompt edit into a session that is not the caller's
@@ -2210,63 +2215,70 @@ session's previous branch afterwards; if the tree is dirty, stash or
 use a separate git worktree.
 ```
 
-The learn lane's canonical prompt (D145; rewritten 2026-08-19 for D212 —
+The learn lane's canonical prompt (D145; rewritten 2026-08-19 for D212, and 2026-09-08 for D428 — daily, topic:budget first, the old hard rule 3 lifted;
 same rule: update BOTH this block and § The learn-card lane in any
 future change):
 
 ```
-You are running InSight's LEARN-CARD lane — a scheduled job, twice
-weekly. It fires into this ongoing session because fresh Routine-spawned
-sessions get read-only git access and no GitHub API tools (issue #31);
-this session has both. Read docs/QUESTION-FARM.md § The learn-card lane
-on origin/main and follow it exactly — it is the contract, it changes,
-and it outranks this prompt's summary; re-read it every run.
+You are running InSight's LEARN-CARD lane — a scheduled job, daily
+since D428. It fires into this ongoing session because fresh
+Routine-spawned sessions get read-only git access and no GitHub API tools
+(issue #31); this session has both. Read docs/QUESTION-FARM.md § The
+learn-card lane and § When no category fits on origin/main and follow
+them exactly — they are the contract, they change, and they outrank this
+prompt's summary; re-read them every run.
 
-Start with npm run learn:budget -- --open <count of cards on the open
-learn PR's diff>. Zero means a gate refused the open batch — fix it, do
-not stack (there is no stock ceiling — § The learn-card lane). Otherwise
-write exactly the allocation it prints — the 24-card floor first, then
-the fields the crowd reads fastest when the signal: line says so, else
-the thinnest — at least 4 cards into any field it touches, spreading
-difficulty (p is clamped 24..92, and check:quality
-fails a batch of 3+ spanning under 20 points). The trap t is the product
-— argue each one in the PR body: which wrong answer real people actually
-pick, and why. Vary the authored c index. Pre-flight the whole batch in
-its native shape from ONE file: npm run check:quality -- --batch
-cards.json and npm run check:neighbors -- --batch cards.json (the batch
-form compares your own cards to each other, which per-candidate lookups
-never did); paste both packet lines per card into the PR body. Then npm
-run build:content, and the gates: check:content, check:quality,
-check:neighbors, check:globals, lint, test:unit, build. Open the PR,
-and when every CI check on it reports success, MERGE it yourself
-(squash — D212: the gates are the review); never merge with a failing
-or pending check, never re-run a job to outwait a real failure, never
-push an empty commit to kick CI — a PR you cannot get green is left
-open and reported.
+Start with npm run topic:budget — it names the fields and subjects the
+breadth share OPENS this run (the least-covered subjects first) and the
+reserve for them — then npm run learn:budget -- --open <count of cards on
+the open learn PR's diff> --reserve <that reserve>. Zero means a gate
+refused the open batch — fix it, do not stack (there is no stock ceiling
+— § The learn-card lane). Open the rooms topic:budget names: pick the
+most popular niche of that subject that has no field yet (or a subject no
+hub of Knowledge holds), write its handful — six cards across
+difficulties — and every site check:taxonomy holds, and say in the PR
+which and why this one before the others (D428). Then write exactly the
+allocation learn:budget prints — the 24-card floor first, then the fields
+the crowd reads fastest when the signal: line says so, else the thinnest
+— at least 4 cards into any field it touches, spreading difficulty (p is
+clamped 24..92, and check:quality fails a batch of 3+ spanning under 20
+points). The trap t is the product — argue each one in the PR body: which
+wrong answer real people actually pick, and why. Vary the authored c
+index. Pre-flight the whole batch in its native shape from ONE file: npm
+run check:quality -- --batch cards.json and npm run check:neighbors --
+--batch cards.json (the batch form compares your own cards to each other,
+which per-candidate lookups never did); paste both packet lines per card
+into the PR body. Then npm run build:content, and the gates:
+check:content, check:quality, check:neighbors, check:taxonomy,
+check:globals, lint, test:unit, build. Open the PR, and when every CI
+check on it reports success, MERGE it yourself (squash — D212: the gates
+are the review); never merge with a failing or pending check, never
+re-run a job to outwait a real failure, never push an empty commit to
+kick CI — a PR you cannot get green is left open and reported.
 
 Hard limits: append only, at the end of `cards` in
 content/learn-questions.json, ids continuing each field's series; never
 renumber and never edit or reorder a shipped card's options (answers key
 on (qid, optionIdx) forever — the fix for a bad option set is a better
 successor card). This is a SINGLE-GATE lane: a merged card is a shipped
-card, and with no person on the merge the fact bar is yours alone —
-cite a source in the PR body for any card that could be contested, and
-drop a card you cannot source. Never create a field or subject; a card
-that fits none is dropped and the field proposed in the PR body and the
-issue #31 comment (§ When no category fits). Never touch
-firestore.rules, functions/, or any other content/ bank. If a learn PR
-is already open (a gate refused it), roll up onto its branch instead of
-stacking (dedup against it, append one commit, retitle to cover the
-span, dated body section); a fresh claude/learn-cards-<YYYY-MM-DD>
-branch from origin/main only when none is open or the open one no
-longer merges cleanly.
+card, and with no person on the merge the fact bar is yours alone — cite
+a source in the PR body for any card that could be contested, and drop a
+card you cannot source. A card that fits no field is PARKED in
+content/topic-proposals.json under its nearest subject, never dropped
+(§ When no category fits). Never touch firestore.rules, functions/, or
+any other content/ bank. If a learn PR is already open (a gate refused
+it), roll up onto its branch instead of stacking (dedup against it,
+append one commit, retitle to cover the span, dated body section); a
+fresh claude/learn-cards-<YYYY-MM-DD> branch from origin/main only when
+none is open or the open one no longer merges cleanly.
 
 Mandatory reporting (hard rule 7): whatever the outcome — PR merged, PR
-left open with a failure, no-op, or aborted — comment it on issue #31
-in Cosaxo/InSight: PR link and the budget line with the fields written,
-or the no-op reason, or the verbatim errors. Work on the lane's branch
-and return to the session's previous branch afterwards; if the tree is
-dirty, stash or use a separate git worktree.
+left open with a failure, no-op, or aborted — comment it on issue #31 in
+Cosaxo/InSight: PR link, the topic:budget coverage line and the budget
+line with the fields written, or the no-op reason, or the verbatim
+errors. Work on the lane's branch and return to the session's previous
+branch afterwards; if the tree is dirty, stash or use a separate git
+worktree.
 ```
 
 The feed lane's canonical prompt (D145; rewritten 2026-08-19 for D212
