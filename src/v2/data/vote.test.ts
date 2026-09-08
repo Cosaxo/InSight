@@ -685,6 +685,96 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
 // vector was therefore scored on its leading run, and `divisiveness`
 // normalises by option COUNT, so the short vector is not merely missing
 // zeros: it is rescaled.
+// ── the rounds a duel answer is written for ─────────────────────────
+//
+// NOTHING EXECUTED THIS CODE. `test/live-fixture.ts` stubs every
+// `LIVE.social` rounds member and `live-surface.ts` pins only the NAMES,
+// so `roundKey` changed to `r${n + 1}` — which moves every duel answer's
+// document id, the reveal listener's target and which rounds count as
+// sealed — left the whole client suite at 201 files / 2951 tests, exit
+// 0. Two separate reviews measured it the same way on the same night,
+// and it is why two live defects in this file shipped past tsc, eslint,
+// check:globals and the window.LIVE pin: all four are name-level.
+//
+// So this drives the real store: a group document through the store's
+// own listener, a duel question through the bank, and the assertion is
+// on the DOCUMENT THAT GETS WRITTEN.
+describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
+  const duelDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "duo", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true,
+    },
+  });
+
+  /** The group listener's own snapshot shape: `snap.docs.map(d => ({ id,
+   *  ...d.data() }))`. */
+  const groupSnap = (docs: Array<{ id: string; data: Record<string, unknown> }>) => ({
+    size: docs.length,
+    docs: docs.map((d) => ({ id: d.id, data: () => d.data, get: (k: string) => d.data[k] })),
+  });
+
+  const withRoom = async (room: Record<string, unknown>) => {
+    h.bankDocs.push(duelDoc("duo-t1", ["Tea", "Coffee"]), duelDoc("duo-t2", ["Cats", "Dogs"]));
+    const LIVE = await bootLive();
+    const sub = h.snapshots.find((x) => x.path === "v2_groups");
+    expect(sub, "no v2_groups listener — this fixture cannot reach the store").toBeTruthy();
+    sub!.next(groupSnap([{ id: "g1", data: room }]));
+    return LIVE;
+  };
+
+  it("writes the open round's answer at its own id, carrying the round and the question", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info, "the room never reached the store").toBeTruthy();
+    expect(info.open).toBe(3);
+    expect(info.next, "the open round is the one to answer").toBe(3);
+    expect(info.sealed).toEqual([]);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const wrote = h.setDocCalls.find((c) => c.path.includes("/answers/g_g1_"));
+    expect(wrote, "no duel answer was written at all").toBeTruthy();
+    // THE ID IS THE ASSERTION. It is what the reveal listener reads back
+    // and what `roundsOf` calls sealed, so an off-by-one here is silent
+    // everywhere else.
+    expect(wrote!.path).toBe("v2_users/uid_test/answers/g_g1_r3");
+    expect(wrote!.data).toMatchObject({ gid: "g1", round: 3, optionIdx: 1, surface: "duo" });
+    expect(typeof wrote!.data.qid).toBe("string");
+    expect(String(wrote!.data.qid), "the answer names no question").toMatch(/^duo-t[12]$/);
+  });
+
+  it("…and the next round is the next one, sealed behind it", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    await LIVE.social.voteDuel("g1", 0);
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info.sealed, "the answered round is not sealed").toEqual([3]);
+    expect(info.next, "the lead did not advance").toBe(4);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const ids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.path);
+    expect(ids).toEqual([
+      "v2_users/uid_test/answers/g_g1_r3",
+      "v2_users/uid_test/answers/g_g1_r4",
+    ]);
+    // Two rounds, two questions: the round is part of the pick, so the
+    // same room does not ask the same thing twice in a row.
+    const qids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.data.qid);
+    expect(new Set(qids).size, "both rounds drew the same question").toBe(2);
+  });
+
+  it("refuses past the lead rather than writing an answer nothing will accept", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 1, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    for (let i = 0; i < info.lead; i++) await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.roundInfo("g1")!.sealed).toHaveLength(info.lead);
+    expect(LIVE.social.roundInfo("g1")!.next, "the lead's edge is not the end of the road").toBeNull();
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteDuel("g1", 0);
+    expect(h.setDocCalls.length, "a write past the lead the rules would refuse").toBe(before);
+  });
+});
+
 // ── the reveal's World column ───────────────────────────────────────
 //
 // `worldSplit` is the third column of a world-question reveal
