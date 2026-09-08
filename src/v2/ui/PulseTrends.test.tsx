@@ -117,6 +117,42 @@ describe("PulseTrends · not a trend yet, and whose fault that is", () => {
     expect(text).toMatch(/the line starts when the crowd fills in/);
   });
 
+  it("counts the days that ARE read, rather than saying none are", async () => {
+    // THE THIRD ARM, which the two cases above could not reach: both land
+    // on `comparable.length === 0` ("No day has N answers behind it yet"),
+    // so the pluralised branch beside it was rendered by nothing and could
+    // be replaced with any string at all with this file green.
+    //
+    // It is the ordinary shape once a city starts filling in — some days
+    // read, not yet three — and it is the one that has to get the number
+    // right, because "Only 2 of them" is a claim about the reader's own
+    // history rather than a general statement about the crowd.
+    answerDays(8, { mean: 3.2, n: 6, placed: false, thin: true });
+    // …two of the eight with a real crowd behind them.
+    setScope(DAYS - 1, { mean: 3.2, n: 44, placed: true, thin: false });
+    setScope(DAYS - 2, { mean: 3.1, n: 41, placed: true, thin: false });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/8 days in — not a trend yet/);
+    expect(
+      text,
+      "said no day was read while two of them were",
+    ).toMatch(/Only 2 of them have \d+ answers behind them/);
+    expect(text).not.toMatch(/No day has/);
+    expect(text).not.toMatch(/Answer again tomorrow/);
+  });
+
+  it("…and says it in the singular when exactly one day is read", async () => {
+    // THE CONTROL on the arm above: "Only 1 of them have … behind them"
+    // is the sentence a fixture-shaped assertion would happily accept.
+    answerDays(8, { mean: 3.2, n: 6, placed: false, thin: true });
+    setScope(DAYS - 1, { mean: 3.2, n: 44, placed: true, thin: false });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/Only 1 of them has \d+ answers behind it/);
+    expect(text).not.toMatch(/behind them/);
+  });
+
   it("…and DOES tell you to answer again when YOU are what is thin", async () => {
     // THE CONTROL. Two days answered, both with a full crowd behind them:
     // the blocker really is you, and the instruction really is the answer.
