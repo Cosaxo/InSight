@@ -132,7 +132,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 16 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-08).
+- [ ] 17 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-08).
 <!-- console:end -->
 
 ## Store and legal
