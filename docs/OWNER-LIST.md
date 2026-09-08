@@ -137,7 +137,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 17 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-08).
+- [ ] 16 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-08).
 <!-- console:end -->
 
 ## Store and legal
@@ -175,10 +175,8 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **5.15 Ads need no switch of their own, and that is the design** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.16 The two Firebase auth emails now stand between a user and
       the app (D414)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **6.1 Pre-flight, before every archive and every upload:** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.1b App Review Information — a demo account is now MANDATORY
       (D414)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **6.2 Submit to App Store review** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 <!-- console:end -->
 
