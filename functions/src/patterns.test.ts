@@ -129,7 +129,18 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
 const [CORE_A, CORE_B] = [...PATTERNS_QIDS];
 // A question the CANDIDATE's corpus names and the online engine's does
 // not — the D395 widening. Derived rather than named, so it moves with
-// the bank; 263 of them today.
+// the bank.
+//
+// The count is NOT written here, and that is the point rather than an
+// omission. It said "263 of them today" and the true figure is 423: the
+// bank went 913 → 1073 and `itemEligible` admits `surface === "test"`, so
+// v2content's new deep items all entered the candidate corpus and the
+// sentence was stale inside twenty-four hours. `check:figures` cannot hold
+// it either — the number is the difference between two predicates that
+// live in patterns.ts, and re-deriving them in an .mjs gate would be the
+// second copy of an eligibility rule, which is the D197 failure. So it
+// follows the gate's own advice for a figure it cannot compute: state the
+// relationship, not the number.
 const [WIDE_ONLY] = [...PATTERNS_ITEM_QIDS].filter((q) => !PATTERNS_QIDS.has(q));
 const yesterday = utcDay(NOW, -1);
 const twoBack = utcDay(NOW, -2);
@@ -940,6 +951,50 @@ describe("the candidate engine (D395)", () => {
 
 
 // ── the voter samples (D397) ──────────────────────────────────────────
+// ── the marginal's clamp ──────────────────────────────────────────────
+//
+// Every answer is ±1, so |sum| can never exceed n — and the fold enforces
+// that as a CLAMP rather than an assumption, because one shape breaches it:
+// a revision whose first answer this model never folded. A create that fell
+// outside the catch-up window, or landed before the question became
+// eligible, leaves the subtraction removing something that was never added.
+// The comment at patternsFit.ts says exactly that; nothing exercised it,
+// and deleting the two clamp lines left every runner green.
+//
+// Without them the marginal goes past 1 in absolute value, which is a
+// probability the rest of the fold then reasons from.
+describe("a revision whose create was never folded", () => {
+  const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
+
+  it("cannot push a marginal past its own count", async () => {
+    const day = utcDay(NOW, -1);
+    // Two people answer option 0 — x = +1 each, so n = 2 and sum = +2, the
+    // marginal already at its ceiling.
+    const ledger: Record<string, PatternsLedgerEntry[]> = {
+      [day]: [
+        { uid: pad(1), qid: CORE_A, optionIdx: 0 },
+        { uid: pad(2), qid: CORE_A, optionIdx: 0 },
+        // …and a third whose CREATE this model never saw, editing 1 -> 0.
+        // `fromIdx` is what marks it a revision (v2.ts's ledgerEntry), so
+        // the fold adds x and subtracts a prev it never added: +1 - (-1)
+        // takes sum to 4, against an n that a revision does not move.
+        { uid: pad(3), qid: CORE_A, optionIdx: 0, fromIdx: 1 },
+      ],
+    };
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW);
+    const row = state.pub!.q[CORE_A];
+    expect(row, "the question was not published at all — this case proves nothing").toBeTruthy();
+    expect(row.n, "the revision was counted as a new answer").toBe(2);
+    expect(
+      Math.abs(row.sum) <= row.n,
+      `the marginal breached its own count: sum ${row.sum} against n ${row.n}, a mean of `
+      + `${(row.sum / row.n).toFixed(2)} where every answer is +/-1`,
+    ).toBe(true);
+    expect(row.sum, "the clamp took the marginal somewhere other than its ceiling").toBe(2);
+  });
+});
+
 describe("the voter samples the sweep publishes", () => {
   const DAY = 24 * 3600 * 1000;
   const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;

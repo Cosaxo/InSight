@@ -379,6 +379,31 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     ).toBeDefined();
   });
 
+  it("report-lib.mjs getAnswersFor: the (qid, surface) COLLECTION-scope composite exists", () => {
+    // The paid report joins each voter's own answers to the candidate
+    // questions: collection(v2_users/{uid}/answers), where qid in chunk,
+    // where surface == "daily"|"feed" — COLLECTION scope, no orderBy. Every
+    // OTHER qid query in this tree is a collection-group one carried by a
+    // composite; this one is not, and `answers.qid` carries a FULL
+    // exemption (`"indexes": []`, asserted below), so nothing automatic
+    // stands behind it. Without the composite the query is
+    // FAILED_PRECONDITION in production and the report ships with an empty
+    // neighbour join — and no local run can catch that, because the
+    // emulator does not enforce index configuration.
+    expect(
+      composite("answers", "COLLECTION", [["qid", "ASCENDING"], ["surface", "ASCENDING"]]),
+      "report-lib.mjs's per-voter answer join has no (qid, surface) COLLECTION-scope composite",
+    ).toBeDefined();
+    // The half that makes the composite load-bearing rather than an
+    // optimisation. If the exemption is ever lifted, single-field indexing
+    // returns and this case can be relaxed — but it must be relaxed on
+    // purpose, not by the composite quietly going away.
+    expect(
+      override("answers", "qid")?.indexes,
+      "answers.qid is no longer fully exempted — re-read whether the composite above is still the only thing carrying getAnswersFor",
+    ).toEqual([]);
+  });
+
   it("carries no composite for a query nobody makes: invites (from, at)", () => {
     // The file declared BOTH `(to, at DESC)` and `(from, at DESC)`, added
     // together for the client's inbox. Only the first is a query: the

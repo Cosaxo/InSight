@@ -70,14 +70,19 @@ answered today's question sees. No guard was written for this; the guard
 was already the contract, which is what made the feed the honest first
 candidate rather than the biggest one.
 
-Two neighbours deliberately stay eager:
+One neighbour deliberately stays eager:
 
-- `world-feed-data.js`, because `daily-split.jsx` line 19 reads
-  `window.WORLD_TOPICS` at **module scope**. Deferring it swaps the real
-  topic set for that line's five-entry fallback — silently, with a wrong
-  chip row and no error.
 - `feed-read.js`, which is the feed's *memory* rather than the feed: the
   Mirror reads its stats on screens the feed never opens on.
+
+`world-feed-data.js` was the second, and this paragraph went on saying so
+after it stopped being true. The stated reason was that `daily-split.jsx`
+read `window.WORLD_TOPICS` at module scope, and all three halves of that
+are now false: `spec-index.js` has no eager line for the file, nothing in
+`src/` assigns `window.WORLD_TOPICS` at all, and daily-split imports the
+binding from `world-feed-topics.js` — the split D418 made for exactly this
+reason, a taxonomy out of a bank. Measured rather than read: the scanner
+lists the name in neither its defined nor its referenced set.
 
 **What no static gate can check here.** `check:globals` rule 2 is satisfied
 by the `'./spec/…'` strings inside `import()` exactly as by static imports

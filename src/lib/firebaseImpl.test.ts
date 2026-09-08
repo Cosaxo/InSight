@@ -50,12 +50,19 @@ const h = vi.hoisted(() => ({
   // The signed-in user the Auth instance reports. Null is a real state,
   // not just a fixture default: it is what linkApple/linkGoogle branch on
   // to decide between upgrading a session and starting one.
-  currentUser: null as { uid: string } | null,
+  currentUser: null as { uid: string; isAnonymous?: boolean } | null,
   // Every argument `initializeFirestore` was called with. The mock used
   // to capture NONE of them, so the database id and the offline cache —
   // two decisions this module exists to make — could both be deleted with
   // every runner green.
   firestoreCalls: [] as Array<{ settings: Record<string, unknown>; dbId: unknown }>,
+  // The email door. `emailCreate` chooses between UPGRADING the anonymous
+  // session and starting a fresh account, and these are how a case tells
+  // which it did.
+  emailCredentials: [] as Array<Record<string, unknown>>,
+  createdAccounts: [] as Array<Record<string, unknown>>,
+  emailSignIns: [] as Array<Record<string, unknown>>,
+  verifyMails: 0,
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -94,6 +101,26 @@ vi.mock("firebase/auth", () => ({
     ? new Promise(() => { /* never settles, which is the case */ })
     : Promise.resolve({ user: { uid: "uid_test" } })),
   GoogleAuthProvider: class {},
+  // A static, like the real one. It records the credential so a case can
+  // tell a LINK (the anonymous session upgraded) from a fresh account.
+  EmailAuthProvider: {
+    credential: (email: string, password: string) => {
+      const c = { __cred: "password", email, password };
+      h.emailCredentials.push(c);
+      return c;
+    },
+  },
+  createUserWithEmailAndPassword: (_a: unknown, email: string, password: string) => {
+    h.createdAccounts.push({ email, password });
+    return Promise.resolve({ user: { uid: "uid_new" } });
+  },
+  signInWithEmailAndPassword: (_a: unknown, email: string, password: string) => {
+    h.emailSignIns.push({ email, password });
+    return Promise.resolve({ user: { uid: "uid_other" } });
+  },
+  sendEmailVerification: () => { h.verifyMails += 1; return Promise.resolve(); },
+  sendPasswordResetEmail: () => Promise.resolve(),
+  reload: () => Promise.resolve(),
   // Enough of the real shape to catch the bug this file exists for: the
   // provider id it was constructed with, and the object handed to
   // credential(). A stub that returned a bare token would pass while the
@@ -166,6 +193,10 @@ beforeEach(() => {
   h.linkCredentials.length = 0;
   h.currentUser = null;
   h.firestoreCalls.length = 0;
+  h.emailCredentials.length = 0;
+  h.createdAccounts.length = 0;
+  h.emailSignIns.length = 0;
+  h.verifyMails = 0;
 });
 
 afterEach(() => {
@@ -313,6 +344,46 @@ describe("Sign in with Apple", () => {
     const m = await import("./firebaseImpl");
     m.init(CONFIG);
     await expect(m.appleSignIn()).rejects.toThrow(/Apple sign-in returned no idToken/);
+  });
+});
+
+describe("Sign in with email and password", () => {
+  it("emailCreate LINKS the anonymous session — the property the wall rests on", async () => {
+    // Apple has had this pair since it shipped; the email door had none,
+    // and that asymmetry is what let it go untested. Measured before this
+    // case existed: inverting the branch to `user && !user.isAnonymous` —
+    // so an anonymous session gets a brand-new account and its answers are
+    // stranded — left tsc -b, eslint and the whole unit suite (192 files,
+    // 2874 tests) green.
+    //
+    // It is not a small property. `web/privacy.html` promises signing in
+    // "attaches an identity to that same session rather than starting a
+    // new one — so anything you answered before signing in is kept", and
+    // D414's whole argument for a wall at all is that answers survive it.
+    h.currentUser = { uid: "uid_test", isAnonymous: true };
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    await m.emailCreate("someone@example.com", "hunter22");
+
+    expect(h.linkCredentials, "emailCreate started a new account instead of upgrading the anonymous one").toHaveLength(1);
+    expect(h.emailCredentials[0]).toMatchObject({ email: "someone@example.com", password: "hunter22" });
+    expect(h.createdAccounts, "emailCreate created a second account beside the session it should have upgraded").toHaveLength(0);
+    // After the account exists, never before — a verification mail for an
+    // address that failed to register is a mail about nothing.
+    expect(h.verifyMails, "no verification mail followed the create").toBe(1);
+  });
+
+  it("emailCreate signs in fresh when the session is already linked", async () => {
+    // The other half of the same branch. A non-anonymous user cannot be
+    // linked to a second password credential, so this must NOT try.
+    h.currentUser = { uid: "uid_test", isAnonymous: false };
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    await m.emailCreate("someone@example.com", "hunter22");
+
+    expect(h.createdAccounts).toHaveLength(1);
+    expect(h.linkCredentials, "emailCreate tried to link a password onto an account that already has an identity").toHaveLength(0);
+    expect(h.verifyMails).toBe(1);
   });
 });
 

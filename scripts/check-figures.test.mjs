@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, dirname, join } from "node:path";
+import { FIGURES } from "./check-figures.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -183,6 +184,95 @@ describe("the cold-boot list is copied, and held equal to the code", () => {
       expect(r.out).toMatch(/could not find BANK_SURFACES/);
     } finally {
       writeFileSync(live, before);
+    }
+  });
+});
+
+// ── the remedy this gate prints ───────────────────────────────────────
+//
+// A mismatch prints `Correct the sentence to: "<sentence>"`, and a
+// maintainer types that in. So the remedy has to be a sentence the entry's
+// own pattern will then MATCH — otherwise the second run reports the figure
+// is no longer quoted anywhere and says to delete the entry from FIGURES.
+//
+// That is not hypothetical. The cold-boot row's hint still quoted "the
+// whole question bank", the wording D383 retired and that entry was
+// explicitly retargeted away from, while its pattern matched "five whole
+// surfaces plus the feed's core". Following the printed remedy verbatim
+// restored a claim the gate's own comment calls false, and the next run
+// then told the reader to remove the gate that had just caught the drift —
+// a caught drift walked to a deleted gate in two steps.
+//
+// ONE ENTRY, driven end to end, because that is what this file can do
+// honestly: `FIGURES` is not exported and the module runs the gate at
+// import, so the general property — every `fix(actual)` matches its own
+// `re` — needs an entry guard on check-figures.mjs first. That is a change
+// to a deploy-path gate and belongs in its own commit, not this one; the
+// loop below is the same property, measured rather than asserted.
+describe("the printed remedy closes the loop it opened", () => {
+  const ROW = /\*\*\+(\d+) reads\*\* — five whole surfaces plus the feed's core/;
+
+  it("EVERY hint quotes a sentence its own pattern matches", () => {
+    // The general property the end-to-end case below can only demonstrate
+    // for one entry, and it is importable now: check-figures.mjs guards its
+    // report behind an entry check, so importing FIGURES computes and
+    // prints nothing.
+    //
+    // Eleven of the hundred-and-two failed this when it was first run, all
+    // the same shape as the cold-boot row: a remedy that drops the
+    // backticks, the leading table pipe, the clause the pattern anchors on,
+    // or replaces the sentence's other number with "...". Each one walks a
+    // maintainer from a caught drift to "delete its entry from FIGURES" in
+    // two steps. Two of the eleven were the PATTERN's fault instead — it
+    // demanded a line break the one-line remedy cannot reproduce — and were
+    // relaxed rather than the hint faked.
+    const bad = [];
+    for (const fig of FIGURES) {
+      expect(typeof fig.fix, `${fig.file} :: ${fig.what} has no fix hint`).toBe("function");
+      expect(fig.re instanceof RegExp, `${fig.file} :: ${fig.what} has no pattern`).toBe(true);
+      // The hints quote themselves; the gate prints them inside its own
+      // quotes, and a maintainer types what is between them.
+      const said = String(fig.fix(fig.actual)).replace(/^"|"$/g, "");
+      if (!fig.re.test(said)) bad.push(`${fig.file} :: ${fig.what}\n     hint: ${said}\n     re:   ${fig.re}`);
+    }
+    expect(
+      bad,
+      "a fix hint quotes a sentence its own pattern will not match — typing it in leaves the figure unquoted, "
+        + "and the next run says to delete the entry rather than restore the number",
+    ).toEqual([]);
+  });
+
+  it("finds the entries — vacuous otherwise", () => {
+    expect(FIGURES.length, "FIGURES came back empty — the import stopped working").toBeGreaterThan(50);
+  });
+
+  it("a corrected sentence makes the gate green again", () => {
+    const costs = join(tree, "docs/COSTS.md");
+    const before = readFileSync(costs, "utf8");
+    try {
+      const m = ROW.exec(before);
+      expect(m, "docs/COSTS.md no longer carries the cold-boot row this case drives").toBeTruthy();
+      // Step one: drift it by one and read back what the gate demands.
+      writeFileSync(costs, before.replace(m[0], m[0].replace(m[1], String(Number(m[1]) + 1))));
+      const first = runGate(tree);
+      expect(first.code, "the gate did not notice a one-off cold-boot figure").toBe(1);
+      const said = /Correct the sentence to: "([^"]+)"/.exec(first.out);
+      expect(said, "the gate stopped printing a remedy for the cold-boot row").toBeTruthy();
+
+      // Step two: do exactly what it said, on the sentence it is about.
+      const drifted = readFileSync(costs, "utf8");
+      const hit = ROW.exec(drifted);
+      writeFileSync(costs, drifted.replace(hit[0], said[1].replace(/^"|"$/g, "")));
+      const second = runGate(tree);
+      expect(
+        second.out,
+        "following the gate's own remedy leaves it complaining — the hint quotes a sentence its pattern does not match, "
+          + "so the next message tells the maintainer to delete the entry instead",
+      ).not.toMatch(/could not find the sentence/);
+      expect(second.out).toContain("check-figures OK");
+      expect(second.code).toBe(0);
+    } finally {
+      writeFileSync(costs, before);
     }
   });
 });

@@ -101,6 +101,16 @@ describe("renderResultsPage", () => {
     expect(out.status, "a link already shared for this question went dead").toBe(200);
     expect(out.html).toContain("Asked by a buyer who has since deleted their account");
     expect(out.html).toContain("audience not recorded");
+    // …AND THE TENSE, which is the same sentence. The window clause was
+    // date-only (`q.until >= today`), so it could not see the stop the
+    // sweep had just made and printed "runs 6 Sep 2026 → 4 Oct 2026" —
+    // a future date, on a campaign nothing will ever restart, one line
+    // after telling the reader its buyer is gone. The two clauses beside
+    // it were fixed when the marker was added; this is the one that was
+    // left making a false statement, on the page whose foot text is about
+    // exactly that.
+    expect(out.html, "the page still says a stopped campaign runs").not.toContain("runs 6 Sep 2026");
+    expect(out.html, "a stopped campaign's window is not in the past tense").toContain("ran 6 Sep 2026 → 4 Oct 2026");
   });
 
   // THE CONTROL, and it is the one that keeps the line above from being a

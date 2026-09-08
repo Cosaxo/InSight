@@ -198,23 +198,46 @@ describe("continue-on-error steps are reported somewhere", () => {
   const optionalOn = (body) =>
     /continue-on-error:\s*true/.test(body) && !/if:\s*failure\(\)/.test(body);
 
+  // PER JOB, not per file, and the difference is a real hole. `outcome` is
+  // only readable inside the job that produced it, and this searched the
+  // whole FILE — so a workflow with the same step id in two jobs satisfied
+  // the rule on the strength of the other job's readback. `device-screens.yml`
+  // is the first file here with that shape (`drive` in both the Android and
+  // the iOS job). Measured: deleting only the Android job's
+  // `echo "drive: ${{ steps.drive.outcome }}"` left this suite at 15 passed,
+  // exit 0; deleting BOTH correctly failed. So the rule was not vacuous, it
+  // was scoped one level too wide.
+  //
+  // Latent rather than live — a per-job audit of every workflow found each
+  // optional step read back in its own job — which is why this is a
+  // tightening and not a fix with a red test behind it. The splitter it
+  // needs is the one the pipe-to-shell rule below already brought.
   for (const f of files) {
     const src = readWorkflow(join(dir, f));
-    const steps = parse(src).filter((s) => optionalOn(s.body));
-    if (!steps.length) continue;
-    it(`${f} gives every optional step an id and reads it back`, () => {
-      for (const s of steps) {
-        const id = /\bid:\s*([\w-]+)/.exec(s.body);
-        expect(
-          id,
-          `${f} has a continue-on-error step with no \`id:\` — nothing can read its `
-            + `outcome, so its failure is invisible on a green run:\n${s.head.trim()}`,
-        ).toBeTruthy();
-        expect(
-          src.includes(`steps.${id[1]}.outcome`),
-          `${f} never reads \`steps.${id[1]}.outcome\` — the step can fail with the `
-            + "run still green and nothing said:\n" + s.head.trim(),
-        ).toBe(true);
+    // A file with no `jobs:` block parses to nothing; fall back to the whole
+    // file so such a workflow is still checked rather than silently skipped.
+    const perJob = jobs(src);
+    const scopes = perJob.length ? perJob : [{ name: "(whole file)", text: src }];
+    const carrying = scopes
+      .map((j) => ({ j, steps: parse(j.text).filter((s) => optionalOn(s.body)) }))
+      .filter((x) => x.steps.length);
+    if (!carrying.length) continue;
+    it(`${f} gives every optional step an id and reads it back in its own job`, () => {
+      for (const { j, steps } of carrying) {
+        for (const s of steps) {
+          const id = /\bid:\s*([\w-]+)/.exec(s.body);
+          expect(
+            id,
+            `${f}:${j.name} has a continue-on-error step with no \`id:\` — nothing can read its `
+              + `outcome, so its failure is invisible on a green run:\n${s.head.trim()}`,
+          ).toBeTruthy();
+          expect(
+            j.text.includes(`steps.${id[1]}.outcome`),
+            `${f}:${j.name} never reads \`steps.${id[1]}.outcome\` IN THAT JOB — the step can fail with the `
+              + "run still green and nothing said. An outcome read in a different job of the same "
+              + "file does not count:\n" + s.head.trim(),
+          ).toBe(true);
+        }
       }
     });
   }
@@ -224,5 +247,214 @@ describe("continue-on-error steps are reported somewhere", () => {
       parse(readWorkflow(join(dir, f))).filter((s) => optionalOn(s.body)));
     expect(optional.length, "no continue-on-error steps found on a healthy path — the rule measures nothing")
       .toBeGreaterThan(1);
+  });
+
+  it("one job's readback does not answer for another's — a positive control", () => {
+    // The exact shape the file-wide search could not tell apart: one step
+    // id, two jobs, and only one of them reporting.
+    const src = [
+      "jobs:",
+      "  a:",
+      "    steps:",
+      "      - name: Drive",
+      "        id: drive",
+      "        continue-on-error: true",
+      "        run: echo hi",
+      "      - name: Report",
+      '        run: echo "drive: ${{ steps.drive.outcome }}"',
+      "  b:",
+      "    steps:",
+      "      - name: Drive",
+      "        id: drive",
+      "        continue-on-error: true",
+      "        run: echo hi",
+      "",
+    ].join("\n");
+    const [a, b] = jobs(src);
+    expect(a.name).toBe("a");
+    expect(b.name).toBe("b");
+    expect(parse(a.text).filter((s) => optionalOn(s.body)).length).toBe(1);
+    expect(parse(b.text).filter((s) => optionalOn(s.body)).length).toBe(1);
+    expect(a.text.includes("steps.drive.outcome"), "job a should report its own step").toBe(true);
+    expect(b.text.includes("steps.drive.outcome"), "job b reports nothing, and the file-wide search could not see that").toBe(false);
+    // …and the file-wide reading, which is what shipped, cannot tell them
+    // apart at all.
+    expect(src.includes("steps.drive.outcome"), "the old file-scoped test passed on this input").toBe(true);
+  });
+});
+
+/**
+ * The dispatch/call inputs a caller can type ANYTHING into.
+ *
+ * GitHub constrains `type: choice` to its declared options and
+ * `type: boolean`/`number` to their shapes; everything else — `type:
+ * string`, or an input with no `type:` at all — is free text. This walks
+ * the `inputs:` map textually, like the rest of this file, rather than
+ * pulling a YAML parser in: `yaml` and `js-yaml` are only transitively
+ * present here, and a gate that stops working when a transitive dep moves
+ * is not a gate.
+ */
+function freeTextInputs(src) {
+  const lines = src.split("\n");
+  const out = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    const head = /^(\s*)inputs:\s*$/.exec(lines[i]);
+    if (!head) continue;
+    const outer = head[1].length;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() === "") continue;
+      const lead = lines[j].length - lines[j].trimStart().length;
+      if (lead <= outer) break;
+      const entry = /^(\s*)([A-Za-z_][\w-]*):\s*$/.exec(lines[j]);
+      if (!entry || entry[1].length <= outer) continue;
+      const at = entry[1].length;
+      let type = "";
+      for (let k = j + 1; k < lines.length; k++) {
+        if (lines[k].trim() === "") continue;
+        const kl = lines[k].length - lines[k].trimStart().length;
+        if (kl <= at) break;
+        const t = /^\s*type:\s*(\S+)/.exec(lines[k]);
+        if (t) { type = t[1]; break; }
+      }
+      if (type === "" || type === "string") out.add(entry[2]);
+    }
+  }
+  return out;
+}
+
+/**
+ * WHY THIS RULE EXISTS. `${{ }}` is a TEXTUAL substitution GitHub performs
+ * on the run body before bash is handed the script, so a free-text input
+ * pasted into a `run:` is not an argument — it is code, running with that
+ * step's secrets in its environment. `auth-config.yml`'s App Store Connect
+ * step held `ASC_PRIVATE_KEY` and pasted two of them; measured with the
+ * step's own body and a stand-in key, a `set_version` of
+ * `2.0.0$(printf %s "$ASC_PRIVATE_KEY" > /tmp/exfil.txt)` wrote the key to
+ * the file, exited 0, and left the step log reading `--set-version 2.0.0`.
+ * An honest operator was bitten by the same hole more quietly: a value
+ * with a space in it split into two arguments.
+ *
+ * The fix at every site is the same — bind the input in the step's `env:`
+ * and read `"$NAME"` in the shell, which is the pattern these files
+ * already use for their secrets.
+ *
+ * WHERE THIS RULE STOPS. It holds free-text inputs only, not every
+ * `${{ }}`: `github.sha`, `runner.temp` and a `type: choice` cannot carry
+ * a payload, and a rule that cried about them would be turned off. The
+ * other classic carrier — an issue title or PR body through
+ * `pull_request_target` / `issue_comment` — has no instance here because
+ * no workflow uses those triggers at all; if one ever does, this is the
+ * function to widen.
+ */
+describe("free-text inputs never reach a run body", () => {
+  it("finds the free-text inputs this rule is about", () => {
+    const all = new Set();
+    for (const f of files) for (const n of freeTextInputs(readWorkflow(join(dir, f)))) all.add(n);
+    // Vacuity guard: if this ever hits zero the parser has broken and
+    // every case below would pass by finding nothing.
+    expect(all.size, "no free-text workflow inputs found at all — freeTextInputs() has stopped parsing").toBeGreaterThan(0);
+  });
+
+  it("no run block interpolates one", () => {
+    const bad = [];
+    for (const f of files) {
+      const src = readWorkflow(join(dir, f));
+      const free = freeTextInputs(src);
+      if (!free.size) continue;
+      for (const { body } of runBlocks(src)) {
+        for (const name of free) {
+          // Both spellings GitHub accepts for the same value.
+          const re = new RegExp(String.raw`\$\{\{\s*(?:inputs|github\.event\.inputs)\.` + name + String.raw`\s*\}\}`);
+          if (re.test(body)) bad.push(`${f}: \${{ inputs.${name} }}`);
+        }
+      }
+    }
+    expect(
+      bad,
+      "a free-text workflow input is interpolated into a run body, where it is code rather than an argument — bind it in the step's env: and read \"$NAME\" instead",
+    ).toEqual([]);
+  });
+});
+
+/**
+ * Each job's own text, so a rule can be about a JOB rather than a file.
+ *
+ * File scope is not close enough for the rule below — a workflow with two
+ * jobs would satisfy it on the strength of the other one's checkout — and
+ * it is the same weakness this file's continue-on-error rule already has,
+ * written down here so whoever fixes that one has the splitter to hand.
+ */
+function jobs(src) {
+  const lines = src.split("\n");
+  const start = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  if (start < 0) return [];
+  const out = [];
+  let cur = null;
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const m = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(lines[i]);
+    if (m) { cur = { name: m[1], lines: [] }; out.push(cur); continue; }
+    if (lines[i].trim() !== "" && /^\S/.test(lines[i])) break;
+    if (cur) cur.lines.push(lines[i]);
+  }
+  return out.map((j) => ({ name: j.name, text: j.lines.join("\n") }));
+}
+
+/** `curl … | bash`, and the three other spellings of the same thing. */
+const PIPE_TO_SHELL = /\b(?:curl|wget)\b[^\n|]*\|\s*(?:ba|z|k)?sh\b/;
+
+/**
+ * WHY THIS RULE EXISTS. `device-screens.yml`'s iOS job pipes an unpinned
+ * installer into bash. That is a DELIBERATE trade with its reasoning at
+ * the step — the version that works is recorded into the results and
+ * pinned from there rather than guessed — so this rule does not forbid it.
+ * What came with it by accident was a repo write token: the job runs under
+ * `permissions: contents: write`, and `actions/checkout` leaves that
+ * credential in `.git/config` by default, where anything running
+ * afterwards can read it. Nothing in that job needed it — publish.sh does
+ * `git init` in a fresh directory and pushes with an explicit
+ * x-access-token URL — so the fix cost one line and left the trade alone.
+ *
+ * The rule is the general form: run somebody else's script if you must,
+ * but not beside a credential you are not using.
+ */
+describe("a job that runs a remote script keeps no credential on disk", () => {
+  const risky = [];
+  for (const f of files) {
+    const src = readWorkflow(join(dir, f));
+    for (const j of jobs(src)) if (PIPE_TO_SHELL.test(j.text)) risky.push({ f, j });
+  }
+
+  it("finds the jobs this rule is about — vacuous otherwise", () => {
+    // If the tree ever stops piping anything into a shell this becomes a
+    // rule about nothing, and it should be deleted rather than left
+    // passing. Until then a zero here means the splitter broke.
+    expect(risky.length, "no job pipes a remote script into a shell — has jobs() stopped parsing?").toBeGreaterThan(0);
+  });
+
+  it("none of them persists its checkout credentials", () => {
+    const bad = risky
+      .filter(({ j }) => /actions\/checkout/.test(j.text) && !/persist-credentials:\s*false/.test(j.text))
+      .map(({ f, j }) => `${f}:${j.name}`);
+    expect(
+      bad,
+      "a job pipes a remote script into a shell AND leaves its checkout credentials in .git/config — "
+        + "add `with: persist-credentials: false` to that job's checkout, or stop piping",
+    ).toEqual([]);
+  });
+
+  it("the rule can actually fail — a positive control", () => {
+    const job = [
+      "  demo:",
+      "    steps:",
+      "      - uses: actions/checkout@abc",
+      "      - run: curl -fsSL https://example.test/i | bash",
+    ].join("\n");
+    const src = `jobs:\n${job}\n`;
+    const [only] = jobs(src);
+    expect(only.name).toBe("demo");
+    expect(PIPE_TO_SHELL.test(only.text)).toBe(true);
+    expect(/persist-credentials:\s*false/.test(only.text)).toBe(false);
+    const fixed = src.replace("checkout@abc", "checkout@abc\n        with:\n          persist-credentials: false");
+    expect(/persist-credentials:\s*false/.test(jobs(fixed)[0].text)).toBe(true);
   });
 });

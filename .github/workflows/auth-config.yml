@@ -154,20 +154,40 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          # THE THREE INPUTS ARRIVE THROUGH THE ENVIRONMENT, NEVER THROUGH
+          # THE RUN BODY. `${{ }}` is a TEXTUAL substitution GitHub performs
+          # before bash is handed the script, so an input pasted into the
+          # body is code — and this is the one step that holds
+          # ASC_PRIVATE_KEY. `attach_build` and `set_version` are free-text
+          # `type: string`, and the whole surface: everything else this
+          # workflow takes is a choice or a boolean. Measured before the
+          # fix, with the step's own body and a stand-in key: a set_version
+          # of `2.0.0$(printf %s "$ASC_PRIVATE_KEY" > /tmp/exfil.txt)` wrote
+          # the key to the file, exited 0, and left the log reading
+          # `--set-version 2.0.0`. release_type is a choice and could not
+          # carry that, but it joins them so the body holds no `${{ }}` at
+          # all — the next input added here is then safe by the shape of
+          # the step rather than by someone remembering.
+          ATTACH_BUILD: ${{ inputs.attach_build }}
+          SET_VERSION: ${{ inputs.set_version }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
         run: |
           set -o pipefail
-          ARGS="--demo-file $RUNNER_TEMP/demo-account.json"
-          [ -n "${{ inputs.attach_build }}" ] && ARGS="$ARGS --attach-build ${{ inputs.attach_build }}"
-          [ -n "${{ inputs.set_version }}" ] && ARGS="$ARGS --set-version ${{ inputs.set_version }}"
+          # An ARRAY, not a string: a version with a space in it used to
+          # split into two arguments even when nobody was attacking
+          # anything.
+          ARGS=(--demo-file "$RUNNER_TEMP/demo-account.json")
+          [ -n "$ATTACH_BUILD" ] && ARGS+=(--attach-build "$ATTACH_BUILD")
+          [ -n "$SET_VERSION" ] && ARGS+=(--set-version "$SET_VERSION")
           # MANUAL is not the default here for the reason asc-review's own
           # comment gives: AFTER_APPROVAL publishes the app with nobody
           # present, and a workflow input that silently changes when the
           # app goes public is the wrong kind of default. "leave it" means
           # leave it.
-          [ "${{ inputs.release_type }}" != "leave it" ] && ARGS="$ARGS --release-type ${{ inputs.release_type }}"
+          [ "$RELEASE_TYPE" != "leave it" ] && ARGS+=(--release-type "$RELEASE_TYPE")
           # asc-review is dry-run by default like every operator script
           # here; this step only runs when the caller already ticked apply.
-          node scripts/asc-review.mjs $ARGS --apply 2>&1 | tee "$RUNNER_TEMP/asc-review.log"
+          node scripts/asc-review.mjs "${ARGS[@]}" --apply 2>&1 | tee "$RUNNER_TEMP/asc-review.log"
 
       - name: The App Review form, in the summary
         if: ${{ always() && inputs.apply && (inputs.what == 'demo account' || inputs.what == 'both') }}
