@@ -904,6 +904,32 @@ ok("round 2 opened in the same commit; the round sealed ahead survived; duo stre
 await expectDenied("the revealed round is refused", () =>
   setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", `g_${gid}_r1`), duel(0, 0)));
 
+// 8a · round 2 over a WORLD question (ROUNDS-PLAN §6.2): a core feed vote
+// is duel content, sealed and revealed like any round, folded into its
+// own duel-{qid} signal and never into the world's count for that question.
+{
+  const worldBefore = await getDoc(doc(db, "v2_question_aggs", "feed-f02"));
+  const worldTotal = worldBefore.exists() ? (worldBefore.get("total") || 0) : 0;
+  const w = (idx, guess) => ({
+    qid: "feed-f02", surface: "duo", optionIdx: idx, guessIdx: guess,
+    gid, round: 2, answeredAt: serverTimestamp(), anchors: {},
+  });
+  await setDoc(doc(db, "v2_users", uid, "answers", `g_${gid}_r2`), w(0, 1));
+  await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", `g_${gid}_r2`), w(1, 0));
+  let r2 = null;
+  for (let i = 0; i < 25 && !r2; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const snap = await getDoc(doc(db, "v2_groups", gid, "reveals", "r2"));
+    if (snap.exists()) r2 = snap;
+  }
+  if (!r2) fail("round 2 over a world question did not reveal");
+  if (r2.get("qid") !== "feed-f02") fail("the reveal names the wrong question: " + r2.get("qid"));
+  const worldAfter = await getDoc(doc(db, "v2_question_aggs", "feed-f02"));
+  if ((worldAfter.exists() ? (worldAfter.get("total") || 0) : 0) !== worldTotal)
+    fail("a duel answer over a world question moved the world's own count");
+  ok("round 2 over a world question revealed, and the world's count did not move");
+}
+
 // 8b · the deadline scan, and the operator's lever. A group where only one
 // of two members plays: the round is neither complete nor due, so the
 // INDEXED scan (the schedule's query, `roundDeadlineAt <= now`) finds

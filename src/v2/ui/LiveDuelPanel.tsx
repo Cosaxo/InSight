@@ -764,6 +764,15 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
   const bankQ = reveal.qid ? LIVE.social.bankQ(reveal.qid) : null;
   const duo = g.mode === "duo";
   const tint = duo ? ACC_DUO : ACC_GROUP;
+  // A world round's crowd is fetched on the reveal that draws it — one
+  // read per question per session, and none on a room's own question
+  // (ROUNDS-PLAN §0a: the plan's "zero" assumed a cache that holds only
+  // what you answered in the feed). `LIVE` is a module binding, so the
+  // dependency list is complete as written.
+  const worldQ = !!bankQ && bankQ.kind === "world";
+  React.useEffect(() => {
+    if (worldQ && rowQid) LIVE.social.ensureWorldSplit(rowQid);
+  }, [worldQ, rowQid]);
   // Options for a given question — a "pick" question carries none, because
   // its options ARE the group.
   const optsFor = (q: { options?: string[] } | null): string[] =>
@@ -810,6 +819,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
       {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
       {duo ? duoRows() : <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint} />}
       {!duo && roomRow()}
+      {worldLine()}
       {lateUids.length > 0 && (
         <div style={{ borderTop: LD_HAIR, paddingTop: 8, ...col(4) }} aria-label="Answered after the reveal">
           <div style={{ fontSize: 11.5, fontWeight: 800, color: "var(--ink-3)" }}>Answered after the reveal</div>
@@ -936,6 +946,27 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
     return revealRow("you read the room", winners.includes(mine.guessIdx),
       winners.map((i) => labelIn(opts, i)).join(" · "), labelIn(opts, mine.guessIdx),
       <GroupMark key="room" gid={g.id} name={g.name} size={20} />);
+  }
+
+  // The crowd's split on a world question (ROUNDS-PLAN §6.2) — the third
+  // column, off the aggregate the feed already cached, so it costs no
+  // read of its own. Draws nothing on a room's own question, and nothing
+  // until the aggregate is published.
+  function worldLine() {
+    if (!rowQid) return null;
+    const split = LIVE.social.worldSplit(rowQid);
+    if (!split) return null;
+    const parts = split.counts
+      .map((n, i) => ({ i, n }))
+      .filter((x) => x.n > 0)
+      .sort((a, b) => b.n - a.n)
+      .map((x) => `${labelIn(opts, x.i)} ${Math.round((x.n / split.total) * 100)}%`);
+    return (
+      <div aria-label="The world's split" style={{ display: "flex", alignItems: "baseline", gap: 8, paddingTop: 6, borderTop: LD_HAIR, fontSize: 12.5 }}>
+        <span style={{ fontWeight: 800, color: "var(--ink-3)" }}>the world</span>
+        <span style={{ fontWeight: 700, color: "var(--ink-2)" }}>{parts.join(" · ")}</span>
+      </div>
+    );
   }
 
   function revealRow(label: string, right: boolean, ansLabel: string, guessLabel: string, av: React.ReactNode) {
@@ -1196,6 +1227,18 @@ function LdCard({ g, vh, nextName, newest }: {
   const past = hist.length ? hist : (reveal ? [reveal] : []);
   const shown: LiveReveal | null = day === 0 ? null : (past[day - 1] || null);
 
+  // A WORLD question as the round (ROUNDS-PLAN §6.2). In a 1v1 the guess
+  // is asked only when it is a read: if the partner has already answered
+  // this question in public, a guess would be a lookup, so the pick seals
+  // on its own and the card says why. A group's world round takes no call
+  // on the room at all — a room of public answers is a lookup too. The
+  // partner's public answers are one capped query per pair per session.
+  const world = !!q && q.kind === "world";
+  React.useEffect(() => {
+    if (world && duo) void S.loadPartnerAnswers(g.id);
+  }, [world, duo, g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton
+  const partnerKnown = world && duo && q ? S.partnerAnswer(g.id, q.id) : null;
+  const guessless = world && (!duo || partnerKnown != null);
   const seal = async (optionIdx: number, guessIdx?: number) => {
     if (busy) return;
     setBusy(true); setVoteErr(null);
@@ -1392,11 +1435,18 @@ function LdCard({ g, vh, nextName, newest }: {
           </div>
         )}
         <LdPrompt>{q.prompt}</LdPrompt>
+        {world && (
+          <div role="note" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
+            {duo && partnerKnown != null
+              ? `A world question — ${themName} already answered it out there (${q.options[partnerKnown] ?? "—"}), so no guess this round.`
+              : (duo ? "A world question — the reveal shows you both against the crowd." : "A world question — the reveal shows the room against the crowd.")}
+          </div>
+        )}
         <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>your answer</span>
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
             <LdOption key={i} label={o} tint={tint} disabled={busy}
-              onClick={() => setPick(i)} />
+              onClick={() => (guessless ? void seal(i) : setPick(i))} />
           ))}
         </div>
         {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}

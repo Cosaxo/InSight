@@ -45016,7 +45016,31 @@ account, so the daily cadence the burst wants is an owner click, with
 the arithmetic on the row (weekly reaches 400 in about eight months,
 daily in about five weeks).
 
+**World questions as duel content is built** (§6.2, the same day, on
+the owner's word — *"yeah lets do that"*, to the model explained in
+plain words, which named it). Every even round draws from the feed's
+core, restricted to the shapes an option index can name and sorted so
+every device draws the same question, through a second arm in
+`isDuelAnswer` written as an explicit admission — surface `daily` or
+`feed`, type `vote`/`binary`/`choice`, `options.size() > 0` — rather
+than a relaxation of the equality that keeps the catalog out. The
+reveal draws the pair, or the room, against the crowd: one read for the
+crowd's split per question per session rather than the zero the plan
+assumed, because the feed's cache holds only the answered questions'
+aggregates (the blind answer) and a duel answer is keyed `g_…`. In a
+1v1 the partner's public answer to the question, when they have one, is
+read from the Circle stop's capped query once per pair per session, and
+the card asks no guess on it — a guess with the answer in public is a
+lookup, not a reading — and says why; a group's world round asks no
+guess at all. §6.2's exclusion became that signal because excluding per
+partner would make the round's question a function of one device's
+data, which is drift. Three get() sites on the question document joined
+the rules tripwire (34 → 37), none billed twice; the coverage baseline
+is unmoved because each new predicate has its refusal. The rotation,
+the pool and the card are pinned in `deck.test.ts` and
+`LiveDuelPanel.test.tsx`, the arm in `rules.test.ts`, and the round —
+with the world's count not moving — in the e2e's 8a leg.
+
 **What is NOT built**, so nothing here reads as more than it is: the
-notifications (§7.4, behind `web/privacy.html`), world questions as
-duel content (§6.2), and the screens (request 11). The card is truthful,
-not redesigned.
+notifications (§7.4, behind `web/privacy.html`) and the screens
+(request 11). The card is truthful, not redesigned.

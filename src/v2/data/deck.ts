@@ -667,10 +667,32 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 // was what advanced the game when nobody played, and the round's deadline
 // does that now, so the rotation walks rounds. Nothing else about it moved.
 // "pick" questions take the members as options.
+/**
+ * The WORLD questions a round may draw (ROUNDS-PLAN §6.2): the feed's core
+ * — served to every device at boot, so every member's client holds the
+ * same list — restricted to the shapes a duel answer's optionIdx can name
+ * (a vote with two or more options; the rules admit `binary` and `choice`
+ * too, for the day the daily's own bank rides here), sorted by id so the
+ * rotation below is the same function on every device. The feed's tail
+ * is deliberately NOT in it: tail pages land per device and at different
+ * times, and a pool two members disagree about is D70's drift by design.
+ */
+export function worldDuelPool(
+  feedBank: ReadonlyArray<QuestionDoc & { id: string }>,
+): Array<QuestionDoc & { id: string }> {
+  return feedBank
+    .filter((q) => q.core === true
+      && (q.type === "vote" || q.type === "binary" || q.type === "choice")
+      && Array.isArray(q.options) && q.options.length >= 2
+      && q.active !== false)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
 export function duelQFor(
   g: Record<string, unknown> & { id: string },
   duelBank: Array<QuestionDoc & { id: string }>,
   round: number,
+  worldPool: ReadonlyArray<QuestionDoc & { id: string }> = [],
 ): { id: string; prompt: string; options: string[]; kind: string } | null {
   const mode = g.mode === "duo" ? "duo" : "group";
   // A duo draws from exactly one pool (D40 part 4): the romantic pool when
@@ -685,6 +707,20 @@ export function duelQFor(
   const bank = duelBank.filter(
     (q) => q.surface === mode && (pool ? q.mode === pool : q.mode == null),
   );
+  // Rounds ALTERNATE between the room's own pool and the world's core
+  // (ROUNDS-PLAN §6.2): odd rounds the duel bank — the questions written
+  // for reading a person, the roles fold's substrate — and even rounds a
+  // world question, whose reveal can draw the pair against the crowd. A
+  // device with no world pool (a bank before the feed's core landed)
+  // draws every round from the duel bank, and the rounds it draws that
+  // way are the ones its own answers name, so a drifted client still
+  // reveals coherently (revealQid). The ratio is a dial: `% 2` is one
+  // world round in two.
+  const useWorld = worldPool.length > 0 && round % 2 === 0;
+  if (useWorld) {
+    const q = worldPool[(gHash(g.id) + round + worldPool.length * 1000) % worldPool.length];
+    return { id: q.id, prompt: q.prompt, options: q.options, kind: "world" };
+  }
   if (!bank.length) return null;
   const q = bank[(gHash(g.id) + round + bank.length * 1000) % bank.length];
   const names = (g.memberNames || {}) as Record<string, string>;

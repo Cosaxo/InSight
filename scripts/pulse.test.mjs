@@ -395,7 +395,16 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // create path whose refusals D409 measured; the billed cost is
       // unchanged, because every one of those sites read the same group
       // document the membership clause already fetched.
-    ).toEqual({ gets: 34, exists: 2 });
+      //
+      // 34 → 37 gets (ROUNDS-PLAN §6.2, the owner's word 2026-09-08): the
+      // WORLD ARM. isDuelAnswer's surface equality gained a second arm
+      // that admits a daily or feed question as a round's content — three
+      // get() sites (surface, type, options.size()) on the SAME
+      // /v2_questions document the kill switch and duelIndexSpace()
+      // already fetch, so a duel create still bills the question once and
+      // RULE_READS.duel stays 2. Sites, not reads, moved — the third time
+      // this comment has had to say so.
+    ).toEqual({ gets: 37, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 42 `await getDb()` sites in this file did not change
+// deliberately: the 44 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -218,6 +218,7 @@ import {
   countsFor,
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
+  worldDuelPool,
   hasPublishedCounts,
   isCore,
   isDailyQid,
@@ -414,6 +415,16 @@ const state = {
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
   revealHistLoaded: {} as Record<string, boolean>,
+  // The partner's PUBLIC world answers, per 1v1 (ROUNDS-PLAN §6.2): one
+  // capped query per pair per session, loaded on the card that asks. A
+  // world-question round whose partner has already answered that question
+  // in public is not a read — the guess would be a lookup — so the card
+  // asks no guess on it and says why. gid → qid → optionIdx.
+  partnerAnswers: {} as Record<string, Record<string, number>>,
+  partnerAnswersLoading: {} as Record<string, boolean>,
+  // The world-round questions whose split this session has asked the
+  // server for (ensureWorldSplit): one read each, hit or miss.
+  worldSplitChecked: {} as Record<string, boolean>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -3680,8 +3691,17 @@ const openRoundOf = (g: Record<string, unknown>): number => {
   const r = g.round;
   return typeof r === "number" && Number.isInteger(r) && r >= 1 ? r : 1;
 };
+// The world pool is a pure function of the feed bank's core, recomputed
+// only when the bank object changes (one filter + sort over ~90 rows).
+let worldPoolFor: { bank: unknown; pool: Array<QuestionDoc & { id: string }> } | null = null;
+function worldPool(): Array<QuestionDoc & { id: string }> {
+  if (!worldPoolFor || worldPoolFor.bank !== state.feedBank) {
+    worldPoolFor = { bank: state.feedBank, pool: worldDuelPool(state.feedBank) };
+  }
+  return worldPoolFor.pool;
+}
 function duelQFor(g: Record<string, unknown> & { id: string }, round: number) {
-  return duelQForPure(g, state.duelBank, round);
+  return duelQForPure(g, state.duelBank, round, worldPool());
 }
 /**
  * Where this account stands in a room's rounds: the OPEN round, the rounds
@@ -3710,7 +3730,88 @@ const SOCIAL = {
   },
   bankQ(qid: string) {
     const q = state.duelBank.find((x) => x.id === qid);
-    return q ? { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" } : null;
+    if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
+    // A world question served as a round (ROUNDS-PLAN §6.2) — the reveal
+    // card and the roles fold look it up by the same door.
+    const w = feedById(qid) || dailyById(qid);
+    return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "world" } : null;
+  },
+  /**
+   * The world's split on a question this device already holds the
+   * aggregate for — the third column a world-question reveal draws
+   * (ROUNDS-PLAN §6.2): your answer, theirs, and the crowd's. Null until
+   * the aggregate is published and cached; never a fetch of its own.
+   */
+  worldSplit(qid: string): { counts: number[]; total: number } | null {
+    const q = feedById(qid) || dailyById(qid);
+    if (!q || !hasPublishedCounts(state.aggs[qid])) return null;
+    const counts = countsFor(q.options, voteCtx(qid));
+    const total = counts.reduce((a, b) => a + b, 0);
+    return total > 0 ? { counts, total } : null;
+  },
+  /**
+   * Fetch the crowd's split for a world round's question when the cache
+   * holds none — ONE read per question per session, on the reveal that
+   * draws it. §6.2 priced the third column at zero on the assumption that
+   * the feed's cache held every core aggregate. It holds the aggregates
+   * of the questions you have ANSWERED — the blind answer means a card
+   * fetches its split after the vote — and a duel answer is keyed `g_…`,
+   * so the boot's top-up never asks for a world round's question. The
+   * learn lens's read-through cache is the model (`learnAgg`): an
+   * in-flight flag rather than a pre-filled null, a missing document
+   * remembered as "nobody yet" for the session, and a failed read left
+   * unset so a later render may try again. Nothing on a room's own
+   * question, which no world aggregate describes.
+   */
+  ensureWorldSplit(qid: string): void {
+    if (state.worldSplitChecked[qid] || hasPublishedCounts(state.aggs[qid])) return;
+    if (!(feedById(qid) || dailyById(qid))) return;
+    state.worldSplitChecked[qid] = true;
+    void (async () => {
+      try {
+        const db = await getDb();
+        const snap = await getDoc(doc(db, "v2_question_aggs", qid));
+        state.stats.aggsFetched += 1;
+        if (snap.exists()) {
+          storeAgg(qid, snap.data() as AggDoc);
+          saveAggCache();
+          notify();
+        }
+      } catch (err) {
+        delete state.worldSplitChecked[qid];
+        reportError(err, { where: "worldSplit", qid });
+      }
+    })();
+  },
+  /**
+   * Load the partner's public world answers for a 1v1, once per session
+   * (`fetchAnswersOf`, the Circle stop's own query, capped at
+   * CIRCLE_ANSWER_CAP newest). Only a duo asks; a group's world rounds
+   * take no call on the room at all, because a room of public answers is
+   * a lookup too.
+   */
+  async loadPartnerAnswers(gid: string): Promise<void> {
+    const g = state.groups.find((x) => x.id === gid);
+    const me = state.uid;
+    if (!g || !me || g.mode !== "duo") return;
+    const them = ((g.memberUids || []) as string[]).find((u) => u !== me);
+    if (!them || state.partnerAnswers[gid] || state.partnerAnswersLoading[gid]) return;
+    state.partnerAnswersLoading[gid] = true;
+    try {
+      const db = await getDb();
+      const { fetchAnswersOf } = await import("./circle");
+      state.partnerAnswers[gid] = await fetchAnswersOf(db, them);
+    } catch (err) {
+      reportError(err, { where: "partnerAnswers", gid });
+    } finally {
+      state.partnerAnswersLoading[gid] = false;
+      notify();
+    }
+  },
+  /** The partner's public answer to `qid`, or null — unknown until loaded. */
+  partnerAnswer(gid: string, qid: string): number | null {
+    const map = state.partnerAnswers[gid];
+    return map && typeof map[qid] === "number" ? map[qid] : null;
   },
   groups(mode?: string) {
     return mode ? state.groups.filter((g) => (g.mode || "group") === mode) : [...state.groups];
@@ -7609,6 +7710,9 @@ function resetForNewUid(uid: string): void {
   state.revealHist = {};
   state.revealHistLoading = {};
   state.revealHistLoaded = {};
+  state.partnerAnswers = {};
+  state.partnerAnswersLoading = {};
+  state.worldSplitChecked = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never

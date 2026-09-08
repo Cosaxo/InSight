@@ -648,7 +648,15 @@ table when the round reveals — on the last member's answer, or at the
 round's deadline for whoever played. Rules require membership and bound
 the round to `[open, open + ROUND_LEAD)`: nothing behind the open round
 (it has revealed — the reveal and the advance are one commit) and
-nothing past the lead. Duel surfaces are excluded from world aggregates.
+nothing past the lead. The `qid` names either the room's own bank (the
+question's `surface` equals the answer's) or — ROUNDS-PLAN §6.2, the
+rules' second arm — a `daily` or `feed` question of an option-index
+type (`vote`/`binary`/`choice`, with options), which is how every other
+round draws from the world's core; the arm is explicit rather than a
+relaxation of the equality, so a catalog question (empty options) is
+still refused. Duel surfaces are excluded from world aggregates either
+way: a duel answer to a world question moves the room's reveal and not
+the crowd's count (the e2e's 8a leg pins the total unmoved).
 
 v2_takes/{takeId}                  comments on a question — circle or world,
                                    NAMED at both scopes since D98

@@ -65,6 +65,10 @@ const LIVE = vi.hoisted(() => {
     declineJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
     voteLate: async (gid: string, round: number, idx: number) => { void gid; void round; void idx; },
+    worldSplit: (qid: string) => { void qid; return null as { counts: number[]; total: number } | null; },
+    loadPartnerAnswers: async (gid: string) => { void gid; },
+    ensureWorldSplit: (qid: string) => { void qid; },
+    partnerAnswer: (gid: string, qid: string) => { void gid; void qid; return null as number | null; },
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
     todayKey: () => "2026-07-30",
@@ -292,6 +296,88 @@ describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
     LIVE.social.revealFor = () => revealed({ votes: { u_me: { optionIdx: 0 }, u_ada: { optionIdx: 1 } } });
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.queryByText(/You didn’t play this one/)).toBeNull();
+  });
+});
+
+describe("LiveDuelPanel · a world question as the round (ROUNDS-PLAN §6.2)", () => {
+  const W = { id: "feed-f02", prompt: "VAR made football better.", options: ["Better", "Worse"], kind: "world" };
+
+  it("in a 1v1 the guess is still asked when the partner has NOT answered it in public", () => {
+    LIVE.social.todayQ = () => W;
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByRole("note").textContent).toMatch(/A world question/);
+    fireEvent.click(screen.getByRole("button", { name: "Worse" }));
+    expect(screen.getByText(/And Ada picked/)).toBeTruthy();
+  });
+
+  it("…and seals without a guess when she has — a guess would be a lookup", async () => {
+    LIVE.social.todayQ = () => W;
+    LIVE.social.partnerAnswer = () => 0;
+    const calls: Array<[number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByRole("note").textContent).toMatch(/Ada already answered it out there \(Better\), so no guess this round/);
+    fireEvent.click(screen.getByRole("button", { name: "Worse" }));
+    await waitFor(() => expect(calls).toEqual([[1, undefined]]));
+    expect(screen.queryByText(/And Ada picked/)).toBeNull();
+  });
+
+  it("a group's world round takes no call on the room", async () => {
+    LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
+    LIVE.social.todayQ = () => W;
+    const calls: Array<[number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.click(screen.getByRole("button", { name: "Better" }));
+    await waitFor(() => expect(calls).toEqual([[0, undefined]]));
+    expect(screen.queryByText(/And the room picked/)).toBeNull();
+  });
+
+  it("the reveal draws the world's split under the pair, off the cached aggregate", () => {
+    LIVE.social.bankQ = () => W;
+    LIVE.social.worldSplit = () => ({ counts: [38, 62], total: 100 });
+    LIVE.social.revealFor = () => ({
+      round: 2, day: "2026-09-08", qid: "feed-f02",
+      votes: { u_me: { optionIdx: 1, guessIdx: 1 }, u_ada: { optionIdx: 1, guessIdx: 1 } }, names: { u_ada: "Ada" },
+    });
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByLabelText("The world's split").textContent).toMatch(/Worse 62% · Better 38%/);
+  });
+
+  it("draws no world line on a room's own question", () => {
+    LIVE.social.worldSplit = () => null;
+    LIVE.social.revealFor = () => ({ round: 1, day: "2026-09-08", qid: "duo-000", votes: { u_ada: { optionIdx: 1 } }, names: { u_ada: "Ada" } });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByLabelText("The world's split")).toBeNull();
+  });
+
+  // The plan priced the third column at zero, and the cache it assumed
+  // holds only what you answered in the feed (ROUNDS-PLAN §0a). So the
+  // reveal ASKS for a world question's split — once, by qid — and never
+  // for a room's own question, which no world aggregate describes.
+  it("the reveal asks the store for a world question's split it does not hold", () => {
+    LIVE.social.bankQ = () => W;
+    LIVE.social.worldSplit = () => null;
+    const asked: string[] = [];
+    LIVE.social.ensureWorldSplit = (qid: string) => { asked.push(qid); };
+    LIVE.social.revealFor = () => ({
+      round: 2, day: "2026-09-08", qid: "feed-f02",
+      votes: { u_me: { optionIdx: 1, guessIdx: 1 }, u_ada: { optionIdx: 1, guessIdx: 1 } }, names: { u_ada: "Ada" },
+    });
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(asked).toEqual(["feed-f02"]);
+  });
+
+  it("…and not for a room's own question", () => {
+    LIVE.social.bankQ = () => ({ id: "duo-000", prompt: "?", options: ["a", "b"], kind: "classic" });
+    LIVE.social.worldSplit = () => null;
+    const asked: string[] = [];
+    LIVE.social.ensureWorldSplit = (qid: string) => { asked.push(qid); };
+    LIVE.social.revealFor = () => ({ round: 1, day: "2026-09-08", qid: "duo-000", votes: { u_ada: { optionIdx: 1 } }, names: { u_ada: "Ada" } });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(asked).toEqual([]);
   });
 });
 

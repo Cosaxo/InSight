@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — steps 0–4 and the regulator half of 6 are BUILT (2026-09-08, D420's second amendment); the lane's cadence is an owner row; steps 5, 7 and 8 are open.** The follow-through on
+**Status: plan notes — steps 0–4, 7 and the regulator half of 6 are BUILT (2026-09-08, D420's second amendment); the lane's cadence is an owner row; steps 5 and 8 are open.** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -79,6 +79,36 @@ the tree does not do.
   the next prompt. No sentence names a cadence (D419 §3).
 - **`test-users.mjs` plays rounds** (`play`, `reveal` = the forced
   lever, `history --rounds N`); `--day` is gone.
+- **World rounds are the EVEN rounds, off the feed's core** (§6.2,
+  built 2026-09-08 on the owner's word). `worldDuelPool` is the core
+  (`core: true`) restricted to `vote`/`binary`/`choice` with two or more
+  options and not retired, sorted by id — the list every device holds
+  at boot, so the rotation is the same function everywhere; the feed's
+  tail is out on purpose, since tail pages land per device and a pool
+  two members disagree about is D70's drift by design. `duelQFor`
+  draws even rounds from it and odd rounds from the room's bank (`% 2`
+  is one dial); a device with no pool yet draws every round from the
+  bank, and `revealQid` keeps a drifted client coherent. The rules
+  admit the arm explicitly — surface `daily`/`feed`, type in the three,
+  `options.size() > 0` — so the catalog stays out.
+- **The partner's public answer is a NO-GUESS signal, not an
+  exclusion.** §6.2 proposed not serving a question the partner had
+  already answered in public. Excluding per partner would make the
+  round's question a function of one member's answer set, which the
+  other device does not hold at the same moment — drift again. As built
+  the question is served; in a 1v1 the card asks no guess when the
+  partner's public answer is known (the guess would be a lookup) and
+  says so, and a group's world round asks no guess at all. The lookup
+  is `fetchAnswersOf`, the Circle stop's own capped query, once per
+  pair per session on the first world round the card draws.
+- **The third column costs ONE read, not the zero §6.2 assumed.** The
+  feed's cache holds the aggregates of the questions you have ANSWERED
+  — the blind answer means a card fetches its split after the vote —
+  and a duel answer is keyed `g_…`, so the boot's top-up never asks for
+  a world round's question. The reveal fetches `v2_question_aggs/{qid}`
+  once per question per session when the cache has no published counts
+  (`ensureWorldSplit`), and the world's own count does not move (the
+  e2e's 8a leg pins the total).
 
 ## 0 · The short version
 
@@ -610,8 +640,11 @@ Each step is shippable and green on its own.
    Routine fires weekly on an account this tree cannot re-pace, so the
    daily run the burst wants is an owner row — at weekly, 25 a run reaches
    400 a pool in about eight months; at daily, in about five weeks.
-7. **World questions in duels** (§6.2) — owner row first, then the rules
-   arm, the pool, the exclusion query and the reveal's third column.
+7. **World questions in duels** (§6.2) — **built 2026-09-08**, on the
+   owner's word: the rules' second arm, `worldDuelPool` over the feed's
+   core with even rounds drawing from it, the partner's public answers
+   read as a no-guess signal rather than an exclusion (§0a says why), and
+   the reveal's third column.
 8. **The screens** (§7.5) — visual request 11: plan, draft, the owner's
    refinement, extraction, then build.
 
@@ -636,7 +669,7 @@ rules accept both id shapes, and that is a materially bigger change.
 | 4 | `npm run test:rules`, `npm run test --prefix functions` | an unflagged answer after the reveal is REFUSED; a late answer with `guessIdx` is refused; a late answer moves no dim, no ledger figure and no `duel-{qid}` count |
 | 5 | `npm run check:policy-claims`, `npm run check:figures`, `npm run test --prefix functions`, `npm run test:unit` | the page names five kinds before the fifth send exists; five rounds in a window send one push naming five; the partner who has answered gets the reveal and the one who has not gets *your turn*, never both; a group member is nudged once per round |
 | 6 | `npm run check:content`, `check:neighbors`, `check:figures` | the dedup floor holds across a burst; the budget script's numbers match its prose |
-| 7 | `npm run test:rules`, `npm run test:unit` | a catalog question is still refused on a duel surface; the world split on the reveal costs no extra read |
+| 7 | `npm run test:rules`, `npm run test:unit` | a catalog question is still refused on a duel surface; the world split on the reveal costs no extra read (as built: ONE read per question per session, on the reveal — §0a says why the zero was wrong) |
 | 8 | `npm run test:unit`, `check:a11y`, `check:tap-targets`, `check:public-copy` | the 1v1 draws no clock; the group's clock is the deadline; no cadence word in copy (D419 §3) |
 
 ## 13 · What this plan does not decide
