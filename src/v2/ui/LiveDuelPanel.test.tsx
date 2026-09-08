@@ -355,7 +355,7 @@ describe("LiveDuelPanel · the question-pool picker (D40 part 4)", () => {
     expect(romantic.disabled).toBe(true);
     fireEvent.click(romantic);
     expect(calls).toEqual([]);
-    expect(screen.getByText(/locked until tomorrow/i)).toBeTruthy();
+    expect(screen.getByText(/locked until the reveal/i)).toBeTruthy();
   });
 
   it("never renders for a solo duo or a group", () => {

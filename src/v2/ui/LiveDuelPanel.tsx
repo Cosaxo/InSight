@@ -808,7 +808,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
         );
       })}
       {/* Takes hang off the REVEALED question, never today's. Today's vote
-          is sealed until tomorrow, and free text beside a sealed answer is
+          is sealed until the reveal, and free text beside a sealed answer is
           the leak the seal exists to prevent — "obviously B" under a
           question nobody has answered yet is the vote, in prose. Once names
           are on the answers there is nothing left to give away, which is
@@ -989,7 +989,7 @@ function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
       </div>
       {sealed && (
         <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          Pool is locked until tomorrow — today’s answer is sealed.
+          Pool is locked until the reveal — today’s answer is sealed.
         </div>
       )}
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
