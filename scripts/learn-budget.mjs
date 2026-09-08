@@ -26,17 +26,25 @@
 // unreviewed batch at a time, and that is the one stop left.
 //
 // The constants (quoted in QUESTION-FARM.md and held equal by check:figures):
-//   RUN_CAP      = 10  cards per run — a throughput figure at the writing
+//   RUN_CAP      = 30  cards per run — a throughput figure at the writing
 //                      bar (each card's trap argued, its fact sourced, its
-//                      difficulty placed), not a stock one. Raise it when
-//                      runs finish with the bar met and time to spare.
+//                      difficulty placed), not a stock one. It was 10 with
+//                      the rule "raise it when runs finish with the bar met
+//                      and time to spare"; raised at D428 on the owner's
+//                      direction that learn's coverage should grow fastest
+//                      of all the surfaces ("especially in learn … almost
+//                      become like reddit"), to half the feed's 60 — a
+//                      learn card costs more at the bar than a feed vote,
+//                      and the lane fires twice a week, which is the other
+//                      lever (docs/OWNER-LIST.md). Seven chunks of four a
+//                      run, one field per chunk, is the writer's shape now.
 //   FIELD_FLOOR  = 24  cards per field, reached first — three times the
 //                      scheduler's 8-card spacing floor, and the depth at
 //                      which a single followed field carries a default-rate
 //                      reader about a month. A floor, not a target: nothing
 //                      stops at it, and no number says how deep a field may
 //                      grow.
-//   OPEN_MAX     = 10  unreviewed cards on the lane's open PR at which
+//   OPEN_MAX     = 30  unreviewed cards on the lane's open PR at which
 //                      generation stops entirely. Equal to RUN_CAP and
 //                      subtracted from the budget: with no second gate
 //                      behind the merge, the lane carries ONE unreviewed
@@ -56,8 +64,10 @@
 //                      share is not read (the manual's staleness rule).
 //
 // The budget:
-//   budget = 0 if open ≥ OPEN_MAX, else min(RUN_CAP, OPEN_MAX − open)
-//            — never zero for stock
+//   budget = 0 if open ≥ OPEN_MAX, else min(RUN_CAP, OPEN_MAX − open) − reserve
+//            — never zero for stock. `reserve` (--reserve, D428) is what
+//            topic-budget.mjs takes off the top to OPEN new fields this run
+//            (the breadth share); what is left levels the fields that exist.
 // allocated through lane-tiers' CHUNK mode: a run touches at most
 // ⌊budget ÷ MIN_CHUNK⌋ fields, chosen in tier order — under the floor
 // thinnest first, then by demand weight (popularity × depth: the field's
@@ -77,9 +87,9 @@ import { allocateTiers, laneSignal, tierLabel, tierReason } from "./lane-tiers.m
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-export const RUN_CAP = 10;
+export const RUN_CAP = 30;
 export const FIELD_FLOOR = 24;
-export const OPEN_MAX = 10;
+export const OPEN_MAX = 30;
 export const MIN_CHUNK = 4;
 export const DEMAND_MIN_ANSWERS = 100;
 export const DEMAND_STALE_DAYS = 30;
@@ -89,7 +99,7 @@ export const DEMAND_STALE_DAYS = 30;
 //
 // `fields` is [{ id, cards }] — every field in the bank, thin or not.
 // `demand` is { fieldId: weight } from learnSignal, or null when blind.
-export function learnBudget({ fields, open = 0, demand = null }) {
+export function learnBudget({ fields, open = 0, demand = null, reserve = 0 }) {
   const deficit = fields.reduce((sum, f) => sum + Math.max(0, FIELD_FLOOR - f.cards), 0);
 
   if (open >= OPEN_MAX) {
@@ -107,7 +117,10 @@ export function learnBudget({ fields, open = 0, demand = null }) {
 
   // `OPEN_MAX - open` is what makes "one unreviewed batch at a time" true
   // rather than aspirational. Never zero for stock (D316/D350).
-  const budget = Math.min(RUN_CAP, OPEN_MAX - open);
+  // The reserve is the breadth share topic-budget opens NEW fields with
+  // (D428); a field that does not exist yet is not a row here, so its cards
+  // come off the top rather than out of the levelling below.
+  const budget = Math.max(0, Math.min(RUN_CAP, OPEN_MAX - open) - Math.max(0, Math.floor(reserve)));
   const tiers = allocateTiers({
     rows: fields.map((f) => ({ id: f.id, stock: f.cards })),
     budget,
@@ -186,6 +199,12 @@ if (invokedDirectly) {
     console.error("learn-budget: --open takes a non-negative integer (cards on the open lane PR)");
     process.exit(1);
   }
+  const reserveIdx = args.indexOf("--reserve");
+  const reserve = reserveIdx >= 0 ? Number(args[reserveIdx + 1]) : 0;
+  if (!Number.isInteger(reserve) || reserve < 0) {
+    console.error("learn-budget: --reserve takes a non-negative integer (cards topic-budget opens new fields with this run)");
+    process.exit(1);
+  }
 
   const fields = loadLearnFields();
   let scorecard = null;
@@ -196,10 +215,10 @@ if (invokedDirectly) {
     // must not stop a run computing its budget.
   }
   const signal = learnSignal(scorecard, fields);
-  const { budget, deficit, allocation, reason } = learnBudget({ fields, open, demand: signal.weights });
+  const { budget, deficit, allocation, reason } = learnBudget({ fields, open, demand: signal.weights, reserve });
   const labels = new Map(fields.map((f) => [f.id, f.label]));
 
-  console.log(`learn-budget: lane budget ${budget} (cap ${RUN_CAP}/run)`);
+  console.log(`learn-budget: lane budget ${budget} (cap ${RUN_CAP}/run${reserve ? `, ${reserve} reserved for new fields — npm run topic:budget` : ""})`);
   console.log(
     `  bank: ${fields.reduce((n, f) => n + f.cards, 0)} cards over ${fields.length} fields · ` +
       `${deficit} under the ${FIELD_FLOOR}/field floor + ${open} on the open PR` +
