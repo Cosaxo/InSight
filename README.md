@@ -20,8 +20,8 @@ conventions you have to know before the first edit.
 - **The daily.** One blind vote a day, *then* how the world split, with
   exact counts — plus a question feed underneath to
   snack on.
-- **Duels.** Groups and 1v1s with your real people: one question a day,
-  everyone's answers **sealed until tomorrow**, then revealed with names.
+- **Duels.** Groups and 1v1s with your real people: the same question for
+  everyone, all picks **sealed until the reveal**, then shown with names.
   Duos add a guess — did you call what they'd pick? — and a shared streak.
 - **Tests with no test to sit.** Big Five, politics, values and social
   fill themselves from marked cards in that same feed, alongside a row of
