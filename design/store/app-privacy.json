@@ -106,7 +106,7 @@
    "purposes": [
     "APP_FUNCTIONALITY"
    ],
-   "$why": "Sentry. On by default with an opt-out in the privacy panel (D76), carries the uid only \u2014 no email, no name, no session replay, sendDefaultPii: false. Was a Yes even while opt-in: the form asks what the app CAN collect."
+   "$why": "Sentry. On, with no in-app switch since D211 (D76 amended) \u2014 a recorded opt-out from an older build is still honoured at every send site, because removing a switch must not flip anyone's recorded choice. Carries the uid only \u2014 no email, no name, no session replay, sendDefaultPii: false. Was a Yes even while opt-in: the form asks what the app CAN collect."
   },
   {
    "category": "HEALTH_AND_FITNESS",
