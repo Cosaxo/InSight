@@ -114,6 +114,11 @@ const h = vi.hoisted(() => ({
   // could neither be counted nor made to fail from a case.
   overflowIdQueries: [] as string[][],
   overflowFail: false,
+  // Shard documents the tail query resolves to, by document id. Empty
+  // (the default) is a tree where no shard exists, which is what every
+  // memo/retry case wants; a case that puts a cell here is the only way
+  // to reach the MERGE half of loadOverflow at all.
+  overflowDocs: {} as Record<string, Record<string, unknown>>,
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
   // it exists for is a partial one: several chunked `in` queries fire and
@@ -345,7 +350,13 @@ vi.mock("firebase/firestore", () => {
           .flatMap((pt) => pt.value as string[]);
         h.overflowIdQueries.push(ids);
         if (h.overflowFail) return Promise.reject(new Error("offline"));
-        return Promise.resolve(snapOf([]));
+        // Serves only the ids the query named, like the agg arm above: a
+        // fake that returned everything would pass a read that asked for
+        // the wrong shard, which is the one thing the hash has to get right.
+        return Promise.resolve(snapOf(
+          ids.filter((id) => id in h.overflowDocs)
+            .map((id) => ({ id, data: h.overflowDocs[id] as Record<string, unknown> })),
+        ));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -528,6 +539,7 @@ beforeEach(() => {
   h.aggFailIds.length = 0;
   h.overflowIdQueries.length = 0;
   h.overflowFail = false;
+  h.overflowDocs = {};
   h.voterDocs = {};
   h.voterQueries.length = 0;
   h.voterFailQids.clear();
@@ -3859,6 +3871,35 @@ describe("loadOverflow — a failed shard read is not remembered as a load (D400
     // The read it retried is the right one: the shard the viewer's city
     // hashes to, for the question at the cap.
     expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, CITY)]);
+  });
+
+  it("merges the shard's cell into the cached aggregate, which is the whole point", async () => {
+    // THE HALF THE FIRST THREE CASES COULD NOT SEE. They drive the memo
+    // and the retry, and the fake served no shard, so `cells` was empty
+    // by construction: the entire success body — the overflowCells
+    // record, `withOverflowCell`, the dirty mark, the save and the notify
+    // — could be deleted and 77 files / 1382 tests stayed green.
+    //
+    // What it costs is the sentence the fix's own commit uses: every
+    // Mirror number about the viewer's own place under-reports by that
+    // place's own share. The hot map at the cap does not hold the
+    // viewer's city; the tail does; unless this merge happens `aggFor`
+    // keeps answering with the hot document and the city reads as zero.
+    const LIVE = await bootAtTheCap();
+    h.overflowDocs[overflowDocId(QID, CITY)] = { city: { [CITY]: { "2": 7 }, "Elsewhere, XX": { "0": 3 } } };
+
+    await LIVE.loadOverflow("city");
+
+    const agg = LIVE.aggFor(QID) as { by?: Record<string, Record<string, Record<string, number>>> } | null;
+    expect(
+      agg?.by?.city?.[CITY],
+      "the tail cell never reached the cached aggregate — the viewer's own city still reads as zero",
+    ).toEqual({ "2": 7 });
+    // Only the viewer's key. The shard carries other cities' cells too,
+    // and merging them would put back the buckets the cap evicted.
+    expect(agg?.by?.city?.["Elsewhere, XX"]).toBeUndefined();
+    // …and the rows the hot map already held are still there.
+    expect(Object.keys(agg?.by?.city ?? {}).length).toBe(OVERFLOW_HOT_CAP + 1);
   });
 
   it("…and a SUCCESSFUL read is remembered, so a re-opened stop costs nothing", async () => {
