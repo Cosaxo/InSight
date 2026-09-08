@@ -44,7 +44,20 @@
 // on the document so the device joins by id and the prompts stay out
 // of first paint. The core items and the lens items carry neither.
 export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
-export const V2_QUESTIONS: V2SeedQuestion[] = [
+// THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather
+// than a taste. `tsc` checks an array literal against its annotation by
+// forming the union of the element types, and V2SeedQuestion has ~45
+// optional members, so the union grows with the bank: at 1085 questions
+// `npm run build --prefix functions` passed and at 1145 it failed with
+// TS2590, "expression produces a union type that is too complex to
+// represent" — pointing at the `= [` and naming no question. Slicing
+// bounds that union at BANK_SLICE regardless of how big the bank gets,
+// and every entry is still checked against V2SeedQuestion: a cast would
+// also have compiled and would have stopped checking the content, which
+// is the whole reason this file is typed rather than JSON.
+// Consumers see one array. `scripts/v2content-lib.mjs` is the one thing
+// that reads this file as data and it reads the slices, not the export.
+const BANK_0: V2SeedQuestion[] = [
  {
   "id": "daily-000",
   "surface": "daily",
@@ -3983,7 +3996,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s09",
   "surface": "feed",
@@ -8232,7 +8247,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "min"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl43",
   "surface": "feed",
@@ -13226,7 +13243,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "N",
   "test": "big5"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "test-political-00",
   "surface": "test",
@@ -16925,7 +16944,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": "O",
   "test": "big5",
   "facet": "intellect"
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-big5-90",
   "surface": "test",
@@ -21011,7 +21032,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "p": 63,
   "k": "Chernobyl: 1986",
   "w": "1991 is the Soviet collapse — the association that pulls the guess late."
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "learn-c212",
   "surface": "learn",
@@ -22859,6 +22882,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "active": false
  }
 ];
+export const V2_QUESTIONS: V2SeedQuestion[] = [...BANK_0, ...BANK_1, ...BANK_2, ...BANK_3, ...BANK_4, ...BANK_5];
 
 // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
 // sponsored questions. An ad takes no answer and folds into no
