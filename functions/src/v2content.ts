@@ -12183,7 +12183,9 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-015",
   "surface": "duo",
@@ -13243,9 +13245,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "N",
   "test": "big5"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "test-political-00",
   "surface": "test",
@@ -15774,7 +15774,9 @@ const BANK_3: V2SeedQuestion[] = [
   "axis": "N",
   "test": "big5",
   "facet": "anger"
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-big5-30",
   "surface": "test",
@@ -16944,9 +16946,7 @@ const BANK_3: V2SeedQuestion[] = [
   "axis": "O",
   "test": "big5",
   "facet": "intellect"
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-90",
   "surface": "test",
@@ -19758,7 +19758,9 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 48,
   "k": "Great Pyramid: Khufu"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "learn-anc2",
   "surface": "learn",
@@ -21032,9 +21034,7 @@ const BANK_4: V2SeedQuestion[] = [
   "p": 63,
   "k": "Chernobyl: 1986",
   "w": "1991 is the Soviet collapse — the association that pulls the guess late."
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-c212",
   "surface": "learn",
