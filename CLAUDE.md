@@ -29,8 +29,17 @@ carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered
 enough to be drawn in it (D265 — see the patterns note below). Nobody
 flips a flag. The **daily** tab is where you
-answer: one blind question a day, a feed under it, and sealed
-group/1v1 duels revealed the next day. The feed is finite *today* and the
+answer, and **the cadence is not the product** (the owner, 2026-09-07,
+reading build 33: *"this app is more questions in general… that is some
+old focus"*). What is distinctive is answering BLIND — committing before
+the crowd can anchor you — and the volume underneath: a daily card
+leads, a feed of hundreds runs under it, and group/1v1 duels stay sealed
+until their reveal. Write copy and documentation against the blind
+answer and the volume, not against "one a day": the daily is what
+OPENS, not what the app is. The one-a-day limit on Circle and 1v1 is a
+limit the owner intends to loosen, so a sentence naming a cadence is a
+sentence with an expiry date — say *"until the reveal"*, never *"until
+tomorrow"*. The feed is finite *today* and the
 owner has decided it should not stay that way —
 [`docs/SCALE-PLAN.md`](docs/SCALE-PLAN.md) is what an unbounded feed
 costs, what trips first, and the core/tail split it forces. Read it
@@ -180,17 +189,22 @@ prototype. Modules do **not** import each other. They assign to
 `globalThis`/`window` and look each other up **by name at render time**:
 
 ```jsx
-// group-daily.jsx defines it…
-Object.assign(window, { GroupDailyBody, GDAv });
-// …duo-daily.jsx just uses the bare tag, no import
-<GDAv p={p} size={38} plain></GDAv>
+// search-overlay.jsx defines it…
+Object.assign(window, { SearchOverlay });
+// …app-shell.jsx just uses the bare tag, no import
+<SearchOverlay onClose={() => setOv(null)} />
 ```
 
-*(This example named `useTweaks` until D210 and was false: `app-shell.jsx`
-had long since converted to a real `import`, and the publication beneath it
-was the residue that sweep removed. `check:globals` rule 5 could not see
-either — see D210 for why, and pick a live pair from its own output if this
-one ever converts.)*
+*(This example has now been false twice. It named `useTweaks` until D210:
+`app-shell.jsx` had long since converted to a real `import`, and the
+publication beneath it was the residue that sweep removed. It then named
+`group-daily.jsx`'s `GDAv` until D418, which converted it. `check:globals`
+rule 5 could see neither — see D210 for why. The lesson is the one the
+paragraph two sections down states outright: pick a live pair from
+`check:globals`'s own output, because an example of the convention is the
+first thing the convention breaks. Note also that the bare tag above is
+now the rare form: almost every surviving read is the qualified
+`window.X`, which is the shape a conversion will actually meet.)*
 
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.
@@ -214,7 +228,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-54 modules are already off the bridge — they export and publish nothing,
+55 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -526,7 +540,10 @@ an emergency rules fix.
   this repository and no label that merges anything. What a session owes
   before a PR is mergeable is unchanged and is still the whole of the
   contract: a green head with `main` already merged in and its decision
-  numbers already moved (D299). Then say so and stop — **unless the
+  numbers already moved (D299) — off a **collision** only, because since
+  D408 the hole a move leaves behind is a printed note rather than a
+  failure, so no pull request waits on another's merge to go green. Then
+  say so and stop — **unless the
   owner tells you to merge, in that session and about that head, which
   is the click**. What D385 retired was the unattended lane merging on a
   label, and its first phrasing read as forbidding the instruction too;

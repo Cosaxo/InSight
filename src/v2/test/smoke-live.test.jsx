@@ -48,6 +48,7 @@ import { TEST_FEED_QS } from "../spec/test-feed-data.js";
 // The bundled demo SAMPLE (D284) — imported so the live cases can assert
 // on the actual cards that must not appear, rather than on a copy.
 import { LEARN_CARDS } from "../spec/learn-data.js";
+import { PATHS } from "../spec/paths-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
@@ -792,9 +793,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       screen.getByText(PATH_TITLE),
       "the live Crossroads card is missing, or fell back to the demo story",
     ).toBeTruthy();
-    // The demo pool's stories stay in the demo pool.
-    expect(screen.queryByText("The Wallet")).toBeNull();
-    expect(screen.queryByText("The Wrong Text")).toBeNull();
+    // The demo pool's stories stay in the demo pool — whichever it holds,
+    // so a swap there (D413) cannot leave this asserting on retired titles.
+    for (const st of PATHS.stories()) expect(screen.queryByText(st.title), st.title).toBeNull();
     expectNoBoundary("live feed, crossroads from the bank");
   });
 
@@ -1389,7 +1390,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // body has rendered" are separated by a dynamic import whose duration
     // is the machine's — the same race Circle's case below documents, and
     // the same fix.
-    expect(await screen.findByText(/revealed with names the morning after/i, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await screen.findByText(/then it opens with names/i, {}, { timeout: 3000 })).toBeTruthy();
     expect(screen.queryByText(/No groups yet/i),
       "Groups still answers an empty stop with a headline").toBeNull();
     // The one action a field cannot fill by itself survives the trim.

@@ -470,7 +470,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
                     </React.Fragment>
                   ) : isFriend ? (
                     <React.Fragment>
-                      <span style={mut}>one question a day — read each other</span>
+                      <span style={mut}>answer blind — then read each other</span>
                       <button className="press" onClick={() => DUELS.startDuo(p.id)} style={pill}>Start</button>
                     </React.Fragment>
                   ) : (

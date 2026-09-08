@@ -184,7 +184,7 @@ describe("Crossroads · live", () => {
     // fields it arrived with, whatever the demo pool holds.
     render(<PathsCard q={STORY} />);
     expect(screen.getByText("Live Story")).toBeTruthy();
-    expect(screen.queryByText("The Wallet")).toBeNull();
+    expect(screen.queryByText(PATHS.stories()[0].title)).toBeNull();
   });
 
   it("writes the finished walk as an ordinary vote, indexed by ending", () => {

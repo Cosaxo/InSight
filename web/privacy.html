@@ -121,10 +121,11 @@
   <div class="updated">last updated 2026-09-02</div>
 
   <p class="lead">
-    InSight asks you one question a day, shows you how everyone else
-    answered, and lets you play the same question against people you know.
-    This page is the long version of what that means for your data — what
-    is stored, who can read it, and how to get rid of all of it.
+    InSight asks you questions, shows you how everyone else answered once
+    you have answered blind, and lets you play the same question against
+    people you know. This page is the long version of what that means for
+    your data — what is stored, who can read it, and how to get rid of all
+    of it.
   </p>
 
   <p>
@@ -148,19 +149,57 @@
     been republished.
   </p>
 
-  <h2>You do not need an account</h2>
+  <h2 id="account">The account, and the three ways in</h2>
 
   <p>
-    The app works the moment you open it. It signs you in anonymously —
-    a random identifier, no email, no name, no phone number. You can use
-    InSight indefinitely without ever telling us who you are.
+    InSight asks you to sign in before you answer anything. Until
+    2026-09-07 it did not, and this section said so; the app changed
+    because an answer is only worth something if it belongs to a person,
+    and an account that dies with a handset — or that anyone can mint a
+    second of in one tap — cannot carry that.
   </p>
 
   <p>
-    Linking a Google account is optional, and it is an <em>upgrade</em>:
-    it keeps the same identifier and the same history, so your answers
-    survive losing your phone. We receive your Google account identifier
-    and nothing else from it.
+    There are three ways in, and you pick one:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Sign in with Apple.</strong> We receive the identifier Apple
+      issues for this app and an email address. If you choose Apple's
+      <em>Hide My Email</em>, that address is a relay Apple owns and your
+      real one never reaches us.
+    </li>
+    <li>
+      <strong>Continue with Google.</strong> We receive your Google account
+      identifier, and the email address and display name Google sends by
+      default.
+    </li>
+    <li>
+      <strong>Email and password.</strong> We receive the address you type.
+      <strong>The password goes to Firebase Authentication, which stores
+      it hashed; this app never sees it and never stores it.</strong>
+      Firebase sends a confirmation link to that address, and the app
+      stays behind its sign-in screen until you open it. The account
+      itself exists from the moment the password is accepted, before
+      anything has looked at the address: if it was mistyped, nothing you
+      do reaches this app, and signing out abandons that account rather
+      than deleting it. A reset link is sent the same way at your
+      request. Apple and Google hand us an address they have already
+      confirmed, so neither of those asks you to do this.
+    </li>
+  </ul>
+
+  <p>
+    The app still creates the session the moment you open it, and signing
+    in <em>attaches an identity to that same session</em> rather than
+    starting a new one — so anything you answered before signing in is
+    kept, with the same identifier behind it. Signing in to an account
+    that already exists is the one exception: two histories are not
+    merged, and the one you were building is left behind. With Apple or
+    Google the app says so on the screen before it happens. With an
+    email address it does not &mdash; signing in to an existing account
+    there takes effect immediately.
   </p>
 
   <h2>What is stored</h2>
@@ -568,8 +607,16 @@
 
   <p>
     InSight is not directed at children under 13, and we do not knowingly
-    collect data from them. There is little to collect: no account is
-    required and no personal details are requested.
+    collect data from them. Until 2026-09-07 this section said there was
+    little to collect because the app asked for nothing; that stopped
+    being true when signing in became a requirement, and the sentence was
+    removed rather than softened. What signing in hands over is set out
+    under <a href="#account">The account, and the three ways in</a>: an
+    identifier, an email address, the display name Google sends if you
+    use that door, and nothing else that identifies you.
+    If you believe a child under 13 has created an account, write to
+    <a href="mailto:olaftaule01@gmail.com">olaftaule01@gmail.com</a> and it
+    will be deleted.
   </p>
 
   <h2>Security</h2>

@@ -10,8 +10,10 @@
 
       main.jsx renders nothing until initLive() settles, which is a race
       between hydration and a 2500 ms timeout (src/v2/data/live.ts). On
-      native the splash covers that window: launchAutoHide is off and
-      main.jsx hides it only once real content is painted. On WEB there is
+      native the splash covers that window: main.jsx hides it once real
+      content is painted, and launchShowDuration is the ceiling if that
+      never happens (capacitor.config.ts — autoHide is TRUE, because
+      paired with `false` the ceiling was dead config). On WEB there is
       no splash, so #root sat empty and a cold start on a slow connection
       showed a blank page for up to two and a half seconds.
 

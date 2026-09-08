@@ -16,36 +16,12 @@ import LIVE from '../data/live.ts';
 // feel like an empty room: every stream ships stocked with live questions and
 // believable vote counts.
 
-// ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
-// Named export alongside the global (D39's "convert on touch", the WPAL
-// precedent): typed panels — ui/PatternsTab first — import the binding, so
-// the coupling meter (rule 4) never counts them, while the nine spec
-// consumers keep reading the global until their own touch converts them.
-export const WORLD_TOPICS = [
-  { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
-  { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },
-  { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.52 0.14 310)' },
-  { id: 'music',   label: 'Music',          color: 'oklch(0.52 0.14 355)' },
-  { id: 'tech',    label: 'Tech',           color: 'oklch(0.52 0.14 235)' },
-  { id: 'culture', label: 'Culture',        color: 'oklch(0.52 0.14 200)' },
-  { id: 'dilemma', label: 'Dilemmas',       color: 'oklch(0.52 0.14 25)'  },
-  { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
-  { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
-  { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
-  // the current-events lane (D231). A TIME, not a subject — which is what
-  // keeps it off 'event' (World events), whose questions are evergreen: a
-  // card here carries an ask window and stops being served when it closes.
-  // Hue 115 is the widest gap left in the row (85 -> 145), picked for
-  // distance from its neighbours rather than for a meaning.
-  { id: 'now',     label: 'Happening now',  color: 'oklch(0.52 0.14 115)' },
-  { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
-  // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
-  // same way dilemmas and rankings do. It also means they always have a home:
-  // 'movies' has no scene pointing at it, so a film question filed under it can
-  // never reach the feed.
-  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
-];
-window.WORLD_TOPICS = WORLD_TOPICS;
+// ── topic palette ── moved to world-feed-topics.js so that daily-split.jsx
+// (eager) can have the thirteen rows without this file's demo pool riding
+// into first paint with them. Re-exported, so every existing consumer of
+// `WORLD_TOPICS` from here is unchanged.
+export { WORLD_TOPICS } from './world-feed-topics.js';
+import { WORLD_TOPICS } from './world-feed-topics.js';
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
 //
@@ -67,7 +43,7 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
 // No window mirror (D249): world-feed.jsx was the only reader.
 export const WORLD_CHANNELS = WFD_LIVE_BUILD
-  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
+  ? WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──
@@ -86,7 +62,15 @@ export const WORLD_CHANNELS = WFD_LIVE_BUILD
 // unguarded clobber after the live boot, which is exactly what
 // `joinDemoStock` and `installSubtopicStock` exist to avoid — so if it ever
 // moves, this line moves behind `demoPoolOpen()` with them.
-window.WORLD_FEED_QS = [
+// GUARDED, and this is the line the note above said would have to move.
+// The pool is DEMO stock: on a live build `buildFeedGlobals` (data/live.ts)
+// publishes the real feed to this same global. While this file was eager it
+// ran BEFORE `initLive` and the clobber was harmless; now that it loads from
+// loadWorldFeed() — after the live boot — an unguarded assignment would
+// overwrite the real feed with invented questions. `demoPoolOpen()` is the
+// one definition of that test, shared with joinDemoStock and
+// installSubtopicStock for exactly this reason.
+const WFD_DEMO_POOL = [
   // sport
   { id: 'f01', cat: 'sport', type: 'duel', prompt: 'The better night in front of the TV?', options: [ { label: 'Champions League final', count: 6300 }, { label: 'Super Bowl', count: 4900 } ] },
   { id: 'f02', cat: 'sport', type: 'vote', prompt: 'Would you rather win\u2026', options: [ { label: 'Olympic gold', count: 4100 }, { label: 'The World Cup', count: 5600 } ] },
@@ -137,27 +121,31 @@ window.WORLD_FEED_QS = [
   { id: 'f37', cat: 'culture', type: 'vote', prompt: 'Small talk is a skill, not a chore.', options: [ { label: 'A skill', count: 4700 }, { label: 'A chore', count: 4100 } ] },
 
   // dilemmas
-  // The two Crossroads stories ride the pool as members (D341) — a story is
-  // a feed question, placed by the mix like everything else, and both can
-  // be on screen at once. Only what the feed mechanics read lives here (id,
-  // home topic, a prompt for search and the pass row); the CONTENT is
-  // paths-data.js's, resolved by id at render (paths-card.jsx srcOf), so
-  // the story is written once. 'dilemma' is their genre AND an always-on
-  // channel, which is what keeps them reachable with no scene followed.
-  // One early and one deep in the group on purpose: the mix serves streams
-  // round-robin, so the reader meets the first story a few cards in and
-  // the second a couple of screens later — not stacked, not pinned.
-  { id: 'wallet', cat: 'dilemma', type: 'path', prompt: 'The Wallet' },
+  // (The two Crossroads stubs used to sit here — the prototype's pair were
+  // both dilemmas. D413 retired those stories and the demo pool now
+  // carries two of the bank's, filed under their own genres: 'blackout'
+  // opens the world events group and 'capsule' closes big questions.)
   { id: 'f38', cat: 'dilemma', type: 'vote', prompt: 'Read minds \u2014 but everyone knows you can. Take it?', options: [ { label: 'Take it', count: 2600 }, { label: 'Pass', count: 7900 } ] },
   { id: 'f39', cat: 'dilemma', type: 'vote', prompt: '$1M now, but a stranger somewhere loses everything. Press the button?', options: [ { label: 'Press', count: 1400 }, { label: 'Never', count: 9800 } ] },
   { id: 'f40', cat: 'dilemma', type: 'vote', prompt: 'Would you want to know the date of your death?', options: [ { label: 'Tell me', count: 2900 }, { label: 'Never', count: 8400 } ] },
-  { id: 'text', cat: 'dilemma', type: 'path', prompt: 'The Wrong Text' },
   { id: 'f41', cat: 'dilemma', type: 'vote', prompt: 'Five years in a job you hate, then never work again?', options: [ { label: 'Take the deal', count: 6600 }, { label: 'Keep working', count: 4100 } ] },
   { id: 'f42', cat: 'dilemma', type: 'vote', prompt: 'Restart life at 10, everything you know intact?', options: [ { label: 'Restart', count: 5100 }, { label: 'Stay here', count: 5600 } ] },
   { id: 'f43', cat: 'dilemma', type: 'vote', prompt: 'Perfect memory \u2014 but you can never forget anything. Take it?', options: [ { label: 'Take it', count: 3300 }, { label: 'Keep forgetting', count: 6200 } ] },
   { id: 'f44', cat: 'dilemma', type: 'vote', prompt: 'Your dog talks for one day, or understands you forever?', options: [ { label: 'Talks one day', count: 2800 }, { label: 'Understands forever', count: 7700 } ] },
 
   // world events
+  // The two Crossroads stories ride the pool as members (D341) — a story is
+  // a feed question, placed by the mix like everything else, and both can
+  // be on screen at once. Only what the feed mechanics read lives here (id,
+  // home topic, a prompt for search and the pass row); the CONTENT is
+  // paths-data.js's, resolved by id at render (paths-card.jsx srcOf), so
+  // the story is written once. Each stub's genre is ALSO an always-on
+  // channel ('event' here, 'bigq' for the other), which is what keeps them
+  // reachable with no scene followed. One early in its group and one deep
+  // in a later one on purpose: the mix serves streams round-robin, so the
+  // reader meets the first story a few cards in and the second a couple of
+  // screens later — not stacked, not pinned.
+  { id: 'blackout', cat: 'event', type: 'path', prompt: 'The Blackout' },
   { id: 'f45', cat: 'event', type: 'vote', prompt: 'Should voting be mandatory?', options: [ { label: 'Mandatory', count: 3900 }, { label: 'A right, not a duty', count: 5600 } ] },
   { id: 'f46', cat: 'event', type: 'vote', prompt: 'Four-day work week: inevitable or fantasy?', options: [ { label: 'Inevitable', count: 7200 }, { label: 'Fantasy', count: 2700 } ] },
   { id: 'f47', cat: 'event', type: 'vote', prompt: 'City centers should be car-free.', options: [ { label: 'Car-free', count: 5800 }, { label: 'Keep cars', count: 3900 } ] },
@@ -174,6 +162,7 @@ window.WORLD_FEED_QS = [
   { id: 'f54', cat: 'bigq', type: 'vote', prompt: 'Money can buy happiness.', options: [ { label: 'It can', count: 5500 }, { label: 'It can\u2019t', count: 4300 } ] },
   { id: 'f55', cat: 'bigq', type: 'vote', prompt: 'Humanity\u2019s best days are ahead.', options: [ { label: 'Ahead', count: 6100 }, { label: 'Behind', count: 3600 } ] },
   { id: 'f56', cat: 'bigq', type: 'rank', prompt: 'What matters most \u2014 rank them', items: ['People', 'Meaning', 'Pleasure', 'Legacy'], crowd: [1, 2, 3, 4], votes: 3800 },
+  { id: 'capsule', cat: 'bigq', type: 'path', prompt: 'The Time Capsule' },
 
   // \u2500\u2500 dials & fields \u2500\u2500 continuum answers.
   // dial: a value on a range \u2014 dist: 12 crowd buckets lo\u2192hi, med: crowd median.
@@ -263,6 +252,20 @@ window.WORLD_FEED_QS = [
   { id: 's16', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Your sourdough starter deserves a name.', options: [ { label: 'Named, obviously', count: 1100 }, { label: 'It\u2019s yeast', count: 700 } ] },
   { id: 's17', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Kombucha or kefir?', options: [ { label: 'Kombucha', count: 900 }, { label: 'Kefir', count: 600 } ] },
 ];
+// GUARDED, and this is the line the note above said would have to move.
+// The pool is DEMO stock: on a live build `buildFeedGlobals` (data/live.ts)
+// publishes the real feed to this same global. While this file was eager it
+// ran BEFORE `initLive` and the assignment was harmless; now that it loads
+// from loadWorldFeed() — after the live boot — an unguarded one would
+// overwrite the real feed with invented questions. `demoPoolOpen()` is the
+// single definition of that test, shared with joinDemoStock and
+// installSubtopicStock for exactly this reason.
+//
+// The literal is a named const rather than an inline right-hand side so the
+// bank parsers can still find it: question-quality.mjs and
+// question-neighbors.mjs both read this pool by marker, and a ternary in the
+// assignment hid it from them.
+if (demoPoolOpen()) window.WORLD_FEED_QS = WFD_DEMO_POOL;
 
 /**
  * The demo stock that is not in the literal above, joined ON DEMAND rather

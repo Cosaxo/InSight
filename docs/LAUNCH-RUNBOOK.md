@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 134
-questions of 923 seeded; the production backend is deployed. **Measured
+questions of 1083 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      923 questions land in `v2_questions` — idempotent and, since D34,
+      1083 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **923** after the K=5 test expansion, D103's
+      and the bank is **1083** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1107,7 +1107,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 923 seeded questions are live regardless.
+      working, not a leak — the 1083 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1683,7 +1683,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 34.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2246,9 +2246,22 @@ That is a tester-count problem, not a workflow problem.
       Recorded here because its absence reads like an omission. An ad is a
       CARD that takes no answer and produces no data; a sponsored question
       is a QUESTION that folds into the same public aggregate everyone
-      reads (D196 keeps the two apart on purpose). Since D315 a self-serve
-      ad is written by the payment webhook straight into `v2_ads` at
-      `paidad-*` ids — so **turning on ads is 5.14 and nothing else**.
+      reads (D196 keeps the two apart on purpose).
+
+      **The self-serve half of this row is gone, and this sentence said
+      otherwise for two days (D375, 2026-09-05).** It read *"since D315 a
+      self-serve ad is written by the payment webhook straight into
+      `v2_ads` at `paidad-*` ids — so turning on ads is 5.14 and nothing
+      else"*, which stopped being true when the sponsored question became
+      the one paid product: `validatePaidBooking` now refuses `kind: "ad"`
+      by name. **The ad CARD is untouched** and ships in every build —
+      `ui/AdCard.tsx`, `runSeedAds`, `v2_ads`, its rules, and
+      `check:content`'s five authoring rules. What an ad needs is a
+      CONTRACT and a row in `content/ads.json`, which is 5.14-independent:
+      no Stripe key is involved in a hand-sold card, and turning on ads is
+      therefore not 5.14 at all. D412 holds ad-network tracking deferred
+      with a trigger, and names what is not deferred (aggregate counting,
+      which `v2_attention` already does).
 
       `content/ads.json` is the committed pen for hand contracts and is
       **empty deliberately**: writing a row there without a contract would
@@ -2258,6 +2271,61 @@ That is a tester-count problem, not a workflow problem.
       most one audience tag matched on the device, and the app's own
       disclosure band. Nothing here is a launch step; it is the answer to
       "why is there no ads step".
+
+- [ ] **5.16 The two Firebase auth emails now stand between a user and
+      the app (D414).** Ten minutes, one console, and it is not cosmetic:
+      since the wall reads `linked && !needsEmailVerify`, someone who
+      creates an account with an address **cannot open InSight at all**
+      until the confirmation mail arrives and is opened. The mail is the
+      product's front door for that door.
+
+      **THIS IS NOW A WORKFLOW, not a console visit.** Actions → **Auth
+      config** → run with `what = report only` and apply unticked. It
+      prints the live sender name and says whether it needs changing;
+      re-run with `what = sender name` and apply ticked to set it. The
+      run pauses for your approval before it touches anything, because
+      the `production` environment has required reviewers.
+
+      Written this way for the reason `asc-metadata.yml` records for the
+      store listing: the work was already decided, and what was missing
+      was a way to do it without putting a credential on a laptop.
+      `scripts/auth-config.mjs` is dry-run by default and
+      `scripts/auth-config.test.mjs` pins that a run without apply makes
+      zero writes.
+
+      **The claim this step was written on is now MEASURED rather than
+      asserted.** It said the sender name "defaults to the PROJECT ID",
+      which was read from documentation, not from the project — the exact
+      shape of the three `check:policy-claims` assertions that were stale
+      when D183 opened them. The report prints the field as it finds it,
+      so the run tells you the truth even if this paragraph is wrong.
+
+      What the workflow does NOT do, deliberately: the subject and body
+      of either mail. Those are copy, and copy goes through
+      `docs/COPY.md` and a review rather than through a flag on an
+      operator script. The sender ADDRESS
+      (`noreply@prvfire33.firebaseapp.com`) needs a verified custom domain
+      and is not worth one before launch.
+
+      **Still yours, and worth two minutes:** send yourself one of each
+      and read them on a phone. A link that 404s or an action URL
+      pointing at a renamed project is invisible from every other side
+      and total from the user's.
+
+      **What does NOT need doing.** No template edit is required for the
+      app to work, no new data is collected (Contact Info → Email Address
+      is already on the published label), and the address is verified by
+      Firebase rather than by anything in this repo — the app only asks
+      `reload()` whether the flag moved. `web/privacy.html` already says
+      the link is sent and that the app waits for it.
+
+      **The typo escape is in the app, not here.** An account created on
+      a mistyped address can never be verified and its reset mail goes to
+      the same wrong inbox, so the verify screen carries *"Use a
+      different address"*, which signs out and lets D3's anonymous
+      recovery hand the device a fresh session. Test it once on a build
+      before submitting: type a wrong address, create, and check that the
+      doors come back.
 
 ## Phase 6 — Submit
 
@@ -2357,7 +2425,63 @@ That is a tester-count problem, not a workflow problem.
       workflow runs it too: the privacy panel is compiled into the binary,
       so a false claim about who can read an answer ships to the phone
       rather than staying in the repo.
-- [ ] **6.2 Submit to App Store review.** Budget one rejection round on
+- [ ] **6.1b App Review Information — a demo account is now MANDATORY
+      (D414).** Ten minutes, and skipping it costs a full review round on
+      guideline 2.1 rather than on anything about the app. App Store
+      Connect → the version → **App Review Information**:
+
+      - **Sign-in required: YES.** It was NO for every build before 32,
+        truthfully. It is a lie now, and a reviewer who opens the app to
+        a wall with that box unticked files "we were unable to review"
+        without reading further.
+      - **Username / password.** A console-made user is NOT usable here:
+        it has `emailVerified: false`, so the wall holds Apple's reviewer
+        exactly where it holds everyone else, and the Firebase console
+        exposes no toggle for that flag — only the Admin SDK can set it.
+        This step therefore used to read "install the build, create an
+        account on an address you can read, open the confirmation link".
+      - **Notes**, and the 5.1.1(v) answer with them.
+
+      **ALL OF IT IS NOW ONE WORKFLOW RUN.** Actions → **Auth config** →
+      `what = demo account` (or `both`), apply ticked, and
+      `attach_build` set to the build number if it has finished
+      processing. One job mints a verified demo account through the Admin
+      SDK and hands the credential straight to App Store Connect —
+      contact fields, notes, `demoAccountRequired: true`, and the build
+      attachment.
+
+      **The password is never seen by anyone**, including you: it is
+      generated on the runner, written to a file the next step reads, and
+      gone when the runner is reclaimed. Both scripts have a test
+      asserting it never reaches a log line, the discipline `appcheck.yml`
+      applies to debug tokens. To rotate it, run the workflow again — the
+      account is reused and Apple is updated in the same run.
+
+      The four contact fields live in `design/store/listing.json` under
+      `shared.appReview`, beside the support address, for the reason every
+      other field in that file does: a diff is a better review surface
+      than a web form. `demoAccountRequired` is set from the WALL rather
+      than from whether credentials were passed, so forgetting the file
+      cannot quietly tell Apple the app opens without a sign-in — that
+      value was `false` for every build up to 32, truthfully, which is
+      exactly what makes it easy to leave alone.
+
+      **What the workflow will not do is SUBMIT.** That stays a
+      deliberate act: `asc-review.mjs` touches no `reviewSubmission`
+      resource on any path, and a test pins that it does not.
+
+- [ ] **6.2 Submit to App Store review.**
+
+      > **DO NOT SUBMIT BUILD 33.** It is uploaded and it carries the
+      > account wall, which is what it was cut to prove — and it also
+      > carries D419's sign-in defect: a user who signs in with Google is
+      > left staring at the gate until they force-quit and relaunch,
+      > because `subscribeToAuth` watched `onAuthStateChanged` and a LINK
+      > keeps the uid, so the SDK never called back. A reviewer meeting
+      > that files "the app does not work", and they would be right.
+      > **Build 34 is the first submittable build.** Anyone handed 33 on
+      > TestFlight hits the same wall — say so when you hand it over.
+ Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
       primary path is anonymous, no account is required, and Google is an
@@ -2395,6 +2519,36 @@ That is a tester-count problem, not a workflow problem.
       cannot die with their handset. Build 13 is a test-track build and
       ships walled on purpose. The flag becomes a blocker at exactly one
       moment, which is this step.
+
+      **REVERSED 2026-09-07 (D414): the wall goes back up, and every
+      paragraph above about the drop is now history rather than
+      instruction.** D219's own condition — everyone has an account,
+      answers attributed, duplicates hard — was tested by the owner on
+      2026-09-07 by deleting their account inside the app and answering
+      again as a fresh anonymous session, one tap. It had never held.
+      `ios-release.yml` defaults `VITE_REQUIRE_SIGNIN` to `'true'` again.
+
+      So **the 4.8 answer drafted in `SHIP-CHECKLIST § hardening` is
+      retired, not deferred**: it rested on "no account is required",
+      which is false of every build this workflow now makes. Sign in with
+      Apple is BUILT and leads the gate — the exemption for an app using
+      exclusively its own account system does not apply once Google is
+      offered, so pre-building it was the cheap side of the round D219
+      told you to budget.
+
+      **5.1.1(v) is still the expensive half and is still unbudgeted.**
+      The reply, if it is asked for: the account is not gatekeeping a
+      feature, it is the unit the product is about — a daily question
+      answered by nobody in particular produces nothing the app can show
+      you back. D414 §5 has it written out, including what a wall costs
+      in installs, which is unknown here because the app has never had
+      one under measurement.
+
+      **The wall now has TWO conditions, and the second is 5.16's.** It
+      passes on `linked && !needsEmailVerify`, so an email account that
+      never opens its confirmation mail never reaches the app. Read 5.16
+      before submitting: the mail is a real dependency of the wall, and
+      the one test worth doing by hand is the mistyped-address escape.
 
       **This step used to end "…and no email or name is collected through
       it". It is deleted, and do not say it.** Google's default scopes put

@@ -112,8 +112,9 @@ describe("the daily tab", () => {
   it("deals both demo stories into the feed stream as members", async () => {
     PATHS.stories().forEach((s) => PATHS.reset(s.id));
     const expectNoBoundary = mountApp();
+    const [first, second] = PATHS.stories();
     await growUntil(
-      () => screen.queryByText("The Wallet") && screen.queryByText("The Wrong Text"),
+      () => screen.queryByText(first.title) && screen.queryByText(second.title),
       "both Crossroads stories",
     );
     expect(screen.getAllByText("Crossroads").length, "fewer than two story cards in the stream")
@@ -129,14 +130,14 @@ describe("the daily tab", () => {
   // vote-only doneList never would.
   it("parks a finished story behind the Answered expander", async () => {
     PATHS.stories().forEach((s) => PATHS.reset(s.id));
-    const st = PATHS.stories()[0];
+    const [st, other] = PATHS.stories();
     PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); // AAA
     try {
       const expectNoBoundary = mountApp();
-      await growUntil(() => screen.queryByText("The Wrong Text"), "the unfinished story");
-      expect(screen.queryByText("The Wallet"), "a finished story is still in the fresh stream").toBeNull();
+      await growUntil(() => screen.queryByText(other.title), "the unfinished story");
+      expect(screen.queryByText(st.title), "a finished story is still in the fresh stream").toBeNull();
       fireEvent.click(screen.getByRole("button", { name: /answered · \d+/i }));
-      expect(screen.getByText("The Wallet"), "the finished story is not behind the expander").toBeTruthy();
+      expect(screen.getByText(st.title), "the finished story is not behind the expander").toBeTruthy();
       // Its reveal, not a fresh card: the ending is named. Once since
       // 2026-09-02 — the label the tree used to carry on its end node
       // moved into the card, where it can be read (paths-card.test.jsx

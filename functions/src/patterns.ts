@@ -665,10 +665,38 @@ export async function runPatternsFit(
   // each night from the item side — so rotating its published copy costs
   // nothing and buys the devices a map that does not jump.
   //
-  // The crossback path is currently unreachable in the test suite:
-  // deleting this whole `if (crossed)` block leaves the functions suite
-  // green, which is on the night's list. That is a coverage gap, not a
-  // reason to make the two directions symmetric.
+  // AND IT HAS NEVER ROTATED ANYTHING. This said the path was "unreachable
+  // in the test suite" and read as an ordinary coverage gap — write a case
+  // and it closes. It is not, and the next person to try should have the
+  // measurement rather than the hour.
+  //
+  // `procrustes` refuses outright when the two row sets share fewer than
+  // `k` keys ("a direction the shared rows do not span cannot be aligned —
+  // refuse the whole rotation rather than invent it"), and every fixture
+  // that reaches a crossover shares ONE or TWO against k = 8. Instrumented
+  // 2026-09-07 on the suite's own crossover case: `crossed=true`,
+  // `prevSgdPub` 2 keys, `als.rows` 2 keys, and the rows the block hands on
+  // are byte-identical to the ones it was given — 0 of 2 changed. Widening
+  // the ledger to twelve core questions did not move it: `shared` came back
+  // 1 and 2, so procrustes still returned the identity.
+  //
+  // So deleting this whole block leaves the functions suite green for a
+  // stronger reason than no test asserting it — with these fixtures there
+  // is nothing to assert, and a case that asserted "the published rows
+  // moved" would fail against correct code.
+  //
+  // AND THE "WHY" ABOVE IS ANSWERED, so nobody re-does that hour either.
+  // The paragraph before this one asked why a twelve-question ledger still
+  // yielded an intersection of two; instrumenting the crossover the same
+  // night showed `als.rows` and `prevSgdPub` are BOTH exactly
+  // [daily-000, daily-001]. There is no mismatch between the two sets: the
+  // folded CORPUS is two questions, and the ten extra never reached
+  // `als.rows` at all. So closing this needs a fixture whose FOLDED corpus
+  // is at least k — putting more questions in the ledger is not the same
+  // thing, and is where the first attempt went.
+  //
+  // None of that is a reason to make the two directions symmetric; the
+  // asymmetry above is still right.
   let engineRows: Record<string, PublishedRow>;
   let engineItems: Record<string, ItemMeta> | undefined;
   if (nextEngine === "als" && als) {

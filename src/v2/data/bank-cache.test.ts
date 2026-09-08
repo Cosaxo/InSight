@@ -954,6 +954,93 @@ describe("question-bank cache", () => {
     expect(LIVE.ready).toBe(true);
   });
 
+  // ── the same window, on the BOOT path (2026-09-08) ────────────────
+  //
+  // The case above runs the rule at PAGE ARRIVAL, and says so: it routes
+  // its `now` cards through `h.rankOrders.feed`, so what it executes is
+  // `servableNow`. `publishBank` carries its own copy — the `fresh()`
+  // filter over every row it is about to publish — and NOTHING EXECUTED
+  // IT. Measured: deleting it from `publishBank` left EVERY runner in the
+  // tree green, while the same mutation to `servableNow` goes red.
+  //
+  // (The figure that stood here — "285 files and 4548 tests" — did not
+  // reproduce, and the claim never needed it: what was measured is that
+  // nothing anywhere went red. See the note in vote.test.ts.)
+  //
+  // It is the copy that matters for a RETURNING device. An expired
+  // document stays in the cache on purpose — the archive rule, asserted
+  // one case up — so on every subsequent boot the bank is republished
+  // from rows that include it, and this filter is the only thing between
+  // those rows and the feed. The boot fetch's own `until >= today`
+  // (live.ts's paid query) bounds what is FETCHED, never what is already
+  // held.
+  //
+  // What it costs when it goes: a finished paid campaign keeps taking its
+  // paid places and collecting billable answers, under a band that
+  // composes its label from the same `until` it is now past — "until 21
+  // Aug", printed on the 22nd.
+  //
+  // Driven through the cache rather than the fetch, because that is the
+  // only way to reach `publishBank` with a row the arrival filter never
+  // sees: boot once with the window open, close it in the cached row the
+  // way a night closes it, and boot again.
+  it("stops republishing a campaign whose window closed while the device was away", async () => {
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("feed-core2", 1000, { surface: "feed", topic: "food", core: true }),
+      q("paidq-w1", 1000, {
+        surface: "feed", topic: "culture",
+        paid: true, from: dayKey(-5), until: dayKey(2),
+      }),
+    ];
+    const open = await bootLive();
+    await vi.waitFor(() => {
+      expect(open.ready).toBe(true);
+    });
+    // BEFORE. Everything below asserts an absence, and an absence passes
+    // just as well when the fixture never served the card at all — so the
+    // open window has to be seen serving first.
+    expect(
+      ((window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> }).WORLD_FEED_QS || [])
+        .map((x) => x.id),
+      "the open campaign was never served — the case below is measuring nothing",
+    ).toContain("paidq-w1");
+    const first = await readCache();
+    expect(first.questions.map((x: { id: string }) => x.id)).toContain("paidq-w1");
+
+    // The window closes. Nothing else about the row changes, and the row
+    // stays in the cache, which is the archive rule working.
+    // The window closes. The row stays in the cache — the archive rule,
+    // asserted one case up — and the SERVER stops returning it, because
+    // the paid query asks for `until >= today`. Both halves matter: with
+    // the server still offering it, the next boot simply re-fetches the
+    // open row and the case proves nothing.
+    await seedCache({
+      ...first,
+      questions: first.questions.map((row) => (row.id === "paidq-w1"
+        ? { ...row, until: dayKey(-1) }
+        : row)),
+    });
+    h.bankDocs = h.bankDocs.filter((d) => d.id !== "paidq-w1");
+    vi.resetModules();
+    h.bankQueries.length = 0;
+
+    const LIVE = await bootLive();
+    await vi.waitFor(() => {
+      expect(LIVE.ready).toBe(true);
+    });
+    const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+      .WORLD_FEED_QS || [];
+    expect(
+      feed.map((x) => x.id),
+      "a closed campaign is still taking its paid place on a returning device",
+    ).not.toContain("paidq-w1");
+    // …and it is still in the cache, not deleted. A serving rule, not a
+    // purge — the answers and the aggregate are the product.
+    expect((await readCache()).questions.map((x: { id: string }) => x.id))
+      .toContain("paidq-w1");
+  });
+
   // ── the paged surfaces (D320 learn, D321 feed tail, D322 profile) ──
   //
   // Reach guarantees live HERE now, not in the surface list: a device

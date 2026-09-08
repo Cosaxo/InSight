@@ -401,7 +401,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "rank (D233) branches each read one more — the question doc — which "
       + "the model deliberately absorbs into the vote rate (see the "
       + "constant's comment). Recount before changing the constant.",
-    ).toBe(8);
+    ).toBe(9);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {
@@ -1174,13 +1174,82 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("Per-question attention");
   });
 
+  it("draws whether the Mirror was READ, as shares of people (D407)", () => {
+    // ENGAGEMENT-PLAN.md's rung-0 table calls this the one thing rung 0
+    // cannot see — "does anyone open it, which stops, which lenses",
+    // because "reading is the point and reading writes nothing". The
+    // client wrote these three for weeks; nothing folded or drew them.
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2,
+          mirrorRead: 3, lensOpen: 1,
+          feedBuckets: { f0: 1, f1: 0, f2: 0, f3: 1, f4: 2 } } },
+    ]);
+    expect(e.people.mirrorRead).toBe(3);
+    expect(e.people.lensOpen).toBe(1);
+    // Shares of the day's ROLLUPS — a raw count moves with the
+    // population and answers nothing.
+    expect(e.people.readShare).toBe(0.75);
+    expect(e.people.lensShare).toBe(0.25);
+    // A map on the wire, a list here, low bracket first.
+    expect(e.people.feedBuckets).toEqual([1, 0, 0, 1, 2]);
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    expect(html).toContain("read the Mirror");
+    expect(html).toContain("opened a lens");
+    expect(html).toContain("feed depth");
+    expect(html).toContain("75%");
+  });
+
+  it("a fold written before D407 draws dashes, not invented zeros", () => {
+    // Every day already folded lacks these keys entirely WHILE CARRYING A
+    // REAL `rollups`, and that combination is the whole case: a 0% here
+    // would read as "nobody opened the Mirror", which is a claim this data
+    // cannot make. The console must say it does not know, the way it does
+    // for a cohort day that predates the digest.
+    //
+    // This case set `rollups: 0` when it was written, so it passed on the
+    // no-denominator guard — the same fixture as the divide-by-zero case
+    // below — and never exercised a missing key at all. Measured before
+    // the fix: readShare 0, lensShare 0, feedBuckets [0,0,0,0,0].
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2 } },
+    ]);
+    expect(e.people.rollups, "the denominator is real; only the numerators are absent").toBe(4);
+    expect(e.people.mirrorRead).toBeNull();
+    expect(e.people.lensOpen).toBeNull();
+    expect(e.people.readShare).toBeNull();
+    expect(e.people.lensShare).toBeNull();
+    expect(e.people.feedBuckets).toBeNull();
+    // …and it reaches the screen, which is where the false sentence was.
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    const tile = (k) => html.match(new RegExp(`<p class="k">${k}</p>\\s*<div class="v">([^<]*)<`))?.[1];
+    expect(tile("read the Mirror")).toBe("—");
+    expect(tile("opened a lens")).toBe("—");
+    expect(tile("feed depth"), "an all-zero histogram is a distribution a reader can act on").toBe("—");
+  });
+
   it("zero sessions reads as an unknown share, never a divide-by-zero", () => {
     const e = engagementFromDays([
       { day: "2026-08-22", actives: 1, firstTime: 0, votes: 1, events: 1, bySurface: {},
         returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
         streaksBroken: 0,
-        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0 } },
+        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0,
+          // The Mirror three PRESENT and holding zero (D407) — a fold that
+          // ran and saw nothing, which is the other half of the case above
+          // and must not be told apart from it by accident.
+          mirrorRead: 0, lensOpen: 0, feedBuckets: {} } },
     ]);
     expect(e.people.quietShare).toBeNull();
+    expect(e.people.readShare, "no rollups is not a share of nobody").toBeNull();
+    expect(e.people.lensShare).toBeNull();
+    expect(e.people.mirrorRead, "the key is there; only the denominator is missing").toBe(0);
+    expect(e.people.feedBuckets).toEqual([0, 0, 0, 0, 0]);
   });
 });

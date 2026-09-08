@@ -83,7 +83,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "
 import { gatePlacement } from "./gate-placement.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { numberingProblems } from "./decision-numbering.mjs";
+import { numberingProblems, unclaimedNumbers } from "./decision-numbering.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
@@ -257,7 +257,10 @@ const { records, lines } = parseDecisions(decisionSrc);
     );
 }
 
-const rendered = renderIndex(records, citations(records, lines));
+// Named rather than inlined: rule 10 reports these same targets when one
+// lands on no record, so the index and the note read one map.
+const citedFrom = citations(records, lines);
+const rendered = renderIndex(records, citedFrom);
 
 if (write) {
   writeFileSync(join(root, INDEX), rendered);
@@ -273,12 +276,34 @@ if (write) {
 
 // -------------------------------------------------- the numbering itself
 //
-// RULE 10: every decision number is claimed exactly once, and the sequence
-// has no holes. The predicate lives in decision-numbering.mjs — extracted
-// so it can be tested, since this script exits on any documentation problem
-// in the tree and a test importing it would be hostage to all of them. That
-// module's header carries the three renumbers that motivated the rule.
+// RULE 10: every decision number is claimed exactly once. Holes in the
+// sequence, and citations inside DECISIONS.md landing on them, are
+// REPORTED rather than refused. The predicate lives in
+// decision-numbering.mjs — extracted so it can be
+// tested, since this script exits on any documentation problem in the tree
+// and a test importing it would be hostage to all of them. That module's
+// header carries the three renumbers that motivated the rule.
+//
+// A HOLE IS NO LONGER A FAILURE (2026-09-06), and neither is a citation
+// pointing into one. Both are printed below instead, because on a branch
+// they are the same fact — the number belongs to another open pull request
+// — and failing on either made decision numbers imply a merge ORDER. The
+// module's header has the arithmetic, and why the citation half went the
+// same way one run after being written as a failure.
 for (const problem of numberingProblems(records)) fail(problem);
+const unclaimed = unclaimedNumbers(records, citedFrom);
+if (unclaimed.length) {
+  const shown = unclaimed.map(({ num, citers }) => (
+    citers.length
+      ? `D${num} (cited by ${citers.map((n) => `D${n}`).join(", ")})`
+      : `D${num}`
+  ));
+  const it = unclaimed.length === 1 ? "it" : "them";
+  console.log(
+    `  note: ${shown.join(", ")} unclaimed — an open branch is holding ${it}, `
+    + "or a record was lost. Not a failure; see decision-numbering.mjs.",
+  );
+}
 
 // -------------------------------------------------------------- orientation
 

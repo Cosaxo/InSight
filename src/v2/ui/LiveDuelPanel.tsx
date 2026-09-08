@@ -409,8 +409,8 @@ function LdOnboard({ mode }: { mode?: string }) {
       </div>
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         {duo
-          ? "One question a day, sealed until tomorrow — if you both play."
-          : "One question a day, sealed until tomorrow, then revealed with names."}
+          ? "Everyone answers, sealed until the reveal — if you both play."
+          : "Everyone answers, sealed until the reveal, then it opens with names."}
       </div>
       {!known && <LdInput value={typedMe} onChange={setTypedMe} placeholder="Your name (what friends see)" />}
       <div style={{ display: "flex", gap: 8 }}>
@@ -590,7 +590,7 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
     } catch { /* clipboard unavailable */ }
   };
   return (
-    <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
+    <button onClick={copy} aria-label="Copy invite link" title="Copy invite link"
       style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 999, padding: "6px 13px",
         cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700,
         color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -708,12 +708,24 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
       <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
       {/* A CLAIM, not a caption (COPY.md §3). What joining does is put
-          your name on a sealed answer that these people read the next
-          day, and D122 made consent the difference between an invitation
-          and a follow. Somebody arriving from a link has been told
-          nothing by the app yet, so this is where it gets said. */}
+          your name on a sealed answer that gets read, and D122 made
+          consent the difference between an invitation and a follow.
+          Somebody arriving from a link has been told nothing by the app
+          yet, so this is where it gets said — which is exactly why it has
+          to be TRUE.
+
+          It said "revealed with names to the people in it". A revealed day
+          is `request.auth != null` (`match /reveals/{day}`), and
+          rules.test.ts asserts that a stranger, a late joiner and somebody
+          who left can each read one. check-policy-claims retired that
+          promise from web/privacy.html under D98 and reads no other file,
+          so the consent sentence went on understating its own audience.
+
+          The cadence went with it (the owner, 2026-09-07): the reveal is
+          the fact, "tomorrow" is a limit intended to loosen. */}
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-        One question a day, sealed until tomorrow, then revealed with names to the people in it.
+        Everyone answers the same question, sealed until the reveal — then it opens
+        with names, to anyone signed in who has the circle’s id.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* ASK, not Join (D240). The link no longer admits its holder —
@@ -796,7 +808,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
         );
       })}
       {/* Takes hang off the REVEALED question, never today's. Today's vote
-          is sealed until tomorrow, and free text beside a sealed answer is
+          is sealed until the reveal, and free text beside a sealed answer is
           the leak the seal exists to prevent — "obviously B" under a
           question nobody has answered yet is the vote, in prose. Once names
           are on the answers there is nothing left to give away, which is
@@ -977,7 +989,7 @@ function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
       </div>
       {sealed && (
         <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          Pool is locked until tomorrow — today’s answer is sealed.
+          Pool is locked until the reveal — today’s answer is sealed.
         </div>
       )}
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
@@ -1042,7 +1054,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-          Or send a link — no account needed.
+          Or send a link — they sign in when they open it.
         </span>
         <LdCopyLink g={g} />
       </div>

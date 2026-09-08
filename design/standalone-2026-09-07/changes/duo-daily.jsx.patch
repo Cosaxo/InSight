@@ -1,0 +1,45 @@
+--- recorded/duo-daily.jsx
++++ 2026-09-07/duo-daily.jsx
+@@ -781,9 +781,12 @@
+       }
+     }, header, menuRow, body);
+   }
+-  function DuoBody() {
++  function DuoBody({
++    start
++  }) {
+     const D = window.DUELS;
+     const [, bump] = useReducer(x => x + 1, 0);
++    const [dismissed, setDismissed] = useState(false);
+     useEffect(() => D.subscribe(bump), []);
+     const ps = D.partners();
+     // pending first, but the order is frozen at mount — finishing a duel must
+@@ -887,6 +890,16 @@
+       window.addEventListener('is:duo-focus', go);
+       return () => window.removeEventListener('is:duo-focus', go);
+     }, []);
++    const forced = start && start !== 'seeded' && !dismissed;
++    if ((forced || !ordered.length) && window.FirstDay) {
++      return /*#__PURE__*/React.createElement("div", {
++        ref: rootRef
++      }, /*#__PURE__*/React.createElement(window.FirstDay, {
++        mode: "duo",
++        state: forced ? start : 'fresh',
++        onDone: () => setDismissed(true)
++      }));
++    }
+     return /*#__PURE__*/React.createElement("div", {
+       ref: rootRef,
+       style: col(10)
+@@ -930,7 +943,10 @@
+         nextName: next ? first(next) : null,
+         newest: i === 0
+       });
+-    })), addOpen && document.querySelector('.app') && ReactDOM.createPortal(/*#__PURE__*/React.createElement("div", {
++    })), window.FirstDayCompact ? /*#__PURE__*/React.createElement(window.FirstDayCompact, {
++      mode: "duo",
++      onStart: () => setAddOpen(true)
++    }) : null, addOpen && document.querySelector('.app') && ReactDOM.createPortal(/*#__PURE__*/React.createElement("div", {
+       className: 'wf-scrim' + (closing ? ' is-closing' : ''),
+       onClick: closeAdd
+     }, /*#__PURE__*/React.createElement("div", {

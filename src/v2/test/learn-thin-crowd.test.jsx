@@ -22,6 +22,11 @@
 // imports the binding (D354/D280).
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
+// The call site's own text, through vite rather than through `fs` — these
+// files lint against a browser global set, so `process.cwd()` and
+// `__dirname` are both unavailable (feed-map-promise.test.jsx says the same
+// at its own ?raw import).
+import mapTabSrc from "../spec/map-tab.jsx?raw";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -136,8 +141,16 @@ describe("the Map's learn card states what its crowd rate rests on", () => {
 // should while the card beside it said nobody had answered.
 //
 // The daily branch two dozen lines up already refuses this and takes the
-// neutral radius; `LEARN_TYP` is that rule for the learn branch, and
-// changing it back to `card.p / 100` fails the first case here.
+// neutral radius; `LEARN_TYP` is that rule for the learn branch.
+//
+// This sentence used to end "and changing it back to `card.p / 100` fails
+// the first case here". That is true of LEARN_TYP's BODY and false of the
+// thing that was wrong: the defect was at the CALL SITE, and the call site
+// is in another file. Measured — putting `typ: c.p / 100` back into
+// map-tab.jsx leaves the whole unit suite green, 195 files / 2883 tests,
+// exit 0. So the fix was fully reintroducible while the file that claims
+// to hold it stayed green, which is the shape this repo keeps re-committing
+// and the reason for the last case below.
 describe("the Map places a mastered fact by a measurement, not by the hint", () => {
   it("takes the neutral radius on a live build with nothing measured", () => {
     const card = cardOf();
@@ -150,6 +163,27 @@ describe("the Map places a mastered fact by a measurement, not by the hint", () 
     // satisfied by a coincidence rather than by the rule.
     expect(card.p / 100, "this card's hint happens to be the neutral radius, so pick another")
       .not.toBe(0.5);
+  });
+
+  it("…and the MAP asks it, which is where the defect actually was", () => {
+    // The cases above are about LEARN_TYP's body. The dot's position is
+    // decided by what map-tab.jsx PASSES, and that is a different file with
+    // no case of its own — so `typ: c.p / 100` could go straight back with
+    // every one of them green (measured: 195 files / 2883 tests, exit 0).
+    //
+    // Textual, and deliberately so: `typ` is consumed by map-layout as a
+    // ±80px radial push inside a component that wants the whole Mirror
+    // mounted, and a geometry assertion through jsdom would be a worse
+    // guard than this one. What has to hold is that the learn node asks the
+    // rule rather than reading the bank's authoring hint.
+    expect(
+      mapTabSrc,
+      "map-tab.jsx's mastered-fact node no longer places by LEARN_TYP — the dot is back on the question writer's guess",
+    ).toMatch(/note: 'known', age, typ: LEARN_TYP\(c\), maj: true,/);
+    expect(
+      mapTabSrc,
+      "map-tab.jsx places a node by the bank's authoring hint again (`c.p / 100`)",
+    ).not.toMatch(/typ:\s*c\.p\s*\/\s*100/);
   });
 
   it("places by the MEASURED rate once there is one", () => {

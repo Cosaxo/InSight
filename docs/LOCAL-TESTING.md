@@ -107,7 +107,7 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 199 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 201 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
@@ -129,7 +129,7 @@ driver.
 
 **`npm install` at the root does not install the backend's dependencies**,
 and the way that surfaces looks like a broken suite rather than a missing
-install. `npm run test --prefix functions` fails to *load* six of its eight
+install. `npm run test --prefix functions` fails to *load* most of its
 files with
 
 ```
@@ -137,9 +137,17 @@ Error: Cannot find package 'firebase-functions/v2/scheduler'
     imported from functions/src/velocity.ts
 ```
 
-and reports `6 failed | 2 passed` while every test that did run passed.
-It is a real import error — the package genuinely is not there. Run
-`npm install --prefix functions` and all 228 pass. Two installs, two
+and reports most of its files failing to load while every test that did
+run passed. It is a real import error — the package genuinely is not
+there. Run `npm install --prefix functions` and all of them pass; the
+suite is 37 files and 800 cases as of 2026-09-08.
+
+(The shape is what to recognise, not the arithmetic: this said "six of its
+eight files" and "all 228 pass" until 2026-09-08, against a suite four
+times that size. A reader meeting `24 failed | 13 passed` would not have
+matched it to those numbers, which is the one thing this paragraph exists
+to let them do. The counts are not gate-held — `check:figures`'s only
+entry for this file is the rules-test count.) Two installs, two
 `node_modules`, which is why `backend-checks.yml` carries
 `npm ci --prefix functions` as its own step next to the root one.
 

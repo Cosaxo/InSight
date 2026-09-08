@@ -135,9 +135,18 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          # Through the environment for the reason the Rebuild step above
+          # already gives, and it applies just as much to an `echo`: the
+          # expression is substituted before bash parses the line, and the
+          # line puts the value inside DOUBLE quotes, where `$( )` and a
+          # backtick both run. A summary step holds no secret of its own,
+          # but it shares a runner with steps that do and with a checkout
+          # that leaves credentials on disk.
+          QID: ${{ inputs.qid }}
         run: |
           {
-            echo "### Rebuild aggregate — \`${{ inputs.qid }}\`"
+            echo "### Rebuild aggregate — \`$QID\`"
             echo ""
             if [ "${{ inputs.apply }}" = "true" ]; then
               echo "**APPLIED.** Both the counts and the breakdown were rewritten from the answers."

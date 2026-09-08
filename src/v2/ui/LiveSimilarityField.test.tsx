@@ -538,6 +538,54 @@ describe("a position is a claim", () => {
     expect(screen.getByText(/1 more country answered/)).toBeTruthy();
   });
 
+  it("says how many countries the chip list is not showing", () => {
+    // THE BRANCH EVERY ACCOUNT IS IN BEFORE ITS FIRST TEST RESULT. With no
+    // scores of your own, nothing can be POSITIONED — so the field falls
+    // back to a row of chips, capped at PLACE_FIELD_CAP (24). Both
+    // disclosure lines are gated off here: `thin`'s on
+    // `positioned.length > 0`, and `capped` is 0 by construction, because
+    // reaching this branch means nothing was placeable at all.
+    //
+    // So thirty countries answered, twenty-four chips were drawn, and the
+    // list read as all of them — which is precisely what the comment above
+    // the `capped` line forbids, two lines from where it happened: "a cap
+    // that silently eats rows reads as 'that is all of them'."
+    LIVE.myTestResults = () => null;
+    LIVE.myVotes = () => ({});
+    const many = ["US", "GB", "NO", "SE", "DK", "FI", "DE", "FR", "ES", "IT",
+      "NL", "BE", "PL", "CZ", "AT", "CH", "IE", "PT", "GR", "CA",
+      "AU", "NZ", "JP", "KR", "BR", "AR", "MX", "ZA", "IN", "CN"];
+    LIVE.aggFor = () => ({
+      by: { country: Object.fromEntries(many.map((c) => [c, { "2": 5 }])) },
+    });
+    render(<SimilaritySection scope="world" />);
+
+    // The precondition, asserted rather than assumed: this is the chip
+    // fallback, not the positioned field.
+    expect(
+      screen.getByText(/Finish a test and these take their places/),
+      "the field positioned them — this case is about the branch that cannot",
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/6 more countries answered, not shown here/),
+      "six countries were dropped from the list with nothing saying so",
+    ).toBeTruthy();
+  });
+
+  it("…and says nothing when the list is complete", () => {
+    // THE CONTROL. A line that always draws is as wrong as one that never
+    // does — under the cap there is no overflow to disclose.
+    LIVE.myTestResults = () => null;
+    LIVE.myVotes = () => ({});
+    LIVE.aggFor = () => ({ by: { country: { NO: { "2": 5 }, SE: { "2": 5 } } } });
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Finish a test and these take their places/)).toBeTruthy();
+    expect(
+      screen.queryByText(/not shown here/),
+      "a complete list claimed to be hiding something",
+    ).toBeNull();
+  });
+
   it("says the read FAILED rather than that no country has answered", () => {
     // The largest population claim the app makes, and it was being made
     // out of an error: `similarityLoading()` is false again the moment

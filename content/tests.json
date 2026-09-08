@@ -166,6 +166,1000 @@
         "d": "N",
         "invert": true
       }
+    ],
+    "facets": [
+      {
+        "id": "anxiety",
+        "d": "N",
+        "label": "Anxiety",
+        "lo": "calm, fearless",
+        "hi": "tense, on alert"
+      },
+      {
+        "id": "anger",
+        "d": "N",
+        "label": "Anger",
+        "lo": "slow to anger",
+        "hi": "quick to resent"
+      },
+      {
+        "id": "depression",
+        "d": "N",
+        "label": "Depression",
+        "lo": "free of the blues",
+        "hi": "dejected, low energy"
+      },
+      {
+        "id": "selfconscious",
+        "d": "N",
+        "label": "Self-Consciousness",
+        "lo": "unbothered by judgment",
+        "hi": "easily embarrassed"
+      },
+      {
+        "id": "immoderation",
+        "d": "N",
+        "label": "Immoderation",
+        "lo": "resists cravings",
+        "hi": "strong cravings"
+      },
+      {
+        "id": "vulnerability",
+        "d": "N",
+        "label": "Vulnerability",
+        "lo": "poised under stress",
+        "hi": "panics under pressure"
+      },
+      {
+        "id": "friendliness",
+        "d": "E",
+        "label": "Friendliness",
+        "lo": "reserved, distant",
+        "hi": "warm, quick to bond"
+      },
+      {
+        "id": "gregariousness",
+        "d": "E",
+        "label": "Gregariousness",
+        "lo": "avoids crowds",
+        "hi": "loves a crowd"
+      },
+      {
+        "id": "assertiveness",
+        "d": "E",
+        "label": "Assertiveness",
+        "lo": "lets others lead",
+        "hi": "takes charge"
+      },
+      {
+        "id": "activity",
+        "d": "E",
+        "label": "Activity Level",
+        "lo": "leisurely pace",
+        "hi": "fast-paced, busy"
+      },
+      {
+        "id": "excitement",
+        "d": "E",
+        "label": "Excitement-Seeking",
+        "lo": "averse to thrills",
+        "hi": "thrill-seeking"
+      },
+      {
+        "id": "cheerfulness",
+        "d": "E",
+        "label": "Cheerfulness",
+        "lo": "even-keeled",
+        "hi": "high spirits"
+      },
+      {
+        "id": "imagination",
+        "d": "O",
+        "label": "Imagination",
+        "lo": "fact-oriented",
+        "hi": "rich fantasy life"
+      },
+      {
+        "id": "artistic",
+        "d": "O",
+        "label": "Artistic Interests",
+        "lo": "little pull to beauty",
+        "hi": "absorbed by beauty"
+      },
+      {
+        "id": "emotionality",
+        "d": "O",
+        "label": "Emotionality",
+        "lo": "feelings kept in",
+        "hi": "in touch with feelings"
+      },
+      {
+        "id": "adventurousness",
+        "d": "O",
+        "label": "Adventurousness",
+        "lo": "prefers routine",
+        "hi": "eager for the new"
+      },
+      {
+        "id": "intellect",
+        "d": "O",
+        "label": "Intellect",
+        "lo": "people over ideas",
+        "hi": "plays with ideas"
+      },
+      {
+        "id": "liberalism",
+        "d": "O",
+        "label": "Liberalism",
+        "lo": "values tradition",
+        "hi": "challenges convention"
+      },
+      {
+        "id": "trust",
+        "d": "A",
+        "label": "Trust",
+        "lo": "guarded",
+        "hi": "assumes good intent"
+      },
+      {
+        "id": "morality",
+        "d": "A",
+        "label": "Morality",
+        "lo": "guarded, strategic",
+        "hi": "candid, sincere"
+      },
+      {
+        "id": "altruism",
+        "d": "A",
+        "label": "Altruism",
+        "lo": "help feels imposed",
+        "hi": "helping rewards"
+      },
+      {
+        "id": "cooperation",
+        "d": "A",
+        "label": "Cooperation",
+        "lo": "will push back hard",
+        "hi": "avoids confrontation"
+      },
+      {
+        "id": "modesty",
+        "d": "A",
+        "label": "Modesty",
+        "lo": "claims the credit",
+        "hi": "self-effacing"
+      },
+      {
+        "id": "sympathy",
+        "d": "A",
+        "label": "Sympathy",
+        "lo": "reason over mercy",
+        "hi": "tender-hearted"
+      },
+      {
+        "id": "selfefficacy",
+        "d": "C",
+        "label": "Self-Efficacy",
+        "lo": "feels ineffective",
+        "hi": "confident, capable"
+      },
+      {
+        "id": "orderliness",
+        "d": "C",
+        "label": "Orderliness",
+        "lo": "scattered",
+        "hi": "well-organized"
+      },
+      {
+        "id": "dutifulness",
+        "d": "C",
+        "label": "Dutifulness",
+        "lo": "rules feel confining",
+        "hi": "strong sense of duty"
+      },
+      {
+        "id": "achievement",
+        "d": "C",
+        "label": "Achievement-Striving",
+        "lo": "content to get by",
+        "hi": "driven to excel"
+      },
+      {
+        "id": "selfdiscipline",
+        "d": "C",
+        "label": "Self-Discipline",
+        "lo": "procrastinates",
+        "hi": "sees tasks through"
+      },
+      {
+        "id": "cautiousness",
+        "d": "C",
+        "label": "Cautiousness",
+        "lo": "acts on impulse",
+        "hi": "deliberates first"
+      }
+    ],
+    "deep": [
+      {
+        "id": "25",
+        "q": "I get tense about things that haven't happened yet.",
+        "d": "N",
+        "facet": "anxiety"
+      },
+      {
+        "id": "26",
+        "q": "A small noise at night is enough to put me on edge.",
+        "d": "N",
+        "facet": "anxiety"
+      },
+      {
+        "id": "27",
+        "q": "I rarely feel nervous, even when there is reason to.",
+        "d": "N",
+        "facet": "anxiety",
+        "invert": true
+      },
+      {
+        "id": "28",
+        "q": "I can wait for bad news without it eating at me.",
+        "d": "N",
+        "facet": "anxiety",
+        "invert": true
+      },
+      {
+        "id": "29",
+        "q": "When I'm treated unfairly, it burns for a long time.",
+        "d": "N",
+        "facet": "anger"
+      },
+      {
+        "id": "30",
+        "q": "A stranger being rude can spoil my whole mood.",
+        "d": "N",
+        "facet": "anger"
+      },
+      {
+        "id": "31",
+        "q": "People who know me would say I almost never get angry.",
+        "d": "N",
+        "facet": "anger",
+        "invert": true
+      },
+      {
+        "id": "32",
+        "q": "I let insults go without much effort.",
+        "d": "N",
+        "facet": "anger",
+        "invert": true
+      },
+      {
+        "id": "33",
+        "q": "Some days I can't find the energy to start anything.",
+        "d": "N",
+        "facet": "depression"
+      },
+      {
+        "id": "34",
+        "q": "I go through stretches where nothing seems worth the effort.",
+        "d": "N",
+        "facet": "depression"
+      },
+      {
+        "id": "35",
+        "q": "I'm mostly at peace with who I am.",
+        "d": "N",
+        "facet": "depression",
+        "invert": true
+      },
+      {
+        "id": "36",
+        "q": "Getting out of bed is rarely a struggle for me.",
+        "d": "N",
+        "facet": "depression",
+        "invert": true
+      },
+      {
+        "id": "37",
+        "q": "I often wonder what people thought of me after I've left.",
+        "d": "N",
+        "facet": "selfconscious"
+      },
+      {
+        "id": "38",
+        "q": "Being laughed at is one of the worst things I can imagine.",
+        "d": "N",
+        "facet": "selfconscious"
+      },
+      {
+        "id": "39",
+        "q": "I can look foolish in public and shrug it off.",
+        "d": "N",
+        "facet": "selfconscious",
+        "invert": true
+      },
+      {
+        "id": "40",
+        "q": "Whether strangers approve of me rarely crosses my mind.",
+        "d": "N",
+        "facet": "selfconscious",
+        "invert": true
+      },
+      {
+        "id": "41",
+        "q": "Once I start on something I enjoy, stopping is the hard part.",
+        "d": "N",
+        "facet": "immoderation"
+      },
+      {
+        "id": "42",
+        "q": "I often buy or eat things I told myself I wouldn't.",
+        "d": "N",
+        "facet": "immoderation"
+      },
+      {
+        "id": "43",
+        "q": "A craving passes if I just wait it out.",
+        "d": "N",
+        "facet": "immoderation",
+        "invert": true
+      },
+      {
+        "id": "44",
+        "q": "Saying no to a second helping comes easily to me.",
+        "d": "N",
+        "facet": "immoderation",
+        "invert": true
+      },
+      {
+        "id": "45",
+        "q": "When too much comes at once, I freeze.",
+        "d": "N",
+        "facet": "vulnerability"
+      },
+      {
+        "id": "46",
+        "q": "In a crisis I need someone else to tell me what to do.",
+        "d": "N",
+        "facet": "vulnerability"
+      },
+      {
+        "id": "47",
+        "q": "I think clearly when everything is going wrong.",
+        "d": "N",
+        "facet": "vulnerability",
+        "invert": true
+      },
+      {
+        "id": "48",
+        "q": "Pressure sharpens me rather than scatters me.",
+        "d": "N",
+        "facet": "vulnerability",
+        "invert": true
+      },
+      {
+        "id": "49",
+        "q": "I make friends quickly wherever I go.",
+        "d": "E",
+        "facet": "friendliness"
+      },
+      {
+        "id": "50",
+        "q": "I let new people see straight away that I like them.",
+        "d": "E",
+        "facet": "friendliness"
+      },
+      {
+        "id": "51",
+        "q": "It takes me a long time to warm to someone.",
+        "d": "E",
+        "facet": "friendliness",
+        "invert": true
+      },
+      {
+        "id": "52",
+        "q": "I keep most people at arm's length.",
+        "d": "E",
+        "facet": "friendliness",
+        "invert": true
+      },
+      {
+        "id": "53",
+        "q": "The busier a place is, the more I enjoy it.",
+        "d": "E",
+        "facet": "gregariousness"
+      },
+      {
+        "id": "54",
+        "q": "I'd join a big group of people I barely know rather than stay home.",
+        "d": "E",
+        "facet": "gregariousness"
+      },
+      {
+        "id": "55",
+        "q": "Crowds drain me faster than anything else.",
+        "d": "E",
+        "facet": "gregariousness",
+        "invert": true
+      },
+      {
+        "id": "56",
+        "q": "I avoid places where I'll be one face in a crowd.",
+        "d": "E",
+        "facet": "gregariousness",
+        "invert": true
+      },
+      {
+        "id": "57",
+        "q": "When a group can't decide, I usually end up deciding for it.",
+        "d": "E",
+        "facet": "assertiveness"
+      },
+      {
+        "id": "58",
+        "q": "I say what I want plainly, even to people senior to me.",
+        "d": "E",
+        "facet": "assertiveness"
+      },
+      {
+        "id": "59",
+        "q": "I'd rather follow a good plan than have to make one.",
+        "d": "E",
+        "facet": "assertiveness",
+        "invert": true
+      },
+      {
+        "id": "60",
+        "q": "I let other people steer, even when I disagree.",
+        "d": "E",
+        "facet": "assertiveness",
+        "invert": true
+      },
+      {
+        "id": "61",
+        "q": "I like my days packed from morning to night.",
+        "d": "E",
+        "facet": "activity"
+      },
+      {
+        "id": "62",
+        "q": "I walk fast, eat fast and talk fast.",
+        "d": "E",
+        "facet": "activity"
+      },
+      {
+        "id": "63",
+        "q": "I'd rather do one thing slowly than three things quickly.",
+        "d": "E",
+        "facet": "activity",
+        "invert": true
+      },
+      {
+        "id": "64",
+        "q": "An empty afternoon with nothing planned is a gift.",
+        "d": "E",
+        "facet": "activity",
+        "invert": true
+      },
+      {
+        "id": "65",
+        "q": "I chase the kind of thrill that makes my heart race.",
+        "d": "E",
+        "facet": "excitement"
+      },
+      {
+        "id": "66",
+        "q": "Loud, bright, fast places make me feel alive.",
+        "d": "E",
+        "facet": "excitement"
+      },
+      {
+        "id": "67",
+        "q": "I avoid anything that promises an adrenaline rush.",
+        "d": "E",
+        "facet": "excitement",
+        "invert": true
+      },
+      {
+        "id": "68",
+        "q": "The safest option is usually the one I want.",
+        "d": "E",
+        "facet": "excitement",
+        "invert": true
+      },
+      {
+        "id": "69",
+        "q": "I laugh easily and often.",
+        "d": "E",
+        "facet": "cheerfulness"
+      },
+      {
+        "id": "70",
+        "q": "Most mornings I wake up in a good mood.",
+        "d": "E",
+        "facet": "cheerfulness"
+      },
+      {
+        "id": "71",
+        "q": "People have called me hard to excite.",
+        "d": "E",
+        "facet": "cheerfulness",
+        "invert": true
+      },
+      {
+        "id": "72",
+        "q": "I don't get carried away by good news.",
+        "d": "E",
+        "facet": "cheerfulness",
+        "invert": true
+      },
+      {
+        "id": "73",
+        "q": "I spend a lot of time in daydreams.",
+        "d": "O",
+        "facet": "imagination"
+      },
+      {
+        "id": "74",
+        "q": "I invent whole stories about strangers I see on the bus.",
+        "d": "O",
+        "facet": "imagination"
+      },
+      {
+        "id": "75",
+        "q": "I'd rather deal with facts than fantasies.",
+        "d": "O",
+        "facet": "imagination",
+        "invert": true
+      },
+      {
+        "id": "76",
+        "q": "Make-believe stopped interesting me when I grew up.",
+        "d": "O",
+        "facet": "imagination",
+        "invert": true
+      },
+      {
+        "id": "77",
+        "q": "A piece of music can stop me in my tracks.",
+        "d": "O",
+        "facet": "artistic"
+      },
+      {
+        "id": "78",
+        "q": "I'll go out of my way to see something beautiful.",
+        "d": "O",
+        "facet": "artistic"
+      },
+      {
+        "id": "79",
+        "q": "Art galleries bore me.",
+        "d": "O",
+        "facet": "artistic",
+        "invert": true
+      },
+      {
+        "id": "80",
+        "q": "I don't notice whether a room is beautiful or plain.",
+        "d": "O",
+        "facet": "artistic",
+        "invert": true
+      },
+      {
+        "id": "81",
+        "q": "I can usually name exactly what I'm feeling.",
+        "d": "O",
+        "facet": "emotionality"
+      },
+      {
+        "id": "82",
+        "q": "My moods are a big part of how I experience a day.",
+        "d": "O",
+        "facet": "emotionality"
+      },
+      {
+        "id": "83",
+        "q": "I'm often the last to notice that something has upset me.",
+        "d": "O",
+        "facet": "emotionality",
+        "invert": true
+      },
+      {
+        "id": "84",
+        "q": "Talking about feelings feels like a foreign language.",
+        "d": "O",
+        "facet": "emotionality",
+        "invert": true
+      },
+      {
+        "id": "85",
+        "q": "I'll take a new route home just to see something different.",
+        "d": "O",
+        "facet": "adventurousness"
+      },
+      {
+        "id": "86",
+        "q": "Given the choice, I'd try the dish I can't pronounce.",
+        "d": "O",
+        "facet": "adventurousness"
+      },
+      {
+        "id": "87",
+        "q": "I order the same thing every time at a restaurant I like.",
+        "d": "O",
+        "facet": "adventurousness",
+        "invert": true
+      },
+      {
+        "id": "88",
+        "q": "Change for its own sake makes me uneasy.",
+        "d": "O",
+        "facet": "adventurousness",
+        "invert": true
+      },
+      {
+        "id": "89",
+        "q": "A good argument about ideas is my idea of fun.",
+        "d": "O",
+        "facet": "intellect"
+      },
+      {
+        "id": "90",
+        "q": "I'll read something difficult just to see if I can follow it.",
+        "d": "O",
+        "facet": "intellect"
+      },
+      {
+        "id": "91",
+        "q": "I'd rather fix a real problem than debate a philosophical one.",
+        "d": "O",
+        "facet": "intellect",
+        "invert": true
+      },
+      {
+        "id": "92",
+        "q": "Brain-teasers feel like a waste of an evening.",
+        "d": "O",
+        "facet": "intellect",
+        "invert": true
+      },
+      {
+        "id": "93",
+        "q": "Rules deserve to be questioned, not just followed.",
+        "d": "O",
+        "facet": "liberalism"
+      },
+      {
+        "id": "94",
+        "q": "I'm drawn to people who break with how things are usually done.",
+        "d": "O",
+        "facet": "liberalism"
+      },
+      {
+        "id": "95",
+        "q": "Traditions hold a society together and shouldn't be tampered with.",
+        "d": "O",
+        "facet": "liberalism",
+        "invert": true
+      },
+      {
+        "id": "96",
+        "q": "If something has worked for generations, that is reason enough to keep it.",
+        "d": "O",
+        "facet": "liberalism",
+        "invert": true
+      },
+      {
+        "id": "97",
+        "q": "I assume people mean what they say.",
+        "d": "A",
+        "facet": "trust"
+      },
+      {
+        "id": "98",
+        "q": "Most people would return a wallet they found.",
+        "d": "A",
+        "facet": "trust"
+      },
+      {
+        "id": "99",
+        "q": "When a deal looks generous, I look for the catch.",
+        "d": "A",
+        "facet": "trust",
+        "invert": true
+      },
+      {
+        "id": "100",
+        "q": "I've been let down often enough to expect it.",
+        "d": "A",
+        "facet": "trust",
+        "invert": true
+      },
+      {
+        "id": "101",
+        "q": "I say what I think even when a small lie would be smoother.",
+        "d": "A",
+        "facet": "morality"
+      },
+      {
+        "id": "102",
+        "q": "I'd rather lose an advantage than mislead someone to keep it.",
+        "d": "A",
+        "facet": "morality"
+      },
+      {
+        "id": "103",
+        "q": "A little flattery is a fair way to get what you want.",
+        "d": "A",
+        "facet": "morality",
+        "invert": true
+      },
+      {
+        "id": "104",
+        "q": "I tell people what they want to hear when it serves me.",
+        "d": "A",
+        "facet": "morality",
+        "invert": true
+      },
+      {
+        "id": "105",
+        "q": "Helping someone out is one of the best parts of my week.",
+        "d": "A",
+        "facet": "altruism"
+      },
+      {
+        "id": "106",
+        "q": "I'll stop what I'm doing to give directions to a lost stranger.",
+        "d": "A",
+        "facet": "altruism"
+      },
+      {
+        "id": "107",
+        "q": "Requests for help usually feel like an imposition.",
+        "d": "A",
+        "facet": "altruism",
+        "invert": true
+      },
+      {
+        "id": "108",
+        "q": "Other people's problems are theirs to solve.",
+        "d": "A",
+        "facet": "altruism",
+        "invert": true
+      },
+      {
+        "id": "109",
+        "q": "I can't stand confrontations.",
+        "d": "A",
+        "facet": "cooperation"
+      },
+      {
+        "id": "110",
+        "q": "I hate to seem pushy.",
+        "d": "A",
+        "facet": "cooperation"
+      },
+      {
+        "id": "111",
+        "q": "I have a sharp tongue and I use it.",
+        "d": "A",
+        "facet": "cooperation",
+        "invert": true
+      },
+      {
+        "id": "112",
+        "q": "I contradict people more than I agree with them.",
+        "d": "A",
+        "facet": "cooperation",
+        "invert": true
+      },
+      {
+        "id": "113",
+        "q": "I'm uncomfortable when people praise me.",
+        "d": "A",
+        "facet": "modesty"
+      },
+      {
+        "id": "114",
+        "q": "I'd rather let my work speak than talk about it.",
+        "d": "A",
+        "facet": "modesty"
+      },
+      {
+        "id": "115",
+        "q": "I know I'm better at most things than the people around me.",
+        "d": "A",
+        "facet": "modesty",
+        "invert": true
+      },
+      {
+        "id": "116",
+        "q": "When something goes well, I make sure people know it was me.",
+        "d": "A",
+        "facet": "modesty",
+        "invert": true
+      },
+      {
+        "id": "117",
+        "q": "Someone else's bad news can ruin my day.",
+        "d": "A",
+        "facet": "sympathy"
+      },
+      {
+        "id": "118",
+        "q": "I give money to people on the street even when I doubt their story.",
+        "d": "A",
+        "facet": "sympathy"
+      },
+      {
+        "id": "119",
+        "q": "I judge a situation by the facts, not by who is suffering.",
+        "d": "A",
+        "facet": "sympathy",
+        "invert": true
+      },
+      {
+        "id": "120",
+        "q": "Sob stories don't move me much.",
+        "d": "A",
+        "facet": "sympathy",
+        "invert": true
+      },
+      {
+        "id": "121",
+        "q": "When I take something on, I know I'll manage it.",
+        "d": "C",
+        "facet": "selfefficacy"
+      },
+      {
+        "id": "122",
+        "q": "I handle whatever comes up without much fuss.",
+        "d": "C",
+        "facet": "selfefficacy"
+      },
+      {
+        "id": "123",
+        "q": "I often doubt that I'm up to what is asked of me.",
+        "d": "C",
+        "facet": "selfefficacy",
+        "invert": true
+      },
+      {
+        "id": "124",
+        "q": "Things go wrong for me more than for most people.",
+        "d": "C",
+        "facet": "selfefficacy",
+        "invert": true
+      },
+      {
+        "id": "125",
+        "q": "I make lists, and I actually use them.",
+        "d": "C",
+        "facet": "orderliness"
+      },
+      {
+        "id": "126",
+        "q": "I like a plan for the day before the day starts.",
+        "d": "C",
+        "facet": "orderliness"
+      },
+      {
+        "id": "127",
+        "q": "My desk looks like a storm passed through it.",
+        "d": "C",
+        "facet": "orderliness",
+        "invert": true
+      },
+      {
+        "id": "128",
+        "q": "I find things by remembering where I last dropped them.",
+        "d": "C",
+        "facet": "orderliness",
+        "invert": true
+      },
+      {
+        "id": "129",
+        "q": "A promise is a promise, even when keeping it costs me.",
+        "d": "C",
+        "facet": "dutifulness"
+      },
+      {
+        "id": "130",
+        "q": "I follow rules I disagree with until they are changed.",
+        "d": "C",
+        "facet": "dutifulness"
+      },
+      {
+        "id": "131",
+        "q": "Rules are for people who can't judge for themselves.",
+        "d": "C",
+        "facet": "dutifulness",
+        "invert": true
+      },
+      {
+        "id": "132",
+        "q": "If nobody would know, I'd skip the obligation.",
+        "d": "C",
+        "facet": "dutifulness",
+        "invert": true
+      },
+      {
+        "id": "133",
+        "q": "Good enough is never quite good enough for me.",
+        "d": "C",
+        "facet": "achievement"
+      },
+      {
+        "id": "134",
+        "q": "I set goals most people would call ambitious.",
+        "d": "C",
+        "facet": "achievement"
+      },
+      {
+        "id": "135",
+        "q": "I do what's needed and not much more.",
+        "d": "C",
+        "facet": "achievement",
+        "invert": true
+      },
+      {
+        "id": "136",
+        "q": "I'm happy to coast when nobody is watching.",
+        "d": "C",
+        "facet": "achievement",
+        "invert": true
+      },
+      {
+        "id": "137",
+        "q": "I can make myself work when I'd rather not.",
+        "d": "C",
+        "facet": "selfdiscipline"
+      },
+      {
+        "id": "138",
+        "q": "Distractions rarely pull me off a task.",
+        "d": "C",
+        "facet": "selfdiscipline"
+      },
+      {
+        "id": "139",
+        "q": "I need a deadline breathing down my neck to get going.",
+        "d": "C",
+        "facet": "selfdiscipline",
+        "invert": true
+      },
+      {
+        "id": "140",
+        "q": "Half-finished projects pile up around me.",
+        "d": "C",
+        "facet": "selfdiscipline",
+        "invert": true
+      },
+      {
+        "id": "141",
+        "q": "I sleep on big decisions before I make them.",
+        "d": "C",
+        "facet": "cautiousness"
+      },
+      {
+        "id": "142",
+        "q": "I think through what could go wrong before I say yes.",
+        "d": "C",
+        "facet": "cautiousness"
+      },
+      {
+        "id": "143",
+        "q": "I say the first thing that comes into my head.",
+        "d": "C",
+        "facet": "cautiousness",
+        "invert": true
+      },
+      {
+        "id": "144",
+        "q": "I've made big purchases on the spot and regretted it later.",
+        "d": "C",
+        "facet": "cautiousness",
+        "invert": true
+      }
     ]
   },
   "political": {
@@ -365,6 +1359,370 @@
         "id": "29",
         "q": "The people running things mostly know what they are doing.",
         "d": "estab",
+        "invert": true
+      }
+    ],
+    "facets": [
+      {
+        "id": "redis",
+        "d": "econ",
+        "label": "Redistribution",
+        "lo": "tax and transfer",
+        "hi": "keep what you earn"
+      },
+      {
+        "id": "reg",
+        "d": "econ",
+        "label": "Regulation",
+        "lo": "rules on business",
+        "hi": "let markets run"
+      },
+      {
+        "id": "pub",
+        "d": "econ",
+        "label": "Public services",
+        "lo": "state-provided",
+        "hi": "privately provided"
+      },
+      {
+        "id": "speech",
+        "d": "auth",
+        "label": "Speech",
+        "lo": "say anything",
+        "hi": "some speech restricted"
+      },
+      {
+        "id": "police",
+        "d": "auth",
+        "label": "Policing & surveillance",
+        "lo": "light touch",
+        "hi": "strong security"
+      },
+      {
+        "id": "private",
+        "d": "auth",
+        "label": "Private life",
+        "lo": "state stays out",
+        "hi": "state sets norms"
+      },
+      {
+        "id": "borders",
+        "d": "foreign",
+        "label": "Borders",
+        "lo": "tighter",
+        "hi": "more open"
+      },
+      {
+        "id": "aid",
+        "d": "foreign",
+        "label": "Aid & alliances",
+        "lo": "own country first",
+        "hi": "share the burden"
+      },
+      {
+        "id": "trade",
+        "d": "foreign",
+        "label": "Trade",
+        "lo": "protect",
+        "hi": "free trade"
+      },
+      {
+        "id": "climate",
+        "d": "env",
+        "label": "Climate",
+        "lo": "gradual",
+        "hi": "act now"
+      },
+      {
+        "id": "land",
+        "d": "env",
+        "label": "Land & wildlife",
+        "lo": "use",
+        "hi": "conserve"
+      },
+      {
+        "id": "growth",
+        "d": "env",
+        "label": "Growth trade-off",
+        "lo": "jobs first",
+        "hi": "green rules hold"
+      },
+      {
+        "id": "ai",
+        "d": "tech",
+        "label": "AI & automation",
+        "lo": "slow it down",
+        "hi": "let it run"
+      },
+      {
+        "id": "bio",
+        "d": "tech",
+        "label": "Bio & medicine",
+        "lo": "caution",
+        "hi": "embrace"
+      },
+      {
+        "id": "data",
+        "d": "tech",
+        "label": "Data & privacy",
+        "lo": "privacy first",
+        "hi": "convenience first"
+      },
+      {
+        "id": "inst",
+        "d": "estab",
+        "label": "Institutions",
+        "lo": "trust",
+        "hi": "distrust"
+      },
+      {
+        "id": "experts",
+        "d": "estab",
+        "label": "Experts & elites",
+        "lo": "defer",
+        "hi": "suspect"
+      },
+      {
+        "id": "direct",
+        "d": "estab",
+        "label": "Direct democracy",
+        "lo": "representatives",
+        "hi": "referendums"
+      }
+    ],
+    "deep": [
+      {
+        "id": "30",
+        "q": "Higher earners should pay a much larger share in tax.",
+        "d": "econ",
+        "facet": "redis",
+        "invert": true
+      },
+      {
+        "id": "31",
+        "q": "People should keep more of what they earn, even if inequality grows.",
+        "d": "econ",
+        "facet": "redis"
+      },
+      {
+        "id": "32",
+        "q": "Businesses need firm rules to behave well.",
+        "d": "econ",
+        "facet": "reg",
+        "invert": true
+      },
+      {
+        "id": "33",
+        "q": "Most regulation does more harm than good.",
+        "d": "econ",
+        "facet": "reg"
+      },
+      {
+        "id": "34",
+        "q": "Health, schools and transport work best run by the state.",
+        "d": "econ",
+        "facet": "pub",
+        "invert": true
+      },
+      {
+        "id": "35",
+        "q": "Private providers usually deliver services better than governments.",
+        "d": "econ",
+        "facet": "pub"
+      },
+      {
+        "id": "36",
+        "q": "People should be free to say things others find offensive.",
+        "d": "auth",
+        "facet": "speech",
+        "invert": true
+      },
+      {
+        "id": "37",
+        "q": "Some speech does enough harm that it should be banned.",
+        "d": "auth",
+        "facet": "speech"
+      },
+      {
+        "id": "38",
+        "q": "Cameras and data-gathering are a fair price for safety.",
+        "d": "auth",
+        "facet": "police"
+      },
+      {
+        "id": "39",
+        "q": "The police already have more power than they need.",
+        "d": "auth",
+        "facet": "police",
+        "invert": true
+      },
+      {
+        "id": "40",
+        "q": "What adults do in private is none of the state's business.",
+        "d": "auth",
+        "facet": "private",
+        "invert": true
+      },
+      {
+        "id": "41",
+        "q": "Society is right to set limits on how people live.",
+        "d": "auth",
+        "facet": "private"
+      },
+      {
+        "id": "42",
+        "q": "Immigration should be lower than it is now.",
+        "d": "foreign",
+        "facet": "borders",
+        "invert": true
+      },
+      {
+        "id": "43",
+        "q": "People should be freer to move between countries.",
+        "d": "foreign",
+        "facet": "borders"
+      },
+      {
+        "id": "44",
+        "q": "We should look after our own before helping other countries.",
+        "d": "foreign",
+        "facet": "aid",
+        "invert": true
+      },
+      {
+        "id": "45",
+        "q": "Rich countries owe real help to poorer ones.",
+        "d": "foreign",
+        "facet": "aid"
+      },
+      {
+        "id": "46",
+        "q": "Protecting local industry is worth paying more for goods.",
+        "d": "foreign",
+        "facet": "trade",
+        "invert": true
+      },
+      {
+        "id": "47",
+        "q": "Free trade makes everyone better off in the end.",
+        "d": "foreign",
+        "facet": "trade"
+      },
+      {
+        "id": "48",
+        "q": "Climate change is an emergency that justifies drastic action.",
+        "d": "env",
+        "facet": "climate"
+      },
+      {
+        "id": "49",
+        "q": "We are moving faster on climate than we can afford.",
+        "d": "env",
+        "facet": "climate",
+        "invert": true
+      },
+      {
+        "id": "50",
+        "q": "Wild places should be protected even when they could be put to use.",
+        "d": "env",
+        "facet": "land"
+      },
+      {
+        "id": "51",
+        "q": "Land is there to be used, not fenced off.",
+        "d": "env",
+        "facet": "land",
+        "invert": true
+      },
+      {
+        "id": "52",
+        "q": "A cleaner environment is worth slower growth.",
+        "d": "env",
+        "facet": "growth"
+      },
+      {
+        "id": "53",
+        "q": "When jobs and green rules clash, jobs should win.",
+        "d": "env",
+        "facet": "growth",
+        "invert": true
+      },
+      {
+        "id": "54",
+        "q": "AI should be allowed to develop with few limits.",
+        "d": "tech",
+        "facet": "ai"
+      },
+      {
+        "id": "55",
+        "q": "Automation is taking more from people than it gives.",
+        "d": "tech",
+        "facet": "ai",
+        "invert": true
+      },
+      {
+        "id": "56",
+        "q": "Editing genes to prevent disease should go ahead.",
+        "d": "tech",
+        "facet": "bio"
+      },
+      {
+        "id": "57",
+        "q": "We should be very careful about altering human biology.",
+        "d": "tech",
+        "facet": "bio",
+        "invert": true
+      },
+      {
+        "id": "58",
+        "q": "I'd trade some privacy for services that work better.",
+        "d": "tech",
+        "facet": "data"
+      },
+      {
+        "id": "59",
+        "q": "Companies collect far too much data about us.",
+        "d": "tech",
+        "facet": "data",
+        "invert": true
+      },
+      {
+        "id": "60",
+        "q": "Courts, parliaments and the press mostly do their jobs.",
+        "d": "estab",
+        "facet": "inst",
+        "invert": true
+      },
+      {
+        "id": "61",
+        "q": "Our institutions serve themselves, not the public.",
+        "d": "estab",
+        "facet": "inst"
+      },
+      {
+        "id": "62",
+        "q": "On hard questions, experts should carry more weight than public opinion.",
+        "d": "estab",
+        "facet": "experts",
+        "invert": true
+      },
+      {
+        "id": "63",
+        "q": "Experts are often wrong and rarely held to account.",
+        "d": "estab",
+        "facet": "experts"
+      },
+      {
+        "id": "64",
+        "q": "Big decisions should go to a public vote, not politicians.",
+        "d": "estab",
+        "facet": "direct"
+      },
+      {
+        "id": "65",
+        "q": "Representatives make better decisions than referendums.",
+        "d": "estab",
+        "facet": "direct",
         "invert": true
       }
     ]
