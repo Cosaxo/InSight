@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, dirname, join } from "node:path";
+import { FIGURES } from "./check-figures.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -210,6 +211,40 @@ describe("the cold-boot list is copied, and held equal to the code", () => {
 // loop below is the same property, measured rather than asserted.
 describe("the printed remedy closes the loop it opened", () => {
   const ROW = /\*\*\+(\d+) reads\*\* — five whole surfaces plus the feed's core/;
+
+  it("EVERY hint quotes a sentence its own pattern matches", () => {
+    // The general property the end-to-end case below can only demonstrate
+    // for one entry, and it is importable now: check-figures.mjs guards its
+    // report behind an entry check, so importing FIGURES computes and
+    // prints nothing.
+    //
+    // Eleven of the hundred-and-two failed this when it was first run, all
+    // the same shape as the cold-boot row: a remedy that drops the
+    // backticks, the leading table pipe, the clause the pattern anchors on,
+    // or replaces the sentence's other number with "...". Each one walks a
+    // maintainer from a caught drift to "delete its entry from FIGURES" in
+    // two steps. Two of the eleven were the PATTERN's fault instead — it
+    // demanded a line break the one-line remedy cannot reproduce — and were
+    // relaxed rather than the hint faked.
+    const bad = [];
+    for (const fig of FIGURES) {
+      expect(typeof fig.fix, `${fig.file} :: ${fig.what} has no fix hint`).toBe("function");
+      expect(fig.re instanceof RegExp, `${fig.file} :: ${fig.what} has no pattern`).toBe(true);
+      // The hints quote themselves; the gate prints them inside its own
+      // quotes, and a maintainer types what is between them.
+      const said = String(fig.fix(fig.actual)).replace(/^"|"$/g, "");
+      if (!fig.re.test(said)) bad.push(`${fig.file} :: ${fig.what}\n     hint: ${said}\n     re:   ${fig.re}`);
+    }
+    expect(
+      bad,
+      "a fix hint quotes a sentence its own pattern will not match — typing it in leaves the figure unquoted, "
+        + "and the next run says to delete the entry rather than restore the number",
+    ).toEqual([]);
+  });
+
+  it("finds the entries — vacuous otherwise", () => {
+    expect(FIGURES.length, "FIGURES came back empty — the import stopped working").toBeGreaterThan(50);
+  });
 
   it("a corrected sentence makes the gate green again", () => {
     const costs = join(tree, "docs/COSTS.md");
