@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — steps 0–4 are BUILT (2026-09-08, D420's second amendment); steps 5–8 are open.** The follow-through on
+**Status: plan notes — steps 0–4 and the regulator half of 6 are BUILT (2026-09-08, D420's second amendment); the lane's cadence is an owner row; steps 5, 7 and 8 are open.** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -603,8 +603,13 @@ Each step is shippable and green on its own.
 5. **Notifications** (§7.4) — `web/privacy.html` first (a fifth kind,
    and *day* → *round*), then the `turns` channel, the send in the
    trigger, the per-recipient debounce, the foreground suppression.
-6. **The bank burst** (§6.1) — a lane change, runs in parallel with
-   everything above.
+6. **The bank burst** (§6.1) — **the regulator is built 2026-09-08**:
+   `RUN_CAP` 4 → 25, `POOL_TARGET` 48 → 400 for the live pools with the
+   dark romantic pool kept at 48 until it is lit (read off the bank's
+   `active` posture, not assumed). **The cadence is not**: the lane's
+   Routine fires weekly on an account this tree cannot re-pace, so the
+   daily run the burst wants is an owner row — at weekly, 25 a run reaches
+   400 a pool in about eight months; at daily, in about five weeks.
 7. **World questions in duels** (§6.2) — owner row first, then the rules
    arm, the pool, the exclusion query and the reveal's third column.
 8. **The screens** (§7.5) — visual request 11: plan, draft, the owner's

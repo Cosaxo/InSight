@@ -876,11 +876,15 @@ for a duel run:
 
 - **Start every run with `npm run duel:budget -- --open <questions on
   the open lane PR>`** (D213). The budget is computed, not flat: it
-  grants up to **4 duel questions per run** while any pool is short of
-  **48 questions per pool** (twice the shipped group rotation, so a
-  daily player goes ~7 weeks without a repeat), subtracts whatever
-  already sits unreviewed on the lane's open PR, and grants **zero** at
-  the target or at **4** unreviewed duel questions on that PR. It prints
+  grants up to **25 duel questions per run** while any pool is short of
+  **400 questions per pool** (the burst, ROUNDS-PLAN §6.1 / D420: a
+  pair at eight rounds a day goes ~7 weeks without a repeat, the horizon
+  the day's 48 gave a daily player — and the romantic pool keeps 48
+  while it ships dark, read off the bank's `active` posture), subtracts
+  whatever already sits unreviewed on the lane's open PR, and grants
+  **zero** at the target or at **25** unreviewed duel questions on
+  that PR. Twenty-five is what one review PR can hold, and every hard
+  rule below applies per question whatever the batch. It prints
   the ALLOCATION — which pools to write into and how many each — and a
   `signal:` line saying whether the guess-match band has anything to
   read yet. This replaced D40's flat "≤4 questions/run, at most weekly

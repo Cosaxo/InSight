@@ -45006,7 +45006,17 @@ portrait and the duel signal all leave it out; the card lists late
 answers on their own row and offers the door under a reveal you have no
 vote in. Not blind, so not a reading — shown, not scored.
 
+**The bank burst's regulator is built** (§6.1, the same day):
+`scripts/duel-budget.mjs` grants 25 a run toward 400 a live pool — a pair
+at eight rounds a day for seven weeks without a repeat, the horizon the
+day's 48 gave a daily player — and the dark romantic pool keeps 48 until
+it is lit, read off the bank's `active` posture rather than assumed.
+What the tree cannot do is re-pace the lane: its Routine is on another
+account, so the daily cadence the burst wants is an owner click, with
+the arithmetic on the row (weekly reaches 400 in about eight months,
+daily in about five weeks).
+
 **What is NOT built**, so nothing here reads as more than it is: the
-notifications (§7.4, behind `web/privacy.html`), the bank burst and world
-questions (§6), and the screens (request 11). The card is truthful, not
-redesigned.
+notifications (§7.4, behind `web/privacy.html`), world questions as
+duel content (§6.2), and the screens (request 11). The card is truthful,
+not redesigned.
