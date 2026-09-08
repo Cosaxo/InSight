@@ -516,7 +516,10 @@ describe("the collections nobody queries by field carry exemptions (DATA-EFFICIE
   // pinned as un-exempted below, and why a new field query on any of
   // these collections has to come back here first.
   it("exempts the ledger's copy of the answer, and keeps uid and at indexed", () => {
-    for (const f of ["qid", "optionIdx", "fromIdx", "anchors.city", "anchors.country"]) {
+    // …and the profile stamp the create trigger adds since
+    // DATA-EFFICIENCY-RUNBOOK 2.1 (`n`, `s`, `l`): `s` is a map of maps,
+    // so un-exempted it would be ~2 entries per axis per entry.
+    for (const f of ["qid", "optionIdx", "fromIdx", "anchors.city", "anchors.country", "n", "s", "l"]) {
       expect(override("v2_agg_events", f)?.indexes, `v2_agg_events.${f}`).toEqual([]);
     }
     // deleteAccount's sweep queries `uid ==` (functions/src/index.ts) and

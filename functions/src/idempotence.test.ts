@@ -198,6 +198,36 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(store.get("v2_agg_events/evt-1")).not.toHaveProperty("fromIdx");
   });
 
+  it("a create's ledger entry carries the profile's stamp; an edit's carries none (DATA-EFFICIENCY-RUNBOOK 2.1)", async () => {
+    // The sample row the nightly builds from this entry is what the device
+    // reads instead of the profile, so the name and scores have to be ON
+    // the entry — and the edit path reads no profile, so its entry must
+    // not pretend to a stamp it never took (the row keeps its create's).
+    store.set("v2_users/u1", {
+      anchors: { ageBand: "25-34", country: "NO" },
+      displayName: "  Olaf ",
+      testResults: { big5: { dims: [{ id: "O", value: 70.4 }] }, logic: { pctile: 55 } },
+    });
+    await deliver("evt-1", vote);
+    const entry = store.get("v2_agg_events/evt-1") as Record<string, unknown>;
+    expect(entry.n).toBe("Olaf");
+    expect(entry.s).toEqual({ big5: { O: 70 } });
+    expect(entry.l).toBe(55);
+    await deliverEdit("edit-1", 1, 0);
+    const edit = store.get("v2_agg_events/edit-1") as Record<string, unknown>;
+    expect(edit).not.toHaveProperty("n");
+    expect(edit).not.toHaveProperty("s");
+    expect(edit).not.toHaveProperty("l");
+    // A profile with no name and no results stamps as nothing — still a
+    // stamp, so the row can say "no name" rather than "unknown".
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    await deliver("evt-2", vote);
+    const bare = store.get("v2_agg_events/evt-2") as Record<string, unknown>;
+    expect(bare.n).toBe("");
+    expect(bare.s).toBeNull();
+    expect(bare.l).toBeNull();
+  });
+
   it("an edit that arrives before its create THROWS, so Eventarc redelivers", async () => {
     // Eventarc orders nothing between a document's create and update
     // deliveries, so the edit can land first. `retargetCounts` refuses

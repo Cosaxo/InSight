@@ -115,58 +115,101 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
 **Done when:** the four changes are deployed and `npm run costs` prints
 `reattach 4`. *(It does; the deploy is the merge.)*
 
-## Phase 2 — names and scores ride the samples · **M, one pull request**
+## Phase 2 — names and scores ride the samples · **M, one pull request** · **DONE 2026-09-08**
 
 Nothing here changes what a user sees: Kindred has read the nightly
-sample since D397, and the sheet keeps its live edge (2.4).
+sample since D397, and the sheet keeps its live edge (2.4). Four things
+moved against the plan as written, each named on its step: the stamp's
+field names, a trigger the plan did not have, the sheet's hot/cold split,
+and the city samples' bound.
 
-- [ ] **2.1 The ledger entry carries the name and the scores.** In the
-      world branch of `onV2AnswerCreated` the profile is already in the
-      transaction (D410); `ledgerEntry()` gains `n` (display name, ≤60)
-      and `t` (the `testResults` subset the client parses — the core
-      kinds and the logic percentile). The edit path has no profile read
-      and stamps nothing; a row keeps what its create wrote.
-      `ledger.ts`'s `LedgerDayEntry` and its `select` follow. ·
-      **Gate:** `ledger.test.ts`, `pulse.test.mjs` (reads per branch
-      unchanged).
-- [ ] **2.2 The sample row carries them, and the merge is bounded.**
-      `patternsSamples.ts`: `SampleRow` gains `n`, `s`, `l`;
-      `sampleAdditions` caps the day's additions **per question to the
-      newest 200** in the order the file already defines before
-      `mergeSample` sees them — the fix for the day-sized sort
-      (`DATA-EFFICIENCY.md` §3). · **Gate:** `patternsSamples.test.ts`
-      (row shape; determinism; a 100,000-addition fixture merges in
-      O(cap)).
-- [ ] **2.3 The device stops reading profiles for people the sample
-      named.** `voters.ts` `fetchVoterSample` fills `names`, `scores`,
-      `logicPcts` from the rows; `resolveNames` then finds nothing
-      missing for them. Faces stay per session (D178). · **Gate:**
-      `voter-sample.test.ts`; `vote.test.ts` pins that a Kindred first
-      view issues twelve sample reads and no profile query.
-- [ ] **2.4 The who-voted sheet: the sample, plus a live tail.**
-      `loadVoters` reads the sample, then one query for answers newer
-      than the sample's day with `limit(VOTER_TAIL_CAP)` (50), names for
-      the tail's uids only, and the viewer's own vote unioned from
-      `state.votes` so it appears the moment it lands. Copy unchanged:
-      "the latest 200" stays true. · **Gate:** the panel suites for the
-      Friends, Type and Logic cuts; `vote.test.ts` pins ≤ 1 sample + 1
-      tail query + ≤ 50 names per open.
-- [ ] **2.5 Per-city samples for the city pass.** The same nightly fold
-      writes `sample-{qid}~{city}` for every (question, city) pair with
-      at least `CITY_SAMPLE_MIN` rows (12 — the lens's own floor), from
-      the chips each entry already carries; `loadCityKindred` reads them
-      and falls back to the live query only where none exists.
-      `deleteAccount`'s sweep already matches the `sample-` prefix. ·
-      **Gate:** `patternsSamples.test.ts`; `vote.test.ts` (twelve reads,
-      no fan-out); `test:e2e:erasure` (a row leaves a city sample).
-- [ ] **2.6 The model.** `socialTerms`: kindred's `names − 1` → 0,
-      `whoVoted` → `sheetOpens × (1 + tail + tail names)`, and a
-      `cityKindred` term added at its new size (it had none); the
-      `data-inventory.md` rows for the new fields; `COSTS.md` regenerated.
-      · **Gate:** `pulse.test.mjs`, `check:data-inventory`,
-      `check:figures`.
+- [x] **2.1 The ledger entry carries the name and the scores. DONE
+      2026-09-08** — `n`, `s`, `l` rather than `n` and `t`: the PARSED
+      forms (the device's `ParsedResults` and logic percentile), so the
+      sample row copies them verbatim and the phone parses nothing.
+      `functions/src/profileStamp.ts` is the server's copy of the
+      device's parse, and `profileStamp.test.ts` holds it to the original
+      by running `src/v2/data/similarity.ts` itself over a corpus of
+      hostile shapes (a fixture would have been a third copy). The edit
+      path stamps nothing; `idempotence.test.ts` pins both arms; the three
+      fields are exempted from single-field indexes (`s` is a map of
+      maps). **And a trigger the plan did not have:** `onV2ProfileUpdated`
+      (`functions/src/profileFanout.ts`). A stamp as-of-the-answer would
+      have left a renamed account under its old name on every question it
+      did not answer again — for most rows, never — which is a visible
+      reduction against today's seven-day cache, and "live is best when
+      the cost difference isn't huge" is the owner's word on exactly this
+      (D421 §2). The trigger reads nothing unless the stamp changed, then
+      reads the account's own answers, the samples they name, and
+      rewrites the three fields under `rows.{uid}` where a row exists —
+      bounded by the account's answers, a handful of times per account
+      lifetime (`B.stampChanges`). Registered in the deploy list and
+      `check:fn-runtime`.
+- [x] **2.2 The sample row carries them, and the merge is bounded. DONE
+      2026-09-08** — `mergeSample` folds the additions to one per person,
+      cuts them to the cap in the sample's own order BEFORE the merge
+      (exact: an addition dropped there is outranked by cap others in the
+      final sort), then merges; the same call takes the day's stamps and
+      refreshes every row it rewrites anyway, so a new name reaches the
+      rows of questions the person did not answer today, for the samples
+      the night touches. An edit keeps its create's stamp.
+- [x] **2.3 The device stops reading profiles for people the sample
+      named. DONE 2026-09-08** — `fetchSampleDoc` fills the three caches
+      from rows that carry `n`, where the cache has nothing (a value read
+      live this session keeps precedence); `resolveNames` then reads only
+      the people no row could name. The read pin landed in
+      `profile-cache.test.ts` rather than `vote.test.ts`, because that
+      harness is the one that counts `v2_users` queries: Kindred's read of
+      a stamped sample makes none.
+- [x] **2.4 The who-voted sheet: the sample, plus a live tail. DONE
+      2026-09-08, in three shapes** — no sample → the live list; sample
+      and a tail under `VOTER_TAIL_CAP` (50) → the union, exactly the
+      newest 200, the viewer's own row from the vote map; sample and a
+      tail AT the cap → the live list again. The third shape is what
+      keeps "the newest 200" exactly true: on a hot question (today's
+      daily, at any real size) fifty of today over a hundred and fifty of
+      before is not "the latest", and the plan's sentence promised the
+      copy would not move. So the saving lands on the cold question — the
+      feed card opened a week on — and the hot sheet costs what it did.
+      **The owner can trade the exact claim for the cheaper hot sheet** —
+      "as of last night, plus the newest 50", one sentence under the
+      list — and that is on `OWNER-LIST.md`; the model carries the share
+      as `B.sheetOpensHot` (0.7). `rules.test.ts` pins that the tail's
+      range on `answeredAt` is granted like the city's equality.
+- [x] **2.5 Per-city samples for the city pass. DONE 2026-09-08** —
+      `v2_patterns/city-{qid}~{encodeURIComponent(city)}`, NOT
+      `sample-{qid}~{city}`: the prefix differs so the erasure arm's
+      id-range scan of world samples (`sample-` ≤ id < `sample.`) never
+      enumerates the city family, which at scale is the product of two
+      catalogues (10,929 places). **No `CITY_SAMPLE_MIN`**: a threshold on
+      a document's rows cannot accumulate — a pair below it would be
+      skipped tonight and start from nothing tomorrow — so every touched
+      pair merges, and the bound is a nightly budget instead:
+      `CITY_SAMPLE_PAIRS_PER_NIGHT` (30,000), hottest pairs first, read-
+      merge-write in chunks of 300 so nothing is held. It binds around
+      50 k DAU on the model's answer rates, where the night's coldest
+      pairs wait for a busier day (the D397 caveat every sample carries).
+      Erasure reaches the city documents through the account's OWN
+      answers (`qid` and the frozen `anchors.city`, read before phase 1b
+      deletes them) — bounded by its answers, not the catalogue —
+      `e2e-delete-account.mjs` asserts a row leaves one. `loadCityKindred`
+      reads the document first and falls back to the city-scoped live
+      query where none exists (`vote.test.ts`).
+- [x] **2.6 The model. DONE 2026-09-08** — `socialTerms` carries
+      `kindred` at one document per question, a `cityKindred` term at the
+      same size, and `whoVoted` split by `B.sheetOpensHot`; the server
+      term gains the city samples' nightly read (`citySampleOps`, at the
+      ceiling, capped by the budget) and the fan-out (`profileFanoutReads`,
+      `stampChanges` a year at the mature account's size); the write side
+      gains both. `cost-structure.mjs` lost its two rows and its copy of
+      `memberAnswers`. **`npm run costs` prints social 197, not ≈ 150:**
+      Circle's 150 plus the hot sheets' 46 — the "done when" below was
+      written before 2.4's third shape was decided, and 46 is the price of
+      the exact claim until the owner rules on it.
 
-**Done when:** `npm run costs` prints social ≈ 150, all of it Circle.
+**Done when:** `npm run costs` prints social ≈ 150, all of it Circle —
+**met at 197** for the reason 2.6 states; the remaining 46 is the owner's
+sentence on `OWNER-LIST.md`.
 
 ## Phase 3 — the answer map, live with a nightly heal · **M, one pull request**
 

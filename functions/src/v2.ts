@@ -32,6 +32,7 @@ import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { profileStamp, type ProfileStamp } from "./profileStamp";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
@@ -300,13 +301,23 @@ function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
-function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown) {
+// `stamp` joined at DATA-EFFICIENCY-RUNBOOK 2.1: the author's display
+// name, parsed core scores and logic percentile, off the profile the
+// world branch already holds in its transaction (D410) — the sample row
+// built from this entry carries them so the device reads the sample
+// INSTEAD of the profile. Only the create path stamps: the edit path reads
+// no profile, and an edit's row keeps what its create wrote
+// (patternsSamples.ts). `n` present is what marks a stamped entry; `s` and
+// `l` are written as null when the profile holds nothing usable, so a
+// stamped-with-nothing entry is distinguishable from an unstamped one.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, stamp?: ProfileStamp) {
   const a = ledgerAnchors(anchors);
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
     ...(a ? { anchors: a } : {}),
+    ...(stamp ? { n: stamp.n, s: stamp.s, l: stamp.l } : {}),
     // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
     // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
     // byte-identical in shape to the create it supersedes — which is
@@ -1099,8 +1110,13 @@ export const onV2AnswerCreated = onDocumentCreated(
         tx.set(snap.ref, { anchors }, { merge: true });
       }
       // The ledger entry carries the anchors too, and the nightly passes
-      // read them — so it takes the honest set, not the claim.
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, anchors));
+      // read them — so it takes the honest set, not the claim. And the
+      // profile's stamp (runbook 2.1): `prof` is already in hand, so the
+      // name and scores the sample row will show cost no read here.
+      tx.set(eventRef, ledgerEntry(
+        event.params.uid, qid, optionIdx, undefined, anchors,
+        profileStamp(prof.exists ? { displayName: prof.get("displayName"), testResults: prof.get("testResults") } : undefined),
+      ));
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag

@@ -36,6 +36,15 @@ export interface LedgerDayEntry {
    *  (D397). Absent on entries written before the field, and on catalog
    *  entries. */
   anchors?: Record<string, string>;
+  /** The author's display name as the create trigger read it off the
+   *  profile (DATA-EFFICIENCY-RUNBOOK 2.1) — present only on a stamped
+   *  entry, "" for an account with no name. The sample row copies it. */
+  n?: string;
+  /** The parsed core scores beside it (profileStamp.ts), null when the
+   *  profile holds nothing usable; absent with `n`. */
+  s?: Record<string, Record<string, number>> | null;
+  /** The verified logic percentile (D57), null when untested; absent with `n`. */
+  l?: number | null;
 }
 
 const PAGE = 5000;
@@ -81,7 +90,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     // undefined at every reader — no error, no log, just a fold that
     // quietly stops distinguishing an edit from a first answer. Pinned in
     // ledger.test.ts against the interface itself.
-    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "at")
+    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "n", "s", "l", "at")
     .limit(PAGE);
   for (;;) {
     const snap = await query.get();
@@ -92,6 +101,15 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
         optionIdx: d.get("optionIdx") as number | undefined,
         ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
         ...(d.get("anchors") ? { anchors: d.get("anchors") as Record<string, string> } : {}),
+        // The stamp travels as a unit: `n` present means the entry was
+        // stamped, and then `s` and `l` are what was read (null included).
+        ...(typeof d.get("n") === "string"
+          ? {
+            n: d.get("n") as string,
+            s: (d.get("s") as Record<string, Record<string, number>> | null | undefined) ?? null,
+            l: typeof d.get("l") === "number" ? (d.get("l") as number) : null,
+          }
+          : {}),
       });
     }
     if (snap.size < PAGE) break;

@@ -25,7 +25,7 @@
 // the one the invoice will confirm.
 
 import {
-  B, VOTER_FETCH_CAP, KINDRED_QUESTIONS, CIRCLE_ANSWER_CAP, DECK_DAYS,
+  B, VOTER_FETCH_CAP, DECK_DAYS, memberAnswers,
   SCENARIOS, costModel, REGIONAL, priceSheet, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
@@ -33,17 +33,18 @@ const P = priceSheet(REGIONAL);
 const { model } = costModel({ regional: REGIONAL });
 const money = (n) => "$" + (n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString());
 
-// The crowd a capped fetch returns — cost-arith's own expression.
-const crowd = (dau) => Math.min(VOTER_FETCH_CAP, dau);
-// A member's answer set grows with account age, not DAU — cost-arith's own
-// expression for the Circle term's per-member reads.
-const memberAnswers = (mature) =>
-  Math.min(CIRCLE_ANSWER_CAP, B.worldAnswers * (mature ? 90 : 10));
+// The crowd a capped fetch returns — cost-arith's own expression. (It was
+// the Kindred and sheet rows' factor; those shipped, and it stays for the
+// next row that needs it.)
+export const crowd = (dau) => Math.min(VOTER_FETCH_CAP, dau);
 
 // Each reshape: the per-user-day reads it removes and the per-user-day writes
 // it adds, as functions of the scenario, in the model's own terms. A row
 // leaves this list when it ships and its term moves into cost-arith.mjs —
-// the foreground refresh (runbook 1.4) was the first, on 2026-09-08.
+// the foreground refresh (runbook 1.4) was the first, on 2026-09-08, and
+// the same day Phase 2 took the names-on-the-sample row, the sheet row
+// and the city pass (runbook 2.2–2.5; `socialTerms` in cost-arith.mjs
+// now carries all three at their built size).
 export const RESHAPES = [
   {
     key: "circleDoc",
@@ -57,23 +58,6 @@ export const RESHAPES = [
     // If the trigger keeps the document live instead, it is one more write
     // per world answer.
     writesIfLive: () => B.worldAnswers,
-  },
-  {
-    key: "namesInSample",
-    name: "Kindred / People / pair card: the nightly voter sample carries names",
-    // cost-arith's kindred term: views × questions × (1 sample + crowd profile
-    // reads). The name costs the server nothing new: the world-answer trigger
-    // already reads the author's profile (D410) and can stamp the name on the
-    // ledger entry the sample is built from.
-    reads: (dau) => B.kindredViews * KINDRED_QUESTIONS * crowd(dau),
-    writes: () => 0,
-  },
-  {
-    key: "sheetFromSample",
-    name: "Who-voted sheet: drawn from the same sample (names embedded)",
-    // cost-arith's whoVoted term: opens × crowd × 2 (answers + profiles)
-    reads: (dau) => B.sheetOpens * (crowd(dau) * 2 - 1),
-    writes: () => 0,
   },
   {
     key: "deckDoc",

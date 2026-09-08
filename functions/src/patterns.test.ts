@@ -46,9 +46,12 @@ const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
   const users = new Map<string, PatternsUserState>();
   const samples = new Map<string, SampleDoc>();
+  const citySamples = new Map<string, SampleDoc>();
   const state = {
     /** The voter samples as the last putSamples left them (D397). */
     samples,
+    /** The per-city samples, by document id (runbook 2.5). */
+    citySamples,
     /** The publication as the last putModel left it — whole, cloned, the
      * way the Firestore store reads the document back (D395). */
     pub: null as PatternsPublication | null,
@@ -120,6 +123,14 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     },
     async putSamples(next) {
       for (const [qid, d] of next) samples.set(qid, clone(d));
+    },
+    async getCitySamples(ids) {
+      const out = new Map<string, SampleDoc>();
+      for (const id of ids) { const d = citySamples.get(id); if (d) out.set(id, clone(d)); }
+      return out;
+    },
+    async putCitySamples(next) {
+      for (const [id, d] of next) citySamples.set(id, clone(d));
     },
   };
   return { store, state };
@@ -1038,6 +1049,60 @@ describe("the voter samples the sweep publishes", () => {
     const again = await runPatternsFit(store, NOW);
     expect(again.samples).toBe(0);
     expect(JSON.stringify(state.samples.get(CORE_A))).toBe(before);
+  });
+
+  it("copies the person's stamp onto the row, and refreshes the rows of a person who answered elsewhere today (runbook 2.2)", async () => {
+    const d2 = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      [d2]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0, n: "Olaf", s: { big5: { O: 70 } }, l: 55 },
+        { uid: "u2", qid: CORE_A, optionIdx: 1 }, // an entry from before the stamp existed
+      ],
+      [yesterday]: [
+        // u1 answered a DIFFERENT question today under a new name; u2's
+        // addition rewrites CORE_A's sample, so u1's row there refreshes
+        { uid: "u1", qid: TEST_ITEM, optionIdx: 2, n: "Olaf T", s: { big5: { O: 71 } }, l: 56 },
+        { uid: "u2", qid: CORE_A, optionIdx: 1, fromIdx: 1 },
+        { uid: "u3", qid: CORE_A, optionIdx: 0, n: "", s: null, l: null },
+      ],
+    });
+    await runPatternsFit(store, NOW - DAY);
+    const before = state.samples.get(CORE_A)!;
+    expect(before.rows.u1).toEqual({ o: 0, a: {}, d: d2, n: "Olaf", s: { big5: { O: 70 } }, l: 55 });
+    expect(before.rows.u2).toEqual({ o: 1, a: {}, d: d2 });
+    await runPatternsFit(store, NOW);
+    const after = state.samples.get(CORE_A)!;
+    expect(after.rows.u1, "the newer stamp did not reach a row the merge rewrote anyway")
+      .toEqual({ o: 0, a: {}, d: d2, n: "Olaf T", s: { big5: { O: 71 } }, l: 56 });
+    expect(after.rows.u3, "a stamp of nothing is still a stamp").toEqual({ o: 0, a: {}, d: yesterday, n: "", s: null, l: null });
+    expect(state.samples.get(TEST_ITEM)!.rows.u1.n).toBe("Olaf T");
+  });
+
+  it("merges a per-city sample for every (question, city) the day touched, and counts them (runbook 2.5)", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0, anchors: { city: "Oslo, NO" }, n: "Olaf", s: null, l: null },
+        { uid: "u2", qid: CORE_A, optionIdx: 1, anchors: { city: "Oslo, NO" } },
+        { uid: "u3", qid: CORE_A, optionIdx: 1, anchors: { city: "Bergen, NO" } },
+        { uid: "u4", qid: CORE_A, optionIdx: 1 }, // no city: the world sample only
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.samples).toBe(1);
+    expect(r.citySamples).toBe(2);
+    expect([...state.citySamples.keys()].sort()).toEqual([
+      `city-${CORE_A}~Bergen%2C%20NO`, `city-${CORE_A}~Oslo%2C%20NO`,
+    ]);
+    const oslo = state.citySamples.get(`city-${CORE_A}~Oslo%2C%20NO`)!;
+    expect(oslo.city).toBe("Oslo, NO");
+    expect(oslo.qid).toBe(CORE_A);
+    expect(oslo.n).toBe(2);
+    expect(oslo.rows.u1).toEqual({ o: 0, a: { city: "Oslo, NO" }, d: yesterday, n: "Olaf", s: null, l: null });
+    expect(oslo.rows.u4).toBeUndefined();
+    expect(state.samples.get(CORE_A)!.n).toBe(4);
+    // a re-run of the same morning owes nothing to either family
+    const again = await runPatternsFit(store, NOW);
+    expect(again.citySamples).toBe(0);
   });
 
   it("caps a sample at the newest two hundred", async () => {

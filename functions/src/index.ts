@@ -26,6 +26,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
+import { citySampleId } from "./patternsSamples";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -298,34 +299,67 @@ export const deleteAccount = onCall(
     //     document family that holds uids: `v2_patterns/sample-{qid}`, the
     //     newest two hundred voters per question, rows keyed by uid so
     //     this arm is a field delete and never a rewrite of anyone else's
-    //     row. Every sample is checked rather than the ones this
+    //     row. Every world sample is checked rather than the ones this
     //     account's answer map names, because the map and the samples
     //     are written by the same nightly run and a crash between the two
     //     writes could leave a row the map does not know about — a few
     //     hundred reads once per deletion is the price of "gone means
     //     gone" holding without a caveat. e2e-delete-account.mjs asserts
     //     it, and that the other voters' rows stay.
-    try {
-      const refs = (await db.collection("v2_patterns").listDocuments())
-        .filter((r) => r.id.startsWith("sample-"));
-      let scrubbed = 0;
-      for (let i = 0; i < refs.length; i += 300) {
-        const snaps = await db.getAll(...refs.slice(i, i + 300));
-        let batch = db.batch();
-        let ops = 0;
-        for (const snap of snaps) {
-          if (!snap.exists) continue;
-          const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
-          if (!(uid in rows)) continue;
-          batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
-          scrubbed += 1;
-          if (++ops >= 450) {
-            await batch.commit();
-            batch = db.batch();
-            ops = 0;
-          }
+    //
+    //     Enumerated by ID RANGE rather than `listDocuments` since the
+    //     per-city samples joined the collection (DATA-EFFICIENCY-RUNBOOK
+    //     2.5): those are `city-{qid}~{city}` — one per (question, city)
+    //     pair the nightly has seen, which at scale is the product of two
+    //     catalogues — and a listing that walked them all is the shape
+    //     this callable's deadline cannot hold. `sample-` ≤ id < `sample.`
+    //     is exactly the world family ('.' follows '-' in ASCII).
+    let scrubbed = 0;
+    const scrub = async (snaps: FirebaseFirestore.DocumentSnapshot[]) => {
+      let batch = db.batch();
+      let ops = 0;
+      for (const snap of snaps) {
+        if (!snap.exists) continue;
+        const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+        if (!(uid in rows)) continue;
+        batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
+        scrubbed += 1;
+        if (++ops >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          ops = 0;
         }
-        if (ops) await batch.commit();
+      }
+      if (ops) await batch.commit();
+    };
+    try {
+      const world = await db.collection("v2_patterns")
+        .where(FieldPath.documentId(), ">=", "sample-")
+        .where(FieldPath.documentId(), "<", "sample.")
+        .get();
+      await scrub(world.docs);
+      // The city samples this account can be in are named by its OWN
+      // answers — the frozen `anchors.city` on each (D8), which is the
+      // same chip the nightly keyed the row under — so the reach is
+      // bounded by the account's answers rather than by the catalogue.
+      // An answer whose trigger has not folded yet has no row anywhere,
+      // and the answers are read here, before phase 1b deletes them.
+      const pairs = new Set<string>();
+      let query = db.collection("v2_users").doc(uid).collection("answers")
+        .orderBy(FieldPath.documentId()).select("qid", "anchors").limit(1000);
+      for (;;) {
+        const page = await query.get();
+        for (const d of page.docs) {
+          const qid = String(d.get("qid") ?? "");
+          const city = (d.get("anchors") as { city?: unknown } | undefined)?.city;
+          if (qid && typeof city === "string" && city.trim()) pairs.add(citySampleId(qid, city));
+        }
+        if (page.size < 1000) break;
+        query = query.startAfter(page.docs[page.size - 1]);
+      }
+      const ids = [...pairs].sort();
+      for (let i = 0; i < ids.length; i += 300) {
+        await scrub(await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id))));
       }
       counts.patternSamples = scrubbed;
     } catch (err) {
@@ -1316,6 +1350,7 @@ export const deleteAccount = onCall(
 
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
 export { seedContentV2, onV2AnswerCreated, onV2AnswerUpdated } from "./v2";
+export { onV2ProfileUpdated } from "./profileFanout";
 export {
   acceptGroupInviteV2,
   claimHandleV2,

@@ -57,7 +57,9 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     before assuming the rules are live. First real release: run
     30644637683.
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (exact
-    aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
+    aggregates), `onV2ProfileUpdated` (a changed name or score into the
+    voter samples — DATA-EFFICIENCY-RUNBOOK 2.1), `createGroupV2` /
+    `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
   - Moderation functions (docs/MODERATION.md, D22): `buildModQueue`

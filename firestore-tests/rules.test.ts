@@ -41,6 +41,7 @@ import {
   deleteDoc,
   deleteField,
   serverTimestamp,
+  Timestamp,
   type Firestore,
 } from "firebase/firestore";
 
@@ -957,6 +958,9 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // …and the nightly voter samples beside it (D397) read under the same
     // rule — they are the who-voted list, which D98 made anyone's to read
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "sample-daily-000")));
+    // …and the per-city samples (DATA-EFFICIENCY-RUNBOOK 2.5), the same
+    // list for one city, under the same rule and a different prefix
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "city-daily-000~Oslo%2C%20NO")));
     // A client-writable model would make the whole map forgeable in one request.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 8, q: {} }));
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 9 }));
@@ -1884,6 +1888,33 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // whose ANSWER froze that city (D8) rather than whoever lives there
     // today.
     expect((snap as { size: number }).size).toBe(1);
+  });
+
+  // The who-voted sheet's live tail (DATA-EFFICIENCY-RUNBOOK 2.4): the
+  // same read with a range on the field it orders by. A range is not an
+  // equality, and the rule's list-query comparison has to accept it the
+  // same way — pinned rather than assumed, because a refusal here would
+  // read on the device as "we could not ask" for every cold question.
+  it("still grants the who-voted read narrowed by a range on answeredAt — the sheet's tail", async () => {
+    // Stamped, because a range drops a document that lacks the field —
+    // the case above seeds none, and the count below is the vacuity guard.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 1, anchors: { city: "Oslo, NO" }, answeredAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, "v2_users", FRIEND, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, anchors: { city: "Bergen, NO" }, answeredAt: serverTimestamp(),
+      });
+    });
+    const snap = await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", QID),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse", "call"]),
+      where("answeredAt", ">=", Timestamp.fromMillis(0)),
+      orderBy("answeredAt", "desc"),
+      limit(50),
+    )));
+    expect((snap as { size: number }).size).toBe(2);
   });
 
   // …and the narrowing must not become a way around the duel seal, which

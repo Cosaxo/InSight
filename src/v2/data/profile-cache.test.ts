@@ -42,6 +42,15 @@ const h = vi.hoisted(() => ({
   avatars: {} as Record<string, Record<string, unknown>>,
   profiles: {} as Record<string, Record<string, unknown>>,
   answerDocs: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // The nightly sample documents, by path (DATA-EFFICIENCY-RUNBOOK 2.3):
+  // what `getDoc` serves, so a case can hand the store a crowd whose
+  // names are on the rows and then count the profile reads it does NOT
+  // make.
+  sampleDocs: {} as Record<string, Record<string, unknown>>,
+  // Every collection-group query on `answers`, as its where clauses — the
+  // sheet's tail carries a range on `answeredAt` and the fallback does
+  // not, which is the only way to tell the three shapes apart from here.
+  answerQueries: [] as Array<Array<{ field: string; op: string }>>,
   uid: "uid_me",
 }));
 
@@ -69,12 +78,13 @@ vi.mock("firebase/firestore", () => {
     collection: (_db: unknown, ...p: string[]) => ref("collection", p),
     collectionGroup: (_db: unknown, name: string) => ref("collectionGroup", [name]),
     doc: (_db: unknown, ...p: string[]) => ref("doc", p),
-    query: (src: { path?: string }, ...parts: Array<{ __kind: string; ids?: unknown }>) => ({
+    query: (src: { path?: string }, ...parts: Array<{ __kind: string; ids?: unknown; field?: string; op?: string }>) => ({
       __kind: "query",
       path: src?.path,
       ids: parts.find((x) => x?.__kind === "where" && Array.isArray(x.ids))?.ids,
+      wheres: parts.filter((x) => x?.__kind === "where").map((x) => ({ field: String(x.field), op: String(x.op) })),
     }),
-    where: (_f: unknown, _op: unknown, ids: unknown) => ({ __kind: "where", ids }),
+    where: (field: unknown, op: unknown, ids: unknown) => ({ __kind: "where", field, op, ids }),
     orderBy: () => ({ __kind: "orderBy" }),
     // Required since D161 paged the bank fetch: live.ts destructures the
     // whole Firestore surface, so a missing member throws at boot.
@@ -83,8 +93,13 @@ vi.mock("firebase/firestore", () => {
     documentId: () => ({ __kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
-    getDoc: () => Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
-    getDocs: (q: { path?: string; ids?: string[] }) => {
+    getDoc: (target: { path: string }) => {
+      const data = h.sampleDocs[target?.path];
+      return Promise.resolve(data
+        ? { exists: () => true, get: (k: string) => data[k], data: () => data }
+        : { exists: () => false, get: () => undefined, data: () => ({}) });
+    },
+    getDocs: (q: { path?: string; ids?: string[]; wheres?: Array<{ field: string; op: string }> }) => {
       const mk = (docs: Array<{ id: string; path?: string; data: Record<string, unknown> }>) => ({
         size: docs.length,
         docs: docs.map((d) => ({
@@ -110,6 +125,7 @@ vi.mock("firebase/firestore", () => {
         ));
       }
       if (q?.path === "answers") {
+        h.answerQueries.push(q.wheres ?? []);
         return Promise.resolve(mk(h.answerDocs.map((a, i) => ({
           id: "a" + i, path: a.path, data: a.data,
         }))));
@@ -166,6 +182,8 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.bankDocs = bank();
   h.profileReads.length = 0;
+  h.answerQueries.length = 0;
+  h.sampleDocs = {};
   h.uid = "uid_me";
   h.profiles = {
     uid_a: { displayName: "Ada", testResults: {} },
@@ -325,6 +343,76 @@ describe("the profile cache survives a session", () => {
     await settle();
     const healed = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
     expect(healed.e.uid_a.l).toBe(88);
+  });
+});
+
+// ── the names ride the sample (DATA-EFFICIENCY-RUNBOOK 2.3 / 2.4) ──────
+//
+// The sample row carries the person since runbook 2.2, so the reads this
+// file exists to count — one `v2_users` query per thirty strangers — are
+// the reads a stamped sample makes unnecessary. What is pinned: Kindred's
+// read of a stamped sample touches no profile at all; the who-voted sheet
+// reads the sample and a live tail and resolves only the people no row
+// could name; and a tail at its cap sends the sheet back to the live list.
+describe("a stamped sample is the names (runbook 2.3, 2.4)", () => {
+  const sample = (rows: Record<string, unknown>) => ({ qid: "q_1", rows, n: Object.keys(rows).length });
+  const stamped = (o: number, d: string, n: string) => ({ o, a: {}, d, n, s: { big5: { O: 70 } }, l: 40 });
+
+  it("Kindred's sample read names the crowd and reads no profile", async () => {
+    h.sampleDocs["v2_patterns/sample-q_1"] = sample({
+      uid_a: stamped(0, "2026-09-05", "Ada"),
+      uid_b: stamped(1, "2026-09-05", "Bo"),
+    });
+    const mod = await bootLive();
+    await mod.default.loadVoterSample("q_1");
+    expect(h.profileReads, "a stamped row still cost a profile read").toHaveLength(0);
+    expect(mod.default.nameFor("uid_a")).toBe("Ada");
+    expect(mod.default.votersOrSample("q_1")?.map((v) => v.name).sort()).toEqual(["Ada", "Bo"]);
+    // …and the scores rode the same row, so the likeness fold has them
+    await settle();
+    const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    expect(raw.e.uid_a.s).toEqual({ big5: { O: 70 } });
+    expect(raw.e.uid_a.l).toBe(40);
+  });
+
+  it("the who-voted sheet reads the sample and a short tail, and resolves only the unstamped", async () => {
+    // uid_a is stamped in the sample; uid_b's row predates the stamp. The
+    // tail (the answers fixture: both of them, newer) is under its cap, so
+    // the union is the list — and only uid_b costs a profile read.
+    h.sampleDocs["v2_patterns/sample-q_1"] = sample({
+      uid_a: stamped(0, "2026-09-05", "Ada"),
+      uid_b: { o: 1, a: {}, d: "2026-09-04" },
+    });
+    const mod = await bootLive();
+    await mod.default.loadVoters("q_1");
+    expect(h.answerQueries).toHaveLength(1);
+    expect(h.answerQueries[0].some((w) => w.field === "answeredAt" && w.op === ">="), "the tail did not carry its range").toBe(true);
+    expect(h.profileReads).toEqual([["uid_b"]]);
+    expect(mod.default.voters("q_1")?.map((v) => [v.uid, v.name]).sort()).toEqual([["uid_a", "Ada"], ["uid_b", "Bo"]]);
+  });
+
+  it("a tail at its cap sends the sheet back to the live list, so 'the newest 200' stays exactly true", async () => {
+    const { VOTER_TAIL_CAP } = await import("./voters");
+    h.sampleDocs["v2_patterns/sample-q_1"] = sample({ uid_a: stamped(0, "2026-09-01", "Ada") });
+    h.answerDocs = Array.from({ length: VOTER_TAIL_CAP }, (_, i) => ({
+      path: `v2_users/uid_t${i}/answers/x`, data: { qid: "q_1", optionIdx: i % 2, anchors: {} },
+    }));
+    const mod = await bootLive();
+    await mod.default.loadVoters("q_1");
+    // two queries: the tail, then the unranged live list
+    expect(h.answerQueries).toHaveLength(2);
+    expect(h.answerQueries[0].some((w) => w.field === "answeredAt")).toBe(true);
+    expect(h.answerQueries[1].some((w) => w.field === "answeredAt")).toBe(false);
+    expect(mod.default.voters("q_1")).toHaveLength(VOTER_TAIL_CAP);
+    expect(mod.default.voters("q_1")?.some((v) => v.uid === "uid_a"), "the sample's older row survived a hot day").toBe(false);
+  });
+
+  it("with no sample the sheet is the live list it always was, and reads every stranger once", async () => {
+    const mod = await bootLive();
+    await mod.default.loadVoters("q_1");
+    expect(h.answerQueries).toHaveLength(1);
+    expect(h.answerQueries[0].some((w) => w.field === "answeredAt")).toBe(false);
+    expect(h.profileReads).toEqual([["uid_a", "uid_b"]]);
   });
 });
 

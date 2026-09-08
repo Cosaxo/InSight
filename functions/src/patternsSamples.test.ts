@@ -3,9 +3,16 @@
 //      never adds one;
 //   2. the cap keeps the newest, in a total order a re-run reproduces;
 //   3. the frozen chips ride the row, and an entry without any carries {};
-//   4. the additions group by question in a deterministic order.
+//   4. the additions group by question in a deterministic order;
+//   5. (DATA-EFFICIENCY-RUNBOOK 2.2) the person's stamp — name, scores,
+//      logic — rides the row, an edit keeps its create's, and the day's
+//      stamp refreshes every row the merge rewrites;
+//   6. (runbook 2.5) the per-city pairs, hottest first, cut to the budget.
 import { describe, expect, it } from "vitest";
-import { PATTERNS_SAMPLE_CAP, emptySample, mergeSample, sampleAdditions, sampleOrder, type SampleAddition } from "./patternsSamples";
+import {
+  CITY_SAMPLE_PAIRS_PER_NIGHT, PATTERNS_SAMPLE_CAP, citySampleAdditions, citySampleId, emptySample,
+  mergeSample, sampleAdditions, sampleOrder, worldSampleId, type SampleAddition,
+} from "./patternsSamples";
 
 describe("mergeSample", () => {
   it("keeps one row per person and lets the newest answer win", () => {
@@ -56,6 +63,25 @@ describe("mergeSample", () => {
     expect(JSON.stringify(whole)).toBe(JSON.stringify(a));
   });
 
+  it("trims a day's additions to the cap before merging, exactly as the sort after would", () => {
+    // The daily question's additions are the day's whole crowd. The
+    // pre-trim must not change what the cap keeps: a prior sample of an
+    // older day plus a flood of today's additions lands on the same rows
+    // whichever way it is computed — and the same person twice within the
+    // day (an edit after a create) is still one row, the later one.
+    const prev = mergeSample(null, "q", [{ uid: "old1", optionIdx: 0, day: "2026-08-30" }, { uid: "old2", optionIdx: 1, day: "2026-08-30" }]);
+    const flood: SampleAddition[] = [];
+    for (let i = 0; i < PATTERNS_SAMPLE_CAP + 40; i++) flood.push({ uid: `u${String(i).padStart(3, "0")}`, optionIdx: 0, day: "2026-09-01" });
+    flood.push({ uid: "u001", optionIdx: 1, day: "2026-09-01" }); // the edit, later in the day
+    const merged = mergeSample(prev, "q", flood);
+    expect(merged.n).toBe(PATTERNS_SAMPLE_CAP);
+    expect(merged.rows.old1, "an older day's row survived a full day of newer ones").toBeUndefined();
+    expect(merged.rows.u001.o, "the later entry within the day did not win").toBe(1);
+    const uids = Object.keys(merged.rows).sort();
+    expect(uids[0]).toBe("u000");
+    expect(uids[uids.length - 1]).toBe(`u${String(PATTERNS_SAMPLE_CAP - 1).padStart(3, "0")}`);
+  });
+
   it("orders newest first, then by uid, as a total order", () => {
     const rows: [string, { o: number; a: Record<string, string>; d: string }][] = [
       ["b", { o: 0, a: {}, d: "2026-09-01" }],
@@ -64,6 +90,47 @@ describe("mergeSample", () => {
     ];
     expect([...rows].sort(sampleOrder).map((r) => r[0])).toEqual(["a", "c", "b"]);
     expect(emptySample("x")).toEqual({ qid: "x", rows: {}, n: 0 });
+    expect(emptySample("x", "Oslo, NO")).toEqual({ qid: "x", rows: {}, n: 0, city: "Oslo, NO" });
+  });
+});
+
+describe("the stamp on a row (DATA-EFFICIENCY-RUNBOOK 2.2)", () => {
+  const stamp = { n: "Olaf", s: { big5: { O: 70 } }, l: 55 };
+  const later = { n: "Olaf T", s: { big5: { O: 71 } }, l: null };
+
+  it("rides the row from the addition, and a row without one carries no stamp keys at all", () => {
+    const s = mergeSample(null, "q", [
+      { uid: "u1", optionIdx: 0, day: "2026-09-01", stamp },
+      { uid: "u2", optionIdx: 1, day: "2026-09-01" },
+    ]);
+    expect(s.rows.u1).toEqual({ o: 0, a: {}, d: "2026-09-01", n: "Olaf", s: { big5: { O: 70 } }, l: 55 });
+    expect(s.rows.u2).toEqual({ o: 1, a: {}, d: "2026-09-01" });
+    expect(Object.keys(s.rows.u2)).not.toContain("n");
+  });
+
+  it("an edit keeps what its create wrote — name, scores and logic — while the answer moves", () => {
+    const s1 = mergeSample(null, "q", [{ uid: "u1", optionIdx: 0, day: "2026-09-01", stamp }]);
+    const s2 = mergeSample(s1, "q", [{ uid: "u1", optionIdx: 1, day: "2026-09-03" }]);
+    expect(s2.rows.u1).toEqual({ o: 1, a: {}, d: "2026-09-03", n: "Olaf", s: { big5: { O: 70 } }, l: 55 });
+    // a stamped-with-nothing create is still a stamp: "" and nulls land
+    const bare = { n: "", s: null, l: null };
+    const s3 = mergeSample(s2, "q", [{ uid: "u1", optionIdx: 0, day: "2026-09-04", stamp: bare }]);
+    expect(s3.rows.u1).toEqual({ o: 0, a: {}, d: "2026-09-04", n: "", s: null, l: null });
+  });
+
+  it("the day's stamps refresh every row the merge rewrites, additions or not", () => {
+    // u1 answered this question weeks ago; today they answered something
+    // ELSE with a new name. The sample is being rewritten for u2's
+    // addition anyway, so u1's row takes the newer stamp for free.
+    const prev = mergeSample(null, "q", [{ uid: "u1", optionIdx: 0, day: "2026-08-01", stamp }]);
+    const stamps = new Map([["u1", later]]);
+    const s = mergeSample(prev, "q", [{ uid: "u2", optionIdx: 1, day: "2026-09-01" }], undefined, stamps);
+    expect(s.rows.u1).toEqual({ o: 0, a: {}, d: "2026-08-01", n: "Olaf T", s: { big5: { O: 71 } }, l: null });
+    expect(s.rows.u2).toEqual({ o: 1, a: {}, d: "2026-09-01" });
+    // and a row written before the stamp existed gains one the same way
+    const old = mergeSample(null, "q", [{ uid: "u3", optionIdx: 0, day: "2026-08-01" }]);
+    const s2 = mergeSample(old, "q", [], undefined, new Map([["u3", stamp]]));
+    expect(s2.rows.u3.n).toBe("Olaf");
   });
 });
 
@@ -81,5 +148,44 @@ describe("sampleAdditions", () => {
       { uid: "u2", optionIdx: 1, anchors: undefined, day: "2026-09-05" },
     ]);
     expect(adds.get("qb")).toEqual([{ uid: "u2", optionIdx: 0, anchors: undefined, day: "2026-09-05" }]);
+  });
+
+  it("attaches the person's stamp for the day to every addition of theirs", () => {
+    const stamp = { n: "Ola", s: null, l: 12 };
+    const adds = sampleAdditions("2026-09-05", new Map([["u1", { qa: 0, qb: 1 }]]), new Map(), new Map([["u1", stamp]]));
+    expect(adds.get("qa")![0].stamp).toEqual(stamp);
+    expect(adds.get("qb")![0].stamp).toEqual(stamp);
+  });
+});
+
+describe("citySampleAdditions (runbook 2.5)", () => {
+  const add = (uid: string, city?: string): SampleAddition => ({ uid, optionIdx: 0, day: "2026-09-05", ...(city ? { anchors: { city } } : {}) });
+
+  it("groups by (question, city), hottest pair first, and skips additions with no city", () => {
+    const adds = new Map<string, SampleAddition[]>([
+      ["qa", [add("u1", "Oslo, NO"), add("u2", "Oslo, NO"), add("u3", "Bergen, NO"), add("u4"), add("u5", " ")]],
+      ["qb", [add("u1", "Oslo, NO")]],
+    ]);
+    const pairs = citySampleAdditions(adds);
+    expect(pairs.map((p) => [p.qid, p.city, p.adds.length])).toEqual([
+      ["qa", "Oslo, NO", 2],
+      ["qa", "Bergen, NO", 1],
+      ["qb", "Oslo, NO", 1],
+    ]);
+  });
+
+  it("cuts to the night's budget, and the budget is a real number", () => {
+    const adds = new Map<string, SampleAddition[]>([["qa", [add("u1", "A"), add("u2", "B"), add("u3", "B"), add("u4", "C")]]]);
+    expect(citySampleAdditions(adds, 2).map((p) => p.city)).toEqual(["B", "A"]);
+    expect(citySampleAdditions(adds, 0)).toEqual([]);
+    expect(CITY_SAMPLE_PAIRS_PER_NIGHT).toBeGreaterThanOrEqual(10_000);
+  });
+
+  it("names documents the device can build: a URI-encoded chip after a tilde, apart from the world prefix", () => {
+    expect(worldSampleId("daily-000")).toBe("sample-daily-000");
+    expect(citySampleId("daily-000", "Oslo, NO")).toBe("city-daily-000~Oslo%2C%20NO");
+    expect(citySampleId("q", "a/b")).not.toContain("/");
+    // the erasure arm's id range for world samples must not reach a city document
+    expect("city-x~y" < "sample-").toBe(true);
   });
 });

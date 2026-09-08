@@ -217,6 +217,20 @@ export const FOLLOW_CAP = readNum(
 export const CIRCLE_ANSWER_CAP = readNum(
   "src/v2/data/circle.ts", /export const CIRCLE_ANSWER_CAP = (\d+)/, "CIRCLE_ANSWER_CAP");
 
+// The who-voted sheet's live tail (DATA-EFFICIENCY-RUNBOOK 2.4): the sheet
+// reads the nightly sample and then only the answers newer than it, at
+// most this many. At the cap the question is hot and the sheet reads the
+// full live list as before — `B.sheetOpensHot` is the share of opens that
+// land there.
+export const VOTER_TAIL_CAP = readNum(
+  "src/v2/data/voters.ts", /export const VOTER_TAIL_CAP = (\d+)/, "VOTER_TAIL_CAP");
+
+// The per-city samples the nightly pass merges (runbook 2.5): one read
+// and one write per (question, city) pair the day touched, hottest first,
+// up to this many a night.
+export const CITY_SAMPLE_PAIRS_PER_NIGHT = readNum(
+  "functions/src/patternsSamples.ts", /CITY_SAMPLE_PAIRS_PER_NIGHT = ([\d_]+)/, "CITY_SAMPLE_PAIRS_PER_NIGHT");
+
 // How often the public mirror is rewritten, in answers. Drives both the
 // mature write multiplier and the listener fan-out rate.
 //
@@ -526,9 +540,23 @@ export const B = {
   // so the first week of real usage can correct a number instead of
   // discovering a category.
   sheetOpens: 0.15,   // who-voted sheets opened per user per day
+  // The share of those opens on a HOT question — one with more answers
+  // since last night's merge than the live tail holds (VOTER_TAIL_CAP),
+  // which is today's daily at any real size — where the sheet reads the
+  // full live list as it did before runbook 2.4. The rest read one sample
+  // document plus a short tail. A guess about curiosity like its
+  // neighbours: most sheet opens are on the card that just opened.
+  sheetOpensHot: 0.7,
   kindredViews: 0.03, // People-lens (Kindred) first views per user per day
   circleOpens: 0.1,   // Circle stop opens per user per day
   circleFollows: 5,   // accounts a typical circle holds (the cap is 50)
+  // Times per account per YEAR a profile stamp changes — a rename, a test
+  // taken or retaken, a verified logic score — each of which the profile
+  // fan-out (functions/src/profileFanout.ts) moves into every sample row
+  // the account holds. Most land in the first week, when the account has
+  // few rows; this charges every one at the mature account's size, so it
+  // errs high.
+  stampChanges: 3,
 };
 
 // ── bytes, for the two lines the model billed as free (D67) ─────
@@ -644,20 +672,53 @@ export function socialTerms(dau, mature, o = {}) {
   // globally shared, so a question's crowd is roughly everyone active that
   // day until the cap binds.
   const crowd = Math.min(voterCap, dau);
+  // A hot sheet is the live list it always was — `crowd` answer documents
+  // and their profiles; a cold one (DATA-EFFICIENCY-RUNBOOK 2.4) is the
+  // sample document, the tail, and a profile per tail row. The tail is
+  // charged at its cap — under it the union is exact and cheaper, and
+  // the cap is the bound the code states rather than a guess.
+  const hot = B.sheetOpensHot;
   return {
-    whoVoted: B.sheetOpens * crowd * names,
+    whoVoted: B.sheetOpens * (hot * crowd * names + (1 - hot) * (1 + VOTER_TAIL_CAP * names)),
     // Kindred reads the nightly voter SAMPLE (D397): one document per
-    // question in place of `crowd` answer documents, and the same profile
-    // reads for names as before — `names − 1` of them per row, because the
-    // ×2 above was "answers plus profiles" and the answers half is now the
-    // one document. The People lens and the pair card ride the same
-    // documents; the who-voted sheet above keeps the live query.
-    kindred: B.kindredViews * kindredQs * (1 + crowd * (names - 1)),
+    // question in place of `crowd` answer documents — and since runbook
+    // 2.2/2.3 the rows carry names and scores, so the profile read per row
+    // that stood here (`crowd × (names − 1)`) is gone. A row written
+    // before the stamp existed still costs one, once, and then not. The
+    // People lens and the pair card ride the same documents.
+    kindred: B.kindredViews * kindredQs,
+    // The city pass (D278, runbook 2.5): the same twelve questions from the
+    // viewer's city, one per-city sample document each — where it was
+    // twelve live queries of up to `crowd` answers plus names, in no term
+    // of this model at all (DATA-EFFICIENCY.md §2.9). Charged at the
+    // Kindred view rate: the City stop's constellation is what asks.
+    cityKindred: B.kindredViews * kindredQs,
     // A member's answer set grows with account AGE, not DAU.
-    circle: B.circleOpens * B.circleFollows
-      * Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10)),
+    circle: B.circleOpens * B.circleFollows * memberAnswers(mature, circleCap),
   };
 }
+
+/** A Circle member's answer set — bounded by the cap, growing with account
+ * age rather than DAU. cost-structure.mjs had its own copy of this
+ * expression until the fan-out term below needed it too (D197's rule). */
+export function memberAnswers(mature, circleCap = CIRCLE_ANSWER_CAP) {
+  return Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10));
+}
+
+/** The nightly per-city samples (runbook 2.5), per user-day: one read and
+ * one write per (question, city) pair the day touched, at the ceiling —
+ * every answer its own pair — and capped by the night's budget. Above
+ * ~CITY_SAMPLE_PAIRS_PER_NIGHT / worldAnswers DAU the budget binds and
+ * the term shrinks per user; below it this errs high, since a day's
+ * answers to one question from one city are one pair. */
+export const citySampleOps = (dau) => Math.min(CITY_SAMPLE_PAIRS_PER_NIGHT, dau * B.worldAnswers) / dau;
+
+/** The profile fan-out (runbook 2.1, functions/src/profileFanout.ts), per
+ * user-day: each stamp change reads the account's answers and the sample
+ * documents they name (two reads per answer at the ceiling) and rewrites
+ * the row where one exists (one write per answer at the ceiling). */
+export const profileFanoutReads = (mature) => (B.stampChanges / 365) * 2 * memberAnswers(mature);
+export const profileFanoutWrites = (mature) => (B.stampChanges / 365) * memberAnswers(mature);
 
 export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
@@ -769,7 +830,9 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + ENGAGEMENT_USER_STATE_OPS
       + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
       + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
-      + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
+      + B.duelAnswers * revealReadsPerMember(B.duelGroupSize)
+      + citySampleOps(dau) // the per-city samples' read-before-merge (runbook 2.5)
+      + profileFanoutReads(mature); // a changed stamp finds its rows (runbook 2.1)
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
     // because they are one mechanism at three surfaces; the split lives in
@@ -819,7 +882,12 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    //
+    // + the per-city samples (runbook 2.5: one write per touched pair a
+    // night, per user-day at the ceiling) and the profile fan-out's row
+    // rewrites (runbook 2.1). The world samples are one write per
+    // question a night, under any rounding here.
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);

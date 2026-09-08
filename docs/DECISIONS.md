@@ -45061,3 +45061,26 @@ per-member variant needs no ruling.
 `scripts/cost-structure.mjs` for the figures; each runbook step names
 the gate that proves it, and the model's terms move with the code they
 price (`scripts/pulse.test.mjs`) rather than in prose.
+
+### 5 · Built the same day: Phases 1 and 2 (2026-09-08)
+
+Phase 1 as planned (the runbook has the two refusals). Phase 2 as
+planned with three things that moved, each under this record's own
+rule that nothing a user sees may shrink. **A trigger the plan did not
+have** — `onV2ProfileUpdated` — because a name stamped as of the answer
+would have left a renamed account under its old name on every question
+it did not answer again, which is a visible regression against the
+seven-day cache; it reads nothing unless the stamp changed and is
+bounded by the account's own answers. **The who-voted sheet in three
+shapes** rather than two: a question whose live tail fills its cap
+reads the full live list, so "the newest 200" stays exactly true; the
+saving lands on the cold question and the hot one costs what it did.
+The cheaper sentence — *as of last night, plus the newest 50* — is a
+copy decision and is on `OWNER-LIST.md`; the model charges the hot
+share at `B.sheetOpensHot` until it is made. **The city samples bounded
+per night, not per city**: a size floor cannot accumulate, so every
+touched pair merges up to `CITY_SAMPLE_PAIRS_PER_NIGHT`, hottest first,
+and the erasure arm reaches the city family through the account's own
+answers rather than by listing a collection the size of two catalogues.
+`npm run costs` after: 357 → 277 reads per user-day at maturity, the
+D98 column 282 → 197.

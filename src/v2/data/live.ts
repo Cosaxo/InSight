@@ -136,7 +136,10 @@ import * as cacheStore from "./cacheStore";
 import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import {
+  fetchSampleDoc, fetchVoters, fetchVoterSample, fetchVoterTail, groupByOption, resolveNames, sortVoters,
+  unionVoters, VOTER_TAIL_CAP, type ProfileCaches, type Voter,
+} from "./voters";
 import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
@@ -1182,6 +1185,25 @@ function writeProfileCache(): void {
   } catch {
     /* best-effort: quota, private mode, no storage */
   }
+}
+
+/** The three caches a sample read fills from its rows (runbook 2.3) —
+ * the same maps `resolveNames` fills from a live read, so precedence is
+ * settled by presence: whichever got there first is what the session
+ * shows, and the disk cache (D129) persists both alike. */
+function profileCaches(): ProfileCaches {
+  return { names: state.names, scores: state.scores, logic: state.logicPcts };
+}
+
+/** The viewer's own row for a who-voted sheet, off the vote map: the
+ * option they picked on `qid`, under the anchors their next answer would
+ * freeze. Null for an unanswered question, and for one whose vote is not
+ * an option index (a catalogue pick, a ranked order). */
+function ownVoterRow(qid: string): Voter | null {
+  if (!state.uid || !storesOptionIdx(qid)) return null;
+  const n = Number(state.votes[qid]);
+  if (!Number.isInteger(n) || n < 0) return null;
+  return { uid: state.uid, optionIdx: n, anchors: { ...state.profile.anchors }, name: state.profile.displayName || "", isMe: true };
 }
 
 // Coalesced on the same reasoning as the agg cache below: `resolveNames`
@@ -4857,13 +4879,43 @@ const LIVE = {
     notify();
     try {
       const db = await getDb();
+      // THE SAMPLE PLUS A LIVE TAIL (DATA-EFFICIENCY-RUNBOOK 2.4), where
+      // the sheet used to be the one live list of two hundred answer
+      // documents plus their profiles. The nightly sample is the newest
+      // VOTER_FETCH_CAP as of last night's merge, names and scores on the
+      // rows (runbook 2.3); the tail is what was answered since, capped
+      // at VOTER_TAIL_CAP. Under the cap the union IS the newest
+      // VOTER_FETCH_CAP, exactly — the panel's "newest 200" stays true. At
+      // the cap the question is hot (today's daily, at any real size) and
+      // the sheet reads the live list as it always did: the saving is on
+      // the cold question, and the claim is never traded for it here.
+      // Three shapes, then: no sample → live; sample and a short tail →
+      // union; sample and a full tail → live.
+      const caches = profileCaches();
+      const sample = await fetchSampleDoc(db, qid, state.uid, caches);
+      let rows: Voter[] | null = null;
+      if (sample) {
+        const tail = await fetchVoterTail(db, qid, state.uid, sample.newestDay);
+        if (tail.length < VOTER_TAIL_CAP) {
+          rows = unionVoters(tail, sample.rows);
+          // Your own answer the moment it lands, which the live list
+          // showed by reading it back: an answer still in the write queue
+          // (D357) is in neither the sample nor the tail, so it comes off
+          // the vote map — the one row the device can vouch for itself.
+          const mine = ownVoterRow(qid);
+          if (mine && !rows.some((r) => r.isMe)) rows = unionVoters([mine], rows);
+          // Only the people no row could name — a row written before the
+          // stamp existed — reach Firestore here; the rest are in hand.
+          await resolveNames(db, rows.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+          for (const r of rows) r.name = state.names[r.uid] || "";
+        }
+      }
+      if (!rows) rows = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts);
       // SORTED HERE, once, rather than on every read. Both keys the
       // comparator uses — `isMe` and the resolved `name` — are fixed when
       // the rows are built and never revised afterwards, so the order the
       // list will ever have is knowable now.
-      state.voters[qid] = sortVoters(
-        await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts),
-      );
+      state.voters[qid] = sortVoters(rows);
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -4897,7 +4949,9 @@ const LIVE = {
     let fallback = false;
     try {
       const db = await getDb();
-      const rows = await fetchVoterSample(db, qid, state.uid);
+      // The rows' own stamps fill the caches first (runbook 2.3), so the
+      // resolve below reads only the people no row could name.
+      const rows = await fetchVoterSample(db, qid, state.uid, profileCaches());
       if (!rows) {
         fallback = true;
       } else {
@@ -5325,7 +5379,19 @@ const LIVE = {
       // queries fired at once is the shape that gets a client rate-limited.
       for (const qid of qids) {
         try {
-          next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+          // The per-city sample first (DATA-EFFICIENCY-RUNBOOK 2.5): one
+          // document for the newest VOTER_FETCH_CAP answers from this
+          // city, stamps on the rows — with the city-scoped live query as
+          // the fallback for a (question, city) pair the nightly has not
+          // written yet, exactly as the world pass falls back.
+          const sample = await fetchVoterSample(db, qid, state.uid, profileCaches(), city);
+          if (sample) {
+            await resolveNames(db, sample.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+            for (const r of sample) r.name = state.names[r.uid] || "";
+            next[qid] = sample;
+          } else {
+            next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+          }
         } catch (err) {
           // One question failing must not cost the other eleven. Absent
           // rather than empty, the loadVoters rule.

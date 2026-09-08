@@ -602,6 +602,21 @@
       "collectionGroup": "v2_rank",
       "fieldPath": "at",
       "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "n",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "s",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "l",
+      "indexes": []
     }
   ]
 }

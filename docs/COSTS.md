@@ -405,15 +405,25 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 23 | 42 | 3 | 3 | 4 | 7 | 33 | 53 | 168 |
-| 500 | 23 | 42 | 3 | 3 | 4 | 7 | 33 | 152 | 267 |
-| 5,000 | 23 | 2 | 3 | 3 | 4 | 7 | 33 | **282** | 357 |
-| 50,000 | 23 | 2 | 3 | 3 | 4 | 7 | 33 | 282 | 357 |
-| 500,000 | 23 | 2 | 3 | 3 | 4 | 7 | 33 | 282 | 357 |
+| 50 | 23 | 42 | 3 | 3 | 4 | 7 | 38 | 36 | 155 |
+| 500 | 23 | 42 | 3 | 3 | 4 | 7 | 38 | 67 | 187 |
+| 5,000 | 23 | 2 | 3 | 3 | 4 | 7 | 42 | **197** | 281 |
+| 50,000 | 23 | 2 | 3 | 3 | 4 | 7 | 39 | 197 | 277 |
+| 500,000 | 23 | 2 | 3 | 3 | 4 | 7 | 38 | 197 | 277 |
 
-> Re-printed 2026-09-08 from `npm run costs`: `re-attach` 28 → 4
-> (DATA-EFFICIENCY-RUNBOOK 1.4), and the server column 29 → 33, which
-> the model had carried since D395 and D399 while this table had not.
+> Re-printed 2026-09-08 from `npm run costs`, twice that day. First
+> `re-attach` 28 → 4 (DATA-EFFICIENCY-RUNBOOK 1.4), and the server
+> column 29 → 33, which the model had carried since D395 and D399 while
+> this table had not. Then Phase 2 of the same runbook: the D98 column
+> 282 → 197 — Kindred's profile read per row is gone (the sample rows
+> carry names and scores, 2.2/2.3), the cold who-voted sheet reads the
+> sample plus a short tail (2.4; the hot sheet still reads the live
+> list, charged at `B.sheetOpensHot`), and the city pass is now a term
+> at one document per question where it had none (2.5) — and the server
+> column 33 → 38–42 for the per-city samples' nightly read (at the
+> ceiling, capped by the night's budget, so it shrinks per user above
+> ~7,500 DAU) and the profile fan-out. Of the 197, Circle is 150 and
+> the hot sheets 46.
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the

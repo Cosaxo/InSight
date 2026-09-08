@@ -99,7 +99,8 @@ import {
   type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
-import { mergeSample, sampleAdditions, type SampleDoc } from "./patternsSamples";
+import { citySampleAdditions, citySampleId, mergeSample, sampleAdditions, type SampleDoc } from "./patternsSamples";
+import type { ProfileStamp } from "./profileStamp";
 import {
   ALS_LAMBDAS_U,
   PATTERNS_CROSSOVER_NIGHTS,
@@ -163,6 +164,12 @@ export interface PatternsLedgerEntry {
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the voter samples (D397). */
   anchors?: Record<string, string>;
+  /** The author's profile stamp (DATA-EFFICIENCY-RUNBOOK 2.1) — name,
+   *  parsed core scores, logic percentile — present on a create the
+   *  trigger stamped, absent on an edit and on older entries. */
+  n?: string;
+  s?: Record<string, Record<string, number>> | null;
+  l?: number | null;
 }
 
 export type PatternsEngine = "sgd" | "als";
@@ -226,6 +233,10 @@ export interface PatternsStore {
   /** The voter samples for these questions, where one exists (D397). */
   getSamples(qids: string[]): Promise<Map<string, SampleDoc>>;
   putSamples(samples: Map<string, SampleDoc>): Promise<void>;
+  /** The per-city samples (runbook 2.5), keyed by document id
+   *  (`citySampleId`), where one exists; and their writes. */
+  getCitySamples(ids: string[]): Promise<Map<string, SampleDoc>>;
+  putCitySamples(samples: Map<string, SampleDoc>): Promise<void>;
 }
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
@@ -262,6 +273,8 @@ export interface PatternsRunSummary {
   compacted: number;
   /** Voter sample documents rewritten tonight (D397). */
   samples: number;
+  /** Per-city samples merged (runbook 2.5). */
+  citySamples: number;
   users: number;
   questions: number;
   bits: number;
@@ -345,7 +358,7 @@ export async function runPatternsFit(
   }
   if (!days.length || yesterday <= lastDay) {
     return {
-      days: 0, folded: 0, compacted: 0, samples: 0, users: 0, questions: Object.keys(model.q).length,
+      days: 0, folded: 0, compacted: 0, samples: 0, citySamples: 0, users: 0, questions: Object.keys(model.q).length,
       bits: 0, skill: 0, seedCos: 0, engine, candidateSkill: 0, streak: engine === "sgd" ? alsStreakPrev : sgdStreakPrev, crossed: false,
     };
   }
@@ -353,6 +366,7 @@ export async function runPatternsFit(
   let folded = 0;
   let compacted = 0;
   let samplesWritten = 0;
+  let citySamplesWritten = 0;
   const touched = new Set<string>();
   // One tally per owed day (D325) — a day with nothing eligible keeps
   // its n: 0 row, so the series says "no answers" out loud rather than
@@ -449,6 +463,14 @@ export async function runPatternsFit(
         anchorsByUid.set(e.uid, an);
       }
     }
+    // The day's profile stamp per person (runbook 2.1): the newest
+    // stamped entry of theirs, ANY question — the stamp is a fact about
+    // the person, so it goes onto every row of theirs the samples below
+    // write or rewrite tonight. Entries are in `at` order, so last wins.
+    const stampByUid = new Map<string, ProfileStamp>();
+    for (const e of dayEntries) {
+      if (typeof e.n === "string") stampByUid.set(e.uid, { n: e.n, s: e.s ?? null, l: e.l ?? null });
+    }
     const uids = [...new Set([...byUid.keys(), ...answersByUid.keys()])].sort();
     const states = await store.getUsers(uids);
     // The candidate scores the day BEFORE the day is merged into anyone's
@@ -514,14 +536,35 @@ export async function runPatternsFit(
     // the who-voted sheet's own list refreshed nightly. A set, not a step
     // — re-merging a day a dead run already merged changes nothing — so
     // it needs no stamp of its own.
-    const adds = sampleAdditions(day, answersByUid, anchorsByUid);
+    const adds = sampleAdditions(day, answersByUid, anchorsByUid, stampByUid);
     if (adds.size) {
       const qids = [...adds.keys()].sort();
       const prevSamples = await store.getSamples(qids);
       const next = new Map<string, SampleDoc>();
-      for (const qid of qids) next.set(qid, mergeSample(prevSamples.get(qid) ?? null, qid, adds.get(qid) ?? []));
+      for (const qid of qids) next.set(qid, mergeSample(prevSamples.get(qid) ?? null, qid, adds.get(qid) ?? [], undefined, stampByUid));
       await store.putSamples(next);
       samplesWritten += next.size;
+      // ── and per city (runbook 2.5) ──────────────────────────────
+      //
+      // The same merge over the additions whose frozen chips name a city,
+      // one document per (question, city), hottest pairs first up to the
+      // night's budget. In CHUNKS, read-merge-write-drop, rather than the
+      // world loop's read-all-then-write-all: the world set is bounded by
+      // the corpus, this one by the product of two catalogues, and
+      // holding every merged city document until the end is the memory
+      // shape the pass is already short of.
+      const pairs = citySampleAdditions(adds);
+      for (let i = 0; i < pairs.length; i += 300) {
+        const chunk = pairs.slice(i, i + 300);
+        const ids = chunk.map((p) => citySampleId(p.qid, p.city));
+        const prevCity = await store.getCitySamples(ids);
+        const nextCity = new Map<string, SampleDoc>();
+        chunk.forEach((p, j) => {
+          nextCity.set(ids[j], mergeSample(prevCity.get(ids[j]) ?? null, p.qid, p.adds, undefined, stampByUid, p.city));
+        });
+        await store.putCitySamples(nextCity);
+        citySamplesWritten += nextCity.size;
+      }
     }
     // A DAY A DEAD RUN ALREADY FOLDED IS NOT AN EMPTY DAY. The retry guard
     // above skips everybody a previous attempt stamped, so `score` stays at
@@ -760,6 +803,7 @@ export async function runPatternsFit(
     folded,
     compacted,
     samples: samplesWritten,
+    citySamples: citySamplesWritten,
     users: touched.size,
     questions: Object.keys(engineRows).length,
     bits: pub.quality?.bits ?? 0,
@@ -928,6 +972,38 @@ export function firestorePatternsStore(
         for (const [qid, doc] of entries.slice(i, i + 400)) {
           batch.set(db.collection("v2_patterns").doc(`sample-${qid}`), {
             qid, rows: doc.rows, n: doc.n, at: FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    },
+    async getCitySamples(ids) {
+      const out = new Map<string, SampleDoc>();
+      for (let i = 0; i < ids.length; i += 300) {
+        const chunk = ids.slice(i, i + 300);
+        const snaps = await db.getAll(...chunk.map((id) => db.collection("v2_patterns").doc(id)));
+        snaps.forEach((snap, j) => {
+          if (!snap.exists) return;
+          out.set(chunk[j], {
+            qid: String(snap.get("qid") ?? ""),
+            city: String(snap.get("city") ?? ""),
+            rows: (snap.get("rows") as SampleDoc["rows"]) ?? {},
+            n: (snap.get("n") as number) ?? 0,
+          });
+        });
+      }
+      return out;
+    },
+    async putCitySamples(samples) {
+      // Same collection, same rule, a different prefix (`city-`): the
+      // erasure arm scans world samples by id range and reaches these
+      // through the account's own answers instead (index.ts, 1a′).
+      const entries = [...samples.entries()];
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        for (const [id, doc] of entries.slice(i, i + 400)) {
+          batch.set(db.collection("v2_patterns").doc(id), {
+            qid: doc.qid, city: doc.city ?? "", rows: doc.rows, n: doc.n, at: FieldValue.serverTimestamp(),
           });
         }
         await batch.commit();

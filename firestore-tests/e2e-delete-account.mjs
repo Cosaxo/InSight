@@ -98,8 +98,14 @@ const PICKED_ONLY = "grp_picked_only";
 // Written with admin, because most of these paths are no longer
 // client-writable (the v1 surface was retired in D4) — but deleteAccount
 // still has to clean them up for accounts that predate that.
-await adb.doc(`v2_users/${uid}`).set({ displayName: "Doomed", anon: true });
-await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optionIdx: 1 });
+// With a city, because the answer below claims one and the create trigger
+// corrects an answer's cohort to the profile's (D410, honestAnchors): a
+// profile without the city would blank the claim, and the per-city sample
+// this file asserts on is reached through exactly that chip.
+await adb.doc(`v2_users/${uid}`).set({ displayName: "Doomed", anon: true, anchors: { city: "Oslo, NO" } });
+// With the frozen city chip (D8): it is what names the per-city sample
+// the erasure arm has to reach (DATA-EFFICIENCY-RUNBOOK 2.5, below).
+await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optionIdx: 1, anchors: { city: "Oslo, NO" } });
 // A learn first attempt (D32) lives in the same answers subcollection —
 // erasure must cover it identically, and this seed is what proves the
 // claim instead of assuming the recursiveDelete reaches it.
@@ -130,8 +136,22 @@ await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 await adb.doc("v2_patterns/sample-daily-000").set({
   qid: "daily-000",
   rows: {
-    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY },
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
     [OTHER]: { o: 0, a: { city: "Bergen, NO" }, d: DAY },
+  },
+  n: 2,
+});
+// …and the per-city sample (DATA-EFFICIENCY-RUNBOOK 2.5), which the arm
+// reaches through the account's own answers rather than by listing the
+// collection. Its id is the server's `citySampleId` — pinned here as the
+// literal the device builds too (encodeURIComponent of the chip).
+const CITY_SAMPLE = "v2_patterns/city-daily-000~Oslo%2C%20NO";
+await adb.doc(CITY_SAMPLE).set({
+  qid: "daily-000",
+  city: "Oslo, NO",
+  rows: {
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
+    [OTHER]: { o: 0, a: { city: "Oslo, NO" }, d: DAY },
   },
   n: 2,
 });
@@ -662,6 +682,16 @@ if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
 if (sampleAfter.get("n") !== 1)
   fail("the sample's basis did not follow the scrub: n is " + sampleAfter.get("n"));
 ok("the voter sample no longer names the erased account, and the other voter's row is intact");
+const citySampleAfter = await adb.doc(CITY_SAMPLE).get();
+if (!citySampleAfter.exists)
+  fail("the per-city voter sample was deleted outright — it is everyone else's list");
+if (citySampleAfter.get("rows")?.[uid] !== undefined)
+  fail("the erased account's row survived in a world-readable per-city sample (runbook 2.5)");
+if (citySampleAfter.get("rows")?.[OTHER]?.o !== 0)
+  fail("the city sample scrub removed more than the one row — the other voter is gone");
+if (citySampleAfter.get("n") !== 1)
+  fail("the city sample's basis did not follow the scrub: n is " + citySampleAfter.get("n"));
+ok("the per-city voter sample no longer names the erased account either");
 
 // ── every seeded phase must be gone ──
 for (const [path, label] of [
