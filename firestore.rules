@@ -901,7 +901,7 @@ service cloud.firestore {
         }
 
         // Sealed duel answers: id g_{gid}_r{n} — one per member per ROUND
-        // (ROUNDS-PLAN, D420). Only members may PLAY, and only a round
+        // (ROUNDS-PLAN, D426). Only members may PLAY, and only a round
         // that is still open or sealed ahead of it: answering a round that
         // has already revealed would let you see everyone's cards before
         // playing yours. Both halves are game rules about who is at the

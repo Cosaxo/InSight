@@ -12,7 +12,7 @@
 // generates into a full queue and under-generates into an empty one.
 //
 // WHAT BOUNDS THIS LANE. Duels are consumed on a clock — and since
-// ROUNDS-PLAN / D420 the clock is the players', not the calendar's: a
+// ROUNDS-PLAN / D426 the clock is the players', not the calendar's: a
 // group or a 1v1 plays ROUNDS, as many as they like, and each round is one
 // question from the pool. Depth is therefore rounds-before-repeat, measured
 // per POOL against a repeat horizon, not per topic against breadth: the

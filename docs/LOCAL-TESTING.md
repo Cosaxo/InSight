@@ -54,7 +54,7 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 `scripts/test-users.mjs` runs synthetic accounts that play the duel loop the
 way a real device does — they sign in, write a profile, join through
 `joinGroupV2`, seal answers at `v2_users/{uid}/answers/g_{gid}_r{n}` (one per
-round, ROUNDS-PLAN / D420), and are revealed on the completing answer or by
+round, ROUNDS-PLAN / D426), and are revealed on the completing answer or by
 `revealDuelsNowV2`'s forced lever. Everything goes through the **client SDK**
 under each account's own session, so firestore.rules applies exactly as it
 does to a real phone; the admin SDK is never used. Emulator only, enforced —

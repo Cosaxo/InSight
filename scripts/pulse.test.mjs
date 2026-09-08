@@ -378,7 +378,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // own answering. If takes ever grow a volume story worth modelling,
       // add the term from a measured post rate — not from this note.
       //
-      // 33 → 35 gets, 3 → 2 exists (ROUNDS-PLAN / D420): the duel answer's
+      // 33 → 35 gets, 3 → 2 exists (ROUNDS-PLAN / D426): the duel answer's
       // day window became a ROUND bound — two get() sites on the group
       // document (`round >= open`, `round < open + lead`), the SAME
       // document the membership clause already fetched, so the site count
@@ -428,7 +428,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "rank (D233) branches each read one more — the question doc — which "
       + "the model deliberately absorbs into the vote rate (see the "
       + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
-      + "D420 — the group document, in the transaction that marks who "
+      + "D426 — the group document, in the transaction that marks who "
       + "played and asks whether the round is complete (TRIGGER_READS.duel "
       + "0 → 1) — plus TWO on its late path alone (the reveal it joins and "
       + "the member's profile for the name), charged by COSTS.md's own row "
@@ -463,7 +463,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   it("the reveal pipeline's per-member read count still has its two parts", () => {
     // revealReadsPerMember(m) = (2 + 2m)/m — getAll(profiles, fieldMask) and
     // the committing tx.getAll(revealRef, group, ...answers). ROUNDS-PLAN /
-    // D420 took the day's other two out: the standalone revealRef.get()
+    // D426 took the day's other two out: the standalone revealRef.get()
     // (redundant, because the reveal and the round's advance are one commit)
     // and the pre-read of every answer (the verdict comes off `played` on
     // the group document the page already holds).

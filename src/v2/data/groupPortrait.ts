@@ -2,7 +2,7 @@
 //
 // Everything here is derived from reveal docs the viewer can already read
 // (v2_groups/{gid}/reveals/r{n} — one per ROUND since ROUNDS-PLAN /
-// D420; before that one per day, gated on the reveal's own members
+// D426; before that one per day, gated on the reveal's own members
 // snapshot), so the portrait adds no disclosure of its own: it is a
 // different arrangement of votes the user has already been shown with
 // names attached. That is exactly the scope D1 carves out — named

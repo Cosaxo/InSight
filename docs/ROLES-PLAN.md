@@ -77,7 +77,7 @@ screens.
   average rose, the name, the line, the day count; one row per setting
   with receipts on tap; thin rows for settings under the floor. The ⓘ
   opens `spec/explain-sheet.jsx`'s `duo`/`group` entries. Live only.
-- **The record** — `v2_groups/{gid}/reveals/r{n}` (`SCHEMA-V2.md`; one per round since D420, one per day before):
+- **The record** — `v2_groups/{gid}/reveals/r{n}` (`SCHEMA-V2.md`; one per round since D426, one per day before):
   `votes { uid: { optionIdx, guessIdx?, pickUid? } }`, `members[]` (who
   was in the group ON that day), readable by any signed-in user (D98).
   The client reads the last `REVEAL_HIST_DAYS` = 14 of them per room

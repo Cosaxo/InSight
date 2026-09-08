@@ -812,7 +812,7 @@ unlike the aggregators below.** Under the day, a missed reveal did **not**
 self-heal: every run handled yesterday and only yesterday, so a three-day
 outage left two days permanently unrevealed, and recovering them needed a
 manual `revealDuelsNowV2` naming each day. Under rounds (ROUNDS-PLAN,
-D420) the scan asks for every group whose open round is DUE —
+D426) the scan asks for every group whose open round is DUE —
 `roundDeadlineAt <= now` — and a due round stays due until it reveals, so
 the first run after an outage catches up everything the outage missed.
 What the alert still buys is the WAIT: while the scan is quiet, every group

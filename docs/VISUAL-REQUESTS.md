@@ -685,7 +685,7 @@ gates what the doors say.
 - **why** — the ties axiom (`AXIOMS.md`, operational): rounds are what
   give `tie-2`'s second-person measurement enough shared items per pair
   to decompose at all. The screen is what makes the pace legible.
-- **status** — `built` 2026-09-08 (D420's second amendment). The owner's
+- **status** — `built` 2026-09-08 (D426's second amendment). The owner's
   canvas of 2026-09-08 — nine states for a 1v1 and a group, light and
   dark — is extracted to
   [`design/rounds-card-2026-09-08/`](../design/rounds-card-2026-09-08/),

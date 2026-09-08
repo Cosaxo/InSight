@@ -33,7 +33,7 @@ it is moving toward.
   play. The 09-07 design's *first day* (today sealed, tonight's clock,
   tomorrow revealed) is superseded by the first run drawn here: sealed,
   then revealed *when Ada plays*.
-- **Built from it:** the whole card, the same day (D420's second
+- **Built from it:** the whole card, the same day (D426's second
   amendment) — `ui/LiveDuelPanel.tsx`.
 - **Requests it closed:** 11.
 
@@ -92,7 +92,7 @@ it is moving toward.
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
 | 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
 | 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
-| **2026-09-08** | `design/rounds-card-2026-09-08/` | **the current vision** — the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D420 |
+| **2026-09-08** | `design/rounds-card-2026-09-08/` | **the current vision** — the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
 
 ## How the next one arrives
 

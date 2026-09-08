@@ -811,7 +811,7 @@ export const onV2AnswerCreated = onDocumentCreated(
     // Group/duo answers are sealed duel material — they surface through
     // materialized reveals (v2social), never through world aggregates.
     //
-    // What this write is for (ROUNDS-PLAN §2, §3.1; D420): it records that
+    // What this write is for (ROUNDS-PLAN §2, §3.1; D426): it records that
     // this member has answered this ROUND — `played.r{n}`, an arrayUnion
     // on the group document — and, if this is the open round's first
     // answer, starts the round's clock. Then, if the answer completed the

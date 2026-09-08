@@ -1,6 +1,6 @@
 // reveal-day.test.ts — the round reveal, executed rather than described.
 // (The file keeps its name from when a reveal was a day; the subject is
-// `revealRound` since ROUNDS-PLAN / D420.)
+// `revealRound` since ROUNDS-PLAN / D426.)
 //
 // WHY THIS FILE EXISTS. `revealRound` is the product's moment: it
 // publishes a round's answers to a room, opens the next round, moves the

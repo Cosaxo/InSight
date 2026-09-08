@@ -1,5 +1,5 @@
 // late-answer.test.ts — the answer trigger's duel branch under rounds
-// (ROUNDS-PLAN §§3.1, 4; D420), executed rather than described.
+// (ROUNDS-PLAN §§3.1, 4; D426), executed rather than described.
 //
 // Two paths, one branch. A BLIND answer to the open round marks who played
 // and starts the round's clock on its first answer; a LATE answer — to a

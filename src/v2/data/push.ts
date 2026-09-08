@@ -2,7 +2,7 @@
 // is a no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
 //
-// THREE CLASSES since ROUNDS-PLAN §7.4 (D420), each on its own Android
+// THREE CLASSES since ROUNDS-PLAN §7.4 (D426), each on its own Android
 // channel, all sent by functions/src/v2social.ts through one fan-out
 // (sendPushToUids):
 //

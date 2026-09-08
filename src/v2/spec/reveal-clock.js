@@ -51,7 +51,7 @@ function fmt(ms) {
 // written from two places); `no-undef` covers the other direction, since
 // a bare tag with no import would already fail the spec layer's lint.
 // `until` (ms since the epoch) counts to a given instant instead of local
-// midnight — a group round's deadline (ROUNDS-PLAN, D420), which the group
+// midnight — a group round's deadline (ROUNDS-PLAN, D426), which the group
 // document states exactly, so this one is a promise about the server after
 // all. Absent, the clock is the local-midnight cue it always was.
 export function RevealClock({ prefix = 'Reveals in', suffix = '', until, style }) {

@@ -578,7 +578,7 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
   memberJoinedAt{uid:ts},
   inviteCode, streak, lastRevealDay, createdAt,
   round, played{ r{n}: [uid] }, roundOpenedAt?, roundDeadlineAt?
-                                   (ROUNDS-PLAN, D420 — a ROUND is the unit
+                                   (ROUNDS-PLAN, D426 — a ROUND is the unit
                                    of play, not a day: `round` is the open
                                    one (absent = 1); `played` is who has
                                    sealed an answer to which round, written
@@ -619,7 +619,7 @@ the rule expresses the whole invariant, so no callable; D40 part 4)
 
 v2_groups/{gid}/reveals/r{n}       materialized by the reveal pipeline —
                                    one per ROUND (reveals written before
-                                   D420 are keyed by their day; history
+                                   D426 are keyed by their day; history
                                    orders by revealedAt and reads both)
   round, day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?, late?} }, names, members[], revealedAt
   (day is the calendar day the reveal LANDED — what the card labels it by
@@ -646,7 +646,7 @@ answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
-D420) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
+D426) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
 round, D224 — a current member's uid, rules-validated; plus `late: true`
 on an answer to a round that has already revealed, which then carries no
 guess — §4 of the plan) — and they are
@@ -756,7 +756,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
   DUE (`roundDeadlineAt <= now`), each revealed for whoever played. A
   round every member has answered reveals on the completing answer
   instead, inside `onV2AnswerCreated`, and opens the next round in the
-  same commit (ROUNDS-PLAN, D420). The day-keyed streak still advances on
+  same commit (ROUNDS-PLAN, D426). The day-keyed streak still advances on
   the first reveal of a new day.
 - `resolveCallsV2` (scheduled, 04:23 UTC daily; D194,
   docs/FORESIGHT-CALLS.md) — grades every tier-A call past its

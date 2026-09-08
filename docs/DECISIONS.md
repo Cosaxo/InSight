@@ -44761,7 +44761,7 @@ install or a different Google account is what would confirm it.
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
 
-## D420 · Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal
+## D426 · Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal
 
 **Date:** 2026-09-08 · **Status:** binding as a PLAN and as a
 measurement; nothing is built. Directed by the owner (*"lets go with this
@@ -44903,7 +44903,7 @@ amendment reasoning production's duel-answer set to provably empty).
 rules need a transition window accepting both id shapes, and that is a
 materially bigger change than what is planned.
 
-## D420 amendment (2026-09-08) · The model is approved, and notifications are the volley's other half
+## D426 amendment (2026-09-08) · The model is approved, and notifications are the volley's other half
 
 Read the plan back in plain words — a round is a number; a 1v1 reveals
 the moment the other person answers; a group reveals when the last
@@ -44946,7 +44946,7 @@ Nothing here is a D334 ask: a nudge says *someone played*, which
 `roundPlayers` already discloses to the same people, and a reveal push
 says what today's says.
 
-## D420 amendment (2026-09-08, later the same day) · Steps 0–3 are built: the round replaces the day
+## D426 amendment (2026-09-08, later the same day) · Steps 0–3 are built: the round replaces the day
 
 Built on the branch the day the model was approved, each step green on
 its own and the whole tree green at the end: `test:unit` (2 875),

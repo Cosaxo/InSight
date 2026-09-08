@@ -755,7 +755,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 }
 
 // 8 · the duel loop: create → ask/approve → sealed answers → the reveal on
-// the completing answer → the next round opens → streak (ROUNDS-PLAN, D420)
+// the completing answer → the next round opens → streak (ROUNDS-PLAN, D426)
 const created = await httpsCallable(fns, "createGroupV2")({ name: "The Crew", mode: "duo" });
 const { gid, inviteCode } = created.data;
 if (!gid || !inviteCode) fail("createGroupV2: " + JSON.stringify(created.data));

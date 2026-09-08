@@ -47,7 +47,7 @@
 //      looks like a Mirror bug.
 //   3. `history` plays and reveals one round per pass, in order. Under the
 //      day this had to name each day oldest-first or the streak ended on
-//      1; a round has no day to name (ROUNDS-PLAN / D420), and the streak
+//      1; a round has no day to name (ROUNDS-PLAN / D426), and the streak
 //      is keyed on the day a reveal lands, so consecutive passes on
 //      consecutive days are what a streak reads.
 //
@@ -352,7 +352,7 @@ function chooseGuess(user, qid, optionCount, myPick) {
 }
 
 
-// Rounds (ROUNDS-PLAN, D420). The open round is on the group document;
+// Rounds (ROUNDS-PLAN, D426). The open round is on the group document;
 // absent reads as 1, like every other reader. A test user answers the
 // lowest round it has not sealed, inside the lead — the client's own rule.
 const openRoundOf = (g) => (Number.isInteger(g.round) && g.round >= 1 ? g.round : 1);

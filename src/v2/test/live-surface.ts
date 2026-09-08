@@ -232,7 +232,7 @@ export const LIVE_SOCIAL_MEMBERS = [
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "revealHistoryLoading",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
-  // Rounds (ROUNDS-PLAN, D420): where the account stands in a room's
+  // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
   "roundInfo", "roundQ", "voteLate",
   // Request 11's card: my answer AND my call on any sealed round.

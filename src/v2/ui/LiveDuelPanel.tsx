@@ -1,7 +1,7 @@
 // LiveDuelPanel — the LIVE group/duo panel. Replaces the demo
 // GroupDailyBody / DuoBody when LIVE is enabled: real circles with
 // server-minted invite codes, the open ROUND's question from the shared
-// deterministic rotation (ROUNDS-PLAN, D420), sealed votes, and the latest
+// deterministic rotation (ROUNDS-PLAN, D426), sealed votes, and the latest
 // round's materialized reveal. With no circles yet, the panel IS the
 // create-or-join flow.
 //
@@ -138,7 +138,7 @@ const col = (g: number): React.CSSProperties => ({ display: "flex", flexDirectio
 // The store keeps groups/reveals loosely typed at the seam; these are
 // the fields this panel actually renders.
 interface LiveGroup {
-  /** Rounds (ROUNDS-PLAN, D420): the open round, and its clock when the
+  /** Rounds (ROUNDS-PLAN, D426): the open round, and its clock when the
    *  open round has an answer in it. A Firestore Timestamp on the client;
    *  a number in fixtures. */
   round?: number;
@@ -1389,7 +1389,7 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
   const S = LIVE.social;
   const uid = LIVE.uid || "";
   const duo = g.mode === "duo";
-  // ROUNDS (ROUNDS-PLAN, D420). `q` is the NEXT round this account may
+  // ROUNDS (ROUNDS-PLAN, D426). `q` is the NEXT round this account may
   // answer — the lowest unsealed one inside the lead — or null at the
   // lead's edge; `mine` is its answer to the OPEN round; `R.sealed` the
   // rounds it has sealed that have not revealed. A card is asked for the

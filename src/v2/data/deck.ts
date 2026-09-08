@@ -663,7 +663,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 // aggregate, which is a claim about one question and must not count answers
 // given to another.
 //
-// The round took the UTC day's place here at ROUNDS-PLAN / D420: the day
+// The round took the UTC day's place here at ROUNDS-PLAN / D426: the day
 // was what advanced the game when nobody played, and the round's deadline
 // does that now, so the rotation walks rounds. Nothing else about it moved.
 // "pick" questions take the members as options.

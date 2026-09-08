@@ -33,7 +33,7 @@ Two discoveries reshaped the owner's list more than any opinion could:
 | Idea | Verdict | Size | The constraint that shapes it |
 | --- | --- | --- | --- |
 | Current events | **BUILT (D231)** | S–M | Daily questions cannot retire (positional deck; D97 records the gap). The feed already has `active:false` and a topic taxonomy. |
-| Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' composite id (`g_{gid}_{day}` when this was written; `g_{gid}_r{n}` since D420) is the working precedent to copy. |
+| Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' composite id (`g_{gid}_{day}` when this was written; `g_{gid}_r{n}` since D426) is the working precedent to copy. |
 | Mood as the first pulse question | **Decide separately** | S on top | Mood tracking moves the store forms (Health is "not collected" today) and makes a public per-person series — both are owner decisions, not engineering. |
 | Types focus | **Build tier 1 now; tier 2 is a real decision** | M / L | Tier 1 rides data that is already public. Tier 2 (type as a breakdown dim) amends the standing "a test result is never a breakdown dim" claim (D8, `docs/data-inventory.md`). |
 | Height | **Build** — a banded anchor, the age-band pattern | M | Bands, never centimetres, server-side; the device folds and discards the number the way `locate.ts` folds coordinates. |

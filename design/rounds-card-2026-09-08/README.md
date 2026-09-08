@@ -152,7 +152,7 @@ Recorded here rather than by editing the canvas, the same way
 
 ## Status
 
-`built` 2026-09-08 (D420's second amendment), on the branch the rounds
+`built` 2026-09-08 (D426's second amendment), on the branch the rounds
 model shipped on. Pinned in `ui/LiveDuelPanel.test.tsx` by what a person
 can see or reach — the states, the copy above, the run's kinds, the
 first run's one tap — so a later polish that keeps the behaviour is free

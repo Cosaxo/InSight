@@ -7,7 +7,7 @@
 //   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
 //
 // Sealed answers live under composite ids (g_{gid}_r{n} — one per ROUND,
-// ROUNDS-PLAN / D420). Since D98 a
+// ROUNDS-PLAN / D426). Since D98 a
 // user's world answers are readable by anyone, but DUEL answers are the
 // exception the rules still carve out — read is gated on `surface`, so
 // nobody sees a groupmate's pick before the reveal. That is a game
@@ -208,7 +208,7 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     inviteCode: code,
     streak: 0,
     lastRevealDay: null,
-    // The open round (ROUNDS-PLAN, D420). Absent reads as 1 everywhere it
+    // The open round (ROUNDS-PLAN, D426). Absent reads as 1 everywhere it
     // is read — the rules, the client, the reveal — so this is stated
     // rather than relied on. `played` and the round's clock arrive with
     // the first answer, from the answer trigger.
@@ -757,7 +757,7 @@ export interface RevealOpts {
 
 /**
  * Reveal a group's OPEN round if it is ready, and open the next one in
- * the same commit. Returns whether it revealed. ROUNDS-PLAN §3, D420.
+ * the same commit. Returns whether it revealed. ROUNDS-PLAN §3, D426.
  *
  * READY means (roundReveals, pure.ts): at least one answer, and every
  * member has answered, or the deadline has passed, or `force`. The
@@ -1058,7 +1058,7 @@ export async function revealDueRounds(
 // schedule's "indexed" query is an indexed range on `roundDeadlineAt`,
 // and "full" walks every group. The `pendingDays` marker the day's scan
 // queried — and the at-least-once argument for why the full scan had to
-// exist beside it — went with the day (ROUNDS-PLAN / D420): a due round
+// exist beside it — went with the day (ROUNDS-PLAN / D426): a due round
 // stays due until it reveals, so a mark that lands late or a run that
 // dies is caught by the next run without anybody naming a day.
 

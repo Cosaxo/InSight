@@ -390,7 +390,7 @@ describe("duelQFor (duel question rotation)", () => {
     qd("d1", { surface: "duo" }),
   ];
   const group = { id: "grp_abc", mode: "group" };
-  const DAY = 7; // a round — the rotation walks rounds since ROUNDS-PLAN / D420
+  const DAY = 7; // a round — the rotation walks rounds since ROUNDS-PLAN / D426
 
   it("is deterministic for a fixed (group, bank, round)", () => {
     expect(duelQFor(group, bank, DAY)).toEqual(duelQFor(group, bank, DAY));

@@ -40,7 +40,7 @@ const LIVE = vi.hoisted(() => {
       const v = social.myDuelVote(gid);
       return v ? { optionIdx: v.optionIdx, guessIdx: null as number | null } : null;
     },
-    // Rounds (ROUNDS-PLAN, D420). The fixture's world is "one round is the
+    // Rounds (ROUNDS-PLAN, D426). The fixture's world is "one round is the
     // lead": a sealed answer to the open round means nothing further to
     // answer, which is the card's waiting state — the state every case
     // below written against "you have played today" was about. A case

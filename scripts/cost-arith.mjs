@@ -315,7 +315,7 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // If the mix ever tilts toward catalogue/rank-heavy feeds, split the
 // volume assumption before touching this constant.
 //
-// The duel branch of the same trigger does ONE since ROUNDS-PLAN / D420:
+// The duel branch of the same trigger does ONE since ROUNDS-PLAN / D426:
 // a transaction on the group document that marks who played the round,
 // starts the open round's clock on its first answer, and asks whether the
 // answer completed the round — in which case the reveal runs right there

@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — every step is BUILT (2026-09-08, D420's second amendment): 0–5 and 7 in the tree, 6's regulator built and its daily cadence re-paced by the owner, 8 from the owner's canvas of 2026-09-08 (`design/rounds-card-2026-09-08/`).** The follow-through on
+**Status: plan notes — every step is BUILT (2026-09-08, D426's second amendment): 0–5 and 7 in the tree, 6's regulator built and its daily cadence re-paced by the owner, 8 from the owner's canvas of 2026-09-08 (`design/rounds-card-2026-09-08/`).** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted

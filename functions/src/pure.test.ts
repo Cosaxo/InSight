@@ -158,7 +158,7 @@ describe("utcDayKey / prevDayKey", () => {
 
 // ── reveal conditions ───────────────────────────────────────────
 
-describe("rounds (ROUNDS-PLAN, D420)", () => {
+describe("rounds (ROUNDS-PLAN, D426)", () => {
   it("the lead and the deadline are the plan's numbers", () => {
     // ONE constant each. firestore.rules carries the lead as a literal and
     // rules.test.ts pins the two equal; the deadline is the day's

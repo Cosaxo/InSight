@@ -3612,7 +3612,7 @@ function buildFeedGlobals(): void {
 }
 
 // (Re)subscribe every group's LATEST reveal — the round before the open
-// one (ROUNDS-PLAN, D420). Called from the groups snapshot, which fires on
+// one (ROUNDS-PLAN, D426). Called from the groups snapshot, which fires on
 // every group-document change, so a round advancing (the reveal writes
 // `round` in the same commit) re-points the listener at the new reveal
 // within the same tick; and again on midnight rollover, harmlessly.

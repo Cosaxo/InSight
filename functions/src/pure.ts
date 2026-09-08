@@ -158,7 +158,7 @@ export function prevDayKey(dayKey: string): string {
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
 }
 
-// ── rounds (ROUNDS-PLAN, D420) ──────────────────────────────────
+// ── rounds (ROUNDS-PLAN, D426) ──────────────────────────────────
 //
 // A ROUND is the unit of 1v1 and group play, not a day. `v2_groups/{gid}`
 // carries the open round's number, who has answered which round, and the
@@ -2569,7 +2569,7 @@ export function fcmBatches(tokens: readonly string[], size: number = FCM_BATCH):
   return out;
 }
 
-// ── turns: who is told "your turn" (ROUNDS-PLAN §7.4, D420) ─────────────
+// ── turns: who is told "your turn" (ROUNDS-PLAN §7.4, D426) ─────────────
 //
 // A round is a volley, and a volley with no nudge is a game where nobody
 // knows it is their move. The answer trigger tells the OTHER members a
