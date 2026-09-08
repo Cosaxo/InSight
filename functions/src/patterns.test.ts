@@ -129,7 +129,18 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
 const [CORE_A, CORE_B] = [...PATTERNS_QIDS];
 // A question the CANDIDATE's corpus names and the online engine's does
 // not — the D395 widening. Derived rather than named, so it moves with
-// the bank; 263 of them today.
+// the bank.
+//
+// The count is NOT written here, and that is the point rather than an
+// omission. It said "263 of them today" and the true figure is 423: the
+// bank went 913 → 1073 and `itemEligible` admits `surface === "test"`, so
+// v2content's new deep items all entered the candidate corpus and the
+// sentence was stale inside twenty-four hours. `check:figures` cannot hold
+// it either — the number is the difference between two predicates that
+// live in patterns.ts, and re-deriving them in an .mjs gate would be the
+// second copy of an eligibility rule, which is the D197 failure. So it
+// follows the gate's own advice for a figure it cannot compute: state the
+// relationship, not the number.
 const [WIDE_ONLY] = [...PATTERNS_ITEM_QIDS].filter((q) => !PATTERNS_QIDS.has(q));
 const yesterday = utcDay(NOW, -1);
 const twoBack = utcDay(NOW, -2);
