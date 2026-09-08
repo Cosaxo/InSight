@@ -2850,6 +2850,44 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-134",
+  "surface": "daily",
+  "seq": 134,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Keep score, or just play?",
+  "options": [
+   "Keep score",
+   "Just play"
+  ],
+  "topic": "light",
+  "branch": "Sport",
+  "sub": "How you play",
+  "tag": "Keeping score",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-135",
+  "surface": "daily",
+  "seq": 135,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What makes a great rivalry?",
+  "options": [
+   "History",
+   "Respect",
+   "High stakes",
+   "Closeness"
+  ],
+  "topic": "light",
+  "branch": "Sport",
+  "sub": "Rivalries",
+  "tag": "Rivalries",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
