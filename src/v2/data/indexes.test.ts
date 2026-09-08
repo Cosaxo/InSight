@@ -321,6 +321,27 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     ).toBeDefined();
   });
 
+  it("report-lib.mjs getAnswersFor: the paid report's answer read has its composite", () => {
+    // `where qid in [...] where surface == "daily"|"feed"` over ONE user's
+    // answers subcollection — collection scope, not a group query. Both
+    // fields are equalities, so Firestore needs the (qid, surface)
+    // composite and there is no single-field fallback: `answers.qid` is
+    // exempted at both scopes a few entries down.
+    //
+    // The failure is production-only and total. The emulator does not
+    // enforce index configuration, so every runner in this repository stays
+    // green; against the real database the first sampled voter throws
+    // FAILED_PRECONDITION, and `getAnswersFor` has no catch — so the paid
+    // report a buyer is waiting on dies on voter one of three hundred.
+    //
+    // The commit that introduced this index said the pin was left to
+    // "whoever merges second". It never landed.
+    expect(
+      composite("answers", "COLLECTION", [["qid", "ASCENDING"], ["surface", "ASCENDING"]]),
+      "the paid report's per-voter answer read has no (qid, surface) composite",
+    ).toBeDefined();
+  });
+
   it("v2social.ts nearbyCount/nearbyRoom: presence has its (cell, until) composite", () => {
     // `where cell in [...] where until > now`, as a count() and twice more
     // for the mix and the roster. All three die together without it, so

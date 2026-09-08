@@ -51,6 +51,11 @@ const h = vi.hoisted(() => ({
   // not just a fixture default: it is what linkApple/linkGoogle branch on
   // to decide between upgrading a session and starting one.
   currentUser: null as { uid: string } | null,
+  // Every argument `initializeFirestore` was called with. The mock used
+  // to capture NONE of them, so the database id and the offline cache —
+  // two decisions this module exists to make — could both be deleted with
+  // every runner green.
+  firestoreCalls: [] as Array<{ settings: Record<string, unknown>; dbId: unknown }>,
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -109,8 +114,11 @@ vi.mock("firebase/auth", () => ({
 }));
 
 vi.mock("firebase/firestore", () => ({
-  initializeFirestore: () => ({ __db: true }),
-  persistentLocalCache: () => ({}),
+  initializeFirestore: (_app: unknown, settings: Record<string, unknown>, dbId: unknown) => {
+    h.firestoreCalls.push({ settings, dbId });
+    return { __db: true };
+  },
+  persistentLocalCache: () => ({ __persistent: true }),
   connectFirestoreEmulator: () => {},
   // The rest of `fsApi` (D110). None of it is exercised by this file, and all
   // of it is required: the module builds that object at import time, so a
@@ -157,6 +165,7 @@ beforeEach(() => {
   h.signInCredentials.length = 0;
   h.linkCredentials.length = 0;
   h.currentUser = null;
+  h.firestoreCalls.length = 0;
 });
 
 afterEach(() => {
@@ -360,5 +369,54 @@ describe("subscribeToAuth", () => {
     expect(seen).toEqual([null]);
     expect(typeof off).toBe("function");
     off();
+  });
+});
+
+// ── FIRESTORE CONSTRUCTION ──────────────────────────────────────────
+//
+// The same class of hole as the Auth half above, on the other client this
+// module builds — and it was open. `init()` passes `initializeFirestore`
+// two things beyond the app, both of them decisions with a silent failure
+// mode, and the mock above captured neither:
+//
+//   1. THE DATABASE ID (D165). The app moved off `(default)` to one EU
+//      database. Drop the third argument and the client talks to a
+//      database the backend no longer writes to — which, as the source's
+//      own comment says, "looks like an app with no data rather than like
+//      an error". Nothing else in the tree holds it on the CLIENT:
+//      `check:fn-runtime` pins `database: FIRESTORE_DB_ID` on the server
+//      triggers only.
+//   2. THE OFFLINE CACHE. Without `persistentLocalCache` a returning
+//      device with its whole bank and answer history on disk fails
+//      hydrate() the moment it is offline and falls back to the demo
+//      deck, and votes written offline are not queued for reconnect.
+//
+// Measured before writing this: both mutations — the two-argument
+// `initializeFirestore(app, {...})`, and the settings object with
+// `localCache` removed — left `tsc -b`, eslint, `check:globals` and all
+// four suites under src/lib green.
+describe("Firestore construction", () => {
+  it("names the database id, so the client is not left on `(default)`", async () => {
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+
+    expect(h.firestoreCalls).toHaveLength(1);
+    expect(
+      h.firestoreCalls[0].dbId,
+      "initializeFirestore was called without a database id — the client would read `(default)`, which the backend does not write to",
+    ).toBe(m.FIRESTORE_DB_ID);
+    // Not merely "some string": the value is what the functions read from
+    // the same env var, and "insight" is what an unset environment means.
+    expect(m.FIRESTORE_DB_ID).toBe("insight");
+  });
+
+  it("asks for the persistent local cache, so a returning device boots offline", async () => {
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+
+    expect(
+      h.firestoreCalls[0].settings.localCache,
+      "initializeFirestore was called with no localCache — an offline boot falls back to the demo deck with the real bank on disk",
+    ).toEqual({ __persistent: true });
   });
 });
