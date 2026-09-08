@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 421 lines instead of
-41,953. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 422 lines instead of
+42,001. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -435,3 +435,4 @@ detect it.
 |  | ↳ *amendment 2026-09-07, seventh* — [G6: the space every paper calls "one"](DECISIONS.md#d389-amendment-2026-09-07-seventh--g6-the-space-every-paper-calls-one) | — | 41797 |
 |  | ↳ *amendment 2026-09-07, eighth* — [G7: the relational grain, and a condition corrected in G1 and G3](DECISIONS.md#d389-amendment-2026-09-07-eighth--g7-the-relational-grain-and-a-condition-corrected-in-g1-and-g3) | — | 41859 |
 |  | ↳ *amendment 2026-09-08* — [Citations allowed; the three steps that turn the plan into research](DECISIONS.md#d389-amendment-2026-09-08--citations-allowed-the-three-steps-that-turn-the-plan-into-research) | — | 41916 |
+|  | ↳ *amendment 2026-09-08, later* — [The harness's first run: what held, and the three claims that moved](DECISIONS.md#d389-amendment-2026-09-08-later--the-harnesss-first-run-what-held-and-the-three-claims-that-moved) | — | 41954 |

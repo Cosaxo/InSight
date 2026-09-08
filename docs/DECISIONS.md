@@ -41950,3 +41950,51 @@ paper moves, and this record says so.
 **The axis.** Which of the four unbuilt axes is built first is the
 owner's, put with the arithmetic; nothing in the app moves until it is
 chosen.
+
+## D389 amendment (2026-09-08, later) · The harness's first run: what held, and the three claims that moved
+
+The harness is built — `research/sim/`, the sixth test runner, zero
+dependencies, a seed on every number — and its first report-size run
+took four minutes and read every claim it was built to read.
+
+**What held.** Every row of G7's identification table but one, as an
+exact rank per design: one relation per unit leaves a total variance
+and one cross covariance and nothing apart; degree two in each role
+identifies the members' terms and both reciprocities with the pair's
+term and error only as a sum; replication in separate sittings
+identifies everything; both directions in one sitting confound the
+dyadic covariance with the sitting; one direction leaves the dyadic
+covariance no estimand at all. G7 §4's pairing-graph results, for the
+fixed part: differences leave one constant per component, sums one
+alternating constant per bipartite component and nothing past an odd
+cycle. G7 §9's line to the digit — 783 pairs with the terms exact,
+1,764 at reliability two thirds, power 0.81 at 1,800 and 0.50 at 800.
+G6 §3's statistic: invariant to monotone change of the metric exactly,
+one half at no information, its spread falling with the square root of
+units (a factor 5.2 from 16 to 256 units where pairs would give 16),
+the criterion above an unvalidated metric at every noise, the unit
+jackknife covering 0.91–0.94 and the pair bootstrap 0.74 falling to
+0.40 as n grows, and about 2,300 units to resolve a hundredth of
+concordance on one pair of spaces.
+
+**What moved.** G7's row on a context or group term shared by several
+pairs said it was identified only where units cross contexts; the rank
+says a context of four units identifies it with no crossing at all,
+because two pairs with no member in common share the context and
+nothing else, and only a context of three in no other context confounds
+it. G6 said posterior shrinkage inflates distance validity and owed a
+correction; on units observed one to eight times under measurement
+noise larger than the latent's spread, the shrunken and unshrunk
+concordances differ by two thousandths and the expected posterior
+distance recovers nothing, so validity owes no correction, and the
+region and dimension claims stay a stated caution the harness does not
+test. And G6's pair-independent interval is too tight in variance by a
+factor of order n, not in width. G7 gains one sentence the harness
+priced that the paper had not: removing the members' terms by centring
+attenuates the reciprocity beyond the reliability — six tenths of the
+predicted value in groups of six — so the sizing line is a lower bound
+that grows as groups shrink.
+
+The rule stands as written: where the report contradicts a paper the
+paper moves, and this entry is the first time it did. Nothing in the
+app moves.

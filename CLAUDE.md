@@ -326,13 +326,14 @@ Two rules for working with it:
   hiding `react-hooks` findings, not just costing coupling (D108, verified
   by linting the pre-change files).
 
-### 2. There are five test runners, and they are not interchangeable
+### 2. There are six test runners, and they are not interchangeable
 
 | Command | What it covers | Needs |
 | --- | --- | --- |
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:scripts` | the gates and the regulators themselves — their parsers, their budget arithmetic, their tripwires | nothing |
+| `npm run test:sim` | the research simulation harness — G7's identification table as an exact rank per design, G6's concordance statistic, the sizing lines; `npm run sim:write` regenerates its report | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `:e2e:erasure` / `:e2e:moderation` — or **`test:e2e:all`**, all three on ONE emulator boot, which is what CI runs (D276) | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
