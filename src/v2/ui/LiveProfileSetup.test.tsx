@@ -113,7 +113,7 @@ const primary = () => screen.getByRole("button", { name: /^(Continue|Try again|S
  * it is already called.
  */
 const answerTheFour = () => {
-  pick("Year of birth", "1990");
+  pick("Date of birth", "1990-07-12");
   pick("Gender", "Woman");
   pick("Country", "Norway");
 };
@@ -174,17 +174,11 @@ describe("what the answers reach", () => {
     expect(blob().vitals.education, "…nor the profile blob the next open reads from").toBe("Master's");
   });
 
-  it("writes the age and its band, never the birth year itself", () => {
+  it("writes the age and its band, never the birthday", () => {
     // The date never leaves the device — anchorsFrom derives an age and a
     // band from it and drops the rest, and this is the case that keeps it
     // that way. D155 added the age beside the band; the assertion that
     // matters is unchanged and is the last line.
-    //
-    // Since visual request 10 the screen asks for the YEAR alone rather
-    // than a full date, which costs `calcAge` its month test: the exact
-    // age runs up to a year high for a birthday later in the calendar
-    // year. What it does not change is what is WRITTEN, which is what
-    // this case is about.
     render(<LiveProfileSetup onDone={onDone} />);
     answerTheFour();
     fireEvent.click(primary());
@@ -194,7 +188,48 @@ describe("what the answers reach", () => {
     // A bare integer of at most three characters — the shape firestore.rules
     // caps, checked here so the cap is not the only thing asserting it.
     expect(saved.age).toMatch(/^\d{1,3}$/);
-    expect(JSON.stringify(saved)).not.toMatch(/1990/);
+    expect(JSON.stringify(saved)).not.toMatch(/1990|July|"12"/);
+  });
+
+  it("takes the WHOLE date, so the exact age is not a year high", () => {
+    // The canvas asked for the birth YEAR alone. The owner overruled it
+    // with the arithmetic in front of them: `calcAge` decrements by one
+    // when the birthday has not come round yet this year, and it cannot
+    // do that without the month. Year-only, the exact age D155 pairs with
+    // the band — the number a screen naming a PERSON prints — runs up to
+    // a year high.
+    //
+    // Pinned against a birthday deliberately in the FUTURE of the frozen
+    // calendar year, because that is the only half of the year where the
+    // two answers differ at all. A control that quietly dropped the month
+    // or the day would pass every other case in this file and fail this
+    // one.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-03-01T12:00:00Z"));
+    try {
+      render(<LiveProfileSetup onDone={onDone} />);
+      answerTheFour();
+      fireEvent.click(primary());
+      // 35 on 2026-03-01, born 1990-07-12: the birthday is still to come.
+      // The year alone would say 36.
+      expect(LIVE.saveAnchors.mock.calls[0][0].age).toBe("35");
+      // …and the three vitals the Basics card shares are all there, in the
+      // shapes that card writes: a year, a month NAME, a day.
+      expect(blob().vitals).toMatchObject({ born: "1990", bornM: "July", bornD: "12" });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("clears all three parts together when the date is cleared", () => {
+    // A date control cannot produce a half-answered date, but it CAN be
+    // emptied — and clearing the year while leaving a month behind would
+    // hand `calcAge` a stale month to test a blank year against.
+    render(<LiveProfileSetup onDone={onDone} />);
+    answerTheFour();
+    pick("Date of birth", "");
+    expect((primary() as HTMLButtonElement).disabled, "an emptied date still counted as answered").toBe(true);
+    answerTheFour();
+    fireEvent.click(primary());
+    expect(blob().vitals).toMatchObject({ born: "1990", bornM: "July", bornD: "12" });
   });
 
   it("mirrors into the profile blob, or the next profile open erases it", () => {
@@ -262,7 +297,7 @@ describe("the four it waits for", () => {
     // answered the country question and must not be asked it again.
     // Read off the anchors rather than off the control for exactly this.
     render(<LiveProfileSetup onDone={onDone} />);
-    pick("Year of birth", "1990");
+    pick("Date of birth", "1990-07-12");
     pick("Gender", "Woman");
     // The picker is a closed button until it is tapped — that is the row's
     // whole shape, and the search input does not exist before it.
@@ -412,7 +447,7 @@ describe("the name and the handle", () => {
     // required field that is not a demographic.
     LIVE.displayName = "";
     render(<LiveProfileSetup onDone={onDone} />);
-    pick("Year of birth", "1990");
+    pick("Date of birth", "1990-07-12");
     pick("Gender", "Woman");
     pick("Country", "Norway");
     expect((primary() as HTMLButtonElement).disabled).toBe(true);

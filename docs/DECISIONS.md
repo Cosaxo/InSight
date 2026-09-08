@@ -45060,19 +45060,47 @@ longer does is *offer* a second, easier button beside the one that asks.
 
 ### Two departures the canvas made, with what they cost
 
-**1 · The birthday is a year, not a date.** D155's claim moved to the row
-that earns it — *Saved as an age group, not a date.* — and the three-column
-grid is gone.
+**1 · The birthday — proposed as a year, ruled back to the whole date.**
+The canvas asked for the birth year alone and dropped the three-column
+day/month/year grid.
 
-The cost, measured rather than waved at: `calcAge` decrements by one when
-the birthday has not come round yet this year, and it can only do that if
-it has the month. With the year alone that test is skipped, so **the exact
-age runs up to a year high** for anyone born later in the calendar year.
-The band is unaffected except exactly at a band edge. Day and month stay
-askable in the profile's Basics card, so the precise number is one tap
-away for anyone who wants it. Taken because a three-control date grid is
-the single most form-like thing on a screen whose whole problem was
-reading as a form.
+The cost was measured rather than waved at: `calcAge` decrements by one
+when the birthday has not come round yet this year, and it can only do
+that if it has the month. With the year alone that test is skipped, so
+**the exact age runs up to a year high** for anyone born later in the
+calendar year — the number a screen naming a PERSON prints ("Ceramicist,
+29"), which is the whole reason D155 put an exact age beside the band.
+The band itself is unaffected except exactly at a band edge.
+
+That arithmetic went to the owner rather than being settled in the tree,
+and the ruling was *"yeah get full birth day"* (2026-09-08). **So the
+date is back and the exact age is right — without the grid.** It is one
+row and one `<input type="date">`: one tap, one native picker, a wheel on
+iOS and a calendar on Android, which is strictly better than three wheels
+for one fact. The grid was the single most form-like thing on a screen
+whose whole problem was reading as a form, and killing it never required
+losing the data.
+
+Three mechanics worth the line each. The three vitals stay exactly as the
+Basics card writes them — `born` a year, `bornM` a month NAME out of
+`MONTHS`, `bornD` a day — so the two screens keep one vocabulary and
+`anchorsFrom` folds one shape; the ISO string the control speaks is
+converted at the row and nowhere else. They move together in one setter,
+because clearing the year while a month stayed behind would hand
+`calcAge` a stale month to test a blank year against. And `min`/`max`
+come off `YEARS` rather than a literal, so the 13-year floor that list
+has always encoded is expressed once.
+
+The copy moved with the data. The canvas said *Saved as an age group, not
+a date*, which was true of the year-only version and became a half-truth
+the moment the exact age came back — it is *Your age and its band are
+saved. The date stays on this phone.* Two claims, both true, and the
+same edit D155 itself had to make to this file's previous wording.
+
+Pinned by a case that freezes the clock to 2026-03-01 against a birthday
+in July: 35 with the month, 36 without. Mutation-checked — dropping the
+month from the setter fails that case and the clearing case and nothing
+else in the file.
 
 **2 · Country is now asked, not only derived.** It existed only as a fold
 over the city (D9), which meant the one anchor the Mirror's Country stop
@@ -45137,4 +45165,4 @@ claim about somebody else's account made from no evidence.
 
 One commit. `anchorsFrom`'s fallback and `places.countryList()` are
 additive and can stay; reverting the screen restores *Skip for now*, the
-counter and the three-column birthday.
+counter and the three-column birthday grid.

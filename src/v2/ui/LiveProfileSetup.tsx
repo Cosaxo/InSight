@@ -66,7 +66,16 @@
 //     fields to reach is not a skip — so the button is Continue and it
 //     waits, with one line under it saying what it is waiting for.
 //     "Save 3 of 7" is gone with it.
-//   · THE BIRTHDAY IS A YEAR. See the row for what that costs, measured.
+//
+// ONE PLACE THE CANVAS WAS OVERRULED, and it is the loop working. It
+// asked for the birth YEAR alone. The year alone costs `calcAge` its
+// month test — it decrements by one when the birthday has not come round
+// yet this year, and cannot do that without the month — so the exact age
+// D155 pairs with the band runs up to a year high. That arithmetic went
+// to the owner rather than being taken here, and the ruling was *"yeah
+// get full birth day"* (2026-09-08). So the date is back and the exact
+// age is right, WITHOUT the three-column grid the canvas was right to
+// kill: `type="date"` is one row, one tap, one native picker.
 //
 // EIGHT PICKERS, TEN KEYS. The screen maps its picker
 // fields onto the 10 anchor keys `anchorsFrom` returns, and the difference
@@ -106,7 +115,7 @@ import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 // over). Untyped spec module, so the LiveSimilarityField suppression —
 // one line, because TS reports TS7016 at the specifier.
 // @ts-expect-error TS7016 — untyped spec module
-import { AGE_BANDS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, REL_OPTS, YEARS, anchorsFrom } from "../spec/profile-vitals.js";
+import { EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS, REL_OPTS, YEARS, anchorsFrom } from "../spec/profile-vitals.js";
 
 const PS_LINE = "1px solid var(--rule)";
 // The one red on the screen, and it belongs to exactly one thing: a handle
@@ -203,6 +212,71 @@ function PsRow({ id, title, note, value, onChange, options, last }: {
   );
 }
 
+/**
+ * The birthday, as ONE row and one native picker.
+ *
+ * The canvas asked for a year alone, and the year alone costs `calcAge`
+ * its month test: it decrements by one when the birthday has not come
+ * round yet this year, and it cannot do that without the month, so the
+ * exact age D155 pairs with the band runs up to a year high. The owner
+ * ruled on that trade with the arithmetic in front of them — *"yeah get
+ * full birth day"* — so the date is back and the exact age is right
+ * again.
+ *
+ * What does NOT come back is the three-column day/month/year grid the
+ * canvas was right to kill: it was the single most form-like thing on a
+ * screen whose whole problem was reading as a form. `type="date"` is one
+ * control, one row, one tap, and the picker it opens is the platform's
+ * own — a wheel on iOS, a calendar on Android — which is strictly better
+ * than three wheels for the same fact.
+ *
+ * It is a TEXT field as far as `check:touch-zoom` is concerned (only
+ * range, checkbox, radio and colour are exempt), so it takes
+ * `--field-size` like the two typed fields do — which is what it would
+ * want anyway.
+ *
+ * `min`/`max` come from `YEARS` rather than from a literal, so the
+ * bounds and the old select can never disagree: 13 is the floor the list
+ * has always encoded, and this is the only place it is now expressed.
+ */
+function PsDateRow({ id, title, note, value, onChange, last }: {
+  id: string; title: string; note?: string; value: string;
+  onChange: (iso: string) => void; last?: boolean;
+}) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", justifyContent: "center", gap: 2,
+      boxSizing: "border-box", minHeight: 54, padding: note ? "10px 16px" : "0 16px",
+      borderBottom: last ? "none" : PS_LINE,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 22 }}>
+        <label htmlFor={id} style={{ ...sans, fontSize: 15.5, fontWeight: 600, color: "var(--ink)", flex: "none" }}>
+          {title}
+        </label>
+        {/* Visible rather than overlaid at zero opacity, which is what the
+            `<select>` rows do. A hidden `<select>` still opens on a tap
+            anywhere over it; a hidden date field does not — its picker
+            hangs off a calendar button the row would have made
+            invisible, and a control you cannot open on a desktop browser
+            is not a control. */}
+        <input id={id} type="date" value={value} onChange={(e) => onChange(e.target.value)}
+          min={`${YEARS[YEARS.length - 1]}-01-01`} max={`${YEARS[0]}-12-31`}
+          style={{
+            ...sans, fontSize: "var(--field-size)", fontWeight: 500,
+            color: value ? "var(--ink)" : "var(--ink-3)", background: "transparent",
+            border: "none", outline: "none", padding: 0, margin: 0, textAlign: "right",
+            minWidth: 0, WebkitAppearance: "none", appearance: "none",
+          }} />
+      </div>
+      {note && (
+        <span style={{ ...sans, fontSize: 12.5, fontWeight: 600, lineHeight: 1.35, color: "var(--ink-3)" }}>
+          {note}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** The rounded card the rows sit in — the canvas's second surface. */
 const cardStyle: React.CSSProperties = {
   borderRadius: 14, background: "var(--surface)", display: "flex", flexDirection: "column",
@@ -270,6 +344,29 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // point — see the offline artboard's note in the design README.
   const [offline, setOffline] = React.useState(false);
   const set = (k: string, val: string) => setV((s) => ({ ...s, [k]: val }));
+
+  // THE DATE, both ways. The three vitals stay exactly as the Basics card
+  // writes them — `born` a year string, `bornM` a month NAME out of
+  // MONTHS, `bornD` a day string — because that card and this screen
+  // share one vocabulary and `anchorsFrom` folds only that shape. What
+  // this pair adds is the ISO string `<input type="date">` speaks, and
+  // nothing else in the tree has to know about it.
+  //
+  // The three move TOGETHER, in one setter: a date control cannot produce
+  // a half-answered date, and clearing it has to clear all three or
+  // `calcAge` would read a stale month against a blank year.
+  const bornISO = v.born && v.bornM && v.bornD
+    ? `${v.born}-${String(MONTHS.indexOf(v.bornM) + 1).padStart(2, "0")}-${String(v.bornD).padStart(2, "0")}`
+    : "";
+  const setBorn = (iso: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    setV((s) => ({
+      ...s,
+      born: m ? m[1] : "",
+      bornM: m ? MONTHS[Number(m[2]) - 1] : "",
+      bornD: m ? String(Number(m[3])) : "",
+    }));
+  };
 
   // THE COUNTRY LIST, derived from the cities catalogue rather than
   // shipped (places.ts `countryList` has the reason: the server validates
@@ -524,27 +621,25 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
           onChange={(e) => setName(e.target.value)}
           placeholder="Display name" maxLength={60} style={textField} />
         <div style={{ ...cardStyle, marginTop: 8 }}>
-          {/* THE BIRTHDAY IS A YEAR, and the canvas made it one. It used to
-              be three selects — day, month, year — copied from the Basics
-              card so that one vocabulary reached the server.
+          {/* THE WHOLE DATE, in one row — see PsDateRow for why it is a
+              date field rather than the canvas's year, and why it is not
+              the three selects that used to be here.
 
-              WHAT THAT COSTS, measured rather than waved at, because it is
-              a data change and not only a visual one: `calcAge` decrements
-              by one when the birthday has not come round yet this year,
-              and it can only do that if it has the month. With the year
-              alone that test is skipped, so the EXACT age D155 pairs with
-              the band runs up to a year high for anyone born later in the
-              calendar year. The BAND is unaffected except exactly at a
-              band edge.
+              The note is D155's claim, and it is a CLAIM rather than a
+              caption (docs/COPY.md §3): a birthday field on a first-run
+              screen is the one people are right to be suspicious of, and
+              both halves of what happens to it have to be said. Two
+              things are saved — the age and its band — and the date is
+              not one of them.
 
-              Kept anyway, because the alternative is worse: a
-              three-control date grid is the single most form-like thing on
-              a screen whose whole problem is reading as a form, and the
-              Basics card still asks for the day and the month, so the
-              precise number is one tap away for anyone who wants it. */}
-          <PsRow id="ps-born" title="Year of birth" value={v.born || ""}
-            onChange={(x) => set("born", x)} options={YEARS}
-            note={`Saved as an age group, not a date (${AGE_BANDS.map((b: [number, number, string]) => b[2]).join(" · ")}).`} />
+              It said "Saved as an age group, not a date" on the canvas,
+              which was true of the year-only version and became a
+              half-truth the moment the exact age came back with the
+              date. The sentence moved with the data, which is the edit
+              D155 itself had to make to this file's previous wording. */}
+          <PsDateRow id="ps-born" title="Date of birth" value={bornISO}
+            onChange={setBorn}
+            note="Your age and its band are saved. The date stays on this phone." />
           <PsRow id="ps-gender" title="Gender" value={v.gender || ""}
             onChange={(x) => set("gender", x)} options={GENDER_OPTS} />
           {/* Country is now ASKED as well as derived. It used to exist only

@@ -59,10 +59,10 @@ already retired ("never a wall"). The other half — *a required
 demographic form is how you teach people to lie to one* — is what the
 lead sentence and the two headings are aimed at.
 
-**2 · The birthday is a YEAR, not a date.** The request described the
-three-column day/month/year grid; the canvas draws one row, *Year of
-birth*, with D155's claim under it at the field where it is earned
-rather than in a paragraph at the top:
+**2 · The birthday is a YEAR, not a date — and this one the owner
+overruled.** The request described the three-column day/month/year grid;
+the canvas draws one row, *Year of birth*, with D155's claim under it at
+the field where it is earned rather than in a paragraph at the top:
 
 > Saved as an age group, not a date.
 
@@ -72,10 +72,14 @@ come round this year, and it can only do that if it has the month. With
 the year alone the month test is skipped, so the exact age D155 pairs
 with the band runs **up to one year high** for anyone whose birthday
 falls later in the calendar year. The band is unaffected except exactly
-at a band edge. Day and month stay askable in the profile's Basics card
-(`profile-general.jsx`), which is where a person who wants the precise
-number can give it — so this is a first-run simplification, not a field
-being taken away.
+at a band edge.
+
+That arithmetic went to the owner and the answer was *"yeah get full
+birth day"* (2026-09-08). **The build takes the whole date** — but it
+does not put the grid back: one row, one `<input type="date">`, the
+platform's own picker. The canvas was right about the grid and wrong
+about the data, and separating those two is what the ask was for. See
+D421.
 
 **And one field simply is not drawn:** `heightBand`. It is in
 `anchorsFrom` and stays in the profile; the canvas leaves it off the
