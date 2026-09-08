@@ -99,11 +99,25 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.4 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 144 K | 10.1 K | 0.84 | 0.00 | **0.84** |
-| Real traction | 5,000 | 1.9 M | 101 K | 20 | 0.00 | **20** |
-| Scale | 50,000 | 18.8 M | 1.0 M | 220 | 2.20 | **222** |
-| Hit | 500,000 | 188 M | 10.1 M | 2,220 | 43 | **2,263** |
+| Launch / TestFlight | 50 | 8.4 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 134 K | 10.1 K | 0.75 | 0.00 | **0.75** |
+| Real traction | 5,000 | 1.8 M | 101 K | 19 | 0.00 | **19** |
+| Scale | 50,000 | 17.8 M | 1.0 M | 216 | 2.20 | **218** |
+| Hit | 500,000 | 178 M | 10.1 M | 2,178 | 43 | **2,221** |
+
+> **Re-measured 2026-09-08 (DATA-EFFICIENCY-RUNBOOK 1.4 and 1.5).** A
+> return to the foreground re-reads today's aggregate rather than the
+> whole deck, so `reattach` goes `bgCycles × DECK_DAYS` = 28 →
+> `bgCycles × REATTACH_DOCS` = 4 reads per user-day: **$20 → $19 at
+> 5,000 DAU, $224 → $218 at 50,000, $2,283 → $2,221 at 500,000**,
+> reads/day −6.3 % at every size. The egress line moved the other way,
+> honestly: every read of a published aggregate ships the big document,
+> and the boot's deck, the foreground's re-read and the top-up had been
+> charged at `otherDoc`, a tenth of their bytes — they are charged at
+> `aggDoc` now, which is why the Firestore column fell by less than the
+> reads did. `REATTACH_DOCS` is read from `live.ts` like `AGG_POLL_MS`.
+> [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md) is where the rest of the
+> bill's shape goes — the D98 surfaces, 282 of the 357 that remain.
 
 > **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
 > wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
@@ -391,19 +405,21 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 23 | 42 | 3 | 3 | 28 | 7 | 29 | 53 | 188 |
-| 500 | 23 | 42 | 3 | 3 | 28 | 7 | 29 | 152 | 287 |
-| 5,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | **282** | 377 |
-| 50,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 377 |
-| 500,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 377 |
+| 50 | 23 | 42 | 3 | 3 | 4 | 7 | 33 | 53 | 168 |
+| 500 | 23 | 42 | 3 | 3 | 4 | 7 | 33 | 152 | 267 |
+| 5,000 | 23 | 2 | 3 | 3 | 4 | 7 | 33 | **282** | 357 |
+| 50,000 | 23 | 2 | 3 | 3 | 4 | 7 | 33 | 282 | 357 |
+| 500,000 | 23 | 2 | 3 | 3 | 4 | 7 | 33 | 282 | 357 |
+
+> Re-printed 2026-09-08 from `npm run costs`: `re-attach` 28 → 4
+> (DATA-EFFICIENCY-RUNBOOK 1.4), and the server column 29 → 33, which
+> the model had carried since D395 and D399 while this table had not.
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the
 client re-reads today's aggregate once a minute while visible, and nobody
 else's behaviour appears in the expression. It used to read 1 / 15 / 146 /
-1,458 / 14,583 down that column. `re-attach` (28) is now the second-largest
-client term and the next one worth looking at; it is `bgCycles × DECK_DAYS`,
-the whole-deck refresh on each foreground.
+1,458 / 14,583 down that column. `re-attach` (28) was the second-largest client term and the next one worth looking at — `bgCycles × DECK_DAYS`, the whole-deck refresh on each foreground — until 2026-09-08, when a foreground started re-reading today only (`REATTACH_DOCS`, DATA-EFFICIENCY-RUNBOOK 1.4): 4 now.
 
 The paragraph below is kept as written, because it is what the table said
 before D129 and finding 2 is the record of why it no longer does.

@@ -35,9 +35,11 @@ not a saving — and changes the documents, never the picture.
   and a name on the sample row serve the identical picture at about a
   hundredth of the reads.
 - **Priced: 381 → 57 reads per user per day (−85 %), for one or two
-  extra writes per user per day.** Reads and writes together, straight
-  off the `europe-west1` sheet with no free allowance: **$20 → $5.57 a
-  month at 5,000 DAU, $199 → $56 at 50,000, $1,987 → $557 at 500,000.**
+  extra writes per user per day** — 357 → 57 since runbook 1.4 shipped
+  the same afternoon and took the foreground refresh's 24. Reads and
+  writes together, straight off the `europe-west1` sheet with no free
+  allowance: **$19 → $5.57 a month at 5,000 DAU, $188 → $56 at 50,000,
+  $1,879 → $557 at 500,000.**
   Half of the saving is one document (Circle's); the next third is a name
   on a document the nightly fold already writes, at no new server read.
 - **The model understates the social reads, so the saving is larger
@@ -81,7 +83,7 @@ client sites, `functions/src` for the server's):
 | Term | Reads/user-day | What is read | What is used |
 | --- | ---: | --- | --- |
 | boot | 23 (really ~29) | per boot (1.4 a day): `v2_meta/app`, own profile, own-answers delta (two queries, modelled as one), **7 deck aggregates**, the groups query, 2 group docs, 2 reveals; plus 2 paged cards a day (D401). **Four unconditional `getDoc`s are in none of the 15**: `v2_rank/daily`, `v2_rank/learn`, `v2_rank/feed`, `taste/profile` — +5.6 reads per user-day | everything but the 7 aggregates is one document each; the deck renders `counts` and `total` of seven `v2_question_aggs` and nothing of their `by` maps |
-| reattach | 28 | **7 deck aggregates on every foreground** (`resubscribeForToday` → `startAggPoll` → `refreshAggs(deckIds)`), 4 cycles a day | today's counts; the six back days barely move |
+| reattach | 4 (28 until 1.4) | today's aggregate on every foreground, plus any deck card the device holds no aggregate for (`startAggPoll("today")`, `REATTACH_DOCS`), 4 cycles a day — the whole deck was re-read on every foreground until runbook 1.4 shipped, 2026-09-08 | today's counts; the six back days refresh at boot |
 | social · Circle | 150 | 0.1 opens × 5 members × **≤300 answer documents each** (`circle.ts` `fetchAnswersOf`: `where surface in …, orderBy answeredAt desc, limit 300`) | `qid → optionIdx` per member, folded by `agreement()` into a percentage and a shared count |
 | social · Kindred / People / pair | 72 | 0.03 views × 12 questions × (1 sample document + **200 profile documents** for names) | uid, option, chips from the sample; `displayName` (and scores) from each profile |
 | social · who-voted | 60 | 0.15 opens × (**200 answer documents** + 200 profiles). The sheet's *Everyone* and eight demographic cuts cost nothing — arithmetic on the aggregate the card holds; the reads fire from the Friends, Type and Logic cuts, so the open rate is really a tap rate | uid and option from the answer; `displayName` and `testResults` from the profile. The answer's `anchors` are fetched and not rendered here |
@@ -111,15 +113,15 @@ it is what this page moves.
 
 ## 2 · The reshapes, priced
 
-`npm run costs:structure`, 2026-09-08 (regional sheet, no free
-allowance; "writes+" is per user-day):
+`npm run costs:structure`, 2026-09-08 after runbook 1.4 shipped
+(regional sheet, no free allowance; "writes+" is per user-day; the
+foreground row left the table when it became the baseline):
 
 ```
 reshape                                                                          saved/user-day  writes+   $/mo saved  5k · 50k · 500k DAU
 Circle: one compact answer document per member, not ≤300 answer docs               149.5        1 (+4 if live) $6.59 · $66 · $659
 Kindred / People / pair card: the nightly voter sample carries names                72.0        0              $3.24 · $32 · $324
 Who-voted sheet: drawn from the same sample (names embedded)                        59.8        0              $2.69 · $27 · $269
-Foreground refresh re-reads today only; the six back days refresh on boot           24.0        0              $1.08 · $11 · $108
 One deck document per day: seven aggregates in one read at boot                      8.4        1              $0.24 · $2.43 · $24
 Aggregate counters folded by increment, not read-modify-write of the whole document     4.0        0              $0.18 · $1.80 · $18
 Velocity scan folds from the nightly pass's one ledger read                          4.0        0              $0.18 · $1.80 · $18
@@ -127,11 +129,11 @@ Candidate-engine scan re-solves only people who answered since the last fit     
 
 all reshapes together — reads and writes per month, straight off the sheet
 scenario                 DAU   reads/user-day        $/mo before → after
-Launch / TestFlight        50        192 → 97             $0.11 → $0.07   (−35%)
-Friends-of-friends        500        291 → 97             $1.58 → $0.74   (−53%)
-Real traction            5000        381 → 57               $20 → $5.57   (−72%)
-Scale                   50000        381 → 57                $199 → $56   (−72%)
-Hit                    500000        381 → 57             $1,987 → $557   (−72%)
+Launch / TestFlight        50        168 → 97             $0.10 → $0.07   (−28%)
+Friends-of-friends        500        267 → 97             $1.47 → $0.74   (−50%)
+Real traction            5000        357 → 57               $19 → $5.57   (−70%)
+Scale                   50000        357 → 57                $188 → $56   (−70%)
+Hit                    500000        357 → 57             $1,879 → $557   (−70%)
 ```
 
 ### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day
@@ -244,7 +246,7 @@ the moment it lands (unioned in locally from `state.votes`), and — for a
 question older than D397 — a crowd that is only the voters since the
 deploy, which the `≥ 12` floors already report as thin.
 
-### 2.4 · The foreground refresh reads today only — 28 → 4 reads per user-day
+### 2.4 · The foreground refresh reads today only — 28 → 4 reads per user-day · **BUILT 2026-09-08 (runbook 1.4)**
 
 `wake()` → `resubscribeForToday()` → `startAggPoll()` → `refreshAggs
 (state.deckIds)` re-reads all seven deck aggregates on every return to

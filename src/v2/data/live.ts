@@ -1489,6 +1489,17 @@ function buildS(
 // which is what keeps the replacement genuinely cheap rather than merely
 // cheaper.
 const AGG_POLL_MS = 60_000;
+// Documents a return to the FOREGROUND re-reads — today's aggregate, plus
+// any deck card this device holds no aggregate for yet (a rollover while
+// backgrounded). The six back days refresh at boot: they are answerable
+// and do move, but slowly, and a back-day card is blind until it is
+// answered, so a count it does not draw is a count it need not re-read.
+// At four background cycles a day the whole-deck refresh was 28 reads a
+// user-day — the second-largest client term after D129 took the fan-out
+// out (DATA-EFFICIENCY-RUNBOOK 1.4). Read from source by
+// scripts/cost-arith.mjs (the `reattach` term), so widening this slice
+// reprices the bill instead of quietly inflating it.
+const REATTACH_DOCS = 1;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 // Which start the armed interval belongs to. startAggPoll awaits the
 // deck's read before it arms, and a stop can land inside that await — a
@@ -1559,7 +1570,7 @@ function stopAggPoll(): void {
  * re-delivers the document; re-arming a `setInterval` reads nothing until
  * it next fires.
  */
-async function startAggPoll(): Promise<void> {
+async function startAggPoll(scope: "deck" | "today" = "deck"): Promise<void> {
   // `torndown` only. NOT `state.ready` — this runs from inside hydrate(),
   // and `ready` does not flip until hydrate AND hydrateSocial have both
   // returned, so guarding on it makes the boot call a silent no-op and the
@@ -1569,7 +1580,12 @@ async function startAggPoll(): Promise<void> {
   if (torndown) return;
   stopAggPoll();
   const gen = aggPollGen;
-  await refreshAggs(state.deckIds);
+  // A boot refreshes the whole deck; a foreground refreshes today and
+  // whatever the deck holds no aggregate for (REATTACH_DOCS, above).
+  const ids = scope === "deck"
+    ? state.deckIds
+    : [...state.deckIds.slice(0, REATTACH_DOCS), ...state.deckIds.slice(REATTACH_DOCS).filter((id) => !state.aggs[id])];
+  await refreshAggs(ids);
   // A stop that landed during the read wins — see aggPollGen.
   if (torndown || gen !== aggPollGen) return;
   aggPollTimer = setInterval(() => {
@@ -5609,9 +5625,10 @@ const LIVE = {
   // The constellation fields' loader. Two ensures, both bounded and both
   // session-cached:
   //   1. aggregates for every core test item the bank carries — the cells
-  //      the place profiles fold. ≤110 docs in ≤4 batched `in` queries,
-  //      once per session, and only the ones the deck/archive has not
-  //      already cached.
+  //      the place profiles fold. One document per core test item, in
+  //      batched `in` queries of 30, once per session — and only the ones
+  //      the persisted aggregate cache does not already hold, so in
+  //      practice a first open per device and ~0 after.
   //   2. the Kindred voter lists (loadKindred, its own bounds — D102).
   // Candidate scores cost nothing here: they rode along with the voter
   // lists' name resolution, because the profile document was already on
@@ -5631,9 +5648,10 @@ const LIVE = {
         // Chunks IN PARALLEL, the shape hydrate.aggs and loadLearnAggs
         // already use (D169). This awaited each `in` query in turn, and
         // the four are independent: same documents, same billed reads,
-        // but four serial round trips instead of one. 110 core test items
-        // over the 30-id `in` limit is always ~4 chunks, so on a mobile
-        // RTT that was most of a second of "Reading the score profiles…"
+        // but serial round trips instead of one. On a mobile RTT that was
+        // seconds of "Reading the score profiles…" — the bank holds
+        // 266 core test items over the 30-id `in` limit (nine chunks; the
+        // count is check:figures', off the bank)
         // bought by nothing — the fields land on the FIRST open of City,
         // Country and World, which is the moment it was spent.
         const chunks: string[][] = [];
@@ -7705,8 +7723,9 @@ function purgeLocalTrace(): void {
 // Re-attach the day's listeners after a rollover. Called from the wake
 // handler rather than from deck(), so that a render never triggers
 // network work. Cheap and idempotent when the day has not changed:
-// startAggPoll refreshes the whole deck and re-arms the timer on the new
-// day's question, so a rollover needs no separate teardown.
+// startAggPoll refreshes today's aggregate (and any the deck lacks) and
+// re-arms the timer on the new day's question, so a rollover needs no
+// separate teardown — the whole deck is a boot's read, not a foreground's.
 async function resubscribeForToday(): Promise<void> {
   // `attached` rather than `ready` (D356): before the attach the boot
   // itself is still the thing that will start the poll and the reveal
@@ -7717,7 +7736,7 @@ async function resubscribeForToday(): Promise<void> {
       computeDeck();
       notify();
     }
-    await startAggPoll();
+    await startAggPoll("today");
     const db = await getDb();
     subscribeReveals(db);
   } catch (err) {

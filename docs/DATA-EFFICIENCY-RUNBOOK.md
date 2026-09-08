@@ -33,9 +33,20 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       phase below; when a term moves into `cost-arith.mjs` the row leaves
       this script.
 
-## Phase 1 — configuration-sized, no product change · **S, one pull request**
+## Phase 1 — configuration-sized, no product change · **S, one pull request** · **DONE 2026-09-08**
 
-- [ ] **1.1 Index exemptions on the collections nobody queries by field.**
+- [x] **1.1 Index exemptions on the collections nobody queries by field.
+      DONE 2026-09-08 — 45 exemptions.** Two things were narrowed on the
+      way, both recorded here rather than assumed: the ledger's `expireAt`
+      stays indexed until someone reads Google's TTL page (the docs host is
+      unreachable from the sandbox, and an exemption that stopped TTL
+      deletes would be worse than an index entry); and whether an
+      exemption on `by` reaches the map's city-named subfields is the
+      console read this step's own text asks for — the exemption deploys
+      either way, and 1.1b stands if it does not reach them. Pinned by
+      `indexes.test.ts` (the ledger's `uid` and `at` stay indexed; the
+      aggregate's fields do not). Original text below.
+      Index exemptions on the collections nobody queries by field.**
       `firestore.indexes.json` `fieldOverrides`: `v2_agg_events` — every
       field but `uid` (equality) and `at` (range): `qid`, `optionIdx`,
       `fromIdx`, `expireAt`, the `anchors.*` leaves; `v2_question_aggs`
@@ -53,7 +64,16 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       index deploy stays without `--force`), and the deploy step's own
       listing. · **Done when:** the console lists the exemptions and
       `indexes.test.ts` is green.
-- [ ] **1.2 Field masks on two whole-document reads.** The world trigger's
+- [x] **1.2 Field masks — DONE 2026-09-08 for `rankBankV2`, REFUSED for
+      the trigger, with the reason.** A `getAll` mask applies to every
+      document in the call, and the world branch reads the aggregate in
+      the same call it reads the profile — so a mask would have to name
+      every field the `merge: false` rewrite carries, and a field it
+      forgot would be a field silently dropped from every aggregate on the
+      next answer. A second call inside the transaction is the round trip
+      D410 refused. The profile stays whole until the increment fold
+      (5.1) makes the rewrite a merge. Original text below.
+      Field masks on two whole-document reads.** The world trigger's
       `tx.getAll(eventRef, pubRef, profRef)` in `functions/src/v2.ts`
       takes `{ fieldMask: ["anchors"] }` for the profile — the reveal
       pipeline already does this for `displayName` and says why (a
@@ -61,12 +81,17 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       `{ fieldMask: ["total", "counts"] }`. Read counts unchanged. ·
       **Gate:** `npm run test --prefix functions`; `scripts/pulse.test.mjs`'s
       read-count pins unchanged.
-- [ ] **1.3 The nightly function's memory, 256 MiB → 1 GiB.** A `NIGHTLY`
+- [x] **1.3 The nightly function's memory, 256 MiB → 1 GiB. DONE
+      2026-09-08** — `NIGHTLY` in `ops.ts`, `check:fn-runtime` green. A `NIGHTLY`
       runtime option in `functions/src/ops.ts` beside `LIGHT_UNBOUNDED`,
       applied to `digestEngagementV2` only — the stopgap for 4.3, a
       fraction of a cent a night, about four times the headroom. ·
       **Gate:** `check:fn-runtime` reads it off the built output.
-- [ ] **1.4 Foreground refresh reads today only.** `resubscribeForToday`
+- [x] **1.4 Foreground refresh reads today only. DONE 2026-09-08** —
+      plus a rider the step did not name: a deck card the device holds no
+      aggregate for (a rollover while backgrounded) rides along, so a long
+      absence still fills its cards. `npm run costs` prints `reattach 4`;
+      `COSTS.md`'s tables are re-printed with a dated note. `resubscribeForToday`
       → `startAggPoll` in `src/v2/data/live.ts` refreshes the whole deck
       on boot and `state.deckIds.slice(0, 1)` on a wake; the six back
       days keep refreshing at boot. The model's `reattach` term reads a
@@ -77,7 +102,10 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       the owner may strike it. · **Gate:** `idle-detach.test.ts` gains
       the case (a wake issues one id; a boot issues seven);
       `pulse.test.mjs`; `check:figures` after `npm run costs`.
-- [ ] **1.5 Two stale figures.** The similarity sweep's comment says ~110
+- [x] **1.5 Two stale figures. DONE 2026-09-08** — the sweep's comment
+      says 266 and `check:figures` holds it off the bank; the bytes
+      comment says eight dims; the egress term charges every aggregate
+      read at the aggregate's size. The similarity sweep's comment says ~110
       test items where the bank has 266 — `check:figures` gets the pin;
       `BYTES.aggDoc`'s comment says six dims where `BREAKDOWN_DIMS` is
       eight, and the egress term charges the deck refresh at
@@ -85,7 +113,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       `pulse.test.mjs`.
 
 **Done when:** the four changes are deployed and `npm run costs` prints
-`reattach 4`.
+`reattach 4`. *(It does; the deploy is the merge.)*
 
 ## Phase 2 — names and scores ride the samples · **M, one pull request**
 

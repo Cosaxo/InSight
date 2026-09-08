@@ -175,6 +175,16 @@ export const IDLE_DETACH_MS = readNum(
 export const AGG_POLL_MS = readNum(
   "src/v2/data/live.ts", /const AGG_POLL_MS = ([\d_]+)/, "AGG_POLL_MS");
 
+// Documents a return to the foreground re-reads (DATA-EFFICIENCY-RUNBOOK
+// 1.4): today's aggregate, where it was the whole deck. Read from source
+// for the reason AGG_POLL_MS is — this is the coefficient on the
+// `reattach` term, the second-largest client term after D129, and a
+// widened slice must reprice the bill rather than leave it quoting the
+// old one. The streamed counterfactual keeps DECK_DAYS: pre-D129 a
+// foreground re-attached seven listeners, and that record stays exact.
+export const REATTACH_DOCS = readNum(
+  "src/v2/data/live.ts", /const REATTACH_DOCS = (\d+)/, "REATTACH_DOCS");
+
 // Documents one poll tick reads. ONE — only today's aggregate is hot, so
 // `startAggPoll` ticks on `deckIds.slice(0, 1)` while the other six are
 // refreshed on boot and on each foreground (which is what `reattach`
@@ -531,9 +541,10 @@ export const B = {
 export const BYTES = {
   // The published aggregate — the document the listener fan-out ships on
   // every delivery, so at scale it is essentially the whole egress bill.
-  // Range, not a point: a bare `{counts, total, tooSmall}` is a few hundred
-  // bytes, while a full `by` breakdown is 6 dims x <=24 buckets x options
-  // (BREAKDOWN_DIMS / BREAKDOWN_MAX_BUCKETS, functions/src/pure.ts). Which
+  // Range, not a point: a bare `{counts, total}` is a few hundred bytes,
+  // while a full `by` breakdown is 8 dims x <=24 buckets x options
+  // (BREAKDOWN_DIMS — eight since D328 — / BREAKDOWN_MAX_BUCKETS,
+  // functions/src/pure.ts; this said six for two dims' worth of time). Which
   // one a real question looks like depends on how many users filled the
   // optional Basics card, which nobody knows yet — so the default is the
   // middle and COSTS.md quotes the band.
@@ -669,7 +680,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   // pulse.test.mjs pins.
   function readsPerUser(dau, {
     mature, staticBank = false, streamAggs = false,
-    publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
+    publishEvery = PUBLISH_EVERY, deckListeners = REATTACH_DOCS, social: socialOpts = {},
   }) {
     // …plus the page refill (D401): one paged card fetched per paged card
     // answered since the last boot, whatever the boot count — see
@@ -733,9 +744,12 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     //
     // One expression for both arms, because `deckListeners` means the same
     // quantity either way: documents this client pays for on each return to
-    // the foreground. Streamed they were re-attached listeners, polled they
-    // are re-read documents, and Firestore bills them identically.
-    const reattach = B.bgCycles * deckListeners;
+    // the foreground. Streamed they were re-attached listeners — all
+    // DECK_DAYS of them, the pre-D129 record — polled they are re-read
+    // documents, REATTACH_DOCS since the foreground stopped re-reading the
+    // whole deck (DATA-EFFICIENCY-RUNBOOK 1.4), and Firestore bills them
+    // identically.
+    const reattach = B.bgCycles * (streamAggs ? DECK_DAYS : deckListeners);
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
@@ -826,8 +840,13 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Egress. Weighted rather than averaged, because the mix matters: the
     // fan-out ships the aggregate document — the big one — on every single
     // delivery, and at scale the fan-out IS the read count.
+    // Every read of a published aggregate ships the big document, not only
+    // the poll's: the boot's deck, each foreground's re-read and the
+    // top-up are the same documents (DATA-EFFICIENCY-RUNBOOK 1.5 — the
+    // re-attach term was charged at `otherDoc`, a tenth of its bytes).
+    const aggReads = r.fanOut + r.reattach + r.topUp + DECK_DAYS * B.boots;
     const egressGiBMo =
-      ((r.fanOut * BYTES[aggBytes] + (Object.values(r).reduce((a, b) => a + b, 0) - r.fanOut) * BYTES.otherDoc)
+      ((aggReads * BYTES[aggBytes] + (Object.values(r).reduce((a, b) => a + b, 0) - aggReads) * BYTES.otherDoc)
         * dau * 30) / 1024 ** 3;
 
     const over = (used, free) => Math.max(0, used - free);

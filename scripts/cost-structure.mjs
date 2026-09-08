@@ -41,7 +41,9 @@ const memberAnswers = (mature) =>
   Math.min(CIRCLE_ANSWER_CAP, B.worldAnswers * (mature ? 90 : 10));
 
 // Each reshape: the per-user-day reads it removes and the per-user-day writes
-// it adds, as functions of the scenario, in the model's own terms.
+// it adds, as functions of the scenario, in the model's own terms. A row
+// leaves this list when it ships and its term moves into cost-arith.mjs —
+// the foreground refresh (runbook 1.4) was the first, on 2026-09-08.
 export const RESHAPES = [
   {
     key: "circleDoc",
@@ -71,12 +73,6 @@ export const RESHAPES = [
     name: "Who-voted sheet: drawn from the same sample (names embedded)",
     // cost-arith's whoVoted term: opens × crowd × 2 (answers + profiles)
     reads: (dau) => B.sheetOpens * (crowd(dau) * 2 - 1),
-    writes: () => 0,
-  },
-  {
-    key: "reattachToday",
-    name: "Foreground refresh re-reads today only; the six back days refresh on boot",
-    reads: () => B.bgCycles * (DECK_DAYS - 1),
     writes: () => 0,
   },
   {
