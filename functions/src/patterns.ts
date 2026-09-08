@@ -683,11 +683,20 @@ export async function runPatternsFit(
   // So deleting this whole block leaves the functions suite green for a
   // stronger reason than no test asserting it — with these fixtures there
   // is nothing to assert, and a case that asserted "the published rows
-  // moved" would fail against correct code. Closing it needs a fixture
-  // where the ALS rows and the previous published SGD rows share at least
-  // k keys, and step one is finding out why a twelve-question ledger
-  // yields an intersection of two. None of that is a reason to make the
-  // two directions symmetric; the asymmetry above is still right.
+  // moved" would fail against correct code.
+  //
+  // AND THE "WHY" ABOVE IS ANSWERED, so nobody re-does that hour either.
+  // The paragraph before this one asked why a twelve-question ledger still
+  // yielded an intersection of two; instrumenting the crossover the same
+  // night showed `als.rows` and `prevSgdPub` are BOTH exactly
+  // [daily-000, daily-001]. There is no mismatch between the two sets: the
+  // folded CORPUS is two questions, and the ten extra never reached
+  // `als.rows` at all. So closing this needs a fixture whose FOLDED corpus
+  // is at least k — putting more questions in the ledger is not the same
+  // thing, and is where the first attempt went.
+  //
+  // None of that is a reason to make the two directions symmetric; the
+  // asymmetry above is still right.
   let engineRows: Record<string, PublishedRow>;
   let engineItems: Record<string, ItemMeta> | undefined;
   if (nextEngine === "als" && als) {
