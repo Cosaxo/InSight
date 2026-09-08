@@ -53,8 +53,9 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 
 `scripts/test-users.mjs` runs synthetic accounts that play the duel loop the
 way a real device does — they sign in, write a profile, join through
-`joinGroupV2`, seal answers at `v2_users/{uid}/answers/g_{gid}_{day}`, and are
-revealed by `revealDuelsNowV2`. Everything goes through the **client SDK**
+`joinGroupV2`, seal answers at `v2_users/{uid}/answers/g_{gid}_r{n}` (one per
+round, ROUNDS-PLAN / D426), and are revealed on the completing answer or by
+`revealDuelsNowV2`'s forced lever. Everything goes through the **client SDK**
 under each account's own session, so firestore.rules applies exactly as it
 does to a real phone; the admin SDK is never used. Emulator only, enforced —
 test users answering world questions would move the exact public counts (D98)
@@ -70,21 +71,19 @@ The 1v1 loop:
 # in the app: Circle tab → create a duo → copy the invite code
 npm run testuser -- join 6CZ3K77N     # a test user joins your duo
 # in the app: answer today's duel question
-npm run testuser -- play              # the test user seals theirs
-npm run testuser -- reveal            # publish the day; the card is on daily
+npm run testuser -- play              # the test user seals the next round (a 1v1 reveals right here)
+npm run testuser -- reveal            # close open rounds now; the card is on daily
 ```
 
 Add `host [NAME] [--mode duo]` to have a test user create the group and hand
 you the code instead, `join --count 5` to fill a group, `world` to give them
 world answers so the aggregates and cohorts have something in them, and
-`history --days 3` to backfill past days of answers and reveals — that is
+`history --rounds 3` to play and reveal three rounds in a row — that is
 what the Groups portrait (mirror → Groups) and the streak read.
 
-Run `history` *before* `reveal`, not after: `lastRevealDay` and `streak` are
-written by whichever reveal commits last, so settling today and then
-backfilling leaves a group whose streak counts the backfill instead of the run
-up to today. Every reveal is still there and readable — only those two fields
-read oddly.
+Each `history` pass plays the next round and closes it, so the streak
+reads as a run up to today whatever order you run things in — under the
+day it mattered, and that paragraph is gone with it.
 
 Two limits the harness states rather than hides:
 
@@ -107,7 +106,7 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 201 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 204 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport

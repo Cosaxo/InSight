@@ -709,7 +709,7 @@ service cloud.firestore {
         // cohort is the product's one trick.
         //
         // THE ONE EXCLUSION IS TIMING, NOT PRIVACY. A duel answer
-        // (surface group/duo) is sealed until the next-day reveal — that
+        // (surface group/duo) is sealed until its round's reveal — that
         // is the game, the same way a hand of cards is face-down. Public
         // duel answers would not link any data the reveal does not
         // publish a day later; they would just let a member read the
@@ -900,44 +900,93 @@ service cloud.firestore {
                  .data.get("surface", "daily") == "feed";
         }
 
-        // Sealed duel answers: id g_{gid}_{day}. Only members may PLAY,
-        // and only while the day is UNREVEALED — answering after the
-        // reveal would let you see everyone's cards before playing yours.
-        // Both halves are game rules about who is at the table and when
-        // the hand ends; neither is an audience claim about the data,
-        // which is why D98 leaves this function alone.
+        // Sealed duel answers: id g_{gid}_r{n} — one per member per ROUND
+        // (ROUNDS-PLAN, D426). Only members may PLAY, and only a round
+        // that is still open or sealed ahead of it: answering a round that
+        // has already revealed would let you see everyone's cards before
+        // playing yours. Both halves are game rules about who is at the
+        // table and when the hand ends; neither is an audience claim about
+        // the data, which is why D98 leaves this function alone.
+        //
+        // THE DAY IS GONE FROM HERE, and it was never the seal. The seal is
+        // the `surface` value test on the read rule (a sealed answer is
+        // owner-only) plus the round bound below; the day's job was to
+        // advance the game when nobody played, and the round's deadline
+        // does that now (functions/src/v2social.ts, revealRound). What went
+        // with it: the day regex and both timestamp.date() comparisons,
+        // which is fewer expressions on the create path D409 measured.
         function isDuelAnswer() {
+          // The open round, read ONCE: the same group document the
+          // membership clause fetches (deduped for billing either way), and
+          // one binding rather than six repeated get() expressions on the
+          // create path whose refusals D409 measured against the budget.
+          let open = get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.get("round", 1);
+          // Absent reads as "not late" — a value, never an evaluation error
+          // on an unflagged answer to a revealed round.
+          let late = request.resource.data.get("late", false);
           return request.resource.data.surface in ["group", "duo"]
             && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx", "pickUid",
-              "gid", "day", "answeredAt", "anchors",
+              "gid", "round", "late", "answeredAt", "anchors",
             ])
             && request.resource.data.gid is string
-            && request.resource.data.day is string
-            && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
-            // …and that day must be near NOW. Format-checking alone let a
-            // member pre-seal every future day — guaranteeing their half of
-            // the streak forever and fixing which bank question each future
-            // reveal would use — or backfill any unrevealed past day.
-            //
-            // Bounds are deliberately loose, because a refusal here surfaces
-            // as a vote that vanishes. Back: 4d, so a client flushing a
-            // queue after ~3 days offline still lands whatever the hour.
-            // Forward: 2d, because day keys are UTC while "today" is local,
-            // and UTC+14 is already tomorrow.
-            && timestamp.date(
-                 int(request.resource.data.day[0:4]),
-                 int(request.resource.data.day[5:7]),
-                 int(request.resource.data.day[8:10]))
-               > request.time - duration.value(4, 'd')
-            && timestamp.date(
-                 int(request.resource.data.day[0:4]),
-                 int(request.resource.data.day[5:7]),
-                 int(request.resource.data.day[8:10]))
-               < request.time + duration.value(2, 'd')
-            && aid == "g_" + request.resource.data.gid + "_" + request.resource.data.day
+            && request.resource.data.round is int
+            && request.resource.data.round >= 1
+            // The id IS the round. string() over an int resolves in rules
+            // — probed in the emulator 2026-09-08 before this was written.
+            && aid == "g_" + request.resource.data.gid + "_r" + string(request.resource.data.round)
             && request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && !exists(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)/reveals/$(request.resource.data.day))
+            // THE ROUND BOUND, off the same group document the membership
+            // clause already fetched (repeated get()s on one path are
+            // deduped within an evaluation, so it costs no extra read).
+            //
+            //   round >= open      the round has not revealed. The reveal
+            //                      and the advance of `round` are ONE
+            //                      commit (revealRound), so "still the open
+            //                      round or later" IS "no reveal exists for
+            //                      it" — which is why the exists() on the
+            //                      reveal document that stood here is gone,
+            //                      and with it one billed read per answer.
+            //   round <  open + 5  the LEAD: how far ahead of the open
+            //                      round a member may seal. Some bound has
+            //                      to exist — duelQFor is a function of the
+            //                      round, so an unbounded number lets one
+            //                      client pin which question every future
+            //                      round serves. Five is one sitting (the
+            //                      plan's §5). The literal is ROUND_LEAD in
+            //                      functions/src/pure.ts; rules.test.ts
+            //                      pins the two equal.
+            //
+            // A group with no `round` field is on round 1 (get's default),
+            // the same reading every other reader makes.
+            //
+            // TWO ARMS. The first is the blind answer above, and it is what
+            // a legitimate write short-circuits on. The second is the LATE
+            // answer (ROUNDS-PLAN §4): a member who did not play a round
+            // that has since revealed may still answer it — the owner's
+            // rule, "the remainders after they have answered" — but the
+            // table is world-readable (D98), so their answer is not blind
+            // and the rule says so rather than trusting the client to:
+            //   · it MUST carry `late: true` (an unflagged answer to a
+            //     revealed round is refused, as it always was);
+            //   · it may NOT carry a guess — a guess made with the table
+            //     in view is not a reading of anyone, and refusing the
+            //     field removes the whole class rather than filtering it;
+            //   · it reaches back at most the lead, so a member cannot
+            //     backfill a room's whole history.
+            // The trigger appends it to the reveal marked late, and every
+            // score — the roles fold, the duel signal — leaves it out.
+            // And the blind arm refuses the flag, so "late" can only ever
+            // mean what it says.
+            && (
+              (request.resource.data.round >= open
+                && request.resource.data.round < open + 5
+                && late == false)
+              || (request.resource.data.round < open
+                && request.resource.data.round >= open - 5
+                && late == true
+                && !request.resource.data.keys().hasAny(["guessIdx"]))
+            )
             // the answer must reference a real question, and indexes must
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)
@@ -953,20 +1002,40 @@ service cloud.firestore {
             // public aggregate.
             && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
                  .data.get("active", true) == true
-            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
-            // the day's question with `q.surface === mode`, so the bank a
-            // group can legitimately answer from is exactly the one whose
-            // surface matches the answer's own "group"/"duo". Without it a
-            // group could seal a vote against a daily, feed or catalog
-            // question — and for a catalog question `options` is empty, so
+            // EQUALITY, like isWorldAnswer's — or the world arm beside it.
+            // duelQFor (data/deck.ts) draws a round's question from the
+            // bank whose surface matches the answer's own "group"/"duo",
+            // and since ROUNDS-PLAN §6.2 every other round from the feed's
+            // core: the second arm admits exactly that and nothing else.
+            // Without the equality a group could seal a vote against a
+            // catalog question — whose `options` is empty, so
             // duelIndexSpace() falls through to the member count and the
             // vote is folded as if it were a "pick".
             //
             // The get() is the same document duelIndexSpace() already
             // reads, and rules dedupe identical gets within a request, so
             // neither clause costs an extra read.
-            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                 .data.get("surface", "daily") == request.resource.data.surface
+            && (
+              get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                   .data.get("surface", "daily") == request.resource.data.surface
+              // …OR a WORLD question as duel content (ROUNDS-PLAN §6.2, the
+              // owner's word 2026-09-08): a daily or feed question whose
+              // answer is an option index. Written as an explicit second
+              // arm, never as a relaxation of the equality above — that
+              // equality is what stops a catalog question (type catalog,
+              // options []) falling through duelIndexSpace() to the member
+              // count and being folded as a pick, and the type test here
+              // keeps rank (an order, not an index), dial and field (a
+              // position on a range) and path out for the same reason: a
+              // duel answer's optionIdx has to name one of the question's
+              // own options. The same document, deduped: no extra read.
+              || (get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                     .data.get("surface", "daily") in ["daily", "feed"]
+                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                     .data.get("type", "") in ["vote", "binary", "choice"]
+                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                     .data.options.size() > 0)
+            )
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
             // SAME bound as optionIdx, and now the SAME COMPARISON — a guess
@@ -1370,7 +1439,7 @@ service cloud.firestore {
       // What the reveal still does is TIMING and convenience — it is
       // written the day after play, which is what keeps the seal above
       // meaningful, and it is one document instead of N answer reads.
-      match /reveals/{day} {
+      match /reveals/{revealId} {
         allow read: if request.auth != null;
         allow write: if false;
       }

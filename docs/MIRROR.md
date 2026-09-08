@@ -180,7 +180,7 @@ the People lens's Kindred rows. Both are screens where a uid has already
 become a person with a reading attached.
 
 **Groups.** The alignment ring, the answer rows and the per-member
-likeness are all computed from `v2_groups/{gid}/reveals/{day}` documents
+likeness are all computed from `v2_groups/{gid}/reveals/r{n}` documents
 the viewer can already read, over the last fortnight
 (`REVEAL_HIST_DAYS`) — every number is one the user could recompute from
 the reveals themselves. Duos are excluded on purpose: with two voters,

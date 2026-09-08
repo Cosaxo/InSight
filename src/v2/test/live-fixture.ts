@@ -442,7 +442,15 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // data wearing a live badge — the exact thing D9 removed.
     groups: () => [],
     todayQ: () => null,
+    roundQ: () => null,
+    roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
+    voteLate: async () => {},
+    worldSplit: () => null,
+    ensureWorldSplit: () => {},
+    loadPartnerAnswers: async () => {},
+    partnerAnswer: () => null,
     myDuelVote: () => null,
+    myDuelCall: () => null,
     revealFor: () => null,
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.

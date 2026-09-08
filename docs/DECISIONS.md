@@ -45896,3 +45896,346 @@ Revert the commits with D424's. Nothing is stranded: no question
 carries `sub` in the bank, so the generator's output is byte-identical
 with or without the emission, the ledger is empty, and the ring's
 ratchet reads the count that is there.
+
+## D426 · Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal
+
+**Date:** 2026-09-08 · **Status:** binding as a PLAN and as a
+measurement; nothing is built. Directed by the owner (*"lets go with this
+path"*), who also ruled the group's reveal condition and asked for the
+lead cap as a reflection. The plan is
+[`ROUNDS-PLAN.md`](ROUNDS-PLAN.md); this record is what it found and what
+it commits the tree to.
+
+D419 §5 recorded the owner's intention — *"i actualy hope to make the 1v1
+and group less lineted to move to unlimeted questions per day"* — as
+explicitly unbuilt, and stopped the copy from hard-coding a cadence it
+was meant to outlive. This is the follow-through.
+
+### The finding, and it is why this is cheap
+
+**The day is not the seal.** What keeps a duel answer blind is two
+clauses in `firestore.rules`: the sealed answer is excluded from D98's
+public read by a `surface` value test, and a create is refused once that
+round's reveal exists. Neither reads a clock. Both are statements about
+*this round*, not about *today*.
+
+The day is doing exactly one job, and it is a scheduling job: **it is
+what advances the game when somebody does not play.** Today the calendar
+rolls over regardless, so a partner who never answers costs you a reveal
+and hands you a fresh question anyway. That is the whole function to
+replace — and replacing it is what makes the round safe, because a round
+with nothing to close it freezes a stalled pair forever, which is
+*worse* than the limit being lifted.
+
+So: a **round** is the unit. A 1v1 reveals on the second answer. A group
+reveals when every member has played, or at a deadline for those who did.
+The next round opens in the same commit as the reveal.
+
+### What it costs, measured
+
+`scripts/cost-arith.mjs` with `B.duelAnswers` varied and
+`TRIGGER_READS.duel` set to 1 for the completeness read the trigger
+gains:
+
+| Duel answers per user per day | 50 k DAU | multiple |
+| --- | --- | --- |
+| 1 — today | $180 | 1.00× |
+| 4 | $208 | 1.15× |
+| 8 | $244 | **1.35×** |
+| 16 | $319 | 1.77× |
+
+**Eight rounds a day costs 1.35× the whole bill, not 8×** — a duel answer
+is cheap beside the world answers and the D98 social reads that dominate
+every column. Three savings are not in the table and all point the same
+way: reveal history goes from up to 14 day-key `getDoc`s to one ordered
+query, the scan stops paying for groups that played nothing, and a 1v1's
+reveal stops waiting on a scan at all.
+
+The create rule also gets **cheaper**: the day regex and both
+`timestamp.date()` comparisons go, and the round bound reads a group
+document `isDuelAnswer` already fetches, so it is deduped and free. That
+is the right direction on the path D409 measured.
+
+### The one place the owner's rule needed the rules, not the UI
+
+The owner's group condition — *"it gets reveld for the once that played
+at the deadline the remainders after they have answard"* — has a half
+that cannot be built as drawn. **A reveal is world-readable (D98)**, so a
+member who has not played can read the table before answering, and hiding
+it in the client would be a claim the rules do not make.
+
+What the plan builds instead keeps the rule and stays honest: a late
+answer carries `late: true`, **required by the rules whenever the reveal
+exists**, so the flag is true because the rule made it true rather than
+because a client said so; it may not carry a guess at all, which removes
+the gaming class instead of filtering it downstream; the server appends
+it so the group sees it, marked; and it moves no dim, no ledger figure
+and no `duel-{qid}` count. Shown, not scored — D386's `asides` pattern
+one surface over.
+
+The alternative was priced and rejected: gating the reveal read on having
+answered retreats from D98 and puts a billed `get()` on a read path that
+has none.
+
+### What this does NOT change, checked rather than assumed
+
+No rule in the plan changes an audience. The same people see the same
+votes, one round later instead of one day later. D5's seal is enforced by
+the same two clauses; D98 is untouched; the three denies stand at their
+paths; D45's erasure sweep walks `reveals.members` and is id-independent;
+D8's anchor snapshot, D86's frozen duel answers, D70's plurality question,
+D71's per-vote question and D224's pick snapshot all hold verbatim. **So
+this is not a D334 ask** — the open items are product calls, and they are
+rows on `OWNER-LIST.md`: the lead cap (recommended 5), the late-answer
+scoring rule, world questions as duel content, and `roundPlayers`
+disclosing who has played.
+
+### Two things the plan found on the way
+
+- **The bank is the real constraint, not the mechanism.** Counted
+  2026-09-08: 32 1v1 questions, 26 group, 24 romantic and dark. A pair at
+  rounds pace burns the 1v1 pool in one evening, and the duel lane's
+  regulator grants 4 a run, weekly, toward 48 a pool — an arithmetic
+  built for one question a day. The plan's §6 carries both answers: a
+  lane burst (a scheduling change, every quality gate unchanged), and
+  world questions as duel content, where the tree already holds 134 daily
+  and 333 feed questions, 245 of them two-or-more-option. The second is
+  also the strongest form of the app's thesis, because a 1v1 round over a
+  world question reveals three columns — your answer, their answer, and
+  the world's split — and the third costs zero extra reads.
+
+- **`roundPlayers` closes a gap D156 called unclosable.** The array the
+  reveal condition needs anyway is who has answered, never what they
+  answered, on a document members already read. D156 §2 recorded that
+  nobody can say who has played today because the answer is sealed; this
+  says it honestly, and the dimmed avatars the prototype draws become
+  drawable. Named as a deliberate new disclosure rather than slipped in.
+
+### And a vocabulary collision, recorded rather than fixed
+
+The owner flagged it in the same message: *"i notice you use circle
+insted of group and thats wrong… circle is something else in the app."*
+Correct, and the tree has it too. **Circle** is the Mirror's stop over
+the follow graph (D101, `data/circle.ts`); **Groups** is the Mirror's
+stop over the named duel rooms — but `ui/LiveDuelPanel.tsx` calls a duel
+room a *circle* throughout its copy, and so does the 2026-09-07 design.
+Two different things called Circle on two tabs, and the Mirror is the one
+that is right.
+
+Deliberately out of scope here: a rename across the duel panel, the
+design vocabulary and `check:public-copy`'s expectations is its own
+change with its own gate, and burying it inside the round model would
+make both harder to review. `ROUNDS-PLAN.md` §9 holds it so it is a known
+collision rather than a recurring surprise.
+
+### The assumption the build must re-check first
+
+The plan sequences a **clean cutover with no dual-write period** — rounds
+replace days, old day-keyed reveals stay readable as history, no client
+ever writes both shapes. That is available only because the app is
+pre-launch (D386 on the role cards: *"few exist, pre-launch builds"*; D5's
+amendment reasoning production's duel-answer set to provably empty).
+**Re-check both before step 2.** If real groups are playing by then, the
+rules need a transition window accepting both id shapes, and that is a
+materially bigger change than what is planned.
+
+## D426 amendment (2026-09-08) · The model is approved, and notifications are the volley's other half
+
+Read the plan back in plain words — a round is a number; a 1v1 reveals
+the moment the other person answers; a group reveals when the last
+member does or at the deadline for those who did; up to five rounds
+ahead; a late answer shown and marked and not counted; the card saying
+*waiting on Leo*; world questions in a 1v1 with the world's split as a
+third column — the owner said *"yeah lets do that"*, and asked: *"should
+we have notification connectod to this as well?"*
+
+**The four owner rows are answered by that sentence** and annotated so
+in `OWNER-LIST.md`; the ticks stay the owner's (D352).
+
+**Notifications: yes, and rounds are where they start earning their
+place.** A volley with no nudge is a game where nobody knows it is their
+move. `ROUNDS-PLAN.md` §7.4 is the design; what it commits to:
+
+- **One send site, two messages.** When an answer lands, each *other*
+  member gets *your turn* if they have not answered this round, or the
+  reveal if they have — in a 1v1 those are exclusive, so it is always
+  one push to one person. A group is nudged once per round per member,
+  never once per answer, and the reveal of round *n* carries the opening
+  of round *n+1* because they are one commit.
+- **Debounced per recipient**, on a `pushAt` map the reveal transaction
+  already holds — one push per person per window, the body naming the
+  count. Per recipient rather than per group, or one active partner
+  silences the other's nudge.
+- **A third Android channel, `turns`, at importance 3.** A nudge is not
+  a result; a person who mutes nudges keeps reveals. `push.ts` already
+  makes this argument for the second channel.
+- **The privacy page moves first (D183).** It names *"the four
+  notifications this app sends"*, and `check:policy-claims` holds the
+  list while `check:figures` holds the count against the send sites — so
+  the fifth send cannot ship until the page says it. That is the build
+  order, and the gates enforce it rather than this record.
+- **The foreground case** — a push about the card you are looking at —
+  is unhandled today for the reveal too, and the client's to suppress.
+  It matters at eight a day in a way it did not at one.
+
+Nothing here is a D334 ask: a nudge says *someone played*, which
+`roundPlayers` already discloses to the same people, and a reveal push
+says what today's says.
+
+## D426 amendment (2026-09-08, later the same day) · Steps 0–3 are built: the round replaces the day
+
+Built on the branch the day the model was approved, each step green on
+its own and the whole tree green at the end: `test:unit` (2 875),
+`test --prefix functions` (790), `test:scripts` (1 023), `test:rules`
+(203, coverage baseline unmoved), `test:e2e:all` on one emulator boot,
+`lint`, `tsc -b`, `check:globals` (30, unmoved), `check:figures`,
+`check:docs`, `check:public-copy`, `check:policy-claims`,
+`check:data-inventory`, `check:a11y`, `check:tap-targets`,
+`check:appcheck`, `check:monitoring`, `check:deploy-targets`,
+`check:fn-runtime`.
+
+**What is in the tree now.** A duel answer is `g_{gid}_r{n}` with
+`round` in place of `day`; the group document carries the open `round`,
+a `played` map of who has sealed which round, and the open round's clock
+(`roundOpenedAt`, `roundDeadlineAt`) from its first answer. The rules
+bound an answer to `[open, open + 5)` off the group document the
+membership clause already fetches, and the day regex, both
+`timestamp.date()` clauses and the reveal-exists `exists()` are gone —
+that last one because the reveal and the advance of `round` are one
+commit. A 1v1 reveals on the second answer and a group on the last,
+inside `onV2AnswerCreated`; a round with an answer in it closes at its
+deadline for whoever played, found by an indexed range on
+`roundDeadlineAt` every two hours; the next round opens in the reveal's
+own commit. The streak stays a day streak. Reveal history is one ordered
+query. `revealDuelsNowV2` takes `force` instead of a day. The card says
+*Reveals when Ada plays* and counts a group to its deadline.
+
+**Measured, not assumed, on the way.** `string(int)` resolves in rules
+(the emulator probe, step 0). The reveal reads `2 + 2m` where the day's
+read `4 + 3m`, the duel answer's rule reads are 2 where they were 3, and
+the trigger's are 1 where they were 0 — all three moved in
+`scripts/cost-arith.mjs` and held by the tripwires in
+`scripts/pulse.test.mjs`, which recorded a cost going DOWN for the first
+time. A forced reveal a millisecond after an answer races the trigger's
+mark, so the e2e waits for `played` as production never has to.
+
+**Where the build departed from the plan as written**, recorded in
+`ROUNDS-PLAN.md` §0a rather than by rewriting the plan: `played` as a
+per-round map rather than a single `roundPlayers` list (the lead needs
+it); the clock starting on the first answer rather than at the round's
+opening (a round nobody plays never burns its question); a 1v1 closing
+at the deadline for one player (the owner's rule, both surfaces; it
+fixes the both-or-nothing shape that sealed an abandoned partner's
+answer forever); steps 2 and 3 shipped together (rounds with a two-hour
+wait would have been the day wearing a different clock); and the
+cutover done clean, with reveals from before rounds readable as history,
+because nothing real had played.
+
+**The late answer is built too** (§4, the same day): a member who did
+not play a round that has revealed may still answer it, and the rules
+admit that answer only flagged `late: true`, without a guess, and at most
+the lead behind the open round — while the blind arm refuses the flag,
+so "late" can only ever mean what it says. The trigger appends it to the
+reveal marked, with the member added to `members` and `names` (the one
+server write to a reveal after its create); the roles fold, the runs, the
+portrait and the duel signal all leave it out; the card lists late
+answers on their own row and offers the door under a reveal you have no
+vote in. Not blind, so not a reading — shown, not scored.
+
+**The bank burst's regulator is built** (§6.1, the same day):
+`scripts/duel-budget.mjs` grants 25 a run toward 400 a live pool — a pair
+at eight rounds a day for seven weeks without a repeat, the horizon the
+day's 48 gave a daily player — and the dark romantic pool keeps 48 until
+it is lit, read off the bank's `active` posture rather than assumed.
+What the tree cannot do is re-pace the lane: its Routine is on another
+account, so the daily cadence the burst wants is an owner click, with
+the arithmetic on the row (weekly reaches 400 in about eight months,
+daily in about five weeks).
+
+**World questions as duel content is built** (§6.2, the same day, on
+the owner's word — *"yeah lets do that"*, to the model explained in
+plain words, which named it). Every even round draws from the feed's
+core, restricted to the shapes an option index can name and sorted so
+every device draws the same question, through a second arm in
+`isDuelAnswer` written as an explicit admission — surface `daily` or
+`feed`, type `vote`/`binary`/`choice`, `options.size() > 0` — rather
+than a relaxation of the equality that keeps the catalog out. The
+reveal draws the pair, or the room, against the crowd: one read for the
+crowd's split per question per session rather than the zero the plan
+assumed, because the feed's cache holds only the answered questions'
+aggregates (the blind answer) and a duel answer is keyed `g_…`. In a
+1v1 the partner's public answer to the question, when they have one, is
+read from the Circle stop's capped query once per pair per session, and
+the card asks no guess on it — a guess with the answer in public is a
+lookup, not a reading — and says why; a group's world round asks no
+guess at all. §6.2's exclusion became that signal because excluding per
+partner would make the round's question a function of one device's
+data, which is drift. Three get() sites on the question document joined
+the rules tripwire (34 → 37), none billed twice; the coverage baseline
+is unmoved because each new predicate has its refusal. The rotation,
+the pool and the card are pinned in `deck.test.ts` and
+`LiveDuelPanel.test.tsx`, the arm in `rules.test.ts`, and the round —
+with the world's count not moving — in the e2e's 8a leg.
+
+**Notifications are built** (§7.4, the same day, on the owner's word —
+*"yes on the notification"*), and the page moved first: `web/privacy.html`
+says five and names the fifth, *it is your turn in a group or 1v1*,
+between the reveal and the invitation, with `check:figures` deriving
+the word from the sender's kinds and `check:policy-claims` holding the
+named list. One send site, two messages: the answer trigger tells the
+other members a round waits for them (*Leo answered — your turn*, or
+*Leo played 4 rounds — your turn* when more wait), and the reveal tells
+everyone the round is out and, to whoever has not sealed the next one,
+that it is waiting. The plan's per-recipient window became a STAMP:
+`pushAt[uid]` on the group document, set by either push and cleared by
+the member's own answer, so it is one push per turn — a partner five
+rounds ahead sends one nudge, a room of thirty-one is told once per
+member per round, and a reveal that said the next round waits is not
+followed by a nudge about it. The recipients are decided inside the
+trigger's transaction and stamped in the same commit as the mark, so
+two answers landing together cannot both nudge one member; the send
+waits for the commit. A third Android channel, `turns`, at default
+importance rather than heads-up — a nudge should not pop over what you
+are doing, and the channel is the one control the OS gives a person
+who wants results without nudges. The foreground presents nothing, by
+config rather than by the listener the plan described: the plugin
+cannot present selectively (read in its source — iOS returns the
+static list from `willPresent`, Android posts a foreground notification
+whenever it holds an alert, which it did), so `presentationOptions` is
+the badge alone, the subscribed room moves on its own, and the arrival
+is handed to the store, which re-fetches invitations. The cost of that
+honesty is recorded in §0a: an invitation arriving while you are on
+another tab shows no banner until you return. Pinned in `pure.test.ts`
+(who is told), `late-answer.test.ts` (the stamp in the mark's commit,
+the sender after it, a late answer nudging nobody), `reveal-day.test.ts`
+(the reveal's stamps), `push.test.ts` (the channel, the tap, the
+foreground hand-off) and the e2e (the stamps on the real trigger).
+
+**The screens are built** (§7.5, request 12, the same day): the owner
+drew the card in Claude Design from the prompt this session wrote —
+nine states for a 1v1 and a group, light and dark — and the canvas is
+extracted to `design/rounds-card-2026-09-08/` with a README that is
+its readable half. `ui/LiveDuelPanel.tsx` now draws that card: the
+kicker that names the round, the prompt in the serif, the answer as
+tinted options and the read as a second step, a 1v1 with no clock and a
+group counting coarsely to its deadline, the reveal as a SAID · CALLED
+table or a split with faces, a World round's three columns, seats for
+the absent, the late answer said plainly, the run of rounds at the foot
+— filled, hollow, sealed, open, late — which is also how a past reveal
+is opened, the rail with a dot on any room that is your turn, and a
+first run that draws one round of the game with a World question
+standing in before the one tap that starts a room. It draws only what
+the card already held — no new read; the call on a sealed round is
+remembered on the device (`myDuelCall`), never fetched. Where the tree
+departs from the canvas is written in the README rather than hidden: a
+1v1 can still close at its deadline and then wears the group's shapes;
+the next round's ask sits under what you sealed, or the lead is worth
+nothing; only the open round carries a deadline; the run has a sixth
+dot for a round with no call to score; and the header's run line, its
+member count and the panel's *N to play* line are gone, because the
+canvas has none of them and the rail's dots are the count. Pinned by
+what a person can see or reach in `LiveDuelPanel.test.tsx`; `check:a11y`
+and `check:tap-targets` unmoved, `check:public-copy` clean.
+
+**Nothing in the plan is left unbuilt.** The lane's daily cadence, the
+one owner click the tree could not make, the owner made the same day.

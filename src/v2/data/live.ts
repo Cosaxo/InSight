@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 41 `await getDb()` sites in this file did not change
+// deliberately: the 44 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -218,6 +218,7 @@ import {
   countsFor,
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
+  worldDuelPool,
   hasPublishedCounts,
   isCore,
   isDailyQid,
@@ -225,7 +226,6 @@ import {
   rankCrowd,
   CANON_BOARD_N,
   splitBanks,
-  utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import type { FeedAd } from "./sponsored";
@@ -397,18 +397,42 @@ const state = {
   stats: { bankSource: "none", dailySource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
+  // gid → the LATEST reveal (the round before the open one), live-subscribed,
+  // or null while none is readable. `revealKeys` is which reveal id each
+  // listener is on, so a round advancing re-points it.
   reveals: {} as Record<string, Record<string, unknown> | null>,
   groupsUnsub: null as null | (() => void),
   revealUnsubs: {} as Record<string, () => void>,
-  revealDay: "",
+  revealKeys: {} as Record<string, string>,
   // Reveal HISTORY, fetched on demand for the Mirror's Groups portrait —
-  // gid → day → doc, or null for a day that has no readable reveal
-  // (skipped day, or one revealed before this user joined; the rules
-  // return permission-denied for the latter and that is the rule working).
-  // In-memory only: ≤ REVEAL_HIST_DAYS doc reads per group per session,
-  // paid only when the portrait is opened, never at boot.
+  // gid → reveal id → doc. Only documents that exist: the query below
+  // returns nothing for a day nobody played, where the old per-key fan-out
+  // cached a null (and paid a read) for it. In-memory only: ONE ordered
+  // query of ≤ REVEAL_HIST_DAYS documents per group per session, paid only
+  // when the portrait is opened, never at boot. `revealHistLoaded` is the
+  // settled flag — an empty history is still a settled one — and a failed
+  // query leaves it unset so a later call retries.
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
+  revealHistLoaded: {} as Record<string, boolean>,
+  // The partner's PUBLIC world answers, per 1v1 (ROUNDS-PLAN §6.2): one
+  // capped query per pair per session, loaded on the card that asks. A
+  // world-question round whose partner has already answered that question
+  // in public is not a read — the guess would be a lookup — so the card
+  // asks no guess on it and says why. gid → qid → optionIdx.
+  partnerAnswers: {} as Record<string, Record<string, number>>,
+  partnerAnswersLoading: {} as Record<string, boolean>,
+  // The world-round questions whose split this session has asked the
+  // server for (ensureWorldSplit): one read each, hit or miss.
+  worldSplitChecked: {} as Record<string, boolean>,
+  // My CALL on each duel answer — answer id → guessIdx — kept beside the
+  // pick, which `votes` holds alone. The card's sealed list (request 12)
+  // says "you: Ignore · called Answer" for every round waiting on the
+  // others; the pick is on disk with the answers, the call is remembered
+  // for the session and re-read from the answer documents the boot's
+  // delta fetches. A round whose call this device no longer holds shows
+  // the pick alone — nothing invented.
+  duelCalls: {} as Record<string, number>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -704,10 +728,11 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
-// How far back the Groups portrait reads. 14 days ≈ the window a weekly
-// group actually remembers, and its cost ceiling is 13 doc reads per group
-// per session (yesterday rides the existing reveal listener) — paid only
-// when the portrait is opened.
+// How far back the Groups portrait reads. 14 ≈ the window a weekly group
+// actually remembers, and its cost ceiling is ONE query returning at most
+// this many reveal documents per group per session — paid only when the
+// portrait is opened. The name says "days" from when a reveal was a day;
+// under rounds (ROUNDS-PLAN) it is simply the newest N reveals.
 const REVEAL_HIST_DAYS = 14;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
@@ -2583,6 +2608,13 @@ async function hydrate(): Promise<void> {
       const val = answerValueOf((f) => d.get(f));
       if (val !== null) {
         state.votes[d.id] = val;
+        // A duel answer's CALL rides the same document (request 12's
+        // sealed list names it) — read here because the read is already
+        // paid, never fetched for its own sake.
+        if (d.id.startsWith("g_")) {
+          const gi = d.get("guessIdx");
+          if (typeof gi === "number") state.duelCalls[d.id] = gi;
+        }
         // NOT the server's word when the SDK's persistent cache has laid
         // this device's own unacknowledged mutation over the document
         // (latency compensation: such a query result carries
@@ -2653,7 +2685,7 @@ async function hydrate(): Promise<void> {
     // everything past the 1000th was sealed out of that device
     // permanently, not merely deferred to the next boot.
     //
-    // Reachable well before any scale story: duel (`g_{gid}_{day}`) and
+    // Reachable well before any scale story: duel (`g_{gid}_r{n}`) and
     // pulse (`{qid}_{day}`) answers mint a document per day forever, so
     // an engaged account passes 1000 inside a year — and those day-docs,
     // being the newest, are exactly the ones that crowd the static world
@@ -3586,51 +3618,49 @@ function buildFeedGlobals(): void {
   LIVE.feedReady = true;
 }
 
-// (Re)subscribe every group's reveal doc for the CURRENT yesterday —
-// called from the groups snapshot and again on midnight rollover, so a
-// long-lived session (the reveal-push case) doesn't stay pinned to the
-// day it booted on.
+// (Re)subscribe every group's LATEST reveal — the round before the open
+// one (ROUNDS-PLAN, D426). Called from the groups snapshot, which fires on
+// every group-document change, so a round advancing (the reveal writes
+// `round` in the same commit) re-points the listener at the new reveal
+// within the same tick; and again on midnight rollover, harmlessly.
 function subscribeReveals(db: import("firebase/firestore").Firestore): void {
-  const yester = utcDayKey(-1);
-  const dayChanged = state.revealDay !== yester;
-  state.revealDay = yester;
-  const want = new Set(state.groups.map((g) => g.id));
+  const want = new Map<string, string | null>();
+  for (const g of state.groups) {
+    const open = openRoundOf(g);
+    want.set(g.id, open > 1 ? roundKey(open - 1) : null);
+  }
   for (const gid of Object.keys(state.revealUnsubs)) {
-    if (!want.has(gid) || dayChanged) {
+    const key = want.get(gid);
+    if (key === undefined || key === null || state.revealKeys[gid] !== key) {
       state.revealUnsubs[gid]();
       delete state.revealUnsubs[gid];
-      if (!want.has(gid)) delete state.reveals[gid];
+      delete state.revealKeys[gid];
+      if (key === undefined) delete state.reveals[gid];
     }
   }
   state.groups.forEach((g) => {
     if (state.revealUnsubs[g.id]) return;
+    const key = want.get(g.id);
+    if (!key) {
+      // Round 1 is open: nothing has revealed yet, and there is no r0.
+      if (state.reveals[g.id] !== null) { state.reveals[g.id] = null; notify(); }
+      return;
+    }
+    state.revealKeys[g.id] = key;
     state.revealUnsubs[g.id] = onSnapshot(
-      doc(db, "v2_groups", g.id, "reveals", yester),
+      doc(db, "v2_groups", g.id, "reveals", key),
       (rs) => {
         state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
         notify();
       },
       (err) => {
-        // permission-denied here is the RULE WORKING, not a fault: reveal
-        // reads gate on the reveal's own members snapshot, so a member who
-        // joined after this day was revealed is denied by design. It is the
-        // ordinary state of every late joiner's first day in a group, so
-        // reporting it would bury real listener faults in Sentry.
-        //
-        // Deliberately keeps the unsub entry rather than deleting it. The
-        // denial is permanent for this (group, day) pair — re-attaching
-        // would fail identically forever — and the midnight rollover above
-        // tears down every entry on dayChanged, so tomorrow still retries.
-        if ((err as { code?: string }).code === "permission-denied") {
-          state.reveals[g.id] = null;
-          notify();
-          return;
-        }
-        // Dead listener: drop the stale unsub so the next
-        // subscribeReveals pass (groups snapshot or midnight rollover)
-        // can re-attach instead of being blocked by the guard above.
+        // A reveal is world-readable since D98, so a refusal here is not
+        // the rule working any more; it is reported like any dead listener.
+        // Drop the stale unsub so the next subscribeReveals pass (groups
+        // snapshot or midnight rollover) can re-attach.
         reportError(err, { where: "revealListener", gid: g.id });
         delete state.revealUnsubs[g.id];
+        delete state.revealKeys[g.id];
         notify();
       },
     );
@@ -3671,69 +3701,227 @@ async function callable<T>(name: string, data: unknown): Promise<T> {
   return res.data as T;
 }
 
-function duelQFor(g: Record<string, unknown> & { id: string }, dayOffset = 0) {
-  return duelQForPure(g, state.duelBank, utcDayIndexPure(Date.now()), dayOffset);
+/**
+ * How far ahead of the open round a member may seal (ROUNDS-PLAN §5).
+ * The same literal as the rules' bound and functions/src/pure.ts's
+ * ROUND_LEAD; a client that believed a larger number would seal an answer
+ * the rules refuse, so this is the one place the client says it.
+ */
+const ROUND_LEAD = 5;
+const roundKey = (n: number): string => `r${n}`;
+const openRoundOf = (g: Record<string, unknown>): number => {
+  const r = g.round;
+  return typeof r === "number" && Number.isInteger(r) && r >= 1 ? r : 1;
+};
+// The world pool is a pure function of the feed bank's core, recomputed
+// only when the bank object changes (one filter + sort over ~90 rows).
+let worldPoolFor: { bank: unknown; pool: Array<QuestionDoc & { id: string }> } | null = null;
+function worldPool(): Array<QuestionDoc & { id: string }> {
+  if (!worldPoolFor || worldPoolFor.bank !== state.feedBank) {
+    worldPoolFor = { bank: state.feedBank, pool: worldDuelPool(state.feedBank) };
+  }
+  return worldPoolFor.pool;
+}
+function duelQFor(g: Record<string, unknown> & { id: string }, round: number) {
+  return duelQForPure(g, state.duelBank, round, worldPool());
+}
+/**
+ * Where this account stands in a room's rounds: the OPEN round, the rounds
+ * it has sealed that have not revealed yet (the open one and any it ran
+ * ahead into), and the NEXT round it may answer — the lowest unsealed one
+ * inside the lead, or null at the lead's edge, which is "you have run as
+ * far ahead as you may; waiting on them".
+ */
+function roundsOf(g: Record<string, unknown> & { id: string }) {
+  const open = openRoundOf(g);
+  const sealed: number[] = [];
+  let next: number | null = null;
+  for (let n = open; n < open + ROUND_LEAD; n++) {
+    if (state.votes[`g_${g.id}_${roundKey(n)}`] != null) sealed.push(n);
+    else if (next == null) next = n;
+  }
+  return { open, next, sealed, lead: ROUND_LEAD };
 }
 
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
+  /** The account's standing in a room's rounds — see roundsOf. */
+  roundInfo(gid: string): { open: number; next: number | null; sealed: number[]; lead: number } | null {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? roundsOf(g) : null;
+  },
   bankQ(qid: string) {
     const q = state.duelBank.find((x) => x.id === qid);
-    return q ? { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" } : null;
+    if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
+    // A world question served as a round (ROUNDS-PLAN §6.2) — the reveal
+    // card and the roles fold look it up by the same door.
+    const w = feedById(qid) || dailyById(qid);
+    return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "world" } : null;
+  },
+  /**
+   * The world's split on a question this device already holds the
+   * aggregate for — the third column a world-question reveal draws
+   * (ROUNDS-PLAN §6.2): your answer, theirs, and the crowd's. Null until
+   * the aggregate is published and cached; never a fetch of its own.
+   */
+  worldSplit(qid: string): { counts: number[]; total: number } | null {
+    const q = feedById(qid) || dailyById(qid);
+    if (!q || !hasPublishedCounts(state.aggs[qid])) return null;
+    const counts = countsFor(q.options, voteCtx(qid));
+    const total = counts.reduce((a, b) => a + b, 0);
+    return total > 0 ? { counts, total } : null;
+  },
+  /**
+   * Fetch the crowd's split for a world round's question when the cache
+   * holds none — ONE read per question per session, on the reveal that
+   * draws it. §6.2 priced the third column at zero on the assumption that
+   * the feed's cache held every core aggregate. It holds the aggregates
+   * of the questions you have ANSWERED — the blind answer means a card
+   * fetches its split after the vote — and a duel answer is keyed `g_…`,
+   * so the boot's top-up never asks for a world round's question. The
+   * learn lens's read-through cache is the model (`learnAgg`): an
+   * in-flight flag rather than a pre-filled null, a missing document
+   * remembered as "nobody yet" for the session, and a failed read left
+   * unset so a later render may try again. Nothing on a room's own
+   * question, which no world aggregate describes.
+   */
+  ensureWorldSplit(qid: string): void {
+    if (state.worldSplitChecked[qid] || hasPublishedCounts(state.aggs[qid])) return;
+    if (!(feedById(qid) || dailyById(qid))) return;
+    state.worldSplitChecked[qid] = true;
+    void (async () => {
+      try {
+        const db = await getDb();
+        const snap = await getDoc(doc(db, "v2_question_aggs", qid));
+        state.stats.aggsFetched += 1;
+        if (snap.exists()) {
+          storeAgg(qid, snap.data() as AggDoc);
+          saveAggCache();
+          notify();
+        }
+      } catch (err) {
+        delete state.worldSplitChecked[qid];
+        reportError(err, { where: "worldSplit", qid });
+      }
+    })();
+  },
+  /**
+   * Load the partner's public world answers for a 1v1, once per session
+   * (`fetchAnswersOf`, the Circle stop's own query, capped at
+   * CIRCLE_ANSWER_CAP newest). Only a duo asks; a group's world rounds
+   * take no call on the room at all, because a room of public answers is
+   * a lookup too.
+   */
+  async loadPartnerAnswers(gid: string): Promise<void> {
+    const g = state.groups.find((x) => x.id === gid);
+    const me = state.uid;
+    if (!g || !me || g.mode !== "duo") return;
+    const them = ((g.memberUids || []) as string[]).find((u) => u !== me);
+    if (!them || state.partnerAnswers[gid] || state.partnerAnswersLoading[gid]) return;
+    state.partnerAnswersLoading[gid] = true;
+    try {
+      const db = await getDb();
+      const { fetchAnswersOf } = await import("./circle");
+      state.partnerAnswers[gid] = await fetchAnswersOf(db, them);
+    } catch (err) {
+      reportError(err, { where: "partnerAnswers", gid });
+    } finally {
+      state.partnerAnswersLoading[gid] = false;
+      notify();
+    }
+  },
+  /** The partner's public answer to `qid`, or null — unknown until loaded. */
+  partnerAnswer(gid: string, qid: string): number | null {
+    const map = state.partnerAnswers[gid];
+    return map && typeof map[qid] === "number" ? map[qid] : null;
   },
   groups(mode?: string) {
     return mode ? state.groups.filter((g) => (g.mode || "group") === mode) : [...state.groups];
   },
+  /**
+   * The question this account should answer NEXT in this room — the lowest
+   * round it has not sealed, inside the lead — or null at the lead's edge.
+   * The name is from when a room had one question a day; every consumer
+   * and the surface pin still say it, and what it answers is the same
+   * question in the same place: what is in front of you.
+   */
   todayQ(gid: string) {
     const g = state.groups.find((x) => x.id === gid);
-    return g ? duelQFor(g) : null;
+    if (!g) return null;
+    const { next } = roundsOf(g);
+    return next == null ? null : duelQFor(g, next);
   },
+  /** The question of a given round in this room — the reveal card's, for a
+   *  round that has revealed, or a sealed one's prompt. */
+  roundQ(gid: string, round: number) {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? duelQFor(g, round) : null;
+  },
+  /** This account's sealed answer to the OPEN round, or null. */
   myDuelVote(gid: string): { optionIdx: number } | null {
-    const v = state.votes[`g_${gid}_${utcDayKey(0)}`];
+    const g = state.groups.find((x) => x.id === gid);
+    if (!g) return null;
+    const v = state.votes[`g_${gid}_${roundKey(openRoundOf(g))}`];
     return v != null ? { optionIdx: Number(v) } : null;
+  },
+  /**
+   * My answer to a given round, with my call when this device still holds
+   * it (request 12's sealed list: "you: Ignore · called Answer"). Null
+   * for a round I have not sealed; `guessIdx` null for a pick whose call
+   * is not remembered — the card then names the pick alone.
+   */
+  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null } | null {
+    const aid = `g_${gid}_${roundKey(round)}`;
+    const v = state.votes[aid];
+    if (v == null) return null;
+    const gi = state.duelCalls[aid];
+    return { optionIdx: Number(v), guessIdx: typeof gi === "number" ? gi : null };
   },
   revealFor(gid: string) {
     return state.reveals[gid] || null;
   },
   // ── reveal history — the Groups portrait's data source ──
-  // Direct doc gets by day key, never a collection query: the reveal read
-  // rule gates on each doc's own `members` snapshot, which a list query
-  // cannot prove, so a query would be denied wholesale while per-doc gets
-  // succeed exactly for the days this user played.
-  async loadRevealHistory(gid: string, days = REVEAL_HIST_DAYS): Promise<void> {
-    if (state.revealHistLoading[gid]) return;
-    const have = (state.revealHist[gid] = state.revealHist[gid] || {});
-    const wanted: string[] = [];
-    // -2 backwards: yesterday (-1) already has a live listener (reveals),
-    // and revealHistory() below merges it in — fetching it twice would
-    // just double the read.
-    for (let i = 2; i <= days; i++) {
-      const key = utcDayKey(-i);
-      if (!(key in have)) wanted.push(key);
-    }
-    if (!wanted.length) return;
+  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_DAYS
+  // reveal documents by `revealedAt` — not a getDoc per day key
+  // (ROUNDS-PLAN §7.1, 2026-09-08).
+  //
+  // It was a fan-out of up to 13 day-key gets, and the comment that stood
+  // here defended it: "the reveal read rule gates on each doc's own
+  // `members` snapshot, which a list query cannot prove, so a query would
+  // be denied wholesale while per-doc gets succeed". True before D98 and
+  // false since: the read rule is `request.auth != null` with no field
+  // condition, so a list is permitted (pinned in rules.test.ts), and the
+  // fan-out had gone on paying a billed read for every day that had NO
+  // reveal. Under rounds the ids stop being date keys altogether
+  // (`r0007`), so a per-key get could not survive anyway. The query reads
+  // only the documents that exist and reads both id shapes, because every
+  // reveal the pipeline writes carries `revealedAt`.
+  //
+  // Never throws, like the fan-out it replaces: two callers `void` it, and
+  // an unhandled rejection from a history read is not a price a portrait
+  // should charge. A failure is reported and leaves the room unsettled so
+  // a later call retries rather than freezing a gap into the portrait for
+  // the rest of the session.
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_DAYS): Promise<void> {
+    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
     state.revealHistLoading[gid] = true;
     try {
       const db = await getDb();
-      await Promise.all(
-        wanted.map(async (key) => {
-          try {
-            const snap = await getDoc(doc(db, "v2_groups", gid, "reveals", key));
-            have[key] = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
-          } catch (err) {
-            // permission-denied = a day revealed before this user joined;
-            // the doc will never become readable, so cache the null.
-            if ((err as { code?: string }).code === "permission-denied") {
-              have[key] = null;
-              return;
-            }
-            // transient (offline, deadline): leave the key absent so a
-            // later call retries it rather than freezing a gap into the
-            // portrait for the rest of the session
-            reportError(err, { where: "revealHistory", gid });
-          }
-        }),
-      );
+      const snap = await getDocs(query(
+        collection(db, "v2_groups", gid, "reveals"),
+        orderBy("revealedAt", "desc"),
+        limit(take),
+      ));
+      const have: Record<string, Record<string, unknown> | null> = {};
+      snap.forEach((d) => { have[d.id] = d.data() as Record<string, unknown>; });
+      state.revealHist[gid] = have;
+      state.revealHistLoaded[gid] = true;
+    } catch (err) {
+      // A refusal cannot be "the rule working" any more — the read is
+      // unconditional since D98 — so it is reported, where the per-key
+      // version swallowed permission-denied as the ordinary late-joiner
+      // case. Transient (offline, deadline) is reported the same way.
+      reportError(err, { where: "revealHistory", gid });
     } finally {
       state.revealHistLoading[gid] = false;
       notify();
@@ -3758,14 +3946,26 @@ const SOCIAL = {
     return !!state.revealHistLoading[gid];
   },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
-    const out: Array<Record<string, unknown> & { day: string }> = [];
-    const yesterday = state.reveals[gid];
-    if (yesterday) out.push({ day: state.revealDay, ...yesterday } as Record<string, unknown> & { day: string });
-    const hist = state.revealHist[gid] || {};
-    for (const [day, docData] of Object.entries(hist)) {
-      if (docData) out.push({ day, ...docData } as Record<string, unknown> & { day: string });
+    type Row = Record<string, unknown> & { day: string; id: string };
+    // Keyed by DOCUMENT ID, because the query and yesterday's live listener
+    // both return yesterday: the fan-out skipped -1 to avoid the double,
+    // and a query has no day to skip. The live copy wins — it is fresher.
+    // `day` is the reveal's own field where it has one (a round-keyed
+    // reveal's is the calendar day it landed) and the id where it does not
+    // (every reveal before rounds was keyed by its day).
+    const byId: Record<string, Row> = {};
+    for (const [id, docData] of Object.entries(state.revealHist[gid] || {})) {
+      if (docData) byId[id] = { day: id, ...docData, id } as Row;
     }
-    out.sort((a, b) => (a.day < b.day ? 1 : -1));
+    const latest = state.reveals[gid];
+    const latestKey = state.revealKeys[gid];
+    if (latest && latestKey) byId[latestKey] = { day: latestKey, ...latest, id: latestKey } as Row;
+    const out = Object.values(byId);
+    // Newest first by day, then by round — two reveals on one day keep the
+    // order they landed in instead of the map's. A reveal from before rounds
+    // has no `round` and sorts by its day alone, as it always did.
+    const rnd = (r: Row): number => (typeof r.round === "number" ? r.round : 0);
+    out.sort((a, b) => (a.day === b.day ? rnd(b) - rnd(a) : (a.day < b.day ? 1 : -1)));
     return out;
   },
   async createGroup(name: string, mode: string, displayName?: string) {
@@ -3946,13 +4146,18 @@ const SOCIAL = {
   },
   voteDuel(gid: string, optionIdx: number, guessIdx?: number): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
-    const q = g && duelQFor(g);
     const uid = state.uid;
-    if (!g || !q || !uid) return Promise.resolve();
-    const day = utcDayKey(0);
-    const aid = `g_${gid}_${day}`;
+    if (!g || !uid) return Promise.resolve();
+    // The round this answer is to: the lowest one not yet sealed, inside
+    // the lead. At the lead's edge there is nothing to answer, and the
+    // rules would refuse the write anyway (ROUNDS-PLAN §2.2).
+    const { next: round } = roundsOf(g);
+    const q = round == null ? null : duelQFor(g, round);
+    if (round == null || !q) return Promise.resolve();
+    const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
     notify();
     return (async () => {
       try {
@@ -3962,7 +4167,7 @@ const SOCIAL = {
           surface: g.mode === "duo" ? "duo" : "group",
           optionIdx,
           gid,
-          day,
+          round,
           answeredAt: serverTimestamp(),
           anchors: answerAnchors(),
         };
@@ -3981,8 +4186,56 @@ const SOCIAL = {
         cacheVote(aid, optionIdx);
       } catch (err) {
         delete state.votes[aid];
+        delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
+        throw err;
+      }
+    })();
+  },
+
+  /**
+   * A LATE answer (ROUNDS-PLAN §4): to a round that has revealed and that
+   * this account did not play. The table is public, so it is not blind —
+   * the rules require `late: true` and refuse a guess, the trigger appends
+   * it to the reveal marked, and no fold counts it. Reaches back at most
+   * the lead. The card offers it under a reveal you have no vote in.
+   */
+  voteLate(gid: string, round: number, optionIdx: number): Promise<void> {
+    const g = state.groups.find((x) => x.id === gid);
+    const uid = state.uid;
+    if (!g || !uid) return Promise.resolve();
+    const open = openRoundOf(g);
+    if (!(round < open && round >= open - ROUND_LEAD)) return Promise.resolve();
+    const q = duelQFor(g, round);
+    if (!q) return Promise.resolve();
+    const aid = `g_${gid}_${roundKey(round)}`;
+    if (state.votes[aid]) return Promise.resolve();
+    state.votes[aid] = String(optionIdx);
+    notify();
+    return (async () => {
+      try {
+        const db = await getDb();
+        const payload: Record<string, unknown> = {
+          qid: q.id,
+          surface: g.mode === "duo" ? "duo" : "group",
+          optionIdx,
+          gid,
+          round,
+          late: true,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(),
+        };
+        if (q.kind === "pick") {
+          const pickUid = ((g.memberUids || []) as string[])[optionIdx];
+          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+        }
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        cacheVote(aid, optionIdx);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        reportError(err, { where: "duelVoteLate", gid });
         throw err;
       }
     })();
@@ -7490,8 +7743,14 @@ function resetForNewUid(uid: string): void {
   answersCacheOwner = null;
   state.groups = [];
   state.reveals = {};
+  state.revealKeys = {};
   state.revealHist = {};
   state.revealHistLoading = {};
+  state.revealHistLoaded = {};
+  state.partnerAnswers = {};
+  state.partnerAnswersLoading = {};
+  state.worldSplitChecked = {};
+  state.duelCalls = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never
@@ -8208,6 +8467,14 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // Guarded for the node-environment unit tests, which run without a DOM.
   if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
     window.addEventListener("online", wake);
+    // A push that arrived while the app was OPEN (data/push.ts, ROUNDS-PLAN
+    // §7.4): presented by nothing, handed here. A room's round and reveal
+    // are subscribed and need no help; an invitation is fetched, not
+    // subscribed, so the arrival is what refreshes it.
+    window.addEventListener("insight-push-received", (e) => {
+      const kind = String((e as CustomEvent<{ kind?: string }>).detail?.kind || "");
+      if (kind === "invite" || kind === "join-request" || kind === "join-approved") void SOCIAL.loadInvites();
+    });
   }
   if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
     document.addEventListener("visibilitychange", () => {

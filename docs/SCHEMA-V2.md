@@ -6,7 +6,7 @@
 > complete breakdown with no `tooSmall`, no `AGG_MIN_N`, no
 > `PUBLISH_EVERY` and no complementary suppression; `publishableCanon` is
 > now `canonTopN`, a display cap. Duel answers remain sealed until their
-> reveal, enforced by a `surface` test on the read rule — game timing, not
+> round's reveal, enforced by a `surface` test on the read rule — game timing, not
 > privacy. Push tokens moved to `v2_users/{uid}/push/tokens`, server-only.
 > The per-collection blocks below have been rewritten to match.
 
@@ -576,52 +576,96 @@ doc, so an erased account is not left listed in a room.
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
   memberJoinedAt{uid:ts},
-  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt,
+  inviteCode, streak, lastRevealDay, createdAt,
+  round, played{ r{n}: [uid] }, roundOpenedAt?, roundDeadlineAt?
+                                   (ROUNDS-PLAN, D426 — a ROUND is the unit
+                                   of play, not a day: `round` is the open
+                                   one (absent = 1); `played` is who has
+                                   sealed an answer to which round, written
+                                   by the answer trigger and pruned by the
+                                   reveal — at most ROUND_LEAD keys × the
+                                   roster; the clock starts on the open
+                                   round's FIRST answer and is the indexed
+                                   field the deadline scan queries. Absent
+                                   while nobody has played the open round:
+                                   a round nobody plays never closes and
+                                   never burns its question. pendingDays,
+                                   the day's marker, is gone)
+  pushAt{ uid: ts }?               (ROUNDS-PLAN §7.4 — who has been TOLD a
+                                   round waits for them since their own
+                                   last answer: set by the answer
+                                   trigger's *your turn* and by the
+                                   reveal's carrier, in the same commit as
+                                   the mark or the advance; cleared by the
+                                   member's next answer. One push per turn,
+                                   not per answer. Server-written; dropped
+                                   on leave and erasure with `played`)
   duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
   serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc as a denormalization: it used to be
   because profiles were owner-only, and since D98 it is purely to save
   one profile read per member on every group render;
   callables maintain it on create/join/leave)
-  (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
-  the members who were in the group FOR that day. Maintained on the same
+  (memberJoinedAt is read only by revealRound, to scope a round's reveal to
+  the members who were in the group when it OPENED. Maintained on the same
   three paths as memberNames, plus deleteAccount — a uid left in either map
-  outlives the account. Absent for members who predate the field, which
-  revealMembersFor reads as "joined before any day it will be asked about")
-  (pendingDays: day keys with an answer and no reveal yet. onV2AnswerCreated
-  arrayUnions; the reveal scan removes a day once it settles it and prunes
-  past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
-  an indexed query instead of reading every group — D19)
+  outlives the account, and so does one left in `played`, which the same
+  paths remove. Absent for members who predate the field, which
+  revealMembersFor reads as "joined before any round it will be asked about")
 read: members · write: callables only (create/join/leave — codes, caps
 and pairing can't be forged client-side), with ONE member-writable field:
 a duo member may update duoMode alone (closed enum, affectedKeys-pinned —
 the rule expresses the whole invariant, so no callable; D40 part 4)
 
-v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
-  day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?} }, names, members[], revealedAt
+v2_groups/{gid}/reveals/r{n}       materialized by the reveal pipeline —
+                                   one per ROUND (reveals written before
+                                   D426 are keyed by their day; history
+                                   orders by revealedAt and reads both)
+  round, day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?, late?} }, names, members[], revealedAt
+  (day is the calendar day the reveal LANDED — what the card labels it by
+  and what the streak is keyed on; two reveals on one day order by round)
+  (late — ROUNDS-PLAN §4: answered AFTER the round revealed, with the
+  table in view. The rules admit such an answer only flagged and without
+  a guess, reaching back at most the lead; the answer trigger appends it
+  here — the one server write to a reveal after its create — with the
+  member added to `members` and `names`; every fold skips it)
   (pickUid — pick days only, D224: WHO the vote's optionIdx meant, in the
   roster order the answering client used; the index alone is remapped by
   any join/leave. Absent in reveals older than D224)
   (members is the membership snapshot the read rule USED to gate on — not
   the parent group's current roster, which is what kept the guarantee
   retroactive: D5's amendment. D98 retired the gate, not the field: it is
-  still the members who were in the group ON `day` rather than at reveal
-  time — the two differ by up to one scan interval, and the difference was
-  a joiner reading the previous day, D55 §9 — and it is still what
-  `deleteAccount` scrubs and what the reveal's names are drawn against)
+  still the members who were in the group when the round OPENED rather
+  than at reveal time — under the day the two differed by up to one scan
+  interval, and the difference was a joiner reading the previous day, D55
+  §9 — and it is still what `deleteAccount` scrubs and what the reveal's
+  names are drawn against)
 read: any signed-in user (D98 — the votes inside are world answers'
 younger siblings, and this is their only public copy, since the sealed
 answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
-else, under composite ids (g_{gid}_{day}) with extra fields
-gid/day/guessIdx (plus pickUid on a "pick" day, D224 — a current member's
-uid, rules-validated) — and they are the ONE surface the D98 public read
-excludes, as a `surface` value test rather than an owner-only path. That
-is the seal: the owner still reads their own, nobody else reads any, and
-the reveal doc publishes the whole table the next day. Rules require
-membership and deny creates once the day's reveal exists. Duel surfaces
-are excluded from world aggregates.
+else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
+D426) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
+round, D224 — a current member's uid, rules-validated; plus `late: true`
+on an answer to a round that has already revealed, which then carries no
+guess — §4 of the plan) — and they are
+the ONE surface the D98 public read excludes, as a `surface` value test
+rather than an owner-only path. That is the seal: the owner still reads
+their own, nobody else reads any, and the reveal doc publishes the whole
+table when the round reveals — on the last member's answer, or at the
+round's deadline for whoever played. Rules require membership and bound
+the round to `[open, open + ROUND_LEAD)`: nothing behind the open round
+(it has revealed — the reveal and the advance are one commit) and
+nothing past the lead. The `qid` names either the room's own bank (the
+question's `surface` equals the answer's) or — ROUNDS-PLAN §6.2, the
+rules' second arm — a `daily` or `feed` question of an option-index
+type (`vote`/`binary`/`choice`, with options), which is how every other
+round draws from the world's core; the arm is explicit rather than a
+relaxation of the equality, so a catalog question (empty options) is
+still refused. Duel surfaces are excluded from world aggregates either
+way: a duel answer to a world question moves the room's reveal and not
+the crowd's count (the e2e's 8a leg pins the total unmoved).
 
 v2_takes/{takeId}                  comments on a question — circle or world,
                                    NAMED at both scopes since D98
@@ -706,10 +750,14 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 - Social callables: `createGroupV2` (invite code minted server-side),
   `joinGroupV2` (by code; duo cap 2, group cap 32), `leaveGroupV2`
   (last member out deletes the group + reveals).
-- `scheduledDuelReveals` (hourly) / `revealDuelsNowV2` (emulator or
-  operator) — materialize yesterday's reveals: groups reveal with ≥1
-  answer; duos only when BOTH played (and the shared streak advances or
-  resets accordingly).
+- `scheduledDuelReveals` (every 120 minutes) / `revealDuelsNowV2`
+  (emulator or operator; `scan: "indexed"`, `force: true`) — the
+  deadline's executor: an indexed query for groups whose open round is
+  DUE (`roundDeadlineAt <= now`), each revealed for whoever played. A
+  round every member has answered reveals on the completing answer
+  instead, inside `onV2AnswerCreated`, and opens the next round in the
+  same commit (ROUNDS-PLAN, D426). The day-keyed streak still advances on
+  the first reveal of a new day.
 - `resolveCallsV2` (scheduled, 04:23 UTC daily; D194,
   docs/FORESIGHT-CALLS.md) — grades every tier-A call past its
   `resolvesAt` by EXECUTING the call's own rubric against
@@ -799,7 +847,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 201 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 204 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
@@ -807,9 +855,12 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   dup refused → five voters, exact public counts →
   per-anchor breakdown withheld while every cell is sub-floor, then
   published at 5/5 → an 11th answer does not move the mirror off 10 →
-  duo create/join-by-code → sealed answers → reveal with votes+guesses →
-  streak → non-member refused → post-reveal answering refused by a real
-  member → no aggregate leakage.
+  duo create/ask/approve → sealed answers (round 1, and one sealed ahead
+  inside the lead; one past it refused) → the reveal on the completing
+  answer, with votes+guesses → round 2 opened in the same commit → streak
+  → a group's round left alone by the indexed scan inside its day and
+  closed by the forced lever for whoever played → non-member refused →
+  post-reveal answering refused by a real member → no aggregate leakage.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone rather than
   "permission-denied").

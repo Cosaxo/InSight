@@ -13,7 +13,7 @@
 // one operator step. A future edit that "fixes" the dark pool out of the
 // deficit should fail here rather than pass review.
 import { describe, it, expect } from "vitest";
-import { duelBudget, duelSignal, loadDuelPools, RUN_CAP, POOL_TARGET, OPEN_MAX } from "./duel-budget.mjs";
+import { duelBudget, duelSignal, loadDuelPools, targetFor, RUN_CAP, POOL_TARGET, DARK_POOL_TARGET, OPEN_MAX } from "./duel-budget.mjs";
 
 const level = (questions) =>
   ["group", "oneVsOne", "romantic"].map((id) => ({ id, questions }));
@@ -92,15 +92,40 @@ describe("duelBudget", () => {
       pools = pools.map((p) => ({ ...p, questions: p.questions + (written.get(p.id) ?? 0) }));
     }
     expect(runs).toBeLessThan(100);
-    expect(pools.every((p) => p.questions >= POOL_TARGET)).toBe(true);
+    expect(pools.every((p) => p.questions >= targetFor(p))).toBe(true);
+  });
+
+  it("the dark pool is levelled to its own target, and lights up to the live one", () => {
+    // The romantic pool ships dark (every entry `active: false`, D40), and
+    // stocking 400 questions for a surface nobody plays yet is inventory,
+    // not runway. Read off the bank rather than assumed: the shipped pool
+    // IS dark today, and the day it is lit its target moves by itself.
+    const pools = loadDuelPools();
+    const romantic = pools.find((p) => p.id === "romantic");
+    expect(romantic.dark).toBe(true);
+    expect(targetFor(romantic)).toBe(DARK_POOL_TARGET);
+    expect(targetFor({ ...romantic, dark: false })).toBe(POOL_TARGET);
+    expect(pools.filter((p) => p.id !== "romantic").every((p) => !p.dark)).toBe(true);
+    // A run with the live pools full and the dark one at its own target
+    // writes nothing — 48 is enough for a switch, and the burst is the
+    // live pools'.
+    expect(duelBudget({ pools: [
+      { id: "group", questions: POOL_TARGET },
+      { id: "oneVsOne", questions: POOL_TARGET },
+      { id: "romantic", questions: DARK_POOL_TARGET, dark: true },
+    ] }).budget).toBe(0);
   });
 
   it("keeps the constants in the relation the design argues", () => {
-    // POOL_TARGET is twice the shipped group cycle (24 entries, one per day);
-    // OPEN_MAX equals RUN_CAP because the lane is single-gate and carries one
-    // batch at a time. If either relation changes, the reasoning in the
-    // header has to change with it — this failing is that reminder.
-    expect(POOL_TARGET).toBe(2 * 24);
+    // POOL_TARGET is a pair at eight rounds a day for seven weeks without a
+    // repeat (ROUNDS-PLAN §6.1; 8 × 49), the horizon the day's 48 gave a
+    // daily player — and the dark pool keeps that older figure, twice the
+    // shipped group cycle. OPEN_MAX equals RUN_CAP because the lane is
+    // single-gate and carries one batch at a time. If a relation changes,
+    // the reasoning in the header has to change with it — this failing is
+    // that reminder.
+    expect(POOL_TARGET).toBeGreaterThanOrEqual(8 * 49);
+    expect(DARK_POOL_TARGET).toBe(2 * 24);
     expect(OPEN_MAX).toBe(RUN_CAP);
   });
 });

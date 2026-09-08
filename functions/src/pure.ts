@@ -158,87 +158,121 @@ export function prevDayKey(dayKey: string): string {
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
 }
 
-// ── the pending-day marker (v2social) ───────────────────────────
+// ── rounds (ROUNDS-PLAN, D426) ──────────────────────────────────
 //
-// `v2_groups/{gid}.pendingDays` is the set of day keys this group has at
-// least one duel answer for and no reveal yet. onV2AnswerCreated adds to it
-// (arrayUnion); the reveal scan removes a day once it has settled it, either
-// by publishing the reveal or by deciding the day did not clear the bar.
+// A ROUND is the unit of 1v1 and group play, not a day. `v2_groups/{gid}`
+// carries the open round's number, who has answered which round, and the
+// open round's clock:
 //
-// It exists so the scheduled scan can ask an INDEXED question — "which
-// groups played yesterday?" — instead of reading every group document 12
-// times a day to find the few that did. It also replaces the older
-// `lastCheckedDay` skip-marker outright, and that is the bigger win: the
-// marker needed a compensating delete from the answer trigger, whose
-// correctness rested on a specific commit ordering between two writers.
-// arrayUnion has no such ordering problem — a late answer re-adds the day
-// whatever else is happening, so the day re-opens by construction rather
-// than by argument.
+//   round            the open round; absent means 1
+//   played           { r7: [uid, …], r8: [uid, …] } — who has sealed an
+//                    answer to which round, written by the answer trigger
+//                    (a blind arrayUnion on the nested path), bounded by
+//                    ROUND_LEAD keys × the member count
+//   roundOpenedAt    when the open round got its FIRST answer
+//   roundDeadlineAt  when it closes regardless — the indexed field the
+//                    scan queries. Absent while nobody has played it: a
+//                    round nobody plays never closes and never burns its
+//                    question, which is what "round" means.
 //
-// How many days to keep. firestore.rules refuses a duel answer for a day
-// more than 4 days behind request.time, so a pending day older than that can
-// never gain another answer and will never settle. 6 is that bound plus
-// headroom for the UTC-vs-local skew the rules' forward window allows.
-export const PENDING_DAYS_KEEP = 6;
+// The answer id is `g_{gid}_r{n}` and the reveal id is `r{n}`. Neither is
+// zero-padded: nothing orders by id (history orders by `revealedAt`), and
+// firestore.rules builds the answer id with string(round), which the
+// emulator probe of 2026-09-08 confirmed resolves.
+//
+// WHAT THE DAY USED TO DO, and what replaces it. The day was never the
+// seal — the sealed answer is owner-only and a create is refused once the
+// round is behind the open one, and neither clause reads a clock. The day
+// did one job: it advanced the game when somebody did not play. The
+// deadline does that job now, and it is not a nicety: a round with nothing
+// to close it freezes a stalled pair forever, which is worse than the
+// limit it replaces.
 
-// The next pendingDays array: `settledDay` dropped, anything older than
-// `oldestKeptDay` dropped, duplicates and non-strings dropped. Day keys are
-// ISO `YYYY-MM-DD`, so a lexicographic compare is a chronological one.
-//
-// Pure, and separately tested, because the failure it prevents is silent:
-// an array that only ever grows turns a duo whose partner never plays into a
-// group document that accretes one string per day forever.
-export function prunePendingDays(
-  current: unknown,
-  settledDay: string,
-  oldestKeptDay: string,
-): string[] {
-  if (!Array.isArray(current)) return [];
+/** How many rounds ahead of the open one a member may seal. ONE constant,
+ *  and firestore.rules carries the same literal — the two are pinned equal
+ *  by rules.test.ts. Some bound must exist: `duelQFor` is a function of
+ *  the round, so an unbounded round number lets one client pin which
+ *  question every future round serves. Five is one sitting — you play a
+ *  handful, they catch up and get a run of reveals — and it is a dial the
+ *  owner can move in a line, where the day was a wall. */
+export const ROUND_LEAD = 5;
+
+/** How long an open round with at least one answer stays open before it
+ *  reveals for whoever played. The day's replacement (see above). */
+export const ROUND_DEADLINE_MS = 24 * 60 * 60 * 1000;
+
+export function roundKey(n: number): string {
+  return `r${n}`;
+}
+
+/** The open round off a raw document field. Absent, null, or anything
+ *  that is not a positive integer reads as round 1 — which is what a
+ *  group created before rounds, or by a createGroupV2 that did not stamp
+ *  it, is on. */
+export function openRound(raw: unknown): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : 1;
+}
+
+/** Who has answered `key`, off the raw `played` map — strings only,
+ *  deduplicated, never a throw on a malformed document. */
+export function playedIn(played: unknown, key: string): string[] {
+  if (!played || typeof played !== "object") return [];
+  const arr = (played as Record<string, unknown>)[key];
+  if (!Array.isArray(arr)) return [];
   const out: string[] = [];
-  for (const d of current) {
-    if (typeof d !== "string") continue;
-    if (d === settledDay) continue;
-    if (d < oldestKeptDay) continue;
-    if (!out.includes(d)) out.push(d);
+  for (const u of arr) if (typeof u === "string" && u && !out.includes(u)) out.push(u);
+  return out;
+}
+
+/** The `played` map after round `keepFrom - 1` has been revealed: every
+ *  key for a round at or past `keepFrom` survives (the new open round and
+ *  anything sealed ahead of it), everything older goes. Pure and tested,
+ *  because the failure it prevents is silent: a map that only grows turns
+ *  every group document into a ledger of every uid that ever played. */
+export function prunePlayed(played: unknown, keepFrom: number): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!played || typeof played !== "object") return out;
+  for (const key of Object.keys(played as Record<string, unknown>)) {
+    const m = /^r(\d+)$/.exec(key);
+    if (!m) continue;
+    const n = Number(m[1]);
+    if (!Number.isInteger(n) || n < keepFrom) continue;
+    const uids = playedIn(played, key);
+    if (uids.length) out[key] = uids;
   }
   return out;
 }
 
-// WHICH DAYS a run looks at, and this is the half that used to be wrong.
-//
-// The scan asked about exactly one day — `utcDayKey(-1)` — and the schedule
-// never passed one, so a group-day was eligible for reveal during the single
-// UTC day after it and never again. That is not the window the rest of the
-// system works in: firestore.rules accepts a duel answer up to FOUR days
-// late (deliberately, so a client flushing a queue after ~3 days offline
-// still lands its vote), and onV2AnswerCreated re-adds the day to
-// `pendingDays` whenever one arrives. So an answer syncing on D+2 re-opened
-// day D, correctly, into a scan that would never ask about day D again.
-// Nothing errored: both members had answered, the day sat pending forever,
-// and the duo's streak stayed at whatever the earlier empty settle left it.
-//
-// The window is PENDING_DAYS_KEEP, because that is already the bound the
-// pruning uses — a pending day older than that can never gain another answer
-// and is dropped. Matching them means the scan asks about exactly the days
-// that can still change, which is the definition `pendingDays` was given.
-//
-// Steady-state cost is five extra indexed queries per run that return
-// nothing. An explicit `dayKey` still means that day alone: the operator
-// lever and the e2e both pass one, and narrowing is what an operator
-// reaching for it during an incident usually wants.
-export function scanDays(dayKey?: string, nowMs: number = Date.now()): string[] {
-  if (dayKey) return [dayKey];
-  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(-(i + 1), nowMs));
+/** Every member has answered. A room of nobody is never complete. */
+export function roundComplete(played: number, members: number): boolean {
+  return members > 0 && played >= members;
+}
+
+/**
+ * Does the open round reveal now?
+ *
+ *   · never with nobody's answer in it — there is nothing to show, and
+ *     advancing would burn the question for no one;
+ *   · when every member has answered (a 1v1: both; a group: all);
+ *   · at the deadline, for whoever played — the owner's rule, 2026-09-08:
+ *     "it gets revealed for the ones that played at the deadline";
+ *   · when an operator forces it (revealDuelsNowV2's lever, the e2e).
+ *
+ * The old both-or-nothing 1v1 is gone with the day: a partner who stops
+ * playing used to seal the other's answer with no reveal, ever, and the
+ * calendar quietly handed out a fresh question anyway. Now the round
+ * closes at its deadline with the one answer in it, and the next opens.
+ */
+export function roundReveals(
+  played: number,
+  members: number,
+  due: boolean,
+  force = false,
+): boolean {
+  return played >= 1 && (force || due || roundComplete(played, members));
 }
 
 // ── reveal conditions + streaks (v2social) ──────────────────────
-
-// The two reveal conditions (decision D5):
-//   group · at least one member answered
-//   duo   · both-or-nothing — both members must have played
-export function shouldReveal(mode: string, played: number): boolean {
-  return mode === "duo" ? played >= 2 : played >= 1;
-}
 
 /**
  * May a reveal for `dayKey` move the group's PRESENT-TENSE state — its
@@ -247,8 +281,8 @@ export function shouldReveal(mode: string, played: number): boolean {
  * Only if the day is newer than the last one revealed. `utcDayKey` is
  * `YYYY-MM-DD`, so a string compare is a date compare.
  *
- * WHY IT IS NEEDED. `scanDays()` walks the pending window NEWEST FIRST, and
- * `revealDuelsNowV2` defaults to `mode: "full"` over all six days — so a
+ * WHY IT IS NEEDED. Under the day, the scan walked a six-day pending
+ * window NEWEST FIRST and the operator lever covered all of it — so a
  * run routinely reveals yesterday (streak +1, lastRevealDay = yesterday)
  * and then reaches a day-before-that that was still pending. Without this,
  * that older reveal wrote `lastRevealDay = day-2`, REGRESSING it, and
@@ -287,64 +321,42 @@ export function nextStreak(
 
 // Who a day's reveal may be shown to.
 //
-// The reveal doc carries its own `members` array and firestore.rules gates
-// the read on THAT, not on the group's current membership — which is what
-// makes the guarantee retroactive in one direction: joining tomorrow does
-// not hand you every past day, and leaving does not retract the days you
-// played. The array was the membership AT REVEAL TIME, and that is a
-// different thing from membership on the day being revealed.
+// Who a round's reveal records as having been there.
 //
-// The gap it left is one scan wide, every day. Day D is revealed by the D+1
-// scan, which runs `every 120 minutes` — so anyone who joined between
-// 00:00 UTC and that scan was a current member when the snapshot was taken,
-// went into `members`, and could read day D's votes and names for a day they
-// were not in the group for. `revealGroupDay`'s own comment claimed to have
-// closed this by preferring the page snapshot to a fresher read, but both
-// reads happen on D+1, so it only ever closed the seconds between them.
+// The reveal doc carries its own `members` array. It no longer gates the
+// read (D98 retired that), but it is still what `deleteAccount` scrubs on
+// erasure and what the reveal's `names` are drawn against — so it has to
+// say who was in the group FOR THIS ROUND, not who is in it at reveal
+// time. Under the day it was "who joined before the day ended"; under
+// rounds it is who joined before the round OPENED (its first answer).
 //
-// The bound is the END of the day being revealed, not its start: someone who
-// joined midway through day D was there for it and may have played it.
+// …and anyone who DID play the round is included whatever their join
+// time says: the rules admit an answer from any current member, so a
+// member who joined mid-round and sealed one belongs in the reveal that
+// publishes it. Excluding them would publish a reveal containing their
+// own vote that names them nowhere.
 //
-// …and anyone who DID play the day is included whatever their join time
-// says. firestore.rules accepts a duel answer up to four days late, so a
-// member can legitimately land a vote for a day that precedes their join —
-// an offline client flushing a queue, or a fresh group playing a recent day.
-// Excluding them would publish a reveal containing their own vote that they
-// alone cannot read, and "you see the days you played" is the invariant the
-// e2e already asserts.
+// A uid with NO recorded join time is included, and that is not a
+// fallback — it is the correct answer. The field is written by
+// createGroupV2 and the join paths from the day it shipped, so its absence
+// means the member joined before that, which is before any round this
+// function will ever be asked about. Reading absence as "unknown,
+// exclude" would blank every reveal for every group that existed on
+// deploy day.
 //
-// KNOWN RESIDUAL, recorded rather than papered over: that clause is also an
-// unlock. Join a group, backfill an answer for a day inside the four-day
-// window, and the reveal admits you. It is strictly narrower than what this
-// replaces — passive joining now reveals nothing, and the unlock costs a
-// visible vote in the circle's own reveal — but it is not nothing. Closing
-// it means bounding the write, not the read: firestore.rules would have to
-// refuse a duel answer for a day preceding the member's join. That is a
-// change to the densest rule in the file, whose failure mode is a vote that
-// silently vanishes, and it would refuse the legitimate fresh-group case
-// above. Left for a decision of its own (D55 §9).
+// No open time (a round revealed with no clock — an operator's force
+// before any answer stamped one) includes everyone: a reveal scoped too
+// widely is a smaller failure than one that credits nobody.
 //
-// A uid with NO recorded join time is included, and that is not a fallback —
-// it is the correct answer. The field is written by createGroupV2 and
-// joinGroupV2 from the day this shipped, so its absence means the member
-// joined before that, which is necessarily before any day this function will
-// ever be asked about. Reading absence as "unknown, exclude" would blank
-// every reveal for every group that existed on deploy day.
-//
-// Takes plain millis rather than Timestamps so this stays firebase-free like
-// the rest of the module; the caller converts.
+// Takes plain millis rather than Timestamps so this stays firebase-free
+// like the rest of the module; the caller converts.
 export function revealMembersFor(
   members: readonly string[],
   joinedAtMs: Record<string, unknown>,
-  dayKey: string,
+  openedAtMs: number | null | undefined,
   playedUids: readonly string[] = [],
 ): string[] {
-  const dayEnd = Date.parse(`${dayKey}T00:00:00Z`) + 86400000;
-  // Server-generated (utcDayKey), so this is unreachable in the pipeline. It
-  // degrades to the previous behaviour rather than to an empty array: a
-  // reveal nobody can read is a worse failure than one scoped too widely,
-  // and a malformed day key means the reveal is already wrong.
-  if (!Number.isFinite(dayEnd)) return [...members];
+  if (typeof openedAtMs !== "number" || !Number.isFinite(openedAtMs)) return [...members];
   const played = new Set(playedUids);
   return members.filter((uid) => {
     if (played.has(uid)) return true;
@@ -352,7 +364,7 @@ export function revealMembersFor(
       ? joinedAtMs[uid]
       : undefined;
     if (typeof at !== "number" || !Number.isFinite(at)) return true;
-    return at < dayEnd;
+    return at < openedAtMs;
   });
 }
 
@@ -428,7 +440,7 @@ export function revealQid(qids: readonly unknown[]): string | null {
  * those actually cast on it.
  *
  * The reveal doc still carries every vote — dropping one there is the
- * "silently discarded" outcome revealGroupDay's transaction is built to
+ * "silently discarded" outcome revealRound's transaction is built to
  * avoid, and a member who played deserves to appear in their group's
  * reveal whatever their client's bank said. But the cross-group aggregate
  * is a different artefact with a different guarantee: it is read as "how
@@ -2592,4 +2604,82 @@ export function fcmBatches(tokens: readonly string[], size: number = FCM_BATCH):
   const out: string[][] = [];
   for (let i = 0; i < tokens.length; i += size) out.push(tokens.slice(i, i + size));
   return out;
+}
+
+// ── turns: who is told "your turn" (ROUNDS-PLAN §7.4, D426) ─────────────
+//
+// A round is a volley, and a volley with no nudge is a game where nobody
+// knows it is their move. The answer trigger tells the OTHER members a
+// round waits for them; the reveal tells everyone the round is out and,
+// to whoever has not sealed the next one, that it is waiting. Both mark
+// the person told with a stamp on the group document (`pushAt[uid]`),
+// and the person's own answer clears it — so it is ONE push per TURN:
+// a partner who plays five rounds ahead sends one nudge, not five; a room
+// of thirty-one is not told thirty-one times that Ada played; and a
+// reveal that already said "round 8 is waiting for you" is not followed by
+// "Bo answered — your turn" about the same round.
+
+export interface TurnRecipient {
+  uid: string;
+  /** Rounds waiting for them, which the body names. */
+  waiting: number;
+}
+
+/** `played` with `uid` sealed into `key` — the trigger's own answer, which
+ *  the group document does not show until its update commits. */
+export function mergePlayed(played: unknown, key: string, uid: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (played && typeof played === "object") {
+    for (const k of Object.keys(played as Record<string, unknown>)) out[k] = playedIn(played, k);
+  }
+  const here = out[key] || [];
+  out[key] = here.includes(uid) ? here : [...here, uid];
+  return out;
+}
+
+/**
+ * Rounds waiting for `uid`: from the open round to the lead's edge, the
+ * ones somebody else has sealed and `uid` has not. What a nudge's body
+ * names — *Leo played 4 rounds — your turn.*
+ */
+export function roundsWaitingFor(played: unknown, open: number, uid: string): number {
+  let n = 0;
+  for (let r = open; r < open + ROUND_LEAD; r++) {
+    const who = playedIn(played, roundKey(r));
+    if (who.length && !who.includes(uid)) n++;
+  }
+  return n;
+}
+
+function hasStamp(pushAt: unknown, uid: string): boolean {
+  return !!pushAt && typeof pushAt === "object"
+    && Object.prototype.hasOwnProperty.call(pushAt, uid);
+}
+
+/**
+ * Who an answer should tell "your turn": every other member who has not
+ * sealed the OPEN round, has a round waiting for them, and carries no
+ * stamp — i.e. has not been told since their own last answer. `played`
+ * must already include the answer being written (mergePlayed).
+ */
+export function turnRecipients(
+  played: unknown,
+  open: number,
+  members: readonly string[],
+  pushAt: unknown,
+  sender: string,
+): TurnRecipient[] {
+  const openPlayers = playedIn(played, roundKey(open));
+  const out: TurnRecipient[] = [];
+  for (const uid of members) {
+    if (uid === sender || openPlayers.includes(uid) || hasStamp(pushAt, uid)) continue;
+    const waiting = roundsWaitingFor(played, open, uid);
+    if (waiting > 0) out.push({ uid, waiting });
+  }
+  return out;
+}
+
+/** Whether `uid` carries a turn stamp — the trigger clears it on their answer. */
+export function isStamped(pushAt: unknown, uid: string): boolean {
+  return hasStamp(pushAt, uid);
 }

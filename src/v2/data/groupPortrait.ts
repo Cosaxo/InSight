@@ -1,7 +1,8 @@
 // The group portrait, computed from reveal history — pure math, no I/O.
 //
 // Everything here is derived from reveal docs the viewer can already read
-// (v2_groups/{gid}/reveals/{day}, gated on the reveal's own members
+// (v2_groups/{gid}/reveals/r{n} — one per ROUND since ROUNDS-PLAN /
+// D426; before that one per day, gated on the reveal's own members
 // snapshot), so the portrait adds no disclosure of its own: it is a
 // different arrangement of votes the user has already been shown with
 // names attached. That is exactly the scope D1 carves out — named
@@ -25,6 +26,10 @@ export interface PortraitVote {
   guessIdx?: number;
   /** set only when this member answered a different question — see voteQid */
   qid?: string | null;
+  /** Answered after the round revealed, with the table in view (ROUNDS-PLAN
+   *  §4): shown on the card, counted in no row here — a portrait is a
+   *  reading of blind answers. */
+  late?: boolean;
   /**
    * Who this vote's optionIdx MEANT on a "pick" day (D224) — snapshotted
    * by the answering client, because the index is relative to a roster
@@ -139,7 +144,7 @@ export const MIN_SHARED = 2;
 export function portraitRow(reveal: PortraitReveal, myUid: string | null): PortraitRow | null {
   const votes = reveal.votes;
   if (!votes) return null;
-  const played = Object.entries(votes).filter(([, v]) => v && typeof v.optionIdx === "number");
+  const played = Object.entries(votes).filter(([, v]) => v && typeof v.optionIdx === "number" && !v.late);
   if (!played.length) return null;
   const rowQid = reveal.qid ?? null;
   // Only answers to THIS row's question may be counted together — see
