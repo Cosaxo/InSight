@@ -194,10 +194,28 @@ function LiveForesightLens({ qs }: { qs: ForesightSource[] }) {
   const rec = recordOf(rows);
   const dims = byDim(rows);
 
-  // `skip` advances past cards answered this session without waiting for
-  // the log to reload; the pending verdict is held so the reveal stays on
-  // screen until "Next read".
-  const current = left[skip] || null;
+  // THE READ BEING REVEALED IS NO LONGER IN `left`, and that is why the
+  // verdict never appeared. `scoreForesight` records the verdict into the
+  // log and calls `notify()` SYNCHRONOUSLY, before its first await — so by
+  // the time this re-renders, `unplayed` has already dropped the card just
+  // answered. `left[skip]` was therefore a DIFFERENT read, the guard
+  // `pending.id === current.id` was false, and the reveal — the slice's
+  // real split, what you said, what everyone else said — was skipped
+  // straight to the next card, or to "You have read every slice big enough
+  // to ask about."
+  //
+  // So the pending read is held from `all`, which keeps it whatever the
+  // log does.
+  const pendingRead = pending ? all.find((r) => r.id === pending.id) ?? null : null;
+  // …and whether the store actually took it decides what "next" means.
+  // Normally it did, so the next card has already slid into `left[skip]`
+  // and `skip` must NOT advance again — advancing would step over a card
+  // per answer. When the store refused (signed out, disabled), the card is
+  // still in `left` and `skip` is what moves past it, which is the
+  // behaviour this line was written for.
+  const pendingTaken = !!pending && !left.some((r) => r.id === pending.id);
+  const current = pendingRead ?? left[skip] ?? null;
+  const nextRead = pendingTaken ? left[skip] : left[skip + 1];
 
   const onDone = (guess: number) => {
     if (!current) return;
@@ -228,8 +246,8 @@ function LiveForesightLens({ qs }: { qs: ForesightSource[] }) {
       ) : pending && current && pending.id === current.id ? (
         <Verdict
           read={current} guess={pending.guess}
-          hasNext={!!left[skip + 1]}
-          onNext={() => { setPending(null); setSkip((s) => s + 1); }}
+          hasNext={!!nextRead}
+          onNext={() => { setPending(null); if (!pendingTaken) setSkip((s) => s + 1); }}
         />
       ) : current ? (
         <ReadCard key={current.id} read={current} onDone={onDone} />

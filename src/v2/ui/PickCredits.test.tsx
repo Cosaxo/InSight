@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// PickCredits (D420): nothing for a domain with no pictures, a door for
+// PickCredits (D421): nothing for a domain with no pictures, a door for
 // one with them, the list fetched from hosting on the first open only,
 // the TMDB sentence where a poster is on the list, and an outage said
 // rather than shown as an empty box.
@@ -62,7 +62,7 @@ describe("PickCredits", () => {
     expect(screen.queryByText(/Wikimedia Commons/)).toBeNull();
   });
 
-  it("names the rights-holders once for Pokémon artwork (D421), a ruled source like TMDB", async () => {
+  it("names the rights-holders once for Pokémon artwork (D422), a ruled source like TMDB", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => POKEMON })));
     render(<PickCredits domain="pokemon" accent="var(--ink)" />);
     fireEvent.click(screen.getByRole("button", { name: "Image credits" }));

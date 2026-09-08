@@ -1,4 +1,4 @@
-// catalogArt.ts (D420): the URL is built from the index and the site
+// catalogArt.ts (D421): the URL is built from the index and the site
 // origin, a key the index lacks fires nothing, the credits parse the
 // builder's six columns, and the credits fetch caches success and forgets
 // failure.

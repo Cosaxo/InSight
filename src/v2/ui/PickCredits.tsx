@@ -1,4 +1,4 @@
-// PickCredits — the attribution beside the pictures (D420).
+// PickCredits — the attribution beside the pictures (D421).
 //
 // A CC BY picture may be shown on one condition: that the author and the
 // licence are shown too. TMDB's terms ask for one sentence. This is that

@@ -2,10 +2,10 @@
 // hosting content — web/catalog-art/<domain>/<key>.webp beside a
 // credits.tsv that says whose picture it is and under which licence — then
 // regenerates src/v2/data/catalogArtIndex.ts so the app knows which tiles
-// have one (D420, D421; docs/CATALOG-QUESTIONS.md § Entity images).
+// have one (D421, D422; docs/CATALOG-QUESTIONS.md § Entity images).
 //
 //   node scripts/build-catalog-art.mjs --all                    # every routed domain, in order
-//   node scripts/build-catalog-art.mjs pokemon                  # PokéAPI's official artwork (D421)
+//   node scripts/build-catalog-art.mjs pokemon                  # PokéAPI's official artwork (D422)
 //   node scripts/build-catalog-art.mjs athletes                 # Commons, via Wikidata P18
 //   node scripts/build-catalog-art.mjs countries                # Commons, via Wikidata P41 (the flag)
 //   node scripts/build-catalog-art.mjs dogs                     # Commons, breeds found by name
@@ -20,8 +20,17 @@
 // of them, so the machinery and the data land separately, D15). Run it
 // from a session or machine whose network policy allows these hosts —
 //
-//   query.wikidata.org · commons.wikimedia.org · upload.wikimedia.org
+//   query.wikidata.org · commons.wikimedia.org
+//   thumb.wikimedia.org · upload.wikimedia.org
 //   raw.githubusercontent.com · api.themoviedb.org · image.tmdb.org
+//
+// SEVEN, and the seventh is the one that will catch you: Commons'
+// imageinfo returns `thumburl` on thumb.wikimedia.org, and this builder
+// prefers it over the original — so a run with the other six allowed
+// still fails every picture, and for countries there is no falling back
+// (the original is an .svg, which toThumb refuses). D422 § 4 named
+// upload.wikimedia.org as the thumbnail host, which was true when it was
+// written and is not now; D423 § 2 is the correction.
 //
 // — and commit what it writes; the committed files are what
 // check:catalog-art validates, and the endpoints are never needed again
@@ -40,12 +49,12 @@
 //     a 300 KB PokéAPI PNG becomes a 10 KB tile;
 //   · admit a licence it does not recognise — `licenceAllowed` is the one
 //     policy, and the gate holds the committed rows to the same function;
-//     TMDB and PokeAPI are admitted as RULED SOURCES (D420, D421), not as
+//     TMDB and PokeAPI are admitted as RULED SOURCES (D421, D422), not as
 //     licences, and the credits sheet says so;
 //   · run from model memory (D15's rule, applied to media): every row
 //     carries the source URL it was fetched from.
 //
-// THE TAKEDOWN. The owner's ruling (D420) is attempt-and-take-down: a
+// THE TAKEDOWN. The owner's ruling (D421) is attempt-and-take-down: a
 // complaint about a picture is answered by removing it, not by arguing.
 // `--remove <key>` deletes the file, drops the credits row, regenerates
 // the index, and the commit that carries it deploys hosting (the
@@ -79,7 +88,7 @@ const POKEAPI_ART = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sp
 // Wikidata carries as P299, and the picture worth drawing is the flag
 // (P41). Dogs are catalogue-minted keys whose names are Wikipedia's, so
 // they are found by LABEL among the dog-breed classes. Pokémon come from
-// PokéAPI's sprite repository by dex number (D421). Films prefer TMDB's
+// PokéAPI's sprite repository by dex number (D422). Films prefer TMDB's
 // posters when a key is present and fall back to Commons' free ones.
 const ROUTES = {
   pokemon: { source: "pokeapi" },
@@ -157,7 +166,7 @@ if (has("--remove")) {
   for (const g of gone) console.log(`build-catalog-art: removed ${g}`);
   const missing = keys.filter((k) => !rows.some((r) => r.key === k));
   for (const m of missing) console.log(`build-catalog-art: ${domain} had no picture for key ${m} — nothing to remove`);
-  console.log(`build-catalog-art: ${domain} now carries ${kept.length} picture(s). Commit and merge; hosting deploys from web/** (D420).`);
+  console.log(`build-catalog-art: ${domain} now carries ${kept.length} picture(s). Commit and merge; hosting deploys from web/** (D421).`);
   process.exit(0);
 }
 
@@ -173,7 +182,7 @@ if (!route) {
 }
 const wantSource = flag("--source", null);
 if (route.source === "tmdb" && !process.env.TMDB_API_KEY && (!wantSource || wantSource === "commons")) {
-  console.log("build-catalog-art: no TMDB_API_KEY — films take the Commons route (P3383's free posters, then stills and logos), which pictures the classics and few others; set the key for the posters (OWNER-LIST.md, D420).");
+  console.log("build-catalog-art: no TMDB_API_KEY — films take the Commons route (P3383's free posters, then stills and logos), which pictures the classics and few others; set the key for the posters (OWNER-LIST.md, D421).");
   route = route.fallback;
 } else if (wantSource && wantSource !== route.source) {
   if (route.fallback && wantSource === route.fallback.source) route = route.fallback;
@@ -181,7 +190,7 @@ if (route.source === "tmdb" && !process.env.TMDB_API_KEY && (!wantSource || want
 }
 const source = route.source;
 if (source === "tmdb" && !process.env.TMDB_API_KEY) {
-  console.error("build-catalog-art: --source tmdb needs TMDB_API_KEY in the environment (a free registration at themoviedb.org/settings/api; the commercial terms are the owner's call — OWNER-LIST.md, D420).");
+  console.error("build-catalog-art: --source tmdb needs TMDB_API_KEY in the environment (a free registration at themoviedb.org/settings/api; the commercial terms are the owner's call — OWNER-LIST.md, D421).");
   process.exit(2);
 }
 
@@ -209,7 +218,7 @@ async function get(url, init = {}, tries = 3, { fatal = true } = {}) {
         if (!fatal) throw e;
         console.error(
           `build-catalog-art: cannot reach ${new URL(url).host} — this is an operator step and needs\n` +
-          `network access to that host (the header lists all six; a sandboxed session may allow\n` +
+          `network access to that host (the header lists all seven; a sandboxed session may allow\n` +
           `some and not others). Underlying error: ${e && e.message}`,
         );
         process.exit(1);
@@ -424,7 +433,7 @@ if (source === "commons") {
   // An HTTP error from a host, not a network failure (`get` handles those):
   // in a sandboxed session the egress proxy answers 403 for a host off the
   // environment's allowlist, and that is the usual meaning of this line.
-  console.error(`build-catalog-art: ${domain}: ${e && e.message} — an HTTP 403 here usually means the host is not on this environment's network allowlist (the header lists the six).`);
+  console.error(`build-catalog-art: ${domain}: ${e && e.message} — an HTTP 403 here usually means the host is not on this environment's network allowlist (the header lists the seven).`);
   process.exit(1);
 }
 

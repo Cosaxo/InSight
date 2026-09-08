@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
-// One pictured entry (D420), so the picture case has something to draw
+// One pictured entry (D421), so the picture case has something to draw
 // and every other case shows the row is unchanged around it — the
 // pattern face stays under a photograph, and a keyless entry has none.
 vi.mock("../data/catalogArtIndex", () => ({

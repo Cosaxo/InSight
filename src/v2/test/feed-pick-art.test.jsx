@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The pictures on a live pick card (D420), mounted through the real feed
+// The pictures on a live pick card (D421), mounted through the real feed
 // on a stubbed catalogue with a mocked art index: a tile whose key the
 // index carries draws the hosted picture over its face and a tile it
 // does not carry draws none; the credits door sits under the row; and

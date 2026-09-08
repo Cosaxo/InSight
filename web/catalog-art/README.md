@@ -1,4 +1,4 @@
-# Catalogue art — the pictures on the pick tiles (D420)
+# Catalogue art — the pictures on the pick tiles (D421)
 
 One directory per catalogue domain, written only by
 `scripts/build-catalog-art.mjs`, never by hand:

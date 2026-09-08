@@ -25,7 +25,7 @@
 import { reportError } from "../../lib/sentry";
 import NAV from "./nav";
 
-// One origin for every outward link (privacy page, invites). Since D420
+// One origin for every outward link (privacy page, invites). Since D421
 // it lives in siteOrigin.ts — the pick tiles' pictures need the origin
 // and nothing else from here — and is re-exported so the two consumers
 // that read it from this module still do. Still the single edit.

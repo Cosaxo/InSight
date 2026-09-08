@@ -1,4 +1,4 @@
-// PickArt — the picture on a pick tile, where the catalogue has one (D420).
+// PickArt — the picture on a pick tile, where the catalogue has one (D421).
 //
 // Drawn OVER the generated face rather than instead of it: the pattern is
 // the permanent fallback, the way initials are under a profile photo

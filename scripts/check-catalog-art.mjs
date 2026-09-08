@@ -1,5 +1,5 @@
 // check-catalog-art.mjs — the pictures on the pick tiles agree with their
-// credits, their catalogue, the app's index and hosting (D420).
+// credits, their catalogue, the app's index and hosting (D421).
 //
 // A picture is four things that can drift apart, and each drift has a
 // different victim:
@@ -197,7 +197,7 @@ try {
     const cc = h.get("Cache-Control") || "";
     const age = /max-age=(\d+)/.exec(cc);
     if (!age) errors.push("firebase.json: `/catalog-art/**` must send a Cache-Control with max-age — that number is how long a taken-down picture survives on a device");
-    else if (Number(age[1]) > MAX_AGE_CEILING) errors.push(`firebase.json: \`/catalog-art/**\` max-age=${age[1]} outlives a takedown — the ceiling is ${MAX_AGE_CEILING} (D420)`);
+    else if (Number(age[1]) > MAX_AGE_CEILING) errors.push(`firebase.json: \`/catalog-art/**\` max-age=${age[1]} outlives a takedown — the ceiling is ${MAX_AGE_CEILING} (D421)`);
     if (!/nosniff/i.test(h.get("X-Content-Type-Options") || "")) errors.push("firebase.json: `/catalog-art/**` must send `X-Content-Type-Options: nosniff`");
   }
 } catch (e) {

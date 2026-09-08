@@ -1,4 +1,4 @@
-// The catalogue-art library's contracts (D420), proved on the pure parts:
+// The catalogue-art library's contracts (D421), proved on the pure parts:
 // the licence policy, the credits format both ways, and the app-index
 // writer. The builder's network half has no test here — it is an operator
 // step against Commons, Wikidata and TMDB (D15's reason), and a mock of
@@ -26,7 +26,7 @@ describe("licenceAllowed — the one policy every path shares", () => {
     }
   });
 
-  it("admits the ruled sources by their tags — TMDB (D420) and PokeAPI (D421) — and only those", () => {
+  it("admits the ruled sources by their tags — TMDB (D421) and PokeAPI (D422) — and only those", () => {
     for (const t of RULED_SOURCE_TAGS) expect(licenceAllowed(t), t).toEqual({ ok: true });
     expect(RULED_SOURCE_TAGS).toEqual(["TMDB", "PokeAPI"]);
     expect(licenceAllowed("IGDB").ok).toBe(false);

@@ -5,7 +5,7 @@
 // directories and fails CI on any disagreement.
 //
 // Which catalogue entries have a picture on hosting, by file extension
-// (D420). The app asks this BEFORE it asks the network: a tile whose key
+// (D421). The app asks this BEFORE it asks the network: a tile whose key
 // is not here never fires a request that would end in a 404, and a
 // domain with no directory draws its generated faces and nothing else.
 // Empty until an operator runs the builder — the fetch needs Wikimedia

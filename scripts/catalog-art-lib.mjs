@@ -1,5 +1,5 @@
 // catalog-art-lib.mjs — what the catalogue-art builder and its tests share
-// (D420, docs/CATALOG-QUESTIONS.md § Entity images).
+// (D421, docs/CATALOG-QUESTIONS.md § Entity images).
 //
 // A picture on a pick tile is three files that have to agree: the image
 // under web/catalog-art/<domain>/, the credits row that says whose it is
@@ -21,7 +21,7 @@ import { CATALOG_FILES } from "./gen-v2content.mjs";
 
 /** Where hosting serves the images from — `web/` is firebase.json's
  *  hosting.public, so a takedown is a deleted file and a deploy, never an
- *  app-store release (D420 § the hosting choice). */
+ *  app-store release (D421 § the hosting choice). */
 export const ART_DIR = join("web", "catalog-art");
 /** The generated app-side index. Absent keys never fire a request. */
 export const INDEX_FILE = join("src", "v2", "data", "catalogArtIndex.ts");
@@ -92,7 +92,7 @@ export function licenceAllowed(short) {
   if (/\bnd\b|no ?derivatives?/.test(s)) return { ok: false, why: "NoDerivatives" };
   if (/fair use|non-?free|all rights reserved|©|\(c\)/.test(s)) return { ok: false, why: "not a free licence" };
   // The RULED sources: not licences but the owner's take-down-on-complaint
-  // ruling applied to a named source (D420 for TMDB's posters, D421 for
+  // ruling applied to a named source (D421 for TMDB's posters, D422 for
   // PokéAPI's official artwork). The tag is what the credits sheet keys
   // its notice on, and the gate admits the tag so the rows can exist —
   // the ruling is the record, this line is only where it is enforced.
@@ -147,7 +147,7 @@ export function formatCredits(domain, rows) {
     `# The key is the catalogue key (public/${CATALOG_FILES[domain] || `${domain}.txt`}); the file is what`,
     "# hosting serves; author and licence are what the licence requires shown",
     "# beside the picture, which the app's credits sheet draws from this file.",
-    `# A takedown is \`node scripts/build-catalog-art.mjs ${domain} --remove <key>\` (D420).`,
+    `# A takedown is \`node scripts/build-catalog-art.mjs ${domain} --remove <key>\` (D421).`,
     `# ${sorted.length} entries.`,
   ];
   for (const r of sorted) {
@@ -258,7 +258,7 @@ export function regenerateCatalogArtIndex(root, builderName) {
     "// directories and fails CI on any disagreement.",
     "//",
     "// Which catalogue entries have a picture on hosting, by file extension",
-    "// (D420). The app asks this BEFORE it asks the network: a tile whose key",
+    "// (D421). The app asks this BEFORE it asks the network: a tile whose key",
     "// is not here never fires a request that would end in a 404, and a",
     "// domain with no directory draws its generated faces and nothing else.",
     "// Empty until an operator runs the builder — the fetch needs Wikimedia",

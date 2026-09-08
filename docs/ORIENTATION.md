@@ -69,7 +69,7 @@ who decides:
 | Path | What is there | Read first |
 | --- | --- | --- |
 | `src/v2/spec/` | The JSX ported verbatim from the frozen prototype — the largest layer here. Shared-global scope, order-sensitive, shrinking under a ratchet. `mirror-*.jsx` and `map-*.js*` are the Mirror tab | `src/v2/README.md`, then `CLAUDE.md` §1 |
-| `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the two lazy groups (`loadWorldFeed`, `loadOverlays`) | `src/v2/README.md` |
+| `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the FOUR lazy groups (`loadWorldFeed`, `loadMapTab`, `loadMirrorTab`, `loadOverlays`) — the Map's since v28 §5 and the Mirror's since D355, each naming one module whose own static imports carry the rest | `src/v2/README.md` |
 | `src/v2/data/` | The typed client layer — `live.ts` publishes `window.LIVE`; `cohort.ts`, `similarity.ts` and `compare.ts` are the Mirror's folds; the rest is pure, tested logic | `docs/MIRROR.md` §6 |
 | `src/v2/ui/` | The hand-written TSX panels — the live Mirror bodies, the duel, privacy, city and search panels. One test suite each, mutation-checked | `src/v2/README.md` § Panel tests |
 | `src/v2/test/` | The mount smoke tests over `src/v2/test/mount-app.jsx`. The only gate that renders the whole app — the spec layer's other three are all name-level | `src/v2/README.md` § Mount tests |
@@ -86,7 +86,7 @@ who decides:
 | `monitoring/` | Cloud Monitoring policies, applied by hand rather than by the pipeline, the pulse console's rate card and trail, and the program console's trail (`monitoring/console-trail.jsonl`, one row a day from `console.yml` — D352) | `docs/MONITORING.md` |
 | `web/` | The Firebase Hosting root (`firebase.json` → `hosting.public`) — the marketing home, the `/join/**` link target, terms, and `web/.well-known/` for the two app-link association files. **Not the app**: the app is what Vite builds out of `index.html` | `docs/DEPLOYMENT.md` |
 | `web/privacy.html` | The one place the long privacy disclosure lives (D183). `check:policy-claims` holds it to the app | `docs/COPY.md` §3 |
-| `web/catalog-art/` | The pick tiles' pictures (D420) — one directory per catalogue domain, written only by `scripts/build-catalog-art.mjs`: thumbnails named by catalogue key, and a `credits.tsv` the app's *Image credits* sheet draws. Hosting content, not the app, which is what makes a takedown a commit: `--remove <key>` and the merge deploys. Empty until an operator with network runs the builder | `web/catalog-art/README.md`, then `docs/CATALOG-QUESTIONS.md` § Entity images |
+| `web/catalog-art/` | The pick tiles' pictures (D421) — one directory per catalogue domain, written only by `scripts/build-catalog-art.mjs`: thumbnails named by catalogue key, and a `credits.tsv` the app's *Image credits* sheet draws. Hosting content, not the app, which is what makes a takedown a commit: `--remove <key>` and the merge deploys. Empty until an operator with network runs the builder | `web/catalog-art/README.md`, then `docs/CATALOG-QUESTIONS.md` § Entity images |
 | `android/` · `ios/` | The Capacitor shells, committed so the apps build from a clean clone. `npx cap sync` copies the Vite build in; everything the toolchains generate on top is gitignored | `docs/IOS-RELEASE.md` |
 | `design/` | Two different things under one name. The **standalone revisions** are the frozen prototype and its history — read-only reference, and what "do not edit design/" is about. `design/icon/` and `design/store/` are the opposite: live SOURCES that builders rasterise and gates read, and that `asc:push` sends to App Store Connect | `design/README.md` |
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
@@ -185,7 +185,7 @@ than of a subject:
 | README | What it covers |
 | --- | --- |
 | `README.md` | The product, top to bottom: what it is, how to run it, the repo map, the gates |
-| `src/v2/README.md` | The port, the two lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
+| `src/v2/README.md` | The port, the feed / overlay / Mirror lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
 | `functions/README.md` | The backend's own layout and conventions |
 | `firestore-tests/README.md` | How the rules and e2e suites are structured and run |
 | `content/README.md` | The question bank formats and how content reaches the seed |
@@ -257,7 +257,7 @@ everything else: the static gates, and where each one runs.
 | `check:devicebind` | ci | D29's iOS and Android bridges are registered, not merely present — the failure it guards is silent (D342) |
 | `check:account-level` | deploy | firestore.rules' account bar equals `accountLevel.ts`'s `REQUIRED_LEVEL` — they disagree silently both ways (D343) |
 | `check:web-headers` | ci | Every page under `web/` is covered by a hosting headers rule — the enumerated `source` lists lost four pages in a week |
-| `check:catalog-art` | ci | The pick tiles' pictures (D420): every image under `web/catalog-art/` has its credits row and vice versa, every key is in its catalogue, every licence is one the policy admits, the generated index agrees with the directories both ways, and `firebase.json` serves the path with CORS and an hour's cache — the takedown's other half |
+| `check:catalog-art` | ci | The pick tiles' pictures (D421): every image under `web/catalog-art/` has its credits row and vice versa, every key is in its catalogue, every licence is one the policy admits, the generated index agrees with the directories both ways, and `firebase.json` serves the path with CORS and an hour's cache — the takedown's other half |
 | `check:csp-hashes` | ci | Every `'sha256-…'` in a hosting CSP is the digest of a script that is really in the page it covers, both directions. `check:web-headers` reads header KEYS by design; a hash is not a policy but a checksum of a file in this tree, and a drifted one is silent — the browser refuses the script and the page renders as a form that does nothing |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |

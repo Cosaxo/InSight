@@ -21,7 +21,7 @@
 // character itself, colours their own hue. Tapping a tile is exactly the
 // search's pick — same key, same path.
 //
-// And where the catalogue HAS a picture (D420 — a committed thumbnail on
+// And where the catalogue HAS a picture (D421 — a committed thumbnail on
 // our own hosting, never a hotlink), PickArt draws it over the pattern:
 // the pattern stays underneath as the permanent fallback, the picture
 // fades in once decoded and leaves on a failed load, so a half-pictured

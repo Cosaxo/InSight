@@ -90,6 +90,17 @@ describe("verdict — the ratchet, in both directions", () => {
   it("passes on the baseline", () => {
     expect(verdict(96, 353, 96).ok).toBe(true);
     expect(verdict(96, 353, 96).message).toMatch(/96 of 353/);
+    // …AND THE HALF IT DID NOT SEE. `rules.test.ts` runs a second
+    // environment over a patched ruleset (`insight-rules-enforced`), and
+    // this gate reads only the first — so a predicate whose only FALSE
+    // lives there counts as never-false and the number overstates. That is
+    // a stated gap rather than a closed one, and a success line that reads
+    // as the suite's whole coverage is how a stated gap becomes a
+    // forgotten one.
+    expect(
+      verdict(96, 353, 96).message,
+      "the success line no longer says it read one environment of two",
+    ).toMatch(/ONE of the suite's two rule environments/);
   });
 
   it("FAILS when the count rises — a new rule with no negative test", () => {

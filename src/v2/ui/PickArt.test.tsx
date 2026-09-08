@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// PickArt (D420): a picture where the index has one, nothing where it
+// PickArt (D421): a picture where the index has one, nothing where it
 // does not, and the face back when the picture fails.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";

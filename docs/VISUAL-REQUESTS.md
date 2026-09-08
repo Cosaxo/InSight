@@ -640,7 +640,7 @@ gates what the doors say.
   *"i feel if letterbox can do it so can we i think we can atemt it and
   if we recive a complain we take it down."* **Built the same day on the
   direct ask, without the drafted step** — recorded here rather than
-  skipped silently, for item 7's reason. D420 is the record.
+  skipped silently, for item 7's reason. D421 is the record.
 - **surface** — the pick card's browse row (`ui/PickTiles.tsx`, D308's
   faces) and the reveal's "your pick" / "the crowd" faces
   (`world-feed.jsx` `renderPick`), plus one *Image credits* door under
@@ -670,7 +670,7 @@ gates what the doors say.
 - **why** — a browse row of patterned rectangles under "the greatest
   athlete who ever lived" was the design's placeholder for portraits,
   and the owner asked why the portraits were not there.
-- **status** — `built` 2026-09-07 (D420). **What a canvas would still
+- **status** — `built` 2026-09-07 (D421). **What a canvas would still
   improve:** the reveal's box is 92 px landscape and a poster is
   portrait, so a film reveal crops to the poster's middle third; and
   the credits list is a plain list. Optional, and on `OWNER-LIST.md` §

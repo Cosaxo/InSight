@@ -1,4 +1,4 @@
-// catalogArt.ts — where a pick tile's picture is, and whose it is (D420,
+// catalogArt.ts — where a pick tile's picture is, and whose it is (D421,
 // docs/CATALOG-QUESTIONS.md § Entity images).
 //
 // THE PICTURE IS A COMMITTED FILE ON OUR OWN HOSTING, never a hotlink:
@@ -28,7 +28,7 @@ export const ART_PATH = "catalog-art";
 
 /**
  * One notice per RULED source — a source the owner's take-down-on-complaint
- * ruling admits by name rather than a licence (D420 for TMDB, D421 for
+ * ruling admits by name rather than a licence (D421 for TMDB, D422 for
  * PokéAPI). Keyed by the tag the credits row carries in its licence
  * column; scripts/catalog-art-lib.mjs's RULED_SOURCE_TAGS is the same
  * list, pinned to this one by test. TMDB's sentence is what their terms

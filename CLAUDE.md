@@ -389,7 +389,7 @@ catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
 and `check:catalogs` — the last three also run on the deploy path,
 because the aggregate trigger validates answer keys against the committed
 catalogues (D14–D17; docs/CATALOG-QUESTIONS.md) — and `check:catalog-art`
-for the pictures on the pick tiles (D420), `ci` only, because the trigger
+for the pictures on the pick tiles (D421), `ci` only, because the trigger
 never reads an image.
 
 `check:appcheck` is on the deploy path too: every callable must demand App

@@ -44761,7 +44761,234 @@ install or a different Google account is what would confirm it.
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
 
-## D420 · The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys
+## D420 · The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created, and two duplicates one shift had already named
+
+**2026-09-08.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+seventy-five commits are kept as written; nothing was reverted. What this
+review adds is the composition, three fixes for defects no shift could
+see alone, and the two duplicates resolved to one copy each. The owner's
+instruction was *"review tonights night shifts and merge the parts you
+approve"*: every part is approved, and this record says which parts the
+composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260908` | 40 | 2 behind | shift A, Claude 2's, 21:11–05:32 UTC |
+| `nightb-20260908` | 35 | 2 behind | shift B, Claude 1's, 20:11–04:17 UTC |
+
+Both branched from the same console commit (`3f49530`), and `main` took
+nothing but two console commits during the night — so no decision
+number moved, and neither shift claimed one: the night wrote no decision
+record at all, which is a first. Seven files were touched by both, down
+from twenty the night before (D406). Two conflicted; five merged clean;
+and the defects were in the clean five and not in the two, which is the
+D380/D406 pattern a third time.
+
+### The first conflict: the same Play refusal, written twice
+
+Both shifts added the account wall's report-and-refusal to
+`play-release.yml` — B at 22:15 UTC, A at 03:14, with B's branch public
+the whole time. B's closing flow (`92d869d`) measured the composition
+before this review did: `git merge-tree` reported zero conflicts at the
+time, so git kept both blocks, the workflow printed the wall line twice
+and evaluated the refusal twice, and B's own `release-wall.test.mjs` went
+red on its positive control for an unreadable reason. B changed its test
+to count the block and hold it at exactly one, with a failure message
+that says what to do — *"keep one, and prefer the wording that names the
+store."* By morning A's later commits had turned the overlap into a real
+conflict, which is the better outcome: a conflict stops and asks.
+
+**Resolved to B's block, whole.** It is the one B's test pins, and its
+comment carries the reason that is specific to Play rather than
+symmetric — `REQUIRE_SIGNIN` is ONE repository variable read by both
+workflows, so clearing it for a single deliberately wall-less iOS
+archive disarms the Android upload too. One thing from A's block is
+carried over: the target `track` in the job-summary line, because the
+track is what decides whether a build reaches real installs. The two
+shifts' arguments are otherwise the same argument.
+
+### The second conflict: one fixture, two mocks, and a line both sides typed
+
+`src/lib/firebaseImpl.test.ts`. A widened the Firestore mock to record
+`initializeFirestore`'s arguments — the database id and the offline
+cache, neither pinned before. B widened the Auth mock with the email door
+(`EmailAuthProvider`, `createUserWithEmailAndPassword` and the rest),
+recording what each was handed so a case can tell a LINK from a fresh
+account. Both hunks land in the hoisted fixture and both resets in
+`beforeEach`, so the resolution is a union — except for the one line
+both sides edited, `currentUser`'s type, which takes B's (`isAnonymous?`
+added), since A's is a prefix of it. The first cut of that union kept
+both lines, which is a duplicate object key `tsc -b` would have refused;
+written down because it is the shape a union produces whenever two
+sides touch one declaration, and the D406 file class (each half holding
+the other's import) one night over.
+
+### The defect only running the suite could see: a tally left behind
+
+`src/v2/test/passive-fold-live.test.jsx`, merged clean. B added a
+describe that drives `PASSIVE.record` with a domain card against
+`attachment` — chosen deliberately, because it is the one instrument
+whose demo seed is zero, so a recorded card can move the number. A added
+a describe at the foot of the same file that renders the profile's
+landing card and asserts, as its control, that an untouched profile
+draws no arc at all.
+
+On the composed tree the control failed: the Social ring — which IS
+`attachment` — drew a real sweep. Both shifts are right. `passiveCount`
+falls back to the device tally for an instrument the bank serves no
+items for, by design, and B's case had left that tally at one seen card,
+in module state and in localStorage. Vitest runs a file's describes in
+order, so the leak pointed one way and each shift was green alone.
+Measured rather than reasoned: the whole battery was green but for this
+one case.
+
+Fixed in B's describe, which now puts the tally back through the store's
+own purge event (`insight:local-purge`, D51) and removes the key — the
+same reasoning the file's `beforeEach` gives for dispatching the real
+`insight:test-results` event rather than a second definition of "empty".
+Reverting the `afterEach` reproduces the failure.
+
+### The duplicate that merged silently, and was named before it merged
+
+Both shifts wrote a case pinning the paid report's `(qid, surface)`
+composite in `src/v2/data/indexes.test.ts` — B at 20:11, A at 23:21.
+B's `7f6927f` predicted the exact outcome: zero conflicts, twenty cases,
+two of them asserting the same index. A's asserted the composite; B's
+asserts the composite AND that `answers.qid` keeps its full exemption,
+which is what makes the composite load-bearing rather than an
+optimisation. B's is the superset, so A's is dropped and the file is 19
+cases — the count each branch reported alone.
+
+B's row on `OWNER-LIST.md` carries the arithmetic on why this keeps
+happening: shift B's brief says to read `origin/main..origin/night-$D`
+before auditing, and nothing in shift A's brief names `nightb-*`, so B
+can avoid duplicating A and nothing lets A avoid duplicating B. Tonight's
+two duplicates — the Play block and this pin — were both A's later copy
+of B's earlier one, which is what that row says the timestamps would
+show. The fix is one line in a Routine no session here can edit.
+
+### What the composition did NOT have to change, and why
+
+`scripts/source-pins.test.mjs` was touched by both. A blanked comments
+before the first rule scans — it had reported a gate's own explanatory
+comment, quoting the offending shape, as an offender. B widened the
+second rule's detector to see `read(...)` helpers as well as the literal
+`readFileSync`, and raised that rule's ceiling 24 → 36 for the twelve
+sites it uncovered. A's stripping feeds the same `gates` array B's rule
+reads, so B's ceiling was measured on raw source and now counts stripped
+source. It composes because 36 is a CEILING and not a baseline — B's own
+commit keeps it one *"because the other shift repairs gates in this class
+on the same nights"* — and the suite is green with room under it. Worth
+knowing before anyone lowers it: the true count is what a run prints,
+not 36.
+
+`web/privacy.html`: A rewrote the lede (the cadence is not the product);
+B rewrote the account section and the children section — three
+statements the wall does not keep — and added four claim rows to
+`check-policy-claims.mjs`. Disjoint, and the gate reads 52 disclosures.
+
+`docs/OWNER-LIST.md`: four new rows, one from A (a free account can forge
+a day's telemetry, and rules cannot stop it) and three from B (the
+collision guard above; the email door signs in without the warning Apple
+and Google give; an erased buyer's link survives on the public results
+page). All four are asks, and all four bring what D334 says to bring.
+
+### What was reviewed, and approved
+
+Every commit of both shifts, read as one diff. The behaviour changes are
+named here because everything else is a test, a comment or copy:
+
+- **A `4d087a1`** — a group duel's guess is scored against the room
+  WITHOUT the guesser's own vote, which is what the duo arm always did;
+  the published guess rate is comparable from here forward, and D386's
+  tie rule stands untouched. The e2e loop's own expectation moved with
+  it.
+- **A `4b93339`** — Foresight shows its verdict. On every real device the
+  reveal had been skipped, because the store notifies synchronously and
+  the answered card had already left the list by the re-render.
+- **A `e904575`** — a norms percentile counts ties as half (the midrank
+  convention), so an exact tie — the common case on rounded Likert axes
+  — no longer lands on the far side of the split.
+- **A `f88dca4`, `b3172bb`, `eba0dd0`, `ade87ab`, `951c5fb`, `5bbd621`**
+  — honesty corrections on the Map, the place field, the pulse and the
+  profile card: a crowd of one is not a spread, a percentage says what it
+  is over, a capped list says what it hides, "answer again tomorrow" is
+  said only when you are the thin one, and the profile's rings read the
+  fold rather than the device.
+- **A `c15fccf`, `a63170b`** — `check:versions` matches AND repairs the
+  live gradle lines rather than the first hit inside a comment.
+- **A**, copy — the cadence sweep the owner asked for on 2026-09-07,
+  across the web root, the invite page, the terms, the README, the store
+  captions, the duel panel, the Groups stop and two demo sheets; and the
+  D122 consent sentence now says what the rules make true, in the words
+  `privacy.html` already pins. One of the sweep's own edits was reverted
+  by the same shift (`80925cc`): the RevealClock's written fallback is a
+  statement of WHEN, not a framing, and stays "Reveals tomorrow".
+- **B `a357062`, `0123f6e`** — `daily-split`'s two chunk loaders go
+  through `retryable()`, so a second caller is not dropped and a failed
+  chunk does not latch; and a live build stops fetching the duel bank on
+  every daily mount, for a store it never reads.
+- **B `89f8059`, `aaf9294`** — the wall's already-in-use recovery uses
+  the door that was tapped rather than Google whichever it was, and Apple
+  and Google failures read as sentences rather than Firebase codes.
+- **B `2c57586`, `9b04769`, `9e2abe0`** — two workflows stop pasting
+  free-text inputs into run bodies (one of them the step holding the App
+  Store Connect key); the iOS device-screens job no longer persists a
+  write token beside an installer it downloads; `auth-config` proves it
+  can write the credential file BEFORE it rotates the App Review
+  password.
+- **B `43c78c7`** — the public results page says "ran", not "runs", for a
+  campaign the erasure sweep stopped.
+- **B `980fe29`, `c893490`, `80e03fa`, `b029080`, `066db51`, `d21b9d8`**
+  — five gates repaired or widened: `check:figures` reads
+  `BANK_SURFACES` past comments and every remedy it prints now
+  re-satisfies its own pattern; `check:store-forms` compares linkage and
+  purposes; `check:policy-claims` holds the account wall's disclosure;
+  `rules-coverage` says it reads one environment of the suite's two.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module references across 8
+files, at baseline) · `check:figures` (102 figures across 305 files) ·
+`check:docs` · every other CI gate and every backend-checks gate ·
+`test:scripts` 64 files / 1069 · functions 37 files / 802 · `test:unit`
+197 files / 2916 · `test:rules` 201 with `rules-coverage` at baseline 46 ·
+`test:e2e:all` green on one emulator boot, all three suites, ending *"moderation e2e: every leg green"* · the bundle is 2195 KB / 544 KB eager against 2440 / 552.
+
+`firestore.rules` did not change, which is why the rules suite and its
+coverage baseline did not move. `check:store-copy` is red on `main` and
+red here, on the unfilled Play signing SHA D406 already recorded; it is
+not on any CI path and the night did not touch it.
+
+### What is the owner's
+
+Merged, not decided:
+
+1. **The store screenshots are behind their captions.**
+   `design/store/listing.json`'s first and fourth captions changed
+   (*"Answer blind. Nothing to anchor you."*, *"Sealed until the reveal.
+   Did you call it?"*), and the screenshots uploaded when runbook 4.1
+   closed still carry the old words — so a `gen-screenshots.mjs` run and
+   an upload are owed. The app's store NAME, "InSight: Daily
+   Perspective", was deliberately not touched: plain "InSight" is taken,
+   per the file's own note, so that is a question beside the Play
+   un-parking (D42).
+2. **The Email Address row's basis in the store filing** changed in both
+   copies, from *"only if the user links Google"* to *"every account since
+   D414"* (B `b029080`). No declaration flipped — still collected, still
+   linked, still app functionality — but the human-reviewable basis under
+   the tick did, and App Store Connect's copy is transcribed by hand.
+3. **The four `OWNER-LIST.md` rows above.** The collision guard is the
+   one with a one-line fix.
+
+### Reversal
+
+Each half is its own merge commit and each of the three fixes is its
+own commit; the pull request is one squash. Reverting this record's
+tree restores `main` at `ba80520`.
+## D421 · The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys
 
 **Date:** 2026-09-07. **Status:** built; the first pictures land when an
 operator runs the builder (`OWNER-LIST.md` § Clicks).
@@ -44975,12 +45202,12 @@ chunk, so first paint carries none of this. `test:unit` and
 function changed) and the builder's network half (no egress) — the
 operator run on `OWNER-LIST.md` is where that is proved.
 
-## D421 · The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost
+## D422 · The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost
 
 **Date:** 2026-09-08. **Status:** built; the run is the network session's
 (§ 4 is its prompt).
 
-The owner, reading D420's summary the next morning:
+The owner, reading D421's summary the next morning:
 
 > *"yeah this claude session does not have acces to wikidata i have only
 > set it up for the other one i think we do the same system for pokemon
@@ -44995,14 +45222,14 @@ that session needs kept here so it is not lost in a chat.
 
 ### 1 · Every domain, and what that took
 
-D420 put Pokémon back to the owner rather than deciding it, with the
+D421 put Pokémon back to the owner rather than deciding it, with the
 recommendation to leave it text (D334's shape). The owner's answer is
 above, and the recommendation is overruled on the record. What "the same
 system for pokemon and all the other" needed:
 
 - **A re-encoder.** PokéAPI's official artwork is a 475 px PNG of
   100–300 KB, five times `MAX_IMAGE_BYTES`, and Node has no image codec
-  of its own — which is why D420's builder saved Commons' 184 px renders
+  of its own — which is why D421's builder saved Commons' 184 px renders
   as they came. `sharp` joins the devDependencies (its Linux and macOS
   binaries come from the npm registry like every other package, so the
   release workflows need nothing) and `catalog-art-lib`'s `toThumb`
@@ -45051,7 +45278,7 @@ system for pokemon and all the other" needed:
 ### 2 · What did NOT change
 
 The policy, the gate, the format, the app. `check:catalog-art` admits
-`webp` since D420 and re-derives the same rows; the credits sheet grew
+`webp` since D421 and re-derives the same rows; the credits sheet grew
 one notice; `PickArt` draws whatever extension the index names. The
 Pokémon refusal that stood in `CATALOG-QUESTIONS.md` for a year is kept
 in its row as the record of the exposure, above the owner's word that
@@ -45141,7 +45368,7 @@ and which hosts, if any, were blocked.
   says what the run does without the key).
 - Video game covers through IGDB — a registration the owner would make;
   the Commons route runs meanwhile.
-- The reveal's aspect (D420 § 5).
+- The reveal's aspect (D421 § 5).
 
 ### 6 · Measured
 
@@ -45167,6 +45394,134 @@ four app suites the change touches, `lint`, `tsc -b`, `check:docs`,
 `check:figures`, `check:catalog-art`, `test:scripts` in full (1,051),
 `test:unit` in full with the real index in place, and `check:bundle`
 on the shipping build, all green. The bundle: **544 KB eager, unchanged
-from the base commit and from D420; 2201 KB total** against D420's 2197
+from the base commit and from D421; 2201 KB total** against D421's 2197
 — the index's thousand keys are the 4 KB, and they ride the deferred
 feed chunk.
+## D423 · The pictures land: five domains fetched from a cloud session, the seventh host nobody knew about, and the two ways a throttled network kills a run
+
+**Date:** 2026-09-08. **Status:** built and committed; the pictures are in
+the tree. Supersedes D422 § 4's "pending the network session's run".
+
+D422 § 4 wrote a prompt for a session whose environment could reach the
+picture hosts, and this is that run. It took four hours instead of the
+expected twenty minutes, and everything that cost the difference was
+invisible from the building session — so the point of this entry is not
+the counts (§ 1) but the three things that stood between a correct
+builder and a picture on disk (§ 2), each of which will be waiting for
+whoever refreshes a domain next.
+
+### 1 · What came back
+
+| Domain | Pictured | No image at source | Refused on licence | Skipped |
+| --- | ---: | ---: | ---: | ---: |
+| countries | 246 | 3 | 1 | 0 |
+| athletes | 632 | 1 | 6 | 1 |
+| videogames | 632 | 346 | 20 | 2 |
+| dogs | 410 | 141 | 3 | 0 |
+| films | 731 | 268 | 0 | 1 |
+
+**2,651 new pictures, 14.2 MB**, joining the 1,025 Pokémon D422 put in —
+**3,676 files and 22.3 MB** under `web/catalog-art/`. That is under
+D422 § 3's ~36 MB estimate, and the reason is worth keeping: the tiles
+come back *smaller* than the 8 KB it assumed. Flags average 1.5 KB
+(a flag is flat colour, which WebP eats), athletes 5 KB, films 5.4 KB,
+Pokémon 8 KB. D422 § 3's transfer arithmetic therefore holds with room
+to spare, and nothing about it touches Firestore or Functions.
+
+The 759 keys with no image keep their generated face, which is D308's
+pattern working exactly as the permanent fallback it was built to be.
+Videogames is the domain where the route shows its limit — 346 of 1,005
+have nothing on Commons, because Commons has logos and screenshots for
+games and not cover art, which is the row D421's table already called
+the IGDB gap.
+
+The 30 licence refusals are the gate doing its job, and they are worth
+listing because they are not what one would guess: 13 are the GPL family
+(`GPL` ×10, `GPLv3` ×2, `NetHack GPL`), `MIT` and `WTFPL` one each — free
+software licences applied to screenshots of free software games. Nine are
+GFDL-only, two GODL-India, two OGL, one "OGL-om 1.0". `licenceAllowed`
+recognises none of them and admitted none of them. Whether the
+software-licence rows *should* be admitted is a real question and is
+left open rather than decided here: they are free by any reading, and the
+refusal costs ~13 game pictures.
+
+**Films took the Commons route, not TMDB.** No `TMDB_API_KEY` in the
+environment, so those 731 are P3383's free posters, then stills and
+logos — the classics and few others, not the poster wall. `OWNER-LIST.md`'s
+TMDB row is unchanged and still the owner's.
+
+### 2 · The three things that stood in the way
+
+Each was invisible to the building session, each looked like a different
+failure than it was, and each is a line in the builder's header now.
+
+**A seventh host, and D422 § 4 named the wrong one.** That entry says
+"upload.wikimedia.org — the thumbnails are served from there, not from
+commons.wikimedia.org". They are not. Commons' `imageinfo` now returns
+`thumburl` on **`thumb.wikimedia.org`**, and the builder prefers
+`info.thumburl` over `info.url`. So a run with all six documented hosts
+allowed still fails every picture, and for `countries` there is no
+falling back to the original: `info.url` is the raw `.svg`, which
+`fetchThumb` correctly refuses as an unsupported type. `upload.wikimedia.org`
+is still needed; `thumb.wikimedia.org` is needed too, and the header
+now lists seven.
+
+**Node's `fetch` ignores `HTTPS_PROXY`.** In a sandbox whose egress runs
+through a proxy, `curl` reaching a host proves nothing about whether the
+builder can: Node's built-in fetch does not read the variable and goes
+out on a path the allowlist does not cover. The symptom is an HTTP 403
+that survives every allowlist change, which reads exactly like a policy
+denial and is not one. `NODE_USE_ENV_PROXY=1` (Node ≥ 22.21) fixes it,
+and it is an environment variable rather than a change to anything.
+This cost an hour of adding hosts that were already allowed.
+
+**A shared cloud IP gets ~1 Commons API call a minute.** Measured, not
+inferred — 11 probes at two spacings, successes 62 s and 91 s apart,
+every 429 carrying `x-envoy-ratelimited: true` and `Retry-After: 8`.
+Image downloads from the thumbnail host are not limited at all (50 in a
+row at the builder's own pace, no failures), so the only scarce thing is
+the one API call per fifty pictures. That is ~33 calls for all five
+domains — half an hour of waiting, if anything waits.
+
+### 3 · What the builder learned, and why each is in code
+
+Two changes to `get()` and nothing else; the routes, `licenceAllowed`,
+the credits format and the takedown are untouched. Both were approved by
+the owner mid-run, and both are the same lesson from opposite ends: a run
+that has already spent an hour fetching must not throw that away over one
+answer it could survive.
+
+- **A 429 is a schedule, not a failure.** The old ladder was three tries
+  at 2.5 s and 5 s — seven and a half seconds against a sixty-second
+  window, so it gave up about fifty seconds short, every time, and the
+  domain died on its second chunk of fifty however often it was re-run.
+  It also discarded the `Retry-After` the server was explicitly sending.
+  Now a 429 waits for what the server asks or a `20 s × attempt` ladder,
+  whichever is longer, capped at 120 s, with its own budget of eight
+  tries. 5xx keeps the old short ladder, because a server error is not a
+  promise that waiting helps. Measured effect: `videogames` sat in two
+  blocks of roughly ten minutes each and finished with 632 pictures that
+  the old code could not have reached.
+- **An image the host will not serve is a skipped key, not a dead
+  domain.** A network error on one *image* used to exit the whole run.
+  It fired for real: `upload.wikimedia.org` refused mid-`athletes` and
+  took 452 already-fetched pictures with it. Now such an image takes the
+  same path a 404 already took — `skip`, one printed line, the key keeps
+  its face — while an API call keeps the fatal exit, because a missing
+  chunk of fifty would put a falsehood in `credits.tsv` rather than a
+  gap. The four `skipped` in § 1's table are four runs that would each
+  have been a dead domain.
+
+Neither change is specific to this environment. A laptop on a flaky café
+network meets both.
+
+### 4 · What is still owed
+
+- **TMDB**, unchanged and still the owner's (`OWNER-LIST.md`). With the
+  key and its two hosts, re-running `films` replaces the 731 free
+  pictures with real posters.
+- **The GPL-family refusals** in § 1 — a question, not a defect.
+- **Video game covers** still wait on IGDB, exactly as D421 said.
+
+A refresh of any domain is the same one command it always was, and the
+takedown is still `--remove <key>`, a commit, and the hosting deploy.

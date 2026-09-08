@@ -92,7 +92,7 @@ import { LEARN_SOCIAL } from './learn-social.js';
 import PickSearch from '../ui/PickSearch';
 // …and the catalogue table behind it, for the browse row's two reads (D389).
 import { pickHead, pickLoad } from '../ui/pickDomains';
-// …and the pictures on its tiles, where a catalogue has them (D420): the
+// …and the pictures on its tiles, where a catalogue has them (D421): the
 // image over the reveal's two faces, and the credits door the licence
 // requires beside every surface that draws one.
 import PickArt from '../ui/PickArt.tsx';
@@ -1911,7 +1911,7 @@ class WorldFeed extends React.Component {
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
         <span aria-hidden="true" style={{ position: 'relative', overflow: 'hidden', width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}>
-          {/* the picture, where the catalogue has one (D420) — over the
+          {/* the picture, where the catalogue has one (D421) — over the
               generated art, which stays as the fallback */}
           <PickArt domain={q.domain} id={ent} />
         </span>

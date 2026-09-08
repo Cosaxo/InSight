@@ -18,10 +18,14 @@
 // while the pool it came from is loaded by loadWorldFeed().
 
 // ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
-// Named export alongside the global (D39's "convert on touch", the WPAL
-// precedent): typed panels — ui/PatternsTab first — import the binding, so
-// the coupling meter (rule 4) never counts them, while the nine spec
-// consumers keep reading the global until their own touch converts them.
+// A NAMED EXPORT AND NOTHING ELSE. This said "named export alongside the
+// global … while the nine spec consumers keep reading the global", which
+// was the shape the split was planned in and never the shape it shipped:
+// this file publishes no global at all, and all five consumers import the
+// binding — the three typed Patterns panels, world-feed-data.js and
+// daily-split.jsx. Counted, not remembered. So there is no bridge read to
+// convert here and rule 4 counts none of them, which is the D39 outcome
+// the older sentence was still describing as pending.
 export const WORLD_TOPICS = [
   { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
   { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },

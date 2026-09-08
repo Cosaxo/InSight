@@ -73,7 +73,11 @@ beforeAll(async () => {
       if (req.url.includes("/appStoreVersions?")) {
         return send(200, { data: [{
           id: "VER1",
-          attributes: { versionString: "2.0.0", appStoreState: state.versionState },
+          attributes: {
+            versionString: state.versionString,
+            appStoreState: state.versionState,
+            releaseType: state.releaseType,
+          },
         }] });
       }
       // The version's one-to-one child, read. Matched narrowly on purpose:
@@ -100,6 +104,11 @@ afterAll(() => new Promise((r) => server.close(r)));
 beforeEach(() => {
   calls = [];
   state = {
+    // The values the LIVE record actually held on 2026-09-07: App Store
+    // Connect's default "1.0" against a binary that says 2.0.0, and a
+    // release type nobody had chosen.
+    versionString: "1.0",
+    releaseType: "AFTER_APPROVAL",
     versionState: "PREPARE_FOR_SUBMISSION",
     detailId: null,
     build: { id: "BUILD33", attributes: { processingState: "VALID" } },
@@ -220,5 +229,62 @@ describe("submission", () => {
     // No reviewSubmission resource is touched, on any path.
     expect(calls.some((c) => c.url.includes("reviewSubmission"))).toBe(false);
     expect(stdout).toMatch(/NOT submitted/);
+  });
+});
+
+// ── the version record, and who decides when it goes public ────────
+//
+// The release type is the field that turns an approval into a
+// publication with nobody present, and nothing in this repo mentioned it
+// until the owner asked the right question — "does that mean the app
+// will be published?". Submitting is reversible; a release is not.
+describe("the version record", () => {
+  it("reports the release type even when asked to change nothing", async () => {
+    // The whole value of the field is that somebody sees it before they
+    // submit, so the plain run has to say it.
+    const { stdout } = await exec();
+    expect(stdout).toMatch(/release type:\s+AFTER_APPROVAL/);
+  });
+
+  it("changes the version string when it disagrees with the binary", async () => {
+    await exec(["--set-version", "2.0.0", "--apply"]);
+    const w = writes().find((c) => c.url === "/v1/appStoreVersions/VER1");
+    expect(w.body.data.attributes.versionString).toBe("2.0.0");
+  });
+
+  it("does not write a version string that already matches", async () => {
+    state.versionString = "2.0.0";
+    await exec(["--set-version", "2.0.0", "--apply"]);
+    expect(writes().find((c) => c.url === "/v1/appStoreVersions/VER1")).toBeUndefined();
+  });
+
+  it("sets the release type, and warns about the one that publishes itself", async () => {
+    state.releaseType = "MANUAL";
+    const { stdout } = await exec(["--release-type", "AFTER_APPROVAL", "--apply"]);
+    const w = writes().find((c) => c.url === "/v1/appStoreVersions/VER1");
+    expect(w.body.data.attributes.releaseType).toBe("AFTER_APPROVAL");
+    expect(stdout).toMatch(/PUBLIC the moment Apple approves/);
+  });
+
+  it("writes the version record BEFORE the review detail", async () => {
+    // The detail hangs off this version and Apple checks the version
+    // string at submission, so a run that wrote them the other way round
+    // could leave a detail attached to a record that cannot be sent.
+    await exec(["--set-version", "2.0.0", "--release-type", "MANUAL", "--apply"]);
+    const w = writes();
+    expect(w[0].url).toBe("/v1/appStoreVersions/VER1");
+    expect(w[1].url).toBe("/v1/appStoreReviewDetails");
+  });
+
+  it("refuses a release type Apple does not have", async () => {
+    await expect(exec(["--release-type", "WHENEVER", "--apply"]))
+      .rejects.toThrow(/must be MANUAL, AFTER_APPROVAL or SCHEDULED/);
+    expect(writes()).toEqual([]);
+  });
+
+  it("writes nothing to the version record without --apply", async () => {
+    const { stdout } = await exec(["--set-version", "2.0.0", "--release-type", "MANUAL"]);
+    expect(stdout).toMatch(/"1\.0" → "2\.0\.0"/);
+    expect(writes()).toEqual([]);
   });
 });
