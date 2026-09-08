@@ -434,6 +434,37 @@ export function loadLedger() {
   return JSON.parse(readFileSync(join(root, "content", "topic-proposals.json"), "utf8"));
 }
 
+/**
+ * What `settling` holds the door on: the stock of the last top CREATED on
+ * this surface that is still standing, or null when there is no such top.
+ *
+ * NULL AND ZERO ARE DIFFERENT SENTENCES, and reading a missing row as 0
+ * is how this said something false forever. `check-taxonomy.mjs` rule 4
+ * deliberately KEEPS a `created` row whose id has since been retired
+ * (`retiredSince`) — the creation was real, it is history — so the last
+ * created top on a surface that has retired one is a row with no
+ * taxonomy entry behind it. `rows.find(...)?.stock ?? 0` then read that
+ * as an empty room, and `topVerdict` printed "the last feed topic
+ * created is at 0 of 24 — one room at a time" about a room that does not
+ * exist. Measured 2026-09-08: a ledger whose one created feed topic had
+ * been folded held every future feed top proposal, permanently, with
+ * that sentence.
+ *
+ * A created top with no row and no retirement is a broken ledger, and it
+ * is check:taxonomy's to report — not this line's to hold the door on.
+ * Null there too: say nothing rather than a number.
+ */
+export function settlingStock(ledger, surface, rows) {
+  const retired = new Set(
+    (ledger.retired ?? []).filter((r) => r.surface === surface).map((r) => r.id));
+  const prior = (ledger.created ?? [])
+    .filter((c) => c.surface === surface && levelOf(c) === "top" && !retired.has(c.id))
+    .at(-1);
+  if (!prior) return null;
+  const row = rows.find((r) => r.id === prior.id);
+  return row ? row.stock : null;
+}
+
 /** The You map's ring — MAP_GROUPS' hubs, with the branch ids each holds —
  * and the feed's caption table. Read through check:quality's extractor,
  * the one parser (D197). */
@@ -695,8 +726,7 @@ if (invokedDirectly) {
       v = leafVerdict({ surface: p.surface, parked, retag, budget: LEAVES[p.surface]?.cap ?? 0, parentOk });
       console.log(`    ${parked} parked + ${retag} retagged · grant ${LEAVES[p.surface]?.cap ?? 0} · handful ${LEAVES[p.surface]?.birth ?? "-"}`);
     } else {
-      const prior = (ledger.created ?? []).filter((c) => c.surface === p.surface && levelOf(c) === "top").at(-1);
-      const settling = prior ? (tops[p.surface].rows.find((r) => r.id === prior.id)?.stock ?? 0) : null;
+      const settling = settlingStock(ledger, p.surface, tops[p.surface].rows);
       const placed = isPlaced(p, ring);
       v = topVerdict({ surface: p.surface, placed, parked, days, budget: TOPS[p.surface].cap, settling });
       console.log(`    ${parked} parked over ${plural(days, "run day")} · hub ${p.group ? JSON.stringify(p.group) : "unstated"}${placed ? "" : " (none such)"}${TOPS[p.surface].cheap ? " · cheap: Knowledge by prefix" : ""}`);
