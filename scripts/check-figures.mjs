@@ -1348,7 +1348,17 @@ const FIGURES = [
     what: "the documents a cold boot reads from the bank (the cold-boot row)",
     re: /\*\*\+(\d+) reads\*\* — five whole surfaces plus the feed's core/,
     actual: coldBootBankDocs,
-    fix: (n) => `"**+${n} reads** — the whole question bank"`,
+    // The hint has to quote the sentence the PATTERN matches. It quoted
+    // "the whole question bank" — the wording D383 retired and this very
+    // entry was retargeted away from — so a maintainer who followed the
+    // printed remedy verbatim restored a claim the block above calls false,
+    // and the next run then told them the figure was no longer quoted and
+    // to DELETE this entry. Measured: bump the row to 493, run, apply the
+    // printed sentence, run again, and the second message is
+    // "could not find the sentence … delete its entry from FIGURES in this
+    // script rather than restoring the sentence". A remedy that walks a
+    // reader from a caught drift to a deleted gate in two steps.
+    fix: (n) => `"**+${n} reads** — five whole surfaces plus the feed's core questions"`,
   },
   {
     file: "docs/COSTS.md",
