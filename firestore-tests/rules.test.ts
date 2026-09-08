@@ -4618,6 +4618,11 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
       await setDoc(doc(db, "v2_groups", GROUP, "reveals", DAY), { revealed: true });
       await setDoc(doc(db, "v2_people", OWNER), { handle: "owner" });
       await setDoc(doc(db, "v2_avatars", OWNER), { url: "x" });
+      // The answer corpus, for the two cases below. A world answer, so
+      // the collection-group arm's `surface in [...]` admits it.
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
+        qid: "daily-000", surface: "daily", optionIdx: 1, anchors: { ageBand: "25-34" },
+      });
     });
   });
 
@@ -4651,6 +4656,34 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   // below could not see it — it is a bare sign-in gate like the eleven
   // above in every other respect. It is the handle → uid address book.
   it("v2_handles refuses a signed-out read", () => refuses(["v2_handles", "owner"]));
+  // TWO OF THE TWELVE FIXTURES THE COUNT BELOW CALLS TOMORROW'S WORK, and
+  // the pair with the most behind them: every user's answers, by id and
+  // by collection group. That arm is `request.auth != null &&
+  // (uid match || surface in [...])`, and the auth conjunct is the only
+  // thing in it that mentions auth at all — so until now, deleting
+  // `request.auth != null &&` from the collection-group rule turned
+  // exactly ONE of this suite's tests red, and that one is a REGEX OVER
+  // THE RULES FILE, not a behaviour. Measured on that mutation: a
+  // signed-out collection-group query returned all three users' answers,
+  // and a signed-out get on one answer succeeded, while the suite
+  // reported a count that had moved by one.
+  //
+  // D98 is what makes the signed-in half of each pair the real assertion:
+  // answers ARE public to anybody signed in, so "refuses a stranger" would
+  // be the wrong test and passing it would mean the product was broken.
+  // The line is sign-in, and only sign-in.
+  it("an answer document refuses a signed-out read", () => refuses(["v2_users", OWNER, "answers", "daily-000"]));
+
+  it("the answer corpus refuses a signed-out collection-group query", async () => {
+    const corpus = (db: ReturnType<typeof asSignedOut>) => query(
+      collectionGroup(db, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn"]),
+    );
+    await assertFails(getDocs(corpus(asSignedOut())));
+    // …and it is open to any signed-in reader, which is the product (D98).
+    const snap = await assertSucceeds(getDocs(corpus(asUser(STRANGER))));
+    expect((snap as { size: number }).size, "the signed-in half read nothing — the fixture is gone").toBe(1);
+  });
 
   const ruleSource = (): string =>
     readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
