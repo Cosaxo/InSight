@@ -178,6 +178,26 @@ describe("checkQuestion (Crossroads shape and axes)", () => {
     expect(flatWalks(live.find((q) => q.id === "pt2"))).toBe(8);
     expect([...PATH_AXIS_LEGACY.keys()]).toEqual(["pt1", "pt2"]);
   });
+
+  it("the waived stories are retired, and every story still served turns three axes on every walk", () => {
+    // D413: the owner retired the two flat stories rather than keep
+    // serving them under the waiver. Pinned both ways — a retired row must
+    // stay in the bank (the seed and the deck read the flag there, and the
+    // genre ratchet still counts it as a predecessor), and the waiver must
+    // not quietly widen to cover a story a reader can actually meet.
+    const live = corpus.feed.questions.filter((q) => q.type === "path");
+    for (const id of PATH_AXIS_LEGACY.keys()) {
+      const q = live.find((x) => x.id === id);
+      expect(q, `${id} left the bank — retire with active:false, never delete`).toBeTruthy();
+      expect(q.active, `${id} is served under the axis waiver`).toBe(false);
+    }
+    const served = live.filter((q) => q.active !== false);
+    expect(served.length).toBeGreaterThanOrEqual(3);
+    for (const q of served) {
+      expect(PATH_AXIS_LEGACY.has(q.id), `${q.id} is served AND waived`).toBe(false);
+      expect(checkQuestion(q, "feed", corpus).errs.filter((e) => e.rule === "axis-spread"), q.id).toEqual([]);
+    }
+  });
 });
 
 describe("the Crossroads genre ratchet", () => {

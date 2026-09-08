@@ -20,6 +20,7 @@ import {
   revealMembersFor,
   breakdownBucket,
   foldAnchors,
+  honestAnchors,
   BREAKDOWN_MAX_BUCKETS,
   OVERFLOW_SHARDS,
   overflowShard,
@@ -1467,19 +1468,51 @@ describe("the duel question-level signal (D40 part 3)", () => {
   });
 
   it("scores a group's guesses against the option the room landed on (D386)", () => {
-    // Three votes, two on option 0. Guesses: 0 lands, 2 does not, one
-    // member did not guess at all.
-    const d = duelAggDelta([v(0, 0), v(0, 2), v(2)], "group", 4);
-    expect(d).toMatchObject({ total: 3, guessTotal: 2, guessMatches: 1 });
+    // Four votes, three on option 0. The room each member reads is the
+    // other three: two call it and land, one calls 1 and does not, one
+    // did not guess at all.
+    const d = duelAggDelta([v(0, 0), v(0, 0), v(0, 1), v(1)], "group", 4);
+    expect(d).toMatchObject({ total: 4, guessTotal: 3, guessMatches: 2 });
+  });
+
+  // ── THE ROOM IS EVERYONE BUT THE GUESSER ──────────────────────────
+  //
+  // This arm scored every guess against the whole tally, the guesser's own
+  // vote included, so calling your own answer was partly self-fulfilling —
+  // in a circle of two, entirely so. Measured over 40k trials with every
+  // member guessing their own answer and reading nothing: n=2 k=2 scored
+  // 1.000 and n=4 k=2 scored 0.875, against 0.500 for both once the
+  // guesser comes out. `question-scorecard.mjs` proposes retiring a duel
+  // at a 0.9 guess rate as "no tension — a dead question", and ten
+  // group-days from a circle of two is the twenty guesses it needs.
+  it("does not score a guess against a tally holding the guesser's own vote", () => {
+    // A 1–1 room where both members call their OWN answer. Under the old
+    // rule both options tied for the top of a tally that included them,
+    // so both "landed" — a perfect score for reading nobody.
+    expect(
+      duelAggDelta([v(0, 0), v(1, 1)], "group", 2),
+      "calling your own answer scored as a read of the room",
+    ).toMatchObject({ guessTotal: 2, guessMatches: 0 });
+  });
+
+  it("…and still scores a real read of the same room", () => {
+    // THE CONTROL. The same 1–1 room, each calling the OTHER's answer:
+    // both are genuine reads and both land. Without this, "matches 0"
+    // above passes just as well when group guesses stopped scoring.
+    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2))
+      .toMatchObject({ guessTotal: 2, guessMatches: 2 });
   });
 
   it("a tie for the top counts as a hit, and a room of one is no room", () => {
-    // 1–1: both options tied for the top, so a call on either landed.
-    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2)).toMatchObject({ guessTotal: 2, guessMatches: 2 });
-    // Only one counted vote: the guesser IS the room, so nothing is scored
-    // — otherwise calling your own answer would be a certain hit.
+    // The tie rule is D386's own and is untouched: with the guesser out,
+    // three others splitting 1–1–1 leave every call tied for the top.
+    expect(duelAggDelta([v(0, 3), v(1, 0), v(2, 0), v(3, 0)], "group", 4))
+      .toMatchObject({ guessTotal: 4, guessMatches: 4 });
+    // Nobody else's vote counted, so there was no room to read. The old
+    // floor's case, reached from the other side.
     expect(duelAggDelta([v(0, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
-    // An out-of-range vote does not count toward the room either.
+    // An out-of-range vote does not count toward the room, and its own
+    // guess is noise — the pool-flip race, read the way the duo arm reads it.
     expect(duelAggDelta([v(0, 0), v(9, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
   });
 
@@ -2354,3 +2387,55 @@ describe("the breakdown cap's tail (D400)", () => {
   });
 });
 
+describe("honestAnchors (D410): you may withhold, you may not invent", () => {
+  const PROFILE = { city: "Oslo", country: "NO", ageBand: "25-34", profession: "Ceramicist" };
+
+  it("passes an honest claim through unchanged", () => {
+    expect(honestAnchors({ city: "Oslo", ageBand: "25-34" }, PROFILE))
+      .toEqual({ city: "Oslo", ageBand: "25-34" });
+  });
+
+  it("REPLACES an invented value with the profile's", () => {
+    // The whole point. A hand-written client filing its own answer under a
+    // cohort it liked is the only way this data can lie, and every Mirror
+    // cut is folded from it.
+    expect(honestAnchors({ city: "Tokyo", profession: "Surgeon" }, PROFILE))
+      .toEqual({ city: "Oslo", profession: "Ceramicist" });
+  });
+
+  it("KEEPS a withheld anchor withheld — the city-blanking the app does on purpose", () => {
+    // answerAnchors(rates) blanks the city on a question that rates one
+    // when the city is unconfirmed. Overwriting "" with the profile's city
+    // would undo a deliberate decision and rate a place on an unconfirmed
+    // claim, which is the thing that blanking exists to stop.
+    expect(honestAnchors({ city: "", country: "NO" }, PROFILE))
+      .toEqual({ city: "", country: "NO" });
+  });
+
+  it("treats null and undefined as withheld too", () => {
+    expect(honestAnchors({ city: null, country: undefined }, PROFILE))
+      .toEqual({ city: null, country: undefined });
+  });
+
+  it("DROPS a field the profile does not carry at all", () => {
+    // Inventing a whole anchor is the same act as changing one — and a key
+    // the profile has never held cannot be corrected to anything, so it
+    // goes rather than staying as the client wrote it.
+    expect(honestAnchors({ city: "Oslo", heightBand: "180-189" }, PROFILE))
+      .toEqual({ city: "Oslo" });
+  });
+
+  it("says nothing when there is no profile, and keeps withheld values", () => {
+    // A first answer written before any profile exists is legal and carries
+    // {} (D8). Anything non-empty claimed against no profile is invention.
+    expect(honestAnchors({}, null)).toEqual({});
+    expect(honestAnchors({ city: "Tokyo" }, null)).toEqual({});
+    expect(honestAnchors({ city: "" }, null)).toEqual({ city: "" });
+  });
+
+  it("survives junk on either side rather than throwing in the hot trigger", () => {
+    expect(honestAnchors(null, PROFILE)).toEqual({});
+    expect(honestAnchors("nope", PROFILE)).toEqual({});
+    expect(honestAnchors({ city: "Oslo" }, "nope")).toEqual({});
+  });
+});

@@ -48,6 +48,7 @@ vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 const { default: LiveProfileSetup } = await import("./LiveProfileSetup");
 const { PROFILE_SETUP_LS, profileSetupNeeded, mountProfileSetup } = await import("./profileSetup");
 const { PROFILE_GENERAL_LS } = await import("../data/cityAnchor");
+const { backLayerCount, closeTopBackLayer, resetBackLayers } = await import("../data/backLayers");
 
 const onDone = vi.fn();
 
@@ -455,5 +456,66 @@ describe("an account deletion takes the screen with it", () => {
     expect(screen.getAllByText(/A few things about you/i)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: /Skip for now/ }));
     await settle();
+  });
+});
+
+// ── Android's back button ────────────────────────────────────────────
+//
+// The same gap the walkthrough had, on the screen directly behind it:
+// this is a full-screen `role="dialog"` overlay on its own root outside
+// `<App/>`, so the shell's handler (person → city → overlay → tab) finds
+// nothing to peel, returns false, and `back.ts` calls `App.exitApp()`.
+// The app quits with the seven questions still on screen — and since
+// `markProfileSetupSeen()` hangs off `onDone` alone, the quit records
+// nothing and the next launch asks them all again.
+//
+// Dismissing is a legitimate way out here for the same reason Skip is:
+// what the flag records is that the question was ASKED.
+describe("the hardware back button", () => {
+  beforeEach(() => { resetBackLayers(); });
+
+  it("registers a layer, so back does not fall through to exitApp", () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(backLayerCount(), "nothing would peel this screen").toBe(1);
+    expect(closeTopBackLayer(), "the back press was not consumed").toBe(true);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the stack empty on unmount", () => {
+    const { unmount } = render(<LiveProfileSetup onDone={onDone} />);
+    expect(backLayerCount()).toBe(1);
+    unmount();
+    expect(backLayerCount()).toBe(0);
+  });
+});
+
+// ── the sheet fits the phone (build 33) ────────────────────────────
+//
+// The owner's screenshot of build 33 showed every field running off the
+// right edge, the sentence about the handle cut mid-word. One property:
+// the column is `width: 100%` with 22px of padding a side, and
+// `src/v2/styles.css` has NO universal `* { box-sizing: border-box }` —
+// it is set per rule, which is exactly the arrangement that makes an
+// inline style like this one wrong by default rather than right by
+// default.
+//
+// jsdom computes no layout, so this cannot assert a rendered width. What
+// it CAN do is pin the property whose absence produced the overflow, on
+// the element that carries the padding — which is the fact that was
+// missing, not a proxy for it.
+describe("the column fits its phone", () => {
+  it("sizes the padded column as a border box", () => {
+    const { container } = render(<LiveProfileSetup onDone={onDone} />);
+    // The one element with horizontal padding and a percentage width.
+    const col = Array.from(container.querySelectorAll("div")).find((d) => {
+      const s = (d as HTMLElement).style;
+      return s.width === "100%" && /\d+px/.test(s.paddingLeft || "");
+    }) as HTMLElement | undefined;
+    expect(col, "the padded column is gone — re-point this test").toBeTruthy();
+    expect(
+      col!.style.boxSizing,
+      "width:100% plus horizontal padding overflows the viewport by twice "
+      + "the padding; styles.css has no universal border-box reset",
+    ).toBe("border-box");
   });
 });

@@ -97,9 +97,26 @@ const HTML_FILES = readdirSync(join(root, "web"))
 // reason, the same shape EXEMPT_PAGES has, which is a line somebody writes
 // on purpose rather than one they can forget.
 const EXEMPT_SOURCES = {};
-const SOURCE_DIRS = ["src/v2/ui", "src/v2/spec"];
+// EVERY DIRECTORY THAT HOLDS COPY, AND EVERY EXTENSION IT IS WRITTEN IN.
+//
+// This read two directories and three extensions, and the header one box
+// up says the gate covers "EVERY in-app surface … user-facing copy lives
+// across all of these files". It did not: `.ts` was missing, so 13
+// non-test typed files in `src/v2/ui` alone were invisible — including
+// the search placeholders and empty-state lines in `pickDomains.ts` and
+// the card headers in `lensDefs.ts` — and `src/v2/data` was not listed at
+// all, though it carries "This view is paused while we keep InSight's
+// costs in check.", "Your speech stays yours to withdraw", "You're on an
+// anonymous session" and "Fetching today's question…".
+//
+// Measured before this widened: planting a real retired claim ("counts
+// are hidden until enough people answer") in `src/v2/ui/pickDomains.ts`
+// left the gate GREEN at 173 surfaces, with the pattern for that exact
+// sentence live in the list below. Widened, the same plant fails and the
+// clean tree reads 259 surfaces across 86 files that were unguarded.
+const SOURCE_DIRS = ["src/v2/ui", "src/v2/spec", "src/v2/data", "src/lib"];
 const TSX_FILES = SOURCE_DIRS.flatMap((dir) => readdirSync(join(root, dir))
-  .filter((f) => /\.(tsx|jsx|js)$/.test(f))
+  .filter((f) => /\.(tsx?|jsx?)$/.test(f))
   // Tests are not copy: their fixtures quote the old model on purpose, and
   // the mount suites assert on strings a user never sees.
   .filter((f) => !/\.test\./.test(f))
@@ -215,6 +232,55 @@ export const RETIRED = [
     re: /\b(?:takes?|free text|posts?)\b[^.!?]{0,60}\banonymous by construction\b/i,
     why: "takes carry the author's name at both scopes since D98",
   },
+
+  // ── the anonymous-first vocabulary, retired by D414 ───────────────
+  //
+  // A SECOND retired model, and it went the same way as the first: on
+  // 2026-09-07 the account wall went up, and three surfaces kept
+  // promising the opposite for the rest of the afternoon —
+  // `design/store/listing.json` (BOTH store descriptions: "No sign-up
+  // wall. Open it and start: no email, no phone number"), `web/join.html`
+  // ("the app works anonymously from the first tap") and, worst,
+  // `web/privacy.html`'s Children section ("there is little to collect:
+  // no account is required"). The listing was hours from being submitted
+  // to Apple beside a build that opens on a wall, which is guideline
+  // 2.3.1 and a rejection round.
+  //
+  // That is this file's own founding failure, repeated: its header
+  // records listing.json shipping "answers are owner-only" to App Store
+  // Connect while the rules said otherwise. The remedy the header argues
+  // for is a word list rather than a discipline — so D414's vocabulary
+  // joins D98's here rather than being swept once and trusted.
+  //
+  // NOT a ban on the word "anonymous". The app still signs every session
+  // in anonymously (D3, untouched), the attention tally is genuinely
+  // unlinkable, and both are described in copy that must keep saying so.
+  // What is retired is the claim that a user may USE the app without an
+  // account.
+  {
+    re: /\bno (?:sign[- ]?up|signup|log[- ]?in|login) wall\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\bno account (?:or [a-z]+ )?(?:is )?(?:needed|required)\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\b(?:works?|usable|use it) anonymously\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\byou do not need an account\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\bwithout (?:an account|signing in|an email)\b[^.!?]{0,40}\b(?:answer|use|start|open)\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\b(?:linking|signing in)\b[^.!?]{0,30}\bis optional\b/i,
+    why: "the app requires an account since D414",
+  },
 ];
 
 // Strings a scan must not read as copy. `$`-prefixed keys in listing.json
@@ -281,7 +347,7 @@ export function collect() {
       out.push({ label: rel, text: raw });
       continue;
     }
-    if (/\.(tsx|jsx|js)$/.test(rel)) {
+    if (/\.(tsx?|jsx?)$/.test(rel)) {
       // Strip block and line comments: a TSX file's comments explain the
       // history to the next maintainer and quote the old wording on
       // purpose — LivePrivacyPanel's does exactly that, twice. Scanning

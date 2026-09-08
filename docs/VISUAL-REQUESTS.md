@@ -36,6 +36,93 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
+### 10 · The account-setup sheet — fits the phone, and asks before it lets go
+
+- **title · asked by** — *A few things about you* · the owner, 2026-09-07,
+  on build 33: *"the shert for filling in data is scaled wrong an looks
+  bad… and some of them should ve requierd before skiping."*
+- **surface** — `src/v2/ui/LiveProfileSetup.tsx`, a full-screen sheet
+  mounted by `main.jsx` after first paint on any account with no anchors
+  and no display name (`profileSetup.tsx` decides). It is the FIRST screen
+  after the sign-in gate, so it and
+  `design/front-door-2026-09-07/` are read as one arrival — and today
+  they do not look like one thing.
+- **what is wrong now, measured** — the column is `width: 100%` with 22px
+  of padding a side and no `box-sizing`, and `styles.css` has no universal
+  `border-box` reset, so the content box was 446px inside a 402px window:
+  every field ran 44px off the right edge and the sentence about the
+  handle was cut mid-word. **That one property is already fixed** — this
+  request is not for the overflow. It is for the sheet the overflow
+  revealed: eleven controls stacked at full width, a three-column
+  day/month/year grid at `0.9fr 1.5fr 1.1fr`, two paragraphs of
+  explanation above the first field, and nothing that says which of it
+  matters.
+- **data and basis** — every control is a CLOSED vocabulary held equal to
+  the server's buckets by `check:anchors`; the city is the catalogue
+  picker (D9); the birthday never leaves the device — `anchorsFrom` writes
+  the band and the year-resolution age, not the date (D155,
+  `profile-vitals.js`). Nothing here is free text except the display name
+  and the handle. A handle is claimed once and cannot be changed; every
+  other field is editable later in the profile's Basics card.
+- **the ask that changes the screen's job** — some fields become
+  REQUIRED before the sheet can be skipped. Today nothing is: `canSave`
+  is `filled > 0 || newName || typedHandle`, and *Skip for now* always
+  works.
+  **This reverses half of the file's own stated reasoning and the
+  reversal is the owner's to make, not the design's.** That reasoning
+  reads: *"It does not block. Every field can be skipped and the whole
+  screen can be dismissed, because D3 is anonymous-first and 'never a
+  wall' — and because a required demographic form is how you teach people
+  to lie to one."* The first clause is already gone: D414 put the wall up,
+  so "never a wall" no longer describes this build. **The second clause
+  still stands and is the design problem this request is really about** —
+  a required field does not produce truth, it produces a value. So the
+  question for the canvas is not *where do the asterisks go*, it is **how
+  does a screen earn four honest answers**, and the two levers are which
+  fields are asked for and what each one visibly buys.
+  A proposal to rule on rather than a decision taken: **year of birth,
+  gender, country and display name** required; city, education, work and
+  relationship optional. That set is chosen from what the product cannot
+  work without — the Mirror's City and Country stops need a place, its
+  breakdowns need a band, and every reveal needs a name (D190) — not from
+  what is nice to have. Country rather than city because a country is
+  cheap to answer honestly and a city is where people start being vague.
+- **states** — *empty* (the case it exists for: a new account, nothing
+  filled) · *partial* (some fields answered, required ones not) ·
+  *complete* · *saving* · *handle refused* (taken or malformed — the one
+  error state that must survive a save and keep the rest of the writes) ·
+  *offline*. There is no loading state: the vocabularies are local.
+- **interaction** — every control is a native picker or select, which is
+  deliberate on a phone and constrains the visual language more than a
+  desktop form would. A tap opens the platform sheet. The hardware back
+  button peels this screen as one layer (Android). The primary button
+  today reads *Save 3 of 7* / *Answer one to continue*, which is a
+  counter; whether a count is still the right primary label once some
+  fields are required is a question for the canvas.
+- **vocabulary** — `design/front-door-2026-09-07/` is the screen
+  immediately before this one and sets the arrival's tone; the standalone
+  family in `design/` and `src/v2/styles.css`; the two palettes of D302;
+  `--field-size` owns the type size of any text input
+  (`check:touch-zoom` fails a literal, 16px floor, because a smaller
+  field makes iOS zoom the whole fixed shell and nothing zooms it back).
+  Copy follows D182 — and `docs/COPY.md` §3 is the part that matters
+  here, because two of the paragraphs on this screen are CLAIMS (what
+  each answer is copied into, that a handle cannot be changed) and are
+  not shortenable to nothing.
+- **constraints** — the whole screen is behind `main.jsx`'s dynamic
+  import and must stay there (`check:bundle`'s eager ceiling has no
+  headroom, and `profileSetup.tsx`'s header records that even the
+  DECISION measured 1 KB over when it lived in an eager gate). Tap
+  targets: `check:tap-targets`. No new fetch — every list is local.
+- **why** — the anchors are the join. An answer snapshots them at write
+  time (D8), and that snapshot is the only thing that lets a vote be
+  counted with a city, an age, a field — which is the app's whole first
+  sentence, *connecting data and drawing the connection where someone can
+  read it*. A sheet that people skip produces answers that belong to no
+  cohort, and CLAUDE.md's own test applies to this screen as much as to a
+  lens: a surface that collects without joining is unfinished.
+- **status** — `requested`.
+
 ### 0b · The interest profile, shown and editable
 
 - **title · asked by** — *Your interests* · a session, 2026-09-04 (D367),
@@ -302,7 +389,13 @@ that lets a buyer read them.
 groups profile better … assume you have full creative freedom."*
 `ROLES-PLAN.md` is the plan; this is the screen half of it, and it
 waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
-it is planned here.
+it is planned here. **Noted 2026-09-07**: the owner's `InSight_10`
+upload draws the third surface — the person's page — on paper: *Play
+together* as doors whose sub-line carries the named type's one-line
+meaning, and the read-each-other card as a two-column hit-rate table
+under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
+pair's card as this request wants it drawn; the plan's owner call still
+gates what the doors say.
 
 - **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
   (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
@@ -454,6 +547,82 @@ it is planned here.
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
 - **status** — `requested`.
+### 9 · The front door — one screen, three ways in
+
+- **asked by** — the owner, 2026-09-07: *"i think this app defenenetly
+  should have a sigin in wall and not anonymous users"*, then *"make a
+  plan for the c plan that is how almost all apps do account"*. The
+  build plan is [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md); this request is
+  the screen it waits on (§6).
+- **surface** — the FIRST thing anyone sees, before the daily tab
+  exists. It replaces `ui/LiveSignInGate.tsx`, which today is a
+  Google-only wall shown on the test track: the stacked lockup (D302's
+  full iris over the wordmark, 44px), a line of copy, one button. The
+  shell it keeps — fixed inset, `--surface-2`, centred, `max-width:
+  420`, safe-area padding top and bottom — is right and should survive.
+  Nothing surrounds it: no tab bar, no back.
+- **data and basis** — none. This screen reads nothing and publishes
+  nothing. It is the one surface in the app with no aggregate behind
+  it, which is why it has to carry its weight on shape and words alone.
+- **what it must hold**
+  - **Three doors, and Apple's rule sets their order.** Guideline 4.8
+    wants Sign in with Apple offered *equivalently* to other social
+    logins, so on iOS it leads: **Sign in with Apple** (Apple's own
+    black-fill treatment, which is prescribed and not ours to restyle),
+    then **Continue with Google**, then email.
+  - **Email is progressive, not a fifth of the screen.** The default
+    state shows the two one-tap doors and a quiet *Use email instead*.
+    Tapping it reveals address, password, and one primary button. The
+    calm default is the point: most people will take a one-tap door and
+    should not have to read past a form to find it.
+  - **Sign up and sign in are one screen, not two.** A single toggle
+    below the form — *New here? Create an account* / *Already have an
+    account?* — because two near-identical screens is the thing that
+    makes people bounce.
+  - **The honest sentence.** Answers on InSight are public, and this is
+    the screen where someone decides to join. Telling them here is the
+    same obligation D98 wrote for the account panel, pointed forward: a
+    person who learns it afterwards from a stranger quoting their vote
+    is the failure. One line, above the legal footer, not buried in it.
+    D182 §3 governs — a claim, not a word count.
+  - **The legal footer.** By continuing you agree to the Terms, and the
+    Privacy Policy, both linked and both real pages.
+- **states** — default (two buttons, email collapsed) · email expanded
+  · creating vs signing in · per-button loading, since a tap on Apple
+  leaves the app and comes back · error, and it needs four that read
+  differently: wrong password, no such account, address already taken,
+  and the network being down · forgotten-password sent, which is a
+  confirmation with nowhere to go but back to the inbox.
+- **interaction** — a tap on Apple or Google leaves for the system
+  sheet and returns; the screen must not look broken while it is gone.
+  *Forgot password?* sits with the password field, not with the
+  toggle. Nothing dismisses this screen: it is a wall, and the only way
+  past it is through a door.
+- **vocabulary** — the standalone family in `design/`,
+  `src/v2/styles.css`, D302's two palettes in both light and dark. The
+  gate's existing lockup and shell are the starting point rather than
+  a blank page. Apple's button is the one element that obeys someone
+  else's rules.
+- **constraints** — the screen is dynamic-imported, so it is off the
+  first-paint budget, but it is the first thing a new user waits for
+  and should feel instant. `check:tap-targets` for every control,
+  including the small toggle and the forgot link. Keyboard-safe: the
+  password field must not be under the keyboard on a small phone.
+- **why** — D219 let the wall go on the owner's condition that
+  duplicates be hard to make, and 2026-09-07 showed the condition is
+  not met: delete the account, come back, answer again, in one tap. The
+  wall is how the Mirror's central claim — that *your* answers say
+  something about *you* — stops being undermined by the app itself.
+- **status** — `designed` (2026-09-07). The owner's canvas is extracted
+  to [`design/front-door-2026-09-07/`](../design/front-door-2026-09-07/) —
+  twelve live artboards, and a README that is the readable half because
+  the delivered file is a bundle. It settled more than the request asked
+  for: every error names its own way out (*no account* offers **Create
+  one**, *already has an account* offers **Sign in instead**), Apple's
+  label follows the mode where Google's does not, and the toggle and the
+  legal footer both hide while the keyboard is up. Next is the build,
+  step 3 of `SIGNIN-PLAN.md`.
+
 
 ## Planned
 

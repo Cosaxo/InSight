@@ -1,7 +1,9 @@
 # The Mirror — where the answers add up
 
 Described as "one blind question a day", InSight sounds like a poll with
-a streak. Open it and answering is the *smaller* half — a few taps, then
+a streak — which is why that description is retired (the owner,
+2026-09-07: *"some old focus"*). The daily card is what opens; the
+questions run to hundreds, and answering at all is the *smaller* half — a few taps, then
 a split — and everything else is the Mirror: one tab, one verb, seven
 stops from *you* to *the world*, every one of them reading the same
 numbers through a different cut. It is not the small tab either — the
@@ -94,10 +96,21 @@ observed:
 **The anchors snapshot is the join.** Every answer carries a copy of the
 profile fields it was answered under — `BREAKDOWN_DIMS` in
 `functions/src/pure.ts`: age band, gender, city, country, education,
-relationship. A *copy*, taken at vote time, so editing your profile
-tomorrow cannot move yesterday's answer into a different cohort (D8).
-`profession` is deliberately not among them: it is free text, so every
-distinct spelling would mint a bucket key forever. That snapshot is the
+relationship, height band and job field. A *copy*, taken at vote time, so
+editing your profile tomorrow cannot move yesterday's answer into a
+different cohort (D8).
+
+This said SIX and named the first six, for long enough that two dims
+shipped without it: height band arrived 2026-08-14 and `jobField` at D328.
+`profession` is still deliberately not among them, but not for the reason
+this paragraph gave — it said "free text", which stopped being true when
+the profile became a `<select>`, and §5 of this same file says so four
+hundred lines down. The real reason is the one in `pure.ts`'s own comment:
+the pick is a list of 31 and growing, which is longer than
+`BREAKDOWN_MAX_BUCKETS`, so the dim is the derived FIELD of 20 instead —
+the pair `ageBand` makes with `age`, one anchor over. The anchors SNAPSHOT
+is wider than the breakdown dims and does carry `profession`;
+`SCHEMA-V2.md` lists all ten. That snapshot is the
 entire reason the Mirror can say "everyone in your city" without the
 server ever reading another user's document.
 
@@ -394,7 +407,7 @@ a lens row again:
 | **Answers** | **live**, a peer tab since D119, the prototype's row since D120 | `ui/LiveAnswerRows.tsx` — headline + thin stack + your answer, expanding into labelled option bars (or a histogram for a `rating`) and a where-you-sit sentence. Readings from `cohort.headlineFor` / `cohort.standingIn`. Still no "newest": nothing the client holds dates an answer, so the row prints the answer count where the prototype prints a date |
 | **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102). The City stop adds a second pass narrowed to your frozen city anchor in the QUERY (D278) — same cap, same rows read, because the unscoped pass spends nearly all of them on people the city filter then discards |
 | **Compare** | **live**, and the drawing above since D193 | `data/compare.ts` folds both sides into axis maps and `ui/LiveCompareLens.tsx` lays them over each other — the prototype's `CBAssess` and `CBAlignGlyph`, imported rather than re-ported. Their side comes off **counts** at City / Country / World / Circle (`axisScores` over this stop's own cell — D170's rule, unchanged by the change of reading) and off **people** at Groups and Near, which hold no test-bank answers to fold and average their members' completed `testResults` instead. Yours is a completed test where you have one and your own feed answers where you have not, so the tab fills in from ordinary answering. Every card states its basis; a place's axis needs testNorms' floors (30 answers, 2 items) and a card needs three axes you SHARE. **What it was until D193** is worth keeping: `pctFor` on your own option, question by question, least-typical first — every number true, and the Answers tab re-sorted |
-| **Explore** | **live** | `divergence` across the six breakdown dims, against the GLOBE on every stop — its buckets are cuts of everyone and its sentence ends "same as everyone", so it reads `LensQuestion.all` rather than the stop's cohort (D170). The v18 test-pole axis is the one part with no source *here*, since test results are not a dim — but the reading itself is no longer dark: D146 draws it on the who-voted sheet as the **Type** cut, folded on the client from the cached voter lists plus public `testResults` rather than from a published cell (a bounded sample, stated as one, Big Five only). If Explore ever takes the axis it should read `data/typeSplit.ts` rather than grow a second way to type people. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `data/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
+| **Explore** | **live** | `divergence` across the eight breakdown dims (`COHORT_DIMS`, the client-side copy of `BREAKDOWN_DIMS` — the chip row is `COHORT_DIMS.map`, so it draws whatever that holds), against the GLOBE on every stop — its buckets are cuts of everyone and its sentence ends "same as everyone", so it reads `LensQuestion.all` rather than the stop's cohort (D170). The v18 test-pole axis is the one part with no source *here*, since test results are not a dim — but the reading itself is no longer dark: D146 draws it on the who-voted sheet as the **Type** cut, folded on the client from the cached voter lists plus public `testResults` rather than from a published cell (a bounded sample, stated as one, Big Five only). If Explore ever takes the axis it should read `data/typeSplit.ts` rather than grow a second way to type people. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `data/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
 | **Scores** | **live since D100**, about the place since D187 | `meanScore` over the questions that RATE this stop (`LensQuestion.rates === scope`, D187) **as this stop answered them** (D170), labelled with the bank's `tag` rather than the prompt, your own score ticked onto each bar. The type filter (`rating` + `scale`) stays under the subject filter: `rates` says what a question is about, `ORDINAL_TYPES` says whether averaging it means anything. **Since D205 the City stop's card also says who may score it**: a question that rates a city writes no city anchor when the device's own location fix has never agreed with it, so an unconfirmed reader's scores are absent from this number — and the card says so rather than letting them wonder. The gate is at the ANSWER because it cannot be here: this reads `agg.by.city[city]`, one pre-summed cell, and a client cannot filter people out of a total it never sees itemised |
 | **the field itself** | **live since D112**; a tab from D119, the stop's permanent head since D136 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World. Outside the tab conditional, so it never unmounts and row navigation costs nothing |
 
@@ -430,7 +443,11 @@ counter is off, because with no room there is nothing to have tabs about.
 
 The four core instruments — Big Five, politics, values, social — and the
 minor lenses beside them (`IS_LENSES`) have no test flow to sit down for.
-Their items ship as ordinary feed cards (`surface: "test"`), so answering
+Their items ship as ordinary feed cards (`surface: "test"`) — since D416
+the Big Five's thirty facets and the compass's eighteen positions among
+them, as bank-only DEEP items the feed serves after each instrument's
+domain items (a fold for them is the plan's next step; today they fill
+nothing but their own aggregates) — so answering
 the feed fills them in the background, and because they are ordinary
 cards their option counts publish like any other question's. (True of
 the minor lenses only since D91 — under D50 their answers were

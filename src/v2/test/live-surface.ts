@@ -137,6 +137,13 @@ export const LIVE_MEMBERS = [
   // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",
+  "emailCreate", "emailReset", "emailSignIn",
+  // The email door's second half (D414): the account exists before its
+  // address is confirmed, so the wall reads BOTH flags and the verify
+  // screen drives these three. `abandonSignIn` is the way out of a typo.
+  "abandonSignIn", "accountEmail",
+  "needsEmailVerify", "refreshVerification", "sendVerification",
+  "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
@@ -169,6 +176,7 @@ export const LIVE_MEMBERS = [
   // Today's pulse answer while the fold has not counted it yet, so the
   // card can report a crowd the reader is actually in.
   "pulsePending",
+  "votePending",
   "pulseVotes",
   // Crossroads' stories with their folded ending counts (D136). A story is
   // an ordinary bank question — real options, real fold, the ordinary vote

@@ -39,7 +39,11 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+// `facet`/`invert` are the instruments' DEEP items' only (D416): the
+// facet or position an item scores and whether it is keyed against it,
+// on the document so the device joins by id and the prompts stay out
+// of first paint. The core items and the lens items carry neither.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -4501,7 +4505,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "name": "Not My Story",
     "line": "You never found out. That was the choice, too."
    }
-  }
+  },
+  "active": false
  },
  {
   "id": "feed-pt2",
@@ -4639,7 +4644,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "name": "The Long Game",
     "line": "You stayed with the receipts. Leverage keeps better than anger."
    }
-  }
+  },
+  "active": false
  },
  {
   "id": "feed-f57",
@@ -9455,6 +9461,558 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "bg": "The 78th Primetime Emmy Awards air live from the Peacock Theater in Los Angeles on 14 September 2026, hosted by Mariska Hargitay, with the Creative Arts ceremonies held the weekend before."
  },
  {
+  "id": "feed-pt4",
+  "surface": "feed",
+  "seq": 329,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Blackout — the night the whole city went dark",
+  "options": [
+   "The Ridge Walker",
+   "The Scout",
+   "The Open Book",
+   "The Listener",
+   "The Stargazer",
+   "The Night Watch",
+   "The Morning Reader",
+   "The Sleeper"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Blackout",
+  "intro": "9:40 on a Friday night and the whole city goes dark at once — every window, every streetlight, the fridge’s hum. Your phone says 31%.",
+  "hue": 45,
+  "nodes": {
+   "_": {
+    "q": "Out in the stairwell, neighbours’ voices you have never heard before.",
+    "a": [
+     {
+      "t": "Go out and join them"
+     },
+     {
+      "t": "Stay in, light a candle"
+     }
+    ]
+   },
+   "A": {
+    "q": "Somebody’s radio says \"grid failure\", then static. Two neighbours are heading for the hill to see how far it goes.",
+    "a": [
+     {
+      "t": "Go and see how far it goes"
+     },
+     {
+      "t": "Wait for the news to come to you"
+     }
+    ]
+   },
+   "B": {
+    "q": "Candlelight, and a quiet you have never heard in this flat. It could be an hour. It could be the night.",
+    "a": [
+     {
+      "t": "Wait up for the lights"
+     },
+     {
+      "t": "Sleep through it"
+     }
+    ]
+   },
+   "AA": {
+    "q": "From the hill: the dark runs to the horizon in every direction. The ridge above would show the next town.",
+    "a": [
+     {
+      "t": "Push on up to the ridge"
+     },
+     {
+      "t": "Head back while you know the way"
+     }
+    ]
+   },
+   "AB": {
+    "q": "The step fills up — a guitar, a bottle, no plan. A stranger asks what you actually do all day, and there is no screen to hide behind.",
+    "a": [
+     {
+      "t": "Tell them, properly"
+     },
+     {
+      "t": "Deflect — ask about them"
+     }
+    ]
+   },
+   "BA": {
+    "q": "2 a.m. Still dark, and the sky over the roofs has stars this window has never shown.",
+    "a": [
+     {
+      "t": "Climb up to the roof"
+     },
+     {
+      "t": "Watch from the window"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Morning. The power is back, and the group chat has 212 messages about a night you slept through.",
+    "a": [
+     {
+      "t": "Read all 212"
+     },
+     {
+      "t": "Mark as read"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Ridge Walker",
+    "line": "You saw the whole dark city from above. Nobody else on your street did."
+   },
+   "AAB": {
+    "name": "The Scout",
+    "line": "Far enough to know, close enough to get home. You came back with the news."
+   },
+   "ABA": {
+    "name": "The Open Book",
+    "line": "No screen, no small talk. You told a stranger the real answer."
+   },
+   "ABB": {
+    "name": "The Listener",
+    "line": "You learned every story on the step and gave away none of yours."
+   },
+   "BAA": {
+    "name": "The Stargazer",
+    "line": "The city went dark and you climbed towards the sky."
+   },
+   "BAB": {
+    "name": "The Night Watch",
+    "line": "You kept the candle going and saw the lights come back, one street at a time."
+   },
+   "BBA": {
+    "name": "The Morning Reader",
+    "line": "You missed the night, then lived it twice — in the chat, with coffee."
+   },
+   "BBB": {
+    "name": "The Sleeper",
+    "line": "The city had a night. You had a night’s sleep. Both are true."
+   }
+  }
+ },
+ {
+  "id": "feed-pt5",
+  "surface": "feed",
+  "seq": 330,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Wildcard — a marathon place, six weeks out",
+  "options": [
+   "The Announcer",
+   "The Secret Marathoner",
+   "The Walker-In",
+   "The Next-Year Runner",
+   "The Pacer",
+   "The Barrier Voice",
+   "The Parallel Runner",
+   "The Dot Watcher"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Wildcard",
+  "intro": "A letter with a race number in it: a wildcard place in the city marathon, six weeks from Sunday. The longest you have ever run is five kilometres.",
+  "hue": 145,
+  "nodes": {
+   "_": {
+    "q": "The place is yours if you reply by Friday. Six weeks is either plenty or nothing at all.",
+    "a": [
+     {
+      "t": "Reply yes"
+     },
+     {
+      "t": "Give the place back"
+     }
+    ]
+   },
+   "A": {
+    "q": "Week one. The training plan wants five runs a week; your calendar has room for two.",
+    "a": [
+     {
+      "t": "Rebuild the weeks around it"
+     },
+     {
+      "t": "Two runs a week, no more"
+     }
+    ]
+   },
+   "B": {
+    "q": "Your returned place goes to a friend, who asks you to be their support crew — long runs, race day, the lot.",
+    "a": [
+     {
+      "t": "Join their crew"
+     },
+     {
+      "t": "Wish them luck, from a distance"
+     }
+    ]
+   },
+   "AA": {
+    "q": "Week four: 25 kilometres on a Sunday, and it went fine. Nobody knows you are doing this yet.",
+    "a": [
+     {
+      "t": "Post the whole plan"
+     },
+     {
+      "t": "Say nothing until race day"
+     }
+    ]
+   },
+   "AB": {
+    "q": "Race week. Two runs a week got you to 16 kilometres, once. The organiser allows one deferral.",
+    "a": [
+     {
+      "t": "Run it anyway, this Sunday"
+     },
+     {
+      "t": "Defer to next year"
+     }
+    ]
+   },
+   "BA": {
+    "q": "Race day, kilometre 35. Your friend is walking, grey-faced, and the sweeper bus is a minute behind them.",
+    "a": [
+     {
+      "t": "Duck the barrier, walk them in"
+     },
+     {
+      "t": "Stay behind the rope and shout"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Race morning. The tracking app shows your friend’s dot moving through streets you know. Your trainers are by the door.",
+    "a": [
+     {
+      "t": "Go out for your own 5k"
+     },
+     {
+      "t": "Follow the dot from bed"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Announcer",
+    "line": "Six weeks of updates, one medal. The whole feed ran it with you."
+   },
+   "AAB": {
+    "name": "The Secret Marathoner",
+    "line": "Forty-two kilometres nobody knew about until the photo."
+   },
+   "ABA": {
+    "name": "The Walker-In",
+    "line": "Ran the half you had, walked the half you didn’t. Same medal."
+   },
+   "ABB": {
+    "name": "The Next-Year Runner",
+    "line": "The place kept. The plan starts again in fifty-two weeks."
+   },
+   "BAA": {
+    "name": "The Pacer",
+    "line": "No number on your chest. You crossed the line anyway, one step behind."
+   },
+   "BAB": {
+    "name": "The Barrier Voice",
+    "line": "The rules held, and so did your voice. They finished hearing it."
+   },
+   "BBA": {
+    "name": "The Parallel Runner",
+    "line": "Five kilometres, your own streets, the same start time. A race of one."
+   },
+   "BBB": {
+    "name": "The Dot Watcher",
+    "line": "You followed a friend through the whole city without leaving the duvet."
+   }
+  }
+ },
+ {
+  "id": "feed-pt6",
+  "surface": "feed",
+  "seq": 331,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Premiere — a friend’s film, and you are in it",
+  "options": [
+   "The Co-Author",
+   "The Muse",
+   "The Straight Talker",
+   "The Gracious Guest",
+   "The Franchise",
+   "The Retired Character",
+   "The Thumbnail",
+   "The Silent Cameo"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Premiere",
+  "intro": "A friend’s first short film premieres tonight, and you are in the front row. Ten minutes in, the main character has your job, your laugh and your worst habit.",
+  "hue": 300,
+  "nodes": {
+   "_": {
+    "q": "The audience laughs at a line you actually said once. Your friend, two seats down, does not look at you.",
+    "a": [
+     {
+      "t": "Sit through all of it"
+     },
+     {
+      "t": "Slip out before the lights come up"
+     }
+    ]
+   },
+   "A": {
+    "q": "Credits. The Q&A host asks whether the character is based on anyone real. Your friend hesitates.",
+    "a": [
+     {
+      "t": "Raise your hand: \"That’s me\""
+     },
+     {
+      "t": "Let the question pass"
+     }
+    ]
+   },
+   "B": {
+    "q": "Outside, cold air. Your phone buzzes: \"Where did you go? Drinks after — please come.\"",
+    "a": [
+     {
+      "t": "Go to the drinks"
+     },
+     {
+      "t": "Home, alone with it"
+     }
+    ]
+   },
+   "AA": {
+    "q": "The room turns to look. Someone asks what it is like to see yourself on screen, and the director is filming this too.",
+    "a": [
+     {
+      "t": "Ask for a say in the final cut"
+     },
+     {
+      "t": "Let the film be theirs"
+     }
+    ]
+   },
+   "AB": {
+    "q": "At the bar, your friend finally comes over. \"You know, right?\" A whole evening in three words.",
+    "a": [
+     {
+      "t": "Have it out tonight"
+     },
+     {
+      "t": "\"Not tonight. Congratulations.\""
+     }
+    ]
+   },
+   "BA": {
+    "q": "Your friend is glowing, surrounded. A producer wants to make it a feature — \"with the same character\".",
+    "a": [
+     {
+      "t": "Toast it — the character is theirs"
+     },
+     {
+      "t": "Say the character retires tonight"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Midnight. The trailer is online with 400 views, and your laugh is the thumbnail.",
+    "a": [
+     {
+      "t": "Post it: \"Apparently this is me\""
+     },
+     {
+      "t": "Watch the count climb, say nothing"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Co-Author",
+    "line": "Your name is in the credits after all — under \"story consultant\"."
+   },
+   "AAB": {
+    "name": "The Muse",
+    "line": "You stood up and gave the film away. It was always going to be theirs."
+   },
+   "ABA": {
+    "name": "The Straight Talker",
+    "line": "Two drinks, one honest hour. The friendship survived the film."
+   },
+   "ABB": {
+    "name": "The Gracious Guest",
+    "line": "Congratulations, and a conversation you are still saving for later."
+   },
+   "BAA": {
+    "name": "The Franchise",
+    "line": "A feature, then. You will be in it either way, so you raised a glass."
+   },
+   "BAB": {
+    "name": "The Retired Character",
+    "line": "One short film. The character’s whole life, and you wrote its ending."
+   },
+   "BBA": {
+    "name": "The Thumbnail",
+    "line": "Four hundred strangers know your laugh. You made sure they knew whose."
+   },
+   "BBB": {
+    "name": "The Silent Cameo",
+    "line": "You watched the count climb from the dark. Nobody knows you were in it."
+   }
+  }
+ },
+ {
+  "id": "feed-pt7",
+  "surface": "feed",
+  "seq": 332,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Time Capsule — a letter from you at fifteen",
+  "options": [
+   "The Lake Returner",
+   "The Kitchen Reader",
+   "The Sender",
+   "The Keeper of Page Two",
+   "The Finder",
+   "The Quiet Looker",
+   "The Next Letter Writer",
+   "The One-Time Reader"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Time Capsule",
+  "intro": "A padded envelope from your old school: a letter you wrote to yourself at fifteen, sealed for a project everyone forgot. The teacher’s note says: \"Open alone.\"",
+  "hue": 100,
+  "nodes": {
+   "_": {
+    "q": "It is 8 a.m. on a working day, and the envelope is thick.",
+    "a": [
+     {
+      "t": "Open it now, coffee going cold"
+     },
+     {
+      "t": "Save it for the weekend"
+     }
+    ]
+   },
+   "A": {
+    "q": "Page one is everything fifteen-year-old you was sure of. Someone is in the kitchen, asking what came in the post.",
+    "a": [
+     {
+      "t": "Read it aloud to them"
+     },
+     {
+      "t": "Read it alone, as instructed"
+     }
+    ]
+   },
+   "B": {
+    "q": "Saturday. Page one is a list of predictions. Page two names your best friend then — someone you could look up before you read on.",
+    "a": [
+     {
+      "t": "Search their name first"
+     },
+     {
+      "t": "Read on without looking"
+     }
+    ]
+   },
+   "AA": {
+    "q": "They laugh at the predictions, then go quiet at the one that came true. The letter ends with a request: \"Go back to the lake.\"",
+    "a": [
+     {
+      "t": "Drive to the lake this month"
+     },
+     {
+      "t": "Leave the lake where it is"
+     }
+    ]
+   },
+   "AB": {
+    "q": "Fifteen-year-old you names the person you were in love with. They are still in your contacts.",
+    "a": [
+     {
+      "t": "Send them the page"
+     },
+     {
+      "t": "Keep the page to yourself"
+     }
+    ]
+   },
+   "BA": {
+    "q": "Your old best friend: a nurse in another city now, two kids, a public page full of the lake you both swam in.",
+    "a": [
+     {
+      "t": "Message them: \"I found a letter\""
+     },
+     {
+      "t": "Close the tab and read on"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The last line: \"If you are reading this with someone, tell them the lake thing.\" You are alone.",
+    "a": [
+     {
+      "t": "Write the next one, to you at fifty"
+     },
+     {
+      "t": "Fold it away"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Lake Returner",
+    "line": "You went back. It was smaller, and you were not."
+   },
+   "AAB": {
+    "name": "The Kitchen Reader",
+    "line": "Read aloud over cold coffee. The lake stays a line on a page."
+   },
+   "ABA": {
+    "name": "The Sender",
+    "line": "One photo, one old name. Whatever comes back, you started it."
+   },
+   "ABB": {
+    "name": "The Keeper of Page Two",
+    "line": "Some names stay in the envelope. You know which one."
+   },
+   "BAA": {
+    "name": "The Finder",
+    "line": "A letter, a search, a message: one afternoon. Twenty years, undone in an hour."
+   },
+   "BAB": {
+    "name": "The Quiet Looker",
+    "line": "You know exactly where they are now. They will never know you looked."
+   },
+   "BBA": {
+    "name": "The Next Letter Writer",
+    "line": "Sealed again, addressed to fifty. The project outlived the school."
+   },
+   "BBB": {
+    "name": "The One-Time Reader",
+    "line": "Read once, alone, as instructed. Filed with the things you don’t reread."
+   }
+  }
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -13961,6 +14519,3048 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "norms",
   "test": null
+ },
+ {
+  "id": "test-big5-25",
+  "surface": "test",
+  "seq": 160,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I get tense about things that haven't happened yet.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anxiety"
+ },
+ {
+  "id": "test-big5-26",
+  "surface": "test",
+  "seq": 161,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A small noise at night is enough to put me on edge.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anxiety"
+ },
+ {
+  "id": "test-big5-27",
+  "surface": "test",
+  "seq": 162,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I rarely feel nervous, even when there is reason to.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anxiety",
+  "invert": true
+ },
+ {
+  "id": "test-big5-28",
+  "surface": "test",
+  "seq": 163,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I can wait for bad news without it eating at me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anxiety",
+  "invert": true
+ },
+ {
+  "id": "test-big5-29",
+  "surface": "test",
+  "seq": 164,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When I'm treated unfairly, it burns for a long time.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anger"
+ },
+ {
+  "id": "test-big5-30",
+  "surface": "test",
+  "seq": 165,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A stranger being rude can spoil my whole mood.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anger"
+ },
+ {
+  "id": "test-big5-31",
+  "surface": "test",
+  "seq": 166,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People who know me would say I almost never get angry.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anger",
+  "invert": true
+ },
+ {
+  "id": "test-big5-32",
+  "surface": "test",
+  "seq": 167,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I let insults go without much effort.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "anger",
+  "invert": true
+ },
+ {
+  "id": "test-big5-33",
+  "surface": "test",
+  "seq": 168,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Some days I can't find the energy to start anything.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "depression"
+ },
+ {
+  "id": "test-big5-34",
+  "surface": "test",
+  "seq": 169,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I go through stretches where nothing seems worth the effort.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "depression"
+ },
+ {
+  "id": "test-big5-35",
+  "surface": "test",
+  "seq": 170,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'm mostly at peace with who I am.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "depression",
+  "invert": true
+ },
+ {
+  "id": "test-big5-36",
+  "surface": "test",
+  "seq": 171,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Getting out of bed is rarely a struggle for me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "depression",
+  "invert": true
+ },
+ {
+  "id": "test-big5-37",
+  "surface": "test",
+  "seq": 172,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I often wonder what people thought of me after I've left.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "selfconscious"
+ },
+ {
+  "id": "test-big5-38",
+  "surface": "test",
+  "seq": 173,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Being laughed at is one of the worst things I can imagine.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "selfconscious"
+ },
+ {
+  "id": "test-big5-39",
+  "surface": "test",
+  "seq": 174,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I can look foolish in public and shrug it off.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "selfconscious",
+  "invert": true
+ },
+ {
+  "id": "test-big5-40",
+  "surface": "test",
+  "seq": 175,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Whether strangers approve of me rarely crosses my mind.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "selfconscious",
+  "invert": true
+ },
+ {
+  "id": "test-big5-41",
+  "surface": "test",
+  "seq": 176,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Once I start on something I enjoy, stopping is the hard part.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "immoderation"
+ },
+ {
+  "id": "test-big5-42",
+  "surface": "test",
+  "seq": 177,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I often buy or eat things I told myself I wouldn't.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "immoderation"
+ },
+ {
+  "id": "test-big5-43",
+  "surface": "test",
+  "seq": 178,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A craving passes if I just wait it out.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "immoderation",
+  "invert": true
+ },
+ {
+  "id": "test-big5-44",
+  "surface": "test",
+  "seq": 179,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Saying no to a second helping comes easily to me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "immoderation",
+  "invert": true
+ },
+ {
+  "id": "test-big5-45",
+  "surface": "test",
+  "seq": 180,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When too much comes at once, I freeze.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "vulnerability"
+ },
+ {
+  "id": "test-big5-46",
+  "surface": "test",
+  "seq": 181,
+  "type": "scale",
+  "domain": null,
+  "prompt": "In a crisis I need someone else to tell me what to do.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "vulnerability"
+ },
+ {
+  "id": "test-big5-47",
+  "surface": "test",
+  "seq": 182,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I think clearly when everything is going wrong.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "vulnerability",
+  "invert": true
+ },
+ {
+  "id": "test-big5-48",
+  "surface": "test",
+  "seq": 183,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Pressure sharpens me rather than scatters me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5",
+  "facet": "vulnerability",
+  "invert": true
+ },
+ {
+  "id": "test-big5-49",
+  "surface": "test",
+  "seq": 184,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I make friends quickly wherever I go.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "friendliness"
+ },
+ {
+  "id": "test-big5-50",
+  "surface": "test",
+  "seq": 185,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I let new people see straight away that I like them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "friendliness"
+ },
+ {
+  "id": "test-big5-51",
+  "surface": "test",
+  "seq": 186,
+  "type": "scale",
+  "domain": null,
+  "prompt": "It takes me a long time to warm to someone.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "friendliness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-52",
+  "surface": "test",
+  "seq": 187,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I keep most people at arm's length.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "friendliness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-53",
+  "surface": "test",
+  "seq": 188,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The busier a place is, the more I enjoy it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "gregariousness"
+ },
+ {
+  "id": "test-big5-54",
+  "surface": "test",
+  "seq": 189,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd join a big group of people I barely know rather than stay home.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "gregariousness"
+ },
+ {
+  "id": "test-big5-55",
+  "surface": "test",
+  "seq": 190,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Crowds drain me faster than anything else.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "gregariousness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-56",
+  "surface": "test",
+  "seq": 191,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I avoid places where I'll be one face in a crowd.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "gregariousness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-57",
+  "surface": "test",
+  "seq": 192,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When a group can't decide, I usually end up deciding for it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "assertiveness"
+ },
+ {
+  "id": "test-big5-58",
+  "surface": "test",
+  "seq": 193,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I say what I want plainly, even to people senior to me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "assertiveness"
+ },
+ {
+  "id": "test-big5-59",
+  "surface": "test",
+  "seq": 194,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather follow a good plan than have to make one.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "assertiveness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-60",
+  "surface": "test",
+  "seq": 195,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I let other people steer, even when I disagree.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "assertiveness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-61",
+  "surface": "test",
+  "seq": 196,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I like my days packed from morning to night.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "activity"
+ },
+ {
+  "id": "test-big5-62",
+  "surface": "test",
+  "seq": 197,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I walk fast, eat fast and talk fast.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "activity"
+ },
+ {
+  "id": "test-big5-63",
+  "surface": "test",
+  "seq": 198,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather do one thing slowly than three things quickly.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "activity",
+  "invert": true
+ },
+ {
+  "id": "test-big5-64",
+  "surface": "test",
+  "seq": 199,
+  "type": "scale",
+  "domain": null,
+  "prompt": "An empty afternoon with nothing planned is a gift.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "activity",
+  "invert": true
+ },
+ {
+  "id": "test-big5-65",
+  "surface": "test",
+  "seq": 200,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I chase the kind of thrill that makes my heart race.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "excitement"
+ },
+ {
+  "id": "test-big5-66",
+  "surface": "test",
+  "seq": 201,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Loud, bright, fast places make me feel alive.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "excitement"
+ },
+ {
+  "id": "test-big5-67",
+  "surface": "test",
+  "seq": 202,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I avoid anything that promises an adrenaline rush.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "excitement",
+  "invert": true
+ },
+ {
+  "id": "test-big5-68",
+  "surface": "test",
+  "seq": 203,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The safest option is usually the one I want.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "excitement",
+  "invert": true
+ },
+ {
+  "id": "test-big5-69",
+  "surface": "test",
+  "seq": 204,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I laugh easily and often.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "cheerfulness"
+ },
+ {
+  "id": "test-big5-70",
+  "surface": "test",
+  "seq": 205,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Most mornings I wake up in a good mood.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "cheerfulness"
+ },
+ {
+  "id": "test-big5-71",
+  "surface": "test",
+  "seq": 206,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People have called me hard to excite.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "cheerfulness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-72",
+  "surface": "test",
+  "seq": 207,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I don't get carried away by good news.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5",
+  "facet": "cheerfulness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-73",
+  "surface": "test",
+  "seq": 208,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I spend a lot of time in daydreams.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "imagination"
+ },
+ {
+  "id": "test-big5-74",
+  "surface": "test",
+  "seq": 209,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I invent whole stories about strangers I see on the bus.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "imagination"
+ },
+ {
+  "id": "test-big5-75",
+  "surface": "test",
+  "seq": 210,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather deal with facts than fantasies.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "imagination",
+  "invert": true
+ },
+ {
+  "id": "test-big5-76",
+  "surface": "test",
+  "seq": 211,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Make-believe stopped interesting me when I grew up.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "imagination",
+  "invert": true
+ },
+ {
+  "id": "test-big5-77",
+  "surface": "test",
+  "seq": 212,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A piece of music can stop me in my tracks.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "artistic"
+ },
+ {
+  "id": "test-big5-78",
+  "surface": "test",
+  "seq": 213,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'll go out of my way to see something beautiful.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "artistic"
+ },
+ {
+  "id": "test-big5-79",
+  "surface": "test",
+  "seq": 214,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Art galleries bore me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "artistic",
+  "invert": true
+ },
+ {
+  "id": "test-big5-80",
+  "surface": "test",
+  "seq": 215,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I don't notice whether a room is beautiful or plain.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "artistic",
+  "invert": true
+ },
+ {
+  "id": "test-big5-81",
+  "surface": "test",
+  "seq": 216,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I can usually name exactly what I'm feeling.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "emotionality"
+ },
+ {
+  "id": "test-big5-82",
+  "surface": "test",
+  "seq": 217,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My moods are a big part of how I experience a day.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "emotionality"
+ },
+ {
+  "id": "test-big5-83",
+  "surface": "test",
+  "seq": 218,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'm often the last to notice that something has upset me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "emotionality",
+  "invert": true
+ },
+ {
+  "id": "test-big5-84",
+  "surface": "test",
+  "seq": 219,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Talking about feelings feels like a foreign language.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "emotionality",
+  "invert": true
+ },
+ {
+  "id": "test-big5-85",
+  "surface": "test",
+  "seq": 220,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'll take a new route home just to see something different.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "adventurousness"
+ },
+ {
+  "id": "test-big5-86",
+  "surface": "test",
+  "seq": 221,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Given the choice, I'd try the dish I can't pronounce.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "adventurousness"
+ },
+ {
+  "id": "test-big5-87",
+  "surface": "test",
+  "seq": 222,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I order the same thing every time at a restaurant I like.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "adventurousness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-88",
+  "surface": "test",
+  "seq": 223,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Change for its own sake makes me uneasy.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "adventurousness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-89",
+  "surface": "test",
+  "seq": 224,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A good argument about ideas is my idea of fun.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "intellect"
+ },
+ {
+  "id": "test-big5-90",
+  "surface": "test",
+  "seq": 225,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'll read something difficult just to see if I can follow it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "intellect"
+ },
+ {
+  "id": "test-big5-91",
+  "surface": "test",
+  "seq": 226,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather fix a real problem than debate a philosophical one.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "intellect",
+  "invert": true
+ },
+ {
+  "id": "test-big5-92",
+  "surface": "test",
+  "seq": 227,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Brain-teasers feel like a waste of an evening.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "intellect",
+  "invert": true
+ },
+ {
+  "id": "test-big5-93",
+  "surface": "test",
+  "seq": 228,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Rules deserve to be questioned, not just followed.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "liberalism"
+ },
+ {
+  "id": "test-big5-94",
+  "surface": "test",
+  "seq": 229,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'm drawn to people who break with how things are usually done.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "liberalism"
+ },
+ {
+  "id": "test-big5-95",
+  "surface": "test",
+  "seq": 230,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Traditions hold a society together and shouldn't be tampered with.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "liberalism",
+  "invert": true
+ },
+ {
+  "id": "test-big5-96",
+  "surface": "test",
+  "seq": 231,
+  "type": "scale",
+  "domain": null,
+  "prompt": "If something has worked for generations, that is reason enough to keep it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5",
+  "facet": "liberalism",
+  "invert": true
+ },
+ {
+  "id": "test-big5-97",
+  "surface": "test",
+  "seq": 232,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I assume people mean what they say.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "trust"
+ },
+ {
+  "id": "test-big5-98",
+  "surface": "test",
+  "seq": 233,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Most people would return a wallet they found.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "trust"
+ },
+ {
+  "id": "test-big5-99",
+  "surface": "test",
+  "seq": 234,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When a deal looks generous, I look for the catch.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "trust",
+  "invert": true
+ },
+ {
+  "id": "test-big5-100",
+  "surface": "test",
+  "seq": 235,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I've been let down often enough to expect it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "trust",
+  "invert": true
+ },
+ {
+  "id": "test-big5-101",
+  "surface": "test",
+  "seq": 236,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I say what I think even when a small lie would be smoother.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "morality"
+ },
+ {
+  "id": "test-big5-102",
+  "surface": "test",
+  "seq": 237,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather lose an advantage than mislead someone to keep it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "morality"
+ },
+ {
+  "id": "test-big5-103",
+  "surface": "test",
+  "seq": 238,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A little flattery is a fair way to get what you want.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "morality",
+  "invert": true
+ },
+ {
+  "id": "test-big5-104",
+  "surface": "test",
+  "seq": 239,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I tell people what they want to hear when it serves me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "morality",
+  "invert": true
+ },
+ {
+  "id": "test-big5-105",
+  "surface": "test",
+  "seq": 240,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Helping someone out is one of the best parts of my week.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "altruism"
+ },
+ {
+  "id": "test-big5-106",
+  "surface": "test",
+  "seq": 241,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'll stop what I'm doing to give directions to a lost stranger.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "altruism"
+ },
+ {
+  "id": "test-big5-107",
+  "surface": "test",
+  "seq": 242,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Requests for help usually feel like an imposition.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "altruism",
+  "invert": true
+ },
+ {
+  "id": "test-big5-108",
+  "surface": "test",
+  "seq": 243,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Other people's problems are theirs to solve.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "altruism",
+  "invert": true
+ },
+ {
+  "id": "test-big5-109",
+  "surface": "test",
+  "seq": 244,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I can't stand confrontations.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "cooperation"
+ },
+ {
+  "id": "test-big5-110",
+  "surface": "test",
+  "seq": 245,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I hate to seem pushy.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "cooperation"
+ },
+ {
+  "id": "test-big5-111",
+  "surface": "test",
+  "seq": 246,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I have a sharp tongue and I use it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "cooperation",
+  "invert": true
+ },
+ {
+  "id": "test-big5-112",
+  "surface": "test",
+  "seq": 247,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I contradict people more than I agree with them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "cooperation",
+  "invert": true
+ },
+ {
+  "id": "test-big5-113",
+  "surface": "test",
+  "seq": 248,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'm uncomfortable when people praise me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "modesty"
+ },
+ {
+  "id": "test-big5-114",
+  "surface": "test",
+  "seq": 249,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather let my work speak than talk about it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "modesty"
+ },
+ {
+  "id": "test-big5-115",
+  "surface": "test",
+  "seq": 250,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I know I'm better at most things than the people around me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "modesty",
+  "invert": true
+ },
+ {
+  "id": "test-big5-116",
+  "surface": "test",
+  "seq": 251,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When something goes well, I make sure people know it was me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "modesty",
+  "invert": true
+ },
+ {
+  "id": "test-big5-117",
+  "surface": "test",
+  "seq": 252,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Someone else's bad news can ruin my day.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "sympathy"
+ },
+ {
+  "id": "test-big5-118",
+  "surface": "test",
+  "seq": 253,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I give money to people on the street even when I doubt their story.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "sympathy"
+ },
+ {
+  "id": "test-big5-119",
+  "surface": "test",
+  "seq": 254,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I judge a situation by the facts, not by who is suffering.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "sympathy",
+  "invert": true
+ },
+ {
+  "id": "test-big5-120",
+  "surface": "test",
+  "seq": 255,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Sob stories don't move me much.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5",
+  "facet": "sympathy",
+  "invert": true
+ },
+ {
+  "id": "test-big5-121",
+  "surface": "test",
+  "seq": 256,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When I take something on, I know I'll manage it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfefficacy"
+ },
+ {
+  "id": "test-big5-122",
+  "surface": "test",
+  "seq": 257,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I handle whatever comes up without much fuss.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfefficacy"
+ },
+ {
+  "id": "test-big5-123",
+  "surface": "test",
+  "seq": 258,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I often doubt that I'm up to what is asked of me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfefficacy",
+  "invert": true
+ },
+ {
+  "id": "test-big5-124",
+  "surface": "test",
+  "seq": 259,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Things go wrong for me more than for most people.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfefficacy",
+  "invert": true
+ },
+ {
+  "id": "test-big5-125",
+  "surface": "test",
+  "seq": 260,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I make lists, and I actually use them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "orderliness"
+ },
+ {
+  "id": "test-big5-126",
+  "surface": "test",
+  "seq": 261,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I like a plan for the day before the day starts.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "orderliness"
+ },
+ {
+  "id": "test-big5-127",
+  "surface": "test",
+  "seq": 262,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My desk looks like a storm passed through it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "orderliness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-128",
+  "surface": "test",
+  "seq": 263,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I find things by remembering where I last dropped them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "orderliness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-129",
+  "surface": "test",
+  "seq": 264,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A promise is a promise, even when keeping it costs me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "dutifulness"
+ },
+ {
+  "id": "test-big5-130",
+  "surface": "test",
+  "seq": 265,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I follow rules I disagree with until they are changed.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "dutifulness"
+ },
+ {
+  "id": "test-big5-131",
+  "surface": "test",
+  "seq": 266,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Rules are for people who can't judge for themselves.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "dutifulness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-132",
+  "surface": "test",
+  "seq": 267,
+  "type": "scale",
+  "domain": null,
+  "prompt": "If nobody would know, I'd skip the obligation.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "dutifulness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-133",
+  "surface": "test",
+  "seq": 268,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Good enough is never quite good enough for me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "achievement"
+ },
+ {
+  "id": "test-big5-134",
+  "surface": "test",
+  "seq": 269,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I set goals most people would call ambitious.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "achievement"
+ },
+ {
+  "id": "test-big5-135",
+  "surface": "test",
+  "seq": 270,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I do what's needed and not much more.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "achievement",
+  "invert": true
+ },
+ {
+  "id": "test-big5-136",
+  "surface": "test",
+  "seq": 271,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'm happy to coast when nobody is watching.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "achievement",
+  "invert": true
+ },
+ {
+  "id": "test-big5-137",
+  "surface": "test",
+  "seq": 272,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I can make myself work when I'd rather not.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfdiscipline"
+ },
+ {
+  "id": "test-big5-138",
+  "surface": "test",
+  "seq": 273,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Distractions rarely pull me off a task.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfdiscipline"
+ },
+ {
+  "id": "test-big5-139",
+  "surface": "test",
+  "seq": 274,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I need a deadline breathing down my neck to get going.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfdiscipline",
+  "invert": true
+ },
+ {
+  "id": "test-big5-140",
+  "surface": "test",
+  "seq": 275,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Half-finished projects pile up around me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "selfdiscipline",
+  "invert": true
+ },
+ {
+  "id": "test-big5-141",
+  "surface": "test",
+  "seq": 276,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I sleep on big decisions before I make them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "cautiousness"
+ },
+ {
+  "id": "test-big5-142",
+  "surface": "test",
+  "seq": 277,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I think through what could go wrong before I say yes.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "cautiousness"
+ },
+ {
+  "id": "test-big5-143",
+  "surface": "test",
+  "seq": 278,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I say the first thing that comes into my head.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "cautiousness",
+  "invert": true
+ },
+ {
+  "id": "test-big5-144",
+  "surface": "test",
+  "seq": 279,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I've made big purchases on the spot and regretted it later.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5",
+  "facet": "cautiousness",
+  "invert": true
+ },
+ {
+  "id": "test-political-30",
+  "surface": "test",
+  "seq": 280,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Higher earners should pay a much larger share in tax.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political",
+  "facet": "redis",
+  "invert": true
+ },
+ {
+  "id": "test-political-31",
+  "surface": "test",
+  "seq": 281,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People should keep more of what they earn, even if inequality grows.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political",
+  "facet": "redis"
+ },
+ {
+  "id": "test-political-32",
+  "surface": "test",
+  "seq": 282,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Businesses need firm rules to behave well.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political",
+  "facet": "reg",
+  "invert": true
+ },
+ {
+  "id": "test-political-33",
+  "surface": "test",
+  "seq": 283,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Most regulation does more harm than good.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political",
+  "facet": "reg"
+ },
+ {
+  "id": "test-political-34",
+  "surface": "test",
+  "seq": 284,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Health, schools and transport work best run by the state.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political",
+  "facet": "pub",
+  "invert": true
+ },
+ {
+  "id": "test-political-35",
+  "surface": "test",
+  "seq": 285,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Private providers usually deliver services better than governments.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political",
+  "facet": "pub"
+ },
+ {
+  "id": "test-political-36",
+  "surface": "test",
+  "seq": 286,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People should be free to say things others find offensive.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political",
+  "facet": "speech",
+  "invert": true
+ },
+ {
+  "id": "test-political-37",
+  "surface": "test",
+  "seq": 287,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Some speech does enough harm that it should be banned.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political",
+  "facet": "speech"
+ },
+ {
+  "id": "test-political-38",
+  "surface": "test",
+  "seq": 288,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Cameras and data-gathering are a fair price for safety.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political",
+  "facet": "police"
+ },
+ {
+  "id": "test-political-39",
+  "surface": "test",
+  "seq": 289,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The police already have more power than they need.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political",
+  "facet": "police",
+  "invert": true
+ },
+ {
+  "id": "test-political-40",
+  "surface": "test",
+  "seq": 290,
+  "type": "scale",
+  "domain": null,
+  "prompt": "What adults do in private is none of the state's business.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political",
+  "facet": "private",
+  "invert": true
+ },
+ {
+  "id": "test-political-41",
+  "surface": "test",
+  "seq": 291,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Society is right to set limits on how people live.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political",
+  "facet": "private"
+ },
+ {
+  "id": "test-political-42",
+  "surface": "test",
+  "seq": 292,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Immigration should be lower than it is now.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political",
+  "facet": "borders",
+  "invert": true
+ },
+ {
+  "id": "test-political-43",
+  "surface": "test",
+  "seq": 293,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People should be freer to move between countries.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political",
+  "facet": "borders"
+ },
+ {
+  "id": "test-political-44",
+  "surface": "test",
+  "seq": 294,
+  "type": "scale",
+  "domain": null,
+  "prompt": "We should look after our own before helping other countries.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political",
+  "facet": "aid",
+  "invert": true
+ },
+ {
+  "id": "test-political-45",
+  "surface": "test",
+  "seq": 295,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Rich countries owe real help to poorer ones.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political",
+  "facet": "aid"
+ },
+ {
+  "id": "test-political-46",
+  "surface": "test",
+  "seq": 296,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Protecting local industry is worth paying more for goods.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political",
+  "facet": "trade",
+  "invert": true
+ },
+ {
+  "id": "test-political-47",
+  "surface": "test",
+  "seq": 297,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Free trade makes everyone better off in the end.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political",
+  "facet": "trade"
+ },
+ {
+  "id": "test-political-48",
+  "surface": "test",
+  "seq": 298,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Climate change is an emergency that justifies drastic action.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political",
+  "facet": "climate"
+ },
+ {
+  "id": "test-political-49",
+  "surface": "test",
+  "seq": 299,
+  "type": "scale",
+  "domain": null,
+  "prompt": "We are moving faster on climate than we can afford.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political",
+  "facet": "climate",
+  "invert": true
+ },
+ {
+  "id": "test-political-50",
+  "surface": "test",
+  "seq": 300,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Wild places should be protected even when they could be put to use.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political",
+  "facet": "land"
+ },
+ {
+  "id": "test-political-51",
+  "surface": "test",
+  "seq": 301,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Land is there to be used, not fenced off.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political",
+  "facet": "land",
+  "invert": true
+ },
+ {
+  "id": "test-political-52",
+  "surface": "test",
+  "seq": 302,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A cleaner environment is worth slower growth.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political",
+  "facet": "growth"
+ },
+ {
+  "id": "test-political-53",
+  "surface": "test",
+  "seq": 303,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When jobs and green rules clash, jobs should win.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political",
+  "facet": "growth",
+  "invert": true
+ },
+ {
+  "id": "test-political-54",
+  "surface": "test",
+  "seq": 304,
+  "type": "scale",
+  "domain": null,
+  "prompt": "AI should be allowed to develop with few limits.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political",
+  "facet": "ai"
+ },
+ {
+  "id": "test-political-55",
+  "surface": "test",
+  "seq": 305,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Automation is taking more from people than it gives.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political",
+  "facet": "ai",
+  "invert": true
+ },
+ {
+  "id": "test-political-56",
+  "surface": "test",
+  "seq": 306,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Editing genes to prevent disease should go ahead.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political",
+  "facet": "bio"
+ },
+ {
+  "id": "test-political-57",
+  "surface": "test",
+  "seq": 307,
+  "type": "scale",
+  "domain": null,
+  "prompt": "We should be very careful about altering human biology.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political",
+  "facet": "bio",
+  "invert": true
+ },
+ {
+  "id": "test-political-58",
+  "surface": "test",
+  "seq": 308,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd trade some privacy for services that work better.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political",
+  "facet": "data"
+ },
+ {
+  "id": "test-political-59",
+  "surface": "test",
+  "seq": 309,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Companies collect far too much data about us.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political",
+  "facet": "data",
+  "invert": true
+ },
+ {
+  "id": "test-political-60",
+  "surface": "test",
+  "seq": 310,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Courts, parliaments and the press mostly do their jobs.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political",
+  "facet": "inst",
+  "invert": true
+ },
+ {
+  "id": "test-political-61",
+  "surface": "test",
+  "seq": 311,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Our institutions serve themselves, not the public.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political",
+  "facet": "inst"
+ },
+ {
+  "id": "test-political-62",
+  "surface": "test",
+  "seq": 312,
+  "type": "scale",
+  "domain": null,
+  "prompt": "On hard questions, experts should carry more weight than public opinion.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political",
+  "facet": "experts",
+  "invert": true
+ },
+ {
+  "id": "test-political-63",
+  "surface": "test",
+  "seq": 313,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Experts are often wrong and rarely held to account.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political",
+  "facet": "experts"
+ },
+ {
+  "id": "test-political-64",
+  "surface": "test",
+  "seq": 314,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Big decisions should go to a public vote, not politicians.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political",
+  "facet": "direct"
+ },
+ {
+  "id": "test-political-65",
+  "surface": "test",
+  "seq": 315,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Representatives make better decisions than referendums.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political",
+  "facet": "direct",
+  "invert": true
  },
  {
   "id": "learn-cell1",

@@ -83,6 +83,12 @@ import {
   getFirestoreApi,
   getFunctionsApi,
   googleSignOut,
+  emailCreate,
+  emailReset,
+  emailSignIn,
+  refreshVerification,
+  sendVerification,
+  linkApple,
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
@@ -281,6 +287,13 @@ const state = {
   sessionLost: false,
   uid: null as string | null,
   linked: false,
+  needsEmailVerify: false,
+  // The address the account signs in with, so the verify screen can name
+  // it after a relaunch — by then the component's own field is empty and
+  // "we sent a link to your address" is the sentence a stuck user least
+  // needs. Null for an anonymous session and for a provider that hands
+  // over none.
+  accountEmail: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
@@ -3521,6 +3534,9 @@ function buildFeedGlobals(): void {
         cat: "test",
         type: "vote",
         test: q.test,
+        // A deep item's facet rides the card (D416) so the feed's passive
+        // tracker can tell it from a domain item — see PASSIVE.record.
+        ...(q.facet ? { facet: q.facet } : {}),
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,
@@ -4005,7 +4021,22 @@ const SOCIAL = {
     // The read breaker (D332): takes are the fourth D98 surface. Absent,
     // not empty, for the reason the cache comment above gives.
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO — the fourth loader, and the one whose bad frame is an
+    // INVITATION. The panel mounts this from an effect, so it has already
+    // painted by the time the read starts: without this notify the first
+    // frame — no data, no flag — stood for the whole of the query, and it
+    // reads "No takes yet. Say the first thing." That is a definite claim
+    // about a room that may be full, and it invites the reader to be first
+    // in it. Its three siblings carry the same two lines and the same
+    // reasoning (loadVoters, loadFollows, loadKindred's recorded
+    // exemption); this one was in neither the fix nor the block that pins
+    // them.
+    //
+    // Not visible from the mount tests: live-fixture stubs `takesLoading`
+    // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
+    // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    notify();
     try {
       const db = await getDb();
       const snap = await getDocs(
@@ -5520,7 +5551,25 @@ const LIVE = {
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       if (on) {
-        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        // THE FOLLOW SET, not the circle fold. `state.circle` is written
+        // by `loadCircle` alone, and `loadCircle` is mounted by exactly
+        // one component — the Circle stop, which only ever passes `false`
+        // here. Every surface that can ADD a follow (the People lens, the
+        // city constellation's person card, people search) loads
+        // `follows` and never `circle`, so `state.circle` was null at each
+        // of them and this read `0 >= 50`: the cap did not bind anywhere
+        // it could be reached. Measured — forcing the guard to fire on
+        // every follow, and swapping it to this cache, both left all 2806
+        // unit tests green.
+        //
+        // It also counted the wrong thing when `circle` WAS loaded:
+        // `loadCircle` drops a followed account whose answer read failed,
+        // so the fold's survivors are not the follow rows.
+        //
+        // Null means "not read yet", which must not block — the same
+        // shape as before, on the cache the callers actually fill.
+        const known = state.follows ?? state.circle;
+        if (known && known.length >= circleMod.FOLLOW_CAP) return;
         await circleMod.follow(db, me, uid);
       } else {
         await circleMod.unfollow(db, me, uid);
@@ -6102,6 +6151,36 @@ const LIVE = {
       reportError(err, { where: "syncPassiveResults" });
     }
   },
+  // Apple's twin, and deliberately not a `provider` parameter on one
+  // method: the two differ only in which import they call, but a single
+  // entry point taking a string is one where a typo picks the wrong
+  // provider at runtime and the memo below still gets dropped. Two names,
+  // both pinned by vote.test.ts, is the cheaper shape.
+  // The email door. Three methods rather than one with a mode, for the
+  // reason linkApple gives above: a string parameter is a typo away from
+  // the wrong call, and these three differ in what they do to an existing
+  // session (create LINKS it, sign-in replaces it, reset touches nothing).
+  async emailSignIn(address: string, password: string): Promise<void> {
+    await emailSignIn(address, password);
+  },
+  async emailCreate(address: string, password: string): Promise<void> {
+    await emailCreate(address, password);
+    // Same reason as the two social doors: the account just gained an
+    // identity provider, which is what accountLevel.ts grades on.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
+  },
+  async emailReset(address: string): Promise<void> {
+    await emailReset(address);
+  },
+  async linkApple(): Promise<void> {
+    await linkApple();
+    // Same reason as linkGoogle below: the account just gained an identity
+    // provider, which is what accountLevel.ts's level 2 grades on, and the
+    // activation memo would otherwise never look again.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
+  },
   async linkGoogle(): Promise<void> {
     await linkGoogle();
     // The account just gained an identity provider, which is the fact
@@ -6230,6 +6309,27 @@ const LIVE = {
     } catch {
       /* session may already be invalid — reload handles the rest */
     }
+  },
+  /**
+   * Drop the half-made account behind the wall and start the doors again.
+   *
+   * THE TRAP THIS EXISTS FOR. A password account is created before its
+   * address is confirmed, so a typo produces a real account, on a real
+   * uid, whose verification mail went to somebody else — and the reset
+   * link that is the only other way in goes to the same wrong inbox.
+   * Without this the gate is a locked room: relaunching keeps the session
+   * (there IS a user, so refreshLive does not sign in again), so the
+   * screen would come back forever.
+   *
+   * Signing out is the whole mechanism: the auth observer sees the null
+   * user and mints a fresh anonymous session (D3), which puts `linked`
+   * and `needsEmailVerify` back to false and the door back on screen.
+   * Nothing is deleted — the abandoned account still exists, unverified
+   * and unreachable, which is the correct outcome for an address its
+   * owner never confirmed.
+   */
+  async abandonSignIn(): Promise<void> {
+    await googleSignOut();
   },
   // read-only views for the Map/Mirror hydration (daily-questions.js)
   dailyBank(): Array<{ id: string; prompt: string }> {
@@ -6678,6 +6778,33 @@ const LIVE = {
   get linked() {
     return state.linked;
   },
+  // The wall is passed when the session is linked AND nothing is waiting on
+  // an inbox. Two flags rather than one so the gate can say WHICH it is:
+  // "sign in" and "confirm your address" are different screens, and a
+  // single `passed` boolean would leave the screen guessing.
+  get needsEmailVerify() {
+    return state.needsEmailVerify;
+  },
+  get accountEmail() {
+    return state.accountEmail;
+  },
+  async sendVerification(): Promise<void> {
+    await sendVerification();
+  },
+  // Clicking a link in an inbox changes nothing on THIS device, so the only
+  // way to learn about it is to ask the server; `reload()` does. The flag
+  // is then written here rather than left to the auth observer: reload()
+  // notifying its listeners is an SDK implementation detail, and a gate
+  // that stayed up because it did not would be the bug this whole path
+  // exists to avoid.
+  async refreshVerification(): Promise<boolean> {
+    const verified = await refreshVerification();
+    if (verified && state.needsEmailVerify) {
+      state.needsEmailVerify = false;
+      notify();
+    }
+    return verified;
+  },
   subscribe(fn: () => void): () => void {
     listeners.add(fn);
     return () => listeners.delete(fn);
@@ -6998,6 +7125,37 @@ const LIVE = {
   pulsePending(baseQid: string): number | null {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;
+  },
+  /**
+   * Your own vote on ONE question while it is not yet in the published
+   * aggregate — the option index, or null once the fold has counted it.
+   *
+   * The general form of `pulsePending` above, which is this read against
+   * the pulse's day-keyed id; `pickCanon` does the same inline for a
+   * catalogue board. An ordinary feed or daily answer's id IS its qid, so
+   * there is nothing to derive.
+   *
+   * WHY A READER EXISTS AT ALL. `countsFor` (data/deck.ts) subtracts the
+   * viewer's own vote back out of `o.count` only `if (!ctx.pending)`, so
+   * in the seconds between the write and the fold, a consumer that adds
+   * its own `+1` has counted the viewer while the published breakdown
+   * cells have not. That is the D365 mismatch, and every surface that
+   * folds a cohort needs to know which side of the fold it is on.
+   *
+   * Null rather than -1, the D72 shape: a caller that forgets the check
+   * draws nothing readable and fails a test, rather than shifting a share
+   * by one and looking plausible.
+   *
+   * WHAT THE NUMBER IS NOT. `unaggregated` is keyed by question for every
+   * kind of answer, and only `vote()` and its edit arm store an option
+   * index in it: `voteRank` stores a placeholder `0` it documents as
+   * unread, and `votePick` stores a catalogue key. So the PRESENCE of a
+   * key is the reliable half — has the fold counted this answer yet — and
+   * a caller that needs an option index must either know the question is
+   * an ordinary vote or carry its own. `feed-read.js` does the latter.
+   */
+  votePending(qid: string): number | null {
+    return qid in state.unaggregated ? state.unaggregated[qid] : null;
   },
   /** Every pulse day this device knows it answered: day → optionIdx.
    * Derived from the hydrated vote mirror, so a second device's answers
@@ -7982,7 +8140,22 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // refreshes, and a notify per refresh is a re-render per refresh.
     const wasLinked = state.linked;
     state.linked = !!user && user.isAnonymous === false;
-    const linkedChanged = state.linked !== wasLinked;
+    // ONLY the password door needs this, and the condition says so rather
+    // than testing `!emailVerified` alone: Apple and Google both hand
+    // Firebase an address they have already verified, so a Google account
+    // whose flag is somehow false would otherwise be walled out of the app
+    // with no way to fix it — there is no verification mail to resend for
+    // a provider that does not use one. Someone who links BOTH keeps a
+    // verified address from the social side, and `emailVerified` is true,
+    // so this is false and they pass.
+    const wasNeeds = state.needsEmailVerify;
+    state.needsEmailVerify = !!user
+      && user.isAnonymous === false
+      && !user.emailVerified
+      && user.providerData.some((p) => p.providerId === "password");
+    state.accountEmail = (user && !user.isAnonymous && user.email) || null;
+    const linkedChanged = state.linked !== wasLinked
+      || state.needsEmailVerify !== wasNeeds;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);
@@ -8010,6 +8183,13 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         void anonSignIn()
           .then((uid) => {
             state.sessionLost = false;
+            // One attempt per LOSS, not one per process. The latch is
+            // there so a session that dies the instant it is minted does
+            // not spin; clearing it on success restores the guarantee its
+            // comment claims — a second, later loss (a deliberate sign-out
+            // at the wall, a revoked token) was silently unrecoverable
+            // while this stayed true for the life of the app.
+            sessionRecoveryTried = false;
             if (uid !== state.uid) resetForNewUid(uid);
             else notify();
           })

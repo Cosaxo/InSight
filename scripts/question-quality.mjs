@@ -271,6 +271,14 @@ export const PATH_AXES = new Set([
  * The two stories that cannot obey the axis rule, and why it is a permanent
  * exemption rather than a to-do.
  *
+ * RETIRED AT D413 (`active: false`, the operator's call this comment
+ * anticipated below) — the owner read them as "completely uninteresting",
+ * which is the same finding as the arithmetic under this map, heard from
+ * the reader's side. The waiver stays because the rows stay: a retired
+ * feed entry is still in the bank (the seed and the deck read the flag
+ * there), still walks this gate, and is still exactly as flat as it was.
+ * Dropping the waiver would fail CI on two stories nobody is served.
+ *
  * A path's OPTIONS are its eight ending names (pathOptions, gen-v2content),
  * so renaming one is an option edit — frozen by D52 and refused by the seed,
  * because the stored optionIdx would silently mean a different ending. And
@@ -502,7 +510,7 @@ export function loadCorpus() {
   // that: dragging the rest of the demo pool through production bounds
   // would fail scene fillers that are not production copy.
   const wfdSrc = readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8");
-  const wfd = extractLiteral(wfdSrc, "window.WORLD_FEED_QS = [", "world-feed-data.js");
+  const wfd = extractLiteral(wfdSrc, "const WFD_DEMO_POOL = [", "world-feed-data.js");
   // Pick cards file themselves against WORLD_TOPICS, which is a SUPERSET of
   // the feed's own taxonomy: `fav` and `places` are real topic ids that
   // world-feed filters out of the feed's chip row. So a pick card's `cat` is
@@ -511,7 +519,13 @@ export function loadCorpus() {
   // The marker followed the source: WORLD_TOPICS became a named export
   // when the Patterns tab started importing it (the WPAL precedent), with
   // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
-  const worldTopics = extractLiteral(wfdSrc, "export const WORLD_TOPICS = [", "world-feed-data.js");
+  // WORLD_TOPICS moved to world-feed-topics.js when the feed's pool left the
+  // first-paint graph — daily-split.jsx needed the palette and nothing else,
+  // and the import was carrying the bank. Read from there; the marker
+  // follows the source, as the note above records it did last time.
+  const worldTopics = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-topics.js"), "utf8"),
+    "export const WORLD_TOPICS = [", "world-feed-topics.js");
   // The subtopic tree, for `also` (docs/TAGS-PLAN.md §1): a door may be a
   // leaf, and the leaf→parent map is what the redundancy rule below reads —
   // following a parent already gives you everything under it

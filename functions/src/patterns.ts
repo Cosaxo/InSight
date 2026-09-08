@@ -539,7 +539,21 @@ export async function runPatternsFit(
     // keeps its n: 0 row, which is the putModel zero-rather-than-nothing
     // idiom working as intended. The candidate's rows for the day go with
     // it, for the same reason.
-    if (!write.size && refolded > 0) {
+    //
+    // THE TEST IS `score.n`, NOT `write.size`, and the two stopped meaning
+    // the same thing at D395. `write` holds everyone the loop above
+    // TOUCHED, and since the corpus widened that includes people who
+    // answered only wider-corpus items: they have no `seen`, so nothing
+    // scores them, but they do have `todays`, so their map is merged and
+    // they are written. One such newcomer on a retried day made
+    // `write.size` non-zero while `score` was still n: 0, the drop did not
+    // fire, and the fabricated "nobody answered" row went into the 90-day
+    // standing record anyway — for a day that had a scored answer, folded
+    // by the run that died. `score.n` is the row's OWN number, so the
+    // guard now reads as what the paragraph above says it does: we are
+    // about to publish a row saying nobody answered, and the reason it
+    // says that is that everybody was already folded.
+    if (!score.n && refolded > 0) {
       scored.pop();
       for (const lam of ALS_LAMBDAS_U) alsScored.get(lam)!.pop();
     }
@@ -634,9 +648,55 @@ export async function runPatternsFit(
   const crossed = streak >= PATTERNS_CROSSOVER_NIGHTS && (engine === "sgd" ? !!als : true);
   const nextEngine: PatternsEngine = crossed ? (engine === "sgd" ? "als" : "sgd") : engine;
 
-  // On a crossover the new engine's rows are rotated onto the rows the
-  // devices were reading last night, over the keys both carry, so the map
-  // moves as little as the change of engine allows.
+  // On a crossover TO ALS the new engine's rows are rotated onto the rows
+  // the devices were reading last night, over the keys both carry, so the
+  // map moves as little as the change of engine allows.
+  //
+  // ONE DIRECTION ONLY, and the asymmetry is deliberate rather than an
+  // omission — this said "on a crossover" flatly, which reads as both. The
+  // rotation lives inside the ALS arm below; the crossback to SGD
+  // publishes `sgdRowsOut` untouched.
+  //
+  // Why it must: the SGD rows share a basis with the per-person vectors
+  // (`user.v`) that the online fold steps every night. Rotating only the
+  // PUBLISHED copy would leave those two in different frames, and the next
+  // fold would step each person against rows that no longer mean what
+  // their vector means. ALS has no such tie — its rows are re-solved whole
+  // each night from the item side — so rotating its published copy costs
+  // nothing and buys the devices a map that does not jump.
+  //
+  // AND IT HAS NEVER ROTATED ANYTHING. This said the path was "unreachable
+  // in the test suite" and read as an ordinary coverage gap — write a case
+  // and it closes. It is not, and the next person to try should have the
+  // measurement rather than the hour.
+  //
+  // `procrustes` refuses outright when the two row sets share fewer than
+  // `k` keys ("a direction the shared rows do not span cannot be aligned —
+  // refuse the whole rotation rather than invent it"), and every fixture
+  // that reaches a crossover shares ONE or TWO against k = 8. Instrumented
+  // 2026-09-07 on the suite's own crossover case: `crossed=true`,
+  // `prevSgdPub` 2 keys, `als.rows` 2 keys, and the rows the block hands on
+  // are byte-identical to the ones it was given — 0 of 2 changed. Widening
+  // the ledger to twelve core questions did not move it: `shared` came back
+  // 1 and 2, so procrustes still returned the identity.
+  //
+  // So deleting this whole block leaves the functions suite green for a
+  // stronger reason than no test asserting it — with these fixtures there
+  // is nothing to assert, and a case that asserted "the published rows
+  // moved" would fail against correct code.
+  //
+  // AND THE "WHY" ABOVE IS ANSWERED, so nobody re-does that hour either.
+  // The paragraph before this one asked why a twelve-question ledger still
+  // yielded an intersection of two; instrumenting the crossover the same
+  // night showed `als.rows` and `prevSgdPub` are BOTH exactly
+  // [daily-000, daily-001]. There is no mismatch between the two sets: the
+  // folded CORPUS is two questions, and the ten extra never reached
+  // `als.rows` at all. So closing this needs a fixture whose FOLDED corpus
+  // is at least k — putting more questions in the ledger is not the same
+  // thing, and is where the first attempt went.
+  //
+  // None of that is a reason to make the two directions symmetric; the
+  // asymmetry above is still right.
   let engineRows: Record<string, PublishedRow>;
   let engineItems: Record<string, ItemMeta> | undefined;
   if (nextEngine === "als" && als) {

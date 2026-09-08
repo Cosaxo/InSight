@@ -8,7 +8,10 @@
 // window.LIVE's pinned member surface stays untouched).
 //
 // What leaves the device, exactly: the start call (bare, authenticated),
-// and the submit call carrying twelve pick indexes. The server stores the
+// and the submit call carrying one pick index per item — 25 of them for a
+// generated form since D61, and this line said "twelve" long after that,
+// which is the v1/v2 count. Phrased against the form rather than as a
+// number, because `logic-gen.ts` owns it. The server stores the
 // scored result on the owner-only profile doc and folds the first scored
 // attempt per account into an anonymous score histogram. Per-item timings
 // never leave the device — the server records only the attempt duration it

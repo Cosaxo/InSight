@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const { default: LiveWalkthrough } = await import("./LiveWalkthrough");
+const { backLayerCount, closeTopBackLayer, resetBackLayers } = await import("../data/backLayers");
 
 const onDone = vi.fn();
 beforeEach(() => { onDone.mockClear(); });
@@ -55,7 +56,12 @@ describe("what it is", () => {
     render(<LiveWalkthrough onDone={onDone} />);
     const d = dialog();
     expect(d.getAttribute("aria-modal")).toBe("true");
-    expect(title()).toMatch(/one question a day/i);
+    // Not the cadence. The owner's 2026-09-07 reading of build 33 —
+    // "the first slide focus to much on one question a day this app is
+    // more questions in general" — moved page 1 onto the blind answer,
+    // which is what is distinctive and what stays true if the rhythm
+    // changes.
+    expect(title()).toMatch(/answer before you look/i);
     expect(screen.queryByRole("button", { name: /^Back$/ })).toBeNull();
     expect(screen.getByRole("button", { name: /^Next$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Skip$/ })).toBeTruthy();
@@ -105,9 +111,17 @@ describe("what it claims", () => {
     const reach = pages.find((p) => /1v1/.test(p));
     expect(reach, "no page names the 1v1 stop").toBeTruthy();
     for (const stop of ["World", "Circle", "1v1"]) expect(reach).toContain(stop);
-    // Sealed until the reveal is web/privacy.html's D5 row, in the
-    // duel panel's own words ("sealed until tomorrow").
-    expect(reach).toMatch(/sealed until tomorrow/i);
+    // The SEALING, not the cadence. This asserted the exact phrase
+    // "sealed until tomorrow" and broke the day the copy stopped naming a
+    // day — which was the point of the change: the owner intends to
+    // loosen the one-a-day limit on Circle and 1v1, and a sentence that
+    // hard-codes "tomorrow" goes false the moment that lands. What
+    // web/privacy.html's D5 row actually promises is that a duel answer
+    // is unreadable until the reveal and then carries a name, so those
+    // are the two halves pinned here. A cadence change now moves the copy
+    // without moving this test; dropping the promise still fails it.
+    expect(reach).toMatch(/\bsealed\b/i);
+    expect(reach).toMatch(/with names/i);
 
     const mirror = pages.find((p) => /The Mirror/.test(p));
     expect(mirror, "no page is the Mirror's").toBeTruthy();
@@ -183,5 +197,56 @@ describe("the sideways axis", () => {
     // …and left from the first page stays on it rather than wrapping.
     fireEvent.keyDown(dialog(), { key: "ArrowLeft" });
     expect(title()).toBe(first);
+  });
+});
+
+// ── Android's back button ────────────────────────────────────────────
+//
+// D24 gave this screen Escape and a focus trap; that is the KEYBOARD
+// half. `backLayers.ts` is the Android half, and the two are separate
+// mechanisms because Escape is a DOM event a focused dialog receives and
+// the hardware button is not.
+//
+// The walkthrough had the first half and not the second, which on the
+// first screen every live-build user meets means: press Back, the shell's
+// handler peels person → city → overlay → tab, finds none of them (this
+// screen lives on its own root outside `<App/>`), returns false, and
+// `back.ts` calls `App.exitApp()`. The app quits with the walkthrough
+// still on it — verbatim the failure backLayers.ts exists to stop.
+//
+// And `markWalkthroughSeen()` hangs off `onDone` alone, so the quit
+// recorded nothing: the next launch serves the same five pages, and
+// main.jsx sequences D151's account questions behind this promise, so
+// that launch never asks those either.
+describe("the hardware back button", () => {
+  beforeEach(() => { resetBackLayers(); });
+
+  it("registers a layer, so back does not fall through to exitApp", () => {
+    render(<LiveWalkthrough onDone={onDone} />);
+    expect(backLayerCount(), "nothing would peel this screen").toBe(1);
+    // True is the shape back.ts wants: `if (!consumed) void App.exitApp()`.
+    expect(closeTopBackLayer(), "the back press was not consumed").toBe(true);
+    expect(onDone, "back did not dismiss the walkthrough").toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the stack empty on unmount", () => {
+    // Or the layer outlives the screen and the NEXT back press closes
+    // something that is not there — the reason pushBackLayer returns a
+    // remover at all.
+    const { unmount } = render(<LiveWalkthrough onDone={onDone} />);
+    expect(backLayerCount()).toBe(1);
+    unmount();
+    expect(backLayerCount()).toBe(0);
+  });
+
+  it("dismisses rather than paging back", () => {
+    // The deliberate half. Back pairs with the Escape above it, and
+    // `closeTopBackLayer` pops the layer as it calls it — a closer that
+    // stepped a page would have to re-register on every press, which is
+    // the stack churn pushBackLayer's own docstring rules out.
+    render(<LiveWalkthrough onDone={onDone} />);
+    fireEvent.keyDown(dialog(), { key: "ArrowRight" });
+    closeTopBackLayer();
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 });

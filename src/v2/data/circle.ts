@@ -81,19 +81,23 @@ export const FOLLOW_CAP = 50;
  * AND IT BOUND. This said "it cannot bind today — the core bank is ~130
  * questions" until the closing review of 2026-08-31 measured it against
  * the wrong bank. `core` is the Mirror's corpus; the query asks for
- * WORLD_ANSWER_SURFACES, six surfaces — daily 130, feed 166, test 110,
- * learn 156, pulse 5, call 3 = 570 answerable questions against a cap of
- * 300, no bank growth required. Somebody who had worked through more
- * than half of what they could answer was read from the alphabetically-
- * first slice of it.
+ * WORLD_ANSWER_SURFACES, six surfaces — 897 answerable
+ * questions across the committed banks against a cap of 300, no bank
+ * growth required. Somebody who had worked through more than half of what
+ * they could answer was read from the alphabetically-first slice of it.
  *
- * (That line first landed saying "feed 190, test 160 = 644". Counted off
- * the committed banks instead: `content/feed-questions.json` holds 166
- * questions and the four instruments in `IS_TESTS` hold 110 between them
- * — 25 + 30 + 30 + 25. The conclusion is untouched, 570 being nearly
- * twice the cap either way, but a figure written by hand inside the
- * argument it supports is this repo's most-repeated documentation error,
- * and it does not get an exemption for being in a comment that is right.)
+ * (THE FIGURE IS COMPUTED NOW, not written down, and the history is why.
+ * It first landed as "feed 190, test 160 = 644"; that was hand-corrected
+ * to a per-surface breakdown totalling 570, under a parenthesis saying
+ * that a figure written by hand inside the argument it supports is this
+ * repo's most-repeated documentation error. It was 737 by the time
+ * anyone looked again — the feed bank alone had gone from 166 answerable
+ * cards to 309, and the nightly lane appends to these banks, so the
+ * hand-count was stale within days of being corrected. The conclusion
+ * never moved either time, which is precisely how a figure like this goes
+ * stale unnoticed: the sentence stays persuasive while every number in it
+ * stops being true. `check:figures` holds this one against the banks now,
+ * the same way it holds the counts in SCALE-PLAN and content/README.)
  *
  * The fix was not free, which is why it waited on the owner rather than
  * on a night's judgement (D7): ordering by `answeredAt` needs a composite

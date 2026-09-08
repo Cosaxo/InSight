@@ -128,21 +128,32 @@ jobs:
         env:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
-          # D134 put the wall up for the TEST TRACK — an account before the
-          # app opens, so a tester's answers cannot die with their handset.
-          # D219 (2026-08-20) resolved the fork D134 left open: the store
-          # build ships anonymous-first, so the DEFAULT here is now the
-          # release posture and the repo is the record. Every install still
-          # gets a real account (D3) — the gate only LINKED that session,
-          # so nothing about attribution changes — and duplicate resistance
-          # was never the wall's job (App Check + D29 device binding own
-          # it). The variable survives as the override: set
-          # REQUIRE_SIGNIN=true to wall a specific test build. Unset now
-          # genuinely means pass-through — the old `|| 'true'` fallback
-          # contradicted a comment one line above it that promised exactly
-          # that. signInRequired() compares to the literal 'true', on
-          # purpose.
-          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'false' }}
+          # D134 put the wall up for the TEST TRACK. D219 took it down for
+          # the store build. D414 (2026-09-07) puts it back for good, and
+          # the default here is the record of that: the app requires an
+          # account.
+          #
+          # WHY, IN THE OWNER'S OWN CONDITION. D219 allowed anonymous-first
+          # "as long as ... question can be attribute to a spesific user
+          # that cant easly create duplicate acounts". On 2026-09-07 the
+          # owner deleted their account, was handed a fresh anonymous
+          # session, and answered again — a duplicate in one tap. The
+          # condition was never met, and LivePrivacyPanel's own comment had
+          # been saying so from the other side (every reinstall mints a
+          # second account).
+          #
+          # The paragraph this replaces argued that duplicate resistance
+          # "was never the wall's job (App Check + D29 device binding own
+          # it)". Read that against the tree before believing it again:
+          # App Check attests the BUILD, not the person, and the D29
+          # DeviceCheck key is still unset, so neither owned it at the time
+          # the sentence was written.
+          #
+          # The variable survives as the override, pointed the other way
+          # now: REQUIRE_SIGNIN=false opens a specific build up. Unset
+          # means walled. signInRequired() still compares to the literal
+          # 'true', on purpose.
+          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'true' }}
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -155,6 +166,33 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_RELEASE_TAG: ${{ github.sha }}
         run: |
+          # SAY WHICH APP THIS IS, before anything is signed — and REFUSE
+          # to upload the wrong one.
+          #
+          # `VITE_REQUIRE_SIGNIN` resolves from a repository VARIABLE that
+          # cannot be read from the repo, so "does this build have the
+          # account wall" was a question nobody could answer without
+          # installing the result. It was asked for build 33 and could not
+          # be answered: the artifact host is unreachable from the sandbox
+          # and this log's middle is 700 KB of Xcode output, so the honest
+          # answer was an inference. That is the gap this closes.
+          #
+          # A REPORT on an artifact-only run and a GATE on an upload. The
+          # override exists on purpose — a deliberately wall-less build is
+          # a legitimate thing to archive and install — but a build that
+          # reaches App Store Connect is one Apple may review and testers
+          # will open, and D414 says that build requires an account. So the
+          # refusal is scoped to exactly the runs where being wrong is
+          # expensive, and it lands BEFORE the 15 minutes of archiving
+          # rather than after.
+          echo "VITE_REQUIRE_SIGNIN=${VITE_REQUIRE_SIGNIN:-<unset>}  (D414: 'true' is the wall)"
+          echo "wall=${VITE_REQUIRE_SIGNIN:-<unset>} upload=${{ inputs.upload }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.upload }}" = "true" ] && [ "$VITE_REQUIRE_SIGNIN" != "true" ]; then
+            echo "::error::VITE_REQUIRE_SIGNIN resolved to '${VITE_REQUIRE_SIGNIN:-<unset>}', not 'true'."
+            echo "::error::D414 requires an account in every build that reaches App Store Connect."
+            echo "::error::Either clear the REQUIRE_SIGNIN repository variable, or run with upload unticked."
+            exit 1
+          fi
           npm run build
           # Assert against dist/ rather than against the environment: the
           # question is whether THIS build saw the config, and a stale dist/

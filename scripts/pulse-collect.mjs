@@ -11,7 +11,7 @@
 // Node stdlib only, like every deploy-adjacent script here.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   costModel, authCost, writesPerSec, CONTENTION_DAU, B, SCENARIOS,
@@ -365,8 +365,14 @@ export function collectPipeline() {
     { surface: "call", count: call.questions.length, source: "content/call-questions.json" },
     {
       surface: "test items",
+      // The core items and, since D416, each instrument's DEEP items (the
+      // Big Five's facets, the compass's positions) — bank docs on the same
+      // surface, in `deep` beside `questions`. The two-path bank-size check
+      // in pulse.test.mjs caught this row lagging the day they landed,
+      // which makes it five for five.
       count: Object.values(tests).reduce(
-        (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0), 0),
+        (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0)
+          + (Array.isArray(t?.deep) ? t.deep.length : 0), 0),
       source: "content/tests.json",
     },
     // The minor instruments' items, seeded on the SAME "test" surface since
@@ -713,14 +719,52 @@ export function engagementFromDays(days) {
     ? (() => {
         const p = peopleRow.people;
         const sessions = p.sessions ?? 0;
+        const rollups = p.rollups ?? 0;
         return {
           day: peopleRow.day,
-          rollups: p.rollups ?? 0,
+          rollups,
           sessions,
           quiet: p.quiet ?? 0,
           quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
           fading: p.fading ?? 0,
           reachedEnd: p.depthEnd ?? 0,
+          // THE MIRROR-READING THREE (D407). ENGAGEMENT-PLAN.md's rung-0
+          // table lists "the entire Mirror — does anyone open it, which
+          // stops, which lenses" as something rung 0 cannot see, because
+          // "reading is the point and reading writes nothing". These
+          // three are what the client started writing to close that, and
+          // until now nothing folded or drew them.
+          //
+          // Shares against `rollups`, because the question is what
+          // fraction of the people who used the app that day READ it —
+          // a count alone moves with the population and answers nothing.
+          //
+          // NULL ON TWO DIFFERENT FACTS, and this read had only the first.
+          // No denominator is the quietShare rule one line up: no people
+          // is not "nobody read". The second is ABSENCE: every day folded
+          // before this shipped carries a real `rollups` and none of these
+          // three keys, so `?? 0` put an invented numerator over a genuine
+          // denominator and the console printed 0% — stating "nobody
+          // opened the Mirror" across the whole back-catalogue, which is
+          // the one claim this data cannot make. A key's absence has to
+          // reach the renderer, so it is tested BEFORE the denominator.
+          //
+          // A folded day that really saw no readers is a different row and
+          // still prints 0%: the keys are there, holding zero.
+          mirrorRead: p.mirrorRead ?? null,
+          lensOpen: p.lensOpen ?? null,
+          readShare: p.mirrorRead == null || rollups === 0
+            ? null : round2(p.mirrorRead / rollups),
+          lensShare: p.lensOpen == null || rollups === 0
+            ? null : round2(p.lensOpen / rollups),
+          // The feed-depth bracket histogram, low to high. A map on the
+          // wire (FieldValue.increment needs a field path), a list here —
+          // and null, not five zeros, when the day predates the fold. Five
+          // zeros is a shape a reader can take a distribution off; the
+          // absence of the map is not.
+          feedBuckets: p.feedBuckets == null
+            ? null
+            : Array.from({ length: 5 }, (_, i) => p.feedBuckets[`f${i}`] ?? 0),
         };
       })()
     : null;
@@ -786,7 +830,9 @@ export function collectEngagement() {
 // to add it — the failure mode this whole console exists to reduce.
 
 export function collectInstrumentation() {
-  const fnFiles = readdirSync(join(ROOT, "functions/src"))
+  // Recursive, with the sibling gates over this directory.
+  const fnFiles = readdirSync(join(ROOT, "functions/src"), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
   const functions = [];

@@ -121,6 +121,33 @@ describe("LiveGroupsMirrorBody · thin history makes no claims about people", ()
 });
 
 describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
+  it("says how many revealed days the Answers card is NOT showing", () => {
+    // The card draws at most seven rows and the header counts every
+    // revealed day the store holds — up to fourteen. With nothing between
+    // them, "10 days revealed" over seven rows reads as a list of ten that
+    // simply stopped, which is the shape the places field's own comment
+    // calls "a cap that silently eats rows reads as 'that is all of them'".
+    const days = Array.from({ length: 10 }, (_, i) =>
+      day(`2026-07-${String(10 + i).padStart(2, "0")}`, 0, 0, 1));
+    LIVE.social.revealHistory = () => days;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
+    const text = document.body.textContent || "";
+    expect(text, "the header stopped counting every revealed day").toMatch(/10 days revealed/);
+    expect(text, "the card ate three rows without saying so").toMatch(/3 older days not shown/);
+  });
+
+  it("…and says nothing about a cap it did not reach", () => {
+    // The control: a line printed always would be a caption for a shape
+    // that is not there, which docs/COPY.md deletes.
+    const days = Array.from({ length: 3 }, (_, i) =>
+      day(`2026-07-${String(10 + i).padStart(2, "0")}`, 0, 0, 1));
+    LIVE.social.revealHistory = () => days;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
+    expect(document.body.textContent || "").not.toMatch(/not shown/);
+  });
+
   it("says it is reading rather than that nothing was ever revealed", () => {
     // The stop OPENS on a fan-out of one getDoc per day, and
     // `revealHistory()` is empty for a history still arriving as much as
@@ -143,7 +170,7 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
   it("says answers are sealed when the group has no reveals yet", () => {
     LIVE.social.revealHistory = () => [];
     render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/answers stay sealed until the morning after/i)).toBeTruthy();
+    expect(screen.getByText(/answers stay sealed until the reveal/i)).toBeTruthy();
     // Not a zeroed portrait: an alignment of 0 of 0 days would read as
     // "you never agree with these people".
     expect(document.body.textContent).not.toMatch(/0 of 0/);
@@ -156,7 +183,7 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     // answering with a card of prose. The caption names the field and the
     // one action that cannot fill itself stays.
     expect(container.querySelector("svg"), "the empty field lost its drawing").toBeTruthy();
-    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
+    expect(screen.getByText(/then it opens with names/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
   });
 

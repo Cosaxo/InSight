@@ -41,16 +41,22 @@ function runIn(files) {
   }
 }
 
-// The six real allowlist entries are eager in the repo but absent from a
+// The real allowlist entries are eager in the repo but absent from a
 // fixture, so every fixture run trips the ratchet unless they are present.
 // Supplying them keeps each case about the one thing it is testing.
+//
+// FOUR, and none of them is a lane write surface: the feed and duel lanes
+// left first paint at D418, so `world-feed-data.js`, `duels-data.js` and
+// `content/duel-questions.json` are no longer eager and no longer here.
+// `test-definitions.js` is the one that ARRIVED rather than left — the 110
+// test items and their baselines were in the eager graph the whole time and
+// simply not in the gate's CONTENT list, so the gate once reported "all 6
+// named as debt" while a seventh sat there unnamed.
 const DEBT = {
-  "src/v2/spec/sample-data.js": "export const S = 1;\nimport '../../../content/duel-questions.json';\n",
-  "src/v2/spec/duels-data.js": "import './sample-data.js';\nexport const D = 1;\n",
-  "src/v2/spec/world-feed-data.js": "export const W = 1;\n",
+  "src/v2/spec/sample-data.js": "export const S = 1;\n",
   "src/v2/spec/test-feed-data.js": "export const T = 1;\n",
   "src/v2/spec/archetype-data.js": "export const A = 1;\n",
-  "content/duel-questions.json": "{}\n",
+  "src/v2/spec/test-definitions.js": "export const IS_TESTS = {};\n",
 };
 const DEBT_IMPORTS = Object.keys(DEBT)
   .filter((p) => p.endsWith(".js"))
@@ -61,6 +67,32 @@ describe("check:eager-content", () => {
     const r = runIn({ ...DEBT, "src/v2/main.jsx": DEBT_IMPORTS + "\n" });
     expect(r.out).toContain("check:eager-content OK");
     expect(r.code).toBe(0);
+  });
+
+  it("sees a BARE side-effect import even when a `from` import follows it", () => {
+    // THE SHAPE EVERY CASE IN THIS FILE USED TO MISS, and the reason it
+    // could: `DEBT_IMPORTS` is side-effect imports only, so no fixture
+    // entry ever contained a ` from ` for the walk's regex to reach past.
+    // The real entry — src/v2/main.jsx — has had one from the beginning.
+    //
+    // The optional clause group was `[\s\S]*?`, lazy but unbounded, so it
+    // expanded ACROSS the statement break to the next line's ` from `,
+    // consumed the bare import and captured the LATER specifier. Measured
+    // on the real tree: prepending `import "./spec/daily-questions.js";`
+    // to main.jsx left the gate printing OK with the module count
+    // unmoved — the D382–D384 regression this gate exists to refuse,
+    // walking straight past it.
+    const r = runIn({
+      ...DEBT,
+      // Bare import FIRST, a `from` import after it. Swap the two lines
+      // and the old regex catches it, which is what made this invisible.
+      "src/v2/main.jsx": DEBT_IMPORTS + "\nimport './spec/daily-questions.js';\nimport { App } from './spec/app-shell.jsx';\n",
+      "src/v2/spec/app-shell.jsx": "export const App = 1;\n",
+      "src/v2/spec/daily-questions.js": "export const DAILYQ = { questions: [] };\n",
+    });
+    expect(r.code, "a bare content import walked straight past the gate").toBe(1);
+    expect(r.out).toContain("src/v2/spec/daily-questions.js");
+    expect(r.out).toContain("imported by: src/v2/main.jsx");
   });
 
   it("REFUSES a content module pulled in by a static import, and names the chain", () => {

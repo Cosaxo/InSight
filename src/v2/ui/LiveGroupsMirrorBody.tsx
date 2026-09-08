@@ -158,7 +158,17 @@ function LgEmpty({ children }: { children: React.ReactNode }) {
 // ── Answers: what the group landed on, one row per revealed day ──
 function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   const [open, setOpen] = React.useState<string | null>(null);
-  const rows = P.rows.slice(0, 7);
+  const ROW_CAP = 7;
+  const rows = P.rows.slice(0, ROW_CAP);
+  // A CAP THAT SAYS SO. The header one line down prints `P.days` — up to
+  // REVEAL_HIST_DAYS (14) — over at most seven rows, with nothing between
+  // them saying where the rest went, so "14 days revealed" read as a list
+  // of fourteen that stopped after seven. Every sibling states its own
+  // cap out loud: LiveAnswerRows offers "Show N more", and the places
+  // field says "N more … placed further out than this field draws" with
+  // the comment "a cap that silently eats rows reads as 'that is all of
+  // them'".
+  const hidden = Math.max(0, P.rows.length - rows.length);
   // A TAB SAYS WHY IT IS EMPTY (D190). This returned null, which was right
   // while the card was one of two things stacked on the stop — a card that
   // draws nothing takes no space. Behind a tab somebody tapped, nothing at
@@ -169,7 +179,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
     // this stop opens on that fetch.
     return LIVE.social.revealHistoryLoading(g.id)
       ? <LgEmpty>Reading the days…</LgEmpty>
-      : <LgEmpty>Nothing revealed yet — answers stay sealed until the morning after.</LgEmpty>;
+      : <LgEmpty>Nothing revealed yet — answers stay sealed until the reveal.</LgEmpty>;
   }
   return (
     <div className="card">
@@ -223,6 +233,11 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
           );
         })}
       </div>
+      {hidden > 0 && (
+        <div style={{ paddingTop: 9, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
+          {hidden} older {hidden === 1 ? "day" : "days"} not shown.
+        </div>
+      )}
     </div>
   );
 }
@@ -439,7 +454,7 @@ function LiveGroupsMirrorBody() {
           {P.days === 0 && !LIVE.social.revealHistoryLoading(g.id) && (
             <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
               <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-                Nothing revealed yet — answers stay sealed until the morning after.
+                Nothing revealed yet — answers stay sealed until the reveal.
               </div>
             </div>
           )}
@@ -458,8 +473,15 @@ function LiveGroupsMirrorBody() {
         // restores whatever daily scope was last open, so a user arriving from
         // the 1v1 tab landed back on 1v1 — a button that promises a group and
         // delivers a duel. The nav key pins the mode.
+        // TWO CADENCES IN ONE LINE, and this is the sentence a new account
+        // meets. "One question a day" is the framing the owner retired on
+        // 2026-09-07 — the daily is what OPENS, not what the app is — and
+        // "the morning after" is a limit he intends to loosen, so it is a
+        // sentence with an expiry date on the emptiest screen in the app.
+        // What survives is what a group actually promises: nobody sees
+        // anyone until everybody has answered.
         <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
-          One question a day, revealed with names the morning after.
+          Everyone answers, then it opens with names.
         </EmptyField>
       )}
 

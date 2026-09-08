@@ -100,9 +100,23 @@ Two of D183's cuts qualify and it is worth being precise about why:
 - "Answers, not people" went because the KICKER says *answers with an
   age* — the unit is printed on the number it qualifies, which is the
   only place a unit belongs.
-- "Nobody is named here" went because the stop's closing line says *The
-  field names nobody — People does*, which is the same promise plus the
-  half a caption could not carry: where the names are.
+- "Nobody is named here" went because the stop's closing line said *The
+  field names nobody — People does*, which was the same promise plus the
+  half a caption could not carry: where the names are. **That trade was
+  made and then undone, and the undoing is the better lesson.** D188
+  deleted the closing line — a paragraph under a tab row is the one place
+  nothing may sit — and the qualifier came straight back to the field it
+  qualifies, where `LiveSimilarityField` now reads *Nobody is named here;
+  **People** names them*, its own comment citing this section: "Deleting a
+  limit is not one of the moves available (docs/COPY.md §3)."
+
+  So a qualifier resting on a second copy elsewhere is resting on
+  something another edit can remove without knowing it was load-bearing.
+  The trade is legitimate; it is just not durable, and the deleted half is
+  the half that does not come back on its own. This bullet described the
+  cut as standing until 2026-09-08, while the list eight lines above
+  named the same string as a qualifier that must not be removed — the
+  section contradicting itself, in the file about not doing that.
 
 Neither was dropped for being long. Both were dropped for being second
 copies, and a second copy of a promise is not twice the promise — it is

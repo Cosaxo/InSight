@@ -3162,6 +3162,38 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "pt4": {
+      "source": "farm",
+      "batch": "2026-09-07",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "pt5": {
+      "source": "farm",
+      "batch": "2026-09-07",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "pt6": {
+      "source": "farm",
+      "batch": "2026-09-07",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "pt7": {
+      "source": "farm",
+      "batch": "2026-09-07",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {

@@ -124,12 +124,35 @@ export function verdict(count, total, baseline) {
         + "  A ratchet that is not tightened is a ratchet that only ever loosens.",
     };
   }
-  return { ok: true, message: `rules-coverage OK — ${count} of ${total} atomic predicates never evaluate false (baseline ${baseline})` };
+  return {
+    ok: true,
+    message: `rules-coverage OK — ${count} of ${total} atomic predicates never evaluate false `
+      + `(baseline ${baseline}; ONE of the suite's two rule environments — see the header)`,
+  };
 }
 
 // ── the run ──────────────────────────────────────────────────────
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const host = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
+  // ONE PROJECT OF THE SUITE'S TWO, and the number says so because it
+  // cannot yet say more. `rules.test.ts` runs a second environment,
+  // `insight-rules-enforced`, over a PATCHED ruleset — its device-bind
+  // helper flipped from `false` to `true` — and this reads only the first.
+  //
+  // Two consequences, both real. A predicate whose only FALSE evaluation
+  // happens under the enforced ruleset counts here as never-false, so the
+  // number overstates. And moving a case between the two environments
+  // changes it for no reason the ratchet can distinguish from a rule
+  // losing its negative test.
+  //
+  // NOT MERGED, deliberately, because merging is not the one-liner it
+  // looks like: the parser keys atoms by `currentOffset:endOffset`, and
+  // `return true;` is one character shorter than `return false;`, so every
+  // offset after the patch shifts by one and the two reports do not align.
+  // `line` survives the patch and would be the way in, but two atoms can
+  // share a line, so it needs an ordering key this report does not carry.
+  // Getting that subtly wrong would corrupt a ratchet rather than widen
+  // it, which is worse than the stated gap.
   const project = process.env.RULES_COVERAGE_PROJECT || "insight-rules-test";
   const url = `http://${host}/emulator/v1/projects/${project}:ruleCoverage.html`;
 

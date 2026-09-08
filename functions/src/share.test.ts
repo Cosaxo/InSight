@@ -50,6 +50,96 @@ describe("renderResultsPage", () => {
     expect(fresh).toMatch(/Keep it open[\s\S]{0,120}?—/);
   });
 
+  // ── THE ERASED BUYER'S PAGE (2026-09-07) ──────────────────────────
+  //
+  // Two absences on this document mean deliberate choices — no name
+  // (D228), no targeting — and the erasure sweep produces both by deleting
+  // the fields. So the page printed a buyer's choice they never made, and
+  // "asked everyone" over a sample that was one city's: a shareable page
+  // headed PAID · InSight, reporting 300 answers collected only in Oslo,
+  // stating it was asked of everybody.
+  //
+  // NEITHER SENTENCE WAS PINNED. Measured before this: replacing
+  // " · asked everyone" with any other string left the functions suite at
+  // 772/772, and so did changing the separator in the targeted arm.
+  it("does not print an erased buyer's absences as their choices", () => {
+    const { sponsor, ...rest } = QUESTION;
+    void sponsor;
+    const html = renderResultsPage({
+      qid: "x",
+      // Exactly what phase 4e leaves behind: buyer and audience deleted,
+      // `sponsor` kept because the PAID band renders from its presence.
+      question: { ...rest, sponsor: { erased: true } },
+      agg: AGG, today: TODAY,
+    }).html;
+    expect(html, "the page invented a choice the buyer never made")
+      .not.toContain("chose not to wear a name");
+    expect(html, "a one-city sample was published as everyone's")
+      .not.toContain("asked everyone");
+    expect(html).toContain("Asked by a buyer who has since deleted their account");
+    expect(html).toContain("audience not recorded");
+  });
+
+  // …AND THE STOPPED CAMPAIGN'S PAGE IS STILL THERE. Erasure sets
+  // `active: false` on a RUNNING bought question, to take the card off
+  // every surface now that the audience deciding who sees it is gone.
+  // This page refused on `active` alone, so every link already shared for
+  // that question went permanently dead — nothing sets `active` back on a
+  // runtime paid question — and the erased byline above could only ever
+  // render for a campaign that had ALREADY closed, which is the one case
+  // the sweep deliberately leaves alone. The marker was written and never
+  // read in the case it was written for.
+  it("keeps the page for a campaign erasure stopped, and prints the erased byline on it", () => {
+    const { sponsor, ...rest } = QUESTION;
+    void sponsor;
+    const out = renderResultsPage({
+      qid: "x",
+      // Exactly what phase 4e leaves on a RUNNING bought question.
+      question: { ...rest, sponsor: { erased: true }, active: false },
+      agg: AGG, today: TODAY,
+    });
+    expect(out.status, "a link already shared for this question went dead").toBe(200);
+    expect(out.html).toContain("Asked by a buyer who has since deleted their account");
+    expect(out.html).toContain("audience not recorded");
+    // …AND THE TENSE, which is the same sentence. The window clause was
+    // date-only (`q.until >= today`), so it could not see the stop the
+    // sweep had just made and printed "runs 6 Sep 2026 → 4 Oct 2026" —
+    // a future date, on a campaign nothing will ever restart, one line
+    // after telling the reader its buyer is gone. The two clauses beside
+    // it were fixed when the marker was added; this is the one that was
+    // left making a false statement, on the page whose foot text is about
+    // exactly that.
+    expect(out.html, "the page still says a stopped campaign runs").not.toContain("runs 6 Sep 2026");
+    expect(out.html, "a stopped campaign's window is not in the past tense").toContain("ran 6 Sep 2026 → 4 Oct 2026");
+  });
+
+  // THE CONTROL, and it is the one that keeps the line above from being a
+  // hole: a question retired for any OTHER reason still has no page.
+  it("still refuses a retired question that nobody erased", () => {
+    expect(
+      renderResultsPage({ qid: "x", question: { ...QUESTION, active: false }, agg: AGG, today: TODAY }).status,
+      "an ordinary retired question got a page",
+    ).toBe(404);
+  });
+
+  // THE TWO CONTROLS, because both sentences above are absences and an
+  // absence passes when the clause is deleted outright. A real untargeted
+  // purchase still says everyone; a real targeted one still names its dims.
+  it("still says 'asked everyone' for a question that really was", () => {
+    const { sponsor, ...rest } = QUESTION;
+    const html = renderResultsPage({
+      qid: "x", question: { ...rest, sponsor: { buyer: sponsor.buyer } }, agg: AGG, today: TODAY,
+    }).html;
+    expect(html).toContain("asked everyone");
+    expect(html).not.toContain("audience not recorded");
+  });
+
+  it("still names the dims of one that was targeted", () => {
+    const html = renderResultsPage({ qid: "x", question: QUESTION, agg: AGG, today: TODAY }).html;
+    expect(html).toContain("asked City: Oslo, NO");
+    expect(html).not.toContain("asked everyone");
+  });
+
   it("is a nameless buyer's page too, and says so without inventing a name", () => {
     const { sponsor, ...rest } = QUESTION;
     const html = renderResultsPage({ qid: "x", question: { ...rest, sponsor: { audience: sponsor.audience } }, agg: AGG, today: TODAY }).html;

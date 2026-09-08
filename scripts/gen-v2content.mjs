@@ -548,6 +548,36 @@ export function buildEntries(content = loadContent()) {
     });
   }
 
+  // The instruments' DEEP items (D416 — the Big Five's thirty facets and
+  // the compass's eighteen positions): each core test's `deep` array,
+  // emitted AFTER the lens loop so the counter continues past every
+  // standing test and lens doc — no shipped seq moves — and so, inside an
+  // instrument's round-robin stream (live.ts), the domain items keep
+  // coming first. `facet` names the sub-scale and `invert` its keying, ON
+  // THE DOCUMENT: the device joins these by id (data/similarity.ts
+  // testDeepMeta) instead of by prompt text against IS_TESTS, which is
+  // what keeps 156 prompts out of the eager graph (check:eager-content,
+  // docs/VISION-2026-09-07.md §2.5). `invert` is emit-when-set, like the
+  // flags: a plainly keyed item carries no key.
+  for (const [key, t] of Object.entries(tests)) {
+    (t.deep || []).forEach((q, i) => {
+      entries.push({
+        id: `test-${key}-${requireId(q, `tests.json ${key}.deep[${i}]`)}`,
+        surface: "test",
+        seq: testSeq++,
+        type: "scale",
+        domain: null,
+        prompt: q.q,
+        options: LIKERT,
+        topic: "test",
+        axis: q.d,
+        test: key,
+        facet: q.facet,
+        ...(q.invert === true ? { invert: true } : {}),
+      });
+    });
+  }
+
   // Learn cards (D32, amended at D284): the doc now carries the WHOLE card
   // — prompt, options, the field as topic, and the correctness metadata
   // `c`/`t`/`p`/`k`/`w`.
@@ -693,7 +723,11 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "// `facet`/`invert` are the instruments' DEEP items' only (D416): the\n" +
+  "// facet or position an item scores and whether it is keyed against it,\n" +
+  "// on the document so the device joins by id and the prompts stay out\n" +
+  "// of first paint. The core items and the lens items carry neither.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

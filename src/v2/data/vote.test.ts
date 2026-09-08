@@ -22,6 +22,8 @@ import { IDBFactory, IDBDatabase } from "fake-indexeddb";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
+import { FOLLOW_CAP } from "./circle";
+import { OVERFLOW_HOT_CAP, overflowDocId } from "./overflow";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -32,6 +34,19 @@ interface CapturedListener {
   path: string | undefined;
   next: (snap: unknown) => void;
   error?: (err: unknown) => void;
+}
+
+// The four fields live.ts's auth observer reads, and no more. `uid` alone
+// was enough while `linked` was the only thing derived from the user; the
+// verify wall (D414) derives a second flag from three more, and a mock
+// that cannot express "linked, but the address is unconfirmed" cannot test
+// the rule that keeps a Google account out of that state.
+interface AuthUser {
+  uid: string;
+  isAnonymous?: boolean;
+  emailVerified?: boolean;
+  email?: string | null;
+  providerData?: Array<{ providerId: string }>;
 }
 
 const h = vi.hoisted(() => ({
@@ -93,14 +108,28 @@ const h = vi.hoisted(() => ({
   answerPageSize: 0,
   answerServed: 0,
   aggIdQueries: [] as string[][],
+  // The breakdown tail's shard reads (D400), by the document ids each
+  // query asked for, and a switch that makes the next one fail. Both are
+  // additive: nothing else on this path was observable, so `loadOverflow`
+  // could neither be counted nor made to fail from a case.
+  overflowIdQueries: [] as string[][],
+  overflowFail: false,
+  // Shard documents the tail query resolves to, by document id. Empty
+  // (the default) is a tree where no shard exists, which is what every
+  // memo/retry case wants; a case that puts a cell here is the only way
+  // to reach the MERGE half of loadOverflow at all.
+  overflowDocs: {} as Record<string, Record<string, unknown>>,
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
   // it exists for is a partial one: several chunked `in` queries fire and
   // only some come back (D169's loadSimilarity).
   aggFailIds: [] as string[],
   // live.ts observes auth for the whole session; capture the callback so a
-  // test can drive a uid change or a revoked session.
-  authCb: null as null | ((u: { uid: string } | null) => void),
+  // test can drive a uid change, a revoked session, or an account whose
+  // address is not confirmed yet. The shape is the SDK's User narrowed to
+  // the fields the observer reads — widening it further would invite a
+  // test to assert on something live.ts never looks at.
+  authCb: null as null | ((u: AuthUser | null) => void),
   snapshots: [] as CapturedListener[],
   // The offline-cache teardown deleteAccount owes the privacy policy. Named
   // rather than counted so the ORDER is assertable: clearIndexedDbPersistence
@@ -145,9 +174,15 @@ vi.mock("../../lib/firebase", () => {
   // every case in it now also exercises the bind step.
   getFirestoreApi: () => fsApi,
   getFunctionsApi: () => fnsApi,
+  emailCreate: () => Promise.resolve(),
+  refreshVerification: () => Promise.resolve(true),
+  sendVerification: () => Promise.resolve(),
+  emailReset: () => Promise.resolve(),
+  emailSignIn: () => Promise.resolve(),
+  linkApple: () => Promise.resolve(),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+  subscribeToAuth: (cb: (u: AuthUser | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
@@ -308,6 +343,20 @@ vi.mock("firebase/firestore", () => {
       // unserved, the store could only ever answer "not following".
       if (q?.path === "v2_users/uid_test/following") {
         return Promise.resolve(snapOf(h.followDocs));
+      }
+      if (q?.path === "v2_agg_overflow") {
+        const ids = (q.parts || [])
+          .filter((pt) => pt && pt.__kind === "where" && Array.isArray(pt.value))
+          .flatMap((pt) => pt.value as string[]);
+        h.overflowIdQueries.push(ids);
+        if (h.overflowFail) return Promise.reject(new Error("offline"));
+        // Serves only the ids the query named, like the agg arm above: a
+        // fake that returned everything would pass a read that asked for
+        // the wrong shard, which is the one thing the hash has to get right.
+        return Promise.resolve(snapOf(
+          ids.filter((id) => id in h.overflowDocs)
+            .map((id) => ({ id, data: h.overflowDocs[id] as Record<string, unknown> })),
+        ));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -488,9 +537,13 @@ beforeEach(() => {
   h.answerServed = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.overflowIdQueries.length = 0;
+  h.overflowFail = false;
+  h.overflowDocs = {};
   h.voterDocs = {};
   h.voterQueries.length = 0;
   h.voterFailQids.clear();
+  h.followDocs.length = 0;
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -766,6 +819,16 @@ describe("a loader that starts tells its subscribers it started", () => {
     await flush();
   });
 
+  it("loadTakes — the one whose bad frame invites you to write", async () => {
+    // "No takes yet. Say the first thing." is what the panel says with no
+    // data and no flag, and it stood for the whole read. The flag was
+    // always armed; nobody was told.
+    const { LIVE, calls } = await armed((l) => void l.social.loadTakes("world", "q_1"));
+    expect(LIVE.social.takesLoading("world", "q_1"), "the flag was not even armed").toBe(true);
+    expect(calls, "the takes panel was not told the read started").toBeGreaterThan(0);
+    await flush();
+  });
+
   it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
     // Recorded rather than left implicit: loadKindred's only suspension
     // point is the loadVoters call in its loop, so the People lens's
@@ -776,6 +839,64 @@ describe("a loader that starts tells its subscribers it started", () => {
     const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
     expect(body).toBeTruthy();
     expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
+// ── the follow cap binds where a follow can be MADE ─────────────────
+//
+// FOLLOW_CAP is a bound on a fan-out, not a product limit: the Circle
+// stop reads every followed account's whole answer set. Past the cap
+// `fetchFollowing` keeps the oldest fifty rows and the rest of a circle
+// stops existing with nothing saying so — the follow button on a dropped
+// account reads "Follow" again, and the tap re-writes a follow that is
+// already there, forever.
+//
+// The guard read `state.circle`, which `loadCircle` alone writes, and
+// `loadCircle` is mounted by exactly one component — the Circle stop,
+// which never adds a follow. Every surface that CAN add one (the People
+// lens, the city constellation's person card, people search) loads
+// `follows` instead. So at every reachable call site the guard read
+// `null` and the cap bound nowhere. Nothing pinned that: forcing the
+// guard to fire on every follow, and swapping the cache under it, both
+// left the whole unit suite green.
+describe("the follow cap binds on the cache the follow buttons fill", () => {
+  const followRows = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `u_${i}`,
+      data: { to: `u_${i}`, at: { seconds: i + 1 } },
+    }));
+  const writesTo = (uid: string) =>
+    h.setDocCalls.filter((c) => c.path === `v2_users/uid_test/following/${uid}`);
+
+  it("refuses the follow that would pass the cap", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    expect(LIVE.follows()?.length, "the fixture did not fill the set").toBe(FOLLOW_CAP);
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new"), "a follow past the cap was written anyway").toEqual([]);
+  });
+
+  // THE CONTROL. Every assertion above is an absence, and an absence
+  // passes just as happily when this path writes nothing at all — so the
+  // same mount, one row under the cap, has to write.
+  it("…and makes the one that fills it", async () => {
+    h.followDocs = followRows(FOLLOW_CAP - 1);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "a follow under the cap was refused").toBe(1);
+  });
+
+  // AND THE OTHER DIRECTION. `null` means "not asked for yet", not
+  // "nobody followed" — a guard that counted it as zero-known would be
+  // fine here and refuse every follow made before the set had loaded,
+  // which is the same bug pointing the other way.
+  it("does not refuse a follow made before the set has been read", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "refused on a set nobody had asked for").toBe(1);
   });
 });
 
@@ -891,6 +1012,71 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(h.voterQueries.length, "no fan-out ran at all").toBeGreaterThan(0);
     expect(LIVE.kindredDepth(),
       "the caption counted questions whose voter query failed").toBe(1);
+  });
+
+  // ── ASKED AND GOT NOTHING IS A FAILURE, NOT AN EMPTY CROWD ───────
+  //
+  // `kindredFailed` is assigned in exactly one place and only the
+  // NOT-a-failure direction was tested. Forcing it to `false` left EVERY
+  // runner in the tree green while the City field says "Nobody from Oslo
+  // yet — fills in as the city answers" after twelve collection-group
+  // queries that all threw.
+  //
+  // (This said "285 files, 4548 tests" and neither number reproduced —
+  // the surface was nearer 292 and 4898 the night it was written. The
+  // claim is "nothing anywhere went red", which does not need a count,
+  // and a hand-maintained count is the one documentation error this repo
+  // keeps re-committing. Run the suites for the live figure.)
+  //
+  // The lens has the arm for it: LiveSimilarityField reads
+  // `LIVE.kindredState()` and draws "Couldn't read the crowd here" on
+  // 'failed'. Nothing could reach that arm from the store, because every
+  // UI suite stubs the getter — so the sentence existed and the state that
+  // produces it was never produced.
+  //
+  // `loadVoters` swallows each failure and leaves its key ABSENT rather
+  // than empty, deliberately, so that absent and empty stay
+  // distinguishable — and this is the line that makes that distinction
+  // mean something downstream.
+  it("says the read FAILED when it asked for lists and got none", async () => {
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+      h.voterFailQids.add(qid);
+    }
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran, so nothing could have failed")
+      .toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(), "a query landed after all").toBe(0);
+    expect(
+      LIVE.kindredState(),
+      "twelve refused queries were reported to the Mirror as an empty city",
+    ).toBe("failed");
+  });
+
+  it("…and reports 'ready' the moment ONE of them lands", async () => {
+    // THE CONTROL, and the rule it pins is deliberate: a partial pool is a
+    // real pool as far as it goes, so one surviving list is a crowd and not
+    // a failure. Without this, "failed" would also be what a flag stuck on
+    // looks like.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(LIVE.kindredDepth()).toBe(1);
+    expect(LIVE.kindredState(), "one list landed and the crowd was called unreadable")
+      .toBe("ready");
   });
 
   it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
@@ -1481,6 +1667,82 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Blanking to the demo deck would be a worse lie than a stale-but-true
     // view, so enabled must survive while a new anon session is fetched.
     expect(LIVE.enabled).toBe(true);
+  });
+
+  // ── the verify flag (D414) ────────────────────────────────────────
+  //
+  // The wall reads `linked && !needsEmailVerify`, so an over-broad rule
+  // here locks a perfectly good account out of the app with no control on
+  // screen that can fix it — there is no verification mail to resend for a
+  // provider that does not send one. That failure is invisible to every
+  // other suite, which is why the rule is pinned at the observer rather
+  // than through the screen.
+  it("only the password door needs a confirmed address", async () => {
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+
+    // Anonymous: not linked, and nothing to confirm.
+    h.authCb!({ uid, isAnonymous: true });
+    expect(LIVE.linked).toBe(false);
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // Google/Apple hand over an address they have already verified.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "a@b.co",
+      providerData: [{ providerId: "google.com" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(false);
+    expect(LIVE.accountEmail).toBe("a@b.co");
+
+    // …and even if the flag were somehow false, a provider with no
+    // verification mail must not be walled: the screen would offer a
+    // Resend that can never resolve.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "apple.com" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // The case the wall exists for.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(true);
+    expect(LIVE.accountEmail).toBe("typo@b.co");
+
+    // Confirmed — and a password account that ALSO linked a social door
+    // is verified from that side, which is the same branch.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+  });
+
+  it("refreshVerification lowers the wall itself rather than waiting on the SDK", async () => {
+    // reload() notifying its listeners is an implementation detail of the
+    // Firebase SDK. If the store trusted it and it changed, the screen
+    // would sit on "Confirm your address" after a successful confirm with
+    // no way forward — so the store writes the flag on the answer it got.
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(true);
+    let told = 0;
+    const off = LIVE.subscribe(() => { told += 1; });
+    // The module mock's refreshVerification resolves true (the address was
+    // confirmed in a mail app), and no auth callback follows it.
+    await expect(LIVE.refreshVerification()).resolves.toBe(true);
+    off();
+    expect(LIVE.needsEmailVerify).toBe(false);
+    // …and the subscribers heard, or a gate already mounted stays up.
+    expect(told).toBe(1);
   });
 
   it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {
@@ -3534,5 +3796,143 @@ describe("hydrate's answered-delta watermark", () => {
       "the edit page carried the ANSWERED cursor past a create the answered page "
         + "deferred — that answer is now unreachable on this device forever",
     ).toBeLessThan(20_00);
+  });
+});
+
+// ── THE BREAKDOWN TAIL RETRIES A FAILURE (D400) ─────────────────────
+//
+// `loadOverflow` marks a (scope, key) as loaded BEFORE it fetches, so a
+// stop opened twice costs one read, and it un-marks the pair in its catch
+// so a transient failure is not remembered as a load. That second half is
+// one line, and until now nothing in any runner reached this method at
+// all: the only other mention of it in the tree is a `async () => {}`
+// double in LiveCohortBody.test.tsx and one in live-fixture.ts.
+//
+// What the missing line costs, on a device: the tail is the viewer's OWN
+// city or country cell for every question whose hot map is at the
+// 24-bucket cap without it (docs/MIRROR.md, D400). One dropped fetch and
+// the pair stays marked for the rest of the session — so every Mirror
+// number about the viewer's own place under-reports by their city's own
+// share, on the stop the viewer opened to read about their own place,
+// with nothing on screen saying a read failed. The next mount, which is
+// the one chance to recover, does nothing because the memo says loaded.
+//
+// The memo and the retry are the same variable read in two directions, so
+// both are asserted: a case that only checked the retry would also pass on
+// a method that had simply stopped memoising and re-read on every mount.
+describe("loadOverflow — a failed shard read is not remembered as a load (D400)", () => {
+  const CITY = "Oslo, NO";
+  const QID = "q_t00";
+
+  // A hot map exactly at the cap that does NOT hold the viewer's city —
+  // the one shape `overflowWanted` says is worth a read. One bucket fewer
+  // and the tail is not consulted at all, which is every question today.
+  const cappedByCity = () => {
+    const by: Record<string, Record<string, number>> = {};
+    for (let i = 0; i < OVERFLOW_HOT_CAP; i++) by[`Other${i}, XX`] = { "0": 1 };
+    return by;
+  };
+
+  async function bootAtTheCap() {
+    h.bankDocs.push({
+      id: QID,
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item 0",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: QID, data: { total: 24, counts: { "2": 24 }, by: { city: cappedByCity() } } });
+    const LIVE = await bootLive();
+    LIVE.saveAnchors({ city: CITY });
+    // loadSimilarity is the route that files the test-surface aggregates
+    // into the store, which is what `overflowWanted` reads.
+    await LIVE.loadSimilarity();
+    expect(
+      LIVE.aggFor(QID),
+      "the fixture aggregate never landed, so nothing below is about the tail",
+    ).not.toBeNull();
+    h.overflowIdQueries.length = 0;
+    return LIVE;
+  }
+
+  it("re-reads on the next mount after the shard query fails", async () => {
+    const LIVE = await bootAtTheCap();
+
+    h.overflowFail = true;
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries, "the tail was never asked for").toHaveLength(1);
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ where: "loadOverflow", scope: "city" }),
+    );
+
+    // The next mount of the City stop. Without the catch's un-marking this
+    // asks for nothing, for the life of the session.
+    h.overflowFail = false;
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a failed read was remembered as a load — the viewer's own city cell is missing for the session",
+    ).toHaveLength(2);
+    // The read it retried is the right one: the shard the viewer's city
+    // hashes to, for the question at the cap.
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, CITY)]);
+  });
+
+  it("merges the shard's cell into the cached aggregate, which is the whole point", async () => {
+    // THE HALF THE FIRST THREE CASES COULD NOT SEE. They drive the memo
+    // and the retry, and the fake served no shard, so `cells` was empty
+    // by construction: the entire success body — the overflowCells
+    // record, `withOverflowCell`, the dirty mark, the save and the notify
+    // — could be deleted and 77 files / 1382 tests stayed green.
+    //
+    // What it costs is the sentence the fix's own commit uses: every
+    // Mirror number about the viewer's own place under-reports by that
+    // place's own share. The hot map at the cap does not hold the
+    // viewer's city; the tail does; unless this merge happens `aggFor`
+    // keeps answering with the hot document and the city reads as zero.
+    const LIVE = await bootAtTheCap();
+    h.overflowDocs[overflowDocId(QID, CITY)] = { city: { [CITY]: { "2": 7 }, "Elsewhere, XX": { "0": 3 } } };
+
+    await LIVE.loadOverflow("city");
+
+    const agg = LIVE.aggFor(QID) as { by?: Record<string, Record<string, Record<string, number>>> } | null;
+    expect(
+      agg?.by?.city?.[CITY],
+      "the tail cell never reached the cached aggregate — the viewer's own city still reads as zero",
+    ).toEqual({ "2": 7 });
+    // Only the viewer's key. The shard carries other cities' cells too,
+    // and merging them would put back the buckets the cap evicted.
+    expect(agg?.by?.city?.["Elsewhere, XX"]).toBeUndefined();
+    // …and the rows the hot map already held are still there.
+    expect(Object.keys(agg?.by?.city ?? {}).length).toBe(OVERFLOW_HOT_CAP + 1);
+  });
+
+  it("…and a SUCCESSFUL read is remembered, so a re-opened stop costs nothing", async () => {
+    // THE CONTROL. Without it, "asks twice" would also be what a method
+    // that had stopped memoising altogether looks like — and that method
+    // bills a read every time the viewer moves between Mirror stops.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(1);
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a successful tail read was re-issued on the next mount — the once-per-session memo is gone",
+    ).toHaveLength(1);
+  });
+
+  it("re-reads when the anchor moves, failure or not", async () => {
+    // The memo is keyed on the KEY, not on a boolean, for the same reason
+    // loadCityKindred's is: a viewer who corrects their city must not be
+    // served the old city's tail — or no tail — for the session.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(2);
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, "Bergen, NO")]);
   });
 });

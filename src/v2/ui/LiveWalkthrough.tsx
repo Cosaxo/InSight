@@ -40,6 +40,7 @@ import React from "react";
 // aria-modal, Escape, a Tab trap, focus restored to the opener on close.
 // @ts-expect-error TS7016 — untyped spec module (the LiveMirrorLenses pattern)
 import { useDialog } from "../spec/primitives.jsx";
+import { pushBackLayer } from "../data/backLayers";
 
 interface Page {
   id: string;
@@ -57,14 +58,27 @@ interface Page {
 const PAGES: Page[] = [
   {
     id: "daily",
-    title: "One question a day",
-    body: "Answer it before you see how anyone else did. Then the split opens, and a feed of more runs under it.",
+    // THE CADENCE IS NOT THE PRODUCT (the owner, 2026-09-07, on build 33:
+    // "the first slide focus to much on one question a day this app is
+    // more questions in general"). What is distinctive is answering
+    // BLIND — committing before you can be anchored — and the volume
+    // under the daily card, not the once-a-day rhythm. The daily leads
+    // because it is what opens; it is no longer what the page is about.
+    title: "Answer before you look",
+    body: "You never see how anyone else answered until your own answer is in. A question a day leads, and a feed of many more runs under it.",
     accent: "var(--c-today)",
   },
   {
     id: "reach",
     title: "How far it reaches",
-    body: "World is everyone. Circle is a group you make — sealed until tomorrow, then revealed with names. 1v1 is one friend: answer, then guess theirs.",
+    // "at the next reveal", NOT "sealed until tomorrow", and the change is
+    // structural rather than stylistic. The owner intends to loosen the
+    // one-a-day limit on Circle and 1v1 (2026-09-07), and copy that names
+    // a cadence goes false the day the cadence moves — which is how a
+    // sentence like this outlives the thing it described. What must stay
+    // true is the GAME: nobody sees anyone's answer before the reveal.
+    // That holds at any cadence, so it is what the sentence says.
+    body: "World is everyone. Circle is a group you make; 1v1 is one friend — answer, then guess theirs. Both stay sealed until the reveal, then open with names.",
     accent: "var(--c-around)",
   },
   {
@@ -250,6 +264,36 @@ function LiveWalkthrough({ onDone, again = false }: { onDone: () => void; again?
   const cur = PAGES[page];
   const last = page === PAGES.length - 1;
   const dlg = useDialog(onDone, "How InSight works");
+
+  // ANDROID'S BACK BUTTON, which `useDialog` above does not cover. D24 gave
+  // this overlay Escape and a focus trap — the keyboard path — and
+  // `backLayers.ts` is the Android one, deliberately a separate mechanism
+  // because Escape is a DOM event a focused dialog receives and the back
+  // button is not.
+  //
+  // Without this, Back on the FIRST screen every live-build user meets falls through the shell's handler
+  // (app-shell.jsx peels person → city → overlay → tab, and this screen is
+  // none of them — it lives on its own root outside `<App/>`), the handler
+  // returns false, and `back.ts` calls `App.exitApp()`. That is verbatim
+  // the failure backLayers.ts was written to stop, one screen earlier:
+  // the walkthrough is still on screen and the app quits under it.
+  // Worse than a sheet, because `markWalkthroughSeen()` is written by
+  // `onDone` alone — so the quit recorded nothing and the next launch
+  // serves the same five pages, and (main.jsx sequences D151's account
+  // questions behind this promise) never asks those either.
+  //
+  // Back DISMISSES rather than stepping a page, because that is what the
+  // Escape this pairs with does, and `closeTopBackLayer` pops the layer as
+  // it calls it — a stepping closer would have to re-register itself on
+  // every press, which is exactly the stack churn `pushBackLayer`'s own
+  // docstring rules out.
+  //
+  // The ref is Sheet's, for Sheet's reason (primitives.jsx): registered
+  // once per mount so the LIFO order means something, reading the current
+  // handler through a ref rather than re-registering on it.
+  const doneRef = React.useRef(onDone);
+  React.useEffect(() => { doneRef.current = onDone; });
+  React.useEffect(() => pushBackLayer(() => doneRef.current()), []);
 
   const next = () => { if (last) onDone(); else setPage(page + 1); };
   const back = () => setPage(Math.max(0, page - 1));

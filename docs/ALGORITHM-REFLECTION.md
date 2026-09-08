@@ -394,6 +394,16 @@ candidate for the same block, later, with the same rule.
 
 ### 2.3 · Choose K, λ and the device ridge by the scorecard, and publish them · **S**
 
+**ONE OF THE THREE IS BUILT.** The device ridge is swept nightly and
+published — `patterns.ts` picks `bestLambda` over `ALS_LAMBDAS_U` and
+writes the per-value scorecard as `lambdaSweep`. The other two are not,
+and §6's row 3 claimed this whole section until 2026-09-08. Measured:
+`k = prev?.k ?? PATTERNS_K` and nothing ever publishes a different `k`,
+so K has never varied; `ALS_LAMBDA = 0.15` and `ALS_SWEEPS = 3` are
+constants in `patternsAls.ts`. So the first and third bullets below are
+still proposals, and the K one is the one that matters — the section's
+own argument is that the first-month overfit is K's.
+
 Three constants are fixed today where they could be measured:
 
 - **K = 8.** `PATTERNS_MIN_POOL = 24` is derived from it (three questions
@@ -461,10 +471,24 @@ on the engine side:
   That supersedes the approach PR #341 builds, which is why this row is
   the owner's (`OWNER-LIST.md` § Decisions) and not this page's.
 
-Together: 113 → 376 items in one space. The loadings doc grows from
-~11 KB to roughly 40 KB at K = 8 and 4 dp (376 × 8 × ~5 bytes plus the
-keys), read once a session; `PATTERNS_MIN_POOL`'s reasoning is
-unchanged (three per dimension) and its count simply crosses earlier.
+Together: 113 → **376 questions, 545 item ROWS** in one space. The two
+numbers are not interchangeable and this paragraph used to quote only
+the first, in the section that specifies one pseudo-item PER OPTION:
+`compileItems(V2_QUESTIONS)` returns 545 specs (bin 113, opt 217, ord
+215) over 376 distinct qids, and it is the ROWS the `q` map publishes.
+
+So the size is the rows': measured at a fully-populated candidate block,
+`q` + `items` is ~92 KB of JSON, ≈130 KB Firestore-accounted — not the
+~40 KB this said, which was 376 × 8 × ~5 bytes plus keys and undercounted
+the corpus by 45%. Read once a session, so the cost is a session's not a
+night's, but it is the figure `PATTERNS_MIN_POOL`'s reasoning sits beside
+and the one docs/COSTS.md's "~11 KB loadings doc" is now two engines
+behind. `PATTERNS_MIN_POOL` itself is unchanged (three per dimension) and
+its count simply crosses earlier.
+
+Measured off the tree rather than argued — `check:figures` does not read
+this page, which is why the wrong number could stand in the paragraph
+that defines the encoding it got wrong.
 
 ## 4 · The database and the data structures
 
@@ -553,7 +577,33 @@ identical for every viewer who opens them within a day. Publish them.
 the nightly run from the ledger day it already reads: the newest 200
 `{uid, optionIdx}` pairs, appended and trimmed each night, newest first —
 the sheet's own semantics ("the latest 200"), refreshed nightly instead
-of on open. ~200 × 32 bytes ≈ 6.5 KB a doc, 113 docs (≈ 380 under §3),
+of on open.
+
+**AS BUILT IT IS NOT THE LATEST 200, AND THIS PARAGRAPH IS WHERE THAT
+WENT WRONG.** "From the ledger day it already reads" is the whole input:
+`mergeSample` merges that day's answerers into whatever the document
+already holds, and nothing anywhere seeds it from the answers written
+before the samples existed. Since a person answers a given question once,
+those earlier voters never arrive. So a question answered two hundred
+times before D397 publishes a sample of however many people have answered
+it *since* — real rows, and indistinguishable at the reader from a
+complete sample.
+
+That lands on the floors two paragraphs down: `say()` needs 12 in both
+samples and `tell()` needs 12, so the pair card and the Oracle's working
+panel go quiet and report `thin` — a statement about the crowd whose real
+subject is the deploy date. "Of the N in both samples" is then a caption
+naming a population it does not count.
+
+The fix is a seeding pass — one bounded collection-group query per
+question, the first time the nightly touches it — and it is not free to
+write: the query needs the answer-surface list in a second copy inside
+`functions/`, and seeding every question the first night is ~200 reads ×
+every question that day inside one invocation, so it needs a per-run bound
+nobody has chosen. Both are the owner's to price. Until then the reader
+does what it can, which is only to stop treating an EMPTY sample as a
+crowd of nobody (`fetchVoterSample`, `voter-sample.test.ts`); a SHORT one
+it cannot detect. ~200 × 32 bytes ≈ 6.5 KB a doc, 113 docs (≈ 380 under §3),
 one write each a night: nothing. On the device, `sayRows`, `loadKindred`,
 `loadCityKindred` and the People lens read one doc per question instead
 of 200 rows: a Kindred first view goes from ~2,400 answer reads (plus up
@@ -569,9 +619,10 @@ positions), so `deleteAccount` grows an arm that removes the uid from the
 samples it is in — the person's own `a` map (4.1) names exactly which
 questions, ≤ 113 targeted updates — and `e2e-delete-account.mjs` asserts
 "gone means gone" for it. **Basis**: the People lens and `say()`/`tell()`
-state "of the N in both samples" today and keep doing so; the samples
-are a day old at most and the caption can say "as of last night" where
-it matters. `KINDRED_QUESTIONS`, `PEOPLE_QUESTIONS` and the 12-person
+state "of the N in both samples" today and keep doing so; the samples'
+CONTENT is a day old at most — but their coverage is not, per the
+correction above, so "as of last night" would be the wrong caption for
+the wrong reason until a seeding pass exists. `KINDRED_QUESTIONS`, `PEOPLE_QUESTIONS` and the 12-person
 floor do not change. A rules row and a `data-inventory.md` row come with
 it (`check:data-inventory`).
 
@@ -681,7 +732,7 @@ Sizes are the runbooks' S/M/L. Every step is its own PR, its own
 | --- | --- | --- | --- | --- | --- |
 | 1 | Baseline bits, skill and seed-distance on the scorecard (§2.1) | S | `patternsFit.ts`, `patterns.ts`, tests | `patternsFit.test.ts`: a fit at its seeds publishes skill ≈ 0 | no |
 | 2 | The per-person observation vector and the compaction pass (§4.1) | M | `patterns.ts`, new `patternsState.ts`, `deleteAccount` (already recursive), `data-inventory.md`, `COSTS.md` | store-projection test; e2e erasure; a replay-from-answers test | no |
-| 3 | The batch engine as a `candidates` block with the fortnight rule (§2.2, §2.3) | M | `patternsFit.ts` (ALS, Procrustes), `patterns.ts` | the probe's recovery on the test world; determinism; the crossover rule pinned | no |
+| 3 | The batch engine as a `candidates` block with the fortnight rule (§2.2, and §2.3's device-ridge sweep only — K and the fit's own λ/sweeps are still fixed) | M | `patternsFit.ts` (ALS, Procrustes), `patterns.ts` | the probe's recovery on the test world; determinism; the crossover rule pinned | no |
 | 4 | The canonical basis and the aligned displacement (§2.4) | S | `patternsFit.ts` | displacement of an unchanged model is 0 after a random rotation | no |
 | 5 | Ordinal and one-hot encodings into the fold (§3) | M | `patterns.ts` eligibility, `patternsFit.ts` residuals, `patternsReady.ts`, `data/patterns.ts` pool | `check:figures` on the pool count; encoding tests | instrument items: **yes** |
 | 6 | Nightly voter samples and the erasure arm (§4.3) | M | `patterns.ts`, `firestore.rules`, `voters.ts`, `live.ts`, `data-inventory.md`, e2e | erasure e2e; `voters.test`; `COSTS.md` Kindred row | no |

@@ -42,6 +42,7 @@ vi.mock("firebase/firestore", () => ({
       wheres: parts.filter((p) => p.__k === "where").map((p) => [p.field, p.op, p.val]),
       limit: (parts.find((p) => p.__k === "limit") || {}).n ?? null,
       orderBys: parts.filter((p) => p.__k === "orderBy").map((p) => p.field),
+      orderDirs: parts.filter((p) => p.__k === "orderBy").map((p) => p.dir ?? null),
     };
     h.queries.push(q);
     return q;
@@ -53,7 +54,11 @@ vi.mock("firebase/firestore", () => ({
   documentId: () => "__name__",
   doc: (_db: unknown, ...p: string[]) => ({ __k: "doc", path: p.join("/") }),
   limit: (n: number) => ({ __k: "limit", n }),
-  orderBy: (field: string) => ({ __k: "orderBy", field }),
+  // The DIRECTION is captured too, and additively — `orderBys` keeps its
+  // shape so the case that already reads it does not move. Direction is
+  // half the meaning of an ordered cap: "newest first, then take 300" and
+  // "oldest first, then take 300" are different three-hundred answers.
+  orderBy: (field: string, dir?: string) => ({ __k: "orderBy", field, dir }),
   // THE FAKE FILTERS, because the code under test stopped filtering on the
   // device. `fetchFollowersOf` now names the exact rows it wants and lets
   // the server return only those; a fake that handed back everything
@@ -241,6 +246,35 @@ describe("fetchFollowersOf", () => {
 });
 
 describe("fetchAnswersOf", () => {
+  // ── D398's ORDERING, WHICH THE OWNER BOUGHT AN INDEX FOR ──────────
+  //
+  // Deleting either `orderBy("answeredAt","desc")` or the cap left every
+  // runner in the repository green. The sibling query in voters.ts IS
+  // pinned — by a source scan, because it needs an emulator to run — and
+  // this one can do better, because the fake here records the query's
+  // parts.
+  //
+  // Why it matters that BOTH are here: an unordered `limit` in Firestore
+  // takes documents by NAME, which here is the question id. So without the
+  // ordering a member who has answered more than the cap has their
+  // likeness computed from the alphabetically-first 300 of the ~737
+  // answerable questions — and the reading still draws, about a slice
+  // nobody chose. That is the silent shape; the cap's own docstring
+  // records the owner taking a per-answer index cost
+  // (ALGORITHM-REFLECTION §4.6) specifically to buy the ordering.
+  it("takes the NEWEST answers, not the alphabetically-first ones", async () => {
+    const { fetchAnswersOf } = await import("./circle");
+    const { CIRCLE_ANSWER_CAP } = await import("./circle");
+    await fetchAnswersOf({} as never, "u_ada");
+    const q = h.queries[0];
+    expect(q.orderBys, "the cap is applied to an unordered read — Firestore then takes documents by question id")
+      .toEqual(["answeredAt"]);
+    expect(q.orderDirs, "ordered oldest-first, so the cap keeps a member's FIRST answers")
+      .toEqual(["desc"]);
+    expect(q.limit, "the cap left the query, so the whole answer history is billed")
+      .toBe(CIRCLE_ANSWER_CAP);
+  });
+
   it("carries the surface filter the rules grant the read on", async () => {
     // NOT a nicety. firestore.rules grants this cross-user read as a value
     // test on `surface`, so a query without a matching `where` is refused
