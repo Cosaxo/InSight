@@ -198,23 +198,46 @@ describe("continue-on-error steps are reported somewhere", () => {
   const optionalOn = (body) =>
     /continue-on-error:\s*true/.test(body) && !/if:\s*failure\(\)/.test(body);
 
+  // PER JOB, not per file, and the difference is a real hole. `outcome` is
+  // only readable inside the job that produced it, and this searched the
+  // whole FILE — so a workflow with the same step id in two jobs satisfied
+  // the rule on the strength of the other job's readback. `device-screens.yml`
+  // is the first file here with that shape (`drive` in both the Android and
+  // the iOS job). Measured: deleting only the Android job's
+  // `echo "drive: ${{ steps.drive.outcome }}"` left this suite at 15 passed,
+  // exit 0; deleting BOTH correctly failed. So the rule was not vacuous, it
+  // was scoped one level too wide.
+  //
+  // Latent rather than live — a per-job audit of every workflow found each
+  // optional step read back in its own job — which is why this is a
+  // tightening and not a fix with a red test behind it. The splitter it
+  // needs is the one the pipe-to-shell rule below already brought.
   for (const f of files) {
     const src = readWorkflow(join(dir, f));
-    const steps = parse(src).filter((s) => optionalOn(s.body));
-    if (!steps.length) continue;
-    it(`${f} gives every optional step an id and reads it back`, () => {
-      for (const s of steps) {
-        const id = /\bid:\s*([\w-]+)/.exec(s.body);
-        expect(
-          id,
-          `${f} has a continue-on-error step with no \`id:\` — nothing can read its `
-            + `outcome, so its failure is invisible on a green run:\n${s.head.trim()}`,
-        ).toBeTruthy();
-        expect(
-          src.includes(`steps.${id[1]}.outcome`),
-          `${f} never reads \`steps.${id[1]}.outcome\` — the step can fail with the `
-            + "run still green and nothing said:\n" + s.head.trim(),
-        ).toBe(true);
+    // A file with no `jobs:` block parses to nothing; fall back to the whole
+    // file so such a workflow is still checked rather than silently skipped.
+    const perJob = jobs(src);
+    const scopes = perJob.length ? perJob : [{ name: "(whole file)", text: src }];
+    const carrying = scopes
+      .map((j) => ({ j, steps: parse(j.text).filter((s) => optionalOn(s.body)) }))
+      .filter((x) => x.steps.length);
+    if (!carrying.length) continue;
+    it(`${f} gives every optional step an id and reads it back in its own job`, () => {
+      for (const { j, steps } of carrying) {
+        for (const s of steps) {
+          const id = /\bid:\s*([\w-]+)/.exec(s.body);
+          expect(
+            id,
+            `${f}:${j.name} has a continue-on-error step with no \`id:\` — nothing can read its `
+              + `outcome, so its failure is invisible on a green run:\n${s.head.trim()}`,
+          ).toBeTruthy();
+          expect(
+            j.text.includes(`steps.${id[1]}.outcome`),
+            `${f}:${j.name} never reads \`steps.${id[1]}.outcome\` IN THAT JOB — the step can fail with the `
+              + "run still green and nothing said. An outcome read in a different job of the same "
+              + "file does not count:\n" + s.head.trim(),
+          ).toBe(true);
+        }
       }
     });
   }
@@ -224,6 +247,39 @@ describe("continue-on-error steps are reported somewhere", () => {
       parse(readWorkflow(join(dir, f))).filter((s) => optionalOn(s.body)));
     expect(optional.length, "no continue-on-error steps found on a healthy path — the rule measures nothing")
       .toBeGreaterThan(1);
+  });
+
+  it("one job's readback does not answer for another's — a positive control", () => {
+    // The exact shape the file-wide search could not tell apart: one step
+    // id, two jobs, and only one of them reporting.
+    const src = [
+      "jobs:",
+      "  a:",
+      "    steps:",
+      "      - name: Drive",
+      "        id: drive",
+      "        continue-on-error: true",
+      "        run: echo hi",
+      "      - name: Report",
+      '        run: echo "drive: ${{ steps.drive.outcome }}"',
+      "  b:",
+      "    steps:",
+      "      - name: Drive",
+      "        id: drive",
+      "        continue-on-error: true",
+      "        run: echo hi",
+      "",
+    ].join("\n");
+    const [a, b] = jobs(src);
+    expect(a.name).toBe("a");
+    expect(b.name).toBe("b");
+    expect(parse(a.text).filter((s) => optionalOn(s.body)).length).toBe(1);
+    expect(parse(b.text).filter((s) => optionalOn(s.body)).length).toBe(1);
+    expect(a.text.includes("steps.drive.outcome"), "job a should report its own step").toBe(true);
+    expect(b.text.includes("steps.drive.outcome"), "job b reports nothing, and the file-wide search could not see that").toBe(false);
+    // …and the file-wide reading, which is what shipped, cannot tell them
+    // apart at all.
+    expect(src.includes("steps.drive.outcome"), "the old file-scoped test passed on this input").toBe(true);
   });
 });
 
