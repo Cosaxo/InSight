@@ -645,9 +645,16 @@ async function sendPushToUids(
 
 // ── the reveal pipeline ─────────────────────────────────────────
 
-interface RevealVote {
+export interface RevealVote {
   optionIdx: number;
   guessIdx?: number;
+  /**
+   * Answered AFTER the round revealed (ROUNDS-PLAN §4) — with the table in
+   * view, so not blind. Appended by the answer trigger, never written by
+   * revealRound; shown in the reveal, counted by nothing: the roles fold,
+   * the runs and the duel signal all skip it. Absent on every blind vote.
+   */
+  late?: true;
   /**
    * The question THIS member answered — written only when it is not the one
    * the day was published under (see revealQid). Absent is the overwhelming

@@ -916,10 +916,18 @@ service cloud.firestore {
         // with it: the day regex and both timestamp.date() comparisons,
         // which is fewer expressions on the create path D409 measured.
         function isDuelAnswer() {
+          // The open round, read ONCE: the same group document the
+          // membership clause fetches (deduped for billing either way), and
+          // one binding rather than six repeated get() expressions on the
+          // create path whose refusals D409 measured against the budget.
+          let open = get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.get("round", 1);
+          // Absent reads as "not late" — a value, never an evaluation error
+          // on an unflagged answer to a revealed round.
+          let late = request.resource.data.get("late", false);
           return request.resource.data.surface in ["group", "duo"]
             && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx", "pickUid",
-              "gid", "round", "answeredAt", "anchors",
+              "gid", "round", "late", "answeredAt", "anchors",
             ])
             && request.resource.data.gid is string
             && request.resource.data.round is int
@@ -951,10 +959,34 @@ service cloud.firestore {
             //
             // A group with no `round` field is on round 1 (get's default),
             // the same reading every other reader makes.
-            && request.resource.data.round
-                 >= get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.get("round", 1)
-            && request.resource.data.round
-                 < get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.get("round", 1) + 5
+            //
+            // TWO ARMS. The first is the blind answer above, and it is what
+            // a legitimate write short-circuits on. The second is the LATE
+            // answer (ROUNDS-PLAN §4): a member who did not play a round
+            // that has since revealed may still answer it — the owner's
+            // rule, "the remainders after they have answered" — but the
+            // table is world-readable (D98), so their answer is not blind
+            // and the rule says so rather than trusting the client to:
+            //   · it MUST carry `late: true` (an unflagged answer to a
+            //     revealed round is refused, as it always was);
+            //   · it may NOT carry a guess — a guess made with the table
+            //     in view is not a reading of anyone, and refusing the
+            //     field removes the whole class rather than filtering it;
+            //   · it reaches back at most the lead, so a member cannot
+            //     backfill a room's whole history.
+            // The trigger appends it to the reveal marked late, and every
+            // score — the roles fold, the duel signal — leaves it out.
+            // And the blind arm refuses the flag, so "late" can only ever
+            // mean what it says.
+            && (
+              (request.resource.data.round >= open
+                && request.resource.data.round < open + 5
+                && late == false)
+              || (request.resource.data.round < open
+                && request.resource.data.round >= open - 5
+                && late == true
+                && !request.resource.data.keys().hasAny(["guessIdx"]))
+            )
             // the answer must reference a real question, and indexes must
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)

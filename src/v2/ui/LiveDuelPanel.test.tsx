@@ -20,7 +20,7 @@
 // precisely the window the seal covers.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => {
   // The open round's question, for `roundQ` — the same prompt `Q` below
@@ -64,6 +64,7 @@ const LIVE = vi.hoisted(() => {
     approveJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     declineJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
+    voteLate: async (gid: string, round: number, idx: number) => { void gid; void round; void idx; },
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
     todayKey: () => "2026-07-30",
@@ -242,6 +243,55 @@ describe("LiveDuelPanel · before the reveal, only your own pick is on screen", 
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tea" })).toBeTruthy();
     expect(screen.queryByText("you said")).toBeNull();
+  });
+});
+
+describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
+  // Round 1 revealed, round 2 open; the reveal is the latest one.
+  const revealed = (over: Record<string, unknown> = {}) => ({
+    round: 1, day: "2026-09-07", qid: "duo-000",
+    votes: { u_ada: { optionIdx: 1 } }, names: { u_ada: "Ada" }, ...over,
+  });
+
+  it("a late vote sits on its own row, marked, and in no read", () => {
+    LIVE.social.bankQ = () => Q;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => revealed({
+      votes: { u_me: { optionIdx: 0, guessIdx: 1 }, u_ada: { optionIdx: 1, late: true } },
+    });
+    render(<LiveDuelPanel mode="duo" />);
+    const row = screen.getByLabelText("Answered after the reveal");
+    expect(row.textContent).toMatch(/Tea/);
+    expect(row.textContent).toMatch(/late/);
+    // No "you read Ada" row: her answer was not blind, so nothing read it.
+    expect(document.body.textContent).not.toMatch(/you read Ada|called it/);
+  });
+
+  it("offers the late answer to a member with no vote in the reveal, and writes it flagged", async () => {
+    LIVE.social.bankQ = () => Q;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => revealed();
+    const calls: Array<[string, number, number]> = [];
+    LIVE.social.voteLate = async (gid: string, round: number, idx: number) => { calls.push([gid, round, idx]); };
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/You didn’t play this one/)).toBeTruthy();
+    // The card also asks round 2's question with the same options, so pick
+    // the late door's button by its own block.
+    const door = screen.getByText(/You didn’t play this one/).parentElement!;
+    fireEvent.click(within(door).getByRole("button", { name: "Tea" }));
+    await waitFor(() => expect(calls).toEqual([["g1", 1, 1]]));
+  });
+
+  it("does not offer it past the lead, nor to someone who played", () => {
+    LIVE.social.roundInfo = () => ({ open: 9, next: 9, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => revealed(); // round 1, eight behind
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/You didn’t play this one/)).toBeNull();
+    cleanup();
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => revealed({ votes: { u_me: { optionIdx: 0 }, u_ada: { optionIdx: 1 } } });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/You didn’t play this one/)).toBeNull();
   });
 });
 

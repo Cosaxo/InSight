@@ -171,7 +171,7 @@ interface LiveGroup {
   pending?: string[];
   pendingNames?: Record<string, string>;
 }
-interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string }
+interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string; late?: boolean }
 interface LiveReveal extends RevealDocLike {
   day?: string;
   qid?: string;
@@ -780,8 +780,29 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
   // appeared under this one, with that member's name on it. Their vote now
   // carries its own qid when it differs (D71), so it can be shown honestly.
   const qidOf = (v: RevealVote) => (typeof v.qid === "string" && v.qid ? v.qid : rowQid);
-  const offQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) !== rowQid);
+  const offQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) !== rowQid && !votes[u].late);
   const mine = votes[uid];
+  // LATE answers (ROUNDS-PLAN §4): given after this round revealed, with
+  // the table in view. They are in the reveal — the room sees them — and
+  // in no bar, no read row and no fold, because they were not blind. Their
+  // own row says so plainly, and without scolding.
+  const lateUids = Object.keys(votes).filter((u) => votes[u].late);
+  // …and the door to one: a member with no vote in this reveal may still
+  // answer it, marked, as long as the round is inside the lead behind the
+  // open one — the rules' own window (`voteLate`, data/live.ts).
+  const R = LIVE.social.roundInfo(g.id);
+  const round = typeof reveal.round === "number" ? reveal.round : null;
+  const mayAnswerLate = !mine && !!uid && (g.memberUids || []).includes(uid)
+    && R != null && round != null && round < R.open && round >= R.open - R.lead;
+  const [lateBusy, setLateBusy] = React.useState(false);
+  const [lateErr, setLateErr] = React.useState<string | null>(null);
+  const answerLate = async (i: number) => {
+    if (lateBusy || round == null) return;
+    setLateBusy(true); setLateErr(null);
+    try { await LIVE.social.voteLate(g.id, round, i); }
+    catch { setLateErr("That didn’t save — check your connection."); }
+    setLateBusy(false);
+  };
 
   return (
     <div style={{ borderRadius: 12, border: LD_LINE, background: "var(--surface-2)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 9 }}>
@@ -789,6 +810,31 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
       {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
       {duo ? duoRows() : <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint} />}
       {!duo && roomRow()}
+      {lateUids.length > 0 && (
+        <div style={{ borderTop: LD_HAIR, paddingTop: 8, ...col(4) }} aria-label="Answered after the reveal">
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: "var(--ink-3)" }}>Answered after the reveal</div>
+          {lateUids.map((u) => (
+            <div key={u} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
+              {u === uid ? <YouChip size={20} /> : <DuelAv uid={u} name={names[u]} size={20} />}
+              <span style={{ fontWeight: 700 }}>{labelIn(optsFor(qidOf(votes[u]) === rowQid ? bankQ : (LIVE.social.bankQ(qidOf(votes[u]) as string) as { options?: string[] } | null)), votes[u].optionIdx)}</span>
+              <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>late</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {mayAnswerLate && (
+        <div style={{ borderTop: LD_HAIR, paddingTop: 10, ...col(8) }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
+            You didn’t play this one. You can still answer — it shows here, marked late, and doesn’t count toward a read.
+          </div>
+          <div style={col(6)}>
+            {opts.map((o, i) => (
+              <LdOption key={i} label={o} tint={tint} disabled={lateBusy} onClick={() => void answerLate(i)} />
+            ))}
+          </div>
+          {lateErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{lateErr}</div>}
+        </div>
+      )}
       {offQuestion.map((u) => {
         // One block per member who was asked something else: their prompt,
         // then their answer read against THEIR options. Their vote is not in
@@ -844,7 +890,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
     // …only when you were both answering the same question. Across a split,
     // "called it" would compare a guess about one prompt to an answer about
     // another and land on true by coincidence.
-    const comparable = !!mine && !!theirs && qidOf(mine) === qidOf(theirs);
+    const comparable = !!mine && !!theirs && qidOf(mine) === qidOf(theirs) && !mine.late && !theirs.late;
     const rows: React.ReactNode[] = [];
     if (mine && theirs && comparable && typeof mine.guessIdx === "number") {
       rows.push(revealRow("you read " + (firstName(names[themUid]) || "them"),
@@ -863,7 +909,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
     if (!rows.length) {
       return (
         <div style={col(6)}>
-          {Object.keys(votes).filter((u) => qidOf(votes[u]) === rowQid).map((u) => (
+          {Object.keys(votes).filter((u) => qidOf(votes[u]) === rowQid && !votes[u].late).map((u) => (
             <div key={u} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
               {u === uid ? <YouChip size={20} /> : <DuelAv uid={u} name={names[u]} size={20} />}
               <span style={{ fontWeight: 700 }}>{labelIn(opts, votes[u].optionIdx)}</span>

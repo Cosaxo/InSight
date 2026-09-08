@@ -2435,11 +2435,36 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     // import the other: rules have no imports, and pure.ts is the server's.
     const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
     const pure = readFileSync(resolve(__dirname, "../functions/src/pure.ts"), "utf8");
-    const inRules = /\.data\.get\("round", 1\) \+ (\d+)/.exec(rules);
+    const inRules = /\.round < open \+ (\d+)/.exec(rules);
     const inPure = /export const ROUND_LEAD = (\d+);/.exec(pure);
     expect(inRules, "the rules no longer bound the round by a literal lead").toBeTruthy();
     expect(inPure, "pure.ts no longer exports ROUND_LEAD").toBeTruthy();
     expect(Number(inRules![1])).toBe(Number(inPure![1]));
+  });
+
+  it("a LATE answer to a revealed round: flagged and guessless, or refused (ROUNDS-PLAN §4)", async () => {
+    // Round 1 revealed and round 2 opened; FRIEND did not play round 1.
+    // The table is world-readable, so an answer now is not blind — the
+    // rule admits it only marked as such and without a guess, and every
+    // score leaves it out.
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID), { round: 8 }, { merge: true });
+    });
+    const late = (round: number, over: Record<string, unknown> = {}) => setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", `g_${GID}_r${round}`),
+      { qid: "group-gu0", surface: "duo", optionIdx: 1, gid: GID, round, late: true,
+        answeredAt: serverTimestamp(), anchors: {}, ...over });
+    await assertSucceeds(late(7));                       // the round just revealed
+    await assertSucceeds(late(3));                       // five back — the last inside the window
+    await assertFails(late(2));                          // six back — past it
+    await assertFails(late(6, { guessIdx: 0 }));         // a guess with the table in view
+    await assertFails(late(5, { late: false }));         // the flag has one value
+    await assertFails(late(4, { late: "yes" }));
+    // …and the flag cannot be put on a BLIND answer to make it read as
+    // something it is not: the open round and the lead refuse it.
+    await assertFails(late(8));
+    await assertFails(late(9));
   });
 
   it("answering a round that has already revealed is refused", async () => {

@@ -44995,8 +44995,18 @@ wait would have been the day wearing a different clock); and the
 cutover done clean, with reveals from before rounds readable as history,
 because nothing real had played.
 
+**The late answer is built too** (§4, the same day): a member who did
+not play a round that has revealed may still answer it, and the rules
+admit that answer only flagged `late: true`, without a guess, and at most
+the lead behind the open round — while the blind arm refuses the flag,
+so "late" can only ever mean what it says. The trigger appends it to the
+reveal marked, with the member added to `members` and `names` (the one
+server write to a reveal after its create); the roles fold, the runs, the
+portrait and the duel signal all leave it out; the card lists late
+answers on their own row and offers the door under a reveal you have no
+vote in. Not blind, so not a reading — shown, not scored.
+
 **What is NOT built**, so nothing here reads as more than it is: the
-late answer (§4 — an answer to a revealed round is simply refused, as
-before), the notifications (§7.4, behind `web/privacy.html`), the bank
-burst and world questions (§6), and the screens (request 11). The card
-is truthful, not redesigned.
+notifications (§7.4, behind `web/privacy.html`), the bank burst and world
+questions (§6), and the screens (request 11). The card is truthful, not
+redesigned.

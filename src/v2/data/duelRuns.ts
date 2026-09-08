@@ -28,6 +28,9 @@ export interface RevealVoteLike {
   optionIdx?: number;
   guessIdx?: number;
   qid?: string;
+  /** Answered after the round revealed, with the table in view (ROUNDS-PLAN
+   *  §4). Shown in the reveal; counted by no fold, because it was not blind. */
+  late?: boolean;
 }
 export interface RevealDocLike {
   day?: string;
@@ -72,6 +75,9 @@ export function duoRuns(
     const mine = votes[me];
     const theirs = votes[them];
     if (!mine || !theirs) continue;
+    // A late answer was made with the table in view — not a read of anyone,
+    // and not read by anyone's guess either.
+    if (mine.late || theirs.late) continue;
     if (typeof mine.optionIdx !== "number" || typeof theirs.optionIdx !== "number") continue;
     if (typeof mine.guessIdx !== "number" || typeof theirs.guessIdx !== "number") continue;
     const rowQid = d.qid || "";
@@ -102,6 +108,9 @@ export function revealTally(
     const v = votes[uid];
     if (typeof v.optionIdx !== "number") continue;
     if (qidOf(v, rowQid) !== rowQid) continue;
+    // The tally is what "you read the room" is scored against, so a late
+    // answer stays out of it; the card lists late answers on their own row.
+    if (v.late) continue;
     const list = byOpt.get(v.optionIdx);
     if (list) list.push(uid);
     else byOpt.set(v.optionIdx, [uid]);

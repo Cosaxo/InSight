@@ -231,6 +231,7 @@ function duoFold(history: readonly RevealDocLike[], me: string, them: string, lo
     const votes = rev.votes || {};
     const mine = votes[me], theirs = votes[them];
     if (!mine || !theirs) continue;
+    if (mine.late || theirs.late) continue; // not blind — no reading in it (ROUNDS-PLAN §4)
     const rowQid = rev.qid || "";
     const qa = typeof mine.qid === "string" && mine.qid ? mine.qid : rowQid;
     const qb = typeof theirs.qid === "string" && theirs.qid ? theirs.qid : rowQid;
@@ -356,14 +357,14 @@ export function groupRole(
     if (!row || row.mine == null) continue;
     const votes = r.votes || {};
     const mine = votes[myUid];
-    if (!mine) continue;
+    if (!mine || mine.late) continue; // a late answer of yours reads nothing (ROUNDS-PLAN §4)
     const k = optionsOn(r as RevealLike, row.qid || "", lookup);
     count(own, row.withMajority, k);
     majRun.push(row.withMajority);
     const rowQid = r.qid ?? null;
     const myQid = voteQid(mine, rowQid);
     for (const [uid, v] of Object.entries(votes)) {
-      if (uid === myUid || !v || typeof v.optionIdx !== "number") continue;
+      if (uid === myUid || !v || typeof v.optionIdx !== "number" || v.late) continue;
       // A day we answered DIFFERENT questions is not a shared day —
       // groupPortrait's own rule, kept here for the same reason.
       if (voteQid(v, rowQid) !== myQid) continue;

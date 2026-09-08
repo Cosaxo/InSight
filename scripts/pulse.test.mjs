@@ -388,7 +388,14 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // exists for it". That is one billed read fewer per duel answer —
       // RULE_READS.duel 3 → 2 — and the first time this tripwire has
       // recorded a cost going down.
-    ).toEqual({ gets: 35, exists: 2 });
+      //
+      // 35 → 34 gets: the late arm (ROUNDS-PLAN §4) needed the open round
+      // four more times, so isDuelAnswer binds it ONCE with `let` and the
+      // two round-bound get() sites became one. Fewer expressions on the
+      // create path whose refusals D409 measured; the billed cost is
+      // unchanged, because every one of those sites read the same group
+      // document the membership clause already fetched.
+    ).toEqual({ gets: 34, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {
@@ -414,8 +421,12 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
       + "D420 — the group document, in the transaction that marks who "
       + "played and asks whether the round is complete (TRIGGER_READS.duel "
-      + "0 → 1). Recount before changing the constant.",
-    ).toBe(10);
+      + "0 → 1) — plus TWO on its late path alone (the reveal it joins and "
+      + "the member's profile for the name), charged by COSTS.md's own row "
+      + "for a late answer rather than by the per-answer constant, because "
+      + "only an answer to a round that has already revealed takes that "
+      + "path. Recount before changing the constant.",
+    ).toBe(12);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {

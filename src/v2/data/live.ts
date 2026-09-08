@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 41 `await getDb()` sites in this file did not change
+// deliberately: the 42 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -4051,6 +4051,53 @@ const SOCIAL = {
         delete state.votes[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
+        throw err;
+      }
+    })();
+  },
+
+  /**
+   * A LATE answer (ROUNDS-PLAN §4): to a round that has revealed and that
+   * this account did not play. The table is public, so it is not blind —
+   * the rules require `late: true` and refuse a guess, the trigger appends
+   * it to the reveal marked, and no fold counts it. Reaches back at most
+   * the lead. The card offers it under a reveal you have no vote in.
+   */
+  voteLate(gid: string, round: number, optionIdx: number): Promise<void> {
+    const g = state.groups.find((x) => x.id === gid);
+    const uid = state.uid;
+    if (!g || !uid) return Promise.resolve();
+    const open = openRoundOf(g);
+    if (!(round < open && round >= open - ROUND_LEAD)) return Promise.resolve();
+    const q = duelQFor(g, round);
+    if (!q) return Promise.resolve();
+    const aid = `g_${gid}_${roundKey(round)}`;
+    if (state.votes[aid]) return Promise.resolve();
+    state.votes[aid] = String(optionIdx);
+    notify();
+    return (async () => {
+      try {
+        const db = await getDb();
+        const payload: Record<string, unknown> = {
+          qid: q.id,
+          surface: g.mode === "duo" ? "duo" : "group",
+          optionIdx,
+          gid,
+          round,
+          late: true,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(),
+        };
+        if (q.kind === "pick") {
+          const pickUid = ((g.memberUids || []) as string[])[optionIdx];
+          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+        }
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        cacheVote(aid, optionIdx);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        reportError(err, { where: "duelVoteLate", gid });
         throw err;
       }
     })();

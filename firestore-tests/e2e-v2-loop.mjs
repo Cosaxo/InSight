@@ -1081,6 +1081,29 @@ if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", "r1"))).exists())
 }
 await expectDenied("member cannot answer a round already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
+// …unless they say so (ROUNDS-PLAN §4): a LATE answer, flagged, with no
+// guess. The trigger appends it to the reveal marked late — the room sees
+// it — and it marks no `played`, starts no clock and folds into nothing.
+await expectDenied("a late answer with a guess is refused", () =>
+  setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), { ...groupAnswer(0), late: true, guessIdx: 0 }));
+await setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), { ...groupAnswer(0), late: true });
+{
+  let joined = null;
+  for (let i = 0; i < 25 && !joined; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const r = await getDoc(doc(db, "v2_groups", lateGid, "reveals", "r1"));
+    const v = (r.get("votes") || {})[latecomer.user.uid];
+    if (v) joined = { reveal: r, vote: v };
+  }
+  if (!joined) fail("the late answer never reached the reveal");
+  if (joined.vote.late !== true || joined.vote.optionIdx !== 0) fail("the late vote is not marked late: " + JSON.stringify(joined.vote));
+  if (!(joined.reveal.get("members") || []).includes(latecomer.user.uid)) fail("the late answerer is named but not recorded as there");
+  if (typeof (joined.reveal.get("names") || {})[latecomer.user.uid] !== "string") fail("the late answerer has no name entry");
+  const g = await getDoc(doc(db, "v2_groups", lateGid));
+  if (((g.get("played") || {}).r1 || []).length) fail("a late answer marked played on a revealed round");
+  if (g.get("round") !== 2) fail("a late answer moved the open round");
+  ok("a late answer joins the reveal marked late, and moves nothing else");
+}
 
 // duel answers must NOT leak into world aggregates
 const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));

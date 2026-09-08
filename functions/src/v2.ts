@@ -845,6 +845,39 @@ export const onV2AnswerCreated = onDocumentCreated(
             // would resurrect it as a document holding nothing but `played`.
             if (!g.exists) return false;
             const open = openRound(g.get("round"));
+            // A LATE answer (ROUNDS-PLAN §4): the round has revealed, and
+            // the rules admitted this only with `late: true` and no guess.
+            // It joins the reveal — marked — so the room sees it; it marks
+            // no `played`, starts no clock, completes nothing, and folds
+            // into no aggregate. Three reads (group, reveal, profile) and
+            // one write, only on this path.
+            if (round < open) {
+              const revealRef = gref.collection("reveals").doc(key);
+              const [r, prof] = await tx.getAll(revealRef, firestore().doc(`v2_users/${uid}`));
+              // No reveal to join (a round behind the open one always has
+              // one; a retry after an erasure may not), or already in it —
+              // a blind vote is never overwritten by a late one.
+              if (!r.exists) return false;
+              const votes = (r.get("votes") || {}) as Record<string, unknown>;
+              if (Object.prototype.hasOwnProperty.call(votes, uid)) return false;
+              const vote: Record<string, unknown> = { optionIdx: snap.get("optionIdx"), late: true };
+              const pickUid = snap.get("pickUid");
+              if (typeof pickUid === "string" && pickUid) vote.pickUid = pickUid;
+              // D71's shape: the question this member answered, stamped
+              // only when it is not the one the round was published under.
+              const qid = snap.get("qid");
+              if (typeof qid === "string" && qid !== r.get("qid")) vote.qid = qid;
+              const upd: Record<string, unknown> = {
+                [`votes.${uid}`]: vote,
+                // The reveal names only who it records as there (the
+                // erasure sweep walks `members`), so both move together.
+                members: FieldValue.arrayUnion(uid),
+                [`names.${uid}`]: (prof.exists && prof.get("displayName")) || "",
+              };
+              if (typeof vote.pickUid === "string") upd.pickedUids = FieldValue.arrayUnion(vote.pickUid);
+              tx.update(revealRef, upd);
+              return false;
+            }
             const upd: Record<string, unknown> = { [`played.${key}`]: FieldValue.arrayUnion(uid) };
             // The open round's clock starts at its FIRST answer — never on
             // an answer sealed ahead of it: that round's clock starts when

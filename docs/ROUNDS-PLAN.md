@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — steps 0–3 are BUILT (2026-09-08, D420's second amendment); steps 4–8 are open.** The follow-through on
+**Status: plan notes — steps 0–4 are BUILT (2026-09-08, D420's second amendment); steps 5–8 are open.** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -596,8 +596,10 @@ Each step is shippable and green on its own.
 1. **Reveal history by query** (§7.1) — **built 2026-09-08**.
 2. **The round model** (§2, §3.2) — **built 2026-09-08**, with step 3.
 3. **Reveal on the completing answer** (§3.1) — **built 2026-09-08**.
-4. **The late answer** (§4) — the flag, the rules requirement, the
-   append, the score exclusions.
+4. **The late answer** (§4) — **built 2026-09-08**: the flag required
+   by the rules on a revealed round inside the lead, no guess with it, the
+   trigger's append to the reveal (member and name added with it), every
+   fold skipping it, the card's own row and door.
 5. **Notifications** (§7.4) — `web/privacy.html` first (a fifth kind,
    and *day* → *round*), then the `turns` channel, the send in the
    trigger, the per-recipient debounce, the foreground suppression.

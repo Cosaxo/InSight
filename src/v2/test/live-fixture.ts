@@ -444,6 +444,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     todayQ: () => null,
     roundQ: () => null,
     roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
+    voteLate: async () => {},
     myDuelVote: () => null,
     revealFor: () => null,
     revealHistory: () => [],

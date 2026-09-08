@@ -612,9 +612,14 @@ v2_groups/{gid}/reveals/r{n}       materialized by the reveal pipeline —
                                    one per ROUND (reveals written before
                                    D420 are keyed by their day; history
                                    orders by revealedAt and reads both)
-  round, day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?} }, names, members[], revealedAt
+  round, day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?, late?} }, names, members[], revealedAt
   (day is the calendar day the reveal LANDED — what the card labels it by
   and what the streak is keyed on; two reveals on one day order by round)
+  (late — ROUNDS-PLAN §4: answered AFTER the round revealed, with the
+  table in view. The rules admit such an answer only flagged and without
+  a guess, reaching back at most the lead; the answer trigger appends it
+  here — the one server write to a reveal after its create — with the
+  member added to `members` and `names`; every fold skips it)
   (pickUid — pick days only, D224: WHO the vote's optionIdx meant, in the
   roster order the answering client used; the index alone is remapped by
   any join/leave. Absent in reveals older than D224)
@@ -633,7 +638,9 @@ answers themselves stay owner-only) · write: nobody (D5)
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
 D420) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
-round, D224 — a current member's uid, rules-validated) — and they are
+round, D224 — a current member's uid, rules-validated; plus `late: true`
+on an answer to a round that has already revealed, which then carries no
+guess — §4 of the plan) — and they are
 the ONE surface the D98 public read excludes, as a `surface` value test
 rather than an owner-only path. That is the seal: the owner still reads
 their own, nobody else reads any, and the reveal doc publishes the whole
@@ -823,7 +830,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 203 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 204 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
