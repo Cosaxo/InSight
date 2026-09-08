@@ -836,10 +836,13 @@ conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
 indistinguishable from health. The nightly jobs are the obvious next
-— `digestEngagementV2`, `rankBankV2`, `sweepPaidReviewsV2`,
-`closePaidCampaignsV2` and `resolveCallsV2`, whose failure delays a
-surface by a day and self-heals on the next run, so they can wait until
-someone is actually reading the alerts.
+— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+`closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
+failure delays a surface by a day and self-heals on the next run, so
+they can wait until someone is actually reading the alerts.
+(`sweepPaidReviewsV2` is NOT one of them — it runs every 30 minutes, so
+its silence costs half an hour, not a day. `scheduledDuelReveals` is
+every 120 minutes and is already alerted.)
 
 (This named `scheduledWorldAggregates` and `scheduledCityAggregates` as
 those 24h jobs until 2026-09-08. Neither exists — they are in this same

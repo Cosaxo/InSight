@@ -184,7 +184,7 @@ than of a subject:
 | README | What it covers |
 | --- | --- |
 | `README.md` | The product, top to bottom: what it is, how to run it, the repo map, the gates |
-| `src/v2/README.md` | The port, the four lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
+| `src/v2/README.md` | The port, the feed / overlay / Mirror lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
 | `functions/README.md` | The backend's own layout and conventions |
 | `firestore-tests/README.md` | How the rules and e2e suites are structured and run |
 | `content/README.md` | The question bank formats and how content reaches the seed |
