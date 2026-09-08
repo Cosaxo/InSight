@@ -41,6 +41,7 @@
 // it; the token comes from the same service account.
 
 import { writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 // The fourth caller of the shared exchange rather than a fifth copy of it
@@ -241,6 +242,35 @@ async function demoAccount() {
 
   if (!APPLY) { console.log("\n(dry run — pass --apply to create it)"); return; }
 
+  // THE SINK IS PROVED BEFORE THE PASSWORD MOVES, and the order is the
+  // whole point. This rotation is irreversible: the new password exists
+  // only in this process, and the old one is gone the moment Firebase
+  // accepts the write. Checking DEMO_ACCOUNT_OUT afterwards — which is
+  // what this did — meant two ways to leave App Review holding a
+  // credential nobody has. Unset: the script printed "set it and re-run"
+  // and exited 0, having already locked the account. Set to a path that
+  // cannot be written: writeFileSync threw AFTER the rotation, and since
+  // asc-review.mjs has by then pushed the PREVIOUS password to App Store
+  // Connect, guideline 2.1 rejects the submission on a credential nobody
+  // can recover.
+  //
+  // A directory check is not enough — a read-only directory, a bad mount,
+  // a path that is itself a directory all pass one and fail the write. So
+  // the file is actually opened here, with a placeholder, and the real
+  // credentials overwrite it below.
+  const out = process.env.DEMO_ACCOUNT_OUT;
+  if (!out) {
+    die("DEMO_ACCOUNT_OUT is unset, so a rotated credential would have nowhere private to go.\n"
+      + "  Set it to a path and re-run. Nothing was changed.");
+  }
+  try {
+    writeFileSync(out, JSON.stringify({ email: DEMO_EMAIL, password: null }, null, 2));
+  } catch (err) {
+    die(`DEMO_ACCOUNT_OUT (${out}) is not writable, so a rotated credential would be lost.\n`
+      + `  ${err.message}\n`
+      + `  Its directory is ${dirname(out)}. Nothing was changed.`);
+  }
+
   const user = existing
     ? await auth.updateUser(existing.uid, { password, emailVerified: true, disabled: false })
     : await auth.createUser({ email: DEMO_EMAIL, password, emailVerified: true });
@@ -250,14 +280,8 @@ async function demoAccount() {
   // The credentials go to a FILE, not to stdout. A workflow log is
   // readable by every collaborator and kept for months; App Store Connect
   // is where these belong and the next step reads them from here.
-  const out = process.env.DEMO_ACCOUNT_OUT;
-  if (out) {
-    writeFileSync(out, JSON.stringify({ email: DEMO_EMAIL, password }, null, 2));
-    console.log(`credentials written to ${out} (not echoed — a run log is not a vault)`);
-  } else {
-    console.log("\nDEMO_ACCOUNT_OUT is unset, so the credential has nowhere private");
-    console.log("to go. Set it to a path and re-run; nothing is printed here on purpose.");
-  }
+  writeFileSync(out, JSON.stringify({ email: DEMO_EMAIL, password }, null, 2));
+  console.log(`credentials written to ${out} (not echoed — a run log is not a vault)`);
 }
 
 const wantsSender = has("--sender-name");

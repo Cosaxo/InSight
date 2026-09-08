@@ -61,8 +61,15 @@
 // with the literal JSON value, so this is an exact comparison rather than a
 // pretend one.
 //
-// It still does NOT check purposes or linkage — those genuinely are prose.
-// It also cannot know when Apple ADDS a field, which is the failure that
+// It checks LINKAGE and PURPOSES too since 2026-09-08. That sentence used
+// to read "It still does NOT check purposes or linkage — those genuinely
+// are prose", and it had stopped being true: the Collected table carries
+// `Linked?` and `Purpose` as their own columns with the same value space
+// the JSON uses. Measured before the rule existed — flipping every row to
+// `linked: false` with THIRD_PARTY_ADVERTISING purposes was exit 0, while
+// contradicting `tracking.used: false` two fields away.
+//
+// It still cannot know when Apple ADDS a field, which is the failure that
 // produced it: no gate reading this checkout can. What it guarantees is
 // narrower and worth having — that the answer a human reviewed and the
 // answer that gets pushed are the same answer.
@@ -148,9 +155,43 @@ if (!section) {
   );
 }
 
-const proseTypes = new Set(
-  [...section.matchAll(/^\|[^|]*\|\s*\*\*([^*]+)\*\*\s*\|/gm)].map((m) => norm(m[1])),
-);
+// Apple's API spells one purpose with a Z and this repo's prose with an S.
+// That is not a typo to fix in one place — the JSON has to match Apple's
+// field and the prose is British throughout — so the two are reconciled by
+// an alias table, and a name in NEITHER column fails loudly rather than
+// comparing as itself. A silent pass on an unrecognised purpose is how the
+// column would go stale in the direction that gets an app pulled.
+const PURPOSE_CANON = {
+  APP_FUNCTIONALITY: "APP_FUNCTIONALITY",
+  ANALYTICS: "ANALYTICS",
+  PRODUCT_PERSONALIZATION: "PRODUCT_PERSONALIZATION",
+  PRODUCT_PERSONALISATION: "PRODUCT_PERSONALIZATION",
+  DEVELOPER_ADVERTISING: "DEVELOPER_ADVERTISING",
+  THIRD_PARTY_ADVERTISING: "THIRD_PARTY_ADVERTISING",
+  OTHER_PURPOSES: "OTHER_PURPOSES",
+};
+
+/** The Collected table as rows: type, linkage, purposes. */
+function collectedRows(md) {
+  const out = new Map();
+  for (const line of md.split("\n")) {
+    if (!line.startsWith("|")) continue;
+    const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cells.length < 5) continue;
+    const name = /^\*\*([^*]+)\*\*$/.exec(cells[1]);
+    if (!name) continue;
+    out.set(norm(name[1]), {
+      // `playCell`'s job, and the same reason: a human reads "(D322)" and
+      // the comparison must not.
+      linked: playCell(cells[2]),
+      purposes: playCell(cells[3]).split(",").map((x) => norm(x)).filter(Boolean),
+    });
+  }
+  return out;
+}
+
+const proseRows = collectedRows(section);
+const proseTypes = new Set(proseRows.keys());
 const jsonTypes = new Set(privacy.collected.map((r) => norm(r.type)));
 
 for (const t of jsonTypes) {
@@ -168,6 +209,47 @@ for (const t of proseTypes) {
       `docs/STORE-FORMS.md lists ${t} as collected, but app-privacy.json does\n`
       + "    not declare it. This is the under-declaring direction, which is the\n"
       + "    one that gets an app pulled.",
+    );
+  }
+}
+
+// LINKAGE AND PURPOSE, row by row. The two files agreeing on WHICH types
+// are collected was never the whole filing: "collected but not linked" and
+// "collected for advertising" are different declarations about the same
+// type, and only one of each pair is true. Under-declaring linkage is the
+// direction that gets an app pulled, and over-declaring a purpose is the
+// direction that makes the label a lie — so both are compared, in both
+// directions, per type.
+for (const r of privacy.collected) {
+  const t = norm(r.type);
+  const prose = proseRows.get(t);
+  if (!prose) continue; // already reported by the type rules above
+  const jsonLinked = r.linked === true;
+  const proseLinked = /^yes$/i.test(prose.linked);
+  if (jsonLinked !== proseLinked) {
+    errors.push(
+      `${t}: app-privacy.json says linked=${jsonLinked} and docs/STORE-FORMS.md\n`
+      + `    says "${prose.linked}". Linked and unlinked are different declarations\n`
+      + "    about the same type, and the human reviewed one of them.",
+    );
+  }
+  const canon = (list, where) => list.map((x) => {
+    const c = PURPOSE_CANON[x];
+    if (!c) {
+      errors.push(
+        `${t}: ${where} names the purpose ${x}, which this script does not\n`
+        + "    recognise. Add it to PURPOSE_CANON with Apple's spelling — an\n"
+        + "    unknown purpose comparing as itself is how this column goes stale.",
+      );
+    }
+    return c ?? x;
+  });
+  const a = [...new Set(canon((r.purposes ?? []).map(norm), "app-privacy.json"))].sort();
+  const b = [...new Set(canon(prose.purposes, "docs/STORE-FORMS.md"))].sort();
+  if (a.join("+") !== b.join("+")) {
+    errors.push(
+      `${t}: app-privacy.json declares purposes [${a.join(", ")}] and\n`
+      + `    docs/STORE-FORMS.md says [${b.join(", ")}].`,
     );
   }
 }
@@ -430,7 +512,7 @@ if (errors.length) {
 }
 
 console.log(
-  `check-store-forms OK — ${jsonTypes.size} collected type(s) and ${ageTable.size} `
+  `check-store-forms OK — ${jsonTypes.size} collected type(s) (name, linkage, purposes) and ${ageTable.size} `
   + "age-rating answer(s) agree across app-privacy.json and STORE-FORMS.md; "
   + `tracking off; Precise Location ${jsonTypes.has("PRECISE_LOCATION") ? "declared" : "absent"}, matching the plist; `
   // The Play count is REPORTED, not just checked. A parser that quietly

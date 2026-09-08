@@ -144,6 +144,50 @@ describe("passiveCount — the number the ring, the sheet row and the card tag d
   });
 });
 
+// ── the ring's denominator, and the card that must stay out of it ─────
+//
+// D416's deep items are a facet's or a position's card, served through the
+// same feed test stream as the domain questions — `testFor()` says yes to
+// them on purpose, because the feed filters that stream through it and the
+// card has to be served. What must NOT happen is the ring counting one:
+// `needed()` is the domain-level set `IS_TESTS` carries, so a facet answer
+// would fill a ring whose denominator never included it, and a person who
+// answered enough deep items would read "30 of 30" having answered fewer
+// than thirty of the thirty.
+//
+// The guard is one clause — `|| q.facet` — and nothing reached it. It
+// survived a full-suite mutation sweep: deleting it left every runner
+// green, because no test calls `record()` with a deep card at all.
+describe("PASSIVE.record and the deep item (D416)", () => {
+  // `attachment`, and the choice matters: `passiveDone` is
+  // `min(needed, seed + seen)`, and big5's demo seed already fills its
+  // twenty-five — so a card recorded against it cannot move the number and
+  // the case would pass for the wrong reason. attachment seeds at zero.
+  const K = "attachment";
+
+  it("counts a domain question and refuses a facet card", () => {
+    expect(PASSIVE.seedCount(K), `${K} is now seeded, so the tally below is capped and this case is vacuous`).toBe(0);
+    const before = PASSIVE.passiveDone(K);
+    // A domain-level card moves the tally…
+    expect(
+      PASSIVE.record({ id: "zz-domain-probe", test: K }),
+      "a domain test card was not recorded at all — this case is now vacuous",
+    ).toBeTruthy();
+    const after = PASSIVE.passiveDone(K);
+    expect(after, "recording a domain card did not move the ring").toBe(before + 1);
+    // …and a deep one does not, though `testFor` still claims it.
+    expect(
+      PASSIVE.testFor({ id: "zz-facet-probe", test: K, facet: "anxiety" }),
+      "testFor stopped naming a deep item's test — the feed filters its stream through it, so the card would stop being served",
+    ).toBe(K);
+    expect(
+      PASSIVE.record({ id: "zz-facet-probe", test: K, facet: "anxiety" }),
+      "a deep item was recorded into the ring, whose denominator does not include it",
+    ).toBeNull();
+    expect(PASSIVE.passiveDone(K), "a facet answer moved the ring").toBe(after);
+  });
+});
+
 describe("ownProgress — the number under the profile's progress bar", () => {
   it("counts answers given through the store, not zero", () => {
     // Six of Politics' thirty, which is the state of the screenshot that

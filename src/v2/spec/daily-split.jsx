@@ -20,12 +20,42 @@ import { WPAL } from './world-palette.js';
 // mapBranch falls through to the live arm and re-renders when the module
 // arrives), so the demo behaves as before one frame later and the live
 // build never pays.
+//
+// Through retryable() (data/lazy.ts) rather than a hand-rolled
+// `if (pending) return` memo, and the difference is two bugs. The memo
+// registered only the FIRST caller's `onReady`, and there are two callers:
+// `mapBranch` asks during render, `syncToMap` asks on the vote a moment
+// later — so the vote's callback was dropped, and since it also got `null`
+// back, `if (dq(write)) write()` read that as "not ready" and nothing ever
+// called `write` at all. The demo's map-sync write was simply lost. And
+// the memo had no `.catch`, so a failed chunk latched the flag true for
+// the rest of the session and left an unhandled rejection behind.
+// retryable() closes both: every caller chains its own `.then` off the one
+// shared promise, and a rejection clears the slot so the next render or
+// vote re-attempts. It is the same helper main.jsx's four loaders use, and
+// it exists because a hand-rolled memo cached a REJECTED promise once
+// already (spec-index.js:332).
+//
+// THE RETRY IS UNBOUNDED, and that is a trade rather than an oversight —
+// stated because the sibling one screen over decided the other way.
+// `mirror-field-pops.jsx` catches its chunk failure and deliberately does
+// NOT retry, on the grounds that main.jsx reports a dead chunk once and
+// the fallback there is a real picture. Here the callers are `mapBranch`
+// (every render) and `syncToMap` (every vote), so a chunk that is
+// permanently gone means one import attempt and one console.error per
+// render. What bounds the cost is the surface, not the loader: both
+// callers are DEMO-only — the one id `DAILYSPLIT_DQ_SYNC` carries, and
+// since the `!LIVE.enabled` gate below, the duel store too — so a shipping
+// build never reaches either. If one of them ever becomes live, this
+// wants a cap.
+import { retryable } from '../data/lazy';
 let DQ = null;
-let dqPending = false;
+const loadDQ = retryable(() => import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; }));
 function dq(onReady) {
-  if (DQ || dqPending) return DQ;
-  dqPending = true;
-  import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; if (onReady) onReady(); });
+  if (DQ) return DQ;
+  loadDQ()
+    .then(() => { if (onReady) onReady(); })
+    .catch((e) => { console.error('[InSight] daily-questions chunk failed to load:', e); });
   return null;
 }
 // duels-data.js is loaded on demand, not imported — it pulls
@@ -38,12 +68,18 @@ function dq(onReady) {
 // …`, see the note at their call site), so on live this module is never
 // needed at all; on a demo build they read 0 for the frame before it
 // lands, and the subscribe's own forceUpdate is what redraws them.
+//
+// Same shape as `dq()` above and the same two bugs, with a wider blast
+// radius: the two callers here are in DIFFERENT components — the duel
+// list's subscribe and the pending-count read far below — so whichever
+// asked second never redrew when the store landed.
 let DUELSTORE = null;
-let duelsPending = false;
+const loadDuels = retryable(() => import('./duels-data.js').then((m) => { DUELSTORE = m.DUELS; }));
 function duels(onReady) {
-  if (DUELSTORE || duelsPending) return DUELSTORE;
-  duelsPending = true;
-  import('./duels-data.js').then((m) => { DUELSTORE = m.DUELS; if (onReady) onReady(); });
+  if (DUELSTORE) return DUELSTORE;
+  loadDuels()
+    .then(() => { if (onReady) onReady(); })
+    .catch((e) => { console.error('[InSight] duels chunk failed to load:', e); });
   return null;
 }
 import { Sheet } from './primitives.jsx';
@@ -222,7 +258,18 @@ export class DailySplit extends React.Component {
     // Subscribes once the store lands; componentWillUnmount's guard
     // already tolerates the handle being absent, and a component
     // unmounted before then simply never subscribes.
-    {
+    //
+    // DEMO ONLY, the way the pending-count read far below already is
+    // (`liveDuels ? null : duels(…)`, and `liveDuels` is `LIVE.enabled`).
+    // This call was unconditional, so the gate held on one of the two
+    // call sites and a LIVE build fetched `duels-data.js` — and with it
+    // content/duel-questions.json, the duel lane's whole bank — on every
+    // daily mount, for a store the block's own comment says "on live this
+    // module is never needed at all". Measured with a live fixture and a
+    // full mount: DUELS.subscribe was reached once, which happens only if
+    // the dynamic import ran. `check:eager-content` cannot see it — that
+    // gate reads the STATIC first-paint graph.
+    if (!LIVE.enabled) {
       const sub = () => { this._unsubDuels = DUELSTORE.subscribe(() => this.forceUpdate()); };
       if (duels(() => { if (!this._duelsGone) { sub(); this.forceUpdate(); } })) sub();
     }
