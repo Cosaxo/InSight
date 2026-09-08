@@ -35,6 +35,19 @@ import { WPAL } from './world-palette.js';
 // vote re-attempts. It is the same helper main.jsx's four loaders use, and
 // it exists because a hand-rolled memo cached a REJECTED promise once
 // already (spec-index.js:332).
+//
+// THE RETRY IS UNBOUNDED, and that is a trade rather than an oversight —
+// stated because the sibling one screen over decided the other way.
+// `mirror-field-pops.jsx` catches its chunk failure and deliberately does
+// NOT retry, on the grounds that main.jsx reports a dead chunk once and
+// the fallback there is a real picture. Here the callers are `mapBranch`
+// (every render) and `syncToMap` (every vote), so a chunk that is
+// permanently gone means one import attempt and one console.error per
+// render. What bounds the cost is the surface, not the loader: both
+// callers are DEMO-only — the one id `DAILYSPLIT_DQ_SYNC` carries, and
+// since the `!LIVE.enabled` gate below, the duel store too — so a shipping
+// build never reaches either. If one of them ever becomes live, this
+// wants a cap.
 import { retryable } from '../data/lazy';
 let DQ = null;
 const loadDQ = retryable(() => import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; }));
