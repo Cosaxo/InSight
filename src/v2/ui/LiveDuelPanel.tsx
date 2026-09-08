@@ -1264,7 +1264,7 @@ function LdCard({ g, vh, nextName, newest }: {
                 would look broken on the morning that happens. */}
             {newest
               ? <RevealClock prefix="Reveals in" suffix={duo ? " — if you both play." : ", with names."} />
-              : (duo ? "Reveals — if you both play." : "Reveals with names.")}
+              : (duo ? "Reveals tomorrow — if you both play." : "Reveals tomorrow, with names.")}
             {" Takes open with the reveal."}
           </div>
           {nextName && (

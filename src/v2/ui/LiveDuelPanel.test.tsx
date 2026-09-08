@@ -189,6 +189,35 @@ describe("LiveDuelPanel · before the reveal, only your own pick is on screen", 
     expect(sealedBox()).not.toMatch(/if you both play/i);
   });
 
+  // THE FALLBACK STILL SAYS WHEN. Only the card in view renders the live
+  // countdown (`newest`); every card behind it falls back to a written
+  // sentence, and that sentence exists solely to supply the time the clock
+  // is not rendering. It was briefly reduced to "Reveals — if you both
+  // play.", which reads as a fragment beside the line that follows it, and
+  // nothing here could see it: every case above scopes to /Reveals in/,
+  // which is the OTHER arm. Reachable by anyone with two circles.
+  const secondCard = () => {
+    LIVE.social.groups = () => [
+      { ...DUO, id: "g1" },
+      { ...DUO, id: "g2", name: "Us Two Again" },
+    ];
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    const { container } = render(<LiveDuelPanel mode="duo" />);
+    return container.textContent || "";
+  };
+
+  it("says WHEN on a card that is not the one in view, not just the condition", () => {
+    const text = secondCard();
+    expect(screen.getByText(/Reveals in/), "the first card lost its clock").toBeTruthy();
+    expect(
+      text,
+      "the card behind the clock dropped the time and reads as a fragment",
+    ).toMatch(/Reveals tomorrow/);
+    // …and it keeps the duo condition, which is the half the comment above
+    // the code says cannot be dropped.
+    expect(text).toMatch(/Reveals tomorrow — if you both play\./);
+  });
+
   it("offers the options for voting when you have not played", () => {
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
