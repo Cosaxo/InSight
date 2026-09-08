@@ -437,6 +437,22 @@ export let DAILYQ;
       cat: ['Interests', 'Why we bother'], alts: [['Skills', 'Mastery'], ['Mind', 'Play']] },
     { type: 'choice', prompt: 'Where does new music actually find you?', tag: 'The way in', options: ['Friends', 'Playlists', 'Radio', 'It just arrives'], tone: 'light',
       cat: ['Music', 'Discovery'], alts: [['Interests', 'Curiosity'], ['Story', 'Eras']] },
+    { type: 'binary', prompt: 'Learning something new: show me a video, or show me in person?', tag: 'How it clicks', options: ['A video', 'In person'], tone: 'light',
+      cat: ['Skills', 'How you learn'], alts: [['Mind', 'Patience'], ['Interests', 'Learning']] },
+    { type: 'binary', prompt: 'Extra time: dread it, or live for it?', tag: 'Extra time', options: ['Dread it', 'Live for it'], tone: 'light',
+      cat: ['Sport', 'Drama'], alts: [['Mind', 'Nerves'], ['Story', 'Tension']] },
+    { type: 'choice', prompt: 'The record of your life so far lives mostly in…', tag: 'The record', options: ['Photos', 'Messages', 'A diary', 'Memory alone'], tone: 'blend',
+      cat: ['Story', 'The record'], alts: [['Mind', 'Memory'], ['Home', 'Keepsakes']] },
+    { type: 'binary', prompt: 'The souvenir: something for the shelf, or photos only?', tag: 'The souvenir', options: ['Something for the shelf', 'Photos only'], tone: 'light',
+      cat: ['Travel', 'What comes home'], alts: [['Home', 'Keepsakes'], ['Story', 'Mementos']] },
+    { type: 'binary', prompt: 'Cold water: dive straight in, or inch your way in?', tag: 'The dive', options: ['Dive straight in', 'Inch in'], tone: 'light',
+      cat: ['Body', 'Thresholds'], alts: [['Mind', 'Commitment'], ['Values', 'Caution']] },
+    { type: 'binary', prompt: 'When the credits roll: sit through them, or straight out?', tag: 'The credits', options: ['Sit through them', 'Straight out'], tone: 'light',
+      cat: ['Film', 'Rituals'], alts: [['Mind', 'Endings'], ['Values', 'Respect']] },
+    { type: 'binary', prompt: 'Recipes: follow them to the letter, or read once and improvise?', tag: 'The recipe', options: ['To the letter', 'Improvise'], tone: 'light',
+      cat: ['Food', 'How you cook'], alts: [['Skills', 'Method'], ['Mind', 'Rules']] },
+    { type: 'scale', prompt: 'A goal kept secret is a goal kept safe.', tag: 'The reveal', axis: 'keep it quiet', tone: 'deep',
+      cat: ['Goals', 'Telling people'], alts: [['Mind', 'Motivation'], ['Values', 'Privacy']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
