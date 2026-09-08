@@ -121,7 +121,20 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   read it*. A sheet that people skip produces answers that belong to no
   cohort, and CLAUDE.md's own test applies to this screen as much as to a
   lens: a surface that collects without joining is unfinished.
-- **status** — `requested`.
+- **status** — `designed` (2026-09-08). The owner's canvas is extracted
+  to [`design/setup-sheet-2026-09-08/`](../design/setup-sheet-2026-09-08/)
+  — six artboards, and a README that reads the templated markup back as
+  the strings a build has to match. It answers the question this request
+  was really about with STRUCTURE rather than marks: no asterisks
+  anywhere, two group headings (*To start* · *If you like*) doing that
+  work, and one sentence above them saying what the four buy. The
+  required set is the one proposed above, unchanged. **Two departures
+  worth the owner's eye, both named in the README:** there is no *Skip
+  for now* at all — a skip you must fill four fields to reach is not a
+  skip, so the primary is *Continue* and the counter goes with it — and
+  the birthday is a YEAR rather than a date, which costs up to a year of
+  precision on the exact age D155 pairs with the band (day and month
+  stay askable in the profile's Basics card). Next is the build.
 
 ### 0b · The interest profile, shown and editable
 

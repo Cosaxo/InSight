@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..800&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:oklch(0.962 0.004 80)}
+body{font-family:'Hanken Grotesk',-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit} a:hover{color:inherit}
+input::placeholder{color:var(--fd-ink3, oklch(0.472 0.010 68));opacity:1}
+@keyframes fdspin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="{{ canvasStyle }}">
+  <div style="width:100%;display:flex;flex-direction:column;gap:6px;color:var(--fd-ink, oklch(0.216 0.011 70))">
+    <span style="font-family:'Spectral',Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-0.01em">A few things about you</span>
+    <span style="font-size:13px;font-weight:600;color:var(--fd-ink3, oklch(0.472 0.010 68))">Account setup, first screen after the sign-in gate. Proposal: four fields to start, five if you like. No counter, no skip.</span>
+  </div>
+
+  <sc-for list="{{ states }}" as="s" hint-placeholder-count="6">
+    <div style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;flex-direction:column;gap:2px;padding:0 4px;color:var(--fd-ink, oklch(0.216 0.011 70))">
+        <span style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">{{ s.label }}</span>
+        <sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><span style="font-size:12.5px;font-weight:600;color:var(--fd-ink3, oklch(0.472 0.010 68));max-width:380px;line-height:1.4;text-wrap:pretty">{{ s.note }}</span></sc-if>
+      </div>
+
+      <div data-screen-label="{{ s.label }}" style="width:402px;min-height:874px;box-sizing:border-box;padding:0 20px 28px;border-radius:30px;border:1px solid var(--fd-rule, oklch(0.905 0.006 74));background:var(--fd-bg, oklch(0.994 0.0025 80));color:var(--fd-ink, oklch(0.216 0.011 70));display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding-top:18px;flex:none">
+          <svg viewBox="0 0 100 100" aria-hidden="true" style="width:24px;height:24px;display:block">
+            <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke-width="3" stroke-linejoin="round" style="stroke:var(--fd-stroke, oklch(0.62 0.012 70))"></path>
+            <circle cx="50" cy="24" r="9" style="fill:var(--fd-h282, oklch(0.52 0.14 282))"></circle>
+            <circle cx="72.5" cy="37" r="9" style="fill:var(--fd-h8, oklch(0.52 0.14 8))"></circle>
+            <circle cx="72.5" cy="63" r="9" style="fill:var(--fd-h85, oklch(0.53 0.14 85))"></circle>
+            <circle cx="50" cy="76" r="9" style="fill:var(--fd-h235, oklch(0.52 0.14 235))"></circle>
+            <circle cx="27.5" cy="63" r="9" style="fill:var(--fd-h40, oklch(0.52 0.14 40))"></circle>
+            <circle cx="27.5" cy="37" r="9" style="fill:var(--fd-h195, oklch(0.52 0.14 195))"></circle>
+            <circle cx="50" cy="50" r="11.5" style="fill:var(--fd-pupil, oklch(0.216 0.011 70))"></circle>
+          </svg>
+          <span style="font-size:17px;font-weight:700;letter-spacing:-0.03em;line-height:1">InSight</span>
+        </div>
+
+        <sc-if value="{{ s.offline }}" hint-placeholder-val="{{ false }}">
+          <div role="alert" style="display:flex;align-items:center;gap:10px;box-sizing:border-box;padding:12px 14px;margin-top:18px;border-radius:14px;border:1px solid var(--fd-rule, oklch(0.905 0.006 74));background:var(--fd-field, oklch(0.965 0.004 75));font-size:13.5px;font-weight:600;line-height:1.4;color:var(--fd-ink2, oklch(0.41 0.011 68))">
+            <span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:var(--fd-ink3, oklch(0.472 0.010 68));flex:none"></span>
+            <span>You're offline. Check your connection, then try again.</span>
+          </div>
+        </sc-if>
+
+        <h1 style="margin:26px 0 0;font-family:'Spectral',Georgia,serif;font-size:26px;font-weight:500;line-height:1.2;letter-spacing:-0.01em">A few things about you</h1>
+        <p style="margin:8px 0 0;font-size:14.5px;font-weight:500;line-height:1.45;color:var(--fd-ink2, oklch(0.41 0.011 68));text-wrap:pretty">Your answers are counted with people of your age, gender and country. That takes four things.</p>
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:24px;padding:0 2px">
+          <span style="font-size:13px;font-weight:700;letter-spacing:0.02em">To start</span>
+        </div>
+        <input type="text" aria-label="Display name" placeholder="Display name" value="{{ s.name }}" readOnly="{{ true }}" style="margin-top:8px;width:100%;height:50px;box-sizing:border-box;padding:0 16px;border-radius:14px;border:1.5px solid var(--fd-rule, oklch(0.905 0.006 74));background:var(--fd-field, oklch(0.965 0.004 75));color:var(--fd-ink, oklch(0.216 0.011 70));font:inherit;font-size:16px;font-weight:500;outline:none;-webkit-appearance:none;appearance:none">
+        <div style="margin-top:8px;border-radius:14px;background:var(--fd-field, oklch(0.965 0.004 75));display:flex;flex-direction:column">
+          <div style="display:flex;flex-direction:column;box-sizing:border-box;min-height:54px;padding:10px 16px;gap:2px;border-bottom:1px solid var(--fd-rule, oklch(0.905 0.006 74))">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:22px">
+              <span style="font-size:15.5px;font-weight:600">Year of birth</span>
+              <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.yearColor }}"><span>{{ s.year }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+            </div>
+            <span style="font-size:12.5px;font-weight:600;line-height:1.35;color:var(--fd-ink3, oklch(0.472 0.010 68))">Saved as an age group, not a date.</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:0 16px;border-bottom:1px solid var(--fd-rule, oklch(0.905 0.006 74))">
+            <span style="font-size:15.5px;font-weight:600">Gender</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.genderColor }}"><span>{{ s.gender }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:0 16px">
+            <span style="font-size:15.5px;font-weight:600">Country</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.countryColor }}"><span>{{ s.country }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:26px;padding:0 2px">
+          <span style="font-size:13px;font-weight:700;letter-spacing:0.02em">If you like</span>
+          <span style="font-size:12.5px;font-weight:600;color:var(--fd-ink3, oklch(0.472 0.010 68))">Add or change later in your profile</span>
+        </div>
+        <div style="margin-top:8px;border-radius:14px;background:var(--fd-field, oklch(0.965 0.004 75));display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:0 16px;border-bottom:1px solid var(--fd-rule, oklch(0.905 0.006 74))">
+            <span style="font-size:15.5px;font-weight:600">City</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.cityColor }}"><span>{{ s.city }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:0 16px;border-bottom:1px solid var(--fd-rule, oklch(0.905 0.006 74))">
+            <span style="font-size:15.5px;font-weight:600">Education</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.eduColor }}"><span>{{ s.edu }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:0 16px;border-bottom:1px solid var(--fd-rule, oklch(0.905 0.006 74))">
+            <span style="font-size:15.5px;font-weight:600">Work</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.workColor }}"><span>{{ s.work }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:0 16px">
+            <span style="font-size:15.5px;font-weight:600">Relationship</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:500;color:{{ s.relColor }}"><span>{{ s.rel }}</span><span aria-hidden="true" style="color:var(--fd-ink3, oklch(0.472 0.010 68))">›</span></span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+          <div style="position:relative;display:flex;align-items:center">
+            <span aria-hidden="true" style="position:absolute;left:16px;font-size:16px;font-weight:500;color:var(--fd-ink3, oklch(0.472 0.010 68))">@</span>
+            <input type="text" aria-label="Handle" aria-invalid="{{ s.handleErr }}" placeholder="handle" value="{{ s.handle }}" readOnly="{{ true }}" autocapitalize="none" style="width:100%;height:50px;box-sizing:border-box;padding:0 16px 0 34px;border-radius:14px;border:1.5px solid {{ s.handleBorder }};background:var(--fd-field, oklch(0.965 0.004 75));color:var(--fd-ink, oklch(0.216 0.011 70));font:inherit;font-size:16px;font-weight:500;outline:none;-webkit-appearance:none;appearance:none">
+          </div>
+          <sc-if value="{{ s.handleErr }}" hint-placeholder-val="{{ false }}">
+            <div role="alert" style="padding:0 4px;font-size:12.5px;font-weight:600;line-height:1.4;color:var(--fd-err, oklch(0.50 0.17 27))">@{{ s.handle }} is taken. Everything else is saved.</div>
+          </sc-if>
+          <span style="padding:0 4px;font-size:12.5px;font-weight:600;line-height:1.35;color:var(--fd-ink3, oklch(0.472 0.010 68))">A handle is claimed once and can't be changed.</span>
+        </div>
+
+        <div style="flex:1 1 0;min-height:22px"></div>
+
+        <button disabled="{{ s.disabled }}" aria-busy="{{ s.saving }}" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:50px;box-sizing:border-box;padding:0 16px;border:none;border-radius:14px;background:var(--fd-ink, oklch(0.216 0.011 70));color:var(--fd-onink, oklch(0.965 0.004 75));font:inherit;font-size:15.5px;font-weight:700;letter-spacing:-0.01em;cursor:pointer;-webkit-appearance:none;appearance:none;opacity:{{ s.primaryOpacity }}" style-active="transform:scale(0.985)">
+          <sc-if value="{{ s.saving }}" hint-placeholder-val="{{ false }}">{{ spinner }}</sc-if>
+          <span>{{ s.primary }}</span>
+        </button>
+        <sc-if value="{{ s.hint }}" hint-placeholder-val="{{ false }}">
+          <p style="margin:10px 0 0;text-align:center;font-size:12.5px;font-weight:600;line-height:1.4;color:var(--fd-ink3, oklch(0.472 0.010 68))">{{ s.hint }}</p>
+        </sc-if>
+        <sc-if value="{{ s.handleErr }}" hint-placeholder-val="{{ false }}">
+          <button style="align-self:center;min-height:44px;margin-top:2px;padding:0 14px;border:none;background:none;color:var(--fd-ink2, oklch(0.41 0.011 68));font:inherit;font-size:14px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none" style-active="opacity:0.6">Skip the handle for now</button>
+        </sc-if>
+      </div>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Palette&quot;},&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const T = dark ? {
+      bg: 'oklch(0.235 0.009 70)', field: 'oklch(0.205 0.008 70)', rule: 'oklch(0.34 0.009 70)',
+      ink: 'oklch(0.955 0.004 80)', ink2: 'oklch(0.78 0.006 75)', ink3: 'oklch(0.68 0.008 72)', onink: 'oklch(0.216 0.011 70)',
+      err: 'oklch(0.76 0.13 27)', stroke: 'oklch(0.55 0.012 70)', pupil: 'oklch(0.975 0.003 80)', canvas: 'oklch(0.19 0.008 70)',
+      h40: 'oklch(0.62 0.15 40)', h85: 'oklch(0.72 0.14 85)', h195: 'oklch(0.62 0.12 195)', h235: 'oklch(0.60 0.14 240)', h282: 'oklch(0.60 0.16 288)', h8: 'oklch(0.62 0.16 12)',
+    } : {
+      bg: 'oklch(0.994 0.0025 80)', field: 'oklch(0.965 0.004 75)', rule: 'oklch(0.905 0.006 74)',
+      ink: 'oklch(0.216 0.011 70)', ink2: 'oklch(0.41 0.011 68)', ink3: 'oklch(0.472 0.010 68)', onink: 'oklch(0.965 0.004 75)',
+      err: 'oklch(0.50 0.17 27)', stroke: 'oklch(0.62 0.012 70)', pupil: 'oklch(0.216 0.011 70)', canvas: 'oklch(0.962 0.004 80)',
+      h40: 'oklch(0.52 0.14 40)', h85: 'oklch(0.53 0.14 85)', h195: 'oklch(0.52 0.14 195)', h235: 'oklch(0.52 0.14 235)', h282: 'oklch(0.52 0.14 282)', h8: 'oklch(0.52 0.14 8)',
+    };
+    const canvasStyle = {
+      minHeight: '100vh', boxSizing: 'border-box', padding: '36px 40px 60px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: '28px',
+      background: T.canvas, fontFamily: "'Hanken Grotesk', -apple-system, system-ui, sans-serif",
+      '--fd-bg': T.bg, '--fd-field': T.field, '--fd-rule': T.rule, '--fd-ink': T.ink, '--fd-ink2': T.ink2, '--fd-ink3': T.ink3, '--fd-onink': T.onink, '--fd-err': T.err,
+      '--fd-stroke': T.stroke, '--fd-pupil': T.pupil, '--fd-h40': T.h40, '--fd-h85': T.h85, '--fd-h195': T.h195, '--fd-h235': T.h235, '--fd-h282': T.h282, '--fd-h8': T.h8,
+    };
+    const spinner = React.createElement('span', { 'aria-hidden': 'true', style: { display: 'inline-block', width: 18, height: 18, boxSizing: 'border-box', borderRadius: '50%', border: `2px solid ${T.onink}`, borderTopColor: 'transparent', animation: 'fdspin 0.8s linear infinite' } });
+    const HINT = 'Fill in the four above to continue.';
+    const full = { name: 'Mira', year: '1994', gender: 'Woman', country: 'Norway', city: 'Bergen', edu: "Master's degree", work: 'Health care', rel: 'In a relationship', handle: 'mira' };
+    const mk = (o) => {
+      const v = Object.assign({ name: '', year: '', gender: '', country: '', city: '', edu: '', work: '', rel: '', handle: '', offline: false, saving: false, handleErr: false, primary: 'Continue', hint: '' }, o);
+      const ready = v.name && v.year && v.gender && v.country;
+      for (const k of ['year', 'gender', 'country', 'city', 'edu', 'work', 'rel']) { v[k + 'Color'] = v[k] ? T.ink : T.ink3; if (!v[k]) v[k] = 'Choose'; }
+      v.disabled = !ready || v.saving || v.offline;
+      v.primaryOpacity = ready && !v.offline ? (v.saving ? 0.75 : 1) : 0.45;
+      v.handleBorder = v.handleErr ? T.err : `var(--fd-rule, ${T.rule})`;
+      if (!ready && !v.hint) v.hint = HINT;
+      return v;
+    };
+    const states = [
+      mk({ label: 'Empty', note: 'A new account. Two groups say what matters without an asterisk; the button waits for the first group.' }),
+      mk({ label: 'Partial', name: 'Mira', year: '1994', city: 'Bergen', note: 'Two of the four answered. Nothing is marked wrong, the button is simply not ready yet.' }),
+      mk(Object.assign({}, full, { label: 'Complete', note: 'The four are in; the rest is a bonus. One button, no count, no skip.' })),
+      mk(Object.assign({}, full, { label: 'Saving', saving: true, note: 'Everything goes in one write. Rows stay readable; only the button is busy.' })),
+      mk(Object.assign({}, full, { label: 'Handle refused', handleErr: true, primary: 'Save handle', note: 'The one error that survives a save: the rest is written, the sheet stays for the handle alone.' })),
+      mk(Object.assign({}, full, { label: 'Offline', offline: true, primary: 'Try again', note: 'Vocabularies are local, so the form still fills; only the save waits. Same banner as the front door.' })),
+    ];
+    return { canvasStyle, spinner, states, showNotes: this.props.showNotes !== false };
+  }
+}
+</script>
+</body>
+</html>
