@@ -48,34 +48,69 @@
 // layer up: that regulator answers "how many questions may this run
 // write", this one "may this run open a new room to write them into".
 //
-// BLOCKERS FOR A TOP — each something the old rule asserted in prose:
+// THE POSTURE IS BREADTH-FIRST (D427). The first cut was depth-first —
+// every room full before another opens, three days of evidence, one leaf
+// per parent at a time — and the owner's reading of it was the correction:
+// "the new topic generation should be higher than that, especially in
+// learn … aim to almost become like reddit in the end where popular niches
+// are almost all covered". Reddit's posture is the opposite of depth-first:
+// a niche EXISTS the moment a few people want it, and popularity fills it
+// later. So:
+//
+//   · A room is BORN WITH A HANDFUL, not full. LEAF_BIRTH questions for a
+//     feed subtopic, FIELD_BIRTH cards for a learn field. The floor (12,
+//     24) is what the lane fills TOWARD afterwards, thinnest first.
+//   · A leaf is the LANE'S CALL, in one run. No day rule, no parent-levelled
+//     rule, no settling: a leaf is cheap (no chip, no branch, no install
+//     page) and it folds itself if it stays empty (D426, re-based below on
+//     the handful rather than the floor). What the run owes is the reason in
+//     the PR: which popular niche, and why this one before the others.
+//   · COVERAGE is a number, and it steers. Every parent has a coverage
+//     target (LEAF_TARGET leaves per feed topic, FIELD_TARGET fields per
+//     learn subject), and a BREADTH_SHARE of every run's grant opens rooms
+//     in the least-covered parents first — coverageAllocation says where.
+//     The rest of the grant fills existing rooms, as before. Above the
+//     target, opening continues on evidence (a parked question), not on
+//     the coverage line.
+//   · A learn SUBJECT is cheap too: it is a branch inside the Knowledge hub
+//     by prefix, no chip, no hub change — so it is born like a leaf, in one
+//     run, with FIELD_BIRTH cards in its first field. Five subjects is not
+//     coverage of anything; the world's subjects are dozens.
+//   · What costs the chip row, the Map's branches or every install still
+//     waits: a feed topic (a chip and FEED_PAGE reads per new device, D96/
+//     D321) and a daily top (a Map branch) keep the three-day evidence rule
+//     and placement. Breadth debt is no longer a blocker anywhere — the
+//     fill share is what pays it.
+//
+// What that costs, printed and put to the owner rather than gated: a
+// learn field is a page of LEARN_PAGE (24) reads per device per boot under
+// the follow-everything default (D283) until the interest model narrows
+// it; and the learn lane fires twice a week, which caps its reach more than
+// any constant here (docs/OWNER-LIST.md has both).
+//
+// BLOCKERS FOR A FEED OR DAILY TOP — each something the old rule asserted
+// in prose:
 //
 //   1. PLACED. It names an existing hub to land in (see above). Not placed
 //      is the owner's question, never a run's.
 //   2. EVIDENCE. D145's own sentence — "three runs proposing the same
 //      missing top is an argument; one is an anecdote" — made literal:
 //      EVIDENCE_MIN parked questions from RUNS_MIN distinct run days.
-//   3. NO BREADTH DEBT. Every existing category on that surface at or above
-//      its floor. A new room while the old ones are thin is breadth owed
-//      twice. The number is the lane regulator's OWN deficit, so this file
-//      cannot disagree with the lane about what thin means.
-//   4. SETTLING. The last category created on that surface is at floor.
+//   3. SETTLING. The last category created on that surface is at floor.
 //
-// BLOCKERS FOR A LEAF: evidence (parked plus RETAGGED existing questions
+// A LEARN SUBJECT: born with FIELD_BIRTH cards in one field, one run.
+//
+// A LEAF: born with its handful (parked plus RETAGGED existing questions
 // under the parent — free stock, TAGS-PLAN's "a door on an existing
-// question is the free first fix" one level down; days on the parked
-// only), the parent levelled ("a leaf below a levelled parent is depth
-// where breadth is still owed"), and settling per parent.
+// question is the free first fix" one level down), one run; the only
+// blocker is capacity, and only when the run cannot reach the handful.
 //
-// THE WRITE RULE, both levels: the creating run writes min(budget, floor −
-// stock) into the room in the PR that opens it, and the lane's own
-// floor-first levelling finishes it — a room at 3 is the largest deficit
-// on its surface (feed-budget.mjs's LANE_EXCLUDED comment describes exactly
-// that pull). Settling holds the door meanwhile. Capacity was a BLOCKER in
-// D424's first cut and locked learn out by arithmetic (cap 10, floor 24);
-// it is a write rule since. The one exception is a feed LEAF: feed-budget
-// levels topics, not leaves, so a feed leaf must be born full — and it
-// always can be, FEED_CAP (60) ≥ LEAF_FLOOR (12), pinned.
+// THE WRITE RULE: the creating run writes min(budget, birth − stock) into
+// the room in the PR that opens it. Filling toward the floor is the lane's
+// ordinary levelling afterwards — learn levels fields (loadLearnFields
+// counts per field); the feed levels TOPICS, and a leaf's questions ARE its
+// parent's, so the fill is a tagging rule the CLI prints per topic: of the
+// questions written into a parent, tag its thinnest leaves first.
 //
 // WHAT IS DELIBERATELY NOT A BLOCKER, and the measurement that decided it
 // (D424 §5): a semantic "is this distinct?" gate. question-neighbors.mjs's
@@ -113,11 +148,36 @@ export const EVIDENCE_MIN = 3;
 export const RUNS_MIN = 3;
 
 // A feed leaf is a followable shelf, and a device holds one page of a topic
-// (bankPager.ts FEED_PAGE): a leaf that cannot fill one page is the "broken
-// room" world-subtopics.js refuses to offer. Held equal to the pager's
-// constant by the test (feedPageCost below reads it off the source), so the
-// two cannot drift the way D197's copies did.
+// (bankPager.ts FEED_PAGE): a leaf that fills one page is a whole shelf.
+// Held equal to the pager's constant by the test (feedPageCost below reads
+// it off the source), so the two cannot drift the way D197's copies did.
+// Since D427 this is what the lane fills TOWARD, not what a leaf is born
+// with — birth is the handful below.
 export const LEAF_FLOOR = 12;
+
+// D427 — Reddit's posture as numbers. A room exists with a handful; the
+// lane fills it afterwards; coverage steers where the next room opens.
+//   LEAF_BIRTH    4  a subtopic exists once four questions carry its tag —
+//                    a reader who filters to it meets a shelf with something
+//                    on it, and the feed is a mix, so a thin leaf is never
+//                    the whole screen.
+//   FIELD_BIRTH   6  a learn field exists with six cards across difficulties
+//                    — check:quality's LEARN_FIELD_SPAN_MIN (20 points of p)
+//                    needs a spread, and four cannot show one honestly.
+//   LEAF_TARGET  12  leaves per feed topic the breadth share opens toward
+//                    (Sport: football, tennis, running, cycling, F1, gym …).
+//                    A floor for coverage, not a cap: above it, opening
+//                    continues on evidence.
+//   FIELD_TARGET  8  fields per learn subject, the same way.
+//   BREADTH_SHARE 1/3 of a run's grant that opens rooms while any parent is
+//                    under its coverage target — feed 20 of 60 (five leaves
+//                    a day at birth), learn 10 of 30 (a field and a half a
+//                    run). The other two thirds fill what exists.
+export const LEAF_BIRTH = 4;
+export const FIELD_BIRTH = 6;
+export const LEAF_TARGET = 12;
+export const FIELD_TARGET = 8;
+export const BREADTH_SHARE = 1 / 3;
 
 // The top level, per surface: floors and caps are the LANES' own, imported
 // rather than restated (D197). `sites` is what a creating run must write,
@@ -143,9 +203,11 @@ export const TOPS = {
     ],
   },
   learn: {
-    // A subject is levelled when every field under it is (loadLearnFields).
-    floor: FIELD_FLOOR, cap: LEARN_CAP, noun: "subject",
-    sites: ["content/learn-questions.json (subjects — Knowledge by the lrn- prefix, automatic)"],
+    // A subject is a branch inside Knowledge by prefix — no chip, no hub
+    // change — so it is CHEAP: born like a leaf, one run, with FIELD_BIRTH
+    // cards in its first field (D427).
+    floor: FIELD_FLOOR, cap: LEARN_CAP, noun: "subject", cheap: true, birth: FIELD_BIRTH,
+    sites: ["content/learn-questions.json (subjects — Knowledge by the lrn- prefix, automatic; plus its first field and that field's cards)"],
   },
 };
 
@@ -158,12 +220,14 @@ export const TOPS = {
 // created — `null` here says so.
 export const LEAVES = {
   feed: {
-    floor: LEAF_FLOOR, cap: FEED_CAP, noun: "subtopic", parentNoun: "topic",
+    floor: LEAF_FLOOR, birth: LEAF_BIRTH, target: LEAF_TARGET, cap: FEED_CAP, noun: "subtopic", parentNoun: "topic",
+    // The feed levels TOPICS; a leaf's questions are its parent's, so the
+    // fill toward the floor is a tagging rule the CLI prints per topic.
     levelledByLane: false,
     sites: ["src/v2/spec/world-subtopics.js (WORLD_SUBTOPICS)"],
   },
   learn: {
-    floor: FIELD_FLOOR, cap: LEARN_CAP, noun: "field", parentNoun: "subject",
+    floor: FIELD_FLOOR, birth: FIELD_BIRTH, target: FIELD_TARGET, cap: LEARN_CAP, noun: "field", parentNoun: "subject",
     levelledByLane: true,
     sites: ["content/learn-questions.json (fields)"],
   },
@@ -191,13 +255,11 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 // Pure: the CLI prints nothing these functions did not decide, so the test
 // pins the verdict a lane actually gets.
 //
-//   parked        questions waiting in the ledger for this leaf
-//   retag         existing questions under the parent the proposal claims
-//   days          distinct run days among the parked (runDays above)
-//   parentDeficit the parent's shortfall below ITS floor, from the lane
-//   budget        what the lane's regulator grants this run
-//   settling      the last leaf created under this parent: its stock, or null
-export function leafVerdict({ surface, parked, retag = 0, days, parentDeficit, budget, settling = null }) {
+//   parked    questions written for this leaf and waiting in the ledger
+//   retag     existing questions under the parent the proposal claims
+//   budget    what the lane's regulator grants this run
+//   parentOk  the parent exists on this surface and may carry leaves
+export function leafVerdict({ surface, parked, retag = 0, budget, parentOk = true }) {
   const s = LEAVES[surface];
   if (s === null) {
     return {
@@ -207,37 +269,18 @@ export function leafVerdict({ surface, parked, retag = 0, days, parentDeficit, b
   }
   if (!s) throw new Error(`topic-budget: unknown surface ${JSON.stringify(surface)}`);
   const blockers = [];
-  const evidence = parked + retag;
-  if (evidence < EVIDENCE_MIN || days < RUNS_MIN) {
-    blockers.push(
-      `evidence: ${plural(parked, "parked question")} + ${retag} retagged over ${plural(days, "run day")} ` +
-      `(need ${EVIDENCE_MIN} over ${RUNS_MIN}) — one run's opinion is an anecdote`,
-    );
-  }
-  if (parentDeficit > 0) {
-    blockers.push(
-      `parent thin: the ${s.parentNoun} owes ${plural(parentDeficit, "question")} to reach its floor — ` +
-      "a leaf below a levelled parent is depth where breadth is still owed",
-    );
-  }
-  if (settling !== null && settling < s.floor) {
-    blockers.push(`settling: the last ${s.noun} created under this ${s.parentNoun} is at ${settling} of ${s.floor} — one leaf per parent at a time`);
-  }
-  const owed = Math.max(0, s.floor - evidence);
+  if (!parentOk) blockers.push(`parent: not a ${surface} ${s.parentNoun} that may carry leaves`);
+  const stock = parked + retag;
+  const owed = Math.max(0, s.birth - stock);
   const write = Math.max(0, Math.min(budget, owed));
-  const rest = owed - write;
-  if (rest > 0 && !s.levelledByLane) {
-    // Cannot fire on the feed while FEED_CAP ≥ LEAF_FLOOR (pinned); here so
-    // the constants crossing is a printed reason, not a thin shelf.
-    blockers.push(`capacity: a ${surface} ${s.noun} is not levelled by its lane, so it must be born full — ${owed} owed, ${budget} granted`);
+  if (write < owed) {
+    blockers.push(`capacity: a ${s.noun} exists with its handful (${s.birth}) or not at all — ${stock} in hand, ${owed} to write, ${budget} granted`);
   }
   return {
     create: blockers.length === 0,
     owed, write, blockers,
     reason: blockers.length === 0
-      ? `create it, write ${plural(write, "question")} into it in the same PR (${parked} parked + ${retag} retagged + ${write} = ${evidence + write} of ${s.floor}` +
-        (rest > 0 ? `; the lane's floor-first levelling writes the other ${rest} on its next runs, and settling holds the door until then` : "") +
-        `), and write every site: ${s.sites.join(" · ")}`
+      ? `create it — the lane's call, one run (D427): write ${plural(write, "question")} into it in the same PR (${parked} parked + ${retag} retagged + ${write} = ${stock + write}, born at the handful of ${s.birth}; the lane fills it toward ${s.floor} afterwards), say in the PR which popular niche this is and why it before the others, and write every site: ${s.sites.join(" · ")}`
       : blockers[0],
   };
 }
@@ -248,10 +291,9 @@ export function leafVerdict({ surface, parked, retag = 0, days, parentDeficit, b
 //            always placed, by prefix)
 //   parked   questions waiting for this top
 //   days     distinct run days among them
-//   deficit  the lane regulator's own total shortfall below its floor
 //   budget   what the lane grants this run
 //   settling the last top created on this surface: its stock, or null
-export function topVerdict({ surface, placed = true, parked, days, deficit, budget, settling = null }) {
+export function topVerdict({ surface, placed = true, parked, days, budget, settling = null }) {
   const s = TOPS[surface];
   if (!s) throw new Error(`topic-budget: unknown surface ${JSON.stringify(surface)}`);
   const blockers = [];
@@ -262,14 +304,21 @@ export function topVerdict({ surface, placed = true, parked, days, deficit, budg
       `${LEAVES[surface] ? LEAVES[surface].noun : "path"} under \`nearest\``,
     );
   }
-  if (parked < EVIDENCE_MIN || days < RUNS_MIN) {
-    blockers.push(`evidence: ${plural(parked, "parked question")} over ${plural(days, "run day")} (need ${EVIDENCE_MIN} over ${RUNS_MIN}) — one run's opinion is an anecdote`);
+  if (s.cheap) {
+    // A learn subject: a branch inside Knowledge, no chip, no hub change —
+    // the lane's call in one run, born with its first field's handful.
+    const owed = Math.max(0, s.birth - parked);
+    const write = Math.max(0, Math.min(budget, owed));
+    if (write < owed) blockers.push(`capacity: a ${s.noun} exists with its first field's handful (${s.birth}) or not at all — ${parked} in hand, ${owed} to write, ${budget} granted`);
+    return {
+      create: blockers.length === 0, owed, write, blockers,
+      reason: blockers.length === 0
+        ? `create it — the lane's call, one run (D427): the subject row, its first field, and ${plural(write, "card")} into that field in the same PR (${parked} parked + ${write} = ${parked + write} of the handful ${s.birth}); Knowledge takes it by prefix; say in the PR which subject and why. Sites: ${s.sites.join(" · ")}`
+        : blockers[0],
+    };
   }
-  if (deficit > 0) {
-    blockers.push(
-      `breadth debt: the ${surface} lane owes ${plural(deficit, "question")} to reach ${s.floor}/${s.noun} on the categories ` +
-      "that already exist — a new room while the old ones are thin is breadth owed twice",
-    );
+  if (parked < EVIDENCE_MIN || days < RUNS_MIN) {
+    blockers.push(`evidence: ${plural(parked, "parked question")} over ${plural(days, "run day")} (need ${EVIDENCE_MIN} over ${RUNS_MIN}) — one run's opinion is an anecdote, and a ${s.noun} is a chip, a branch or a page per install`);
   }
   if (settling !== null && settling < s.floor) {
     blockers.push(`settling: the last ${surface} ${s.noun} created is at ${settling} of ${s.floor} — one room at a time`);
@@ -285,6 +334,40 @@ export function topVerdict({ surface, placed = true, parked, days, deficit, budg
         (rest > 0 ? `; the lane's floor-first levelling writes the other ${rest} on its next runs, and settling holds the door until then` : "") +
         `), and write every site: ${s.sites.join(" · ")}`
       : blockers[0],
+  };
+}
+
+/** Where the breadth share opens rooms this run (D427). `parents` is
+ * [{ id, rooms }] — every parent on the surface with how many leaves it
+ * holds; the least covered (rooms ÷ target) get a room each, round-robin,
+ * until the share is spent at `birth` per room. Parents at or over the
+ * target get none from this share — above the target a room opens on
+ * evidence, not on the coverage line. Returns the split so the lane can
+ * pass the reserve to its own regulator (learn: --reserve). */
+export function coverageAllocation({ parents, target, birth, budget, share = BREADTH_SHARE }) {
+  const under = parents.filter((p) => p.rooms < target).map((p) => ({ ...p }));
+  const breadth = Math.max(0, Math.floor(budget * share));
+  let rooms = under.length ? Math.floor(breadth / birth) : 0;
+  const opens = new Map();
+  while (rooms > 0 && under.length) {
+    under.sort((a, b) => (a.rooms / target) - (b.rooms / target) || a.id.localeCompare(b.id));
+    const p = under[0];
+    opens.set(p.id, (opens.get(p.id) ?? 0) + 1);
+    p.rooms += 1;
+    rooms -= 1;
+    if (p.rooms >= target) under.shift();
+  }
+  const open = [...opens].map(([parent, n]) => ({ parent, open: n }));
+  const spent = open.reduce((n, o) => n + o.open, 0) * birth;
+  return {
+    breadth: spent,
+    fill: budget - spent,
+    open,
+    reason: open.length
+      ? `open ${plural(open.reduce((n, o) => n + o.open, 0), "room")} this run (${spent} of ${budget}, ${birth} each): ${open.map((o) => `${o.parent} ×${o.open}`).join(" · ")} — least covered first; the lane picks the most popular uncovered niche in each, and says why in the PR`
+      : parents.length && under.length === 0
+        ? `every parent is at its coverage target (${target}) — the breadth share rests; a room above the target opens on evidence`
+        : `the breadth share (${breadth}) cannot reach one room's handful (${birth}) — nothing opens this run`,
   };
 }
 
@@ -475,7 +558,7 @@ export const RETIRE_SHARE = 0.1;
 //   ownerSaid   the ledger row carries the owner's dated word
 //   signal      the lane's laneSignal result, or null; share the room's share
 //               of its weights; evenShare 1/N — the demand half of a licence
-export function retireVerdict({ level, surface, id, into, intoExists, stock, floor, leaves = 0, ownerSaid = false, signal = null, share = null, evenShare = null }) {
+export function retireVerdict({ level, surface, id, into, intoExists, stock, floor, birth = null, leaves = 0, ownerSaid = false, signal = null, share = null, evenShare = null }) {
   const s = level === "leaf" ? LEAVES[surface] : TOPS[surface];
   if (!s) throw new Error(`topic-budget: no ${level} on surface ${JSON.stringify(surface)}`);
   const blockers = [];
@@ -489,16 +572,21 @@ export function retireVerdict({ level, surface, id, into, intoExists, stock, flo
         : `\`into\` is not a ${surface} ${s.noun} that exists`);
   }
   if (leaves > 0) blockers.push(`${plural(leaves, "leaf")} still under it — fold the leaves first, each with its own row`);
-  const thin = stock < floor;
+  // D427 re-based the leaf's thin licence on the HANDFUL it was born with,
+  // not the floor: every leaf is under the floor at birth now, and the lane
+  // fills it — so "thin" means it fell below its handful (questions retired
+  // from under it), or the crowd is readable and silent on it.
+  const handful = birth ?? s.birth ?? floor;
+  const thin = level === "leaf" && stock < handful;
   const readable = signal && signal.mode !== "blind";
   const silent = readable && share !== null && evenShare !== null && share < RETIRE_SHARE * evenShare;
   const licence = ownerSaid ? "the owner's word"
-    : level === "leaf" && thin ? `thin: ${stock} of ${floor}, and a ${surface} ${s.noun} its lane does not level has two futures — fill it this run, or fold`
-    : level === "top" && silent ? `nobody answers it: ${(share * 100).toFixed(1)}% of the crowd's share against an even ${(evenShare * 100).toFixed(1)}% (under ${RETIRE_SHARE} of even)`
+    : level === "leaf" && thin ? `below its handful: ${stock} of ${handful} — the room it was born with is gone, and a ${surface} ${s.noun} that lost its handful has two futures — fill it this run, or fold`
+    : silent ? `nobody answers it: ${(share * 100).toFixed(1)}% of the crowd's share against an even ${(evenShare * 100).toFixed(1)}% (under ${RETIRE_SHARE} of even)`
     : null;
   if (!licence) {
     blockers.push(level === "leaf"
-      ? `no licence: it is at ${stock} of ${floor} (not thin) and the owner has not said — a stocked leaf stays`
+      ? `no licence: it holds its handful (${stock} of ${handful}), the crowd is ${readable ? "not silent on it" : "too small to read"} and the owner has not said — a room with its handful stays and the lane fills it`
       : readable
         ? `no licence: the crowd answers it (${share === null ? "share unread" : (share * 100).toFixed(1) + "%"} against an even ${evenShare === null ? "?" : (evenShare * 100).toFixed(1) + "%"}) and the owner has not said`
         : `no licence: the demand signal is blind (${signal ? signal.note : "no signal"}) and the owner has not said — a top folds on a real crowd's silence or the owner's word, never on a run's tidiness`);
@@ -550,9 +638,33 @@ if (invokedDirectly) {
       : `${plural(leafRows.length, LEAVES[name].noun)}, floor ${LEAVES[name].floor}, ${leafRows.filter((l) => l.stock < LEAVES[name].floor).length} under it`;
     console.log(`    ${name}: ${plural(t.count, s.noun)}, lane owes ${t.deficit}${t.deficit === 0 ? " (levelled)" : ""} · ${leafLine}`);
   }
+  // D427 — where the breadth share opens rooms this run, per surface, and
+  // which existing leaves the fill should tag first.
+  const learnJson = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
+  const coverage = {
+    feed: coverageAllocation({
+      parents: tops.feed.rows.map((r) => ({ id: r.id, rooms: leaves.feed.filter((l) => l.parent === r.id).length })),
+      target: LEAF_TARGET, birth: LEAF_BIRTH, budget: FEED_CAP,
+    }),
+    learn: coverageAllocation({
+      parents: learnJson.subjects.map((sj) => ({ id: sj.id, rooms: leaves.learn.filter((l) => l.parent === sj.id).length })),
+      target: FIELD_TARGET, birth: FIELD_BIRTH, budget: LEARN_CAP,
+    }),
+  };
+  console.log("  coverage (D427 — a room exists with a handful; the breadth share opens rooms least-covered first):");
+  for (const [name, c] of Object.entries(coverage)) {
+    const parents = name === "feed" ? tops.feed.rows.map((r) => r.id) : learnJson.subjects.map((sj) => sj.id);
+    const target = name === "feed" ? LEAF_TARGET : FIELD_TARGET;
+    const line = parents.map((id) => `${id} ${leaves[name].filter((l) => l.parent === id).length}/${target}`).join(" · ");
+    console.log(`    ${name}: ${line}`);
+    console.log(`      ${c.reason}`);
+    if (name === "learn") console.log(`      then: npm run learn:budget -- --reserve ${c.breadth} (the fill share is ${c.fill}); each field is a page of 24 reads per device per boot until the interest model narrows it`);
+    const thin = leaves[name].filter((l) => l.stock < LEAVES[name].floor);
+    if (thin.length) console.log(`      fill first (under ${LEAVES[name].floor}): ${thin.map((l) => `${l.id} ${l.stock}${name === "feed" ? ` (tag questions written into ${l.parent})` : ""}`).join(" · ")}`);
+  }
   if (proposals.length === 0) {
-    console.log("  no proposals — nothing to rule on. A lane parks a question that fits nothing under its nearest parent"
-      + " (QUESTION-FARM.md § When no category fits); it does not drop it.");
+    console.log("  no proposals — nothing to rule on. A lane opens the rooms the coverage line names, and parks a question that"
+      + " fits nothing under its nearest parent (QUESTION-FARM.md § When no category fits); it does not drop it.");
   }
 
   for (const p of proposals) {
@@ -563,18 +675,19 @@ if (invokedDirectly) {
     if (!TOPS[p.surface]) { console.log(`    unknown surface ${JSON.stringify(p.surface)} — check:taxonomy fails on this`); continue; }
     let v;
     if (level === "leaf") {
-      const prior = (ledger.created ?? []).filter((c) => c.surface === p.surface && c.parent === p.parent).at(-1);
-      const settling = prior ? (leaves[p.surface]?.find((l) => l.id === prior.id)?.stock ?? 0) : null;
-      const parentDeficit = parentDeficitOf(p.surface, p.parent, tops, leaves) ?? 0;
       const retag = (p.retag ?? []).length;
-      v = leafVerdict({ surface: p.surface, parked, retag, days, parentDeficit, budget: LEAVES[p.surface]?.cap ?? 0, settling });
-      console.log(`    ${parked} parked + ${retag} retagged over ${plural(days, "run day")} · parent owes ${parentDeficit} · grant ${LEAVES[p.surface]?.cap ?? 0}`);
+      const parentOk = p.surface === "feed"
+        ? tops.feed.rows.some((r) => r.id === p.parent)
+        : p.surface === "learn" ? learnJson.subjects.some((sj) => sj.id === p.parent)
+        : false;
+      v = leafVerdict({ surface: p.surface, parked, retag, budget: LEAVES[p.surface]?.cap ?? 0, parentOk });
+      console.log(`    ${parked} parked + ${retag} retagged · grant ${LEAVES[p.surface]?.cap ?? 0} · handful ${LEAVES[p.surface]?.birth ?? "-"}`);
     } else {
       const prior = (ledger.created ?? []).filter((c) => c.surface === p.surface && levelOf(c) === "top").at(-1);
       const settling = prior ? (tops[p.surface].rows.find((r) => r.id === prior.id)?.stock ?? 0) : null;
       const placed = isPlaced(p, ring);
-      v = topVerdict({ surface: p.surface, placed, parked, days, deficit: tops[p.surface].deficit, budget: TOPS[p.surface].cap, settling });
-      console.log(`    ${parked} parked over ${plural(days, "run day")} · hub ${p.group ? JSON.stringify(p.group) : "unstated"}${placed ? "" : " (none such)"} · lane owes ${tops[p.surface].deficit}`);
+      v = topVerdict({ surface: p.surface, placed, parked, days, budget: TOPS[p.surface].cap, settling });
+      console.log(`    ${parked} parked over ${plural(days, "run day")} · hub ${p.group ? JSON.stringify(p.group) : "unstated"}${placed ? "" : " (none such)"}${TOPS[p.surface].cheap ? " · cheap: Knowledge by prefix" : ""}`);
     }
     if (v.create) {
       console.log(`    CREATE — ${v.reason}`);
@@ -626,7 +739,7 @@ if (invokedDirectly) {
         }
       }
       const { share, evenShare } = demandReading(signal, r.id, rowIds);
-      const v = retireVerdict({ level, surface: r.surface, id: r.id, into: r.into, intoExists, stock, floor, leaves: leavesUnder,
+      const v = retireVerdict({ level, surface: r.surface, id: r.id, into: r.into, intoExists, stock, floor, birth: level === "leaf" ? LEAVES[r.surface]?.birth ?? null : null, leaves: leavesUnder,
         ownerSaid: /^\d{4}-\d{2}-\d{2}/.test(String(r.owner ?? "")), signal, share, evenShare });
       console.log(`\n  ${r.surface}/${r.id} (${level}) → ${r.into ?? "?"} — ${r.reason ?? "no reason given"}`);
       console.log(`    stock ${stock} of ${floor}${leavesUnder ? ` · ${plural(leavesUnder, "leaf")} under it` : ""}${r.owner ? ` · owner ${r.owner}` : ""}${signal ? ` · signal: ${signal.mode === "blind" ? "blind" : "readable"}` : ""}`);

@@ -417,7 +417,7 @@ siblings*, prints one packet line each, and exits non-zero on any pair at
 or above the 0.5 gate. The sibling half is why the batch form is the rule
 now: `--candidate` run eight times compares eight questions to the bank
 and never to each other, and every lane's budget is bigger than one
-question (8/run here, 10/run learn). Two twins written in the same run
+question (8/run here, 30/run learn). Two twins written in the same run
 used to reach CI — one human review too late. `--candidate "…" --options
 "A|B"` still works for a single lookup while writing.
 
@@ -781,11 +781,17 @@ grantable budget of 10. Rules for a learn run:
 - **Start every run with `npm run learn:budget -- --open <cards on the
   open lane PR>`** (D115, reshaped at D350). The budget is computed, not
   flat, and since D350 it has **no ceiling**: every run is granted up
-  to **10 cards per run**, less whatever already sits unreviewed on the
-  lane's open PR, and the only zero is **10** unreviewed cards on that PR
-  (a gate refused a batch — fix it, do not stack). What the grant is
-  spent on is printed as the ALLOCATION, in the three tiers every lane
-  shares (`scripts/lane-tiers.mjs`), a chunk per field:
+  to **30 cards per run** (10 until D427 — raised on the owner's
+  direction that learn's coverage grows fastest of all the surfaces;
+  half the feed's 60, a learn card costing more at the writing bar),
+  less whatever already sits unreviewed on the lane's open PR, and the
+  only zero is **30** unreviewed cards on that PR (a gate refused a
+  batch — fix it, do not stack). **A third of the grant opens new
+  fields first** (D427 — `npm run topic:budget` names which subjects,
+  and `npm run learn:budget -- --reserve <n>` takes those cards off the
+  top); what the rest is spent on is printed as the ALLOCATION, in the
+  three tiers every lane shares (`scripts/lane-tiers.mjs`), a chunk per
+  field:
 
   1. **The floor first.** Every field is brought to **24 cards per
      field** — three times the scheduler's 8-card spacing floor, what
@@ -1454,36 +1460,47 @@ exists (Football under Sport) — a preference of fit, not a cap: a subject
 that is nobody's part is a topic, and the lane may create it.
 
 So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
-schedule. **For a leaf — the normal case — three blockers and a write
-rule:**
+schedule — and since D427 its posture is **breadth-first**, on the
+owner's direction: *"the new topic generation should be higher than
+that, especially in learn … aim to almost become like reddit in the end
+where popular niches are almost all covered."* Reddit's posture is the
+opposite of fill-every-room-first: a niche exists the moment a few
+people want it, and popularity fills it afterwards.
 
-1. **Evidence** — `EVIDENCE_MIN` (3) questions wanting the leaf, over
-   `RUNS_MIN` (3) distinct run days. Two kinds count: questions PARKED in
-   the ledger (new ones the lane wrote that fit nothing below the
-   parent), and questions RETAGGED — existing questions under the parent
-   that the proposal names as the leaf's (`retag`), which is free stock.
-   Days are counted on the parked entries only, so a pure carve still
-   needs three runs to say so: *three runs proposing the same missing
-   room is an argument; one is an anecdote.*
-2. **Parent levelled** — the parent at or above its own floor (24 for a
-   feed topic; every field at 24 for a learn subject). The deferral this
-   section carried for a month, made literal: a leaf below a thin parent
-   is depth where breadth is still owed.
-3. **Settling** — the last leaf created under the *same* parent is at its
-   floor. One leaf per parent at a time; different parents grow in
-   parallel, because leaves are cheap.
+**A leaf — the normal case — is the lane's call, in one run:**
 
-**The write rule:** the creating run writes `min(budget, floor − parked −
-retag)` into the leaf in the PR that opens it. A feed leaf's floor is 12
-— one page (`FEED_PAGE`), the shelf a device holds — and it is born full,
-always: the feed lane's cap (60) covers it, pinned by the test, because
-`feed-budget.mjs` levels topics, not leaves, and a thin leaf would stay
-thin. A learn field's floor is the lane's own 24, and the learn regulator
-levels fields, so a field may be born at 13 and full two runs later.
+- **Born with a handful, not full.** Four questions for a feed
+  subtopic (`LEAF_BIRTH`), six cards across difficulties for a learn
+  field (`FIELD_BIRTH` — the difficulty span rule needs a spread).
+  Parked questions and **retagged** existing questions under the parent
+  both count; the run writes the rest in the same PR. The floor (12 / 24)
+  is what the lane fills *toward* afterwards, thinnest first — on the
+  feed as a tagging rule (of the questions written into Sport, tag its
+  thinnest leaves first; `topic:budget` prints which), on learn through
+  the learn regulator's own levelling.
+- **No day rule, no parent-levelled rule, no settling.** A leaf is cheap
+  — no chip, no Map branch, no install page — and it folds itself if it
+  loses its handful or the crowd is silent on it (§ Retiring a room). What
+  the run owes is the *argument*: which popular niche this is, and why
+  it before the others, in the PR body.
+- **Coverage steers.** Every parent has a coverage target — 12 leaves per
+  feed topic (`LEAF_TARGET`), 8 fields per learn subject
+  (`FIELD_TARGET`) — and a **third of every run's grant** opens rooms in
+  the least-covered parents first (`BREADTH_SHARE`; `coverageAllocation`
+  prints *open 5 rooms this run: food ×2 · sport ×1 …*). Feed: 20 of 60
+  a day, five leaves at birth. Learn: 10 of 30 a run, a field and a
+  half. Above the target the share rests and a room opens on evidence — a
+  parked question from scouting — not on the coverage line.
+- **A learn subject is cheap too.** It is a branch inside the Knowledge
+  hub by prefix — no chip, no hub change — so it is born like a leaf, in
+  one run, with its first field's six cards. Five subjects is not
+  coverage of anything.
 
-**For a top — a new feed topic, learn subject or daily top — the same
-evidence, breadth-debt and settling rules D424 wrote, plus one: it is
-PLACED.** The proposal names the hub it lands in — `group`: for the
+**For a feed topic or a daily top — what costs the chip row, a Map
+branch, or every install — the evidence and settling rules D424 wrote,
+plus one: it is PLACED.** (Breadth debt is no longer a blocker anywhere
+since D427: the fill share pays it, and a thin room somewhere is not a
+reason a popular niche has no room.) The proposal names the hub it lands in — `group`: for the
 daily a hub id in `map-groups.js` (the new top's `catId` goes into that
 hub's `cats`; the file's "unplaced lands in World" default is never how
 a top arrives, and `check:taxonomy` fails one that is in no hub); for
@@ -1505,19 +1522,21 @@ written on the question and never created.
    first move and still the usual outcome. On the feed, fitting includes
    the leaf: a football question under Sport carries `sub: "sub_football"`
    once that leaf exists.
-2. **Scout, once.** Before writing toward the allocation, ask whether
-   there is a *part* of a parent this lane keeps writing into that has
-   no leaf — a subject the crowd is plainly interested in, a cluster of
-   existing questions under one topic that read as one room, a subject
-   the `now` lane has carried for months and is no longer *now*. If there
-   is one, write ONE question for it and park it (step 3), at most one
-   per run. If there is not, park nothing: the evidence rule counts days
-   precisely because recurrence is the signal, and a run that parks
-   something every day to be thorough has replaced the signal with its
-   own habit. This step exists because a lane writing toward "6 into
-   sport" will otherwise never meet a question that fits nothing, and a
-   system whose evidence stream is accidental is the old rule wearing
-   arithmetic.
+2. **Open the rooms the coverage line names.** `npm run topic:budget`
+   prints, per surface, how many rooms the breadth share opens this run
+   and under which parents (least covered first). For each, pick the
+   **most popular niche of that parent that has no room yet** — the
+   world's, not the bank's: Sport's football, tennis, running, F1, gym;
+   Biology's ecology, neuroscience, microbes — write its handful (or
+   retag the existing questions that are already it), and say in the PR
+   which and why this one before the others. This is the lane's call,
+   in one run (D427); the room folds itself if the crowd never comes.
+   Then **scout** for the rest: a *part* of a parent this lane keeps
+   writing into that has no leaf, a subject the `now` lane has carried
+   for months and is no longer *now*, a subject no hub of Knowledge
+   holds — park one question for it (step 3). For a feed topic or a
+   daily top the day rule still counts, because those cost a chip, a
+   branch or every install.
 3. **Park it** in `content/topic-proposals.json` under the proposed leaf:
    `level: "leaf"`, the `parent`, the label, the question with its run
    date, and — the free half — `retag`: the ids of existing questions
@@ -1575,13 +1594,14 @@ question is *met* — its `cat`, `sub` or `f` — and nothing else about it.
 
 **What licenses a fold, per level — the levels differ on purpose:**
 
-- **A leaf that is thin** (under its floor: 12 for a feed subtopic).
-  Feed leaves are not levelled by their lane, so a thin leaf has exactly
-  two futures — fill it this run, or fold it — and the fold is free:
-  dropping `sub` leaves every question exactly where it was, the
-  parent's. A learn field folds into a field of the *same* subject,
-  because the Map files mastered cards under `lrn-<subject>` and a
-  cross-subject fold would move them between hubs.
+- **A leaf that lost its handful** (under what it was born with: 4 for
+  a feed subtopic, 6 for a learn field — D427 re-based this from the
+  floor, since every leaf is under the floor at birth now and the lane
+  fills it), **or that the crowd is silent on** once the demand signal is
+  readable. The fold is free: dropping `sub` leaves every question
+  exactly where it was, the parent's. A learn field folds into a field
+  of the *same* subject, because the Map files mastered cards under
+  `lrn-<subject>` and a cross-subject fold would move them between hubs.
 - **A top that nobody answers.** The lane's own demand signal, once
   readable (past `DEMAND_MIN_ANSWERS`, 100 credited answers), and the
   room's share under `RETIRE_SHARE` (a tenth) of an even share. *Thin*
@@ -1597,7 +1617,7 @@ question is *met* — its `cat`, `sub` or `f` — and nothing else about it.
 
 | Room | The fold | Sites removed | Cost |
 | --- | --- | --- | --- |
-| feed subtopic | strip `sub` (into = the parent, always) | `WORLD_SUBTOPICS` row | none |
+| feed subtopic | strip `sub` (into = the parent, always) | `WORLD_SUBTOPICS` row | none — licensed below its handful (4) or on the crowd's silence, never merely under the floor |
 | learn field | cards' `f` → into, same subject | `fields` row | mastered cards move sub-branch, same hub |
 | feed topic | questions' `cat` → into; doors onto it dropped or replaced | palette row · wire row · `WF_BRANCH` caption | where the cards are met, and the demand credit — feed answers do not file on the Map tab |
 | daily top | archive rows' `cat[0]` (and alts) → into | `CAT_META` row · the hub's `cats` entry · `FALLBACK` row | **answers move branch on every user's Map** — which is why this one takes the owner's word or a real crowd's silence, never a run's tidiness |

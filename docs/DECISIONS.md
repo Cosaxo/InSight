@@ -45997,3 +45997,121 @@ else about them; the verdict states the rewrite and the gate bounds it.
 
 Revert the commit. The ledger's two lists are empty, the gate's rule 7
 walks nothing, and the orphan rules read the tree that is there.
+
+## D427 · Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples
+
+**2026-09-08.** **Status:** binding, built. The owner, reading D424–D426
+as one system: *"i think the new topic generation should be higher then
+that espasialy in learn but also other things should aim to almost
+become like reddit in the end where popular niches are almost all
+coverd"*.
+
+### What was depth-first about the first cut, measured
+
+D424's leaf rules were: three questions over three run days, the parent
+at its floor, the last leaf under that parent at *its* floor, and a
+room born full (12). Under those, the feed could open at most one
+subtopic per parent every three days; learn could open **nothing** —
+it owed 102 cards to its twelve fields, and breadth debt blocked every
+room until that was paid, at 10 cards a run twice a week: five weeks
+to the first new field, then one per fortnight. That is a taxonomy that
+prunes itself before it grows, which is the shape the old "never
+create" rule had, wearing arithmetic. Reddit's posture is the opposite:
+a niche exists the moment a few people want it, and popularity fills
+it afterwards.
+
+### The decisions
+
+**1 · A room is born with a handful, not full.** `LEAF_BIRTH` 4 for a
+feed subtopic — a reader who filters to it meets a shelf with something
+on it, and the feed is a mix, so a thin leaf is never the whole screen.
+`FIELD_BIRTH` 6 for a learn field — `check:quality`'s
+`LEARN_FIELD_SPAN_MIN` (20 points of p) needs a spread, and four cards
+cannot show one honestly. Parked and retagged questions both count; the
+run writes the rest in the same PR. The floor (12 / 24) is what the
+lane fills *toward* afterwards — learn through its own levelling; the
+feed through a tagging rule the regulator prints per topic (of the
+questions written into Sport, tag its thinnest leaves first), because
+the feed levels topics and a leaf's questions *are* its parent's.
+
+**2 · A leaf is the lane's call, in one run.** No day rule, no
+parent-levelled rule, no settling — all three were D424's, and each
+priced a leaf as if it cost what a topic costs. It does not: no chip,
+no Map branch, no install page, and since D426 it folds itself. What
+the run owes is the argument in the PR: which popular niche, and why
+this one before the others. `leafVerdict` has one blocker left,
+capacity — a room exists with its handful or not at all.
+
+**3 · Coverage is a number, and it steers.** `LEAF_TARGET` 12 leaves
+per feed topic, `FIELD_TARGET` 8 fields per learn subject, and a
+`BREADTH_SHARE` of one third of every run's grant opens rooms in the
+least-covered parents first — `coverageAllocation` prints *open 5
+rooms this run: food ×2 · sport ×1 …*, round-robin by coverage
+(rooms ÷ target), at birth each. Feed: 20 of 60 a day, five leaves.
+Learn: 10 of 30 a run, a field and a half, taken off the top of the
+learn grant with `learn:budget --reserve <n>` (new this record) so the
+two regulators agree. Above the target the share rests and a room
+opens on evidence — a parked question — not on the coverage line. The
+targets are floors for coverage, not caps.
+
+**4 · A learn subject is cheap.** It is a branch inside the Knowledge
+hub by prefix — no chip, no hub change — so `TOPS.learn.cheap` makes it
+born like a leaf: one run, its first field, that field's six cards.
+Five subjects is not coverage of anything; the world's subjects are
+dozens.
+
+**5 · Learn's cap triples: `RUN_CAP` 10 → 30, `OPEN_MAX` with it.** The
+header's own rule was *"raise it when runs finish with the bar met and
+time to spare"*; the owner's direction is the licence, and half the
+feed's 60 is the number — a learn card costs more at the writing bar
+than a feed vote (its trap argued, its fact sourced, its difficulty
+placed). Seven chunks of four a run, one field per chunk. The lane's
+cadence (Monday and Thursday) now caps its reach more than any
+constant here, and re-pacing a Routine is the owner's — on
+`OWNER-LIST.md`.
+
+**6 · Breadth debt is no longer a blocker anywhere.** "Every existing
+room at floor before a new one" was D424's rule for tops and D425's for
+leaves via the parent; it is what blocked learn outright. The fill
+share pays the debt now, and a thin room somewhere is not a reason a
+popular niche has no room. What still waits is what costs the chip
+row, a Map branch, or every install: a feed topic and a daily top keep
+the three-day evidence rule, placement and settling.
+
+**7 · D426's leaf licence is re-based on the handful.** Every leaf is
+under the floor at birth now and the lane fills it, so "under the floor
+→ fold" would have retired every new room the run after it opened.
+*Thin* means below the handful it was born with — questions retired
+from under it — or the crowd readable and silent on it. `retireVerdict`
+takes `birth`; the manual's table says so.
+
+### What this costs, printed rather than gated
+
+A learn field is a page of `LEARN_PAGE` (24) reads per device per boot
+under the follow-everything default (D283) until the interest model
+narrows it (`pageSizesByInterest`): twelve fields is 288 today, forty
+would be 960 on a fresh install. A feed leaf costs nothing extra — its
+cards ride the parent's page. The regulator prints the learn figure
+with the coverage line; the ceiling, if one is wanted, is the owner's,
+and the row on `OWNER-LIST.md` carries both levers (cadence, and a
+per-field page for cold fields the way the feed already does for cold
+topics).
+
+### What this does NOT do
+
+- **No room is opened here.** The coverage line on this tree says feed:
+  open 5 (sport 3/12 is the only topic with any leaf, all demo), learn:
+  open 1 — and the next firing of each lane is what opens them.
+- **Feed leaves are still not a paged shelf** of their own; at four
+  questions a device meets what the parent's page holds. Fine at birth;
+  the order doc carrying leaves is the step if a followed leaf reads
+  empty.
+- **The cadence.** Learn at 30 cards twice a week is 60 a week; the feed
+  writes 60 a day. Daily learn is the one change here that is not this
+  record's to make.
+
+### Reversal
+
+Revert the commit. The ledger is empty on every list, the constants
+return to D424's, and `learn:budget` ignores a `--reserve` it no longer
+parses.

@@ -10,77 +10,60 @@ import { describe, it, expect } from "vitest";
 import {
   leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
   loadTops, loadLeaves, loadLedger, loadRing, isPlaced, feedPageCost, parentDeficitOf,
-  retireVerdict, demandReading,
-  EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, RETIRE_SHARE, TOPS, LEAVES, SURFACES,
+  retireVerdict, demandReading, coverageAllocation,
+  EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, LEAF_BIRTH, FIELD_BIRTH, LEAF_TARGET, FIELD_TARGET, BREADTH_SHARE,
+  RETIRE_SHARE, TOPS, LEAVES, SURFACES,
 } from "./topic-budget.mjs";
 import { TOP_FLOOR, RUN_CAP as DAILY_CAP } from "./farm-budget.mjs";
 import { TOPIC_FLOOR, RUN_CAP as FEED_CAP } from "./feed-budget.mjs";
 import { FIELD_FLOOR, RUN_CAP as LEARN_CAP } from "./learn-budget.mjs";
 
-// A feed leaf with every blocker clear, so each test breaks exactly one thing.
-const leaf = { surface: "feed", parked: EVIDENCE_MIN, retag: 0, days: RUNS_MIN, parentDeficit: 0, budget: FEED_CAP, settling: null };
+// D427: a leaf is the lane's call, born with a handful, one run.
+const leaf = { surface: "feed", parked: 1, retag: 0, budget: FEED_CAP, parentOk: true };
 
-describe("leafVerdict — the normal case", () => {
-  it("creates when evidence, parent and settling are all clear, born full", () => {
+describe("leafVerdict — breadth-first, the lane's call in one run (D427)", () => {
+  it("creates with one parked question and writes the rest of the handful", () => {
     const v = leafVerdict(leaf);
     expect(v.create).toBe(true);
     expect(v.blockers).toEqual([]);
-    expect(leaf.parked + v.write).toBe(LEAF_FLOOR);
-    expect(v.reason).not.toMatch(/floor-first levelling/);
+    expect(v.write).toBe(LEAF_BIRTH - 1);
+    expect(v.reason).toMatch(/the lane's call, one run/);
+    expect(v.reason).toMatch(/which popular niche/);
   });
 
-  it("counts retagged questions as evidence, but not as days", () => {
-    // A carve out of existing stock is free stock — and still needs three
-    // runs to have said so, because a retag list carries no day.
-    expect(leafVerdict({ ...leaf, parked: 0, retag: 12, days: 0 }).create).toBe(false);
-    expect(leafVerdict({ ...leaf, parked: 0, retag: 12, days: 0 }).blockers[0]).toMatch(/anecdote/);
-    const v = leafVerdict({ ...leaf, parked: 3, retag: 9, days: RUNS_MIN });
+  it("counts retagged existing questions as the handful — a carve needs no new writing", () => {
+    const v = leafVerdict({ ...leaf, parked: 0, retag: LEAF_BIRTH });
     expect(v.create).toBe(true);
-    expect(v.write).toBe(0); // 3 + 9 already fills the shelf
+    expect(v.write).toBe(0);
   });
 
-  it("blocks one run's opinion however many questions it parked", () => {
-    const v = leafVerdict({ ...leaf, parked: 50, days: 1 });
+  it("has no day rule, no parent-levelled rule and no settling", () => {
+    // What the first cut had; a leaf is cheap and folds itself, so none of
+    // these stands between a popular niche and its room.
+    expect(leafVerdict({ ...leaf, parked: 0 }).create).toBe(true);
+    expect(JSON.stringify(leafVerdict(leaf).blockers)).not.toMatch(/anecdote|parent thin|one leaf per parent/);
+  });
+
+  it("blocks only when the run cannot reach the handful", () => {
+    const v = leafVerdict({ ...leaf, parked: 0, budget: LEAF_BIRTH - 1 });
     expect(v.create).toBe(false);
-    expect(v.blockers[0]).toMatch(/anecdote/);
+    expect(v.blockers[0]).toMatch(/exists with its handful/);
   });
 
-  it("blocks a leaf under a thin parent — depth where breadth is still owed", () => {
-    const v = leafVerdict({ ...leaf, parentDeficit: 1 });
-    expect(v.create).toBe(false);
-    expect(v.blockers.some((b) => /parent thin/.test(b))).toBe(true);
+  it("refuses a parent that is not a topic that may carry leaves", () => {
+    expect(leafVerdict({ ...leaf, parentOk: false }).blockers[0]).toMatch(/parent/);
   });
 
-  it("blocks a second leaf under a parent while the last one is thin", () => {
-    const v = leafVerdict({ ...leaf, settling: LEAF_FLOOR - 1 });
-    expect(v.create).toBe(false);
-    expect(v.blockers.some((b) => /one leaf per parent/.test(b))).toBe(true);
-    expect(leafVerdict({ ...leaf, settling: LEAF_FLOOR }).create).toBe(true);
-  });
-
-  it("a feed leaf is born full, always — the cap covers the floor", () => {
-    // feed-budget levels topics, not leaves, so a thin feed leaf would stay
-    // thin; the capacity check exists for the day these constants cross.
-    expect(FEED_CAP).toBeGreaterThanOrEqual(LEAF_FLOOR - EVIDENCE_MIN);
-    expect(LEAVES.feed.levelledByLane).toBe(false);
-    const v = leafVerdict({ ...leaf, budget: 2 }); // the constants crossing
-    expect(v.create).toBe(false);
-    expect(v.blockers.some((b) => /born full/.test(b))).toBe(true);
-  });
-
-  it("a learn field may be born thin — the learn regulator finishes it", () => {
-    expect(LEAVES.learn.levelledByLane).toBe(true);
-    expect(LEARN_CAP).toBeLessThan(FIELD_FLOOR - EVIDENCE_MIN); // the D424 lockout, as arithmetic
-    const v = leafVerdict({ surface: "learn", parked: EVIDENCE_MIN, days: RUNS_MIN, parentDeficit: 0, budget: LEARN_CAP });
+  it("a learn field is born with six — the difficulty span needs a spread", () => {
+    const v = leafVerdict({ surface: "learn", parked: 2, budget: LEARN_CAP, parentOk: true });
     expect(v.create).toBe(true);
-    expect(v.write).toBe(LEARN_CAP);
-    expect(v.reason).toMatch(/floor-first levelling writes the other/);
+    expect(v.write).toBe(FIELD_BIRTH - 2);
+    expect(LEAVES.learn.birth).toBe(FIELD_BIRTH);
   });
 
   it("the daily has no leaf to create — its second level is the path", () => {
-    const v = leafVerdict({ surface: "daily", parked: 9, days: 9, parentDeficit: 0, budget: DAILY_CAP });
+    const v = leafVerdict({ surface: "daily", parked: 9, budget: DAILY_CAP });
     expect(v.create).toBe(false);
-    expect(v.blockers).toEqual([]);
     expect(v.reason).toMatch(/\[Top, Sub\]/);
     expect(LEAVES.daily).toBeNull();
   });
@@ -94,7 +77,41 @@ describe("leafVerdict — the normal case", () => {
   });
 });
 
-const top = { surface: "feed", placed: true, parked: EVIDENCE_MIN, days: RUNS_MIN, deficit: 0, budget: FEED_CAP, settling: null };
+describe("coverageAllocation — the breadth share opens rooms least-covered first", () => {
+  const parents = [{ id: "sport", rooms: 3 }, { id: "food", rooms: 0 }, { id: "music", rooms: 12 }];
+
+  it("spends a third of the grant on rooms at the handful, emptiest parent first", () => {
+    const c = coverageAllocation({ parents, target: LEAF_TARGET, birth: LEAF_BIRTH, budget: FEED_CAP });
+    expect(c.breadth).toBe(Math.floor(FEED_CAP * BREADTH_SHARE / LEAF_BIRTH) * LEAF_BIRTH);
+    expect(c.fill).toBe(FEED_CAP - c.breadth);
+    const food = c.open.find((o) => o.parent === "food");
+    const sport = c.open.find((o) => o.parent === "sport");
+    expect(food.open).toBeGreaterThanOrEqual(sport?.open ?? 0);
+    expect(c.open.find((o) => o.parent === "music")).toBeUndefined(); // at target: the share rests there
+  });
+
+  it("rests when every parent is at target, and says so", () => {
+    const c = coverageAllocation({ parents: [{ id: "sport", rooms: 12 }], target: 12, birth: 4, budget: 60 });
+    expect(c.open).toEqual([]);
+    expect(c.fill).toBe(60);
+    expect(c.reason).toMatch(/at its coverage target/);
+  });
+
+  it("opens nothing when the share cannot reach one handful", () => {
+    const c = coverageAllocation({ parents, target: 12, birth: 6, budget: 12 });
+    expect(c.open).toEqual([]);
+    expect(c.reason).toMatch(/cannot reach one room's handful/);
+  });
+
+  it("learn's third of thirty opens a field and reserves its cards", () => {
+    const c = coverageAllocation({ parents: [{ id: "biology", rooms: 4 }], target: FIELD_TARGET, birth: FIELD_BIRTH, budget: LEARN_CAP });
+    expect(c.open).toEqual([{ parent: "biology", open: 1 }]);
+    expect(c.breadth).toBe(FIELD_BIRTH);
+    expect(c.fill).toBe(LEARN_CAP - FIELD_BIRTH);
+  });
+});
+
+const top = { surface: "feed", placed: true, parked: EVIDENCE_MIN, days: RUNS_MIN, budget: FEED_CAP, settling: null };
 
 describe("topVerdict — a new topic lands in a hub that exists", () => {
   it("holds an unplaced top for the owner, with the owner's words, and points at the tree", () => {
@@ -105,13 +122,25 @@ describe("topVerdict — a new topic lands in a hub that exists", () => {
     expect(v.blockers[0]).toMatch(/subtopic under `nearest`/);
   });
 
-  it("has no cap on the count of topics — D424's blockers are the whole rule", () => {
+  it("has no cap on the count of topics and no breadth-debt blocker — evidence and settling are the rule", () => {
     expect(TOPS.feed.max).toBeUndefined();
     expect(topVerdict(top).create).toBe(true);
     expect(topVerdict({ ...top, parked: 50, days: 1 }).blockers[0]).toMatch(/anecdote/);
-    expect(topVerdict({ ...top, deficit: 1 }).blockers.some((b) => /breadth debt/.test(b))).toBe(true);
+    // Breadth debt was a blocker in D424's cut; D427 retired it — the fill
+    // share pays the debt, and a thin room somewhere is not a reason a
+    // popular niche has no room.
+    expect(JSON.stringify(topVerdict({ ...top }).blockers)).not.toMatch(/breadth debt/);
     expect(topVerdict({ ...top, settling: TOPIC_FLOOR - 1 }).blockers.some((b) => /one room at a time/.test(b))).toBe(true);
     expect(topicVerdict).toBe(topVerdict);
+  });
+
+  it("a learn subject is cheap: born in one run with its first field's handful", () => {
+    expect(TOPS.learn.cheap).toBe(true);
+    const v = topVerdict({ surface: "learn", parked: 1, days: 1, budget: LEARN_CAP });
+    expect(v.create).toBe(true);
+    expect(v.write).toBe(FIELD_BIRTH - 1);
+    expect(v.reason).toMatch(/Knowledge takes it by prefix/);
+    expect(topVerdict({ surface: "learn", parked: 0, days: 0, budget: 2 }).blockers[0]).toMatch(/first field's handful/);
   });
 
   it("names the hub site among the sites a creating run must write", () => {
@@ -219,22 +248,27 @@ describe("the tree it actually runs on", () => {
 });
 
 describe("retireVerdict — fold, never delete (D426)", () => {
-  const leaf = { level: "leaf", surface: "feed", id: "sub_tennis", into: "sport", intoExists: true, stock: 3, floor: LEAF_FLOOR };
+  const leaf = { level: "leaf", surface: "feed", id: "sub_tennis", into: "sport", intoExists: true, stock: LEAF_BIRTH - 1, floor: LEAF_FLOOR, birth: LEAF_BIRTH };
   const top = { level: "top", surface: "feed", id: "culture", into: "people", intoExists: true, stock: 30, floor: TOPIC_FLOOR };
   const readable = { mode: "demand", weights: { culture: 0.001, people: 0.5, sport: 0.499 }, note: "" };
 
-  it("folds a thin feed leaf into its parent — the free fold", () => {
+  it("folds a feed leaf that fell below its handful into its parent — the free fold", () => {
     const v = retireVerdict(leaf);
     expect(v.retire).toBe(true);
-    expect(v.licence).toMatch(/thin/);
+    expect(v.licence).toMatch(/below its handful/);
     expect(v.reason).toMatch(/strip `sub: "sub_tennis"`/);
     expect(v.reason).toMatch(/world-subtopics\.js/);
   });
 
-  it("keeps a stocked leaf unless the owner says", () => {
-    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR }).retire).toBe(false);
-    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR }).blockers[0]).toMatch(/a stocked leaf stays/);
-    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR, ownerSaid: true }).retire).toBe(true);
+  it("keeps a leaf that holds its handful — under the floor is the lane's to fill, not a licence (D427)", () => {
+    const v = retireVerdict({ ...leaf, stock: LEAF_BIRTH });
+    expect(v.retire).toBe(false);
+    expect(v.blockers[0]).toMatch(/holds its handful/);
+    expect(retireVerdict({ ...leaf, stock: LEAF_BIRTH, ownerSaid: true }).retire).toBe(true);
+    // Readable and silent folds it even with its handful
+    const readable = { mode: "demand", weights: { sub_tennis: 0, sport: 1 }, note: "" };
+    const { share, evenShare } = demandReading(readable, "sub_tennis", ["sub_tennis", "sport"]);
+    expect(retireVerdict({ ...leaf, stock: LEAF_FLOOR, signal: readable, share, evenShare }).retire).toBe(true);
   });
 
   it("a feed leaf folds only into its own parent", () => {

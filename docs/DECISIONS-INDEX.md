@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 445 lines instead of
-46,000. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 446 lines instead of
+46,118. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -302,7 +302,7 @@ detect it.
 | **D280** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d280--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D415 (+5) | 28264 |
 | **D281** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d281--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | D351 (+2) | 28412 |
 | **D282** | [The topics door stops moving you, when it does not have to](DECISIONS.md#d282--the-topics-door-stops-moving-you-when-it-does-not-have-to) | — | 28527 |
-| **D283** | [Every field is followed, and the follow list gets a way out](DECISIONS.md#d283--every-field-is-followed-and-the-follow-list-gets-a-way-out) | D321 (+2) | 28647 |
+| **D283** | [Every field is followed, and the follow list gets a way out](DECISIONS.md#d283--every-field-is-followed-and-the-follow-list-gets-a-way-out) | D427 (+3) | 28647 |
 | **D284** | [The learn bank leaves the JavaScript](DECISIONS.md#d284--the-learn-bank-leaves-the-javascript) | D350 (+2) | 28751 |
 | **D285** | [The seed's whitelist, held to the generator — after the third time](DECISIONS.md#d285--the-seeds-whitelist-held-to-the-generator--after-the-third-time) | D328 | 28907 |
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 29002 |
@@ -456,6 +456,7 @@ detect it.
 | **D421** | [The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys](DECISIONS.md#d421--the-pick-tiles-get-pictures-the-owner-rules-attempt-and-take-down-the-art-is-hosting-content-so-a-takedown-is-a-commit-and-the-credits-ship-beside-the-keys) | D423 (+1) | 44991 |
 | **D422** | [The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost](DECISIONS.md#d422--the-ruling-reaches-every-domain-pokémon-artwork-and-the-dogs-join-the-pipeline-every-picture-is-re-encoded-on-the-way-in-and-what-the-pictures-cost) | D423 | 45205 |
 | **D423** | [The pictures land: five domains fetched from a cloud session, the seventh host nobody knew about, and the two ways a throttled network kills a run](DECISIONS.md#d423--the-pictures-land-five-domains-fetched-from-a-cloud-session-the-seventh-host-nobody-knew-about-and-the-two-ways-a-throttled-network-kills-a-run) | — | 45400 |
-| **D424** | [The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail](DECISIONS.md#d424--the-lanes-create-categories-the-human-gate-becomes-arithmetic-and-the-taxonomy-gets-a-gate-that-can-fail) | D426 (+1) | 45529 |
-| **D425** | [The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so](DECISIONS.md#d425--the-you-maps-ring-is-fixed-and-the-taxonomies-grow-subtopics-first-new-topics-when-the-arithmetic-says-so) | D426 | 45744 |
-| **D426** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d426--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | — | 45900 |
+| **D424** | [The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail](DECISIONS.md#d424--the-lanes-create-categories-the-human-gate-becomes-arithmetic-and-the-taxonomy-gets-a-gate-that-can-fail) | D427 (+2) | 45529 |
+| **D425** | [The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so](DECISIONS.md#d425--the-you-maps-ring-is-fixed-and-the-taxonomies-grow-subtopics-first-new-topics-when-the-arithmetic-says-so) | D427 (+1) | 45744 |
+| **D426** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d426--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | D427 | 45900 |
+| **D427** | [Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples](DECISIONS.md#d427--breadth-first-a-room-is-born-with-a-handful-coverage-steers-where-the-next-one-opens-and-learns-cap-triples) | — | 46001 |

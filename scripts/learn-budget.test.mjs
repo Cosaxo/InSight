@@ -106,7 +106,10 @@ describe("learnBudget", () => {
       ...level(10, FIELD_FLOOR),
     ];
     const { allocation } = learnBudget({ fields });
-    expect(allocation.map((a) => a.field)).toEqual(["room", "almost"]);
+    // The two under the floor lead, in thinness order; at a cap of 30 the
+    // remaining chunks level fields at the floor behind them (D427 — the
+    // list was exactly these two when the cap was 10).
+    expect(allocation.slice(0, 2).map((a) => a.field)).toEqual(["room", "almost"]);
     for (const a of allocation) expect(a.write).toBeGreaterThanOrEqual(MIN_CHUNK);
     expect(total(allocation)).toBe(RUN_CAP);
   });
@@ -145,7 +148,9 @@ describe("learnBudget", () => {
   it("above the floor, the demand share picks the fields the crowd reads fastest", () => {
     const fields = level(3, FIELD_FLOOR);
     const { allocation, split } = learnBudget({ fields, demand: { f00: 0.1, f01: 0.7, f02: 0.2 } });
-    expect(allocation.map((a) => a.field)).toEqual(["f01", "f02"]);
+    // The leaders come first; with seven chunks over three fields the third
+    // gets its turn too (D427 raised the cap from 10, where only two fit).
+    expect(allocation.slice(0, 2).map((a) => a.field)).toEqual(["f01", "f02"]);
     expect(split.demand).toBe(RUN_CAP);
   });
 
@@ -229,5 +234,18 @@ describe("learnRunway", () => {
   it("scales with the floor, which is the argument for it", () => {
     const atFloor = learnRunway(level(12, FIELD_FLOOR), { followed: 3 });
     expect(atFloor.someDays).toBeGreaterThanOrEqual(25);
+  });
+});
+
+describe("the breadth reserve (D427)", () => {
+  const level = (n, cards) => Array.from({ length: n }, (_, i) => ({ id: `f${i}`, cards }));
+  it("comes off the top of the grant, never below zero", () => {
+    expect(learnBudget({ fields: level(12, 8), reserve: 12 }).budget).toBe(RUN_CAP - 12);
+    expect(learnBudget({ fields: level(12, 8), reserve: RUN_CAP + 5 }).budget).toBe(0);
+    expect(learnBudget({ fields: level(12, 8), reserve: 0 }).budget).toBe(RUN_CAP);
+  });
+  it("is the owner's raise: the cap is three times D115's ten, half the feed's sixty", () => {
+    expect(RUN_CAP).toBe(30);
+    expect(OPEN_MAX).toBe(RUN_CAP);
   });
 });
