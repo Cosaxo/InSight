@@ -1,0 +1,29 @@
+--- recorded/daily-split.jsx
++++ 2026-09-07/daily-split.jsx
+@@ -1505,6 +1505,11 @@
+     const dayNames = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
+     const wIdx = Math.min(st.idx, DATA.length - 1),
+       S = DATA[wIdx];
++    // the first-day screens (Circle, 1v1) stand today's World question in for a room that has none yet
++    window.WORLD_TODAY = {
++      prompt: DATA[0].text,
++      options: DATA[0].options.map(o => o.label)
++    };
+     const myVote = st.votes[S.id],
+       voted = !!myVote;
+     const blind = this.props.blindVoting ?? true,
+@@ -2937,10 +2942,12 @@
+ 
+     // ===== GROUP & 1v1 — daily-cadence bodies live in their own files =====
+     const groupBody = h(window.GroupDailyBody || 'div', {
+-      key: 'group-daily'
++      key: 'group-daily',
++      start: this.props.start
+     });
+     const duoBody = h(window.DuoBody || 'div', {
+-      key: 'duo-daily'
++      key: 'duo-daily',
++      start: this.props.start
+     });
+ 
+     // ===== TEST =====

@@ -417,7 +417,7 @@ export function buildDomains() {
   // if the entry ever promotes.
   const continuum = extractArray(
     readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8"),
-    "window.WORLD_FEED_QS = [",
+    "const WFD_DEMO_POOL = [",
     "world-feed-data.js",
   ).filter((q) => q.type === "dial" || q.type === "field");
 

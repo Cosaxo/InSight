@@ -1,0 +1,24 @@
+--- recorded/profile-overlay.jsx
++++ 2026-09-07/profile-overlay.jsx
+@@ -134,18 +134,18 @@
+       }
+     }, "Take this test \u2192");
+   };
+-  const Big5Panel = () => window.ResultProfileCard ? /*#__PURE__*/React.createElement(window.ResultProfileCard, {
++  const Big5Panel = () => window.ResultProfileCard ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(window.ResultProfileCard, {
+     testKey: "big5",
+     archetype: meta.name,
+     tagline: meta.tag
+-  }) : /*#__PURE__*/React.createElement(TestVizCard, {
++  }), window.Big5Deep ? /*#__PURE__*/React.createElement(window.Big5Deep, null) : null) : /*#__PURE__*/React.createElement(TestVizCard, {
+     testKey: "big5"
+   });
+   const PoliticsPanel = () => /*#__PURE__*/React.createElement(React.Fragment, null, window.ResultProfileCard && /*#__PURE__*/React.createElement(window.ResultProfileCard, {
+     testKey: "political",
+     archetype: me.politicalIdentity.name,
+     tagline: me.politicalIdentity.tag
+-  }));
++  }), window.PoliticsDeep ? /*#__PURE__*/React.createElement(window.PoliticsDeep, null) : null);
+   const ValuesPanel = () => window.ResultProfileCard ? /*#__PURE__*/React.createElement(window.ResultProfileCard, {
+     testKey: "values",
+     archetype: me.moralLabel,

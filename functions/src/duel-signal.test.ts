@@ -113,10 +113,17 @@ describe("the cross-group duel aggregate", () => {
     expect(store.get(AGG)!.guessMatches).toBe(1);
 
     // A group reveal carrying guesses publishes the rate too since D386
-    // (until then the field only meant anything for a pair): each guess
-    // is read against the option the room landed on. Here the room split
-    // 1–1, so both options tied for the top and both calls on option 1
-    // landed.
+    // (until then the field only meant anything for a pair): each guess is
+    // read against the option THE REST OF the room landed on — the same
+    // positional pairing as the duo arm above, generalised.
+    //
+    // The same two votes, and they are the whole point: the member who
+    // picked 0 and called 1 read the other correctly and lands; the member
+    // who picked 1 and called 1 called their own answer, and no longer
+    // does. Both landed until the guesser's own vote came out of the tally
+    // they were scored against (pure.ts, `duelAggDelta`'s group arm) —
+    // which is why a circle of two published a perfect guess rate for
+    // reading nobody.
     store.clear();
     store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
     await fold("group", QID, [
@@ -124,7 +131,7 @@ describe("the cross-group duel aggregate", () => {
       { optionIdx: 1, guessIdx: 1 },
     ]);
     expect(store.get(AGG)!.guessTotal).toBe(2);
-    expect(store.get(AGG)!.guessMatches).toBe(2);
+    expect(store.get(AGG)!.guessMatches, "a call on your own answer scored").toBe(1);
   });
 
   it("mints nothing for a question an operator has deleted", async () => {

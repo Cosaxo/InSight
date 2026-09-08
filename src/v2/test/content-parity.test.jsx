@@ -70,3 +70,83 @@ describe("personality test banks (spec ≡ content)", () => {
     });
   }
 });
+
+// ── the deep items (D416): bank-only, by their own rules ────────────
+//
+// The facet and position items live in `deep` beside `questions` and NOT
+// in IS_TESTS: the spec layer's definitions are compiled into first paint
+// (check:eager-content names test-definitions.js as debt already), so the
+// 156 new prompts ride the seeded document instead and join by id
+// (data/similarity.ts testDeepMeta). What this pins is the item design the
+// plan fixed (docs/VISION-2026-09-07.md §5.3, D416): the counts per facet
+// that make the drawn scales true, the keying that makes an
+// agree-with-everything style score as nothing, and the declarations the
+// content gate and the fold both read.
+const DEEP_K = { big5: 4, political: 2 };
+// Two keyed each way is the Big Five rule (D416); the compass's positions
+// are the design's own items, two per position with one reverse-keyed.
+const DEEP_AGAINST = { big5: 2, political: 1 };
+
+describe("deep items (facets and positions, bank-only)", () => {
+  for (const key of Object.keys(DEEP_K)) {
+    const T = contentTests[key];
+    describe(key, () => {
+      it("stays out of the spec layer's definitions", () => {
+        expect(spec[key].deep).toBeUndefined();
+        expect(spec[key].facets).toBeUndefined();
+      });
+
+      it("declares every facet once, under one of its own dimensions", () => {
+        const dims = new Set(T.dims.map((d) => d.id));
+        for (const f of T.facets) expect(dims.has(f.d), `${key}/${f.id} under ${f.d}`).toBe(true);
+        expect(new Set(T.facets.map((f) => f.id)).size).toBe(T.facets.length);
+      });
+
+      it(`carries exactly ${DEEP_K[key]} items per facet, ${DEEP_AGAINST[key]} keyed against it`, () => {
+        const byFacet = new Map(T.facets.map((f) => [f.id, f]));
+        for (const q of T.deep) {
+          const f = byFacet.get(q.facet);
+          expect(f, `${key}/${q.id} names facet ${q.facet}`).toBeTruthy();
+          expect(q.d, `${key}/${q.id} scores its facet's axis`).toBe(f.d);
+        }
+        for (const f of T.facets) {
+          const items = T.deep.filter((q) => q.facet === f.id);
+          expect(items, `${key}/${f.id}`).toHaveLength(DEEP_K[key]);
+          const against = items.filter((q) => q.invert).length;
+          if (key === "big5") expect(against, `${key}/${f.id} keyed against`).toBe(DEEP_AGAINST[key]);
+          else expect(against, `${key}/${f.id} keyed against`).toBeGreaterThanOrEqual(DEEP_AGAINST[key]);
+        }
+      });
+
+      it("never repeats a prompt, its own or a core item's, and keeps its ids apart", () => {
+        const core = new Set(T.questions.map((q) => q.q));
+        const seen = new Set();
+        const ids = new Set(T.questions.map((q) => q.id));
+        for (const q of T.deep) {
+          expect(core.has(q.q), `${key}/${q.id} restates a core item`).toBe(false);
+          expect(seen.has(q.q), `${key}/${q.id} repeats a deep item`).toBe(false);
+          seen.add(q.q);
+          expect(ids.has(q.id), `${key}/${q.id} collides with another id`).toBe(false);
+          ids.add(q.id);
+        }
+      });
+
+      it("keeps every prompt inside the bank's measured bounds", () => {
+        // The farm's bounds for a prompt (question-quality.mjs: 14–97
+        // chars, measured off the corpus), written as a statement.
+        for (const q of T.deep) {
+          expect(q.q.length, `${key}/${q.id}`).toBeGreaterThanOrEqual(14);
+          expect(q.q.length, `${key}/${q.id}`).toBeLessThanOrEqual(97);
+          expect(q.q.endsWith("."), `${key}/${q.id} ends with a stop`).toBe(true);
+        }
+      });
+    });
+  }
+
+  it("the other two instruments carry no deep items yet", () => {
+    for (const key of ["values", "attachment"]) {
+      expect(contentTests[key].deep).toBeUndefined();
+      expect(contentTests[key].facets).toBeUndefined();
+    }
+  });
+});

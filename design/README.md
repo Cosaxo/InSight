@@ -31,9 +31,9 @@ its population chips at D216 — the Patterns tab ported whole
 its port and lists the behaviours the ports refused). Same rule again:
 it does not re-point this file.
 
-**Five more followed in the same numbered series** (`InSight_2`,
-`InSight_3`, `InSight_4`, `InSight_7`, `InSight_9` — five, six and
-eight were never uploaded here): the **2026-08-22** upload carried the paid
+**Six more followed in the same numbered series** (`InSight_2`,
+`InSight_3`, `InSight_4`, `InSight_7`, `InSight_9`, `InSight_10` — five,
+six and eight were never uploaded here): the **2026-08-22** upload carried the paid
 question report's design, extracted to `standalone-2026-08-22/` and
 implemented by the report builder (D251); the **2026-08-24** upload
 turns the suggestion board into the paid door, adds the buyer's room,
@@ -61,9 +61,17 @@ Circle/1v1 prompts and the Oracle's halves, the lens legends retire
 behind one ⓘ, and the Patterns lens picker docks in the header —
 extracted to `standalone-2026-09-06/` (compiled again, same recipe),
 with the plan at
-[`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md);
+[`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md); and the
+**2026-09-07** upload gives the two instruments a second level — the
+Big Five's thirty IPIP-NEO facets and the compass's eighteen positions,
+the compass carrying its own six questions per axis — draws the first
+day of Circle and 1v1, and puts the person overlay's three record
+sections on paper — extracted to `standalone-2026-09-07/` (compiled
+again, same recipe; no stylesheet moved), with the plan at
+[`docs/VISION-2026-09-07.md`](../docs/VISION-2026-09-07.md), which is
+also the plan for how the facets and positions get measured;
 `docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D390). Each
+D415). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:
