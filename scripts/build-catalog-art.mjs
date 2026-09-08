@@ -25,7 +25,10 @@
 //
 // — and commit what it writes; the committed files are what
 // check:catalog-art validates, and the endpoints are never needed again
-// until the next refresh or takedown.
+// until the next refresh or takedown. From a shared cloud IP, Commons
+// answers about one API call a minute and 429s the rest; the run waits
+// that out rather than dying (see RATE_LIMIT_TRIES), which is why a
+// domain can take an hour there and minutes from a laptop.
 //
 // WHAT IT WILL NOT DO, and why each refusal is in code rather than prose:
 //   · fetch at runtime — every picture the app draws is a committed file on
@@ -183,6 +186,11 @@ if (source === "tmdb" && !process.env.TMDB_API_KEY) {
 }
 
 // ── fetch helpers ─────────────────────────────────────────────────────
+// How long a rate limit may hold the run up. Eight tries at the ladder in
+// `get` is ~11 minutes for one call, which sounds enormous and is the point:
+// the alternative is a domain that never finishes. See the 429 branch.
+const RATE_LIMIT_TRIES = 8;
+const RATE_LIMIT_MAX_WAIT = 120_000;
 async function get(url, init = {}, tries = 3) {
   for (let attempt = 1; ; attempt++) {
     let res;
@@ -201,8 +209,35 @@ async function get(url, init = {}, tries = 3) {
       continue;
     }
     if (res.status === 429 || res.status >= 500) {
-      if (attempt >= tries) { console.error(`build-catalog-art: ${new URL(url).host} answered HTTP ${res.status}`); process.exit(1); }
-      await pause(2500 * attempt);
+      // A 429 is a SCHEDULE, not a failure: Wikimedia rate-limits the Commons
+      // API per client, and from a cloud egress pool that budget can be as
+      // thin as one call a minute. Measured 2026-09-08 from a session on
+      // Anthropic's cloud: one 200 per ~60 s, everything between it a 429
+      // carrying `Retry-After: 8`. The old ladder (three tries, 2.5 s then
+      // 5 s) gave up ~50 s short of the next opening, so a run died on its
+      // second chunk of fifty however often it was re-run — the throttle
+      // should cost a minute a chunk, not the domain. So: wait what the
+      // server ASKS for, or the ladder below, whichever is longer, and let a
+      // 429 have its own budget. 5xx keeps the old short ladder, because a
+      // server error is not a promise that waiting helps.
+      const limited = res.status === 429;
+      const budget = limited ? Math.max(tries, RATE_LIMIT_TRIES) : tries;
+      if (attempt >= budget) {
+        console.error(
+          `build-catalog-art: ${new URL(url).host} answered HTTP ${res.status} ${budget} times` +
+          (limited ? ` over ${Math.round(RATE_LIMIT_MAX_WAIT / 1000)}s of waiting — the host is rate-limiting this\nnetwork, not refusing the request. Run it from somewhere with its own IP (the header's operator step).` : ""),
+        );
+        process.exit(1);
+      }
+      // `Retry-After` is in seconds, and it is the only number that knows
+      // when the window reopens — but Wikimedia's is smaller than its own
+      // refill, so it is a floor rather than the answer.
+      const after = limited ? Number(res.headers.get("retry-after")) : NaN;
+      const asked = Number.isFinite(after) && after > 0 ? after * 1000 : 0;
+      const ladder = limited ? 20_000 * attempt : 2500 * attempt;
+      const wait = Math.min(Math.max(asked, ladder), RATE_LIMIT_MAX_WAIT);
+      if (limited) console.log(`build-catalog-art: ${new URL(url).host} is rate-limiting — waiting ${Math.round(wait / 1000)}s (try ${attempt} of ${budget})`);
+      await pause(wait);
       continue;
     }
     return res;
