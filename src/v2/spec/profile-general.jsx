@@ -18,10 +18,9 @@ import { LENSES } from './lens-defs.js';
 import CityPicker from '../ui/CityPicker';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
-import { PASSIVE } from './passive-progress.js';
 // Where each instrument currently stands, as a colour and a two-tone split
 // (D230) — the reading the feed's rings and the profiles sheet already wear.
-import { passiveStanding } from './passive-meter.jsx';
+import { passiveCount, passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
@@ -463,7 +462,20 @@ const EXPORTS = {};
           {ARC_TESTS.map(({ k, sub, name }) => {
             const res = R[k];
             const top = res ? [...res.dims].sort((a, b) => b.value - a.value)[0] : null;
-            const pct = PASSIVE.pct(k);
+            // THE ARC'S LENGTH FROM THE SAME PLACE AS ITS COLOUR, which
+            // it was not. `PASSIVE.pct` counts a localStorage tally
+            // written at the moment of the tap, so on a reinstall or a
+            // second device it reads ZERO for a profile whose own
+            // per-instrument tab draws "30 of 30 answered" from the fold —
+            // four grey rings at zero for four complete instruments, one
+            // tap apart. `passiveCount` is the fix passive-meter.jsx
+            // already made for its own ring, sheet row and card tag, and
+            // its header names this split in as many words: "the colour
+            // came from the fold and the number came from the device".
+            // This was the last `PASSIVE.pct` reader outside that file and
+            // was not switched with the rest — while the comment below,
+            // written in the same commit, claimed it had been.
+            const pct = passiveCount(k).pct;
             // The arc used to need `res` — a STORED result — for both its
             // colour and its permission to draw, so in a live build (where
             // nothing writes one, D121) this card was four grey rings that

@@ -261,3 +261,69 @@ describe("passiveStanding — the two-tone split before there is a type", () => 
     expect(st.sp.deep).not.toBe(`oklch(0.52 0.14 ${HUES.foreign})`);
   });
 });
+
+// ── the profile's "Your tests" card, which was the last one out ─────
+//
+// `passiveCount` above is the fix passive-meter.jsx made for its own ring,
+// sheet row and card tag. `profile-general.jsx` draws the SAME four rings
+// on the profile's landing tab and kept taking their length from
+// `PASSIVE.pct` — the device tally — while taking their colour from
+// `passiveStanding`, the fold. It was the last `PASSIVE.pct` reader
+// outside passive-meter.jsx and was not switched with the rest, under a
+// comment written in that same commit claiming it now "reads the same
+// standing the rest of the app does".
+//
+// What that costs on a reinstall or a second device: four grey rings at
+// zero for four complete instruments, one tap away from the same profile's
+// per-instrument tab drawing "30 of 30 answered" and a full rose.
+//
+// Asserted on the ARC GEOMETRY rather than on text, because the card has
+// no number — the ring IS the reading, and a sweep of zero length is the
+// whole of what a user sees wrong.
+describe("the profile card's arcs come from the fold, not the device", () => {
+  let GeneralPanel;
+  beforeAll(async () => {
+    ({ GeneralPanel } = await import("../spec/profile-general.jsx"));
+  });
+
+  /** Every stroke-dasharray the card drew that is not a full-circle track. */
+  const sweeps = (container) => [...container.querySelectorAll("circle[stroke-dasharray]")]
+    .map((c) => c.getAttribute("stroke-dasharray"))
+    .filter((d) => d && !/^0[ ,]/.test(d) && Number(String(d).split(/[ ,]/)[0]) > 0);
+
+  it("draws a complete instrument as a full arc on a device that never counted a tap", async () => {
+    const { render, cleanup } = await import("@testing-library/react");
+    const React = (await import("react")).default;
+    const picks = {};
+    for (let i = 0; i < IS_TESTS.political.questions.length; i++) picks[i] = 2;
+    withVotes("political", picks);
+    // The precondition, asserted rather than assumed: this IS the second
+    // -device state. The tally is empty and the fold is complete.
+    expect(PASSIVE.pct("political"), "the fixture counted a tap — not a second device").toBe(0);
+    expect(passiveCount("political").pct).toBe(100);
+
+    const { container } = render(<GeneralPanel />);
+    try {
+      expect(
+        sweeps(container).length,
+        "four complete instruments drew four empty rings — the arc read the device's tally",
+      ).toBeGreaterThan(0);
+    } finally { cleanup(); }
+  });
+
+  it("…and draws nothing for an instrument genuinely unanswered", async () => {
+    // THE CONTROL. An arc that always draws is as wrong as one that never
+    // does — with no answers anywhere, the rings are empty and should be.
+    const { render, cleanup } = await import("@testing-library/react");
+    const React = (await import("react")).default;
+    withVotes("political", {});
+    expect(passiveCount("political").pct).toBe(0);
+    const { container } = render(<GeneralPanel />);
+    try {
+      expect(
+        sweeps(container).length,
+        "an untouched profile drew a filled ring",
+      ).toBe(0);
+    } finally { cleanup(); }
+  });
+});
