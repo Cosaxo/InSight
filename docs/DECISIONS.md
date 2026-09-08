@@ -45203,3 +45203,113 @@ is a data condition.
 Revert the commit. `check:taxonomy` and `topic:budget` leave the tree with
 it; hard rule 3 and § When no category fits return to the human gate. The
 ledger is empty, so nothing is stranded.
+
+## D422 · The top level is fixed, and the tree grows: subtopics are where the lanes create
+
+**2026-09-08.** **Status:** binding, built. The owner, reading D421's
+first cut the same day: *"yeah most topic should be sub topics there
+should only be a limeted nummber of topics i assumed that was
+established. this should focus mainly on creating new subtopics"*.
+
+D421 let the lanes create categories and built the brakes it could
+justify from the tree. What it had not asked was WHERE in the tree a new
+room belongs, and the answer changes the cost arithmetic entirely.
+
+### Why the level matters
+
+A top-level category — a feed topic, a daily top, a learn subject — is a
+chip in the row, a branch on the Map, and for the feed **a page of
+`FEED_PAGE` (12) reads for every new install** until its cache
+converges, because feed topics are always-on (D96) and the install
+fetches a page per topic (D321). D421's own top speed — one category
+per three run days per surface, up to ten feed topics a month — was a
+real product-shape question, and it went to `OWNER-LIST.md`. This is
+the answer.
+
+A **subtopic** pays none of that. `world-subtopics.js` has said since
+the port what a leaf is: *colour = family (the parent topic's hue),
+label = the leaf, one pill; followable exactly like a topic; following a
+parent gives you everything under it.* So a leaf inherits its hue, adds
+no chip and no branch, costs an install no page — its cards ride the
+parent's page — and is reached by following the parent. The one thing a
+leaf costs is stock, and a thin leaf is *"a broken room"* (the same
+file), which is why `SUBTOPICS.offers()` shows only stocked leaves.
+
+### The decisions
+
+**1 · The top level is capped at today's count, and the cap is the
+owner's number.** `TOPS[surface].max` in `scripts/topic-budget.mjs`: 13
+feed topics, 14 daily tops, 5 learn subjects. A top-level proposal HOLDs
+at the cap with the owner's words and stands in the ledger as evidence;
+everything D421 built beneath the cap — evidence, breadth debt,
+settling, the write rule, `hueFor()` — stays whole, so raising a max is
+one edit and nothing has to be rebuilt to use it.
+
+**2 · A leaf is what a lane creates — three blockers and a write rule.**
+
+| Blocker | Arithmetic | Where it comes from |
+| --- | --- | --- |
+| Evidence | 3 questions wanting the leaf over 3 distinct run **days** — parked ones plus **retagged** ones (existing questions under the parent the proposal claims), days counted on the parked only | D145's "three runs is an argument"; TAGS-PLAN's "a door on an existing question is the free first fix", one level down |
+| Parent levelled | the parent at or above its own floor (24 for a feed topic; every field at 24 for a learn subject) | this manual's month-old deferral, *"a leaf below a levelled parent is depth where breadth is still owed"* |
+| Settling | the last leaf under the **same** parent is at its floor | one leaf per parent at a time; parents grow in parallel, because leaves are cheap |
+
+A feed leaf's floor is `LEAF_FLOOR` 12 — one page, the shelf a device
+holds — pinned equal to `bankPager.ts`'s `FEED_PAGE` by the test. It is
+born full, always: `feed-budget.mjs` levels topics, not leaves (it lets
+leaf doors *"fall out at the taxonomy guard"*), so a thin feed leaf
+would stay thin, and the feed lane's cap (60) covers 12 — pinned, so
+the capacity check in `leafVerdict` cannot fire on the feed and exists
+only to say so if the constants ever cross. A learn field's floor is
+the lane's own 24 and the learn regulator levels fields, so a field may
+be born at 13 and full two runs later — D421's write rule.
+
+**3 · The daily's second level is written, never created.** `cat` is
+`[Top, Sub]` and `Sub` is free text — 129 distinct pairs over 154
+questions, measured. There is no registry to add a row to; a daily
+"leaf" proposal is refused by `check:taxonomy` with that sentence.
+`LEAVES.daily` is `null` for the same reason.
+
+**4 · The lane is wired, and it was four small pieces.** The client
+already had the whole second level: `wfFeedMatch` fast-paths on
+`q.sub`, `SUBTOPICS.count` reads it off the pool, `WF_SUB` draws the
+pill in the family's colour, and `deck.ts`'s `buildS` passes `sub`
+through for every surface. What was missing, in order down the pipe:
+`content/feed-questions.json` entries may carry `sub`; `check:quality`
+holds it (a committed leaf, under the question's own home, not repeated
+in `also`); `gen-v2content.mjs` emits it on feed entries, emit-when-set;
+and `live.ts`'s vote mapper passes it into the pool — which is the
+moment `offers()` starts offering the leaf, exactly as its own comment
+said it would (*"leaves return by themselves the day live questions
+carry their tag"*). The same wire field carries the daily's sub-branch
+NAME; the surface tells them apart, and `deck.ts` now says so at both
+declarations. Feed leaves are not yet a paged shelf of their own — a
+device meets a leaf's cards on the parent's page, so a leaf of 12
+inside a parent of 30 shows a device the four it happens to hold. The
+order doc carrying leaves is the next step if that reads thin.
+
+**5 · `check:taxonomy` holds the leaf lists** — rule 5: a feed leaf is
+`sub_`-prefixed, unique, under a subject topic that may carry leaves
+(not `fav`/`places`, and not `now` — D231 built it as a time, and a
+leaf of a time would be a subject wearing an expiry it does not have),
+with a label unique within its parent; a learn field names a subject
+that exists. The ledger rules grow to match: a leaf proposal needs a
+real `parent`, a `sub_` id on the feed, `retag` ids that exist under
+that parent and carry no tag yet, and a label that is not already a
+category's.
+
+### What this does NOT do
+
+- **No leaf is created here.** The ledger ships empty. `npm run
+  topic:budget` prints three surfaces at their caps, the feed's three
+  demo leaves at 0 live stock, and nothing to rule on.
+- **`feed-budget.mjs` does not level leaves.** Born-full is what makes
+  that unnecessary today; the day a leaf can go thin (a retirement, a
+  question retired from under it) the regulator learns to count `sub`.
+- **Retirement is still not built** — D421's open asymmetry, now for
+  leaves too.
+
+### Reversal
+
+Revert the commit with D421's. Nothing is stranded: no question carries
+`sub` in the bank, so the generator's output is byte-identical with or
+without the emission, and the ledger is empty.

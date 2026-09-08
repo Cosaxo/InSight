@@ -10,7 +10,8 @@
 // `core` is feed-only (docs/SCALE-PLAN.md §1) and absent means TAIL — a
 // question is in the Mirror's corpus only if it says so. Other surfaces do
 // not carry the key because they are core by construction.
-// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
+// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path;
+// on a feed doc `sub` is instead the subtopic LEAF id it belongs to (D422)
 // (D100) and are absent on every other surface, which carries no path.
 // `tag` is the daily bank's short label for a question — the Mirror's
 // Scores card is a column of nouns, not of sentences (D187).

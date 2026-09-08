@@ -1,148 +1,176 @@
-// topic-budget.test.mjs — pins the D421 taxonomy regulator.
+// topic-budget.test.mjs — pins the D421/D422 taxonomy regulator.
 //
-// The property under test is the reversal's whole safety argument: the lanes
-// may create categories now, and the four blockers are what stands where the
-// human used to. Each one is pinned separately, because a blocker that stops
-// firing is invisible — the regulator would simply start saying yes, which
-// looks exactly like evidence arriving.
+// The property under test is the reversal's whole safety argument: the
+// lanes create categories now, the top level is fixed at the owner's count
+// (D422), and the blockers on a leaf are what stands where the human used
+// to. Each blocker is pinned separately, because a blocker that stops firing
+// is invisible — the regulator would simply start saying yes, which looks
+// exactly like evidence arriving.
 import { describe, it, expect } from "vitest";
 import {
-  topicVerdict, runDays, hueFor, hueRing, loadSurfaces, loadLedger, feedPageCost,
-  EVIDENCE_MIN, RUNS_MIN, SURFACES,
+  leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
+  loadTops, loadLeaves, loadLedger, feedPageCost, parentDeficitOf,
+  EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, TOPS, LEAVES, SURFACES,
 } from "./topic-budget.mjs";
-import { TOP_FLOOR } from "./farm-budget.mjs";
-import { TOPIC_FLOOR } from "./feed-budget.mjs";
-import { FIELD_FLOOR } from "./learn-budget.mjs";
+import { TOP_FLOOR, RUN_CAP as DAILY_CAP } from "./farm-budget.mjs";
+import { TOPIC_FLOOR, RUN_CAP as FEED_CAP } from "./feed-budget.mjs";
+import { FIELD_FLOOR, RUN_CAP as LEARN_CAP } from "./learn-budget.mjs";
 
-// A proposal with every blocker clear, so each test breaks exactly one thing.
-const clear = {
-  surface: "feed",
-  parked: EVIDENCE_MIN,
-  days: RUNS_MIN,
-  deficit: 0,
-  budget: TOPIC_FLOOR,
-  settling: null,
-};
+// A feed leaf with every blocker clear, so each test breaks exactly one thing.
+const leaf = { surface: "feed", parked: EVIDENCE_MIN, retag: 0, days: RUNS_MIN, parentDeficit: 0, budget: FEED_CAP, settling: null };
 
-describe("topicVerdict", () => {
-  it("creates when evidence, breadth and settling are all clear", () => {
-    const v = topicVerdict(clear);
+describe("leafVerdict — the normal case", () => {
+  it("creates when evidence, parent and settling are all clear, born full", () => {
+    const v = leafVerdict(leaf);
     expect(v.create).toBe(true);
     expect(v.blockers).toEqual([]);
-    // Owed is what the floor still wants; with a full budget the room
-    // opens finished.
-    expect(clear.parked + v.owed).toBe(TOPIC_FLOOR);
-    expect(v.write).toBe(v.owed);
+    expect(leaf.parked + v.write).toBe(LEAF_FLOOR);
+    expect(v.reason).not.toMatch(/floor-first levelling/);
+  });
+
+  it("counts retagged questions as evidence, but not as days", () => {
+    // A carve out of existing stock is free stock — and still needs three
+    // runs to have said so, because a retag list carries no day.
+    expect(leafVerdict({ ...leaf, parked: 0, retag: 12, days: 0 }).create).toBe(false);
+    expect(leafVerdict({ ...leaf, parked: 0, retag: 12, days: 0 }).blockers[0]).toMatch(/anecdote/);
+    const v = leafVerdict({ ...leaf, parked: 3, retag: 9, days: RUNS_MIN });
+    expect(v.create).toBe(true);
+    expect(v.write).toBe(0); // 3 + 9 already fills the shelf
   });
 
   it("blocks one run's opinion however many questions it parked", () => {
-    // D145's sentence is about RUNS, not questions — a single firing cannot
-    // manufacture recurrence by writing more.
-    const v = topicVerdict({ ...clear, parked: 50, days: 1, budget: TOPIC_FLOOR });
+    const v = leafVerdict({ ...leaf, parked: 50, days: 1 });
     expect(v.create).toBe(false);
     expect(v.blockers[0]).toMatch(/anecdote/);
   });
 
-  it("blocks while the surface owes breadth to the categories it already has", () => {
-    const v = topicVerdict({ ...clear, deficit: 1 });
+  it("blocks a leaf under a thin parent — depth where breadth is still owed", () => {
+    const v = leafVerdict({ ...leaf, parentDeficit: 1 });
     expect(v.create).toBe(false);
-    expect(v.blockers.some((b) => /breadth debt/.test(b))).toBe(true);
+    expect(v.blockers.some((b) => /parent thin/.test(b))).toBe(true);
   });
 
-  it("never blocks on capacity — the budget sizes the write", () => {
-    // The first cut of D421 had capacity as a fourth blocker, and the
-    // arithmetic locked learn out for good: cap 10, floor 24, 3 parked ->
-    // 21 owed > 10 granted, every run, forever. A rule the owner had just
-    // reversed would have stood on one surface by accident.
-    const v = topicVerdict({ ...clear, budget: 5 });
+  it("blocks a second leaf under a parent while the last one is thin", () => {
+    const v = leafVerdict({ ...leaf, settling: LEAF_FLOOR - 1 });
+    expect(v.create).toBe(false);
+    expect(v.blockers.some((b) => /one leaf per parent/.test(b))).toBe(true);
+    expect(leafVerdict({ ...leaf, settling: LEAF_FLOOR }).create).toBe(true);
+  });
+
+  it("a feed leaf is born full, always — the cap covers the floor", () => {
+    // feed-budget levels topics, not leaves, so a thin feed leaf would stay
+    // thin; the capacity check exists for the day these constants cross.
+    expect(FEED_CAP).toBeGreaterThanOrEqual(LEAF_FLOOR - EVIDENCE_MIN);
+    expect(LEAVES.feed.levelledByLane).toBe(false);
+    const v = leafVerdict({ ...leaf, budget: 2 }); // the constants crossing
+    expect(v.create).toBe(false);
+    expect(v.blockers.some((b) => /born full/.test(b))).toBe(true);
+  });
+
+  it("a learn field may be born thin — the learn regulator finishes it", () => {
+    expect(LEAVES.learn.levelledByLane).toBe(true);
+    expect(LEARN_CAP).toBeLessThan(FIELD_FLOOR - EVIDENCE_MIN); // the D421 lockout, as arithmetic
+    const v = leafVerdict({ surface: "learn", parked: EVIDENCE_MIN, days: RUNS_MIN, parentDeficit: 0, budget: LEARN_CAP });
     expect(v.create).toBe(true);
-    expect(v.write).toBe(5);
-    expect(v.owed).toBe(TOPIC_FLOOR - EVIDENCE_MIN);
+    expect(v.write).toBe(LEARN_CAP);
     expect(v.reason).toMatch(/floor-first levelling writes the other/);
   });
 
-  it("writes the whole room when the budget covers it, and says the room is full", () => {
-    const v = topicVerdict({ ...clear, budget: TOPIC_FLOOR });
-    expect(v.write).toBe(TOPIC_FLOOR - EVIDENCE_MIN);
-    expect(v.reason).toContain(`${TOPIC_FLOOR} of ${TOPIC_FLOOR}`);
-    expect(v.reason).not.toMatch(/floor-first levelling/);
-  });
-
-  it("lets learn create a field — the surface the blocker version locked out", () => {
-    const v = topicVerdict({ surface: "learn", parked: EVIDENCE_MIN, days: RUNS_MIN,
-      deficit: 0, budget: SURFACES.learn.cap, settling: null });
-    expect(SURFACES.learn.cap).toBeLessThan(FIELD_FLOOR - EVIDENCE_MIN); // the lockout, as arithmetic
-    expect(v.create).toBe(true);
-    expect(v.write).toBe(SURFACES.learn.cap);
-  });
-
-  it("blocks a second room while the last one created is still thin", () => {
-    const v = topicVerdict({ ...clear, settling: TOPIC_FLOOR - 1 });
+  it("the daily has no leaf to create — its second level is the path", () => {
+    const v = leafVerdict({ surface: "daily", parked: 9, days: 9, parentDeficit: 0, budget: DAILY_CAP });
     expect(v.create).toBe(false);
-    expect(v.blockers.some((b) => /one room at a time/.test(b))).toBe(true);
-    expect(topicVerdict({ ...clear, settling: TOPIC_FLOOR }).create).toBe(true);
+    expect(v.blockers).toEqual([]);
+    expect(v.reason).toMatch(/\[Top, Sub\]/);
+    expect(LEAVES.daily).toBeNull();
   });
 
   it("names every site a creating run must write", () => {
-    // The half-creation check:taxonomy exists to catch: the feed's topic
-    // lives in two files, and the verdict has to say so out loud.
-    expect(topicVerdict(clear).reason).toContain("world-feed-topics.js");
-    expect(topicVerdict(clear).reason).toContain("feed-questions.json");
+    expect(leafVerdict(leaf).reason).toContain("world-subtopics.js");
   });
 
   it("refuses an unknown surface rather than defaulting one", () => {
-    expect(() => topicVerdict({ ...clear, surface: "pick" })).toThrow(/unknown surface/);
+    expect(() => leafVerdict({ ...leaf, surface: "pick" })).toThrow(/unknown surface/);
+  });
+});
+
+const top = { surface: "feed", count: 0, parked: EVIDENCE_MIN, days: RUNS_MIN, deficit: 0, budget: FEED_CAP, settling: null };
+
+describe("topVerdict — the exception", () => {
+  it("holds at the owner's cap, with the owner's words, and points at the tree", () => {
+    const v = topVerdict({ ...top, count: TOPS.feed.max });
+    expect(v.create).toBe(false);
+    expect(v.blockers[0]).toMatch(/top level fixed/);
+    expect(v.blockers[0]).toMatch(/subtopic under `nearest`/);
+  });
+
+  it("is D421's regulator, whole, beneath the cap", () => {
+    expect(topVerdict(top).create).toBe(true);
+    expect(topVerdict({ ...top, parked: 50, days: 1 }).blockers[0]).toMatch(/anecdote/);
+    expect(topVerdict({ ...top, deficit: 1 }).blockers.some((b) => /breadth debt/.test(b))).toBe(true);
+    expect(topVerdict({ ...top, settling: TOPIC_FLOOR - 1 }).blockers.some((b) => /one room at a time/.test(b))).toBe(true);
+    expect(topicVerdict).toBe(topVerdict);
+  });
+
+  it("the caps are today's counts — raising one is the owner's edit", async () => {
+    const t = await loadTops();
+    expect(t.feed.count).toBeLessThanOrEqual(TOPS.feed.max);
+    expect(t.daily.count).toBe(TOPS.daily.max);
+    expect(t.learn.count).toBe(TOPS.learn.max);
+  });
+
+  it("names every site a creating run must write", () => {
+    expect(topVerdict(top).reason).toContain("world-feed-topics.js");
+    expect(topVerdict(top).reason).toContain("feed-questions.json");
   });
 });
 
 describe("the floors are the lanes' own", () => {
   // D197's one-copy rule: if these ever drift, the regulator would be
   // holding a category to a standard its own lane does not enforce.
-  it("imports rather than restates each floor", () => {
-    expect(SURFACES.daily.floor).toBe(TOP_FLOOR);
-    expect(SURFACES.feed.floor).toBe(TOPIC_FLOOR);
-    expect(SURFACES.learn.floor).toBe(FIELD_FLOOR);
+  it("imports rather than restates each floor and cap", () => {
+    expect(TOPS.daily.floor).toBe(TOP_FLOOR);
+    expect(TOPS.feed.floor).toBe(TOPIC_FLOOR);
+    expect(TOPS.learn.floor).toBe(FIELD_FLOOR);
+    expect(LEAVES.learn.floor).toBe(FIELD_FLOOR);
+    expect(SURFACES).toEqual(["feed", "daily", "learn"]);
+  });
+
+  it("a feed leaf's floor is one page — held equal to the pager's constant", () => {
+    // Read off bankPager.ts, never restated; null would mean the constant
+    // moved and this pin is what says so.
+    expect(feedPageCost()).toBe(LEAF_FLOOR);
   });
 });
 
-describe("runDays", () => {
+describe("levelOf and runDays", () => {
+  it("reads the level off the proposal, else off its shape", () => {
+    expect(levelOf({ level: "top", parent: "sport" })).toBe("top");
+    expect(levelOf({ parent: "sport" })).toBe("leaf");
+    expect(levelOf({ nearest: "sport" })).toBe("top");
+  });
   it("counts distinct days, not questions", () => {
     expect(runDays([{ run: "2026-09-01" }, { run: "2026-09-01" }, { run: "2026-09-02" }])).toBe(2);
-  });
-  it("ignores an entry with no run date", () => {
     expect(runDays([{ run: "2026-09-01" }, {}])).toBe(1);
-  });
-  it("reads a date out of a timestamp", () => {
     expect(runDays([{ run: "2026-09-01T07:00:00Z" }, { run: "2026-09-01" }])).toBe(1);
   });
 });
 
-describe("hueFor", () => {
+describe("hueFor — a top's colour; a leaf wears its family's", () => {
   it("reproduces D231's own pick", () => {
     // The twelve hues the feed carried before `now`, and the record's
     // reasoning: "Hue 115 is the widest gap left in the row (85 -> 145),
     // picked for distance from its neighbours rather than for a meaning."
-    // The algorithm is that sentence; this pins that it agrees with the
-    // owner's hand.
     const before = [145, 40, 310, 355, 235, 200, 25, 260, 85, 290, 60, 170];
     expect(hueFor(before)).toBe(115);
   });
-
-  it("takes the widest gap's midpoint on the ring that ships today", () => {
+  it("takes the widest gap's midpoint, wrapping the ring", () => {
     const ring = hueRing("feed", [
-      { color: "oklch(0.52 0.14 25)" }, { color: "oklch(0.52 0.14 40)" },
-      { color: "oklch(0.52 0.14 200)" },
+      { color: "oklch(0.52 0.14 25)" }, { color: "oklch(0.52 0.14 40)" }, { color: "oklch(0.52 0.14 200)" },
     ]);
-    // Arcs: 25->40 is 15, 40->200 is 160, and the wrap 200->25 is 185 —
-    // the widest, so the midpoint wraps too: 200 + 92.5 = 292.5 -> 293.
+    // Arcs: 25->40 is 15, 40->200 is 160, the wrap 200->25 is 185 — the
+    // widest, so the midpoint wraps too: 200 + 92.5 = 292.5 -> 293.
     expect(hueFor(ring)).toBe(293);
-  });
-
-  it("wraps across 360 rather than treating the ring as a line", () => {
     expect(hueFor([350, 10])).toBe(180);
-  });
-
-  it("answers for a ring with one hue and for none", () => {
     expect(hueFor([90])).toBe(270);
     expect(hueFor([])).toBe(0);
   });
@@ -150,25 +178,32 @@ describe("hueFor", () => {
 
 describe("the tree it actually runs on", () => {
   it("reads every surface's stock through the lanes' own loaders", async () => {
-    const s = await loadSurfaces();
-    for (const name of Object.keys(SURFACES)) {
-      expect(s[name].rows.length).toBeGreaterThan(0);
-      expect(s[name].deficit).toBeGreaterThanOrEqual(0);
+    const t = await loadTops();
+    for (const name of SURFACES) {
+      expect(t[name].rows.length).toBeGreaterThan(0);
+      expect(t[name].deficit).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it("reads the per-topic install cost off the pager rather than restating it", () => {
-    // D96 always-on topics: a new install pays a page per topic. If the
-    // constant moves or is renamed, the line goes silent (null), never wrong.
-    expect(feedPageCost()).toBeGreaterThan(0);
+  it("reads the leaves with their parents and their tagged stock", async () => {
+    const l = await loadLeaves();
+    expect(l.feed.length).toBeGreaterThan(0);
+    for (const s of l.feed) expect(s.id).toMatch(/^sub_/);
+    expect(l.learn.length).toBeGreaterThan(0);
+    for (const f of l.learn) expect(typeof f.parent).toBe("string");
+  });
+
+  it("a parent's deficit is the lane's own arithmetic, per level", async () => {
+    const [t, l] = [await loadTops(), await loadLeaves()];
+    expect(parentDeficitOf("feed", "sport", t, l)).toBe(Math.max(0, TOPIC_FLOOR - t.feed.rows.find((r) => r.id === "sport").stock));
+    expect(parentDeficitOf("feed", "nowhere", t, l)).toBeNull();
+    expect(parentDeficitOf("learn", "biology", t, l)).toBeGreaterThanOrEqual(0);
+    expect(parentDeficitOf("daily", "Sport", t, l)).toBeNull();
   });
 
   it("ships an empty ledger with both arrays present", () => {
-    // Empty is the correct state; the shape is what topic-budget and
-    // check:taxonomy both read, so a hand-edit that drops an array should
-    // fail here rather than at 07:00 in a lane.
-    const l = loadLedger();
-    expect(Array.isArray(l.proposals)).toBe(true);
-    expect(Array.isArray(l.created)).toBe(true);
+    const led = loadLedger();
+    expect(Array.isArray(led.proposals)).toBe(true);
+    expect(Array.isArray(led.created)).toBe(true);
   });
 });

@@ -8,7 +8,7 @@
 // "the current tree passes" is that bug waiting. So every rule below is
 // driven with a source that breaks it.
 import { describe, it, expect } from "vitest";
-import { checkTaxonomy, loadSources, FORMAT_ONLY, TIER, HUE_MIN_GAP } from "./check-taxonomy.mjs";
+import { checkTaxonomy, loadSources, FORMAT_ONLY, TIER, HUE_MIN_GAP, LEAFLESS } from "./check-taxonomy.mjs";
 
 const src = () => structuredClone(loadSources());
 const errs = (mutate) => { const s = src(); mutate(s); return checkTaxonomy(s); };
@@ -29,6 +29,9 @@ describe("the tree as it ships", () => {
     expect(Object.keys(s.catMeta).length).toBeGreaterThan(0);
     expect(s.seedBranches.length).toBeGreaterThan(0);
     expect(s.learnFields.length).toBeGreaterThan(0);
+    expect(s.learnSubjects.length).toBeGreaterThan(0);
+    expect(s.subtopics.length).toBeGreaterThan(0);
+    expect(s.feedQuestions.length).toBeGreaterThan(0);
   });
 });
 
@@ -132,10 +135,91 @@ describe("4 · the ledger", () => {
 
   it("catches a category recorded as created that does not exist", () => {
     fires((s) => s.ledger.created.push({ id: "vanished", surface: "feed", label: "Vanished" }),
-      /and no such category exists/);
+      /no such top exists/);
   });
 
-  it("accepts a well-formed proposal", () => {
+  it("accepts a well-formed top proposal", () => {
     expect(errs((s) => s.ledger.proposals.push(proposal()))).toEqual([]);
+  });
+
+  it("catches a proposal whose label already names a category", () => {
+    fires((s) => s.ledger.proposals.push(proposal({ id: "sub_x", label: "Sport", parent: "sport" })), /already names a feed category/);
+  });
+
+  const leaf = (over = {}) => ({
+    id: "sub_football", level: "leaf", label: "Football", surface: "feed", parent: "sport",
+    questions: [{ prompt: "VAR?", run: "2026-09-01" }], ...over,
+  });
+
+  it("accepts a well-formed leaf proposal, retag included", () => {
+    const e = errs((s) => {
+      const sport = s.feedQuestions.find((q) => q.cat === "sport" && typeof q.sub !== "string");
+      s.subtopics = s.subtopics.filter((l) => l.id !== "sub_football"); // free the id the demo uses
+      s.ledger.proposals.push(leaf({ retag: [sport.id] }));
+    });
+    expect(e).toEqual([]);
+  });
+
+  it("catches a leaf proposal with no parent", () => {
+    fires((s) => s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", parent: undefined })), /needs `parent`/);
+  });
+
+  it("catches a leaf under a parent that is not a topic", () => {
+    fires((s) => s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", parent: "Sport" })), /is not a feed topic/);
+  });
+
+  it("catches a leaf under a format or under `now`", () => {
+    expect([...LEAFLESS].sort()).toEqual(["fav", "now", "places"]);
+    fires((s) => s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", parent: "now" })), /may not carry leaves/);
+  });
+
+  it("catches a feed leaf id without the sub_ prefix", () => {
+    fires((s) => s.ledger.proposals.push(leaf({ id: "football", label: "Footie" })), /sub_<slug>/);
+  });
+
+  it("catches a retag that lives under another parent, or is already tagged, or does not exist", () => {
+    fires((s) => {
+      const food = s.feedQuestions.find((q) => q.cat === "food");
+      s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", retag: [food.id] }));
+    }, /lives under food, not under sport/);
+    fires((s) => {
+      const sport = s.feedQuestions.find((q) => q.cat === "sport");
+      sport.sub = "sub_tennis";
+      s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", retag: [sport.id] }));
+    }, /already carries sub/);
+    fires((s) => s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", retag: ["nope"] })), /is not a feed question/);
+  });
+
+  it("refuses a daily leaf — the second level is the path", () => {
+    fires((s) => s.ledger.proposals.push(leaf({ id: "x", label: "X", surface: "daily", parent: "Sport" })), /\[Top, Sub\]/);
+  });
+
+  it("catches a created leaf that does not exist", () => {
+    fires((s) => s.ledger.created.push({ id: "sub_vanished", level: "leaf", surface: "feed", parent: "sport", label: "Vanished" }),
+      /no such leaf exists/);
+  });
+});
+
+describe("5 · the leaf lists", () => {
+  it("catches a leaf whose parent is not a topic", () => {
+    fires((s) => s.subtopics.push({ id: "sub_x", parent: "nowhere", label: "X" }), /is not a WORLD_TOPICS id/);
+  });
+
+  it("catches a leaf under a format or under `now`", () => {
+    fires((s) => s.subtopics.push({ id: "sub_x", parent: "fav", label: "X" }), /may not carry leaves/);
+    fires((s) => s.subtopics.push({ id: "sub_x", parent: "now", label: "X" }), /may not carry leaves/);
+  });
+
+  it("catches a leaf id without the prefix, or repeated", () => {
+    fires((s) => s.subtopics.push({ id: "tennis2", parent: "sport", label: "T" }), /sub_<slug>/);
+    fires((s) => s.subtopics.push({ ...s.subtopics[0] }), /id repeats/);
+  });
+
+  it("catches two leaves with one label under one parent", () => {
+    fires((s) => s.subtopics.push({ id: "sub_tennis2", parent: "sport", label: "Tennis" }), /label "Tennis" repeats under sport/);
+  });
+
+  it("catches a learn field on a subject that does not exist", () => {
+    fires((s) => s.learnFields.push({ id: "x", subject: "nowhere", label: "X" }), /is not in learn-questions.json subjects/);
   });
 });

@@ -848,6 +848,21 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
 
     checkAlso(q, ctx.feedTopics, ctx, err);
+    // The subtopic tag (D422): a feed question is a leaf's by `sub`, the field
+    // world-feed.jsx's filter fast-paths (`q.sub && leafOn[q.sub]`) and
+    // SUBTOPICS.count reads. A leaf is a PART of its parent, so the tag has
+    // to sit under the question's own home — a tennis question filed under
+    // food with sub_tennis would be met through Sport's leaf and placed on
+    // Food's branch. And it never repeats in `also`: the tag already places
+    // it there, so the door is one claim stated twice.
+    if (q.sub !== undefined) {
+      if (typeof q.sub !== "string" || !ctx.subParents.has(q.sub)) {
+        err("sub", `sub ${JSON.stringify(q.sub)} is not a committed subtopic leaf (world-subtopics.js) — the tree grows through § When no category fits`);
+      } else if (ctx.subParents.get(q.sub) !== q.cat) {
+        err("sub", `sub ${q.sub} is a leaf of ${JSON.stringify(ctx.subParents.get(q.sub))}, not of this question's home ${JSON.stringify(q.cat)} — a leaf is a part of its parent`);
+      }
+      if (Array.isArray(q.also) && q.also.includes(q.sub)) err("sub", `sub ${q.sub} repeats in \`also\` — the tag already places the card there`);
+    }
 
     // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
     //

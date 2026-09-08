@@ -63,15 +63,20 @@ nothing, loudly, if no topic is thin.
    `check:taxonomy`, which fails a category written at some of its sites
    and not the others. Everything else under `content/` stays
    untouchable.
-3. **A new category is created by ARITHMETIC, never by a run's opinion.**
-   Reversed at D421, on the owner's direction: the lanes create categories
-   now. What a run may not do is decide alone — `npm run topic:budget`
-   rules on the proposal ledger and a run creates exactly what it says to
-   create, at every site, stocked to the floor in the same PR. A question
-   fitting no existing category is PARKED in
-   `content/topic-proposals.json`, not dropped. § When no category fits has
-   the whole procedure; hard rule 2's ledger carve-out is what lets a run
-   write it.
+3. **The top level is fixed; the tree grows, by ARITHMETIC.** Reversed
+   at D421 and shaped at D422, on the owner's direction: the lanes create
+   categories now, and *"most topics should be subtopics — there should
+   only be a limited number of topics."* A feed topic, a daily top or a
+   learn subject is capped at today's count (`TOPS[surface].max` in
+   `scripts/topic-budget.mjs`, the owner's number); a **subtopic** under a
+   levelled parent — a feed leaf, a learn field — is what a lane creates.
+   What a run may not do is decide alone — `npm run topic:budget` rules on
+   the proposal ledger and a run creates exactly what it says to create,
+   at every site, in the same PR. A question fitting nothing below its
+   nearest parent is PARKED in `content/topic-proposals.json`, not
+   dropped. § When no category fits has the whole procedure; hard rule 2's
+   ledger carve-out is what lets a run write it. The daily's second level
+   is the path `cat: [Top, Sub]` and is written, never created.
 4. **Never generate answers, votes, takes, or people.** Questions are
    content; activity is fabrication (decision D1). There is no exception.
 5. **Append only, at the end of `Q`.** Ids are positional: entry `i` maps
@@ -1391,125 +1396,129 @@ a served question. Rules, each load-bearing:
   none is open), never generated activity, never a flag flipped, never
   a shipped question's options edited.
 
-## When no category fits (every question gets one; the lane makes the rest)
+## When no category fits (every question gets one; the tree grows)
 
 Two rules, and they pull in opposite directions on purpose.
 
 **Every question carries a category, and gates say so.** Per surface:
 `cat` is `[Top, Sub]` with `Top` in `CAT_META` for a daily question; a
-`topics` id for a feed question; a `WORLD_TOPICS` id for a pick card; `f`
-(the field) for a learn card. `check:quality` enforces all four — the
-feed and pick halves since D145, which found both unenforced. Every
-question in the tree already carried one, so nothing was broken; what was
-missing was the gate, and "true in the data" is a different thing from
-"true" once a schedule rather than a human is writing. The pulse is the
-one deliberate exception: it is a single standing card on the daily tab,
-not something filed into a topic list, and its Map branch is unported by
-D139's own decision (the seventh over-category, the D126 boundary).
+`topics` id for a feed question (plus, optionally, a `sub` naming the
+subtopic leaf it belongs to — D422); a `WORLD_TOPICS` id for a pick card;
+`f` (the field) for a learn card. `check:quality` enforces all of it — the
+feed and pick halves since D145, which found both unenforced, and `sub`
+since D422. Every question in the tree already carried one, so nothing
+was broken; what was missing was the gate, and "true in the data" is a
+different thing from "true" once a schedule rather than a human is
+writing. The pulse is the one deliberate exception: it is a single
+standing card on the daily tab, not something filed into a topic list,
+and its Map branch is unported by D139's own decision (the seventh
+over-category, the D126 boundary).
 
-**A new category is created by the lane, and the arithmetic decides
-when.** This is D421, and it reverses the rule that stood here from the
-farm's first day: *"A new category is never created by a run. Not for
-daily (hard rule 3), not for feed topics, not for pick `cat`s, not for
-learn fields or subjects."* The owner's direction is that the AI creates
-them.
+**The top level is fixed, and the tree grows — by the lane, when the
+arithmetic says so.** This is D421 and D422 together, and it reverses the
+rule that stood here from the farm's first day: *"A new category is never
+created by a run."* The owner's direction is that the AI creates them,
+and then — the same day, reading the first cut — that *"most topics
+should be subtopics; there should only be a limited number of topics."*
 
 What the old rule was protecting is still true and is why there is a
-system rather than a permission: a category here is not a label. It is a
-`CAT_META` hue, a Map anchor with relations, a chip in a filter row, and
-for learn a group in the Map's layout. Adding one is a structural change
-to the picture the Mirror draws, which is the product. What was WRONG
-with the old rule is where it put the caution — on a human who is not in
-the loop (D212) and who therefore never arrived. Nine months, one
-category created: `now`, at D231, by the owner in person. A rule whose
-safe path is never taken is not caution, it is a stop.
+system rather than a permission: a top-level category is not a label. It
+is a `CAT_META` hue, a Map anchor with relations, a chip in a filter row,
+and — because feed topics are always-on (D96) — a page of reads for
+every new install (D321). What was WRONG with the old rule is where it
+put the caution: on a human who is not in the loop (D212) and who
+therefore never arrived. Nine months, one category created: `now`, at
+D231, by the owner in person. A rule whose safe path is never taken is
+not caution, it is a stop.
+
+A **subtopic** pays none of those costs. It inherits its parent's hue
+(colour = family, `world-subtopics.js`), adds no chip to the row and no
+branch to the Map, costs an install no page — its cards ride the parent's
+page — and following the parent already reaches it. That asymmetry is the
+whole design: **the top level is capped at today's count, and growth
+goes into the tree.**
 
 So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
-schedule. **Three blockers and a write rule, each something the old rule
-asserted in prose:**
+schedule. **For a leaf — the normal case — three blockers and a write
+rule:**
 
-1. **Evidence** — `EVIDENCE_MIN` (3) parked questions from `RUNS_MIN` (3)
-   distinct run days. This is the old section's own sentence made literal:
-   *three runs proposing the same missing top is an argument; one is an
-   anecdote.* A single firing cannot manufacture recurrence by parking
-   more — the count is of DAYS.
-2. **No breadth debt** — every existing category on that surface at or
-   above its floor (8/top daily, 24/topic feed, 24/field learn). A new
-   room while the old ones are thin is breadth owed twice. The number is
-   the lane regulator's own deficit, read from it, so this rule cannot
-   disagree with the lane about what thin means.
-3. **Settling** — the last category created on that surface must itself be
-   at floor before another opens. One room at a time.
+1. **Evidence** — `EVIDENCE_MIN` (3) questions wanting the leaf, over
+   `RUNS_MIN` (3) distinct run days. Two kinds count: questions PARKED in
+   the ledger (new ones the lane wrote that fit nothing below the
+   parent), and questions RETAGGED — existing questions under the parent
+   that the proposal names as the leaf's (`retag`), which is free stock.
+   Days are counted on the parked entries only, so a pure carve still
+   needs three runs to say so: *three runs proposing the same missing
+   room is an argument; one is an anecdote.*
+2. **Parent levelled** — the parent at or above its own floor (24 for a
+   feed topic; every field at 24 for a learn subject). The deferral this
+   section carried for a month, made literal: a leaf below a thin parent
+   is depth where breadth is still owed.
+3. **Settling** — the last leaf created under the *same* parent is at its
+   floor. One leaf per parent at a time; different parents grow in
+   parallel, because leaves are cheap.
 
-**The write rule:** the creating run writes `min(budget, floor − parked)`
-into the new category in the PR that opens it, and the lane's own
-regulator finishes the job — a category at 3 is the largest deficit on
-its surface, so floor-first levelling points the next run at it
-(`feed-budget.mjs`'s `LANE_EXCLUDED` comment describes exactly that pull).
-For the feed (cap 60) and the daily (cap 8 = floor) that means born at
-the floor anyway; for learn (cap 10, floor 24) it means born at 13 and
-full two runs later. This was a fourth *blocker* in D421's first cut —
-"finish the room you open" — and the arithmetic locked learn out for good
-(21 owed, 10 granted, every run); the write rule is what replaced it.
+**The write rule:** the creating run writes `min(budget, floor − parked −
+retag)` into the leaf in the PR that opens it. A feed leaf's floor is 12
+— one page (`FEED_PAGE`), the shelf a device holds — and it is born full,
+always: the feed lane's cap (60) covers it, pinned by the test, because
+`feed-budget.mjs` levels topics, not leaves, and a thin leaf would stay
+thin. A learn field's floor is the lane's own 24, and the learn regulator
+levels fields, so a field may be born at 13 and full two runs later.
+
+**For a top — the exception — the same evidence, breadth-debt and
+settling rules D421 wrote, behind the owner's cap:** `TOPS[surface].max`
+is today's count (13 feed · 14 daily · 5 learn subjects), and a
+top-level proposal HOLDs there with the owner's words until the owner
+raises the constant. The machinery below the cap is whole, so raising it
+is one edit. The daily's second level needs none of this: it is the path
+`cat: [Top, Sub]`, 129 distinct pairs over 154 questions, written on the
+question and never created.
 
 **The procedure, per run:**
 
 1. Fit the question to an existing category, including via `alts` — the
    daily surface's two alternative placements exist precisely because one
    question legitimately reads under more than one top. This is still the
-   first move and still the usual outcome.
+   first move and still the usual outcome. On the feed, fitting includes
+   the leaf: a football question under Sport carries `sub: "sub_football"`
+   once that leaf exists.
 2. **Scout, once.** Before writing toward the allocation, ask whether
-   there is a subject this lane keeps wanting to write toward that has no
-   home — a thing the crowd is plainly interested in, a subject the `now`
-   lane has carried for months and is no longer *now*, a question you
-   rewrote three times to fit somewhere it does not belong. If there is
-   one, write ONE question for it and park it (step 3), at most one per
-   run. If there is not, park nothing: the evidence rule counts days
+   there is a *part* of a parent this lane keeps writing into that has
+   no leaf — a subject the crowd is plainly interested in, a cluster of
+   existing questions under one topic that read as one room, a subject
+   the `now` lane has carried for months and is no longer *now*. If there
+   is one, write ONE question for it and park it (step 3), at most one
+   per run. If there is not, park nothing: the evidence rule counts days
    precisely because recurrence is the signal, and a run that parks
    something every day to be thorough has replaced the signal with its
    own habit. This step exists because a lane writing toward "6 into
    sport" will otherwise never meet a question that fits nothing, and a
    system whose evidence stream is accidental is the old rule wearing
    arithmetic.
-3. If no existing category fits without distorting the question, **park
-   it** in `content/topic-proposals.json` under the proposed id: the
-   label, the `nearest` existing category it came closest to, and the
-   question with its run date. Parking is not dropping — the old rule
-   discarded exactly the evidence it then asked a human to recognise a
-   pattern in. A parked question still has to clear `check:neighbors`
-   like any other; it is a question that has no home, not a question
-   that is already asked.
+3. **Park it** in `content/topic-proposals.json` under the proposed leaf:
+   `level: "leaf"`, the `parent`, the label, the question with its run
+   date, and — the free half — `retag`: the ids of existing questions
+   under the parent that are this leaf's. A parked question still has to
+   clear `check:neighbors` like any other; it is a question that has no
+   room, not one already asked. (A top-level proposal is parked the same
+   way with `level: "top"` and `nearest`; it holds at the cap and stands
+   as evidence.)
 4. Run `npm run topic:budget`. It prints CREATE or HOLD per proposal, and
-   HOLD names which blocker and by how much. For a feed proposal it also
-   prints what the topic costs every new install (a page per always-on
-   topic, D96/D321) and the system's top speed — one category per three
-   run days per surface when levelled — which is the owner's number, on
-   `OWNER-LIST.md`, not this manual's.
-5. On CREATE: write the category at **every site the verdict names** — for
-   the feed that is `src/v2/spec/world-feed-topics.js` *and*
-   `content/feed-questions.json`; for the daily, `CAT_META` — take the hue
-   from `hueFor()` (the widest gap's midpoint, D231's own pick
-   mechanised), write the parked questions plus the verdict's `write`
-   count into it in the same PR, and append the row to the ledger's
-   `created`. `check:taxonomy` fails a half-written category, which is
-   the failure this whole system is shaped around.
+   HOLD names which blocker and by how much.
+5. On CREATE, in the same PR: add the row to `WORLD_SUBTOPICS` (`id`,
+   `parent`, `label` — no colour, a leaf wears its family's), set
+   `sub: "<leaf>"` on every `retag` question and on the parked ones as
+   they are written into `content/feed-questions.json`, write the
+   verdict's `write` count of new ones, and append the row to the
+   ledger's `created` with the PR number. For a learn field: the row in
+   `fields`, cards with `f` set. `check:taxonomy` fails a half-written
+   leaf and `check:quality` a tag under the wrong parent.
 6. Log it on issue #31 as usual, with the verdict line verbatim.
 
-**Prefer a subtopic when the parent is levelled.** A proposal whose
-`nearest` is a levelled topic and whose questions read as a *part* of it
-(Tennis under Sport, not Gaming beside Tech) is a leaf, not a sibling —
-and a leaf is cheaper in every way that matters: it inherits the parent's
-hue (colour = family, `world-subtopics.js`), adds no chip to the row and
-no branch to the Map, costs a new install no page, and following the
-parent already reaches it. That lane is not wired yet — the deferral above
-("a leaf below a levelled parent is depth where breadth is still owed")
-was written when the parents were thin, and they are levelled now — so
-until it is, a leaf-shaped proposal parks with `nearest` set and waits,
-and the wiring is the recorded next step.
-
 **There is deliberately no semantic gate**, and this is the one place a
-future run is likely to want to add one. The obvious fifth blocker is *is
-this proposal actually distinct, or a synonym of a topic that exists?* —
+future run is likely to want to add one. The obvious extra blocker is *is
+this proposal actually distinct, or a synonym of a room that exists?* —
 and `question-neighbors.mjs` has the machinery. It was built and then
 measured against the live feed corpus before being believed, and the
 measurement refused it: the lowest per-topic self-affinity (0.049) sits
@@ -1624,12 +1633,13 @@ bar each entry below has to meet:
 - **Sponsored questions** — a human contract path, never scheduled
   (`source: "sponsor"`, D195); money does not get a robot.
 
-Deferred with arithmetic rather than excluded: **subtopic (`sub`)
-authoring** — the feed's second taxonomy level is shipped and dormant
-(`world-subtopics.js`: three stocked demo leaves, zero live questions
-tagged), and wiring the lane to stock leaves is the recorded next step
-of the volume plan once the ten parent topics level at the D213 target
-(a leaf below a levelled parent is depth where breadth is still owed).
+Subtopic authoring was deferred here with arithmetic until D422 — *"a
+leaf below a levelled parent is depth where breadth is still owed"* —
+and the parents levelled (the feed's ten at the D213 target, measured
+2026-09-08). It is the growth path now: § When no category fits has the
+procedure, `scripts/topic-budget.mjs` the arithmetic, and a feed question
+carries its leaf as `sub` (validated at `check:quality`, emitted by the
+generator, read by the device's filter and discover sheet).
 
 ## Future directions, recorded early (notes, not designs)
 

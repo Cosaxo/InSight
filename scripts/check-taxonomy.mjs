@@ -32,11 +32,18 @@
 // Rule 4 is what makes the ledger trustworthy input to topic-budget.mjs: a
 // regulator reading a file nothing validates is farm-budget reading an
 // invented number, which is D197's finding.
+//
+//   5. the LEAF lists (D422 — the tree is where growth goes): every feed
+//      subtopic is `sub_`-prefixed, unique, under a subject topic that can
+//      carry leaves, with a label unique within its parent; every learn
+//      field names a subject that exists. A leaf under a format (`fav`) or
+//      under `now` is refused here — D231 built `now` as a time, and a leaf
+//      of a time would be a subject wearing an expiry it does not have.
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractLiteral } from "./question-quality.mjs";
-import { SURFACES } from "./topic-budget.mjs";
+import { TOPS, LEAVES, levelOf } from "./topic-budget.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...p) => readFileSync(join(root, ...p), "utf8");
@@ -81,12 +88,21 @@ export function loadSources() {
     seedBranches: extractLiteral(
       read("src", "v2", "spec", "map-branches.js"), "const CATS = [", "map-branches.js"),
     learnFields: JSON.parse(read("content", "learn-questions.json")).fields,
+    learnSubjects: JSON.parse(read("content", "learn-questions.json")).subjects,
+    subtopics: extractLiteral(
+      read("src", "v2", "spec", "world-subtopics.js"), "const WORLD_SUBTOPICS = [", "world-subtopics.js"),
+    feedQuestions: JSON.parse(read("content", "feed-questions.json")).questions,
     ledger: JSON.parse(read("content", "topic-proposals.json")),
   };
 }
 
+// Topics that may not carry leaves: the two formats (FORMAT_ONLY) and `now`
+// (D231: a TIME, not a subject — its questions expire, and a leaf of a time
+// would be a subject that had been given an expiry it does not have).
+export const LEAFLESS = new Set([...["places", "fav"], "now"]);
+
 export function checkTaxonomy(sources = loadSources()) {
-  const { palette, wire, catMeta, seedBranches, learnFields, ledger } = sources;
+  const { palette, wire, catMeta, seedBranches, learnFields, learnSubjects, subtopics, feedQuestions, ledger } = sources;
   const errors = [];
   const err = (m) => errors.push(m);
 
@@ -176,23 +192,62 @@ export function checkTaxonomy(sources = loadSources()) {
   const known = {
     daily: new Set(Object.keys(catMeta)),
     feed: new Set(palette.map((t) => t.id)),
-    learn: new Set(learnFields.map((f) => f.id)),
+    learn: new Set(learnSubjects.map((f) => f.id)),
   };
+  const knownLeaves = {
+    feed: new Set(subtopics.map((l) => l.id)),
+    learn: new Set(learnFields.map((f) => f.id)),
+    daily: new Set(),
+  };
+  const labelSlug = (l) => String(l ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const knownLabels = {
+    daily: new Set(Object.keys(catMeta).map(labelSlug)),
+    feed: new Set([...palette.map((t) => labelSlug(t.label)), ...subtopics.map((l) => labelSlug(l.label))]),
+    learn: new Set([...learnSubjects.map((f) => labelSlug(f.label)), ...learnFields.map((f) => labelSlug(f.label))]),
+  };
+  const feedById = new Map(feedQuestions.map((q) => [q.id, q]));
   for (const p of ledger.proposals ?? []) {
     const where = `topic-proposals.json proposal ${JSON.stringify(p.id ?? "(no id)")}`;
-    if (!SURFACES[p.surface]) {
-      err(`${where}: surface ${JSON.stringify(p.surface)} is not one of ${Object.keys(SURFACES).join("/")}`);
+    if (!TOPS[p.surface]) {
+      err(`${where}: surface ${JSON.stringify(p.surface)} is not one of ${Object.keys(TOPS).join("/")}`);
       continue;
     }
-    if (known[p.surface].has(p.id)) {
+    const level = levelOf(p);
+    if (p.level !== undefined && p.level !== level) err(`${where}: level must be "top" or "leaf"`);
+    if (known[p.surface].has(p.id) || knownLeaves[p.surface].has(p.id)) {
       err(`${where}: ${p.surface} already has a category with that id — a proposal is for a gap, not a rename`);
     }
     if (!p.label) err(`${where}: no label`);
-    if (!p.nearest) {
-      err(`${where}: no \`nearest\` — the rule is place it, and only propose when it cannot be placed, so the `
-        + "category it came closest to is the argument's other half");
-    } else if (!known[p.surface].has(p.nearest)) {
-      err(`${where}: nearest ${JSON.stringify(p.nearest)} is not a ${p.surface} category`);
+    else if (knownLabels[p.surface].has(labelSlug(p.label))) {
+      err(`${where}: label ${JSON.stringify(p.label)} already names a ${p.surface} category — a proposal is for a gap, not a rename`);
+    }
+    if (level === "leaf") {
+      if (LEAVES[p.surface] === null) {
+        err(`${where}: the daily has no leaf registry — its second level is the path \`cat: [Top, Sub]\`; write it on the question`);
+      } else if (!p.parent) {
+        err(`${where}: a leaf proposal needs \`parent\``);
+      } else if (!known[p.surface].has(p.parent)) {
+        err(`${where}: parent ${JSON.stringify(p.parent)} is not a ${p.surface} ${TOPS[p.surface].noun}`);
+      } else if (p.surface === "feed" && LEAFLESS.has(p.parent)) {
+        err(`${where}: ${p.parent} may not carry leaves (a format, or \`now\` — D231's time, not a subject)`);
+      }
+      if (p.surface === "feed" && p.id && !/^sub_[a-z0-9_]+$/.test(p.id)) {
+        err(`${where}: a feed subtopic id is \`sub_<slug>\` (world-subtopics.js) — got ${JSON.stringify(p.id)}`);
+      }
+      for (const [i, id] of (p.retag ?? []).entries()) {
+        if (p.surface !== "feed") { err(`${where}: retag[${i}] — only the feed carves a leaf out of existing questions`); break; }
+        const q = feedById.get(id);
+        if (!q) err(`${where}: retag[${i}] ${JSON.stringify(id)} is not a feed question`);
+        else if (q.cat !== p.parent) err(`${where}: retag[${i}] ${id} lives under ${q.cat}, not under ${p.parent} — a leaf is a part of its parent`);
+        else if (typeof q.sub === "string") err(`${where}: retag[${i}] ${id} already carries sub ${q.sub}`);
+      }
+    } else {
+      if (!p.nearest) {
+        err(`${where}: no \`nearest\` — the rule is place it, and only propose when it cannot be placed, so the `
+          + "category it came closest to is the argument's other half");
+      } else if (!known[p.surface].has(p.nearest)) {
+        err(`${where}: nearest ${JSON.stringify(p.nearest)} is not a ${p.surface} category`);
+      }
     }
     for (const [i, q] of (p.questions ?? []).entries()) {
       if (!q || typeof q.prompt !== "string" || !q.prompt) err(`${where}: questions[${i}] has no prompt`);
@@ -202,12 +257,39 @@ export function checkTaxonomy(sources = loadSources()) {
     }
   }
   for (const c of ledger.created ?? []) {
-    if (!SURFACES[c.surface]) {
+    if (!TOPS[c.surface]) {
       err(`topic-proposals.json created ${JSON.stringify(c.id)}: unknown surface ${JSON.stringify(c.surface)}`);
-    } else if (!known[c.surface].has(c.id)) {
-      err(`topic-proposals.json records ${c.surface}/${c.id} as created, and no such category exists — `
+      continue;
+    }
+    const exists = levelOf(c) === "leaf" ? knownLeaves[c.surface].has(c.id) : known[c.surface].has(c.id);
+    if (!exists) {
+      err(`topic-proposals.json records ${c.surface}/${c.id} as created, and no such ${levelOf(c)} exists — `
         + "either the creation was reverted and this row should go, or it was half-written");
     }
+  }
+
+  // ── 5 · the leaf lists ──
+  const leafIds = new Set();
+  const leafLabels = new Map(); // parent -> Set(label slug)
+  for (const l of subtopics) {
+    const where = `world-subtopics.js leaf ${JSON.stringify(l.id ?? "(no id)")}`;
+    if (!/^sub_[a-z0-9_]+$/.test(String(l.id))) err(`${where}: id must be \`sub_<slug>\``);
+    if (leafIds.has(l.id)) err(`${where}: id repeats`);
+    leafIds.add(l.id);
+    if (!l.label) err(`${where}: no label`);
+    if (!paletteById.has(l.parent)) err(`${where}: parent ${JSON.stringify(l.parent)} is not a WORLD_TOPICS id`);
+    else if (LEAFLESS.has(l.parent)) err(`${where}: parent ${l.parent} may not carry leaves (a format, or \`now\` — D231)`);
+    const set = leafLabels.get(l.parent) ?? new Set();
+    if (set.has(labelSlug(l.label))) err(`${where}: label ${JSON.stringify(l.label)} repeats under ${l.parent}`);
+    set.add(labelSlug(l.label));
+    leafLabels.set(l.parent, set);
+  }
+  const subjectIds = new Set(learnSubjects.map((s) => s.id));
+  const fieldIds = new Set();
+  for (const f of learnFields) {
+    if (fieldIds.has(f.id)) err(`learn field ${JSON.stringify(f.id)}: id repeats`);
+    fieldIds.add(f.id);
+    if (!subjectIds.has(f.subject)) err(`learn field ${JSON.stringify(f.id)}: subject ${JSON.stringify(f.subject)} is not in learn-questions.json subjects`);
   }
 
   return errors;
@@ -225,6 +307,6 @@ if (invokedDirectly) {
     console.error("\nA category is written at every site or not at all (D421).");
     process.exit(1);
   }
-  console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, ledger clean");
+  console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, leaf lists sound, ledger clean");
   process.exit(0);
 }
