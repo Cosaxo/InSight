@@ -1,8 +1,8 @@
-// topic-budget.test.mjs — pins the D421/D422 taxonomy regulator.
+// topic-budget.test.mjs — pins the D424/D425 taxonomy regulator.
 //
 // The property under test is the reversal's whole safety argument: the
 // lanes create categories now, the top level is fixed at the owner's count
-// (D422), and the blockers on a leaf are what stands where the human used
+// (D425), and the blockers on a leaf are what stands where the human used
 // to. Each blocker is pinned separately, because a blocker that stops firing
 // is invisible — the regulator would simply start saying yes, which looks
 // exactly like evidence arriving.
@@ -69,7 +69,7 @@ describe("leafVerdict — the normal case", () => {
 
   it("a learn field may be born thin — the learn regulator finishes it", () => {
     expect(LEAVES.learn.levelledByLane).toBe(true);
-    expect(LEARN_CAP).toBeLessThan(FIELD_FLOOR - EVIDENCE_MIN); // the D421 lockout, as arithmetic
+    expect(LEARN_CAP).toBeLessThan(FIELD_FLOOR - EVIDENCE_MIN); // the D424 lockout, as arithmetic
     const v = leafVerdict({ surface: "learn", parked: EVIDENCE_MIN, days: RUNS_MIN, parentDeficit: 0, budget: LEARN_CAP });
     expect(v.create).toBe(true);
     expect(v.write).toBe(LEARN_CAP);
@@ -104,7 +104,7 @@ describe("topVerdict — a new topic lands in a hub that exists", () => {
     expect(v.blockers[0]).toMatch(/subtopic under `nearest`/);
   });
 
-  it("has no cap on the count of topics — D421's blockers are the whole rule", () => {
+  it("has no cap on the count of topics — D424's blockers are the whole rule", () => {
     expect(TOPS.feed.max).toBeUndefined();
     expect(topVerdict(top).create).toBe(true);
     expect(topVerdict({ ...top, parked: 50, days: 1 }).blockers[0]).toMatch(/anecdote/);

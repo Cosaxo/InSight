@@ -1,7 +1,7 @@
 // topic-budget.mjs — when a lane may CREATE a category, as arithmetic
-// (D421), and what on the You map stays fixed while it does (D422).
+// (D424), and what on the You map stays fixed while it does (D425).
 //
-// WHY THIS EXISTS. Until D421 the answer was never: "A new category is never
+// WHY THIS EXISTS. Until D424 the answer was never: "A new category is never
 // created by a run" (QUESTION-FARM.md hard rule 3, restated at D145). The
 // owner reversed it — the lanes create categories now — and then, reading
 // the first two cuts the same day, said what the fixed thing actually is:
@@ -72,13 +72,13 @@
 // floor-first levelling finishes it — a room at 3 is the largest deficit
 // on its surface (feed-budget.mjs's LANE_EXCLUDED comment describes exactly
 // that pull). Settling holds the door meanwhile. Capacity was a BLOCKER in
-// D421's first cut and locked learn out by arithmetic (cap 10, floor 24);
+// D424's first cut and locked learn out by arithmetic (cap 10, floor 24);
 // it is a write rule since. The one exception is a feed LEAF: feed-budget
 // levels topics, not leaves, so a feed leaf must be born full — and it
 // always can be, FEED_CAP (60) ≥ LEAF_FLOOR (12), pinned.
 //
 // WHAT IS DELIBERATELY NOT A BLOCKER, and the measurement that decided it
-// (D421 §5): a semantic "is this distinct?" gate. question-neighbors.mjs's
+// (D424 §5): a semantic "is this distinct?" gate. question-neighbors.mjs's
 // token affinity, measured on the live feed corpus, puts the lowest
 // per-topic self-affinity (0.049, `now`) below the highest cross-topic
 // affinity (0.117) — no threshold separates the classes, and the topic it
@@ -256,7 +256,7 @@ export function topVerdict({ surface, placed = true, parked, days, deficit, budg
   const blockers = [];
   if (!placed) {
     blockers.push(
-      `not placed: no existing hub on the You map takes it (D422 — the ring stays as it is "unless a new one is really ` +
+      `not placed: no existing hub on the You map takes it (D425 — the ring stays as it is "unless a new one is really ` +
       `needed", and that is the owner's call, on docs/OWNER-LIST.md) — name a \`group\` that exists, or propose it as a ` +
       `${LEAVES[surface] ? LEAVES[surface].noun : "path"} under \`nearest\``,
     );
@@ -287,7 +287,7 @@ export function topVerdict({ surface, placed = true, parked, days, deficit, budg
   };
 }
 
-/** D421's name for the top-level verdict, kept for the record's readers. */
+/** D424's name for the top-level verdict, kept for the record's readers. */
 export const topicVerdict = topVerdict;
 
 /** D231's hue pick as an algorithm rather than a judgement: "hue 115 is the
@@ -426,7 +426,7 @@ if (invokedDirectly) {
 
   const ring = await loadRing();
   console.log(`topic-budget: ${plural(proposals.length, "proposal")} in the ledger (evidence ${EVIDENCE_MIN} over ${RUNS_MIN} run days)`);
-  console.log(`  the You map's ring is fixed (D422): ${ring.groups.length} hubs — ${ring.groups.map((g) => g.label).join(" · ")} — a new one is the owner's`);
+  console.log(`  the You map's ring is fixed (D425): ${ring.groups.length} hubs — ${ring.groups.map((g) => g.label).join(" · ")} — a new one is the owner's`);
   console.log("  the taxonomies grow, each new room landing in a hub that exists:");
   for (const [name, s] of Object.entries(TOPS)) {
     const t = tops[name];

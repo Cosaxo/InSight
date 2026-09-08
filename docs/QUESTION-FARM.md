@@ -55,7 +55,7 @@ nothing, loudly, if no topic is thin.
    `functions/src/v2content.ts`, byte-for-byte through the script and
    never by hand — plus the prose figures `check:figures` then names,
    applying exactly the fix lines the gate prints (§ Promoting questions
-   has the procedure). Third (D421): the run parks an unfittable question
+   has the procedure). Third (D424): the run parks an unfittable question
    in `content/topic-proposals.json` and, when `npm run topic:budget` says
    to create, writes the category at every site that regulator names —
    which for the feed is two files and for the daily is `CAT_META` plus
@@ -64,7 +64,7 @@ nothing, loudly, if no topic is thin.
    and not the others. Everything else under `content/` stays
    untouchable.
 3. **The You map's ring is fixed; the taxonomies grow, by ARITHMETIC.**
-   Reversed at D421 and shaped at D422, on the owner's direction: the
+   Reversed at D424 and shaped at D425, on the owner's direction: the
    lanes create categories now — *"learn, feed, daily: all of these can
    get new topics"* — and what stays as it is is *"the amount of topics
    shown at the top in the You map"*: the hubs of `map-groups.js`, held
@@ -1406,10 +1406,10 @@ Two rules, and they pull in opposite directions on purpose.
 **Every question carries a category, and gates say so.** Per surface:
 `cat` is `[Top, Sub]` with `Top` in `CAT_META` for a daily question; a
 `topics` id for a feed question (plus, optionally, a `sub` naming the
-subtopic leaf it belongs to — D422); a `WORLD_TOPICS` id for a pick card;
+subtopic leaf it belongs to — D425); a `WORLD_TOPICS` id for a pick card;
 `f` (the field) for a learn card. `check:quality` enforces all of it — the
 feed and pick halves since D145, which found both unenforced, and `sub`
-since D422. Every question in the tree already carried one, so nothing
+since D425. Every question in the tree already carried one, so nothing
 was broken; what was missing was the gate, and "true in the data" is a
 different thing from "true" once a schedule rather than a human is
 writing. The pulse is the one deliberate exception: it is a single
@@ -1418,7 +1418,7 @@ and its Map branch is unported by D139's own decision (the seventh
 over-category, the D126 boundary).
 
 **The You map's ring is fixed, and the taxonomies grow — by the lane,
-when the arithmetic says so.** This is D421 and D422 together, and it
+when the arithmetic says so.** This is D424 and D425 together, and it
 reverses the rule that stood here from the farm's first day: *"A new
 category is never created by a run."* The owner's direction is that the
 AI creates them — *"learn, feed, daily: all of these can get new
@@ -1476,7 +1476,7 @@ thin. A learn field's floor is the lane's own 24, and the learn regulator
 levels fields, so a field may be born at 13 and full two runs later.
 
 **For a top — a new feed topic, learn subject or daily top — the same
-evidence, breadth-debt and settling rules D421 wrote, plus one: it is
+evidence, breadth-debt and settling rules D424 wrote, plus one: it is
 PLACED.** The proposal names the hub it lands in — `group`: for the
 daily a hub id in `map-groups.js` (the new top's `catId` goes into that
 hub's `cats`; the file's "unplaced lands in World" default is never how
@@ -1652,7 +1652,7 @@ bar each entry below has to meet:
 - **Sponsored questions** — a human contract path, never scheduled
   (`source: "sponsor"`, D195); money does not get a robot.
 
-Subtopic authoring was deferred here with arithmetic until D422 — *"a
+Subtopic authoring was deferred here with arithmetic until D425 — *"a
 leaf below a levelled parent is depth where breadth is still owed"* —
 and the parents levelled (the feed's ten at the D213 target, measured
 2026-09-08). It is the growth path now: § When no category fits has the

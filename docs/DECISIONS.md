@@ -44989,7 +44989,7 @@ Each half is its own merge commit and each of the three fixes is its
 own commit; the pull request is one squash. Reverting this record's
 tree restores `main` at `ba80520`.
 
-## D421 · The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail
+## D424 · The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail
 
 **2026-09-08.** **Status:** binding, built. Owner's direction, reading
 this repo's own answer to "how are new topics created and how often?":
@@ -45204,9 +45204,9 @@ Revert the commit. `check:taxonomy` and `topic:budget` leave the tree with
 it; hard rule 3 and § When no category fits return to the human gate. The
 ledger is empty, so nothing is stranded.
 
-## D422 · The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so
+## D425 · The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so
 
-**2026-09-08.** **Status:** binding, built. The owner, reading D421's
+**2026-09-08.** **Status:** binding, built. The owner, reading D424's
 first cut the same day: *"yeah most topic should be sub topics there
 should only be a limeted nummber of topics i assumed that was
 established. this should focus mainly on creating new subtopics"* — and
@@ -45264,10 +45264,10 @@ by moving the constant in the same PR as the hub, with the ruling.
 D334's shape: the ask goes to the owner with what it costs, and the
 owner rules.
 
-**2 · No cap on the count of topics, on any surface.** D422's first cut
+**2 · No cap on the count of topics, on any surface.** D425's first cut
 capped feed at 13, daily at 14 and learn subjects at 5 — the count, when
 the owner meant the ring. Those caps are gone; `TOPS[surface].max` does
-not exist. A new topic is created through D421's blockers — evidence
+not exist. A new topic is created through D424's blockers — evidence
 (3 over 3 run days), breadth debt (the lane's own deficit at 0),
 settling (the last one at floor), the write rule — **plus one: it is
 placed.** A top-level proposal carries `group`: for the daily a hub id
@@ -45350,12 +45350,12 @@ already names a category.
   Whether the Mirror's constellation (D112) should read feed topics
   through the same hub table is a separate question; nothing here moves
   it.
-- **Retirement is still not built** — D421's open asymmetry, now for
+- **Retirement is still not built** — D424's open asymmetry, now for
   leaves and hubs too.
 
 ### Reversal
 
-Revert the commits with D421's. Nothing is stranded: no question
+Revert the commits with D424's. Nothing is stranded: no question
 carries `sub` in the bank, so the generator's output is byte-identical
 with or without the emission, the ledger is empty, and the ring's
 ratchet reads the count that is there.

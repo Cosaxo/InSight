@@ -30,7 +30,7 @@ export interface LiveQuestion {
   // Carried through from the bank so the Mirror's Answers lens can group
   // by subject and its Scores lens can tell an ordinal question from a
   // categorical one (D100). Both undefined for a doc seeded before D100.
-  // On a FEED question `sub` is the subtopic leaf id instead (D422) — the
+  // On a FEED question `sub` is the subtopic leaf id instead (D425) — the
   // same field, and the surface says which; see QuestionDoc below.
   branch?: string;
   sub?: string;
@@ -69,7 +69,7 @@ export interface QuestionDoc {
   domain?: string | null;
   // The daily bank's [branch, sub-branch] subject path (D100) — "Mind" /
   // "Outlook" — and, on a FEED doc, `sub` alone is the subtopic LEAF id
-  // the card belongs to (`sub_tennis`; D422, world-subtopics.js). One
+  // the card belongs to (`sub_tennis`; D425, world-subtopics.js). One
   // wire field, two surfaces: a daily reader gets a name, a feed reader
   // gets an id, and neither surface ever sees the other's. Absent from
   // every other surface, and absent from any daily doc seeded before

@@ -1,4 +1,4 @@
-// check-taxonomy.test.mjs — proves each rule of the D421 completeness gate
+// check-taxonomy.test.mjs — proves each rule of the D424 completeness gate
 // can FAIL, not just that the tree is green today.
 //
 // This is the D179/D275 class written down: both were checking scripts that

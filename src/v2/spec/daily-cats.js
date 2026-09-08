@@ -6,7 +6,7 @@
 // with no seedId; the other seven branches are map-branches' own literal,
 // and fourteen is what the two make together. This said "fourteen
 // {id,label,hue} rows" of EMERGENT_CATS alone, which is the branch count
-// wearing the wrong name — D421 counted it. It was
+// wearing the wrong name — D424 counted it. It was
 // importing it from daily-questions.js, which put that module's whole
 // demo archive (36 KB, and the file the question farm appends to EVERY
 // DAY) into the first-paint graph for the sake of a colour and a label.

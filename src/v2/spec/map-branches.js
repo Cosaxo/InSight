@@ -8,7 +8,7 @@
 // one the question farm grows every day) into first paint for a list of
 // labels and hues. daily-cats.js is that list, and nothing else — the
 // seven emergent tops; the seven seed branches are the literal below, and
-// fourteen is the two together (D421 — the count used to be attached to
+// fourteen is the two together (D424 — the count used to be attached to
 // EMERGENT_CATS alone, in both files).
 import { EMERGENT_CATS } from './daily-cats.js';
 
@@ -33,7 +33,7 @@ export let MapLens;
   // (D354's conversion, and the module-evaluation-order trap this file is
   // the standing example of). An imported binding cannot be unset, so the
   // guard was the load-order condition outliving the load order — the
-  // shape CLAUDE.md's conversion rule names, swept at D421. The inner
+  // shape CLAUDE.md's conversion rule names, swept at D424. The inner
   // dedup stays: that one is a data condition.
   EMERGENT_CATS.forEach((c) => { if (!CATS.some((x) => x.id === c.id)) CATS.push({ id: c.id, label: c.label, hue: c.hue }); });
 

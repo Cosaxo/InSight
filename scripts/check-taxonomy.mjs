@@ -1,8 +1,8 @@
 // check-taxonomy.mjs — a category is written at EVERY site, or not at all
-// (D421). The CI half of the taxonomy system; the run-time half is
+// (D424). The CI half of the taxonomy system; the run-time half is
 // topic-budget.mjs, which decides whether a category may be created at all.
 //
-// WHY THIS EXISTS. D421 let the lanes create categories, which made a class
+// WHY THIS EXISTS. D424 let the lanes create categories, which made a class
 // of defect reachable on a schedule that had only ever been reachable by
 // hand: a HALF-CREATED category. A feed topic lives in two files that
 // nothing held together — src/v2/spec/world-feed-topics.js (the client
@@ -33,14 +33,14 @@
 // regulator reading a file nothing validates is farm-budget reading an
 // invented number, which is D197's finding.
 //
-//   5. the LEAF lists (D422 — the tree is where growth goes): every feed
+//   5. the LEAF lists (D425 — the tree is where growth goes): every feed
 //      subtopic is `sub_`-prefixed, unique, under a subject topic that can
 //      carry leaves, with a label unique within its parent; every learn
 //      field names a subject that exists. A leaf under a format (`fav`) or
 //      under `now` is refused here — D231 built `now` as a time, and a leaf
 //      of a time would be a subject wearing an expiry it does not have.
 //
-//   6. the RING (D422 — "the amount of topics shown at the top in the You
+//   6. the RING (D425 — "the amount of topics shown at the top in the You
 //      map should stay roughly the same"): MAP_GROUPS holds today's count
 //      of hubs as a ratchet the owner moves; every daily top is EXPLICITLY
 //      in a hub's `cats` (the "unplaced lands in World" default is never
@@ -108,7 +108,7 @@ export function loadSources() {
 
 // The You map's ring, today: eight hubs — six answer groups and two aims.
 // A ratchet the OWNER moves, in the same PR as the hub: the ring is the one
-// thing on the map a new category may not change on its own (D422).
+// thing on the map a new category may not change on its own (D425).
 export const GROUPS_TODAY = 8;
 
 // Feed topics whose caption falls to "added to Interests" by design rather
@@ -322,7 +322,7 @@ export function checkTaxonomy(sources = loadSources()) {
   // ── 6 · the ring ──
   if (groups.length !== GROUPS_TODAY) {
     err(`map-groups.js holds ${groups.length} hubs and GROUPS_TODAY says ${GROUPS_TODAY} — the You map's ring is the owner's `
-      + "(D422); if a hub was really needed, move the constant in the same PR, with the ruling");
+      + "(D425); if a hub was really needed, move the constant in the same PR, with the ruling");
   }
   const hubOf = new Map();
   for (const g of groups) for (const c of g.cats ?? []) hubOf.set(c, g.id);
@@ -331,7 +331,7 @@ export function checkTaxonomy(sources = loadSources()) {
     const catId = meta.seedId || `top-${slug(top)}`;
     if (!hubOf.has(catId)) {
       err(`CAT_META top ${JSON.stringify(top)} (${catId}) is in no hub's cats in map-groups.js — it would land in World by the `
-        + "unplaced default, which is a placement nobody made (D422: a new top is written INTO a hub)");
+        + "unplaced default, which is a placement nobody made (D425: a new top is written INTO a hub)");
     }
   }
   const topKeys = new Set(Object.keys(catMeta));
@@ -362,7 +362,7 @@ if (invokedDirectly) {
   if (errors.length) {
     console.error(`check:taxonomy — ${errors.length} problem${errors.length === 1 ? "" : "s"}:\n`);
     for (const e of errors) console.error(`  ✗ ${e}`);
-    console.error("\nA category is written at every site or not at all (D421).");
+    console.error("\nA category is written at every site or not at all (D424).");
     process.exit(1);
   }
   console.log("check:taxonomy — feed palette/wire in sync, CAT_META/map-branches in sync, hues distinct, leaf lists sound, ring held, ledger clean");

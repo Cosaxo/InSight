@@ -1903,7 +1903,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
-  it("a feed doc's subtopic leaf reaches the mapped card, and absence stays absent (D422)", async () => {
+  it("a feed doc's subtopic leaf reaches the mapped card, and absence stays absent (D425)", async () => {
     // `sub` is how a card belongs to a leaf: world-feed.jsx's filter
     // fast-paths on it and SUBTOPICS.count reads it off this pool — so the
     // day a bank doc carries the tag, the leaf is offered ("leaves return

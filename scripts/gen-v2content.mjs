@@ -309,7 +309,7 @@ export function buildEntries(content = loadContent()) {
       // disjoint from the home) so an unknown door — which fails silently,
       // the card just never matches it — cannot reach the bank.
       ...(Array.isArray(q.also) && q.also.length ? { also: q.also.map(String) } : {}),
-      // The subtopic leaf this card belongs to (D422) — the second level of
+      // The subtopic leaf this card belongs to (D425) — the second level of
       // the feed's tree, read by the client's filter fast path and the
       // discover sheet's stock count. Emit-when-set like `also`; validated
       // at check:quality (a committed leaf, under this card's own home).
@@ -702,7 +702,7 @@ const HEADER =
   "// question is in the Mirror's corpus only if it says so. Other surfaces do\n" +
   "// not carry the key because they are core by construction.\n" +
   "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path;\n" +
-  "// on a feed doc `sub` is instead the subtopic LEAF id it belongs to (D422)\n" +
+  "// on a feed doc `sub` is instead the subtopic LEAF id it belongs to (D425)\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
   "// `tag` is the daily bank's short label for a question — the Mirror's\n" +
   "// Scores card is a column of nouns, not of sentences (D187).\n" +

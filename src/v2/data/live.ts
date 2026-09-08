@@ -3521,7 +3521,7 @@ function buildFeedGlobals(): void {
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.
         ...(q.also && q.also.length ? { also: q.also } : {}),
-        // The subtopic leaf (D422): world-feed.jsx's filter fast-paths on
+        // The subtopic leaf (D425): world-feed.jsx's filter fast-paths on
         // `q.sub` and SUBTOPICS.count reads it off this pool — so the day a
         // bank doc carries the tag, the leaf is offered, which is exactly
         // what world-subtopics.js's offers() comment says will happen

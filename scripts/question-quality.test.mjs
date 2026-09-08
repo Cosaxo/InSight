@@ -982,7 +982,7 @@ describe("the background field", () => {
   });
 });
 
-describe("the subtopic tag (D422)", () => {
+describe("the subtopic tag (D425)", () => {
   const sport = (over = {}) => ({ surface: "feed", type: "vote", cat: "sport", prompt: "Best surface for tennis?", options: ["Clay", "Grass"], ...over });
 
   it("accepts a committed leaf under the question's own home", () => {

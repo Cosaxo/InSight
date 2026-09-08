@@ -611,7 +611,7 @@ const NOT_SEEDED = {
     + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
     + "held to shape by check:pricing; never an input to the bank",
   "topic-proposals.json":
-    "the taxonomy ledger, not content (D421) — questions a lane met that "
+    "the taxonomy ledger, not content (D424) — questions a lane met that "
     + "fit no existing category, parked with their run dates so "
     + "scripts/topic-budget.mjs can rule on whether the gap has become a "
     + "category. Read by that regulator and validated by check:taxonomy; "

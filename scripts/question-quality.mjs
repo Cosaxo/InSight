@@ -447,7 +447,7 @@ export function installDocs(rows) {
 }
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
-// EXPORTED since D421 (check-taxonomy.mjs reads the palette literals with
+// EXPORTED since D424 (check-taxonomy.mjs reads the palette literals with
 // it). D197's finding was one bank parser in three copies, one of which
 // swallowed its own failure in a try/catch and reported an invented number;
 // a new gate that needed this shape would have been the fourth copy. Take
@@ -848,7 +848,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
 
     checkAlso(q, ctx.feedTopics, ctx, err);
-    // The subtopic tag (D422): a feed question is a leaf's by `sub`, the field
+    // The subtopic tag (D425): a feed question is a leaf's by `sub`, the field
     // world-feed.jsx's filter fast-paths (`q.sub && leafOn[q.sub]`) and
     // SUBTOPICS.count reads. A leaf is a PART of its parent, so the tag has
     // to sit under the question's own home — a tennis question filed under
