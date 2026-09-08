@@ -25,7 +25,7 @@
 // the one the invoice will confirm.
 
 import {
-  B, VOTER_FETCH_CAP, DECK_DAYS, memberAnswers,
+  B, VOTER_FETCH_CAP, DECK_DAYS,
   SCENARIOS, costModel, REGIONAL, priceSheet, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
@@ -44,21 +44,9 @@ export const crowd = (dau) => Math.min(VOTER_FETCH_CAP, dau);
 // the foreground refresh (runbook 1.4) was the first, on 2026-09-08, and
 // the same day Phase 2 took the names-on-the-sample row, the sheet row
 // and the city pass (runbook 2.2–2.5; `socialTerms` in cost-arith.mjs
-// now carries all three at their built size).
+// now carries all three at their built size) and Phase 3 took the Circle
+// row — the answer map, live, on the owner's word (D421 amendment).
 export const RESHAPES = [
-  {
-    key: "circleDoc",
-    name: "Circle: one compact answer document per member, not ≤300 answer docs",
-    reads: (dau, mature) =>
-      B.circleOpens * B.circleFollows * (memberAnswers(mature) - 1),
-    // The nightly pass merges the day's answers into each ACTIVE person's
-    // map: one write per active user per night, off the ledger read it
-    // already makes.
-    writes: () => 1,
-    // If the trigger keeps the document live instead, it is one more write
-    // per world answer.
-    writesIfLive: () => B.worldAnswers,
-  },
   {
     key: "deckDoc",
     name: "One deck document per day: seven aggregates in one read at boot",

@@ -58,7 +58,8 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     30644637683.
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (exact
     aggregates), `onV2ProfileUpdated` (a changed name or score into the
-    voter samples — DATA-EFFICIENCY-RUNBOOK 2.1), `createGroupV2` /
+    voter samples — DATA-EFFICIENCY-RUNBOOK 2.1), `backfillAnswerMapsV2`
+    (the answer maps' one-time fold, runbook 3.4), `createGroupV2` /
     `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
@@ -167,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Seven jobs — verified rather than assumed,
+**What the environment gates.** Eight jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -184,6 +185,7 @@ same way and in the same commit.)
 | `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
 | `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
+| `backfill-answer-maps.yml` | `backfill` | `backfillAnswerMapsV2` folding every existing answer into the per-person answer maps (DATA-EFFICIENCY-RUNBOOK 3.4) — once, dry then `apply` |
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |

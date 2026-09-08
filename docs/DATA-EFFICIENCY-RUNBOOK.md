@@ -211,55 +211,84 @@ and the city samples' bound.
 **met at 197** for the reason 2.6 states; the remaining 46 is the owner's
 sentence on `OWNER-LIST.md`.
 
-## Phase 3 — the answer map, live with a nightly heal · **M, one pull request**
+## Phase 3 — the answer map, live with a nightly heal · **M, one pull request** · **DONE 2026-09-08, one click and one step after it left**
 
-The owner's word on *live* lands as a D421 amendment before this ships.
+The owner's word on *live* landed the same day (*"start phase 3 and use
+live for the answer map"* — the D421 amendment). Two things moved against
+the plan as written, each on its step: the write is INSIDE the aggregate
+transaction rather than after it, and the device keeps the answer query
+as a fallback until the backfill has run.
 
-- [ ] **3.1 The rule and the row.** `firestore.rules`:
-      `match /v2_users/{uid}/public/{docId}` — `allow get: if
-      request.auth != null; allow list: if false; allow write: if false`
-      — the answers' own grant (D98), one document. `data-inventory.md`
-      gains the row. · **Gate:** `test:rules` (another signed-in account
-      may get; nobody may list; no client may write),
-      `check:data-inventory`.
-- [ ] **3.2 The trigger writes it.** After `runAggTransaction` commits in
-      the vote branch (every world surface Circle folds), one
-      `set(v2_users/{uid}/public/answers, { a: { [qid]: idx }, at },
-      { merge: true })` — idempotent under `retry: true`, on a document
-      only that person's answers touch; `onV2AnswerUpdated` writes the
-      new index the same way. A guard skips and logs
-      `metric: answer_map_full` above `ANSWER_MAP_CAP` (40,000) entries.
-      · **Gate:** `idempotence.test.ts` (a redelivered event writes the
-      same map), `pulse.test.mjs` (writes per world answer +1).
-- [ ] **3.3 The nightly heal.** `nightly.ts` merges the day's entries per
-      active uid into the maps — one write per active person, off the
-      read the pass already makes — so an entry a crashed function missed
-      is present by morning. · **Gate:** `nightly.test.ts`.
-- [ ] **3.4 The backfill.** `scripts/backfill-answer-maps.mjs` folds the
-      `answers` collection group into maps (one read per existing answer,
-      batched merges), run once through a `workflow_dispatch` workflow
-      gated on `environment: production` in `rebuild-aggregate.yml`'s
-      shape, before 3.5 reaches a phone. · **Gate:** the script's own
-      test over a fixture; the run's summary against `answersCounted`.
-- [ ] **3.5 Circle reads it.** `circle.ts` `fetchAnswersOf` becomes one
-      `getDoc`; absent means the existing "could not read" arm;
-      `setFollowing` refetches one document; `CIRCLE_ANSWER_CAP` retires
-      with its `check:figures` row (**what a user sees:** old accounts
-      compare on everything they have answered, the 300 newest no longer
-      a cap). · **Gate:** `circle.reads.test.ts` (one read per member),
-      `circle.test.ts`, the Circle panel suite.
-- [ ] **3.6 Erasure.** `recursiveDelete` of `v2_users/{uid}` already takes
-      the subcollection; `test:e2e:erasure` asserts the map is gone,
-      which is the proof. · **Gate:** `test:e2e:erasure`.
-- [ ] **3.7 The model.** The circle term → `circleOpens × circleFollows
-      × 1`; writes +1 per world answer and +1 per active person per
-      night; `COSTS.md` regenerated; the `answers (surface, answeredAt)`
-      composite is left for a later index pass. · **Gate:**
-      `pulse.test.mjs`, `check:figures`.
+- [x] **3.1 The rule and the row. DONE 2026-09-08** — `match
+      /public/{docId}` under `v2_users/{uid}`: `get` for any signed-in
+      reader, `list` and `write` closed; the rules suite pins a stranger's
+      get, the refused list, the owner's refused writes and the signed-out
+      refusal. The inventory row sits beside the answers it folds.
+- [x] **3.2 The trigger writes it. DONE 2026-09-08** — inside
+      `runAggTransaction`, not after it: one merged write on the person's
+      own document, atomic with the ledger mark, so a redelivered event
+      that returns on the ledger writes nothing here either and a crash
+      cannot leave the map behind the count. The edit branch moves the
+      entry after its retry guard. **No `ANSWER_MAP_CAP` guard**: one
+      answer per question means the map holds at most one entry per
+      question — bounded by the bank (~23 KB today), not by time, and the
+      1 MiB ceiling sits past 40,000 questions, SCALE-PLAN's number to
+      watch; a guard on a bound nothing approaches is a branch nothing
+      tests. `idempotence.test.ts` pins the create, the edit, the merge
+      across questions and the redelivery; the e2e loop asserts the map
+      lands with the count and moves with the edit.
+- [x] **3.3 The nightly heal. DONE 2026-09-08** — `runAnswerMapHeal`
+      (`functions/src/answerMaps.ts`), the pass's sixth fold off the same
+      ledger read: one map read per active person, a merged write only
+      for the entries the day's ledger holds and the map lacks — never a
+      differing value, because the map is the newer truth (an edit made
+      after the healed day is in the map and not in that day's ledger).
+      Yesterday only, no cursor: the trigger is the writer and a failed
+      night is a day's lag, not a hole. It speaks (`answer_map_heal`, a
+      warning) only when it healed something, since a healed entry is a
+      missed live write.
+- [x] **3.4 The backfill. DONE 2026-09-08, the click is the owner's** —
+      `backfillAnswerMapsV2` walks the `answers` collection group in path
+      order (one person's answers together), a page of 1,000 at a time,
+      merging each page's rows into maps and handing its cursor back
+      near its deadline; `scripts/backfill-answer-maps.mjs` loops it and
+      `backfill-answer-maps.yml` dispatches it in `rebuild-aggregate.yml`'s
+      shape (production environment, dry by default, resumable from the
+      cursor its summary prints, idempotent). `answerMaps.test.ts` drives
+      the paging over a fake; the e2e loop runs it dry and applied and
+      pins that it leaves a map the trigger wrote unchanged.
+      **On `OWNER-LIST.md`: dispatch it once, dry then `apply`.**
+- [x] **3.5 Circle reads it. DONE 2026-09-08, with the fallback** —
+      `fetchAnswersOf` reads the map: one document, every world answer,
+      no cap (what a user sees: an old account compares on everything it
+      has answered). A member with NO map falls back to the answer query
+      as it was, because the client ships with the trigger and the
+      backfill is a click the owner makes afterwards — without the
+      fallback every Circle would show nobody in between. So
+      `CIRCLE_ANSWER_CAP` and its `check:figures` row stay until 3.8.
+      `setFollowing` still refetches the fold, which is now one read per
+      member. `circle.reads.test.ts` pins the map read, the no-query
+      case and the fallback.
+- [x] **3.6 Erasure. DONE 2026-09-08** — the erasure e2e seeds the map
+      and asserts it gone with the subtree.
+- [x] **3.7 The model. DONE 2026-09-08** — `circle` → `circleOpens ×
+      circleFollows`; `ANSWER_MAP_WRITES_PER_ANSWER` on the write side,
+      `ANSWER_MAP_HEAL_READS` on the server's; the Circle rows left
+      `cost-structure.mjs` and `cost-levers.mjs`. `npm run costs`: 277 →
+      129 reads per user-day at maturity, social 197 → 48 (the hot sheets'
+      46, Kindred and the city pass at one document each, Circle 0.5).
+- [ ] **3.8 Retire the fallback, after the click.** Once the backfill has
+      applied: `fetchAnswersLegacy` goes, with `CIRCLE_ANSWER_CAP`, its
+      `check:figures` row, the `pulse.test.mjs` pin and the `(surface,
+      answeredAt DESC)` collection-scope composite it needed
+      (`firestore.indexes.json`, `indexes.test.ts`); a member with no map
+      is then a member with no answers. · **Gate:** `circle.reads.test.ts`,
+      `check:figures`, `indexes.test.ts`.
 
 **Done when:** a Circle open issues one read per member and a friend's
-answer is in your Circle within seconds; `npm run costs` prints social
-≈ 1.
+answer is in your Circle within seconds — **met**; `npm run costs`
+prints social ≈ 1 — **48**, for the reason 2.6 states: the hot sheets'
+46 are the owner's sentence.
 
 ## Phase 4 — the folds that fail before they cost · **M**
 

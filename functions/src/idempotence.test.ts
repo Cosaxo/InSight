@@ -27,8 +27,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 type Doc = Record<string, unknown>;
 const store = new Map<string, Doc>();
 
-function ref(path: string) {
-  return { path, id: path.split("/").pop() as string };
+function ref(path: string): { path: string; id: string; collection: (sub: string) => { doc: (id: string) => ReturnType<typeof ref> } } {
+  return {
+    path,
+    id: path.split("/").pop() as string,
+    // A document's subcollection, for the answer map under the person's
+    // document (v2_users/{uid}/public/answers — DATA-EFFICIENCY-RUNBOOK
+    // 3.2), which the trigger now reaches through the ref it already has.
+    collection: (sub: string) => ({ doc: (id: string) => ref(`${path}/${sub}/${id}`) }),
+  };
 }
 
 const fakeDb = {
@@ -43,8 +50,22 @@ const fakeDb = {
     const tx = {
       getAll: async (...refs: { path: string }[]) => refs.map(snap),
       get: async (r: { path: string }) => snap(r),
+      // A merge merges MAPS a level down too, as Firestore's does: the
+      // answer map's `a` (DATA-EFFICIENCY-RUNBOOK 3.2) gains a key per
+      // answer, and a fake that replaced `a` whole would pass a write
+      // that wiped every earlier answer — the plumbing being thinner
+      // than the thing it stands in for, which this file's header names.
       set: (r: { path: string }, data: Doc, opts?: { merge?: boolean }) => {
-        store.set(r.path, opts?.merge ? { ...(store.get(r.path) || {}), ...data } : data);
+        if (!opts?.merge) { store.set(r.path, data); return; }
+        const prev = store.get(r.path) || {};
+        const next: Doc = { ...prev };
+        for (const [k, v] of Object.entries(data)) {
+          const old = prev[k];
+          next[k] = v && typeof v === "object" && !Array.isArray(v) && old && typeof old === "object" && !Array.isArray(old)
+            ? { ...(old as Doc), ...(v as Doc) }
+            : v;
+        }
+        store.set(r.path, next);
       },
       update: (r: { path: string }, data: Doc) => {
         store.set(r.path, { ...(store.get(r.path) || {}), ...data });
@@ -196,6 +217,31 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(entry!.optionIdx).toBe(0);
     // …and a CREATE carries none: its absence is the marker.
     expect(store.get("v2_agg_events/evt-1")).not.toHaveProperty("fromIdx");
+  });
+
+  it("the answer map gains the entry in the create's own transaction, moves on an edit, and a redelivery changes nothing (DATA-EFFICIENCY-RUNBOOK 3.2)", async () => {
+    const MAP = "v2_users/u1/public/answers";
+    await deliver("evt-1", vote);
+    const first = store.get(MAP) as { a?: Record<string, number> } | undefined;
+    expect(first?.a, "the create wrote no map entry").toEqual({ [QID]: 1 });
+    // a second question adds a key and keeps the first — the merge is the
+    // whole contract, since the map is rewritten on every answer
+    await (onV2AnswerCreated as unknown as { run: (e: unknown) => Promise<void> }).run({
+      id: "evt-other",
+      params: { uid: "u1", qid: "daily-2026-08-25" },
+      data: { exists: true, ref: ref("v2_users/u1/answers/daily-2026-08-25"), get: (f: string) => vote[f as keyof typeof vote] },
+    });
+    expect((store.get(MAP) as { a: Record<string, number> }).a).toEqual({ [QID]: 1, "daily-2026-08-25": 1 });
+    // the same event again: the ledger returns before the map write
+    store.set(MAP, { a: { [QID]: 1, "daily-2026-08-25": 1 }, at: "then" });
+    await deliver("evt-1", { ...vote, optionIdx: 0 });
+    expect((store.get(MAP) as { a: Record<string, number>; at: unknown }).a[QID], "a redelivered create rewrote the map").toBe(1);
+    expect((store.get(MAP) as { at: unknown }).at, "a redelivered create touched the map at all").toBe("then");
+    // an edit moves the entry, once, on the delivery that moves the count
+    await deliverEdit("edit-1", 1, 0);
+    expect((store.get(MAP) as { a: Record<string, number> }).a).toEqual({ [QID]: 0, "daily-2026-08-25": 1 });
+    await deliverEdit("edit-1", 1, 0);
+    expect((store.get(MAP) as { a: Record<string, number> }).a[QID]).toBe(0);
   });
 
   it("a create's ledger entry carries the profile's stamp; an edit's carries none (DATA-EFFICIENCY-RUNBOOK 2.1)", async () => {

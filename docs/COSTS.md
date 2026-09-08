@@ -70,7 +70,7 @@ Every constant below is sourced, not assumed:
 | The engagement digest, nightly | The day's ledger entries as the activity log — the nightly pass's one read (D399), shared with the fit and the taste fold — one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268), run by `functions/src/nightly.ts`. Separate from velocity's scan, deliberately — cursor window against calendar day; the header carries the argument. Measured before the deploy — dated note below |
 | One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
 | One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D272). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
-| One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
+| One Circle open | 1 + **one document per member** (the answer map, DATA-EFFICIENCY-RUNBOOK Phase 3), +1 followers query — was ≤50 members × ≤300 answer documents | `FOLLOW_CAP`, src/v2/data/circle.ts (D101); the map is `v2_users/{uid}/public/answers`, written live by the answer trigger. A member with no map yet (before the backfill's click) still costs the old query, capped by `CIRCLE_ANSWER_CAP`. Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
 Note the shape of the third row. There is no "under the floor" any more
@@ -405,11 +405,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 23 | 42 | 3 | 3 | 4 | 7 | 38 | 36 | 155 |
-| 500 | 23 | 42 | 3 | 3 | 4 | 7 | 38 | 67 | 187 |
-| 5,000 | 23 | 2 | 3 | 3 | 4 | 7 | 42 | **197** | 281 |
-| 50,000 | 23 | 2 | 3 | 3 | 4 | 7 | 39 | 197 | 277 |
-| 500,000 | 23 | 2 | 3 | 3 | 4 | 7 | 38 | 197 | 277 |
+| 50 | 23 | 42 | 3 | 3 | 4 | 7 | 39 | 16 | 137 |
+| 500 | 23 | 42 | 3 | 3 | 4 | 7 | 39 | 48 | 168 |
+| 5,000 | 23 | 2 | 3 | 3 | 4 | 7 | 43 | **48** | 132 |
+| 50,000 | 23 | 2 | 3 | 3 | 4 | 7 | 40 | 48 | 129 |
+| 500,000 | 23 | 2 | 3 | 3 | 4 | 7 | 39 | 48 | 128 |
 
 > Re-printed 2026-09-08 from `npm run costs`, twice that day. First
 > `re-attach` 28 → 4 (DATA-EFFICIENCY-RUNBOOK 1.4), and the server
@@ -422,8 +422,15 @@ Per active user per day:
 > at one document per question where it had none (2.5) — and the server
 > column 33 → 38–42 for the per-city samples' nightly read (at the
 > ceiling, capped by the night's budget, so it shrinks per user above
-> ~7,500 DAU) and the profile fan-out. Of the 197, Circle is 150 and
-> the hot sheets 46.
+> ~7,500 DAU) and the profile fan-out. Of the 197, Circle was 150 and
+> the hot sheets 46. Then Phase 3, the same afternoon, on the owner's
+> word *live*: Circle reads one document per member (the answer map,
+> written by the trigger in the aggregate's own transaction), so the
+> D98 column is **48** — the hot sheets' 46, Kindred and the city pass
+> at one document each, Circle 0.5 — and the whole is 129 at maturity,
+> from 357 that morning; the server column +1 for the nightly heal's
+> read per active person, and the write side +1 per world answer for
+> the map.
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the

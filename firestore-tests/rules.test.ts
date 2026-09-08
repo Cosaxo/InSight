@@ -982,6 +982,22 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     await assertFails(setDoc(doc(asUser(OWNER), "v2_rank", "learn"), { topics: {} }));
   });
 
+  it("the answer map is any signed-in reader's to get, nobody's to list, and nobody's to write (DATA-EFFICIENCY-RUNBOOK 3.1)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 1 }, at: 1 });
+    });
+    // The answers' own grant (D98), one document: a stranger reads it…
+    const got = await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "public", "answers")));
+    expect((got as { get: (f: string) => unknown }).get("a")).toEqual({ "daily-000": 1 });
+    // …but cannot list the subcollection, and nobody writes it — the
+    // owner's own map included, because a client-writable map would let
+    // one person forge how alike they are to everyone.
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "public")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 0 } }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { "a.daily-001": 1 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers")));
+  });
+
   it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER, "patterns", "state"), { v: [0.2], n: 4 });
@@ -4546,6 +4562,7 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   it("v2_ads refuses a signed-out read", () => refuses(["v2_ads", "ad1"]));
   it("v2_call_outcomes refuses a signed-out read", () => refuses(["v2_call_outcomes", "daily-000"]));
   it("v2_patterns refuses a signed-out read", () => refuses(["v2_patterns", "loadings"]));
+  it("the answer map refuses a signed-out read", () => refuses(["v2_users", OWNER, "public", "answers"]));
   it("v2_rank refuses a signed-out read", () => refuses(["v2_rank", "daily-000"]));
   it("v2_users refuses a signed-out read", () => refuses(["v2_users", OWNER]));
   it("following refuses a signed-out read", () => refuses(["v2_users", OWNER, "following", STRANGER]));
@@ -4613,6 +4630,9 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // uncased.
     const rules = ruleSource().split("\n").map((l) => l.replace(/^\s*\/\/.*$/, "")).join("\n");
     const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
-    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(28);
+    // 29 since DATA-EFFICIENCY-RUNBOOK 3.1: the answer map's `get` arm
+    // under v2_users/{uid}/public, cased above ("the answer map refuses a
+    // signed-out read") and in the nightly-documents block.
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(29);
   });
 });

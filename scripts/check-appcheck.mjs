@@ -101,6 +101,15 @@ const EXEMPT = {
       + "app can run a repair, and a control that fails when it is most "
       + "needed is not a control; gated on SEED_ADMIN_UIDS",
   },
+  backfillAnswerMapsV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the one-time fold of every existing answer into "
+      + "the per-person answer maps (DATA-EFFICIENCY-RUNBOOK 3.4), driven by "
+      + "scripts/backfill-answer-maps.mjs from the Backfill answer maps "
+      + "workflow — no attested app runs a migration; gated on "
+      + "SEED_ADMIN_UIDS",
+  },
 
   // Moderation instruments (assertModerator, MOD_UIDS). The moderation
   // Routine runs in a dedicated low-privilege environment with no repo

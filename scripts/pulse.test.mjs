@@ -35,6 +35,7 @@ import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
   AGG_POLL_MS, POLL_DOCS, LOCATION, LOCATION_LABEL, REGIONAL, priceSheet,
+  ANSWER_MAP_WRITES_PER_ANSWER,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -212,6 +213,17 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     const series = read("scripts/pulse-render.mjs").match(/key: "(\w+)"/g)
       .map((s) => s.slice(6, -1));
     expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
+  });
+
+  it("the answer map's write per world answer is in the model AND in both branches of the trigger (DATA-EFFICIENCY-RUNBOOK 3.2)", () => {
+    // One merged write per world answer, live (D421 amendment). The model
+    // charges it as a constant; the trigger has to write it on the create
+    // AND on the edit, or a moved answer stays where it was in every
+    // Circle that reads the map. Counted off the source, comments out.
+    expect(ANSWER_MAP_WRITES_PER_ANSWER).toBe(1);
+    const src = stripComments(read("functions/src/v2.ts"));
+    const sites = src.match(/tx\.set\(answerMapRef\(db, event\.params\.uid\), answerMapMerge\(/g) || [];
+    expect(sites.length, "the create and the edit branch each merge the entry onto the person's map").toBe(2);
   });
 
   it("the social term is flat above the voter cap, and only above it", () => {

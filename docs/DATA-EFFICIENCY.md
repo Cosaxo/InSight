@@ -3,9 +3,10 @@
 **Status: measured 2026-09-08 — §§1–4 read the tree as it stood that
 morning; §5 is the build order, approved by the owner the same day (D421)
 and carried as steps in
-[`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md). Phases 1 and 2
-were built the same day (the runbook has what moved); §2's table is
-re-printed after them, and §§2.2, 2.3 and 2.9 are marked built.** Written on the owner's redirection of the same
+[`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md). Phases 1, 2
+and 3 were built the same day (the runbook has what moved; the owner's
+word on *live* came the same afternoon); §2's table is re-printed after
+them, and §§2.1, 2.2, 2.3 and 2.9 are marked built.** Written on the owner's redirection of the same
 day (*"go through the data structure and see if we could optimize the
 firebase cost when we get users … what is needed is that we have an
 efficient as possible structure when we actually get users"*), against
@@ -115,16 +116,17 @@ it is what this page moves.
 
 ## 2 · The reshapes, priced
 
-`npm run costs:structure`, 2026-09-08 after Phases 1 and 2 shipped
+`npm run costs:structure`, 2026-09-08 after Phases 1, 2 and 3 shipped
 (regional sheet, no free allowance; "writes+" is per user-day; a row
 leaves the table when it becomes the baseline — the foreground row at
-runbook 1.4, the names-on-the-sample and sheet rows at Phase 2, whose
-built size the model's `socialTerms` now carries: social 282 → 197 at
-maturity, the 197 being Circle's 150 and the hot sheets' 46):
+runbook 1.4, the names-on-the-sample and sheet rows at Phase 2, the
+Circle row at Phase 3, whose built sizes the model's `socialTerms` now
+carries: social 282 → 48 at maturity, the 48 being the hot sheets' 46,
+Kindred and the city pass at one document each, and Circle's 0.5; the
+whole 357 → 129):
 
 ```
 reshape                                                                          saved/user-day  writes+   $/mo saved  5k · 50k · 500k DAU
-Circle: one compact answer document per member, not ≤300 answer docs               149.5        1 (+4 if live) $6.59 · $66 · $659
 One deck document per day: seven aggregates in one read at boot                      8.4        1              $0.24 · $2.43 · $24
 Aggregate counters folded by increment, not read-modify-write of the whole document     4.0        0              $0.18 · $1.80 · $18
 Velocity scan folds from the nightly pass's one ledger read                          4.0        0              $0.18 · $1.80 · $18
@@ -139,7 +141,15 @@ Scale                   50000        357 → 57                $188 → $56   (�
 Hit                    500000        357 → 57             $1,879 → $557   (−70%)
 ```
 
-### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day
+### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day · **BUILT 2026-09-08 (runbook 3.1–3.7), live**
+
+> The owner chose *live* (D421 amendment); the trigger writes the entry in
+> the aggregate's own transaction, the heal fills only what is absent, and
+> the device keeps the answer query as a fallback for a member with no
+> map until the backfill has run — the click on `OWNER-LIST.md`. The
+> map's home is under `v2_users/{uid}` and its basis is the six world
+> surfaces, so the number a user sees is the one they saw, over
+> everything they have answered rather than the newest 300.
 
 **What it reads today.** `loadCircle` (`src/v2/data/circle.ts`) runs one
 query per followed member, `where("surface","in",WORLD_ANSWER_SURFACES)

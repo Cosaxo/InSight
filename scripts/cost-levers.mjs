@@ -111,15 +111,6 @@ const LEVERS = [
     notices: "'the latest 50 of N' instead of 200 — the honesty rule already covers it",
   },
   {
-    band: "product",
-    name: "Circle reads 100 answers/member",
-    change: "CIRCLE_ANSWER_CAP 300 -> 100",
-    opts: { social: { circleAnswerCap: 100 } },
-    effort: "one constant",
-    risk: "low",
-    notices: "Circle compares over ~5 weeks of a member's answers, not ~13",
-  },
-  {
     band: "architecture",
     name: "Batch the mirror publish (x5)",
     change: "publish the aggregate every 5th answer, as a PERF measure",

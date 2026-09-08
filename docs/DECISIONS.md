@@ -45084,3 +45084,30 @@ and the erasure arm reaches the city family through the account's own
 answers rather than by listing a collection the size of two catalogues.
 `npm run costs` after: 357 → 277 reads per user-day at maturity, the
 D98 column 282 → 197.
+
+## D421 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D421 held open
+came the same afternoon, verbatim: *"start phase 3 and use live for the
+answer map."* The answer map is written by the world-answer trigger —
+inside the aggregate's own transaction, so it is atomic with the count
+and the ledger mark and a redelivery cannot double-write — with the
+nightly heal filling only what a missed live write left absent, never a
+value the map already holds (the map is the newer truth: an edit made
+after the healed day is in it and not in that day's ledger).
+
+**Two things moved against the runbook as written**, each within
+D421's own rule that nothing a user sees may shrink. The device keeps
+the answer query as a FALLBACK for a member with no map, because the
+client ships with the trigger and the backfill is a click the owner
+makes afterwards — without it every Circle would show nobody between
+the deploy and the click; `CIRCLE_ANSWER_CAP` stays for the fallback
+until the runbook's 3.8 retires it after the backfill has applied. And
+there is no cap guard on the map: one answer per question means the
+document is bounded by the bank, not by time.
+
+**What the owner still holds:** the backfill's dispatch (dry, then
+`apply` — `OWNER-LIST.md`), the group history document (§3), and the
+hot sheet's sentence (runbook 2.4). `npm run costs` after: 357 → 129
+reads per user-day at maturity, the D98 column 282 → 48.
+

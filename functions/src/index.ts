@@ -1421,6 +1421,10 @@ export {
 // LEDGER_RETENTION_DAYS. This repairs the breakdown too, at any age, and
 // is the safety net every later projection change rests on.
 export { rebuildAggregateV2 } from "./replay";
+// DATA-EFFICIENCY-RUNBOOK 3.4: the one-time fold of every existing answer
+// into the per-person answer maps the Circle stop reads, resumable from a
+// cursor, driven by scripts/backfill-answer-maps.mjs from its workflow.
+export { backfillAnswerMapsV2 } from "./answerMaps";
 // D379: the shareable results page — a public web page per sponsored
 // question at the hosting rewrite /q/{qid}, rendered here on the admin
 // SDK off the two public documents. onRequest, and no App Check, because

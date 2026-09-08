@@ -106,6 +106,9 @@ await adb.doc(`v2_users/${uid}`).set({ displayName: "Doomed", anon: true, anchor
 // With the frozen city chip (D8): it is what names the per-city sample
 // the erasure arm has to reach (DATA-EFFICIENCY-RUNBOOK 2.5, below).
 await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optionIdx: 1, anchors: { city: "Oslo, NO" } });
+// The answer map (DATA-EFFICIENCY-RUNBOOK Phase 3) — under the subtree the
+// recursive delete takes; asserted gone below, which is the proof 3.6 asks for.
+await adb.doc(`v2_users/${uid}/public/answers`).set({ a: { "daily-000": 1 }, at: 1 });
 // A learn first attempt (D32) lives in the same answers subcollection —
 // erasure must cover it identically, and this seed is what proves the
 // claim instead of assuming the recursiveDelete reaches it.
@@ -700,6 +703,7 @@ for (const [path, label] of [
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
   [`v2_users/${uid}/patterns/state`, "the fit's per-person state and answer map (D395)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
+  [`v2_users/${uid}/public/answers`, "the answer map (runbook 3.6)"],
   [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_users/${uid}/insight_daily/${DAY}`, "v1 daily report (subcollection)"],

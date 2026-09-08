@@ -384,6 +384,14 @@ export const PATTERNS_USER_STATE_OPS = 1;
 // at 50 k DAU that is 150 k reads a night, $0.045, against the ledger
 // re-read's 200 k.
 export const PATTERNS_SCAN_READS_PER_MAU = 1;
+// The answer maps (DATA-EFFICIENCY-RUNBOOK Phase 3, live on the owner's
+// word): the world-answer trigger merges each answer onto the person's
+// own map in the aggregate transaction — one more write per world
+// answer, no read — and the nightly heal reads each active person's map
+// once to fill what a missed live write left absent. In steady state the
+// heal writes nothing, so it is charged as the read alone.
+export const ANSWER_MAP_WRITES_PER_ANSWER = 1;
+export const ANSWER_MAP_HEAL_READS = 1;
 // The engagement digest (R1/D268): its ledger read is the pass's
 // (LEDGER_PASS_READS_PER_ENTRY above) since D399. ENGAGEMENT-RUNBOOK
 // 1.1's named decision kept it separate from VELOCITY's scan — cursor
@@ -666,7 +674,6 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
 export function socialTerms(dau, mature, o = {}) {
   const voterCap = o.voterCap ?? VOTER_FETCH_CAP;
   const kindredQs = o.kindredQuestions ?? KINDRED_QUESTIONS;
-  const circleCap = o.circleAnswerCap ?? CIRCLE_ANSWER_CAP;
   const names = o.nameFactor ?? 2;
   // The crowd a capped fetch returns is min(cap, ~DAU): the daily deck is
   // globally shared, so a question's crowd is roughly everyone active that
@@ -693,8 +700,13 @@ export function socialTerms(dau, mature, o = {}) {
     // of this model at all (DATA-EFFICIENCY.md §2.9). Charged at the
     // Kindred view rate: the City stop's constellation is what asks.
     cityKindred: B.kindredViews * kindredQs,
-    // A member's answer set grows with account AGE, not DAU.
-    circle: B.circleOpens * B.circleFollows * memberAnswers(mature, circleCap),
+    // Circle reads ONE document per member since runbook 3.5 — the
+    // person's answer map, every world answer they have given — where it
+    // read up to CIRCLE_ANSWER_CAP answer documents each (`memberAnswers`,
+    // which the fan-out terms below still size a person's answers by). The
+    // fallback query for a member with no map costs the same one read once
+    // the backfill has run, so it is not a term.
+    circle: B.circleOpens * B.circleFollows,
   };
 }
 
@@ -832,7 +844,8 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize)
       + citySampleOps(dau) // the per-city samples' read-before-merge (runbook 2.5)
-      + profileFanoutReads(mature); // a changed stamp finds its rows (runbook 2.1)
+      + profileFanoutReads(mature) // a changed stamp finds its rows (runbook 2.1)
+      + ANSWER_MAP_HEAL_READS; // the heal reads each active person's map once a night (runbook 3.3)
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
     // because they are one mechanism at three surfaces; the split lives in
@@ -887,7 +900,10 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // night, per user-day at the ceiling) and the profile fan-out's row
     // rewrites (runbook 2.1). The world samples are one write per
     // question a night, under any rounding here.
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
+    //
+    // + the answer map's merge per world answer (runbook 3.2), the one
+    // write the owner chose "live" over nightly for (D421 amendment).
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);

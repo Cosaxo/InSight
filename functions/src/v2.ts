@@ -33,6 +33,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { profileStamp, type ProfileStamp } from "./profileStamp";
+import { answerMapMerge, answerMapRef } from "./answerMaps";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
@@ -1117,6 +1118,13 @@ export const onV2AnswerCreated = onDocumentCreated(
         event.params.uid, qid, optionIdx, undefined, anchors,
         profileStamp(prof.exists ? { displayName: prof.get("displayName"), testResults: prof.get("testResults") } : undefined),
       ));
+      // THE ANSWER MAP (DATA-EFFICIENCY-RUNBOOK 3.2, live on the owner's
+      // word): the entry Circle folds, merged onto the person's own map in
+      // THIS transaction — atomic with the ledger mark, so a redelivered
+      // event that returns above writes nothing here either, and a crash
+      // cannot leave the map behind the count. A document only this
+      // person's answers touch: no contention on the hot aggregate.
+      tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: optionIdx }), { merge: true });
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -1226,6 +1234,10 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
       tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
+      // …and the map moves with the edit (runbook 3.2), after the retry
+      // guard above, so a deferred edit moves it once, on the delivery
+      // that actually moves the count.
+      tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: toIdx }), { merge: true });
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone

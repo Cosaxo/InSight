@@ -65,6 +65,7 @@ import {
 } from "./engagement";
 import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
+import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -75,6 +76,10 @@ export interface NightlyRunners {
   taste: () => ReturnType<typeof runTasteFold>;
   attention: () => ReturnType<typeof runAttentionFold>;
   rollup: () => ReturnType<typeof runRollupFold>;
+  /** The answer maps' heal (DATA-EFFICIENCY-RUNBOOK 3.3) — the sixth,
+   *  off the same ledger read; a night that skips it leaves the trigger's
+   *  own writes standing, which is the whole point of a heal. */
+  answerMaps: () => ReturnType<typeof runAnswerMapHeal>;
 }
 
 /** The three log levels the pass speaks — `logger`'s, injectable. */
@@ -112,6 +117,15 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   if (fit && (fit.folded > 0 || fit.days > 0)) log.info("patterns fit", { metric: "patterns_fit", ...fit });
   const taste = await attempt("taste", r.taste);
   if (taste && taste.days > 0) log.info("taste fold", { metric: "taste_fold", ...taste });
+  // The heal speaks only when it healed: in steady state the trigger
+  // wrote every entry live and the heal's read finds nothing missing, so
+  // a line every night would be a heartbeat for the absence of work. A
+  // healed count is the thing worth seeing — it means a live write was
+  // missed, and monitoring should notice a night with many.
+  const heal = await attempt("answerMaps", r.answerMaps);
+  if (heal && heal.healed > 0) {
+    log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });
+  }
   // Rung 1's fold runs AFTER the digest so a fresh day doc exists for
   // most shards to merge into (a late shard for an older day merges
   // just as well — see runAttentionFold's header).
@@ -178,6 +192,7 @@ export const digestEngagementV2 = onSchedule(
       digest: () => runEngagementDigest(firestoreEngagementStore(db, ledgerDay), now),
       patterns: () => runPatternsFit(firestorePatternsStore(db, ledgerDay), now),
       taste: () => runTasteFold(firestoreTasteStore(db, ledgerDay), now),
+      answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
       rollup: () => runRollupFold(firestoreRollupStore(db)),
     });
