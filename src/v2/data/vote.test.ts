@@ -23,6 +23,7 @@ import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/li
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
 import { FOLLOW_CAP } from "./circle";
+import { OVERFLOW_HOT_CAP, overflowDocId } from "./overflow";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -107,6 +108,12 @@ const h = vi.hoisted(() => ({
   answerPageSize: 0,
   answerServed: 0,
   aggIdQueries: [] as string[][],
+  // The breakdown tail's shard reads (D400), by the document ids each
+  // query asked for, and a switch that makes the next one fail. Both are
+  // additive: nothing else on this path was observable, so `loadOverflow`
+  // could neither be counted nor made to fail from a case.
+  overflowIdQueries: [] as string[][],
+  overflowFail: false,
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
   // it exists for is a partial one: several chunked `in` queries fire and
@@ -332,6 +339,14 @@ vi.mock("firebase/firestore", () => {
       if (q?.path === "v2_users/uid_test/following") {
         return Promise.resolve(snapOf(h.followDocs));
       }
+      if (q?.path === "v2_agg_overflow") {
+        const ids = (q.parts || [])
+          .filter((pt) => pt && pt.__kind === "where" && Array.isArray(pt.value))
+          .flatMap((pt) => pt.value as string[]);
+        h.overflowIdQueries.push(ids);
+        if (h.overflowFail) return Promise.reject(new Error("offline"));
+        return Promise.resolve(snapOf([]));
+      }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
           .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
@@ -511,6 +526,8 @@ beforeEach(() => {
   h.answerServed = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.overflowIdQueries.length = 0;
+  h.overflowFail = false;
   h.voterDocs = {};
   h.voterQueries.length = 0;
   h.voterFailQids.clear();
@@ -3761,5 +3778,114 @@ describe("hydrate's answered-delta watermark", () => {
       "the edit page carried the ANSWERED cursor past a create the answered page "
         + "deferred — that answer is now unreachable on this device forever",
     ).toBeLessThan(20_00);
+  });
+});
+
+// ── THE BREAKDOWN TAIL RETRIES A FAILURE (D400) ─────────────────────
+//
+// `loadOverflow` marks a (scope, key) as loaded BEFORE it fetches, so a
+// stop opened twice costs one read, and it un-marks the pair in its catch
+// so a transient failure is not remembered as a load. That second half is
+// one line, and until now nothing in any runner reached this method at
+// all: the only other mention of it in the tree is a `async () => {}`
+// double in LiveCohortBody.test.tsx and one in live-fixture.ts.
+//
+// What the missing line costs, on a device: the tail is the viewer's OWN
+// city or country cell for every question whose hot map is at the
+// 24-bucket cap without it (docs/MIRROR.md, D400). One dropped fetch and
+// the pair stays marked for the rest of the session — so every Mirror
+// number about the viewer's own place under-reports by their city's own
+// share, on the stop the viewer opened to read about their own place,
+// with nothing on screen saying a read failed. The next mount, which is
+// the one chance to recover, does nothing because the memo says loaded.
+//
+// The memo and the retry are the same variable read in two directions, so
+// both are asserted: a case that only checked the retry would also pass on
+// a method that had simply stopped memoising and re-read on every mount.
+describe("loadOverflow — a failed shard read is not remembered as a load (D400)", () => {
+  const CITY = "Oslo, NO";
+  const QID = "q_t00";
+
+  // A hot map exactly at the cap that does NOT hold the viewer's city —
+  // the one shape `overflowWanted` says is worth a read. One bucket fewer
+  // and the tail is not consulted at all, which is every question today.
+  const cappedByCity = () => {
+    const by: Record<string, Record<string, number>> = {};
+    for (let i = 0; i < OVERFLOW_HOT_CAP; i++) by[`Other${i}, XX`] = { "0": 1 };
+    return by;
+  };
+
+  async function bootAtTheCap() {
+    h.bankDocs.push({
+      id: QID,
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item 0",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: QID, data: { total: 24, counts: { "2": 24 }, by: { city: cappedByCity() } } });
+    const LIVE = await bootLive();
+    LIVE.saveAnchors({ city: CITY });
+    // loadSimilarity is the route that files the test-surface aggregates
+    // into the store, which is what `overflowWanted` reads.
+    await LIVE.loadSimilarity();
+    expect(
+      LIVE.aggFor(QID),
+      "the fixture aggregate never landed, so nothing below is about the tail",
+    ).not.toBeNull();
+    h.overflowIdQueries.length = 0;
+    return LIVE;
+  }
+
+  it("re-reads on the next mount after the shard query fails", async () => {
+    const LIVE = await bootAtTheCap();
+
+    h.overflowFail = true;
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries, "the tail was never asked for").toHaveLength(1);
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ where: "loadOverflow", scope: "city" }),
+    );
+
+    // The next mount of the City stop. Without the catch's un-marking this
+    // asks for nothing, for the life of the session.
+    h.overflowFail = false;
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a failed read was remembered as a load — the viewer's own city cell is missing for the session",
+    ).toHaveLength(2);
+    // The read it retried is the right one: the shard the viewer's city
+    // hashes to, for the question at the cap.
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, CITY)]);
+  });
+
+  it("…and a SUCCESSFUL read is remembered, so a re-opened stop costs nothing", async () => {
+    // THE CONTROL. Without it, "asks twice" would also be what a method
+    // that had stopped memoising altogether looks like — and that method
+    // bills a read every time the viewer moves between Mirror stops.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(1);
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a successful tail read was re-issued on the next mount — the once-per-session memo is gone",
+    ).toHaveLength(1);
+  });
+
+  it("re-reads when the anchor moves, failure or not", async () => {
+    // The memo is keyed on the KEY, not on a boolean, for the same reason
+    // loadCityKindred's is: a viewer who corrects their city must not be
+    // served the old city's tail — or no tail — for the session.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(2);
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, "Bergen, NO")]);
   });
 });
