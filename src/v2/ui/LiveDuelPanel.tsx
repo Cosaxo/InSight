@@ -1360,8 +1360,8 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
               {members.length <= 1
                 ? "You’re the last one — leaving deletes this circle and its history."
                 : duo
-                  ? "End this 1v1? You keep the days you played."
-                  : "Leave this circle? You keep the days you played."}
+                  ? "End this 1v1? You keep the rounds you played."
+                  : "Leave this group? You keep the rounds you played."}
             </span>
             <button className="press" onClick={() => setConfirmLeave(false)}
               style={{ border: LD_LINE, background: "transparent", borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-2)", WebkitAppearance: "none" }}>
