@@ -69,7 +69,7 @@ who decides:
 | Path | What is there | Read first |
 | --- | --- | --- |
 | `src/v2/spec/` | The JSX ported verbatim from the frozen prototype — the largest layer here. Shared-global scope, order-sensitive, shrinking under a ratchet. `mirror-*.jsx` and `map-*.js*` are the Mirror tab | `src/v2/README.md`, then `CLAUDE.md` §1 |
-| `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the two lazy groups (`loadWorldFeed`, `loadOverlays`) | `src/v2/README.md` |
+| `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the FOUR lazy groups (`loadWorldFeed`, `loadMapTab`, `loadMirrorTab`, `loadOverlays`) — the Map's since v28 §5 and the Mirror's since D355, each naming one module whose own static imports carry the rest | `src/v2/README.md` |
 | `src/v2/data/` | The typed client layer — `live.ts` publishes `window.LIVE`; `cohort.ts`, `similarity.ts` and `compare.ts` are the Mirror's folds; the rest is pure, tested logic | `docs/MIRROR.md` §6 |
 | `src/v2/ui/` | The hand-written TSX panels — the live Mirror bodies, the duel, privacy, city and search panels. One test suite each, mutation-checked | `src/v2/README.md` § Panel tests |
 | `src/v2/test/` | The mount smoke tests over `src/v2/test/mount-app.jsx`. The only gate that renders the whole app — the spec layer's other three are all name-level | `src/v2/README.md` § Mount tests |
@@ -184,7 +184,7 @@ than of a subject:
 | README | What it covers |
 | --- | --- |
 | `README.md` | The product, top to bottom: what it is, how to run it, the repo map, the gates |
-| `src/v2/README.md` | The port, the two lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
+| `src/v2/README.md` | The port, the four lazy groups, the lint and a11y debt, the mount tests, and the migration procedure off the global bridge. **The longest and most load-bearing of these** |
 | `functions/README.md` | The backend's own layout and conventions |
 | `firestore-tests/README.md` | How the rules and e2e suites are structured and run |
 | `content/README.md` | The question bank formats and how content reaches the seed |
