@@ -26,6 +26,7 @@
 // instead of on the day someone leaves a note above a value.
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,7 +38,13 @@ const RAW_MATCH = /readFileSync\([^)]*\)\s*\n?\s*\.match\(/;
 
 const gates = readdirSync(SCRIPTS)
   .filter((f) => f.endsWith(".mjs") && !f.endsWith(".test.mjs"))
-  .map((f) => ({ f, src: readFileSync(join(SCRIPTS, f), "utf8") }));
+  // COMMENTS BLANKED, which this ratchet of all things should not have
+  // needed telling. It scanned raw source for gates that read raw source,
+  // so a gate whose COMMENT quotes the offending shape — explaining the
+  // very defect, as check-versions.mjs now does — was reported as an
+  // offender. Blanking keeps every line number pointing at the real file,
+  // which is what the offender list is for.
+  .map((f) => ({ f, src: stripComments(readFileSync(join(SCRIPTS, f), "utf8")) }));
 
 describe("no gate reads a constant past a comment", () => {
   it("finds the gates to check — vacuous otherwise", () => {
@@ -319,20 +326,57 @@ describe("the two source walks the general rule cannot reach", () => {
 // because stripping is the WRONG direction for a gate hunting FORBIDDEN
 // text — `check-store-copy` proved that earlier this week, where a
 // commented-out placeholder must still fail.
-const UNSTRIPPED_CEILING = 24;
+// 24 → 36 when the detector below learned to see the `read(...)` helper
+// spelling as well as the literal `readFileSync`. TWELVE sites did not
+// appear, they were always there and invisible — which is why this is a
+// ceiling and not a regression. It stays a ceiling rather than a
+// shrink-only ratchet for the reason it was written as one: the other
+// shift repairs gates in this same class on the same nights, and a strict
+// baseline would turn each of its fixes into a red composed tree.
+const UNSTRIPPED_CEILING = 36;
 
 describe("gates that read a file and match against it without stripping comments", () => {
+  /**
+   * Names of same-file helpers that ARE a file read.
+   *
+   * Added because the detector below keyed on the literal `readFileSync`
+   * and most gates here do not write it at the point of use: they define
+   * `const read = (rel) => readFileSync(join(root, rel), "utf8")` once and
+   * call `read(...)` everywhere. `check-figures.mjs`'s BANK_SURFACES
+   * equality check was exactly that shape, and the consequence was
+   * measured rather than argued — dropping "test" from `BANK_SURFACES` in
+   * live.ts while parking the old list in a `// was:` comment above it
+   * printed `check-figures OK` at exit 0, with docs/COSTS.md's cold-boot
+   * row still certified at a number 2.8x the truth. The rule was blind to
+   * the one file it most needed to see.
+   */
+  function readHelpers(src) {
+    const names = new Set();
+    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*\([^)]*\)\s*=>\s*\{?([\s\S]{0,400}?)(?:\n\};|\n\}\n|;\n)/g)) {
+      if (/readFileSync/.test(m[2])) names.add(m[1]);
+    }
+    for (const m of src.matchAll(/function\s+(\w+)\s*\([^)]*\)\s*\{([\s\S]{0,400}?)\n\}/g)) {
+      if (/readFileSync/.test(m[2])) names.add(m[1]);
+    }
+    return [...names];
+  }
+
   /** Every read-then-match site with no stripper in view. Covers the
    *  chained form, the nested-call form and the separated-variable form —
-   *  the file's first rule sees only the first of those. */
+   *  the file's first rule sees only the first of those — and, since the
+   *  helper sweep above, the `read(...)` spelling as well as the literal
+   *  `readFileSync`. */
   function unstrippedSites(src) {
     const lines = src.split("\n");
+    const helpers = readHelpers(src);
+    const reads = ["readFileSync", ...helpers].join("|");
+    const trigger = new RegExp(`\\b(${reads})\\s*\\(`);
     const out = [];
     for (const [i, line] of lines.entries()) {
-      if (!line.includes("readFileSync")) continue;
+      if (!trigger.test(line)) continue;
       const win = lines.slice(i, i + 3).join("\n");
-      const chained = /readFileSync\([\s\S]*?\)\s*\n?\s*\.(match|matchAll)\s*\(/.test(win);
-      const decl = line.match(/(?:const|let|var)\s+(\w+)\s*=\s*.*readFileSync/);
+      const chained = new RegExp(`\\b(${reads})\\([\\s\\S]*?\\)\\s*\\n?\\s*\\.(match|matchAll)\\s*\\(`).test(win);
+      const decl = line.match(new RegExp(`(?:const|let|var)\\s+(\\w+)\\s*=\\s*.*\\b(?:${reads})\\s*\\(`));
       let varHit = 0;
       if (decl) {
         const re = new RegExp(`\\b${decl[1]}\\s*\\.\\s*(match|matchAll)\\s*\\(`);
@@ -352,6 +396,25 @@ describe("gates that read a file and match against it without stripping comments
     // The floor. A detector that stopped matching would make the ceiling
     // below pass at zero, which is this file's own subject again.
     expect(total, "the read-then-match detector stopped matching").toBeGreaterThan(10);
+  });
+
+  it("sees a read HELPER, not only the literal readFileSync", () => {
+    // A positive control on the widening itself, because the twelve sites
+    // it uncovered are counted rather than listed — so nothing else here
+    // would notice the helper sweep quietly returning an empty set again.
+    const helperGate = [
+      'const read = (rel) => readFileSync(join(root, rel), "utf8");',
+      'const live = read("src/v2/data/live.ts");',
+      'const m = live.match(/const BANK_SURFACES = \\[([^\\]]+)\\]/);',
+    ].join("\n");
+    expect(unstrippedSites(helperGate), "the helper spelling is invisible again").toHaveLength(1);
+    const stripped = helperGate.replace('read("src/v2/data/live.ts")', 'stripComments(read("src/v2/data/live.ts"))');
+    expect(unstrippedSites(stripped), "a stripped helper read is still counted").toHaveLength(0);
+    // …and check-figures' own site, the one that was measured, is fixed.
+    const cf = gates.find((g) => g.f === "check-figures.mjs");
+    expect(cf.src, "check-figures reads BANK_SURFACES past comments again").toMatch(
+      /const live = stripComments\(read\("src\/v2\/data\/live\.ts"\)\)/,
+    );
   });
 
   it("no new one is added", () => {

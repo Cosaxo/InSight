@@ -871,6 +871,10 @@ function PlacesField({ scope, myFlat }: {
   const positioned = scored.slice(0, PLACE_FIELD_CAP);
   const thin = profiles.length - scored.length;
   const capped = scored.length - positioned.length;
+  // The chip fallback's own cap, and its own overflow — see the note
+  // beside the row it feeds.
+  const chips = profiles.slice(0, PLACE_FIELD_CAP);
+  const chipsHidden = profiles.length - chips.length;
   const loading = LIVE.similarityLoading();
   const pickedP = profiles.find((p) => p.key === picked) || null;
   const what = dim === "city" ? "city" : "country";
@@ -938,7 +942,7 @@ function PlacesField({ scope, myFlat }: {
               : <>Finish a test and these take their places around you.</>}
           </SfEmpty>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "2px 0 6px" }}>
-            {profiles.slice(0, PLACE_FIELD_CAP).map((p) => (
+            {chips.map((p) => (
               <button key={p.key} onClick={() => setPicked(picked === p.key ? null : p.key)}
                 aria-pressed={picked === p.key}
                 style={{ border: SF_LINE, borderRadius: 999, padding: "5px 12px", cursor: "pointer",
@@ -949,6 +953,20 @@ function PlacesField({ scope, myFlat }: {
               </button>
             ))}
           </div>
+          {/* AND THIS BRANCH SAYS IT TOO, which it did not. Both
+              disclosure lines below are gated off here — `thin`'s on
+              `positioned.length > 0`, and `capped` is 0 by construction,
+              since reaching this branch means nothing was placeable. So
+              thirty countries answered, twenty-four chips were drawn, and
+              the list read as all of them. That is exactly what the
+              comment under `capped` forbids, two lines from where it
+              happened — and this is the branch every account is in before
+              its first test result. */}
+          {chipsHidden > 0 && (
+            <SfEmpty>
+              {chipsHidden} more {plural(chipsHidden)} answered, not shown here.
+            </SfEmpty>
+          )}
         </>
       )}
       {thin > 0 && positioned.length > 0 && (

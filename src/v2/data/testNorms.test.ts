@@ -230,6 +230,33 @@ describe("axisRank counts people instead of assuming a spread", () => {
     expect(rank?.outOfTen).toBe(6);
   });
 
+  it("does not count people level with you against you", () => {
+    // THE MIDRANK. `below` was strictly `<`, so everyone who scored
+    // EXACTLY what you scored was counted on the far side — and axis
+    // values are rounded 0..100 off short Likert axes, so an exact tie is
+    // the common case, not an edge.
+    //
+    // Eight below, four level, eight above: a reading dead in the middle.
+    // It printed "lower than 6 in 10 of the 20 people counted here".
+    L.enabled = true;
+    L.kindredPeople = () => [...crowd(8, 10, "lo"), ...crowd(4, 50, "eq"), ...crowd(8, 90, "hi")];
+    expect(
+      axisRank("big5", "O", 50),
+      "a middle reading was printed as a rank, by counting the people level with it against it",
+    ).toBeNull();
+  });
+
+  it("…and a tie group does not silence a reading that is genuinely off-centre", () => {
+    // THE CONTROL. Half-credit must not turn into "any tie means null":
+    // sixteen below, four level, nothing above is a high reading, and it
+    // still has to speak. (16 + 2) / 20 = 90%.
+    L.enabled = true;
+    L.kindredPeople = () => [...crowd(16, 10, "lo"), ...crowd(4, 50, "eq")];
+    const rank = axisRank("big5", "O", 50);
+    expect(rank, "a clear reading went quiet because some people tied").not.toBeNull();
+    expect(rank).toMatchObject({ outOfTen: 9, people: 20, above: true });
+  });
+
   it("never claims 10 in 10 or 0 in 10", () => {
     L.enabled = true;
     L.kindredPeople = () => crowd(20, 10, "a");

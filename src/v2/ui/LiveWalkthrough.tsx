@@ -58,14 +58,27 @@ interface Page {
 const PAGES: Page[] = [
   {
     id: "daily",
-    title: "One question a day",
-    body: "Answer it before you see how anyone else did. Then the split opens, and a feed of more runs under it.",
+    // THE CADENCE IS NOT THE PRODUCT (the owner, 2026-09-07, on build 33:
+    // "the first slide focus to much on one question a day this app is
+    // more questions in general"). What is distinctive is answering
+    // BLIND — committing before you can be anchored — and the volume
+    // under the daily card, not the once-a-day rhythm. The daily leads
+    // because it is what opens; it is no longer what the page is about.
+    title: "Answer before you look",
+    body: "You never see how anyone else answered until your own answer is in. A question a day leads, and a feed of many more runs under it.",
     accent: "var(--c-today)",
   },
   {
     id: "reach",
     title: "How far it reaches",
-    body: "World is everyone. Circle is a group you make — sealed until tomorrow, then revealed with names. 1v1 is one friend: answer, then guess theirs.",
+    // "at the next reveal", NOT "sealed until tomorrow", and the change is
+    // structural rather than stylistic. The owner intends to loosen the
+    // one-a-day limit on Circle and 1v1 (2026-09-07), and copy that names
+    // a cadence goes false the day the cadence moves — which is how a
+    // sentence like this outlives the thing it described. What must stay
+    // true is the GAME: nobody sees anyone's answer before the reveal.
+    // That holds at any cadence, so it is what the sentence says.
+    body: "World is everyone. Circle is a group you make; 1v1 is one friend — answer, then guess theirs. Both stay sealed until the reveal, then open with names.",
     accent: "var(--c-around)",
   },
   {

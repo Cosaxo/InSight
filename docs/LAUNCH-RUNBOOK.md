@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 134
-questions of 917 seeded; the production backend is deployed. **Measured
+questions of 1073 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      917 questions land in `v2_questions` — idempotent and, since D34,
+      1073 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **917** after the K=5 test expansion, D103's
+      and the bank is **1073** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1107,7 +1107,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 917 seeded questions are live regardless.
+      working, not a leak — the 1073 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1683,7 +1683,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 34.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2279,20 +2279,38 @@ That is a tester-count problem, not a workflow problem.
       until the confirmation mail arrives and is opened. The mail is the
       product's front door for that door.
 
-      Firebase console → Authentication → **Templates**. Both templates
-      work untouched, so nothing here blocks a build — what it buys is
-      that the mail is opened rather than binned:
+      **THIS IS NOW A WORKFLOW, not a console visit.** Actions → **Auth
+      config** → run with `what = report only` and apply unticked. It
+      prints the live sender name and says whether it needs changing;
+      re-run with `what = sender name` and apply ticked to set it. The
+      run pauses for your approval before it touches anything, because
+      the `production` environment has required reviewers.
 
-      1. **Email address verification** and **Password reset** — check
-         the **sender name**. It defaults to the PROJECT ID, so the mail
-         arrives from *prvfire33*, which is a name no user has ever seen
-         and reads as phishing for an app called InSight. Set it to
-         `InSight`. The sender ADDRESS
-         (`noreply@prvfire33.firebaseapp.com`) needs a verified custom
-         domain to change and is not worth one before launch.
-      2. Send yourself one of each and read them on a phone. A link that
-         404s or an action URL pointing at a project you renamed is
-         invisible from this side and total from the user's.
+      Written this way for the reason `asc-metadata.yml` records for the
+      store listing: the work was already decided, and what was missing
+      was a way to do it without putting a credential on a laptop.
+      `scripts/auth-config.mjs` is dry-run by default and
+      `scripts/auth-config.test.mjs` pins that a run without apply makes
+      zero writes.
+
+      **The claim this step was written on is now MEASURED rather than
+      asserted.** It said the sender name "defaults to the PROJECT ID",
+      which was read from documentation, not from the project — the exact
+      shape of the three `check:policy-claims` assertions that were stale
+      when D183 opened them. The report prints the field as it finds it,
+      so the run tells you the truth even if this paragraph is wrong.
+
+      What the workflow does NOT do, deliberately: the subject and body
+      of either mail. Those are copy, and copy goes through
+      `docs/COPY.md` and a review rather than through a flag on an
+      operator script. The sender ADDRESS
+      (`noreply@prvfire33.firebaseapp.com`) needs a verified custom domain
+      and is not worth one before launch.
+
+      **Still yours, and worth two minutes:** send yourself one of each
+      and read them on a phone. A link that 404s or an action URL
+      pointing at a renamed project is invisible from every other side
+      and total from the user's.
 
       **What does NOT need doing.** No template edit is required for the
       app to work, no new data is collected (Contact Info → Email Address
@@ -2416,25 +2434,54 @@ That is a tester-count problem, not a workflow problem.
         truthfully. It is a lie now, and a reviewer who opens the app to
         a wall with that box unticked files "we were unable to review"
         without reading further.
-      - **Username / password.** Hand them a real account. **Make it
-        through the app, not through the Firebase console** — a user
-        created in the console has `emailVerified: false`, so the wall
-        holds it exactly where it holds everyone else, and the console
-        exposes no toggle for that flag (only the Admin SDK does). So:
-        install the build, create an account on an address you can read,
-        open the confirmation link, and put that pair in the form.
-      - **Notes.** One sentence: the fastest way in is **Sign in with
-        Apple**, which needs no mail round trip because Apple hands over
-        an address it has already confirmed. A reviewer who takes the
-        email door with an address they cannot read will be held at
-        *Confirm your address* and may report the app as broken.
+      - **Username / password.** A console-made user is NOT usable here:
+        it has `emailVerified: false`, so the wall holds Apple's reviewer
+        exactly where it holds everyone else, and the Firebase console
+        exposes no toggle for that flag — only the Admin SDK can set it.
+        This step therefore used to read "install the build, create an
+        account on an address you can read, open the confirmation link".
+      - **Notes**, and the 5.1.1(v) answer with them.
 
-      Answer 5.1.1(v) here too if you want to pre-empt it, in the
-      reviewer's terms rather than ours: the account is not gatekeeping a
-      feature, it is the unit the product is about. D414 §5 has it
-      written out.
+      **ALL OF IT IS NOW ONE WORKFLOW RUN.** Actions → **Auth config** →
+      `what = demo account` (or `both`), apply ticked, and
+      `attach_build` set to the build number if it has finished
+      processing. One job mints a verified demo account through the Admin
+      SDK and hands the credential straight to App Store Connect —
+      contact fields, notes, `demoAccountRequired: true`, and the build
+      attachment.
 
-- [ ] **6.2 Submit to App Store review.** Budget one rejection round on
+      **The password is never seen by anyone**, including you: it is
+      generated on the runner, written to a file the next step reads, and
+      gone when the runner is reclaimed. Both scripts have a test
+      asserting it never reaches a log line, the discipline `appcheck.yml`
+      applies to debug tokens. To rotate it, run the workflow again — the
+      account is reused and Apple is updated in the same run.
+
+      The four contact fields live in `design/store/listing.json` under
+      `shared.appReview`, beside the support address, for the reason every
+      other field in that file does: a diff is a better review surface
+      than a web form. `demoAccountRequired` is set from the WALL rather
+      than from whether credentials were passed, so forgetting the file
+      cannot quietly tell Apple the app opens without a sign-in — that
+      value was `false` for every build up to 32, truthfully, which is
+      exactly what makes it easy to leave alone.
+
+      **What the workflow will not do is SUBMIT.** That stays a
+      deliberate act: `asc-review.mjs` touches no `reviewSubmission`
+      resource on any path, and a test pins that it does not.
+
+- [ ] **6.2 Submit to App Store review.**
+
+      > **DO NOT SUBMIT BUILD 33.** It is uploaded and it carries the
+      > account wall, which is what it was cut to prove — and it also
+      > carries D419's sign-in defect: a user who signs in with Google is
+      > left staring at the gate until they force-quit and relaunch,
+      > because `subscribeToAuth` watched `onAuthStateChanged` and a LINK
+      > keeps the uid, so the SDK never called back. A reviewer meeting
+      > that files "the app does not work", and they would be right.
+      > **Build 34 is the first submittable build.** Anyone handed 33 on
+      > TestFlight hits the same wall — say so when you hand it over.
+ Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
       primary path is anonymous, no account is required, and Google is an

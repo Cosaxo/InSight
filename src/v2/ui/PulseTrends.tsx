@@ -161,8 +161,23 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
       <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, letterSpacing: "-0.03em" }}>
         {answered.length === 1 ? "One day in — not a trend yet." : answered.length + " days in — not a trend yet."}
       </span>
+      {/* WHICH THING IS SHORT, and it is not always yours (D146). The
+          branch is `comparable.length < 3` — days you answered AND the
+          crowd cleared PULSE.THIN — while the sentence above counts
+          `answered.length`, and this line used to say "Answer again
+          tomorrow and the line starts" whatever the reason.
+          When the crowd is the blocker, answering again does nothing:
+          the scope defaults to your city and needs THIN answers PER DAY,
+          so "10 days in — not a trend yet. Answer again tomorrow" was
+          told to somebody who had answered every one of those ten. */}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-        Answer again tomorrow and the line starts.
+        {answered.length < 3
+          ? "Answer again tomorrow and the line starts."
+          : comparable.length === 0
+            ? "No day has " + PULSE.THIN + " answers behind it yet — the line starts when the crowd fills in."
+            : "Only " + comparable.length + " of them " + (comparable.length === 1 ? "has" : "have")
+              + " " + PULSE.THIN + " answers behind " + (comparable.length === 1 ? "it" : "them")
+              + " — the line starts when the crowd fills in."}
       </span>
     </div>
   ) : (

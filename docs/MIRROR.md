@@ -1,7 +1,9 @@
 # The Mirror — where the answers add up
 
 Described as "one blind question a day", InSight sounds like a poll with
-a streak. Open it and answering is the *smaller* half — a few taps, then
+a streak — which is why that description is retired (the owner,
+2026-09-07: *"some old focus"*). The daily card is what opens; the
+questions run to hundreds, and answering at all is the *smaller* half — a few taps, then
 a split — and everything else is the Mirror: one tab, one verb, seven
 stops from *you* to *the world*, every one of them reading the same
 numbers through a different cut. It is not the small tab either — the
@@ -441,7 +443,11 @@ counter is off, because with no room there is nothing to have tabs about.
 
 The four core instruments — Big Five, politics, values, social — and the
 minor lenses beside them (`IS_LENSES`) have no test flow to sit down for.
-Their items ship as ordinary feed cards (`surface: "test"`), so answering
+Their items ship as ordinary feed cards (`surface: "test"`) — since D416
+the Big Five's thirty facets and the compass's eighteen positions among
+them, as bank-only DEEP items the feed serves after each instrument's
+domain items (a fold for them is the plan's next step; today they fill
+nothing but their own aggregates) — so answering
 the feed fills them in the background, and because they are ordinary
 cards their option counts publish like any other question's. (True of
 the minor lenses only since D91 — under D50 their answers were

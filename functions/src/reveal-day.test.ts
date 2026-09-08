@@ -191,3 +191,203 @@ describe("an answer that lands between the two reads", () => {
     expect(store.has("v2_question_aggs/duel-qB"), "the odd vote got its own aggregate").toBe(false);
   });
 });
+
+// ── THE STREAK'S PRESENT TENSE, at both call sites ──────────────────
+//
+// `movesPresentState` is exhaustively pinned as a pure function in
+// pure.test.ts, and NEITHER PLACE THAT USES IT was executed by anything.
+// Measured: deleting the guard at the reveal site, deleting the clause at
+// the settle site, and doing both, each left the functions suite at
+// 794/794.
+//
+// It is the hot path, not an operator lever. `scheduledDuelReveals` runs
+// every 120 minutes and `scanDays()` walks six days NEWEST-FIRST, so a run
+// routinely reaches days that sit behind the last reveal.
+//
+// What each guard is holding back:
+//
+//   · the reveal site — a run that revealed yesterday and then reaches an
+//     older still-pending day would write `lastRevealDay` BACKWARDS, and
+//     `nextStreak` reads that as a gap: a 40-day streak becomes 1 for
+//     having a hole filled in. pure.ts's own docstring records a user
+//     watching exactly that happen.
+//
+//   · the settle site — the COMMON case, since most scanned group-days do
+//     not reveal. Without it a stale day one partner never played zeroes a
+//     live duo streak on an ordinary two-hourly scan.
+//
+// The emulator suite cannot stand in: e2e-v2-loop asserts `streak === 1`
+// on a FIRST reveal, which is what both mutations produce anyway.
+describe("a day behind the last reveal cannot move the present", () => {
+  /** A group mid-streak whose last reveal is NEWER than the day being scanned. */
+  const midStreak = (over: Doc = {}) => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2"],
+      pendingDays: [DAY], streak: 40, lastRevealDay: "2026-09-06",
+      ...over,
+    });
+  };
+
+  it("keeps a 40-day streak when an older pending day is filled in", async () => {
+    midStreak();
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(true);
+
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.streak, "a filled-in gap reset the streak").toBe(40);
+    expect(
+      g.lastRevealDay,
+      "the present tense walked backwards to the day being back-filled",
+    ).toBe("2026-09-06");
+    // The reveal itself still happens — this guard is about the group's
+    // present tense, never about whether the day publishes.
+    expect(store.get(`v2_groups/${GID}/reveals/${DAY}`), "the back-filled day did not publish").toBeTruthy();
+  });
+
+  it("…and a NEWER day still moves it, which is what the guard is for", async () => {
+    // THE CONTROL. Everything above asserts that a number did not change,
+    // which is also what a reveal that stopped touching the streak looks
+    // like. Same group, one day forward from its last reveal: the streak
+    // must advance and the day must become the present.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2"],
+      pendingDays: ["2026-09-07"], streak: 40, lastRevealDay: "2026-09-06",
+    });
+    store.set(`v2_users/u1/answers/g_${GID}_2026-09-07`, { qid: "qA", optionIdx: 0 });
+    store.set(`v2_users/u2/answers/g_${GID}_2026-09-07`, { qid: "qA", optionIdx: 1 });
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, "2026-09-07"),
+    ).toBe(true);
+
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.streak, "a consecutive day did not extend the streak").toBe(41);
+    expect(g.lastRevealDay).toBe("2026-09-07");
+  });
+
+  it("does not zero a live duo streak when a stale unplayed day settles", async () => {
+    // The settle path: a duo day that CANNOT reveal (one partner never
+    // answered) still gets settled, and settling is where the streak is
+    // broken. This day is older than the last reveal, so breaking it here
+    // would be the two-hourly scan destroying a streak that is standing.
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"],
+      pendingDays: [DAY], streak: 40, lastRevealDay: "2026-09-06",
+    });
+    store.set(...answer("u1", "qA", 0));   // u2 never played
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(false);
+    expect(
+      store.get(`v2_groups/${GID}`)!.streak,
+      "settling a day older than the last reveal zeroed a live streak",
+    ).toBe(40);
+  });
+
+  it("…and DOES break the streak when the stale day is the present one", async () => {
+    // The control for the settle path. A duo day at or ahead of the last
+    // reveal that nobody completed is a real miss, and the streak breaking
+    // is the product working.
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"],
+      pendingDays: [DAY], streak: 40, lastRevealDay: "2026-09-04",
+    });
+    store.set(...answer("u1", "qA", 0));
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(false);
+    expect(
+      store.get(`v2_groups/${GID}`)!.streak,
+      "a genuinely missed day left the streak standing",
+    ).toBe(0);
+  });
+});
+
+// ── WHOSE NAME THE REVEAL CARRIES ───────────────────────────────────
+//
+// The reveal document's `names` map is narrowed to `revealMembersFor(...)`
+// — the roster minus anyone who joined after the day ended and did not
+// play. Reverting that loop to the whole roster left the functions suite
+// at 794/794.
+//
+// It matters because `names` is a DISPLAY NAME in a document every signed
+// -in user may read, and `deleteAccount` sweeps reveals by walking
+// `members`. So a person named in a reveal whose `members` array does not
+// carry them is a person erasure never reaches: they ask to be deleted and
+// their name stays, permanently, in a world-readable document. The code's
+// own comment records the fix being "confirmed against the real callable
+// in the emulator, not reasoned: the name survived the erasure" — and
+// nothing was added to hold it.
+//
+// The erasure e2e cannot stand in. It SEEDS reveal documents by hand and
+// never produces one through `revealGroupDay`, so this line is executed by
+// no runner in the repository.
+describe("the reveal names only the people its members array carries", () => {
+  const DAY_END = Date.parse(`${DAY}T00:00:00Z`) + 86400000;
+  // A Firestore Timestamp, near enough: `joinedAtMs` reads `toMillis()` and
+  // DROPS anything without it, and a dropped join time means "unknown",
+  // which keeps the member. A fixture of raw numbers would therefore keep
+  // everybody and pass whatever the narrowing did — the first draft of this
+  // case did exactly that, and looked like a real failure.
+  const at = (ms: number) => ({ toMillis: () => ms });
+
+  it("leaves out someone who joined after the day ended and did not play", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], pendingDays: [DAY], streak: 0,
+      // u3 arrived the day after — they were not in the room for this one.
+      memberJoinedAt: { u1: at(DAY_END - 86400000), u2: at(DAY_END - 86400000), u3: at(DAY_END + 3600000) },
+    });
+    store.set("v2_users/u1", { displayName: "Ada" });
+    store.set("v2_users/u2", { displayName: "Bo" });
+    store.set("v2_users/u3", { displayName: "Cai" });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(true);
+
+    const reveal = store.get(`v2_groups/${GID}/reveals/${DAY}`)!;
+    expect(Object.keys(reveal.names as Doc).sort(), "the reveal names a non-member").toEqual(["u1", "u2"]);
+    // The two must agree, and THIS is the reason: erasure walks `members`,
+    // so a name outside it is a name erasure cannot find.
+    expect((reveal.members as string[]).slice().sort()).toEqual(["u1", "u2"]);
+    expect(
+      JSON.stringify(reveal.names),
+      "a display name is in a world-readable document that erasure will never sweep",
+    ).not.toContain("Cai");
+  });
+
+  it("…and DOES name a late joiner who actually played", async () => {
+    // THE CONTROL, and the narrowing's own rule: playing puts you in the
+    // room whatever the timestamps say. Without this the case above passes
+    // the day the map is narrowed to nothing at all.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], pendingDays: [DAY], streak: 0,
+      memberJoinedAt: { u1: at(DAY_END - 86400000), u2: at(DAY_END - 86400000), u3: at(DAY_END + 3600000) },
+    });
+    store.set("v2_users/u1", { displayName: "Ada" });
+    store.set("v2_users/u2", { displayName: "Bo" });
+    store.set("v2_users/u3", { displayName: "Cai" });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    store.set(...answer("u3", "qA", 2));
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(true);
+
+    const reveal = store.get(`v2_groups/${GID}/reveals/${DAY}`)!;
+    expect(
+      Object.keys(reveal.names as Doc).sort(),
+      "a late joiner who answered was left out of their own reveal",
+    ).toEqual(["u1", "u2", "u3"]);
+    expect(JSON.stringify(reveal.names)).toContain("Cai");
+  });
+});

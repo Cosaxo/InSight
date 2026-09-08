@@ -165,7 +165,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Six jobs — verified rather than assumed,
+**What the environment gates.** Seven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -174,7 +174,8 @@ joined at D332, and this sentence moved in the same commit because
 `check:figures` now holds the count — the gate that grew out of exactly
 this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
-a person noticing it had.)
+a person noticing it had. It caught the seventh, `auth-config.yml`, the
+same way and in the same commit.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -184,6 +185,7 @@ a person noticing it had.)
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
+| `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -833,11 +835,22 @@ the channel, and at zero users most signals are noise. These are the
 conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
-indistinguishable from health. The scheduled aggregators
-(`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
-next — they are 24h jobs whose failure delays a surface by a day and
-self-heals on the next run, so they can wait until someone is actually
-reading the alerts. That "self-heals" is doing real work in this paragraph:
+indistinguishable from health. The nightly jobs are the obvious next
+— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+`closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
+failure delays a surface by a day and self-heals on the next run, so
+they can wait until someone is actually reading the alerts.
+(`sweepPaidReviewsV2` is NOT one of them — it runs every 30 minutes, so
+its silence costs half an hour, not a day. `scheduledDuelReveals` is
+every 120 minutes and is already alerted.)
+
+(This named `scheduledWorldAggregates` and `scheduledCityAggregates` as
+those 24h jobs until 2026-09-08. Neither exists — they are in this same
+document's `functions:delete` list seven hundred lines up, under "PAID
+2026-08-27 (D333) … `us-central1` now holds zero functions and zero
+scheduler jobs" — and the architecture the sentence assumed went with
+them: aggregates are folded by `onV2AnswerCreated` on every answer, exact
+and with no cadence, so there is no 24h aggregate job left to alert on.) That "self-heals" is doing real work in this paragraph:
 it is exactly what is NOT true of the reveal scan, which is why that one
 did not wait.
 

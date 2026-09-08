@@ -327,7 +327,12 @@ describe("the lists on this tree", () => {
     // numbered 9 and not 7 because 7 is the first-launch walkthrough under
     // Built: the numbers here are unique across SECTIONS, not within one,
     // and a request filed as 7 collided silently until this test caught it.
-    expect(v.requested.length).toBe(9);
+    // 10 since 2026-09-07's build-33 test: the account-setup sheet
+    // (item 10), whose column overflowed every phone by 44px and which
+    // the owner also wants to REQUIRE some answers before it can be
+    // skipped — a reversal of that file's own "it does not block", so a
+    // request rather than a fix.
+    expect(v.requested.length).toBe(10);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(2);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));

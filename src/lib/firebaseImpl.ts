@@ -22,6 +22,7 @@ import {
   linkWithCredential,
   linkWithPopup,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInAnonymously,
   signInWithCredential,
   signInWithPopup,
@@ -569,9 +570,48 @@ export async function googleSignOut(): Promise<void> {
   await signOut(auth());
 }
 
+/**
+ * The app's one view of who is signed in.
+ *
+ * `onIdTokenChanged`, NOT `onAuthStateChanged`, and the difference is a
+ * bug that shipped in build 33: after a successful Google sign-in the
+ * account wall stayed up until the app was force-quit and relaunched.
+ *
+ * READ OUT OF THE SDK, not reasoned about
+ * (`@firebase/auth` → `notifyAuthListeners`):
+ *
+ *     this.idTokenSubscription.next(this.currentUser);      // always
+ *     const currentUid = this.currentUser?.uid ?? null;
+ *     if (this.lastNotifiedUid !== currentUid) {            // only on a
+ *       this.lastNotifiedUid = currentUid;                  // UID CHANGE
+ *       this.authStateSubscription.next(this.currentUser);
+ *     }
+ *
+ * Linking an anonymous session KEEPS THE UID — that is the whole point of
+ * linking, and D3's reason the wall is affordable at all — so
+ * `authStateSubscription` never fires for it. The user object flips
+ * `isAnonymous` to false and nothing tells the app. A relaunch then
+ * restores a non-anonymous user as a fresh sign-in, the uid goes null →
+ * value, and the wall finally drops. Hence "close and reopen to advance".
+ *
+ * D134's own comment one file over describes half of this — "the
+ * anonymous → Google upgrade keeps the uid, so this callback set `linked`
+ * and then fell past every branch below without a notify()" — and fixed
+ * the notify. It could not have fixed the callback, because with
+ * `onAuthStateChanged` the callback does not run at all. Every test
+ * stayed green because the store's tests drive this subscription directly
+ * and the gate's tests stub `LIVE.linked`: nothing anywhere exercised the
+ * REAL SDK's choice about when to call us.
+ *
+ * The cost of the wider subscription is one callback per hourly token
+ * refresh and per `reload()`. live.ts's observer was already written for
+ * exactly that ("only on a CHANGE") and notifies nobody unless a flag
+ * moved — so the guard that existed for a condition that could not happen
+ * is what makes the fix free.
+ */
 export function subscribeToAuth(
   cb: (user: User | null) => void,
 ): () => void {
-  return onAuthStateChanged(auth(), cb);
+  return onIdTokenChanged(auth(), cb);
 }
 

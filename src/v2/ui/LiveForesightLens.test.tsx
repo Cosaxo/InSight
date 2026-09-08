@@ -20,14 +20,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ForesightSource } from "../data/foresight";
 
-const LIVE = vi.hoisted(() => ({
-  enabled: true,
-  subscribe: () => () => {},
-  loadForesight: vi.fn(async () => {}),
-  foresightLog: () => ({}) as Record<string, unknown> | null,
-  foresightLoading: () => false as boolean,
-  scoreForesight: vi.fn(async () => {}),
-}));
+// THE DOUBLE TRACKS THE STORE, and it did not — which is what let the
+// verdict screen go missing on a real device while eleven cases here
+// passed. `scoreForesight` was `async () => {}` and `subscribe` notified
+// nobody, so the log never gained the answered read and the lens never
+// re-rendered. The real store does both, SYNCHRONOUSLY and before its
+// first await (data/live.ts), and that is precisely the behaviour the
+// panel had to survive.
+const LIVE = vi.hoisted(() => {
+  const log: Record<string, unknown> = {};
+  const listeners = new Set<() => void>();
+  return {
+    enabled: true,
+    log,
+    listeners,
+    subscribe: (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); },
+    loadForesight: vi.fn(async () => {}),
+    foresightLog: () => log as Record<string, unknown> | null,
+    foresightLoading: () => false as boolean,
+    // Faithful: record the verdict and tell the subscribers, both before
+    // returning, exactly as the store does.
+    scoreForesight: vi.fn(async (readId: string, _qid: string, _dim: string, _bucket: string, guess: number) => {
+      if (readId in log) return;
+      log[readId] = { id: readId, guess };
+      for (const fn of [...listeners]) fn();
+    }),
+  };
+});
 vi.mock("../data/live", () => ({ default: LIVE }));
 
 const { default: LiveForesightLens } = await import("./LiveForesightLens");
@@ -43,10 +62,14 @@ const Q: ForesightSource = {
 
 beforeEach(() => {
   LIVE.enabled = true;
-  LIVE.foresightLog = () => ({});
+  for (const k of Object.keys(LIVE.log)) delete LIVE.log[k];
+  LIVE.listeners.clear();
+  LIVE.foresightLog = () => LIVE.log;
   LIVE.foresightLoading = () => false;
   LIVE.loadForesight = vi.fn(async () => {});
-  LIVE.scoreForesight = vi.fn(async () => {});
+  // The call count is reset, NOT the implementation — replacing it with a
+  // no-op is what hid the defect these cases now cover.
+  LIVE.scoreForesight.mockClear();
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
@@ -175,5 +198,69 @@ describe("the record", () => {
     expect(screen.getByText(/which cuts you read well/i)).toBeTruthy();
     expect(screen.getByText("Age")).toBeTruthy();
     expect(screen.getByText("Gender")).toBeTruthy();
+  });
+});
+
+// ── THE VERDICT SURVIVES THE STORE RECORDING IT ─────────────────────
+//
+// The whole point of the game is finding out whether you were right, and
+// on a real device you never did. `scoreForesight` records the verdict and
+// calls `notify()` SYNCHRONOUSLY, before its first await — so by the time
+// the lens re-rendered, the card just answered had already been filtered
+// out of the unplayed list, `current` was a DIFFERENT read, and the guard
+// holding the reveal on screen (`pending.id === current.id`) was false.
+// You tapped an option and went straight to the next ten-second card, or
+// straight to "You have read every slice big enough to ask about."
+//
+// Invisible to this suite for as long as its double was `async () => {}`
+// with a `subscribe` that notified nobody — the mock removed exactly the
+// store behaviour the panel had to survive. Making the double faithful
+// turned five of the eleven cases above red, all of them cases about what
+// the reveal SAYS.
+describe("the reveal, once the store has recorded it", () => {
+  // A second question, so there IS a next card to be wrongly skipped to.
+  const Q2: ForesightSource = {
+    id: "q2",
+    text: "Coriander?",
+    options: ["Yes", "No"],
+    counts: [40, 60],
+    by: { ageBand: { "25-34": { "0": 19, "1": 1 } } },
+  };
+
+  it("stays on screen with one read left, instead of ending the game", () => {
+    render(<LiveForesightLens qs={[Q]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    expect(
+      screen.queryByText(/You have read every slice big enough/i),
+      "answering the last read ended the game instead of revealing it",
+    ).toBeNull();
+    // The verdict headline — a heading, not a control: with no read left
+    // there is deliberately no "Next read" button to find.
+    expect(screen.getByText(/Read it\.|Missed\.|Out of time\./)).toBeTruthy();
+  });
+
+  it("shows THIS read's verdict, not the next card", () => {
+    render(<LiveForesightLens qs={[Q, Q2]} />);
+    expect(screen.getByText("Pineapple on pizza?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    // The verdict belongs to the question just answered.
+    expect(screen.getByText("Pineapple on pizza?")).toBeTruthy();
+    expect(
+      screen.queryByText("Coriander?"),
+      "the reveal was skipped and the next card was already on screen",
+    ).toBeNull();
+  });
+
+  it("advances exactly one card on Next, never two", () => {
+    // The other half, and the reason `skip` could not simply stay: the
+    // answered card has already left the unplayed list, so incrementing
+    // `skip` as well would step over a card per answer.
+    render(<LiveForesightLens qs={[Q, Q2]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    fireEvent.click(screen.getByRole("button", { name: /Next read|Done/i }));
+    expect(
+      screen.getByText("Coriander?"),
+      "Next skipped past the following card as well",
+    ).toBeTruthy();
   });
 });

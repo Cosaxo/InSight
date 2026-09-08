@@ -64,6 +64,14 @@ export interface TestBankItem {
   /** The instrument key ("big5", …) — null on lens items, which stay out. */
   test: string | null;
   options: string[];
+  /**
+   * The deep items' scoring metadata, on the document (D416): the axis,
+   * the facet or position, and the keying. The core items carry only
+   * `axis` here and join by prompt above; a deep item joins by these.
+   */
+  axis?: string | null;
+  facet?: string;
+  invert?: boolean;
 }
 
 /**
@@ -103,6 +111,44 @@ export function testItemMeta(bank: readonly TestBankItem[], defs: TestDefs): Tes
     const hit = byPrompt[q.test][q.prompt];
     if (!hit) continue;
     out.push({ qid: q.id, test: q.test, dim: hit.dim, invert: hit.invert });
+  }
+  return out;
+}
+
+/**
+ * A deep item (D416) — a Big Five facet's or a compass position's — joined
+ * to its scoring metadata OFF THE DOCUMENT, by id.
+ *
+ * The core items join by prompt text against IS_TESTS (above) because
+ * `invert` lives only there. The deep items carry `facet` and `invert` on
+ * the seeded doc instead, so their 156 prompts never have to be compiled
+ * into the app: `check:eager-content` names `test-definitions.js` as
+ * first-paint debt already, and the shipping graph measured 602 KB
+ * against a 607 ceiling the day these were written
+ * (docs/VISION-2026-09-07.md §2.5).
+ *
+ * Nothing about level one reads this. `testItemMeta` drops a doc whose
+ * prompt matches no definition — which is every deep item — so the axes,
+ * the norms and the similarity folds are byte-for-byte what they were
+ * before the bank grew, until the facet fold (the plan's step 2) reads
+ * what this returns.
+ */
+export interface TestDeepMeta extends TestItemMeta {
+  facet: string;
+}
+
+export function testDeepMeta(bank: readonly TestBankItem[]): TestDeepMeta[] {
+  const out: TestDeepMeta[] = [];
+  for (const q of bank) {
+    if (!q.test || typeof q.facet !== "string" || !q.facet) continue;
+    // The same shape rule as the prompt join: the arithmetic is written on
+    // the 0..4 agreement scale and nothing else folds.
+    if ((q.options || []).length !== 5) continue;
+    // A doc that names a facet and no axis is refused, never guessed at —
+    // the facet table could say which axis, but a document that lost one
+    // field may have lost the other's meaning too (D72's posture).
+    if (typeof q.axis !== "string" || !q.axis) continue;
+    out.push({ qid: q.id, test: q.test, dim: q.axis, facet: q.facet, invert: q.invert === true });
   }
   return out;
 }

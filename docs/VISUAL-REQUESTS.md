@@ -36,6 +36,93 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
+### 10 · The account-setup sheet — fits the phone, and asks before it lets go
+
+- **title · asked by** — *A few things about you* · the owner, 2026-09-07,
+  on build 33: *"the shert for filling in data is scaled wrong an looks
+  bad… and some of them should ve requierd before skiping."*
+- **surface** — `src/v2/ui/LiveProfileSetup.tsx`, a full-screen sheet
+  mounted by `main.jsx` after first paint on any account with no anchors
+  and no display name (`profileSetup.tsx` decides). It is the FIRST screen
+  after the sign-in gate, so it and
+  `design/front-door-2026-09-07/` are read as one arrival — and today
+  they do not look like one thing.
+- **what is wrong now, measured** — the column is `width: 100%` with 22px
+  of padding a side and no `box-sizing`, and `styles.css` has no universal
+  `border-box` reset, so the content box was 446px inside a 402px window:
+  every field ran 44px off the right edge and the sentence about the
+  handle was cut mid-word. **That one property is already fixed** — this
+  request is not for the overflow. It is for the sheet the overflow
+  revealed: eleven controls stacked at full width, a three-column
+  day/month/year grid at `0.9fr 1.5fr 1.1fr`, two paragraphs of
+  explanation above the first field, and nothing that says which of it
+  matters.
+- **data and basis** — every control is a CLOSED vocabulary held equal to
+  the server's buckets by `check:anchors`; the city is the catalogue
+  picker (D9); the birthday never leaves the device — `anchorsFrom` writes
+  the band and the year-resolution age, not the date (D155,
+  `profile-vitals.js`). Nothing here is free text except the display name
+  and the handle. A handle is claimed once and cannot be changed; every
+  other field is editable later in the profile's Basics card.
+- **the ask that changes the screen's job** — some fields become
+  REQUIRED before the sheet can be skipped. Today nothing is: `canSave`
+  is `filled > 0 || newName || typedHandle`, and *Skip for now* always
+  works.
+  **This reverses half of the file's own stated reasoning and the
+  reversal is the owner's to make, not the design's.** That reasoning
+  reads: *"It does not block. Every field can be skipped and the whole
+  screen can be dismissed, because D3 is anonymous-first and 'never a
+  wall' — and because a required demographic form is how you teach people
+  to lie to one."* The first clause is already gone: D414 put the wall up,
+  so "never a wall" no longer describes this build. **The second clause
+  still stands and is the design problem this request is really about** —
+  a required field does not produce truth, it produces a value. So the
+  question for the canvas is not *where do the asterisks go*, it is **how
+  does a screen earn four honest answers**, and the two levers are which
+  fields are asked for and what each one visibly buys.
+  A proposal to rule on rather than a decision taken: **year of birth,
+  gender, country and display name** required; city, education, work and
+  relationship optional. That set is chosen from what the product cannot
+  work without — the Mirror's City and Country stops need a place, its
+  breakdowns need a band, and every reveal needs a name (D190) — not from
+  what is nice to have. Country rather than city because a country is
+  cheap to answer honestly and a city is where people start being vague.
+- **states** — *empty* (the case it exists for: a new account, nothing
+  filled) · *partial* (some fields answered, required ones not) ·
+  *complete* · *saving* · *handle refused* (taken or malformed — the one
+  error state that must survive a save and keep the rest of the writes) ·
+  *offline*. There is no loading state: the vocabularies are local.
+- **interaction** — every control is a native picker or select, which is
+  deliberate on a phone and constrains the visual language more than a
+  desktop form would. A tap opens the platform sheet. The hardware back
+  button peels this screen as one layer (Android). The primary button
+  today reads *Save 3 of 7* / *Answer one to continue*, which is a
+  counter; whether a count is still the right primary label once some
+  fields are required is a question for the canvas.
+- **vocabulary** — `design/front-door-2026-09-07/` is the screen
+  immediately before this one and sets the arrival's tone; the standalone
+  family in `design/` and `src/v2/styles.css`; the two palettes of D302;
+  `--field-size` owns the type size of any text input
+  (`check:touch-zoom` fails a literal, 16px floor, because a smaller
+  field makes iOS zoom the whole fixed shell and nothing zooms it back).
+  Copy follows D182 — and `docs/COPY.md` §3 is the part that matters
+  here, because two of the paragraphs on this screen are CLAIMS (what
+  each answer is copied into, that a handle cannot be changed) and are
+  not shortenable to nothing.
+- **constraints** — the whole screen is behind `main.jsx`'s dynamic
+  import and must stay there (`check:bundle`'s eager ceiling has no
+  headroom, and `profileSetup.tsx`'s header records that even the
+  DECISION measured 1 KB over when it lived in an eager gate). Tap
+  targets: `check:tap-targets`. No new fetch — every list is local.
+- **why** — the anchors are the join. An answer snapshots them at write
+  time (D8), and that snapshot is the only thing that lets a vote be
+  counted with a city, an age, a field — which is the app's whole first
+  sentence, *connecting data and drawing the connection where someone can
+  read it*. A sheet that people skip produces answers that belong to no
+  cohort, and CLAUDE.md's own test applies to this screen as much as to a
+  lens: a surface that collects without joining is unfinished.
+- **status** — `requested`.
+
 ### 0b · The interest profile, shown and editable
 
 - **title · asked by** — *Your interests* · a session, 2026-09-04 (D367),
@@ -302,7 +389,13 @@ that lets a buyer read them.
 groups profile better … assume you have full creative freedom."*
 `ROLES-PLAN.md` is the plan; this is the screen half of it, and it
 waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
-it is planned here.
+it is planned here. **Noted 2026-09-07**: the owner's `InSight_10`
+upload draws the third surface — the person's page — on paper: *Play
+together* as doors whose sub-line carries the named type's one-line
+meaning, and the read-each-other card as a two-column hit-rate table
+under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
+pair's card as this request wants it drawn; the plan's owner call still
+gates what the doors say.
 
 - **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
   (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).

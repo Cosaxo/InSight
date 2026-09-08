@@ -581,6 +581,15 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The instruments' deep items (D416): which sub-scale an item scores
+      // and how it is keyed, on the document — the device joins these by
+      // id rather than by prompt text, which is what keeps the 156 new
+      // prompts out of first paint (docs/VISION-2026-09-07.md §2.5).
+      // Emit-when-set: the 110 core items and every lens item carry
+      // neither, and writing null onto them would rewrite the whole test
+      // surface to say nothing.
+      ...(typeof q.facet === "string" ? { facet: q.facet } : {}),
+      ...(q.invert === true ? { invert: true } : {}),
       // The card's background (D281) and the learn card's own metadata
       // (D284) — the third and fourth times this whitelist has been the
       // thing a new field died in. Both would have shipped dark: the
@@ -675,14 +684,23 @@ export async function runSeedV2(
     // "any run that rewrites 450+ documents with at least one map clear"
     // until the 2026-09-06 night review measured it. A clear anywhere else
     // only shifts which document lands on the boundary; `===` and `>=`
-    // behave identically. Today's bank cannot reach it at all: exactly
-    // three documents carry an object-valued seeded field (feed-pt1,
-    // feed-pt2, feed-pt3, at indices 210, 211 and 307), the counter stands
-    // at 210, 212 and 309 when they arrive, and the one tripping index on
-    // an 847-document run is 449. So this is a guard against the bank
-    // gaining a fourth story in the wrong place, not a live bug — kept
-    // because `>=` is free and the failure it prevents is silent data
-    // loss, and pinned in seed.test.ts because nothing else can reach it.
+    // behave identically. Today's bank cannot reach it at all, and that is
+    // now COMPUTED rather than counted here — seed.test.ts asserts that no
+    // document carrying an object-valued seeded field sits on a flush
+    // boundary, worst case, on a run that rewrites everything.
+    //
+    // The count that used to stand in this comment was wrong in every
+    // term: it said three documents (feed-pt1, feed-pt2, feed-pt3, at
+    // indices 210, 211 and 307) on an 847-document run, and the tree has
+    // ten (feed-pt1..pt7 and call-c01..c03) on a bank of 1073. The
+    // conclusion held throughout; the arithmetic under it had not been
+    // true for a while, and it was written down by a night review that
+    // said it had measured it. So the number is gone and the property is
+    // held, which is what CLAUDE.md asks for a figure a gate can compute.
+    //
+    // So this is a guard against the bank gaining a story in the wrong
+    // place, not a live bug — kept because `>=` is free and the failure
+    // it prevents is silent data loss.
     if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();

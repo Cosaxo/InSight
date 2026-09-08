@@ -132,9 +132,11 @@ initLive().finally(() => {
     .then(() => import('./ui/profileSetup'))
     .then((m) => m.mountProfileSetup())
     .catch((err) => reportError(err, { where: 'mountProfileSetup' }));
-  // Native: drop the splash only now that real content is painted —
-  // launchAutoHide is off so hydration happens behind the splash
-  // instead of a blank WebView (capacitor.config.ts).
+  // Native: drop the splash only now that real content is painted, so
+  // hydration happens behind it instead of in a blank WebView. This hide
+  // is the ordinary path and fires long before the launchShowDuration
+  // ceiling; the ceiling exists for the boot that throws before reaching
+  // here (capacitor.config.ts, which explains why autoHide is TRUE).
   import('@capacitor/core').then(({ Capacitor }) => {
     if (!Capacitor.isNativePlatform()) return;
     // WKWebView pans the document to keep a focused input above the

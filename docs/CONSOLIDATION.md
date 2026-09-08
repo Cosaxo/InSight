@@ -111,7 +111,7 @@ daily state.
 
 ## 2 · The floor: what survives any cut
 
-**Nineteen GitHub Actions workflows already run the mechanical half of
+**Twenty GitHub Actions workflows already run the mechanical half of
 the program on no subscription at all**, and four of them arrived by
 moving work off an account rather than by adding anything: the console
 (`console.yml`, D352), the production reader (`production-reader.yml`,
