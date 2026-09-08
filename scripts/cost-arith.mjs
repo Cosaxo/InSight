@@ -298,7 +298,7 @@ export const TRIG = {
 // can be written and charging it would model traffic that cannot exist.
 // Recorded here rather than omitted so that re-enabling the surface is one
 // term rather than a recount.
-export const RULE_READS = { world: 1, duel: 3, call: 2 };
+export const RULE_READS = { world: 1, duel: 2, call: 2 };
 
 // Reads issued by Cloud Functions, per answer.
 //
@@ -315,8 +315,12 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 // If the mix ever tilts toward catalogue/rank-heavy feeds, split the
 // volume assumption before touching this constant.
 //
-// The duel branch of the same trigger does ZERO — it is one blind
-// arrayUnion onto the group, deliberately ("one blind write, no read").
+// The duel branch of the same trigger does ONE since ROUNDS-PLAN / D426:
+// a transaction on the group document that marks who played the round,
+// starts the open round's clock on its first answer, and asks whether the
+// answer completed the round — in which case the reveal runs right there
+// (its reads are the reveal's, below). The day's branch did zero, one
+// blind arrayUnion, because nothing about it depended on the document.
 // THREE on the world path since D410, not two. The fold reads the AUTHOR'S
 // PROFILE alongside the ledger event and the published aggregate, because
 // the anchors on an answer are the client's claim about its own cohort and
@@ -326,7 +330,7 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 // the cost is one billed read and NOT a second round trip: the lock window
 // on v2_question_aggs/{qid}, which is what D7's ~1-write/sec ceiling is
 // about, is unchanged.
-export const TRIGGER_READS = { world: 3, duel: 0 };
+export const TRIGGER_READS = { world: 3, duel: 1 };
 
 // The daily velocity scan (D54) reads every ledger entry written since its
 // last run. One entry per world answer, so this is worldAnswers per user per
@@ -389,15 +393,18 @@ export const ENGAGEMENT_ROLLUP_CLIENT_WRITES = 1;
 export const ENGAGEMENT_ROLLUP_FOLD_READS = 2;
 export const ENGAGEMENT_ROLLUP_FOLD_WRITES = 2;
 
-// The reveal pipeline (revealGroupDay), per group-day actually revealed, for
-// a group of M members:
-//   1  the scan's own page read for the group document
-//   1  revealRef.get() — the already-revealed short circuit
-//   M  getAll(answers)
-//   M  getAll(profiles, fieldMask)
+// The reveal pipeline (revealRound), per ROUND actually revealed, for a
+// group of M members:
+//   M  getAll(profiles, fieldMask) — the names, past the verdict
 // 2+M  the committing transaction: tx.getAll(revealRef, group, ...answers)
-// = 4 + 3M, shared across M members.
-export const revealReadsPerMember = (m) => (4 + 3 * m) / m;
+// = 2 + 2M, shared across M members. The day's pipeline was 4 + 3M: a
+// standalone reveal-exists get and a pre-read of every answer, both made
+// unnecessary by `played` on the group document (ROUNDS-PLAN §3.1), and
+// the scan's page read, which the indexed deadline query now spends only
+// on groups whose round is actually due. Charged per duel answer in the
+// model, which under rounds is exactly right: every answer is one of a
+// round that reveals.
+export const revealReadsPerMember = (m) => (2 + 2 * m) / m;
 
 // ── behaviour assumptions ───────────────────────────────────────
 // The soft numbers. Every one of these is a guess about humans, not a fact

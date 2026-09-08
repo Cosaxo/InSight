@@ -16,6 +16,7 @@ import {
   DECK_EPOCH,
   splitBanks,
   duelQFor,
+  worldDuelPool,
   gHash,
   hasPublishedCounts,
   isCore,
@@ -389,9 +390,9 @@ describe("duelQFor (duel question rotation)", () => {
     qd("d1", { surface: "duo" }),
   ];
   const group = { id: "grp_abc", mode: "group" };
-  const DAY = 20661; // an arbitrary fixed utc day index
+  const DAY = 7; // a round — the rotation walks rounds since ROUNDS-PLAN / D426
 
-  it("is deterministic for a fixed (group, bank, day)", () => {
+  it("is deterministic for a fixed (group, bank, round)", () => {
     expect(duelQFor(group, bank, DAY)).toEqual(duelQFor(group, bank, DAY));
     // and mirrors the documented formula over the surface-filtered bank
     const groupBank = bank.filter((q) => q.surface === "group");
@@ -399,20 +400,57 @@ describe("duelQFor (duel question rotation)", () => {
     expect(duelQFor(group, bank, DAY)!.id).toBe(expected.id);
   });
 
-  it("rotates across days with the bank's period", () => {
+  it("rotates across rounds with the bank's period", () => {
     const groupBankLen = bank.filter((q) => q.surface === "group").length;
     const seen = new Set(
       Array.from({ length: groupBankLen }, (_, d) => duelQFor(group, bank, DAY + d)!.id),
     );
-    expect(seen.size).toBe(groupBankLen); // each day a different question…
+    expect(seen.size).toBe(groupBankLen); // each round a different question…
     expect(duelQFor(group, bank, DAY + groupBankLen)!.id)
       .toBe(duelQFor(group, bank, DAY)!.id); // …then the cycle repeats
   });
 
-  it("treats dayOffset exactly like moving the day, including negatives", () => {
-    expect(duelQFor(group, bank, DAY, 1)!.id).toBe(duelQFor(group, bank, DAY + 1)!.id);
-    // bank.length * 1000 keeps the modulus argument non-negative
-    expect(duelQFor(group, bank, DAY, -2)!.id).toBe(duelQFor(group, bank, DAY - 2)!.id);
+  it("round 1 is a question too — the first round a fresh group opens on", () => {
+    expect(duelQFor(group, bank, 1)).not.toBeNull();
+  });
+
+  describe("world questions as duel content (ROUNDS-PLAN §6.2)", () => {
+    const feed = [
+      qd("feed-b", { surface: "feed", type: "vote", core: true, options: ["x", "y"] }),
+      qd("feed-a", { surface: "feed", type: "vote", core: true, options: ["p", "q", "r"] }),
+      qd("feed-tail", { surface: "feed", type: "vote", options: ["x", "y"] }),          // not core
+      qd("feed-dial", { surface: "feed", type: "dial", core: true, options: ["lo", "hi"] }), // a range, not options
+      qd("feed-cat", { surface: "feed", type: "catalog", core: true, options: [] }),
+      qd("feed-off", { surface: "feed", type: "vote", core: true, options: ["x", "y"], active: false }),
+    ];
+
+    it("the world pool is the feed's core, option-shaped, sorted by id — and nothing else", () => {
+      expect(worldDuelPool(feed).map((q) => q.id)).toEqual(["feed-a", "feed-b"]);
+    });
+
+    it("even rounds draw the world, odd rounds the room's own bank", () => {
+      const pool = worldDuelPool(feed);
+      for (let r = 1; r <= 8; r++) {
+        const q = duelQFor(group, bank, r, pool)!;
+        if (r % 2 === 0) {
+          expect(q.kind).toBe("world");
+          expect(q.id).toMatch(/^feed-/);
+        } else {
+          expect(q.kind).not.toBe("world");
+          expect(q.id).toMatch(/^g/);
+        }
+      }
+    });
+
+    it("with no world pool every round is the room's own — the pre-core device", () => {
+      for (let r = 1; r <= 4; r++) expect(duelQFor(group, bank, r)!.id).toMatch(/^g/);
+    });
+
+    it("is the same function on every device — member order and the pool's input order are irrelevant", () => {
+      const a = duelQFor({ id: "grp_abc", mode: "group", memberUids: ["u1", "u2"] }, bank, 2, worldDuelPool(feed))!;
+      const b = duelQFor({ id: "grp_abc", mode: "group", memberUids: ["u2", "u1"] }, bank, 2, worldDuelPool([...feed].reverse()))!;
+      expect(a.id).toBe(b.id);
+    });
   });
 
   it("selects the question from the group id alone — member order is irrelevant", () => {
@@ -428,7 +466,7 @@ describe("duelQFor (duel question rotation)", () => {
       memberUids: ["u1", "u2", "u3"],
       memberNames: { u1: "Ana", u3: "Cleo" },
     };
-    // find the day this group lands on the pick question g3
+    // find the round this group lands on the pick question g3
     let day = DAY;
     while (duelQFor(g, bank, day)!.id !== "g3") day++;
     const q = duelQFor(g, bank, day)!;
@@ -462,7 +500,7 @@ describe("duelQFor (duel question rotation)", () => {
     it("keeps the shared pool romantic-free — and the rotation unmoved", () => {
       for (let d = 0; d < 10; d++) {
         expect(duelQFor(duo, pooled, DAY + d)!.id).toMatch(/^d/);
-        // adding the romantic docs must not remap any friend pair's day —
+        // adding the romantic docs must not remap any friend pair's round —
         // the default branch's bank is unchanged (the D30 growth argument)
         expect(duelQFor(duo, pooled, DAY + d)!.id).toBe(duelQFor(duo, bank, DAY + d)!.id);
       }

@@ -28,9 +28,14 @@ export interface RevealVoteLike {
   optionIdx?: number;
   guessIdx?: number;
   qid?: string;
+  /** Answered after the round revealed, with the table in view (ROUNDS-PLAN
+   *  §4). Shown in the reveal; counted by no fold, because it was not blind. */
+  late?: boolean;
 }
 export interface RevealDocLike {
   day?: string;
+  /** The round this reveal is of (ROUNDS-PLAN, D426); absent before rounds. */
+  round?: number;
   qid?: string;
   votes?: Record<string, RevealVoteLike>;
 }
@@ -60,12 +65,19 @@ export function duoRuns(
   const read: boolean[] = [];
   const by: boolean[] = [];
   if (!me || !them) return { read, by };
-  const days = [...history].sort((a, b) => String(a.day || "").localeCompare(String(b.day || "")));
+  // …and by round within a day: a pair can reveal several rounds in one
+  // day (ROUNDS-PLAN, D426), and the run has to keep the order they landed.
+  const days = [...history].sort((a, b) =>
+    String(a.day || "").localeCompare(String(b.day || ""))
+    || (typeof a.round === "number" ? a.round : 0) - (typeof b.round === "number" ? b.round : 0));
   for (const d of days) {
     const votes = d.votes || {};
     const mine = votes[me];
     const theirs = votes[them];
     if (!mine || !theirs) continue;
+    // A late answer was made with the table in view — not a read of anyone,
+    // and not read by anyone's guess either.
+    if (mine.late || theirs.late) continue;
     if (typeof mine.optionIdx !== "number" || typeof theirs.optionIdx !== "number") continue;
     if (typeof mine.guessIdx !== "number" || typeof theirs.guessIdx !== "number") continue;
     const rowQid = d.qid || "";
@@ -96,6 +108,9 @@ export function revealTally(
     const v = votes[uid];
     if (typeof v.optionIdx !== "number") continue;
     if (qidOf(v, rowQid) !== rowQid) continue;
+    // The tally is what "you read the room" is scored against, so a late
+    // answer stays out of it; the card lists late answers on their own row.
+    if (v.late) continue;
     const list = byOpt.get(v.optionIdx);
     if (list) list.push(uid);
     else byOpt.set(v.optionIdx, [uid]);

@@ -1,7 +1,7 @@
 // LiveGroupsMirrorBody — the Mirror's Groups stop, computed from REAL
 // reveal history. Replaces the demo GroupsMirrorBody (sample people) when
 // LIVE is enabled: the alignment ring, the answer rows and the per-member
-// likeness all derive from v2_groups/{gid}/reveals/{day} docs this user
+// likeness all derive from v2_groups/{gid}/reveals/r{n} docs this user
 // can already read, so every number on screen is one the user could
 // recompute from the reveals themselves (groupPortrait.ts holds the
 // arithmetic; groupPortrait.test.ts pins it).
@@ -323,8 +323,9 @@ function LiveGroupsMirrorBody() {
   const groups = (LIVE.enabled ? S.groups("group") : []) as LiveGroup[];
   const [gid, setGid] = React.useState<string | null>(null);
   const g = groups.find((x) => x.id === gid) || groups[0] || null;
-  // the history fetch is on-demand and idempotent — ≤13 doc reads per
-  // group per session, only once this stop is actually open
+  // the history fetch is on-demand and idempotent — one ordered query of
+  // ≤REVEAL_HIST_DAYS documents per group per session, only once this
+  // stop is actually open
   React.useEffect(() => {
     if (g) void S.loadRevealHistory(g.id);
   }, [g && g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton
