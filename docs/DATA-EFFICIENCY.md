@@ -32,18 +32,28 @@ not a saving — and changes the documents, never the picture.
   same minus the name it then fetches. A precomputed document per person
   and a name on the sample row serve the identical picture at about a
   hundredth of the reads.
-- **Priced: 381 → 62 reads per user per day (−84 %), for one or two
+- **Priced: 381 → 58 reads per user per day (−85 %), for one or two
   extra writes per user per day.** Reads and writes together, straight
-  off the `europe-west1` sheet with no free allowance: **$20 → $5.79 a
-  month at 5,000 DAU, $199 → $58 at 50,000, $1,987 → $579 at 500,000.**
+  off the `europe-west1` sheet with no free allowance: **$20 → $5.61 a
+  month at 5,000 DAU, $199 → $56 at 50,000, $1,987 → $561 at 500,000.**
   Half of the saving is one document (Circle's); the next third is a name
   on a document the nightly fold already writes.
-- **The write side is already near its floor** — three writes per world
-  answer (the answer, the ledger entry, the aggregate), each with a
-  reader — and its one structural risk at scale is the daily's
-  write-contention wall at ~14,400 DAU, for which
-  [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §4 holds a buildable design that
-  changes nothing a client reads (§3).
+- **The write side is near its floor in operations** — three writes per
+  world answer (the answer, the ledger entry, the aggregate), each with
+  a reader — **and not in what each write carries**: the aggregate is
+  read and rewritten whole on every answer (up to ~40 KB), and two
+  collections nobody queries by field carry thousands of index entries
+  per document because no exemption was ever declared for them. Both
+  are §3, with the daily's write-contention wall at ~14,400 DAU, for
+  which [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §4 holds a buildable design
+  that changes nothing a client reads — with one correction.
+- **Four things stop working before they stop being cheap** (§3): the
+  rollup fold reads one page of 10,000 and stops, the candidate engine's
+  nightly scan buffers every person ever fitted on a 256 MiB instance,
+  the voter-sample merge materialises a whole day's answers per hot
+  question, and the answer trigger's `maxInstances: 10` is a ceiling of
+  200 folds in flight. None is a bill; each is a night that fails
+  silently at a size the tables above reach.
 - **One decision is the owner's, and it decides the cost of the build:**
   whether Circle, the sheet and Kindred may draw from documents the
   nightly fold writes — a day behind the live answers — or whether the
@@ -100,15 +110,17 @@ Kindred / People / pair card: the nightly voter sample carries names            
 Who-voted sheet: drawn from the same sample (names embedded)                        59.8        0              $2.69 · $27 · $269
 Foreground refresh re-reads today only; the six back days refresh on boot           24.0        0              $1.08 · $11 · $108
 One deck document per day: seven aggregates in one read at boot                      8.4        1              $0.24 · $2.43 · $24
+Aggregate counters folded by increment, not read-modify-write of the whole document     4.0        0              $0.18 · $1.80 · $18
 Velocity scan folds from the nightly pass's one ledger read                          4.0        0              $0.18 · $1.80 · $18
 Candidate-engine scan re-solves only people who answered since the last fit          2.0        0              $0.09 · $0.90 · $9.00
 
 all reshapes together — reads and writes per month, straight off the sheet
-Launch / TestFlight        50       192 → 102             $0.11 → $0.08   (−33%)
-Friends-of-friends        500       291 → 102             $1.58 → $0.76   (−52%)
-Real traction            5000        381 → 62               $20 → $5.79   (−71%)
-Scale                   50000        381 → 62                $199 → $58   (−71%)
-Hit                    500000        381 → 62             $1,987 → $579   (−71%)
+scenario                 DAU   reads/user-day        $/mo before → after
+Launch / TestFlight        50        192 → 98             $0.11 → $0.07   (−35%)
+Friends-of-friends        500        291 → 98             $1.58 → $0.74   (−53%)
+Real traction            5000        381 → 58               $20 → $5.61   (−72%)
+Scale                   50000        381 → 58                $199 → $56   (−72%)
+Hit                    500000        381 → 58             $1,987 → $561   (−72%)
 ```
 
 ### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day
@@ -236,14 +248,21 @@ day's entries plus its own overlap window, or velocity can run inside the
 pass with the cursor honoured — server-side only, nothing a user sees,
 one read per world answer per night saved.
 
-### 2.7 · The candidate scan re-solves the changed — 3 → 1 reads per user-day
+### 2.7 · The candidate scan stops re-reading everyone — 3 → 1 reads per user-day
 
-The candidate engine (D395) re-reads **every** fitted person's
-`patterns/state` nightly — one read per MAU — to re-solve. The people
-whose map changed are the day's active answerers, whom the pass has just
-touched; re-solving only them (a `changedAt` the pass already stamps,
-queried, or the day's uid set held in memory) drops the term from
-`mauMultiple` to about one. Server-side only.
+The candidate engine (D395) re-reads **every** `patterns/state` document
+ever written, nightly (`patterns.ts` `scanUsers`, a collection-group
+walk with no cap), to re-solve its item rows — and buffers every person's
+map in memory to do it. A changed-since cursor alone does not replace
+the read: the ALS item step solves each item's row from *everyone* who
+answered it, not only from the people who answered today. What does is
+the plan already written in `patterns.ts`'s own header: keep per-item
+sufficient statistics (an 8×8 Gram matrix and an 8-vector per item),
+stream people through them, and update only the statistics of the
+people whose map changed since the last solve. That takes the nightly
+read from one per person ever fitted to one per active person, and the
+resident memory from one entry per person to a fixed set of item
+statistics — the memory being the part that fails first (§3).
 
 ### 2.8 · Not in the per-day model, worth a document anyway
 
@@ -259,22 +278,75 @@ queried, or the day's uid set held in memory) drops the term from
   aggregates the persisted aggregate cache does not hold, so in practice
   it is ≤110 reads once per *device*, not per session.
 
-## 3 · The write side, and the wall
+## 3 · The write side, the wall, and what fails before it costs
 
-A world answer is three writes and one delete: the client's answer
-document, the trigger's ledger entry (`v2_agg_events`, keyed by the
-CloudEvent id, 90-day TTL), and the aggregate rewritten in the same
-transaction; a duel answer is the answer plus one blind `arrayUnion`.
+**Per world answer, three writes and one delete**: the client's answer
+document; the trigger's ledger entry (`v2_agg_events/{eventId}` — qid,
+uid, option, the frozen chips, `at`, `expireAt`; a copy of the answer's
+own fields, 90-day TTL); and the aggregate, rewritten in the same
+transaction. A duel answer is the answer plus one blind `arrayUnion`.
 Then per active person per night: a patterns state write, an engagement
 state write, an attention shard and a rollup from the device, the fold's
-mark. About 20 writes per user-day in all, $27 a month at 50,000 DAU
-against $171 of reads — the bill is 86 % reads, which is why this page
-is about documents read and not documents written.
+mark. About 20 writes per user-day, $27 a month at 50,000 DAU against
+$171 of reads — 86 % reads, which is why §2 is about documents read.
+Nothing in the list writes without a reader (§4 on the two that look
+redundant). What the write side does carry, read out of the trigger and
+the index file:
 
-**Nothing in that list writes without a reader.** The ledger is read by
-the trigger (dedup), the velocity scan, the nightly pass and the samples;
-the aggregate by every device; the states by the folds that own them.
-§4 says why the two that look redundant are not.
+**The aggregate is read and rewritten whole on every answer.**
+`v2.ts` reads `v2_question_aggs/{qid}` in the transaction and replaces it
+with `merge: false`; the document is `counts` + `total` + a `by` map of
+8 dims × ≤24 buckets × options — single-digit kilobytes for a mature
+daily, ~40 KB at the bank's real worst case (12 options), plus the
+`edits` matrix. Every one of the ~2,400 leaves of a mature `by` map is
+auto-indexed ascending and descending — **~4,900 index entries per
+aggregate document, and no reader ever queries the collection by a
+field** (every reader is `documentId() in` or `getDoc`). Two changes,
+one config and one structural:
+
+- **Declare the exemptions.** `firestore.indexes.json` carries
+  `fieldOverrides` for `answers` (the ten anchor leaves, D64) and nothing
+  for `v2_question_aggs`, `v2_agg_overflow`, `v2_aggs_private`,
+  `v2_patterns`, `v2_rank`, `v2_engagement_daily` or `v2_agg_events`.
+  The ledger is queried only on `at` (range) and `uid` (equality) and
+  carries ~32 index entries per entry, ~28 of them read by nothing — and
+  its `expireAt` is a monotonically increasing timestamp indexed for
+  nothing, which is the shape Firestore's own TTL guidance says to exempt.
+  Index entries are storage (`cost-arith.mjs` prices index storage at
+  ×1.4 of documents) and write latency, not billed operations; the
+  exemptions cost a deploy of the index file. Verify in the console how
+  an exemption on a map field reaches its subfields — the `by` map's
+  keys are city names, so per-leaf exemptions cannot be listed; if a
+  map-level exemption does not reach them, the alternative is to store
+  `by` as one non-indexed value (a string over Firestore's indexed-value
+  limit is not indexed), which changes the client's parser and nothing
+  else.
+- **Fold the counters by increment.** The overflow shards already use
+  blind `FieldValue.increment` under merge (`v2.ts`, the D400 tail);
+  the hot document could too, which removes the trigger's read of it —
+  one of its three billed reads per world answer, 4 per user-day
+  (`aggIncrement` in the table) — and shortens the transaction's lock
+  window, which is what the ~1-write-a-second ceiling measures. What
+  stands in the way is the bucket cap: `evictForNewBucket` needs the
+  current bucket set, so the cap moves to a compactor — the same
+  compactor §3's sharding needs — and `replay.ts` already records that
+  the cap makes the fold non-commutative today, so a compactor
+  arguably improves replayability.
+
+**The trigger's profile read is unmasked.** The world path reads the
+author's `v2_users/{uid}` whole to use one field (`anchors`, D410's
+honesty check); the reveal pipeline reads the same collection with
+`{ fieldMask: ["displayName"] }` and explains why — a profile can
+legitimately approach Firestore's 1 MiB. One argument on the `getAll`,
+on the most-invoked function in the system. Same shape for `rankBankV2`,
+which reads 533 whole aggregates a night to use `total` and `counts`.
+
+**The catalog path** reads and rewrites a ~95 KB private accumulator
+(`ent` up to 1,025 keys, `entBy` 8 × 24 × 32) on every catalog answer
+and recomputes the published top-N from it — the largest per-answer
+round trip in the system, on 24 of 1,073 questions. Increments and a
+nightly top-N compaction are the same change as above; and the catalog
+branch skips D410's profile check, so its chips are the client's claim.
 
 **The wall.** All of a day's daily answers land on one
 `v2_question_aggs/{qid}` inside the waking window; Firestore sustains
@@ -289,25 +361,65 @@ published document once a minute for today's qid, so every client keeps
 reading the one document it reads today. Cost: N reads and one write a
 minute per hot qid (1,440 writes and 1,440·N reads a day), the trigger's
 write uncontended, and one client rule — the post-vote refresh clears its
-"+1" only once `total` has grown past the pre-vote total. D403 lifted the
-"build on the alert" shelf for this subject; it is the one item here that
-is about scale rather than money, and it is cheap to build ahead.
+"+1" only once `total` has grown past the pre-vote total. **One
+correction the design needs before it is built:** "every field folds by
+addition" is true of `counts`, `total`, `pos` and `edits` and not of `by`
+under the bucket cap — which bucket `evictForNewBucket` drops depends on
+arrival order, as `replay.ts` states — so the compactor must re-cap the
+union of the shards' bucket maps, sending the surplus to the D400
+overflow tail that already exists for this. Small, and it has to be in
+the design. A second wall sits beside it that no record names: the
+ledger's `at` and the answers' `answeredAt` are monotonically increasing
+timestamps indexed on every write, and Firestore's sequential-index
+guidance is ~500 writes a second on a contiguous range — a collection
+limit, not a document one, reached by the answer write itself at the
+Hit row's morning peak. Exempting `expireAt` helps; `at` is queried and
+stays.
 
-**Index entries** ride every answer write: the collection-scope composite
-`(surface, answeredAt desc)` for Circle and the sheet's ordered
-collection-group query, plus the single-field entries D64 left enabled.
-The 2.1 and 2.3 reshapes make the Circle composite unnecessary and the
-sheet's rarer; dropping an index is a storage saving only, and the model
-carries index storage at ×1.4 of documents.
+**The trigger's ceiling.** `maxInstances: 10` is global and `HOT_TRIGGER`
+overrides everything but it: **200 folds in flight is the system-wide
+ceiling on answer throughput.** At 500,000 DAU the mean rate in the
+morning window is ~175 answers a second; past the ceiling Eventarc
+backlog becomes latency, then retries, then contention on the same qid.
+Raise it together with the sharding, not before.
+
+**What fails before it costs.** Four structures that are fine today and
+stop working — silently — at sizes the tables above reach:
+
+- **The rollup fold reads one page and stops.** `engagement.ts`'s
+  `runRollupFold` has no outer loop and `ROLLUP_FOLD_CAP = 10,000`;
+  rollups are unsampled by design (the person channel). Above ~10,000
+  active devices a day the same low-sorting days fold first, the rest
+  die unfolded at the 90-day TTL, and the "leftovers fold tomorrow"
+  warning is false. A paging loop like the attention fold's, or sampling
+  the channel, with a real budget.
+- **`scanUsers` buffers everyone.** §2.7: ~1 KB a person resident on a
+  256 MiB instance, an out-of-memory near 150,000 people, and a pass
+  that dies identically every night thereafter because nothing advances
+  its cursor. The fix is the header's own plan.
+- **`mergeSample` materialises the day.** The voter-sample merge builds
+  a `rows` object of 200 + the day's answers to that question and sorts
+  it to keep 200 — at 500,000 DAU the daily question is a 500,000-entry
+  object and sort, inside the same 256 MiB / 480 s budget as everything
+  else. A bounded top-K over the order the file already defines is
+  O(200).
+- **The attention shard fold** is capped at 20,000 a night and every
+  device writes a shard every day (`SHARD_SAMPLE_RATE = 1`); past
+  ~20,000 DAU it never drains. The file names sampling as the lever.
 
 ## 4 · What looks wasteful and is not
 
-- **The ledger entry** duplicates the answer for 90 days. Replacing it
-  with a `folded` mark on the answer document costs the same read and
-  write per answer (the trigger must still read something to dedup a
-  redelivery and write something to record it), loses the delete only
-  ($0.01 per 100,000), and moves the nightly readers onto a
-  collection-group index. Not worth it.
+- **The ledger entry** duplicates the answer for 90 days, and in
+  operations it is a wash: a `folded` mark on the answer document costs
+  the same read and write per answer (the trigger must still read
+  something to dedup a redelivery and write something to record it),
+  saves the delete only, and moves the four nightly readers onto a
+  collection-group `answeredAt` scan — same read count, `fromIdx` becomes
+  "`editedAt` is present", and the attribution job it was written for is
+  served better by `replay.ts` already. What it does cost is storage —
+  ~400 bytes and, unexempted, ~32 index entries per answer for 90 days —
+  which the exemptions in §3 remove without touching the ledger. So:
+  exempt now, and leave the removal for the day storage is a line.
 - **The trigger's profile read** (D410) is what stops an answer carrying
   a cohort that is not its author's; the rules cannot check it. One read
   per answer, kept.
@@ -341,10 +453,20 @@ carries index storage at ×1.4 of documents.
 4. **Today-only foreground refresh (2.4)** — one line, 24 reads per
    user-day, a cadence choice a user would have to watch closely to
    notice.
-5. **The two server folds (2.6, 2.7)** — 6 reads per user-day, invisible.
-6. **The sharded daily (§3)** — the scale item; build ahead of the first
-   push spike rather than on the alert, since D403 lifted the shelf.
-7. **The deck document (2.5)** and the **reveal history document
+5. **The config-sized items (§3)** — the index exemptions on the
+   aggregate and ledger collections, `fieldMask` on the trigger's profile
+   read and on `rankBankV2`'s aggregate reads. An afternoon, no product
+   change, and the index file is on the deploy path already.
+6. **The four failures (§3)** — the rollup fold's paging, the candidate
+   scan's streaming, the sample merge's top-K, the shard fold's sampling.
+   Each is a night that would fail silently at a size the tables reach;
+   none costs a read today.
+7. **The two server folds (2.6, 2.7)** — 6 reads per user-day, invisible.
+8. **The sharded daily with the increment fold (§3)** — the scale item,
+   with the `by` correction in the design; build ahead of the first push
+   spike rather than on the alert, since D403 lifted the shelf, and raise
+   the trigger's `maxInstances` with it.
+9. **The deck document (2.5)** and the **reveal history document
    (2.8)** — when the compactor exists to write the first for free, and
    when circles are common enough for the second to matter.
 

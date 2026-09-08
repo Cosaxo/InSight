@@ -86,6 +86,15 @@ export const RESHAPES = [
     writes: () => 1,
   },
   {
+    key: "aggIncrement",
+    name: "Aggregate counters folded by increment, not read-modify-write of the whole document",
+    // The trigger's `pubRef` read — one of its three — goes away when the
+    // counts are blind increments under merge (the shape the overflow
+    // shards already use); the bucket cap moves to a compactor.
+    reads: () => B.worldAnswers,
+    writes: () => 0,
+  },
+  {
     key: "velocityInPass",
     name: "Velocity scan folds from the nightly pass's one ledger read",
     reads: () => B.worldAnswers,
