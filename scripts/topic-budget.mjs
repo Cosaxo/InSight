@@ -200,7 +200,8 @@ export const TOPS = {
     floor: TOP_FLOOR, cap: DAILY_CAP, noun: "top",
     sites: [
       "src/v2/spec/daily-cats.js (CAT_META)",
-      "src/v2/spec/map-groups.js (the hub's cats — never the silent World default)",
+      "src/v2/spec/map-groups.js (the hub's cats — the bare branch id for a top with a seedId, `top-<slug>` otherwise; never the silent World default)",
+      "src/v2/spec/map-branches.js (the seed branch, if the top carries a seedId — check:taxonomy rule 2 requires every branch it draws to be claimed by a CAT_META top, so a fold that leaves the branch behind cannot go green)",
       "src/v2/spec/map-anchors.js (FALLBACK — the anchor readings a top's questions fall back to)",
     ],
   },

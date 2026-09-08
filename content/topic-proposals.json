@@ -5,7 +5,7 @@
     "top": "{ id, level: 'top', label, surface: 'daily' | 'feed' | 'learn', nearest: <the existing category it came closest to>, group: <daily: a hub id in map-groups.js; feed: a WF_BRANCH target — a CAT_META key or a hub label; learn: omit, Knowledge by prefix>, questions: [{ prompt, options?, run: 'YYYY-MM-DD' }] } — a proposal that can only land in a hub that does not exist holds for the owner",
     "created": "{ id, level, label, surface, parent?, createdAt: 'YYYY-MM-DD', pr }",
     "retirement": "{ id, level: 'leaf' | 'top', surface, parent? (a leaf's), into: <where the questions go — a feed leaf: its parent; a learn field: a field of the same subject; a top: a top of the same surface>, reason, owner?: 'YYYY-MM-DD' (the owner's word, which licenses any level), run }",
-    "retired": "{ id, level, surface, into, retiredAt: 'YYYY-MM-DD', pr, licence: 'thin' | 'silence' | 'owner' }"
+    "retired": "{ id, level, surface, into, retiredAt: 'YYYY-MM-DD', pr, licence: 'thin' | 'silence' | 'owner', seedId (daily only, required): the branch id its hub carried in map-groups.js and map-branches.js, or null if it had none — CAT_META is deleted by the time this row is written, so it is the only place left to read it }"
   },
   "surfaces": {
     "daily": "top = cat[0], a key in CAT_META (src/v2/spec/daily-cats.js); the second level is the free path cat[1] — written on the question, never created",

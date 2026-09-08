@@ -389,7 +389,23 @@ export function checkTaxonomy(sources = loadSources()) {
       if (feedQuestions.some((q) => Array.isArray(q.also) && q.also.includes(id))) sites.push("a feed question's also");
     } else if (r.surface === "daily") {
       if (id in catMeta) sites.push("CAT_META");
-      if (hubCats.has(`top-${slugOf(id)}`) || (catMeta[id]?.seedId && hubCats.has(catMeta[id].seedId))) sites.push("a hub's cats in map-groups.js");
+      // THE SEED ID COMES OFF THE LEDGER ROW, and it has to. This read
+      // `catMeta[id]?.seedId`, and by the time a retirement is complete
+      // the CAT_META row is DELETED — so for the seven daily tops that
+      // carry a seedId (Body, Skills, Interests, Home, Story, Goals,
+      // Values) the second half of this test was always undefined and the
+      // first never matched, because their hub entry is the bare branch
+      // id (`home`), not `top-home`. Measured 2026-09-08: four tops
+      // retired completely but left in a hub gave 0 errors; `Travel`, the
+      // one the test drove, has no seedId and correctly gave 1.
+      //
+      // map-branches.js is the site that used to have no test at all, and
+      // rule 2 above REQUIRES every branch it draws to be claimed by a
+      // CAT_META top's seedId — so a fold that removes the CAT_META row
+      // and leaves the branch cannot go green by any route. Naming it
+      // here is what makes the RETIRE instruction and the gate agree.
+      if (hubCats.has(`top-${slugOf(id)}`) || (r.seedId && hubCats.has(r.seedId))) sites.push("a hub's cats in map-groups.js");
+      if (r.seedId && branchById.has(r.seedId)) sites.push("map-branches.js");
       if (id in fallback) sites.push("map-anchors FALLBACK");
       if (dailyQuestions.some((q) => Array.isArray(q.cat) && q.cat[0] === id)) sites.push("an archive row's cat[0]");
       if (dailyQuestions.some((q) => Array.isArray(q.alts) && q.alts.some((a) => Array.isArray(a) && a[0] === id))) sites.push("an archive row's alts");
@@ -407,6 +423,16 @@ export function checkTaxonomy(sources = loadSources()) {
     }
     if (sites.length) err(`${where}: retired, and still at ${sites.join(", ")} — a fold removes every site (D427); this one stopped part way`);
     if (!r.into) err(`${where}: no \`into\` — where did its questions go?`);
+    // STATED, not inferred. Half the daily tops carry a seedId and half
+    // do not, and once the CAT_META row is gone there is nowhere left to
+    // read it from — so a row that omits it silently turns two of the
+    // five site checks above into no-ops. `null` is a fine answer and is
+    // the answer for a top that never had one.
+    if (r.surface === "daily" && !("seedId" in r)) {
+      err(`${where}: a daily retirement must state \`seedId\` — the branch id its hub carried, `
+        + "or null if it had none. The CAT_META row is deleted by the time this row is written, "
+        + "so without it the hub's cats and map-branches.js go unchecked");
+    }
   }
   for (const r of ledger.retirements ?? []) {
     const where = `topic-proposals.json retirement ${JSON.stringify(r.id ?? "(no id)")}`;
