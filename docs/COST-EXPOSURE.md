@@ -4,7 +4,12 @@
 they stood that morning, §6 is the ordered to-do list and builds
 nothing.** Written on the owner's ask of 2026-09-07 (*"do a in depth
 analyses of cost and what could be improved i dont want a unexpected
-firebase bill that i cant pay"*) against `3f49530`.
+firebase bill that i cant pay"*) against `3f49530`, and amended the same
+day on the owner's two corrections: App Check enforcement is done and
+comes off every list here, and the Claude routines run on subscriptions
+— a fixed cost, not a bill this page models. The structural half of the
+ask — is the data as cheap per user as it can be once there are users —
+is [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md).
 
 [`COSTS.md`](COSTS.md) answers *what will this cost* and
 [`COST-REDUCTION.md`](COST-REDUCTION.md) *how to make it smaller*. This
@@ -28,29 +33,22 @@ console it is in §7 rather than asserted.
   the named database `insight` since D165. The error is under a dollar a
   month at every launch size, so it changes sentences rather than money —
   the sentences are listed in §2.
-- **The only way to a bill you cannot pay is reads the app did not
-  issue.** Anonymous sign-in mints a token on first open (D3), the rules
-  grant reads to any signed-in account (D98), and App Check is not
-  enforced on the Firestore API — so a script holding the public config
-  can read as fast as it likes and every read bills. The alert and the
-  budget would tell you within minutes and hours; **nothing stops it.**
-  §3.A has the arithmetic: a hostile weekend is hundreds of dollars at a
-  laptop's pace and thousands at a determined one. App Check enforcement
-  is the stop, and it needs a 24–48 h soak before it can be flipped, which
-  is why it is a launch item and not an incident item.
+- **The only way to a bill you cannot pay was reads the app did not
+  issue**, and App Check enforcement on the Firestore API — done, the
+  owner reports, 2026-09-08 — is what closes the script-and-laptop
+  version of it. §3.A keeps the arithmetic so the value of that switch
+  is on the record, and names what enforcement does not cover: a real
+  device driving the app's own queries, which is bounded by what the app
+  asks for (§3.G), and the hours between a budget mail and a human,
+  which the automated response in §6 C4 is for.
 - **Everything else is bounded**, mostly by caps this repository already
   carries: compute by `maxInstances`, the client by per-session caps and
   the read breaker, the paid loop by per-account budgets. §3 ranks what is
   left, and most of it is tens of dollars, not thousands.
-- **The four things to do first** are all clicks (§6): soak-then-enforce
-  App Check on Firestore; put a spend limit on the Anthropic workspace
-  and confirm whether its key is even set; wire the budget's notification
-  to the read breaker; delete the two zombie nightly functions.
-- **The biggest measured bill in this repository is not Firebase.**
-  [`USAGE-REDUCTION.md`](USAGE-REDUCTION.md) metered **$7,011** of Claude
-  session usage in seventeen days. Whether that can ever become an invoice
-  depends on one claude.ai setting (§3.I); it is worth checking before any
-  Firebase knob.
+- **The three things to do first** are all small (§6): put a spend limit
+  on the Anthropic workspace and confirm whether its key is even set;
+  wire the budget's notification to the read breaker; delete the two
+  zombie nightly functions.
 
 ## 1 · The bill as it is, not as modelled
 
@@ -130,9 +128,13 @@ auth edition was answered at D333.
 
 ## 3 · Where a surprise could come from, ranked by how large it could be
 
-### A · Reads nobody in the app issued — unbounded, and only alerted
+### A · Reads nobody in the app issued — closed by App Check enforcement; the arithmetic kept
 
-The chain, each link measured:
+**The owner reports App Check enforcement on the Firestore API done
+(2026-09-08).** The checklist box in `SHIP-CHECKLIST.md` § hardening step
+4 is the owner's to tick; this section is kept as the record of what the
+switch is worth, and of the residue it leaves. The chain it closed, each
+link measured on the tree:
 
 1. **Any device gets a token before it does anything.** D3's
    `signInAnonymously` runs on first open, and the same call works from a
@@ -143,12 +145,14 @@ The chain, each link measured:
    public: `v2_questions`, `v2_question_aggs`, the `answers` collection
    group, profiles, takes — `allow read: if request.auth != null`, no
    query-size condition anywhere.
-3. **App Check is not enforced on the Firestore API.** `SHIP-CHECKLIST.md`
-   § hardening step 4 is unticked, and `src/lib/appcheck.ts` says it
-   plainly: *"Until the console switch is on, direct Firestore access from
-   scripts remains possible; the rules are the real gate there."* A rule
-   cannot rate-limit, and a rule's own `get()` reads bill on denied
-   requests too (`COSTS.md` § What to actually do at 3am).
+3. **Without App Check enforcement on the Firestore API**, a script
+   holding the public config reads through the rules. `src/lib/appcheck.ts`
+   said it plainly while that was so: *"Until the console switch is on,
+   direct Firestore access from scripts remains possible; the rules are
+   the real gate there."* A rule cannot rate-limit, and a rule's own
+   `get()` reads bill on denied requests too (`COSTS.md` § What to
+   actually do at 3am). Enforcement rejects an unattested request before
+   the rules run, so the request costs nothing.
 4. **A query returns as many documents as it asks for.** The who-voted
    query shape is 200 documents a request; a laptop can hold thousands of
    reads a second against a corpus it re-reads forever.
@@ -163,44 +167,32 @@ this):
 | 10,000/s — a script | 864 M | $259 | ~4.4 hours |
 | 100,000/s — a determined one | 8.6 G | $2,592 | ~26 minutes |
 
-**What fires.** `firestore-read-runaway` (armed, email) after five
-minutes above 500 reads a second. The budget's four thresholds, as
-emails to the billing account's admins — and budgets evaluate against
-billing data that lags usage by hours, so the 50 % mail is not a
-five-minute mail. **Then nothing.** A weekend nobody reads email is about
-**$650 at 10,000 reads a second and $6,500 at 100,000**. That is the
-whole "bill I cannot pay" scenario on this page, and it is a
-hostile-actor scenario, not a growth one and not a bug one — the app's
-own client cannot produce it (§3.G).
+**What would have fired, and what still does.** `firestore-read-runaway`
+(armed, email) after five minutes above 500 reads a second; the budget's
+four thresholds, as emails to the billing account's admins — and budgets
+evaluate against billing data that lags usage by hours, so the 50 % mail
+is not a five-minute mail. Before enforcement, a weekend nobody read
+email was about **$650 at 10,000 reads a second and $6,500 at 100,000**;
+that was the whole "bill I cannot pay" scenario on this page, a
+hostile-actor scenario rather than a growth or a bug one, and it is what
+the switch closed.
 
-**What stops it, in order of effect:**
+**What enforcement leaves, in order of size:**
 
-1. **App Check enforcement on the Firestore API** — the kill switch
-   `COSTS.md` names. Enforcement rejects an unattested request before the
-   rules run, so the request costs nothing, and it removes the version of
-   the attack that is a script and a laptop. It cannot be flipped during
-   an incident: providers registered, builds carrying attestation, App
-   Check → Metrics soaked for 24–48 h until verified requests approach
-   100 %, then enforce (`SHIP-CHECKLIST.md` step 4; `LAUNCH-RUNBOOK.md`
-   3.4 for the debug tokens the screenshot job and your own browser need,
-   which is the `OWNER-LIST.md` row still open). A real device driving
-   the app's own queries is still possible afterwards; that is bounded by
-   what the app asks for, which is §3.G.
-2. **A budget notification that acts without you.** D332 §3 named the
+1. **A real device driving the app's own queries.** Attested traffic
+   still reads whatever the app can ask for, so the ceiling is the
+   app's own per-session shape — §3.G, and every cap there is a
+   constant read from source by the cost model.
+2. **The hours between a budget mail and a human.** D332 §3 named the
    wire and did not build it: budget → Pub/Sub → a function that sets
-   `budgetMode` to 1. Worth building (§6 C4) — but be exact about what it
-   buys: the read breaker sheds the app's social reads per boot, and a
-   script never boots the app. The wire that stops a script is the same
-   function calling `projects.updateBillingInfo` with an empty billing
-   account at a higher threshold — Google's documented pattern, an
-   outage, and the owner's call. Recorded in `COSTS.md` as available and
-   not built; this page recommends building the soft half now and asking
-   the owner about the hard half with the table above in hand.
+   `budgetMode` to 1 (§6 C4). The same function calling
+   `projects.updateBillingInfo` with an empty billing account at a higher
+   threshold is Google's documented hard stop — an outage, and the
+   owner's call.
 3. **Query-size conditions in the rules** — `request.query.limit <= 200`
-   on the `answers` collection-group list and the other D98 lists. It
-   bounds the reads one request can bill, not the rate, so it slows the
-   script rather than stopping it; cheap because every client query on
-   those paths already carries the cap. Optional (§6 C8).
+   on the `answers` collection-group list and the other D98 lists — bound
+   what one attested request can bill; cheap because every client query
+   on those paths already carries the cap. Optional (§6 C8).
 
 ### B · The public results page — bounded by the instance cap, roughly $10–20 a day at the ceiling
 
@@ -358,19 +350,6 @@ removes ~354 of ~440 reads per user per day.
 - Firestore egress: 10 GiB a month free against a modelled $0.50 at 5,000
   DAU.
 
-### I · The bill that is not Firebase
-
-`USAGE-REDUCTION.md` measured **$7,011.27 metered between 2026-08-17 and
-2026-09-03**, about $390 a day, with one session at $2,325 on its own —
-against a Firebase bill of a dollar. That is usage against the claude.ai
-subscription's limits, and the same page records sessions refused with
-`seven_day_overage_included`, which reads as an overage bucket existing.
-**Whether that number can become money is one account setting** — extra
-usage, or whatever the plan calls pay-beyond-the-limit — and it is the
-first thing on §6's list to look at, because it is the only line in this
-document already measured in four figures. The roll call that would
-print the daily figure exists and is disabled (`OPS-RUNBOOK.md` § 5).
-
 ## 4 · What already stands between you and a surprise
 
 Verified live on 2026-09-07 unless the row says otherwise.
@@ -383,7 +362,7 @@ Verified live on 2026-09-07 unless the row says otherwise.
 | the other seven policies | armed; evictions not | errors, contention, silent crons, a stuck refund | — |
 | `maxInstances: 10`, `concurrency: 1` | in code, `check:fn-runtime` | caps a runaway function at ~$649 a month | bound a single Firestore read |
 | `budgetMode` level 1 (D332) | built, hand-pulled | sheds ~80 % of per-user reads over one boot cycle | touch a script, a function, or a session that does not restart |
-| App Check on the callables | enforced in production since the D388 bridge | every user callable needs a real device | protect a direct Firestore read (the console toggle is off) |
+| App Check | enforced on the callables since the D388 bridge, and on the Firestore API per the owner, 2026-09-08 | a request needs a real device before the rules run, so an unattested one costs nothing | bound what an attested device asks for — that is the app's own shape, §3.G |
 | Per-account budgets | 5 bookings, 3 logic starts, 3 suggestions a day; 30 joins, 40 invites an hour | | cap the project |
 | *Observe production* + the reader | daily, read-only | says when a policy is missing or a function is stray | read spend or the budget |
 | The pulse guard | red — the fold is stale | model-side early warning | measure, until the fetch is scheduled |
@@ -398,51 +377,40 @@ default to the billing account's admins and users. Both are §6 O4.
 
 | # | Gap | If it bites | Fix | Who |
 | ---: | --- | --- | --- | --- |
-| 1 | App Check not enforced on Firestore | unbounded — §3.A's table | register, soak, enforce | owner |
-| 2 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner |
-| 3 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code |
-| 4 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` | code |
-| 5 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code |
-| 6 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code |
-| 7 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner |
-| 8 | Alert notes on the `nam5` sheet; evictions policy unarmed | the wrong number at 3 am; a blind spot | edit the JSON; dispatch *Arm monitoring* | code + owner |
-| 9 | No billing export to BigQuery | no invoice to diff the model against | console toggle | owner |
-| 10 | Pulse guard blind on a stale fold | the early warning is silent | schedule the fetch | code |
-| 11 | Budget recipients and a first page unverified | the backstop may be mailing nobody | test page; check the billing-account roles | owner |
-| 12 | The Claude overage setting | the one four-figure line | read the setting | owner |
+| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner |
+| 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code |
+| 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` | code |
+| 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code |
+| 5 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code |
+| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner |
+| 7 | Alert notes on the `nam5` sheet; evictions policy unarmed | the wrong number at 3 am; a blind spot | edit the JSON; dispatch *Arm monitoring* | code + owner |
+| 8 | No billing export to BigQuery | no invoice to diff the model against | console toggle | owner |
+| 9 | Pulse guard blind on a stale fold | the early warning is silent | schedule the fetch | code |
+| 10 | Budget recipients and a first page unverified | the backstop may be mailing nobody | test page; check the billing-account roles | owner |
 
 ## 6 · What to do, in order
 
-### Owner clicks — the console, under an hour
+### Owner clicks — the console, half an hour
 
-- **O1 · App Check on Firestore.** `SHIP-CHECKLIST.md` § hardening step
-  4, in its order: providers registered, a build carrying attestation
-  installed, App Check → Metrics soaked 24–48 h, then enforce Firestore,
-  then Storage. The two debug tokens (`OWNER-LIST.md`, the screenshot job
-  and your browser) go in first or both stop working the moment you
-  flip. This is the only row on this page that closes §3.A.
-- **O2 · The Anthropic workspace.** Set a monthly spend limit in the
+- **O1 · The Anthropic workspace.** Set a monthly spend limit in the
   Anthropic console at a figure you would not mind losing, and confirm
   whether `ANTHROPIC_API_KEY` is set in the production environment at
   all (`OWNER-LIST.md`'s three-secrets row).
-- **O3 · Delete the residue.** `firebase functions:delete fitPatternsV2
+- **O2 · Delete the residue.** `firebase functions:delete fitPatternsV2
   fitTasteV2 --project prvfire33 --region europe-west1 --force` (the row
   is already on `OWNER-LIST.md`); then `processBatch` and the four
   extension instances D333 listed.
-- **O4 · Prove the backstop reaches you.** Cloud Monitoring → the
+- **O3 · Prove the backstop reaches you.** Cloud Monitoring → the
   *InSight oncall* channel → send a test notification; Billing → Budgets
   → InSight → add your address explicitly under *Manage notifications*
   rather than relying on the admin default.
-- **O5 · Billing export to BigQuery** (`LAUNCH-RUNBOOK.md` 5.12) — the
+- **O4 · Billing export to BigQuery** (`LAUNCH-RUNBOOK.md` 5.12) — the
   one control that turns "the invoice differs from the model" into a row
   instead of a surprise, and the query that answers O6 permanently.
-- **O6 · Read two numbers.** Artifact Registry → `gcf-artifacts`
+- **O5 · Read two numbers.** Artifact Registry → `gcf-artifacts`
   (`europe-west1`): repository size and whether a cleanup policy exists.
   Cloud Build → History: build-minutes this month against 2,500.
-- **O7 · claude.ai → the plan's extra-usage setting.** Off means the
-  program's four figures are usage against a limit; on means they are an
-  invoice.
-- **O8 · GitHub → Billing → Actions spending limit.** $0 or the number
+- **O6 · GitHub → Billing → Actions spending limit.** $0 or the number
   you chose.
 
 ### Code — each its own pull request, with its test and its pin
@@ -481,7 +449,7 @@ default to the billing account's admins and users. Both are §6 O4.
   scopes the functions step to pushes touching `functions/**` (rules,
   indexes and hosting keep their own steps), and the next `web/`-only push
   is read for whether the CLI's unchanged-function skip fires at all.
-- **C8 · Query-size conditions in the rules** — optional, after O1:
+- **C8 · Query-size conditions in the rules** — optional:
   `request.query.limit <= 200` on the `answers` collection-group list and
   the other D98 lists, proved by `test:rules` and by every client query on
   the path already carrying the cap.
@@ -501,12 +469,11 @@ Console-only facts, listed so they are read rather than assumed:
   minutes used in August and September.
 - Whether `ANTHROPIC_API_KEY` and the two Stripe secrets are set in the
   production environment.
-- The Anthropic workspace's spend limit; claude.ai's extra-usage setting;
-  GitHub's Actions spending limit.
+- The Anthropic workspace's spend limit; GitHub's Actions spending limit.
 - The budget's actual recipients, and whether any page has ever been
   delivered.
-- App Check → Metrics: the share of verified requests, which is the
-  soak's own reading and decides when O1 can be flipped.
+- App Check's enforcement state on the Firestore and Storage APIs, which
+  the owner reports done and no instrument here reads.
 - The names of the eight `europe-west1` functions the deploy list does
   not name — `npm run observe -- --functions` prints them with their
   triggers, which is what decides whether any of them bills.
