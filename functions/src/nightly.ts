@@ -36,7 +36,8 @@
 // fold that went quiet. The pass then rethrows the first failure, so the
 // invocation is red in the function's own error metrics as well.
 //
-// THE BUDGET. LIGHT_UNBOUNDED is 256 MiB and 480 s. The day's entries are
+// THE BUDGET. NIGHTLY (ops.ts) is 1 GiB and 480 s — it was LIGHT_UNBOUNDED's
+// 256 MiB until DATA-EFFICIENCY-RUNBOOK 1.3, for the reason ops.ts gives. The day's entries are
 // ~200 bytes each in memory: 20 k at 5 k DAU, 200 k (40 MB) at 50 k, held
 // once instead of once per fold — the peak is what any one of the three
 // functions already had. Time is the three folds' in sequence; today
@@ -49,7 +50,7 @@ import { logger } from "firebase-functions";
 // ops.ts sets the global runtime options as an import side effect and must
 // stay imported wherever a function is declared (check:fn-runtime guards
 // the outcome).
-import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
+import { NIGHTLY, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 import { memoLedgerReader } from "./ledger";
 import {
@@ -165,7 +166,7 @@ export const digestEngagementV2 = onSchedule(
   // paged read of the day's entries for all three ledger folds together,
   // plus each fold's own per-person state reads and writes — COSTS.md's
   // rows, and scripts/cost-arith.mjs's LEDGER_PASS_READS_PER_ENTRY.
-  { schedule: "23 2 * * *", region: FUNCTIONS_REGION, ...LIGHT_UNBOUNDED },
+  { schedule: "23 2 * * *", region: FUNCTIONS_REGION, ...NIGHTLY },
   async () => {
     const db = firestore();
     // ONE clock for the night, so every fold agrees on which day is
