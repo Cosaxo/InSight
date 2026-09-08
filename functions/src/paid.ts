@@ -49,7 +49,7 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 // The day key, offset in days. Was a byte-identical local copy until the
 // two families of `utcDayKey` were separated — see pure.ts's own comment.
 import { utcDayKey } from "./pure";
@@ -792,7 +792,13 @@ export async function runReviewSweep(
 }
 
 export const sweepPaidReviewsV2 = onSchedule(
-  { schedule: "every 30 minutes", region: REGION },
+  // LIGHT_UNBOUNDED, not the global 512 MiB: the sweep pages SWEEP_PAGE
+  // bookings at a time and holds one page, and it is the most-invoked
+  // schedule in the deploy — 48 runs a day, every one billed at its memory
+  // for the whole run. Before any user exists these runs ARE the functions
+  // line on the bill (COST-EXPOSURE.md §3.B); halving the footprint halves
+  // it. The long deadline stays: a backlog of held bookings is unbounded.
+  { schedule: "every 30 minutes", region: REGION, ...LIGHT_UNBOUNDED },
   async () => {
     const db = firestore();
     const cutoff = Timestamp.fromMillis(Date.now() - 10 * 60 * 1000);
@@ -1409,7 +1415,11 @@ export function refundEurFor(cap: number, capEur: number, ratePerAnswer: number,
  * "running" until the refund half has actually settled).
  */
 export const closePaidCampaignsV2 = onSchedule(
-  { schedule: "every day 03:30", region: REGION },
+  // LIGHT_UNBOUNDED for the same reason as the sweep above: CLOSER_PAGE
+  // purchases in memory at a time, plus the Stripe client. The deadline
+  // stays generous because the refund half settles at Stripe, one round
+  // trip per closing campaign, and a night with many is a long night.
+  { schedule: "every day 03:30", region: REGION, ...LIGHT_UNBOUNDED },
   async () => {
     const db = firestore();
     const today = utcDayKey(0);

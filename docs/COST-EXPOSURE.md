@@ -208,6 +208,9 @@ requests and instance time if hammered without pause. The budget would
 catch it in a couple of days. Fix in one line (§6 C2): `maxInstances: 2`
 on this function — the page is for sponsored questions, of which there
 are none yet, and legitimate traffic is served by the CDN either way.
+**Done 2026-09-08**, on the owner's word: the cap is in `share.ts` and
+`check:fn-runtime` prints it. At two instances the same hammer is under
+$2 a day.
 
 ### C · The LLM bill on the Anthropic account — bounded per account, unbounded per project
 
@@ -272,6 +275,16 @@ stands meanwhile.
   line either way. Whether a policy exists is a console read (§6 O6).
 - **Cloud Scheduler.** Ten jobs against three free: **~$0.70 a month**,
   which is most of the invoiced dollar.
+- **What the jobs run on.** The functions line on the Sep 1–8 console
+  (kr2.58 of kr2.86) is these jobs' instance-seconds, and memory is what
+  an instance-second costs: `sweepPaidReviewsV2` runs 48 times a day and
+  inherited the global 512 MiB for a page of fifty bookings. Since
+  2026-09-08 it and the daily `closePaidCampaignsV2` run on
+  `LIGHT_UNBOUNDED` (256 MiB), which halves what the most-invoked
+  schedule bills. This is the floor, not a slope: the jobs run the same
+  number of times with one user as with a million, and the per-user
+  compute — the answer trigger at concurrency 20 — is the `$0 → $43/mo at
+  500 k DAU` row of `COSTS.md`'s fixed-cost table.
 - **The residue.** `fitPatternsV2` and `fitTasteV2` still fire nightly
   (one read each, and the data-loss hazard `OWNER-LIST.md`'s row
   describes); `processBatch` in `europe-north1` is Pub/Sub-triggered with
@@ -294,9 +307,11 @@ stands meanwhile.
   functions the all-at-once figure is ~$27,000 and needs 41 independent
   runaways; plan against the one.
 - **The nightly pass** (`functions/src/nightly.ts`) walks every user's
-  `patterns/state` document with no page cap on a 256 MiB instance;
-  `patterns.ts` predicts its own out-of-memory near 150,000 people. A
-  crash costs one invocation a night; the hazard is silence, not money.
+  `patterns/state` document with no page cap; `patterns.ts` predicts its
+  own out-of-memory near 150,000 people on the 256 MiB it ran on until
+  2026-09-08, when `NIGHTLY` (1 GiB, DATA-EFFICIENCY-RUNBOOK 1.3) bought
+  roughly four times that headroom. A crash costs one invocation a
+  night; the hazard is silence, not money.
 - **`buildModQueue`** pages the whole `v2_flags` collection nightly with
   no ceiling. Flags are one write per (target, account), so the walk is
   bounded by people times takes. Fine at any size in reach.
@@ -379,7 +394,7 @@ default to the billing account's admins and users. Both are §6 O4.
 | ---: | --- | --- | --- | --- |
 | 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner |
 | 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code |
-| 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` | code |
+| 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code |
 | 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code |
 | 5 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code |
 | 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner |
@@ -425,8 +440,10 @@ default to the billing account's admins and users. Both are §6 O4.
   `pulse.test.mjs` pins with the constants, and mark
   `COST-COMPARISON.md`'s A+ row superseded.
 - **C2 · `resultsPageV2` gets `maxInstances: 2`** in
-  `functions/src/share.ts`, a longer cache on the 404 branch, and the
-  path as the only place a `qid` is read; `check:fn-runtime` pins it.
+  `functions/src/share.ts` — **done 2026-09-08**, and the same commit
+  took the two paid schedules down to `LIGHT_UNBOUNDED` (§3.E). Still
+  open from this row: a longer cache on the 404 branch, and the path as
+  the only place a `qid` is read.
 - **C3 · The review's ceiling.** In `functions/src/paid.ts`: a global
   daily counter in `v2_ratelimits` beside the per-account one, `max_tokens`
   sized to the verdict, and a `paid_review_call` log metric with a policy
