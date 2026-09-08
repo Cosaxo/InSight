@@ -424,7 +424,7 @@ existed to prevent.
 billed read charged to the project, on top of the operation that triggered
 it. A world answer's create rule touches one document (`v2_questions/{aid}`,
 three times — repeats of the same document are free); a duel answer's
-touches three distinct ones. Reads pay nothing: `v2_questions` and
+touches two distinct ones. Reads pay nothing: `v2_questions` and
 `v2_question_aggs` are `allow read: if request.auth != null`, with no
 document access at all, so this term scales with *answers*, not opens.
 
@@ -439,8 +439,8 @@ document access at all, so this term scales with *answers*, not opens.
 the aggregate transaction reads two documents per world answer (the ledger
 event for dedup, the private aggregate); the nightly velocity scan (D54)
 reads **every ledger entry written that day**, which is one per world
-answer; and the reveal pipeline reads `(4 + 3m)/m` per member per group-day,
-which is 5 for a duo. The velocity scan alone is the size of the top-up and
+answer; and the reveal pipeline reads `(2 + 2m)/m` per member per round,
+which is 3 for a duo. The velocity scan alone is the size of the top-up and
 the reseed delta put together, and it was invisible.
 
 **The D98 surfaces** (339 at maturity). Who-voted sheets, Kindred and
