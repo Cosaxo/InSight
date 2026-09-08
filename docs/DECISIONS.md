@@ -46285,3 +46285,257 @@ list under the profile row rather than being built here.
 read-each-other card and the Map's people module draw the old daily
 game from sample data and only a demo build shows them; whether demo
 builds matter is the owner's call, on the same row.
+
+## D427 · The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way
+
+**2026-09-08.** **Status:** binding, built. The owner, the day the path
+in merged: *"build the removal path too"*.
+
+D424 made creation cheap and D425 said where it lands; both left removal
+impossible and said so under *What this does NOT do*. That asymmetry
+compounds — every room opened under the evidence rule would be a room
+that could never be wrong — and it is the reason the old "never create"
+rule had felt safe: a taxonomy nobody can add to is one nobody has to
+prune.
+
+### The principle
+
+**A room is retired by FOLDING its questions into another room, never by
+deleting them.** Answers are public (D98) and immutable but for one edit
+shape (D86); every daily answer is filed on somebody's Map by its
+question's branch; a learn card mastered is a dot under its field. A
+deleted question is an orphaned answer, and the app's product is the
+link between answers. So a fold rewrites where a question is *met* —
+`cat`, `sub`, `alts` or `f` — and nothing else about it. This is the
+same posture the banks already take toward a single question
+(`active: false`, never a deletion), one level up.
+
+### The decisions
+
+**1 · What licenses a fold differs by level, on purpose.**
+
+| Room | Licence | Why this and not the other |
+| --- | --- | --- |
+| a leaf | **thin** — stock under its floor — or the owner's word | feed leaves are not levelled by their lane (`feed-budget.mjs` counts topics), so a thin leaf has two futures, fill or fold; and the fold is free — dropping `sub` leaves every question the parent's |
+| a top | **silence** — the lane's own demand signal readable (past `DEMAND_MIN_ANSWERS`) and the room's share under `RETIRE_SHARE` (0.1) of an even share — or the owner's word | *thin* is not a signal for a top: the lane levels tops thinnest-first, so a thin top gets filled, never retired; and while the crowd is too small to read (34 feed answers today), a top-level fold is the owner's, because the alternative is retiring content on noise |
+| a hub | the owner's, both directions | D425 |
+
+A top with leaves under it folds **after** its leaves, each with its own
+row — a leaf re-parented in passing is a placement nobody argued.
+`retireVerdict` in `scripts/topic-budget.mjs` is the arithmetic;
+`demandReading` turns the lane's `laneSignal` weights into a share, and
+a blind signal reads as *no share*, never as silence.
+
+**2 · What a fold moves, and what it costs** — stated because the daily
+one is not free. A feed leaf: strip `sub`, into is the parent always,
+costs nothing. A learn field: `f` → a field of the **same** subject,
+because the Map files mastered cards under `lrn-<subject>` and a
+cross-subject fold would move them between hubs, which is a top-level
+move. A feed topic: `cat` → into, doors onto it dropped or replaced,
+palette row + wire row + `WF_BRANCH` caption gone; feed answers do not
+file on the Map tab, so what moves is where the cards are met and the
+demand credit. **A daily top moves answers on every user's Map** — the
+archive rows' `cat[0]` (and alts) → into, and the `CAT_META` row, the
+hub's `cats` entry and the `FALLBACK` row go — which is why a daily fold
+takes the owner's word or a real crowd's silence, never a run's
+tidiness.
+
+**3 · `check:taxonomy` rule 7 makes "retired" mean retired.** The
+ledger gains `retirements` (proposals) and `retired` (done). For every
+retired id the gate walks every site — a row on any list (palette, wire
+topics, wire channels, subtopics as id or parent, `CAT_META`, subjects,
+fields), every question met through it (feed `cat`/`sub`/`also`, learn
+`f`/subject, daily `cat[0]`/alts), the hub's `cats`, the caption table,
+the anchor fallbacks, and every ledger row pointing at it — and fails a
+fold that stopped part way, naming each site. A proposed retirement is
+held to its `into`: present, not itself, at the right level, on the same
+surface, a feed leaf's parent, a learn field's sibling, never a format
+or `now`. A `created` row keeps its history once the id is in `retired`.
+A retired id or label is never reused: the proposal rules already
+refuse a rename.
+
+**4 · Three orphan rules the fold made worth stating**, all true today
+and each with a test that breaks them: every learn card's `f` is a live
+field (nothing checked this — `checkLearnFields` measures difficulty
+span, not membership); the wire's `channels` are wire topics; and the
+daily's `FALLBACK` table in `map-anchors.js` keys **exactly** `CAT_META`'s
+tops, both directions. The last one found a **site D425 had missed for
+creation**: a daily top written at every site D425 named and not there
+reads no anchor fallback, silently. `TOPS.daily.sites` names it now.
+
+**5 · Hard rule 2 gains its fourth carve-out.** A fold rewrites `cat`,
+`sub`, `alts` or `f` on existing rows — not an append — and nothing
+else about them; the verdict states the rewrite and the gate bounds it.
+
+### What this does NOT do
+
+- **No room is retired here.** `retirements` and `retired` ship empty.
+  On this tree the feed's three demo leaves are at 0 live stock — under
+  the floor — and would read as *thin* the day a run proposes them;
+  nothing proposes them, because they are the demo's furniture and the
+  live bank tags nothing yet.
+- **Device follows are not a signal.** A leaf's follow state lives in
+  `localStorage` (`insight.subtopics.v1`), not on the server, so
+  "nobody follows it" cannot be read. Stock and answers are what the
+  tree can measure.
+- **A retired daily top's answers keep their old `branch` on already
+  seeded docs** until the next seed run rewrites them; the Map re-files
+  on the next boot after that. Stated so the lag is a known limit.
+
+### Reversal
+
+Revert the commit. The ledger's two lists are empty, the gate's rule 7
+walks nothing, and the orphan rules read the tree that is there.
+
+## D428 · Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples
+
+**2026-09-08.** **Status:** binding, built. The owner, reading D424–D427
+as one system: *"i think the new topic generation should be higher then
+that espasialy in learn but also other things should aim to almost
+become like reddit in the end where popular niches are almost all
+coverd"*.
+
+### What was depth-first about the first cut, measured
+
+D424's leaf rules were: three questions over three run days, the parent
+at its floor, the last leaf under that parent at *its* floor, and a
+room born full (12). Under those, the feed could open at most one
+subtopic per parent every three days; learn could open **nothing** —
+it owed 102 cards to its twelve fields, and breadth debt blocked every
+room until that was paid, at 10 cards a run twice a week: five weeks
+to the first new field, then one per fortnight. That is a taxonomy that
+prunes itself before it grows, which is the shape the old "never
+create" rule had, wearing arithmetic. Reddit's posture is the opposite:
+a niche exists the moment a few people want it, and popularity fills
+it afterwards.
+
+### The decisions
+
+**1 · A room is born with a handful, not full.** `LEAF_BIRTH` 4 for a
+feed subtopic — a reader who filters to it meets a shelf with something
+on it, and the feed is a mix, so a thin leaf is never the whole screen.
+`FIELD_BIRTH` 6 for a learn field — `check:quality`'s
+`LEARN_FIELD_SPAN_MIN` (20 points of p) needs a spread, and four cards
+cannot show one honestly. Parked and retagged questions both count; the
+run writes the rest in the same PR. The floor (12 / 24) is what the
+lane fills *toward* afterwards — learn through its own levelling; the
+feed through a tagging rule the regulator prints per topic (of the
+questions written into Sport, tag its thinnest leaves first), because
+the feed levels topics and a leaf's questions *are* its parent's.
+
+**2 · A leaf is the lane's call, in one run.** No day rule, no
+parent-levelled rule, no settling — all three were D424's, and each
+priced a leaf as if it cost what a topic costs. It does not: no chip,
+no Map branch, no install page, and since D427 it folds itself. What
+the run owes is the argument in the PR: which popular niche, and why
+this one before the others. `leafVerdict` has one blocker left,
+capacity — a room exists with its handful or not at all.
+
+**3 · Coverage is a number, and it steers.** `LEAF_TARGET` 12 leaves
+per feed topic, `FIELD_TARGET` 8 fields per learn subject, and a
+`BREADTH_SHARE` of one third of every run's grant opens rooms in the
+least-covered parents first — `coverageAllocation` prints *open 5
+rooms this run: food ×2 · sport ×1 …*, round-robin by coverage
+(rooms ÷ target), at birth each. Feed: 20 of 60 a day, five leaves.
+Learn: 10 of 30 a run, a field and a half, taken off the top of the
+learn grant with `learn:budget --reserve <n>` (new this record) so the
+two regulators agree. Above the target the share rests and a room
+opens on evidence — a parked question — not on the coverage line. The
+targets are floors for coverage, not caps.
+
+**4 · A learn subject is cheap.** It is a branch inside the Knowledge
+hub by prefix — no chip, no hub change — so `TOPS.learn.cheap` makes it
+born like a leaf: one run, its first field, that field's six cards.
+Five subjects is not coverage of anything; the world's subjects are
+dozens.
+
+**5 · Learn's cap triples: `RUN_CAP` 10 → 30, `OPEN_MAX` with it.** The
+header's own rule was *"raise it when runs finish with the bar met and
+time to spare"*; the owner's direction is the licence, and half the
+feed's 60 is the number — a learn card costs more at the writing bar
+than a feed vote (its trap argued, its fact sourced, its difficulty
+placed). Seven chunks of four a run, one field per chunk. The lane's
+cadence (Monday and Thursday) now caps its reach more than any
+constant here, and re-pacing a Routine is the owner's — on
+`OWNER-LIST.md`.
+
+**6 · Breadth debt is no longer a blocker anywhere.** "Every existing
+room at floor before a new one" was D424's rule for tops and D425's for
+leaves via the parent; it is what blocked learn outright. The fill
+share pays the debt now, and a thin room somewhere is not a reason a
+popular niche has no room. What still waits is what costs the chip
+row, a Map branch, or every install: a feed topic and a daily top keep
+the three-day evidence rule, placement and settling.
+
+**7 · D427's leaf licence is re-based on the handful.** Every leaf is
+under the floor at birth now and the lane fills it, so "under the floor
+→ fold" would have retired every new room the run after it opened.
+*Thin* means below the handful it was born with — questions retired
+from under it — or the crowd readable and silent on it. `retireVerdict`
+takes `birth`; the manual's table says so.
+
+### What this costs, printed rather than gated
+
+A learn field is a page of `LEARN_PAGE` (24) reads per device per boot
+under the follow-everything default (D283) until the interest model
+narrows it (`pageSizesByInterest`): twelve fields is 288 today, forty
+would be 960 on a fresh install. A feed leaf costs nothing extra — its
+cards ride the parent's page. The regulator prints the learn figure
+with the coverage line; the ceiling, if one is wanted, is the owner's,
+and the row on `OWNER-LIST.md` carries both levers (cadence, and a
+per-field page for cold fields the way the feed already does for cold
+topics).
+
+### What this does NOT do
+
+- **No room is opened here.** The coverage line on this tree says feed:
+  open 5 (sport 3/12 is the only topic with any leaf, all demo), learn:
+  open 1 — and the next firing of each lane is what opens them.
+- **Feed leaves are still not a paged shelf** of their own; at four
+  questions a device meets what the parent's page holds. Fine at birth;
+  the order doc carrying leaves is the step if a followed leaf reads
+  empty.
+- **The cadence.** Learn at 30 cards twice a week is 60 a week; the feed
+  writes 60 a day. Daily learn is the one change here that is not this
+  record's to make.
+
+### Reversal
+
+Revert the commit. The ledger is empty on every list, the constants
+return to D424's, and `learn:budget` ignores a `--reserve` it no longer
+parses.
+
+## D428 amendment (2026-09-08) · The learn lane runs daily, and its prompt is swapped for the one that can open a field
+
+The owner, reading D428's *"the cadence … is the one change here that is
+not this record's to make"*: *"make learn run daily"*.
+
+**The cadence:** `0 9 * * 1,4` → `0 9 * * *`, daily 09:00 UTC — the same
+slot, half an hour before the feed lane, the spacing the two already had
+on Mondays and Thursdays. At 30 cards a run that is 210 a week against
+the feed's 420; at a field and a half a run, the five subjects reach
+`FIELD_TARGET` in about four weeks instead of nine.
+
+**The prompt, and why the Routine has a new id.** `update_trigger` took
+the cron change and refused the prompt — *"editing the prompt of a
+routine whose fires deliver into a session that is not your own is not
+available"* — the refusal § Scheduled runs records from D148 and D212,
+re-measured today. The prompt needed changing because it carried, under
+*Hard limits*, **the old hard rule 3**: *"Never create a field or
+subject; a card that fits none is dropped and the field proposed."* That
+is the D212 class exactly — a clause in the prompt itself that no manual
+edit can lift, and a daily lane running under it would have obeyed the
+rule D424 reversed and D428 inverted, every morning, while the manual it
+is told to re-read said the opposite. So the D148 mechanism: a
+replacement created and verified first (`trig_01TckXyab4zPHT4NSfSqPjku`,
+same session, same slot, the prompt rewritten — *daily since D428*,
+`topic:budget` first and `learn:budget --reserve` after it, open the
+rooms the coverage line names, `check:taxonomy` in the gate list, a card
+that fits nothing PARKED rather than dropped), then the original
+(`trig_01Qguc3PyigsW7RvQLvC6X5G`) deleted, then the register and the
+canonical block. Cost as before: the id and the fire history; issue #31
+is the run log.
+
+**Verified rather than assumed:** the create response echoes the stored
+prompt, so the canonical block in § Scheduled runs is the live text, not
+a copy of what was sent.
