@@ -828,6 +828,28 @@ export let PICK_QS;
       1986744: 2,   // The Last of Us — below the floor
       0: 12,        // Not listed — everyone's own formative cartridge
     },
+    // daily catalog-question run, 2026-09-07 — the second videogames
+    // canon is TIME, not esteem: pk37 asks what deserves the crown; this
+    // asks where the hours actually went, and the boards provably
+    // differ. Ocarina tops every GOAT poll and almost nobody's playtime;
+    // WoW and The Sims chart here without touching pk37's board at all.
+    pk38: {
+      49740: 24,    // Minecraft — the decade-eater
+      131007: 18,   // World of Warcraft — the years, plural
+      323862: 15,   // The Elder Scrolls V: Skyrim — a third playthrough is normal
+      223341: 13,   // League of Legends
+      17452: 11,    // Grand Theft Auto V
+      12579896: 10, // The Sims 4 — the quiet thousands
+      842146: 9,    // Counter-Strike: Global Offensive
+      349375: 8,    // Fortnite
+      23013817: 7,  // Stardew Valley — one more day, forever
+      71910: 6,     // Tetris — forty years of commutes
+      332697: 5,    // Terraria — clears the floor but not the top 10; folds
+      692989: 5,    // Roblox — same
+      4267401: 3,   // The Witcher 3 — below the floor; a hundred hours is not a thousand
+      213911: 2,    // Ocarina of Time — below the floor; the GOAT nobody grinds
+      0: 14,        // Not listed — everyone's private obsession
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1272,6 +1294,20 @@ export let PICK_QS;
         Men: { 213911: 12, 17452: 8, 4267401: 7, 27438121: 6, 49740: 5 },
       },
     },
+    pk38: {
+      ageBand: {
+        // hours follow eras: the youngest cell's hours live in Fortnite,
+        // the middle one's in Skyrim saves, and the oldest cell's are
+        // forty years of Tetris — the board reorders, it never flips
+        '18-24': { 349375: 10, 49740: 9, 223341: 7, 23013817: 5, 842146: 4 },
+        '25-34': { 49740: 8, 323862: 8, 223341: 6, 17452: 6, 12579896: 5 },
+        '45+': { 71910: 7, 131007: 6, 323862: 4, 49740: 3 },
+      },
+      gender: {
+        Women: { 12579896: 9, 23013817: 8, 49740: 7, 71910: 5, 323862: 4 },
+        Men: { 131007: 10, 223341: 9, 17452: 8, 842146: 7, 49740: 6 },
+      },
+    },
   };
 
   const api = {
@@ -1444,6 +1480,7 @@ export let PICK_QS;
     { id: 'pk35', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The hardest language to learn?', n: 148 },
     { id: 'pk36', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you actually wear?', n: 145 },
     { id: 'pk37', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The greatest video game ever made?', n: 151 },
+    { id: 'pk38', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game you’ve sunk the most hours into?', n: 150 },
   ];
   window.PICK_QS = PICK_QS;
 })();
