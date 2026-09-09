@@ -333,7 +333,7 @@ import { stripComments } from "./strip-comments.mjs";
 // those are outputs of scripts/cost-model.mjs and re-deriving one here
 // would be the duplicate model cost-arith.mjs exists to prevent (see the
 // COSTS.md block below). These two are inputs, exported from that file.
-import { RULE_READS, revealReadsPerMember } from "./cost-arith.mjs";
+import { RULE_READS, TRIGGER_READS, revealReadsPerMember } from "./cost-arith.mjs";
 
 
 // How many test runners this repo has, off package.json — the figure
@@ -1381,6 +1381,19 @@ const FIGURES = [
   // formula went `(4 + 3m)/m` → `(2 + 2m)/m` — while the same file's own
   // TABLE ROWS were updated in the commit that changed them. Prose beside
   // a corrected table is the shape this gate exists for.
+  {
+    file: "docs/COSTS.md",
+    what: "documents the aggregate transaction reads per world answer",
+    // The THIRD clause of the same sentence whose other two were gated on
+    // 2026-09-08. It said "two documents … the private aggregate" while
+    // the table row twelve screens up already said three and named the
+    // published one — the file contradicting itself, which is the shape
+    // that block's own header describes. D410 put the author's profile in
+    // the same `tx.getAll`.
+    re: /reads (\w+)\s+documents per world answer/,
+    actual: word(TRIGGER_READS.world),
+    fix: (n) => `"reads ${n} documents per world answer"`,
+  },
   {
     file: "docs/COSTS.md",
     what: "distinct documents a duel answer's create rule reads",

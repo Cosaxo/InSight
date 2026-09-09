@@ -436,8 +436,9 @@ document access at all, so this term scales with *answers*, not opens.
 > un-deduped the figure would be 14 rather than 6.
 
 **Server reads** (14). Three sources, none of them visible from the client:
-the aggregate transaction reads two documents per world answer (the ledger
-event for dedup, the private aggregate); the nightly velocity scan (D54)
+the aggregate transaction reads three documents per world answer (the
+ledger event for dedup, the published aggregate, and the author's profile
+— D410); the nightly velocity scan (D54)
 reads **every ledger entry written that day**, which is one per world
 answer; and the reveal pipeline reads `(2 + 2m)/m` per member per round,
 which is 3 for a duo. The velocity scan alone is the size of the top-up and
