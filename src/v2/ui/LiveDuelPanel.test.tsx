@@ -401,6 +401,37 @@ describe("LiveDuelPanel · the group as a cast (D432)", () => {
     expect(reveal.querySelectorAll("[data-held]")).toHaveLength(1);
   });
 
+  it("…and the held row is that person too: named by the snapshot, your chip on it, a late vote on the row its snapshot names", () => {
+    LIVE.social.bankQ = () => ROLE;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    // The same leave: the live roster is [me, Ada, Bo] and the reveal's was
+    // [me, Ada, Cy]. Bo, who left, answered late at index 1, naming Cy.
+    LIVE.social.revealFor = () => ({
+      round: 1, day: "2026-09-08", qid: "group-gr0", members: ["u_me", "u_ada", "u_cy"],
+      votes: {
+        u_me: { optionIdx: 3, pickUid: "u_cy" },
+        u_ada: { optionIdx: 2, pickUid: "u_cy" },
+        u_bo: { optionIdx: 1, pickUid: "u_cy", late: true },
+      },
+      names: { u_ada: "Ada", u_cy: "Cy", u_bo: "Bo" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    const held = reveal.querySelectorAll("[data-held]");
+    expect(held).toHaveLength(1);
+    // the row reads "Cy" — not "Bo", the LIVE roster's name at the row's index
+    expect(held[0].textContent).toMatch(/Cy/);
+    expect(held[0].textContent).not.toMatch(/Bo/);
+    // your vote is on it, whatever index it was cast at
+    expect(held[0].textContent).toMatch(/you/);
+    // Bo's late vote sits on Cy's row, marked, and the late list says Cy —
+    // not "Ada", the live roster at index 1
+    expect(within(held[0] as HTMLElement).getByTitle("Bo · late")).toBeTruthy();
+    const lateList = within(reveal).getByLabelText("Answered after the reveal");
+    expect(lateList.textContent).toMatch(/Cy/);
+    expect(lateList.textContent).not.toMatch(/Ada/);
+  });
+
   it("a role vote's reveal crowns who the room named, off the snapshots, in the pack's words", () => {
     LIVE.social.bankQ = () => ROLE;
     LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });

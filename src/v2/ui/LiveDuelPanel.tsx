@@ -56,7 +56,7 @@ import { atHandle } from "../data/handles";
 import { usePeopleFinder } from "./peopleSearch";
 import PersonRow from "./PersonRow";
 import { inviteLine, type Invite } from "../data/invites";
-import { revealTally, roleTally, type RevealDocLike, type RoleTallyRow } from "../data/duelRuns";
+import { namedBy, revealTally, roleTally, type RevealDocLike, type RoleTallyRow } from "../data/duelRuns";
 import { castText } from "../data/deck";
 import { DuelAv, GroupMark, YouChip } from "./duelMarks";
 import { firstName, markHue } from "./marks";
@@ -1034,10 +1034,12 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
     const row = tally.find((r) => r.optionIdx === i);
     return (row && row.uid) || (roster[i] ?? null);
   };
-  const castName = (i: number): string => {
-    const u = castUid(i);
-    return u ? (u === uid ? "You" : (firstName(names[u]) || "Someone")) : labelIn(opts, i);
-  };
+  // …and the NAME of a person the record placed, or the ballot's label when
+  // it placed nobody — the bars' row label and the late list read this
+  // rather than `opts`, which on a pick is the live roster's names by index.
+  const castNameOf = (u: string | null, i: number): string =>
+    (u ? (u === uid ? "You" : (firstName(names[u]) || "Someone")) : labelIn(opts, i));
+  const castName = (i: number): string => castNameOf(castUid(i), i);
   const castLead = (i: number): React.ReactNode => {
     const u = castUid(i);
     return u ? (u === uid ? <YouChip size={26} /> : <DuelAv uid={u} name={names[u]} size={26} />) : null;
@@ -1093,7 +1095,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
         <LdRateReveal reveal={reveal} opts={opts} poles={cq.poles} names={names} uid={uid} tint={tint} />
       ) : duo ? duoTable() : (
         <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint}
-          cast={roleVote ? { ink, rows: tally as RoleTallyRow[], held: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead } : undefined} />
+          cast={roleVote ? { ink, rows: tally as RoleTallyRow[], held: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead, labelFor: castName } : undefined} />
       )}
       {openSeats.length > 0 && seats()}
       {line()}
@@ -1108,7 +1110,11 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
           {lateOthers.map((u) => (
             <div key={u} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
               <DuelAv uid={u} name={names[u]} size={20} />
-              <span style={{ fontWeight: 700 }}>{labelIn(optsFor(qidOf(votes[u]) === rowQid ? bankQ : (LIVE.social.bankQ(qidOf(votes[u]) as string) as { options?: string[] } | null)), votes[u].optionIdx)}</span>
+              <span style={{ fontWeight: 700 }}>
+                {roleVote && qidOf(votes[u]) === rowQid
+                  ? castNameOf(namedBy(votes[u], roster), votes[u].optionIdx)
+                  : labelIn(optsFor(qidOf(votes[u]) === rowQid ? bankQ : (LIVE.social.bankQ(qidOf(votes[u]) as string) as { options?: string[] } | null)), votes[u].optionIdx)}
+              </span>
               <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>late</span>
             </div>
           ))}
@@ -1326,7 +1332,7 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
    *  contested runner-up, and each option's member as its lead. The rows
    *  are then ordered by count — the design's `VoteReveal` — because a
    *  cast's rows are people, and the crown reads from the top. */
-  cast?: { ink: string; rows: RoleTallyRow[]; held: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode };
+  cast?: { ink: string; rows: RoleTallyRow[]; held: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode; labelFor: (i: number) => string };
 }) {
   // R2/D270: a reveal on screen is the duel loop's payoff being
   // collected — the one signal rung 0 could never see (the reveal doc is
@@ -1344,7 +1350,12 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
   const byOpt = new Map<number, { uids: string[]; late: string[] }>();
   for (const r of rows) byOpt.set(r.optionIdx, { uids: r.uids, late: [] });
   for (const u of late) {
-    const i = votes[u].optionIdx;
+    // On a cast a late vote sits on the row of the person ITS snapshot
+    // names — the counted votes' own rule — and only a vote with no
+    // snapshot falls back to its ballot index.
+    const snap = cast && typeof votes[u].pickUid === "string" && votes[u].pickUid
+      ? cast.rows.find((r) => r.uid === votes[u].pickUid) : undefined;
+    const i = snap ? snap.optionIdx : votes[u].optionIdx;
     const row = byOpt.get(i) || { uids: [], late: [] };
     row.late.push(u);
     byOpt.set(i, row);
@@ -1353,12 +1364,13 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
   const order = [...byOpt.keys()].sort((a, b) => (cast ? (size(b) - size(a) || a - b) : a - b));
   const total = order.reduce((a, i) => a + (byOpt.get(i) as { uids: string[]; late: string[] }).uids.length
     + (byOpt.get(i) as { uids: string[]; late: string[] }).late.length, 0) || 1;
-  const mine = votes[uid];
   return (
     <div style={col(8)}>
       {order.map((i) => {
         const row = byOpt.get(i) as { uids: string[]; late: string[] };
-        const isMine = !!mine && mine.optionIdx === i && (row.uids.includes(uid) || row.late.includes(uid));
+        // Your vote is on the row that holds it — on a cast, the row of the
+        // person it named, whatever ballot index it was cast at.
+        const isMine = row.uids.includes(uid) || row.late.includes(uid);
         const held = !!cast && cast.held.includes(i);
         const rival = !!cast && cast.rival === i;
         const fill = cast ? cast.ink : tint;
@@ -1377,7 +1389,7 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
             <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px 8px 9px", minHeight: 44, boxSizing: "border-box" }}>
               {cast && cast.leadFor(i)}
               <span style={{ flex: 1, minWidth: 0, fontWeight: held || rival ? 800 : 700, fontSize: 13.5 }}>
-                {opts[i] != null ? opts[i] : "Option " + (i + 1)}
+                {cast ? cast.labelFor(i) : (opts[i] != null ? opts[i] : "Option " + (i + 1))}
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 {row.uids.filter((u) => u !== uid).map((u) => (
