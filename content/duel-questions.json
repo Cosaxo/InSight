@@ -24,6 +24,11 @@
       "id": "roadtrip",
       "label": "Road Trip",
       "hue": 60
+    },
+    {
+      "id": "evening",
+      "label": "Any Given Evening",
+      "hue": 335
     }
   ],
   "group": [
@@ -41,7 +46,8 @@
     {
       "id": "gp0",
       "kind": "pick",
-      "prompt": "Who'd survive longest in the wild?"
+      "prompt": "Who'd survive longest in the wild?",
+      "active": false
     },
     {
       "id": "gu1",
@@ -77,7 +83,8 @@
     {
       "id": "gp1",
       "kind": "pick",
-      "prompt": "Who replies to the group chat within a minute?"
+      "prompt": "Who replies to the group chat within a minute?",
+      "active": false
     },
     {
       "id": "gu4",
@@ -114,6 +121,12 @@
     {
       "id": "gp2",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "reason",
+        "label": "the voice of reason",
+        "seat": "heart"
+      },
       "prompt": "Who gives the best advice?"
     },
     {
@@ -149,6 +162,12 @@
     {
       "id": "gp3",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "call",
+        "label": "the 3am call",
+        "seat": "hands"
+      },
       "prompt": "Who would you call from jail at 3am?"
     },
     {
@@ -188,6 +207,12 @@
     {
       "id": "gp4",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "curveball",
+        "label": "the curveball",
+        "seat": "wild"
+      },
       "prompt": "Who changes the plan at the last minute?"
     },
     {
@@ -213,6 +238,12 @@
     {
       "id": "gp5",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "ringleader",
+        "label": "the ringleader",
+        "seat": "engine"
+      },
       "prompt": "Who secretly runs this group?"
     },
     {
@@ -229,7 +260,8 @@
     {
       "id": "gp6",
       "kind": "pick",
-      "prompt": "Who would win a group argument on a technicality?"
+      "prompt": "Who would win a group argument on a technicality?",
+      "active": false
     },
     {
       "id": "gu11",
@@ -254,7 +286,8 @@
     {
       "id": "gp7",
       "kind": "pick",
-      "prompt": "Who tells the same story every time, and it still lands?"
+      "prompt": "Who tells the same story every time, and it still lands?",
+      "active": false
     },
     {
       "id": "gr0",
@@ -622,7 +655,8 @@
     {
       "id": "gp8",
       "kind": "pick",
-      "prompt": "Who would survive longest without their phone?"
+      "prompt": "Who would survive longest without their phone?",
+      "active": false
     },
     {
       "id": "gu13",
@@ -646,7 +680,8 @@
     {
       "id": "gp9",
       "kind": "pick",
-      "prompt": "Who’s secretly keeping the group together?"
+      "prompt": "Who’s secretly keeping the group together?",
+      "active": false
     },
     {
       "id": "gu14",

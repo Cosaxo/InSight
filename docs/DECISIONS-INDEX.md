@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 467 lines instead of
-48,336. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 468 lines instead of
+48,486. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -45,7 +45,7 @@ detect it.
 | **D28** | [Fake accounts: prevention stays partial, the record becomes correctable](DECISIONS.md#d28--fake-accounts-prevention-stays-partial-the-record-becomes-correctable) | D342 (+14) | 2283 |
 |  | ↳ *amendment 2026-08-06* — [Identity verification (passport / driver's licence class) recorded as a possible future requirement](DECISIONS.md#d28-amendment-2026-08-06--identity-verification-passport--drivers-licence-class-recorded-as-a-possible-future-requirement) | — | 5082 |
 | **D29** | [Device-bound activation: one counted account per device per month, silently](DECISIONS.md#d29--device-bound-activation-one-counted-account-per-device-per-month-silently) | D414 (+11) | 2396 |
-| **D30** | [Farm questions may graduate to the live seed; the deck gets an epoch](DECISIONS.md#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) | D437 (+15) | 2598 |
+| **D30** | [Farm questions may graduate to the live seed; the deck gets an epoch](DECISIONS.md#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) | D444 (+16) | 2598 |
 | **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D402 (+3) | 2663 |
 | **D32** | [Learn's crowd stat is measured — first attempts only, estimates labeled](DECISIONS.md#d32--learns-crowd-stat-is-measured--first-attempts-only-estimates-labeled) | D402 (+19) | 2734 |
 | **D33** | [The farm gets eyes and a faster clock: the scorecard, and daily runs](DECISIONS.md#d33--the-farm-gets-eyes-and-a-faster-clock-the-scorecard-and-daily-runs) | D424 (+13) | 2807 |
@@ -56,7 +56,7 @@ detect it.
 | **D37** | [The device-bind flip becomes deterministic, then measured — the trigger is two numbers, not a judgement](DECISIONS.md#d37--the-device-bind-flip-becomes-deterministic-then-measured--the-trigger-is-two-numbers-not-a-judgement) | D343 (+3) | 3159 |
 | **D38** | [The no-button overlays load after first paint; relmap stays eager because the Mirror reads it](DECISIONS.md#d38--the-no-button-overlays-load-after-first-paint-relmap-stays-eager-because-the-mirror-reads-it) | D354 (+3) | 3275 |
 | **D39** | [The spec-layer migration gets a meter, and two figures get a gate](DECISIONS.md#d39--the-spec-layer-migration-gets-a-meter-and-two-figures-get-a-gate) | D388 (+32) | 3438 |
-| **D40** | [Duels get a content lane and a question-level signal](DECISIONS.md#d40--duels-get-a-content-lane-and-a-question-level-signal) | D435 (+13) | 3851 |
+| **D40** | [Duels get a content lane and a question-level signal](DECISIONS.md#d40--duels-get-a-content-lane-and-a-question-level-signal) | D444 (+14) | 3851 |
 |  | ↳ *adoption 2026-08-06* — [All four parts shipped, with five deltas](DECISIONS.md#d40-adoption-2026-08-06--all-four-parts-shipped-with-five-deltas) | — | 6240 |
 | **D41** | [The two stores' account types are decided separately — Play as an organization, Apple as an individual](DECISIONS.md#d41--the-two-stores-account-types-are-decided-separately--play-as-an-organization-apple-as-an-individual) | D367 (+3) | 3956 |
 | **D42** | [InSight launches on iOS alone; Play is deferred, and the path to it gets cheaper while it waits](DECISIONS.md#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits) | D420 (+10) | 4047 |
@@ -69,13 +69,13 @@ detect it.
 | **D49** | [The Skip control becomes a button, the alert chain gets a gate, and the feed's split stops at its arithmetic](DECISIONS.md#d49--the-skip-control-becomes-a-button-the-alert-chain-gets-a-gate-and-the-feeds-split-stops-at-its-arithmetic) | — | 4709 |
 | **D50** | [A lens question in a live feed is a self-report item, not a poll](DECISIONS.md#d50--a-lens-question-in-a-live-feed-is-a-self-report-item-not-a-poll) | D146 (+6) | 4797 |
 | **D51** | [Deleting the keys is only half the wipe: every local store hears the purge](DECISIONS.md#d51--deleting-the-keys-is-only-half-the-wipe-every-local-store-hears-the-purge) | D420 (+10) | 4863 |
-| **D52** | [The content review: what got fixed, what got flagged, and the two lines that held](DECISIONS.md#d52--the-content-review-what-got-fixed-what-got-flagged-and-the-two-lines-that-held) | D437 (+15) | 4929 |
+| **D52** | [The content review: what got fixed, what got flagged, and the two lines that held](DECISIONS.md#d52--the-content-review-what-got-fixed-what-got-flagged-and-the-two-lines-that-held) | D444 (+16) | 4929 |
 | **D53** | [The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned](DECISIONS.md#d53--the-logic-test-measured-zero-ambiguity-in-60000-items-and-the-curve-gets-pinned) | D402 (+3) | 5019 |
 | **D54** | [The ledger gets eyes: a daily velocity scan, feeding manual review](DECISIONS.md#d54--the-ledger-gets-eyes-a-daily-velocity-scan-feeding-manual-review) | D342 (+4) | 5127 |
 | **D55** | [Three guarantees were enforced on a value and not on the way it moves](DECISIONS.md#d55--three-guarantees-were-enforced-on-a-value-and-not-on-the-way-it-moves) | D220 (+2) | 5225 |
 | **D56** | [The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock](DECISIONS.md#d56--the-logic-test-stops-telegraphing-its-rules-banded-families-and-every-puzzle-is-on-the-clock) | D402 (+2) | 5625 |
 | **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D402 (+12) | 5708 |
-| **D58** | [The seed refuses to edit a shipped option set](DECISIONS.md#d58--the-seed-refuses-to-edit-a-shipped-option-set) | D68 | 5835 |
+| **D58** | [The seed refuses to edit a shipped option set](DECISIONS.md#d58--the-seed-refuses-to-edit-a-shipped-option-set) | D444 (+1) | 5835 |
 | **D59** | [The deferred chunks stop caching their own failure](DECISIONS.md#d59--the-deferred-chunks-stop-caching-their-own-failure) | — | 5908 |
 | **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D402 (+2) | 5958 |
 | **D61** | [Twenty-five items, tail-heavy: the form grows before the norms freeze it](DECISIONS.md#d61--twenty-five-items-tail-heavy-the-form-grows-before-the-norms-freeze-it) | D402 (+2) | 6019 |
@@ -242,7 +242,7 @@ detect it.
 | **D221** | [Four things nothing was standing behind](DECISIONS.md#d221--four-things-nothing-was-standing-behind) | D223 (+1) | 22642 |
 | **D222** | [One rounding rule, and it stopped drawing three votes above four](DECISIONS.md#d222--one-rounding-rule-and-it-stopped-drawing-three-votes-above-four) | D223 | 22761 |
 | **D223** | [The long tail, and the two things it declined to build](DECISIONS.md#d223--the-long-tail-and-the-two-things-it-declined-to-build) | D362 (+5) | 22850 |
-| **D224** | [A pick answer snapshots who it meant, and the reveal carries it](DECISIONS.md#d224--a-pick-answer-snapshots-who-it-meant-and-the-reveal-carries-it) | D437 (+6) | 22939 |
+| **D224** | [A pick answer snapshots who it meant, and the reveal carries it](DECISIONS.md#d224--a-pick-answer-snapshots-who-it-meant-and-the-reveal-carries-it) | D444 (+7) | 22939 |
 | **D225** | [The no-private-report promise is removed, before anything needed it](DECISIONS.md#d225--the-no-private-report-promise-is-removed-before-anything-needed-it) | D314 (+4) | 23007 |
 | **D226** | [The edit-flow matrix — second thoughts become a published number](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number) | D290 (+4) | 23073 |
 | **D227** | [The logic cut — the who-voted sheet groups answers by the verified score](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score) | D304 (+3) | 23143 |
@@ -459,7 +459,7 @@ detect it.
 | **D423** | [The pictures land: five domains fetched from a cloud session, the seventh host nobody knew about, and the two ways a throttled network kills a run](DECISIONS.md#d423--the-pictures-land-five-domains-fetched-from-a-cloud-session-the-seventh-host-nobody-knew-about-and-the-two-ways-a-throttled-network-kills-a-run) | — | 45400 |
 | **D424** | [The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail](DECISIONS.md#d424--the-lanes-create-categories-the-human-gate-becomes-arithmetic-and-the-taxonomy-gets-a-gate-that-can-fail) | D428 (+2) | 45529 |
 | **D425** | [The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so](DECISIONS.md#d425--the-you-maps-ring-is-fixed-and-the-taxonomies-grow-subtopics-first-new-topics-when-the-arithmetic-says-so) | D428 (+1) | 45744 |
-| **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | D437 (+4) | 45900 |
+| **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | D444 (+5) | 45900 |
 |  | ↳ *amendment 2026-09-08* — [The model is approved, and notifications are the volley's other half](DECISIONS.md#d426-amendment-2026-09-08--the-model-is-approved-and-notifications-are-the-volleys-other-half) | — | 46042 |
 |  | ↳ *amendment 2026-09-08, later the same day* — [Steps 0–3 are built: the round replaces the day](DECISIONS.md#d426-amendment-2026-09-08-later-the-same-day--steps-03-are-built-the-round-replaces-the-day) | — | 46085 |
 |  | ↳ *amendment 2026-09-08, the evening* — [World questions leave the duels: the owner's ruling at the first reveal](DECISIONS.md#d426-amendment-2026-09-08-the-evening--world-questions-leave-the-duels-the-owners-ruling-at-the-first-reveal) | — | 46243 |
@@ -473,11 +473,12 @@ detect it.
 |  | ↳ *amendment 2026-09-09* — [There was a probe all along, and Apple was already on](DECISIONS.md#d431-amendment-2026-09-09--there-was-a-probe-all-along-and-apple-was-already-on) | — | 47160 |
 | **D432** | [Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three](DECISIONS.md#d432--phase-0-of-the-rules-budget-the-instrument--and-a-filler-conjunct-costs-eight-units-not-three) | D438 (+2) | 47213 |
 | **D433** | [Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero](DECISIONS.md#d433--phases-1-and-2-of-the-rules-budget-the-answer-rule-restructured-with-every-verdict-identical--refusals-by-budget-go-from-thirteen-to-zero) | D438 (+1) | 47308 |
-| **D434** | [The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them](DECISIONS.md#d434--the-group-is-a-cast-the-owners-2026-09-08-design-lands-as-role-votes-in-packs-a-rating-every-fourth-round-and-the-fold-that-reads-them) | D438 (+3) | 47403 |
+| **D434** | [The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them](DECISIONS.md#d434--the-group-is-a-cast-the-owners-2026-09-08-design-lands-as-role-votes-in-packs-a-rating-every-fourth-round-and-the-fold-that-reads-them) | D444 (+4) | 47403 |
 | **D435** | [The duel bank leaves the JavaScript: learn's treatment, one bank over](DECISIONS.md#d435--the-duel-bank-leaves-the-javascript-learns-treatment-one-bank-over) | D437 | 47518 |
-| **D436** | [The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built](DECISIONS.md#d436--the-2026-09-09-design-arrives--how-1v1s-and-groups-work-now--recorded-planned-and-its-confusions-put-to-the-owner-before-anything-is-built) | — | 47623 |
-| **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | D438 | 47694 |
+| **D436** | [The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built](DECISIONS.md#d436--the-2026-09-09-design-arrives--how-1v1s-and-groups-work-now--recorded-planned-and-its-confusions-put-to-the-owner-before-anything-is-built) | D444 | 47623 |
+| **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | D444 (+1) | 47694 |
 | **D438** | [Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test](DECISIONS.md#d438--phase-3-of-the-rules-budget-the-gate--every-probe-pinned-at-its-measured-headroom-a-floor-of-50-fillers-and-a-denial-by-budget-is-a-red-test) | D440 | 47953 |
 | **D439** | [The bridge's read half: the fit's own scorecard becomes readable from `main`](DECISIONS.md#d439--the-bridges-read-half-the-fits-own-scorecard-becomes-readable-from-main) | — | 48046 |
 | **D440** | [The owner of a directory row may delete it — clearing your display name unlists you](DECISIONS.md#d440--the-owner-of-a-directory-row-may-delete-it--clearing-your-display-name-unlists-you) | — | 48143 |
-| **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48235 |
+| **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48385 |
+| **D444** | [The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's](DECISIONS.md#d444--the-ten-plain-picks-get-a-sixth-pack-any-given-evening-four-of-them-in-place-six-retired-by-the-one-role-a-seat-rule-the-live-flip-still-the-owners) | — | 48235 |

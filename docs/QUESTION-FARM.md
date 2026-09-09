@@ -963,7 +963,9 @@ for a duel run:
   now. A **role vote** is a `pick` (no options — the members are the
   options) tagged with the scenario pack it belongs to (`"scen":
   "<pack id>"`, one of the packs in the file's top-level `scenarios`:
-  Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip) and
+  Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip · Any
+  Given Evening — the sixth is the plain, everyday kind, four of the old
+  pick-a-member questions given a role and a seat in place, D444) and
   the role it casts (`"role": { "id", "label", "seat" }` — *the
   mastermind*, said of a person in front of their group, so `COPY.md`
   §3 applies word by word; the **seat** is `engine` · `hands` · `heart`
