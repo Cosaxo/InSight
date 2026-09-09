@@ -40,7 +40,14 @@
 // engine keeps the prototype's own pool rule — two options, daily or core
 // feed. The candidate's is wider (the owner's call, 2026-09-06): every
 // option-shaped core item, the instrument items included, with ordinal
-// and one-hot encodings (patternsAls.ts's header).
+// and one-hot encodings (patternsAls.ts's header) — and, since D433, the
+// profile anchors as items: the values the scanned people carry, floored
+// and capped per dim, compiled from the people rather than the bank. The
+// compaction keeps each person's newest anchors on their state document
+// beside the answer map (`an`), the fit reads both, and the scorecard
+// solves a person from both — so a vector starts from the person's
+// demographics before their first answer, which is what the Oracle, the
+// People lens and the Map all read.
 //
 // Scale note, recorded not built (D7) — and CORRECTED 2026-08-31, because
 // it named the wrong term and therefore the wrong fix.
@@ -105,16 +112,20 @@ import {
   PATTERNS_CROSSOVER_NIGHTS,
   alsFit,
   alsScoreDay,
+  anchorSpecsOf,
   binRows,
   candidateWon,
+  compileAnchorItems,
   compileItems,
   indexItems,
   nextCrossoverStreak,
   procrustes,
   publishableAls,
   rotateModel,
+  validAnchors,
   type AlsModel,
   type AlsRow,
+  type AnchorMap,
   type AnswerMap,
   type DayEntry,
   type ItemIndex,
@@ -334,7 +345,11 @@ export async function runPatternsFit(
   for (const [qid, r] of Object.entries(sgdRows)) prevSgdPub[qid] = [...r.v];
   const prevAlsPub: Record<string, number[]> = {};
   if (alsPrev) for (const [key, r] of Object.entries(alsPrev.rows)) prevAlsPub[key] = [...r.v];
-  const index: ItemIndex = indexItems(items);
+  // The scorecard solves a person against the model as it stood BEFORE
+  // the day, so its anchor items are the ones that model published; the
+  // fit's own index is compiled below, from the people it is about to
+  // read (D433).
+  const index: ItemIndex = indexItems([...items, ...anchorSpecsOf(alsPrev?.items)]);
   const itemQids = new Set(items.map((s) => s.qid));
 
   // the days still owed, oldest first, bounded by the catch-up window
@@ -439,6 +454,15 @@ export async function runPatternsFit(
     // map is a set, not a step, so an edit simply overwrites its key.
     const answersByUid = new Map<string, AnswerMap>();
     const anchorsByUid = new Map<string, Record<string, Record<string, string>>>();
+    // The person's NEWEST anchors of the day, kept to what the cube would
+    // count (D433) — a snapshot the compaction sets whole, last wins like
+    // the answer map. Read off every entry of the day, the two-option
+    // ones included: an anchor is on the answer whatever its question.
+    const newestAnchors = new Map<string, AnchorMap>();
+    for (const e of dayEntries) {
+      const an = validAnchors(e.anchors);
+      if (an) newestAnchors.set(e.uid, an);
+    }
     for (const e of wide) {
       const a = answersByUid.get(e.uid) ?? {};
       a[e.qid] = e.optionIdx as number;
@@ -462,6 +486,10 @@ export async function runPatternsFit(
     // alsScoreDay's header).
     const dayEntries2: DayEntry[] = [];
     const history = new Map<string, AnswerMap>();
+    // The anchors a person is scored with: their state's, else the ones
+    // on today's own entries — the profile precedes the answer, so a
+    // newcomer's demographics are evidence one step ahead too (D433).
+    const scoreAnchors = new Map<string, AnchorMap>();
     for (const uid of uids) {
       const user = states.get(uid);
       // A person a dead run already stamped has today's answers merged in
@@ -470,6 +498,8 @@ export async function runPatternsFit(
       const seen = byUid.get(uid);
       if (!seen) continue;
       history.set(uid, user?.a ?? {});
+      const an = user?.an ?? newestAnchors.get(uid);
+      if (an) scoreAnchors.set(uid, an);
       for (const [qid, v] of [...seen.entries()].sort((p, q) => (p[0] < q[0] ? -1 : 1))) {
         dayEntries2.push(v.prev === undefined ? { uid, qid, x: v.x } : { uid, qid, x: v.x, prev: v.prev });
       }
@@ -478,7 +508,7 @@ export async function runPatternsFit(
     for (const [qid, L] of Object.entries(model.q)) marginalStart.set(qid, { n: L.n, sum: L.sum });
     for (const lam of ALS_LAMBDAS_U) {
       const rows = alsScored.get(lam)!;
-      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, lam);
+      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, lam, scoreAnchors);
     }
     const write = new Map<string, PatternsUserState>();
     for (const uid of uids) {
@@ -502,6 +532,8 @@ export async function runPatternsFit(
         user.a = { ...(user.a ?? {}), ...todays };
         compacted += Object.keys(todays).length;
       }
+      const an = newestAnchors.get(uid);
+      if (an) user.an = an;
       user.d = day;
       write.set(uid, user);
       touched.add(uid);
@@ -616,13 +648,17 @@ export async function runPatternsFit(
   const alsQuality = scored.length
     ? publishableQuality(alsScored.get(bestLambda)!, alsQualityPrev?.series ?? [])
     : alsQualityPrev;
-  const people: { uid: string; a: AnswerMap }[] = [];
+  const people: { uid: string; a: AnswerMap; an?: AnchorMap }[] = [];
   await store.scanUsers((uid, st) => {
-    if (st.a && Object.keys(st.a).length) people.push({ uid, a: st.a });
+    if (st.a && Object.keys(st.a).length) people.push({ uid, a: st.a, ...(st.an ? { an: st.an } : {}) });
   });
   let als: AlsModel | null = alsPrev;
   if (people.length) {
-    const solved = alsFit(alsPrev, people, index, k);
+    // the anchor items are the values THESE people carry (D433): an item
+    // that persists night to night warm-starts from its published row by
+    // key, one that fell under the floor simply stops being fitted
+    const fitIndex = indexItems([...items, ...compileAnchorItems(people)]);
+    const solved = alsFit(alsPrev, people, fitIndex, k);
     als = alsPrev ? rotateModel(solved, procrustes(
       Object.fromEntries(Object.entries(solved.rows).map(([key, r]) => [key, r.v])),
       prevAlsPub,
@@ -877,6 +913,8 @@ export function firestorePatternsStore(
               // into what this returns, so a read that dropped it would
               // publish a candidate fitted on yesterday alone, every night.
               ...(snap.get("a") ? { a: snap.get("a") as Record<string, number> } : {}),
+              // the anchors, both ways as well (D433) — same reason as `a`
+              ...(snap.get("an") ? { an: snap.get("an") as Record<string, string> } : {}),
             });
           }
         });
@@ -890,9 +928,9 @@ export function firestorePatternsStore(
         for (const [uid, s] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
-            // `set` with no merge replaces the document — `d` and `a` have
-            // to be named or the stamp and the map never land.
-            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}) },
+            // `set` with no merge replaces the document — `d`, `a` and `an`
+            // have to be named or the stamp, the map and the anchors never land.
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}), ...(s.an ? { an: s.an } : {}) },
           );
         }
         await batch.commit();
@@ -948,6 +986,7 @@ export function firestorePatternsStore(
             n: (d.get("n") as number) ?? 0,
             ...(d.get("d") ? { d: String(d.get("d")) } : {}),
             ...(d.get("a") ? { a: d.get("a") as Record<string, number> } : {}),
+            ...(d.get("an") ? { an: d.get("an") as Record<string, string> } : {}),
           });
         }
         if (snap.size < PAGE) break;

@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 457 lines instead of
-47,205. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 458 lines instead of
+47,295. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -22,7 +22,7 @@ detect it.
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
 | **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D410 (+33) | 167 |
 |  | ↳ *amendment 2026-08-03* — [The retry-logging trigger now has an instrument](DECISIONS.md#d7-amendment-2026-08-03--the-retry-logging-trigger-now-has-an-instrument) | — | 3523 |
-| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D432 (+46) | 449 |
+| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D433 (+47) | 449 |
 | **D9** | [Near is your city — picked from a list, or located on the device](DECISIONS.md#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device) | D192 (+21) | 556 |
 | **D10** | [@capacitor-firebase/app-check is installed under an npm alias](DECISIONS.md#d10--capacitor-firebaseapp-check-is-installed-under-an-npm-alias) | D29 | 815 |
 | **D11** | [The feed's argument surfaces are demo-only, by structure not by flag](DECISIONS.md#d11--the-feeds-argument-surfaces-are-demo-only-by-structure-not-by-flag) | D280 (+4) | 884 |
@@ -115,7 +115,7 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D425 (+6) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D328 (+12) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D432 (+89) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D433 (+90) | 9129 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9251 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D334 (+5) | 9394 |
 | **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D426 (+11) | 9495 |
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D432 (+23) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D433 (+24) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -430,7 +430,7 @@ detect it.
 | **D394** | [The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary](DECISIONS.md#d394--the-fit-had-not-left-its-seeds-and-the-scorecard-could-not-say-so-a-baseline-row-a-skill-score-and-a-seed-distance-summary) | D408 | 41641 |
 | **D395** | [Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover](DECISIONS.md#d395--two-engines-on-one-document-the-persons-answer-map-as-the-fits-substrate-a-batch-candidate-scored-beside-the-online-fit-and-a-fortnight-crossover) | D396 | 41731 |
 | **D396** | [The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about](DECISIONS.md#d396--the-device-reads-the-whole-corpus-the-viewers-evidence-in-every-kind-the-ridge-off-the-document-and-the-oracle-asks-what-it-knows-least-about) | — | 41871 |
-| **D397** | [The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred](DECISIONS.md#d397--the-nightly-voter-samples-kindred-the-people-lens-and-the-pair-card-read-one-document-per-question-instead-of-two-hundred) | D398 | 41956 |
+| **D397** | [The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred](DECISIONS.md#d397--the-nightly-voter-samples-kindred-the-people-lens-and-the-pair-card-read-one-document-per-question-instead-of-two-hundred) | D433 (+1) | 41956 |
 | **D398** | [The breakdown cap reports what it discards, three lens folds run once per input, and the Circle reads a member's newest answers](DECISIONS.md#d398--the-breakdown-cap-reports-what-it-discards-three-lens-folds-run-once-per-input-and-the-circle-reads-a-members-newest-answers) | D400 | 42034 |
 | **D399** | [One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once](DECISIONS.md#d399--one-nightly-pass-over-the-ledger-the-digest-the-patterns-fit-and-the-taste-fold-read-yesterdays-entries-once) | D406 | 42162 |
 | **D400** | [The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own](DECISIONS.md#d400--the-breakdown-caps-tail-every-city-and-country-cell-the-hot-document-cannot-hold-in-eight-shards-a-reader-opens-only-for-its-own) | D408 | 42249 |
@@ -470,4 +470,5 @@ detect it.
 | **D430** | [The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides](DECISIONS.md#d430--the-2026-09-09-night-review-two-shifts-merged-as-one-tree--54-commits-kept-zero-conflicts-for-the-first-time-and-the-defects-that-live-where-nothing-collides) | D431 | 46619 |
 | **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | — | 46869 |
 |  | ↳ *amendment 2026-09-09* — [There was a probe all along, and Apple was already on](DECISIONS.md#d431-amendment-2026-09-09--there-was-a-probe-all-along-and-apple-was-already-on) | — | 47056 |
-| **D432** | [The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow](DECISIONS.md#d432--the-oracle-starts-from-your-own-groups-split-a-cohort-prior-on-the-device-with-the-worlds-guess-sealed-beside-it-as-the-shadow) | — | 47109 |
+| **D432** | [The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow](DECISIONS.md#d432--the-oracle-starts-from-your-own-groups-split-a-cohort-prior-on-the-device-with-the-worlds-guess-sealed-beside-it-as-the-shadow) | D433 | 47109 |
+| **D433** | [Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it](DECISIONS.md#d433--anchors-as-items-in-the-fit-the-candidate-engine-learns-a-vector-per-profile-value-and-every-lens-that-solves-a-vector-reads-it) | — | 47206 |

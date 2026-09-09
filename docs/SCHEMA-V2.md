@@ -333,16 +333,25 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
                                    · dial, the instrument items included)
                                    and one one-hot pseudo-item per option
                                    of an unordered pick (`opt`, keyed
-                                   `qid~i`). n is the answers folded (the
+                                   `qid~i`) — and, since D433, one item per
+                                   profile value enough people carry
+                                   (`anc`, keyed `anchor~dim~value`: +1 for
+                                   a person whose frozen anchors carry the
+                                   value, −1 for one carrying the dim with
+                                   another value; compiled from the people,
+                                   floored and capped per dim). n is the
+                                   answers folded (the
                                    basis a client states or refuses on);
                                    sum/n is the mean the residual centres
                                    by — for a two-option row the same
                                    marginal the question's public aggregate
                                    carries; `sd` is an ordinal row's spread
   items? {key: {kind, qid, opt?,   the candidate's item metadata — how a
-     nOptions}}                     device encodes its own answer to each
-                                   row; absent while the online engine owns
-                                   `q`, whose rows are all two-option
+     nOptions, dim?, bucket?}}      device encodes its own answer to each
+                                   row, and (D433) which dim and value an
+                                   anchor row stands for; absent while the
+                                   online engine owns `q`, whose rows are
+                                   all two-option
   lambdaU                          the device ridge the engine's scorecard
                                    was measured at, for the phone's own
                                    solve (estimateTheta) to read rather
@@ -398,6 +407,12 @@ v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D395)
                                    engine's substrate: it reads people, not
                                    days. Derived from the answers
                                    subcollection, ~1/50th its bytes
+  an: {dim: value}                 the person's NEWEST frozen anchors as
+                                   their last ledgered answer carried them
+                                   (D433) — BREAKDOWN_DIMS keys, values the
+                                   cube would count — the anchor items'
+                                   substrate. A snapshot replaced whole, so
+                                   a dim the person cleared is cleared here
 read: NOBODY · write: NOBODY — the push/ shape; the nightly pass (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 

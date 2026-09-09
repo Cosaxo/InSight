@@ -89,6 +89,15 @@ export interface PeopleItem {
   optionLabels: readonly string[];
 }
 
+/** One anchor row the fit published (D433): the breakdown dim, the value
+ * it stands for, its vector, and the crowd's mean of the encoded value. */
+export interface PeopleAnchorRow {
+  dim: string;
+  bucket: string;
+  L: readonly number[];
+  marginal: number;
+}
+
 /** One cached voter row, as live.ts's `voters(qid)` returns them. */
 export interface PeopleRow {
   uid: string;
@@ -218,6 +227,16 @@ export interface PeopleFoldOpts {
   /** The device ridge, as the fit published it (D395); the shipped value
    * otherwise. Both solves — strangers' and the viewer's — use it. */
   lambda?: number;
+  /**
+   * The anchor rows the fit published (D433). Each stranger's frozen
+   * chips are encoded against them exactly as the fit encoded everyone —
+   * +1 carrying the value, −1 carrying the dim with another value,
+   * nothing for a dim left empty — so a person's dot starts from their
+   * demographics as the viewer's does (`viewerObs` carries the viewer's).
+   * Never COUNTED: `shared` and `agree` are answers, and the sentence
+   * beside a name stays an answer count.
+   */
+  anchorRows?: readonly PeopleAnchorRow[];
 }
 
 export function foldPeople(
@@ -270,6 +289,19 @@ export function foldPeople(
     }
   }
 
+  // the strangers' anchors as evidence (D433) — after the floor below has
+  // been decided on answers alone, which is why this adds to `obs` and to
+  // nothing else
+  const anchorRows = opts.anchorRows ?? [];
+  if (anchorRows.length) {
+    for (const a of acc.values()) {
+      for (const ar of anchorRows) {
+        const v = a.anchors[ar.dim];
+        if (typeof v !== "string" || !v) continue;
+        a.obs.push({ L: ar.L, r: (v === ar.bucket ? 1 : -1) - ar.marginal });
+      }
+    }
+  }
   const lambda = opts.lambda ?? DEFAULT_LAMBDA_U;
   const placed: PlacedPerson[] = [];
   for (const a of acc.values()) {

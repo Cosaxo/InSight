@@ -32,6 +32,16 @@
 // is the one word that flips which variant is live. Nothing new is read
 // and nothing leaves the phone.
 //
+// AND THE FIT KNOWS THE ANCHORS TOO (D433). The candidate engine publishes
+// an item per profile value the crowd carries — `anchor~gender~Woman`,
+// a row like any pick's — and the viewer's own anchors are encoded
+// against those rows as evidence, under the WORLD centre: there the
+// demographics enter through the model, as they do for every stranger
+// the People lens places from their frozen chips. Under the cohort centre
+// they already entered through the prior, and twice is twice — so the two
+// sealed variants are two clean answers to one question, and the meter
+// decides between the cells and the rows.
+//
 // The pair card's "pick this — and N% pick that" is the one place a pair
 // is counted directly, and only for the links actually on screen (the
 // selected question's own few since the 2026-08-20 standalone, D215): the
@@ -206,7 +216,15 @@ interface LoadingsRow { v: number[]; n: number; sum: number; sd?: number }
 /** How a device encodes its own answer into a row — the candidate
  * engine's item metadata (D395); absent while the online engine owns the
  * rows, which are then all two-option. */
-interface LoadingsItem { kind: "bin" | "ord" | "opt"; qid: string; opt?: number; nOptions: number }
+interface LoadingsItem {
+  kind: "bin" | "ord" | "opt" | "anc";
+  qid: string;
+  opt?: number;
+  nOptions: number;
+  /** anc only (D433): the breakdown dim and the value the row stands for. */
+  dim?: string;
+  bucket?: string;
+}
 interface LoadingsDoc {
   k: number;
   q: Record<string, LoadingsRow>;
@@ -450,6 +468,21 @@ function evidence(excludeQid?: string, centre: OracleCentre = "world"): { L: rea
       }
     }
   }
+  // The viewer's own anchors against the anchor rows (D433), under the
+  // world centre only — see the header. Encoded exactly as the fit
+  // encodes everyone else's: +1 carrying the value, −1 carrying the dim
+  // with another value, nothing for a dim left empty.
+  if (meta && centre === "world") {
+    const mine = LIVE.anchors() || {};
+    for (const [key, m] of Object.entries(meta)) {
+      if (m.kind !== "anc" || !m.dim || m.bucket === undefined) continue;
+      const v = mine[m.dim];
+      if (typeof v !== "string" || !v.trim()) continue;
+      const row = loadings.q[key];
+      if (!row || row.n <= 0) continue;
+      out.push({ L: row.v, r: (v === m.bucket ? 1 : -1) - row.sum / row.n });
+    }
+  }
   return out;
 }
 
@@ -476,6 +509,20 @@ export const PATTERNS = {
   /** The viewer's evidence, for a fold that solves them itself (the
    * People lens's own dot). */
   evidence,
+  /** The anchor rows the fit published (D433), for a fold that solves
+   * strangers from their frozen chips — the People lens's. Rows with a
+   * basis only; never a pool item, since no bank question names them. */
+  anchorRows(): { key: string; dim: string; bucket: string; L: readonly number[]; marginal: number }[] {
+    if (!LIVE.enabled || !loadings?.items) return [];
+    const out: { key: string; dim: string; bucket: string; L: readonly number[]; marginal: number }[] = [];
+    for (const [key, m] of Object.entries(loadings.items)) {
+      if (m.kind !== "anc" || !m.dim || m.bucket === undefined) continue;
+      const row = loadings.q[key];
+      if (!row || row.n <= 0) continue;
+      out.push({ key, dim: m.dim, bucket: m.bucket, L: row.v, marginal: row.sum / row.n });
+    }
+    return out;
+  },
   lambdaU,
   /** Seal the guess for a question — computed and PERSISTED before the
    * options render. Re-sealing an already-sealed question returns the

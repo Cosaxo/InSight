@@ -53,7 +53,7 @@ const remote = vi.hoisted(() => ({
     k: number;
     engine?: string;
     lambdaU?: number;
-    items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number }>;
+    items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number; dim?: string; bucket?: string }>;
     q: Record<string, { v: number[]; n: number; sum: number; sd?: number }>;
   },
 }));
@@ -689,5 +689,78 @@ describe("the cohort prior (D432)", () => {
     const w = (await PATTERNS.working("qb"))!;
     expect(w.hadPrior).toBe(true);
     expect(w.prior).toEqual([]); // under twelve, it is not a sentence
+  });
+});
+
+describe("anchor rows (D433)", () => {
+  /** The candidate's document with two gender rows and one age row that
+   * has no basis yet. */
+  const publishAnchored = () => {
+    live.aggregated.mockReturnValue([bankQ("qa"), bankQ("qb")]);
+    live.coreFeedAggregated.mockReturnValue([]);
+    remote.doc = {
+      k: K,
+      engine: "als",
+      lambdaU: 1,
+      q: {
+        qa: { v: vec(1, 0), n: 40, sum: 0 },
+        qb: { v: vec(0.9, 0.1), n: 30, sum: 0 },
+        "anchor~gender~Woman": { v: vec(0.8, 0), n: 50, sum: 10 },
+        "anchor~gender~Man": { v: vec(-0.8, 0), n: 50, sum: -10 },
+        "anchor~ageBand~25-34": { v: vec(0, 0.5), n: 0, sum: 0 },
+      },
+      items: {
+        qa: { kind: "bin", qid: "qa", nOptions: 2 },
+        qb: { kind: "bin", qid: "qb", nOptions: 2 },
+        "anchor~gender~Woman": { kind: "anc", qid: "anchor~gender", nOptions: 2, dim: "gender", bucket: "Woman" },
+        "anchor~gender~Man": { kind: "anc", qid: "anchor~gender", nOptions: 2, dim: "gender", bucket: "Man" },
+        "anchor~ageBand~25-34": { kind: "anc", qid: "anchor~ageBand", nOptions: 1, dim: "ageBand", bucket: "25-34" },
+      },
+    };
+  };
+
+  it("reads the viewer's own anchors as evidence under the world centre, and never under the cohort centre", async () => {
+    publishAnchored();
+    live.anchors.mockReturnValue({ gender: "Woman", ageBand: "25-34", city: "Oslo, NO" });
+    await ensureLive();
+    const world = PATTERNS.evidence();
+    // the Woman row: +1 − 10/50; the Man row: −1 + 10/50; the age row has
+    // no basis and the city no row
+    expect(world).toHaveLength(2);
+    expect(world[0].L).toEqual(vec(0.8, 0));
+    expect(world[0].r).toBeCloseTo(0.8, 12);
+    expect(world[1].r).toBeCloseTo(-0.8, 12);
+    expect(PATTERNS.evidence(undefined, "cohort")).toEqual([]);
+    // an empty or absent value is no observation
+    live.anchors.mockReturnValue({ gender: " ", city: "Oslo, NO" });
+    expect(PATTERNS.evidence()).toEqual([]);
+    // the pool is the bank's questions and nothing else
+    expect(PATTERNS.pool().map((p) => p.q.id)).toEqual(["qa", "qb"]);
+  });
+
+  it("the world-centred guess starts from the anchors before the first answer, beside the cohort one", async () => {
+    publishAnchored();
+    live.anchors.mockReturnValue({ gender: "Woman" });
+    await ensureLive();
+    const rec = PATTERNS.seal("qa")!;
+    // the live seal is the cohort variant: no cells in hand, so the coin;
+    // the shadow is the world variant, and a woman here leans to option 0
+    expect(rec.centre).toBe("cohort");
+    expect(rec.p0).toBe(0.5);
+    expect(rec.alt!.p0).toBeGreaterThan(0.5);
+    expect(rec.alt!.pred).toBe(0);
+  });
+
+  it("anchorRows() lists the rows with a basis, for the People fold", async () => {
+    publishAnchored();
+    await ensureLive();
+    expect(PATTERNS.anchorRows()).toEqual([
+      { key: "anchor~gender~Woman", dim: "gender", bucket: "Woman", L: vec(0.8, 0), marginal: 0.2 },
+      { key: "anchor~gender~Man", dim: "gender", bucket: "Man", L: vec(-0.8, 0), marginal: -0.2 },
+    ]);
+    // the online engine's document carries no items, so no rows
+    publishFixture();
+    await ensureLive(true);
+    expect(PATTERNS.anchorRows()).toEqual([]);
   });
 });

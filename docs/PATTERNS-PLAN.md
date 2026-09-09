@@ -1,6 +1,6 @@
 # The Patterns plan — three lenses widened, and the walls before they bind
 
-**Status: mixed — step 1 (§3) is BUILT at D432, the same day; steps 0 and 2–5 are proposals and nothing else is built.** Written
+**Status: mixed — steps 1 and 2 (§3, §4) are BUILT at D432 and D433, the same day; steps 0, 3, 4 and 5 are proposals and nothing else is built.** Written
 for the owner's ask of that day (*"make a plan for implementing it"*),
 after the same session's reading of the three lenses against the tree.
 Every *exists today* claim in §1 names the file it was read in; every
@@ -193,7 +193,22 @@ publishes, so this is not a D334 ask.
 the world's, which the `by` cells state per question; on a question
 everyone answers alike it is the world marginal again.
 
-## 4 · Step 2 — anchors as items in the fit
+## 4 · Step 2 — anchors as items in the fit — **BUILT (D433, 2026-09-09)**
+
+*As built, where it differs from the paragraphs below:* the items are
+compiled from the scanned PEOPLE each night (`compileAnchorItems`,
+`patternsAls.ts`), floored at the pool's own basis and capped at the
+cube's 24 per dim, and there is no *rest* row — the cap bounds the rows
+without it and a person outside it is already said by the −1s; the
+person's newest anchors ride the state document as `an`, a snapshot
+replaced whole; the scorecard reads a newcomer's anchors off their
+first entries of the day, since the profile precedes the vote; on the
+device the anchors are evidence under the WORLD centre only, so D432's
+two sealed variants are two clean answers — the cells or the rows — and
+the meter decides; the People fold takes the rows through
+`anchorRows`. The Map draws nothing until the owner's tick and request
+13. D433 has the reasoning.
+
 
 **The change.** Each anchor value becomes a one-hot pseudo-item with its
 own loading vector — `anchor~ageBand~55-64`, `anchor~gender~male`,

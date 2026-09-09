@@ -37,6 +37,20 @@
 //   opt   unordered, >2 options  one pseudo-item PER OPTION: x = +1 if
 //         (choice · vote · …)    that option was picked, −1 if not, each
 //                                centred by its own share
+//   anc   a profile anchor       one pseudo-item PER VALUE the crowd
+//         (D433)                 carries — `anchor~gender~Woman` — x = +1
+//                                for a person whose frozen anchors carry
+//                                that value, −1 for one whose anchors
+//                                carry the dim with another value, no
+//                                observation for one who never filled the
+//                                dim in. Compiled from the scanned PEOPLE
+//                                rather than from the bank (the values are
+//                                data), floored and capped per dim, and
+//                                fitted exactly like a pick's rows — so a
+//                                person's vector starts from their
+//                                demographics before their first answer,
+//                                and every lens that solves a vector reads
+//                                them (PATTERNS-PLAN.md §4)
 //
 // The instrument items (`surface: test`, all five-point scales) are `ord`
 // and join; D161's sample-bias argument is satisfied because every
@@ -58,9 +72,10 @@
 // randomness — the warm start is last night's vectors or the qid's hash
 // seed, iteration order is sorted, and the same inputs reproduce the same
 // model bit for bit.
-import { PATTERNS_K, seedLoading, prequentialBits, type PatternsDayScore, type PatternsQuality } from "./patternsFit";
+import { PATTERNS_K, PATTERNS_MIN_BASIS, seedLoading, prequentialBits, type PatternsDayScore, type PatternsQuality } from "./patternsFit";
+import { BREAKDOWN_DIMS, BREAKDOWN_MAX_BUCKETS, breakdownBucket, type BreakdownDim } from "./pure";
 
-export type ItemKind = "bin" | "ord" | "opt";
+export type ItemKind = "bin" | "ord" | "opt" | "anc";
 
 /** One fitted item, compiled from the bank. */
 export interface ItemSpec {
@@ -72,8 +87,99 @@ export interface ItemSpec {
   qid: string;
   /** The option this pseudo-item stands for — opt items only. */
   opt?: number;
-  /** The question's option count, for the client's own encoding. */
+  /** The question's option count, for the client's own encoding. For an
+   * anchor item: how many of the dim's values were kept as items. */
   nOptions: number;
+  /** The breakdown dim and the value this item stands for — anc only. */
+  dim?: string;
+  bucket?: string;
+}
+
+/** A person's frozen anchors as the compaction keeps them: dim → value,
+ * every value already validated by `breakdownBucket`, so a key here is a
+ * BREAKDOWN_DIMS member and a value is a label the cube would count. */
+export type AnchorMap = Record<string, string>;
+
+/** The pseudo-qid an anchor item answers into — `~` is outside the qid
+ * alphabet, so it can never name a bank question, and the device's pool
+ * join (which names rows by bank id) never draws it. */
+export const ANCHOR_PREFIX = "anchor~";
+export const anchorQid = (dim: string): string => `${ANCHOR_PREFIX}${dim}`;
+export const anchorKey = (dim: string, bucket: string): string => `${anchorQid(dim)}~${bucket}`;
+/** People carrying a value before it becomes an item — the pool's own
+ * basis floor, for the same reason: a vector fitted on a handful is a
+ * seed with a name. */
+export const ANCHOR_ITEM_FLOOR = PATTERNS_MIN_BASIS;
+
+/** The anchors an entry or a profile carries, kept to what the cube
+ * would count — BREAKDOWN_DIMS keys, `breakdownBucket`-valid labels. */
+export function validAnchors(raw: unknown): AnchorMap | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: AnchorMap = {};
+  for (const dim of BREAKDOWN_DIMS) {
+    const b = breakdownBucket(src[dim], dim);
+    if (b !== null) out[dim] = b;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * The anchor items, compiled from the people the fit is about to read:
+ * per dim, every value at least `floor` people carry, the biggest first
+ * (ties by label, so the list is the same on every run), at most `cap` of
+ * them — the cube's own cap, and the reason a free-text dim like city
+ * cannot mint a thousand rows. A value under the floor or past the cap is
+ * not an item; a person carrying it still contributes −1 to the dim's
+ * kept items ("not any of these"), which is all the model can honestly
+ * say about them.
+ */
+export function compileAnchorItems(
+  people: Iterable<{ an?: AnchorMap }>,
+  floor: number = ANCHOR_ITEM_FLOOR,
+  cap: number = BREAKDOWN_MAX_BUCKETS,
+): ItemSpec[] {
+  const counts = new Map<BreakdownDim, Map<string, number>>();
+  for (const p of people) {
+    const an = validAnchors(p.an);
+    if (!an) continue;
+    for (const [dim, b] of Object.entries(an) as [BreakdownDim, string][]) {
+      const m = counts.get(dim) ?? new Map<string, number>();
+      m.set(b, (m.get(b) ?? 0) + 1);
+      counts.set(dim, m);
+    }
+  }
+  const out: ItemSpec[] = [];
+  for (const dim of BREAKDOWN_DIMS) {
+    const m = counts.get(dim);
+    if (!m) continue;
+    const kept = [...m.entries()]
+      .filter(([, n]) => n >= floor)
+      .sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))
+      .slice(0, cap);
+    for (const [bucket] of kept) {
+      out.push({ key: anchorKey(dim, bucket), kind: "anc", qid: anchorQid(dim), nOptions: kept.length, dim, bucket });
+    }
+  }
+  return out;
+}
+
+/** The anchor specs a published model already carries — what the
+ * scorecard solves a person against before tonight's fit re-compiles
+ * them from tonight's people. */
+export function anchorSpecsOf(items: Record<string, ItemMeta> | undefined): ItemSpec[] {
+  const out: ItemSpec[] = [];
+  for (const [key, m] of Object.entries(items ?? {})) {
+    if (m.kind !== "anc" || !m.dim || m.bucket === undefined) continue;
+    out.push({ key, kind: "anc", qid: m.qid, nOptions: m.nOptions, dim: m.dim, bucket: m.bucket });
+  }
+  return out;
+}
+
+/** The raw encoded value of a person's anchors under an anchor item:
+ * +1 carrying the value, −1 carrying the dim with another value. */
+export function encodeAnchor(item: { bucket?: string }, value: string): number {
+  return value === item.bucket ? 1 : -1;
 }
 
 /** The bank's ordinal forms: the option INDEX is a position on a scale,
@@ -139,6 +245,10 @@ export interface ItemMeta {
   qid: string;
   opt?: number;
   nOptions: number;
+  /** anc only: the dim and the value, so a device can encode its own
+   * anchors against the row (D433). */
+  dim?: string;
+  bucket?: string;
 }
 
 export interface AlsModel {
@@ -317,35 +427,61 @@ export interface ItemIndex {
   byKey: Map<string, ItemSpec>;
   /** Every item a question answers into — one for bin/ord, one per option for opt. */
   byQid: Map<string, ItemSpec[]>;
+  /** Every anchor item a dim's value answers into (D433). */
+  byDim: Map<string, ItemSpec[]>;
 }
 
 export function indexItems(specs: readonly ItemSpec[]): ItemIndex {
   const byKey = new Map<string, ItemSpec>();
   const byQid = new Map<string, ItemSpec[]>();
+  const byDim = new Map<string, ItemSpec[]>();
   for (const s of specs) {
     byKey.set(s.key, s);
+    if (s.kind === "anc") {
+      const list = byDim.get(s.dim as string) ?? [];
+      list.push(s);
+      byDim.set(s.dim as string, list);
+      continue;
+    }
     const list = byQid.get(s.qid) ?? [];
     list.push(s);
     byQid.set(s.qid, list);
   }
-  return { specs: [...specs], byKey, byQid };
+  return { specs: [...specs], byKey, byQid, byDim };
 }
 
-/** Per-item sufficient statistics over the answer maps: the basis, and the
- * mean and sd of the raw encoded value. */
-export function itemStats(index: ItemIndex, answers: Iterable<AnswerMap>): Record<string, { n: number; sum: number; sumSq: number }> {
+/** A person's raw encoded values, item by item — their answers under the
+ * question items and their anchors under the anchor items. The one walk
+ * the stats, the fit and the observations all take. */
+function encodedOf(index: ItemIndex, a: AnswerMap, an: AnchorMap | undefined, skipQid?: string): { key: string; x: number; optionIdx: number }[] {
+  const out: { key: string; x: number; optionIdx: number }[] = [];
+  for (const [qid, idx] of Object.entries(a)) {
+    if (qid === skipQid || typeof idx !== "number") continue;
+    const specs = index.byQid.get(qid);
+    if (!specs) continue;
+    for (const s of specs) out.push({ key: s.key, x: encodeFor(s, idx), optionIdx: idx });
+  }
+  if (an) {
+    for (const [dim, value] of Object.entries(an)) {
+      const specs = index.byDim.get(dim);
+      if (!specs || typeof value !== "string") continue;
+      for (const s of specs) out.push({ key: s.key, x: encodeAnchor(s, value), optionIdx: -1 });
+    }
+  }
+  return out;
+}
+
+/** Per-item sufficient statistics over the people: the basis, and the
+ * mean and sd of the raw encoded value — answers under the question
+ * items, anchors under the anchor items (D433). */
+export function itemStats(index: ItemIndex, people: Iterable<{ a: AnswerMap; an?: AnchorMap }>): Record<string, { n: number; sum: number; sumSq: number }> {
   const out: Record<string, { n: number; sum: number; sumSq: number }> = {};
-  for (const a of answers) {
-    for (const [qid, idx] of Object.entries(a)) {
-      const specs = index.byQid.get(qid);
-      if (!specs || typeof idx !== "number") continue;
-      for (const s of specs) {
-        const x = encodeFor(s, idx);
-        const t = (out[s.key] ??= { n: 0, sum: 0, sumSq: 0 });
-        t.n += 1;
-        t.sum += x;
-        t.sumSq += x * x;
-      }
+  for (const p of people) {
+    for (const { key, x } of encodedOf(index, p.a, p.an)) {
+      const t = (out[key] ??= { n: 0, sum: 0, sumSq: 0 });
+      t.n += 1;
+      t.sum += x;
+      t.sumSq += x * x;
     }
   }
   return out;
@@ -360,6 +496,7 @@ const sdOf = (t: { n: number; sum: number; sumSq: number }): number => {
  * published row — the same arithmetic on the server and the phone. Null
  * when the item cannot carry it yet (an ordinal with no spread). */
 export function residualFor(item: ItemMeta, row: { n: number; sum: number; sd?: number }, optionIdx: number): number | null {
+  if (item.kind === "anc") return null; // an anchor's value is a label, not an index — residualOf
   if (row.n <= 0) return null;
   const mean = row.sum / row.n;
   if (item.kind === "ord") {
@@ -370,20 +507,31 @@ export function residualFor(item: ItemMeta, row: { n: number; sum: number; sd?: 
   return x - mean;
 }
 
-/** A person's observations under a model: every item their answers reach. */
-export function observationsOf(model: AlsModel, a: AnswerMap, index: ItemIndex, skipQid?: string): { L: readonly number[]; r: number }[] {
+/** The centred residual of a RAW encoded value under an item's row — the
+ * form the anchor items need (their value is a label) and the one the
+ * others reduce to: an ordinal standardises, everything else subtracts
+ * the mean. */
+export function residualOf(item: { kind: ItemKind }, row: { n: number; sum: number; sd?: number }, x: number): number | null {
+  if (row.n <= 0) return null;
+  const mean = row.sum / row.n;
+  if (item.kind === "ord") {
+    if (!row.sd || row.sd < ALS_MIN_SD) return null;
+    return (x - mean) / row.sd;
+  }
+  return x - mean;
+}
+
+/** A person's observations under a model: every item their answers reach,
+ * and every anchor item their anchors reach (D433). */
+export function observationsOf(model: AlsModel, a: AnswerMap, index: ItemIndex, skipQid?: string, an?: AnchorMap): { L: readonly number[]; r: number }[] {
   const obs: { L: readonly number[]; r: number }[] = [];
-  for (const [qid, idx] of Object.entries(a)) {
-    if (qid === skipQid || typeof idx !== "number") continue;
-    const specs = index.byQid.get(qid);
-    if (!specs) continue;
-    for (const s of specs) {
-      const row = model.rows[s.key];
-      if (!row) continue;
-      const r = residualFor(s, row, idx);
-      if (r === null) continue;
-      obs.push({ L: row.v, r });
-    }
+  for (const { key, x } of encodedOf(index, a, an, skipQid)) {
+    const row = model.rows[key];
+    const item = model.items[key];
+    if (!row || !item) continue;
+    const r = residualOf(item, row, x);
+    if (r === null) continue;
+    obs.push({ L: row.v, r });
   }
   return obs;
 }
@@ -400,7 +548,7 @@ export function observationsOf(model: AlsModel, a: AnswerMap, index: ItemIndex, 
  */
 export function alsFit(
   prev: AlsModel | null,
-  people: readonly { uid: string; a: AnswerMap }[],
+  people: readonly { uid: string; a: AnswerMap; an?: AnchorMap }[],
   index: ItemIndex,
   k: number = PATTERNS_K,
   opts: { sweeps?: number; lambda?: number } = {},
@@ -408,7 +556,7 @@ export function alsFit(
   const sweeps = opts.sweeps ?? ALS_SWEEPS;
   const lam = opts.lambda ?? ALS_LAMBDA;
   const sorted = [...people].sort((x, y) => (x.uid < y.uid ? -1 : x.uid > y.uid ? 1 : 0));
-  const stats = itemStats(index, sorted.map((p) => p.a));
+  const stats = itemStats(index, sorted);
   const keys = Object.keys(stats).sort();
   const rows: Record<string, AlsRow> = {};
   const items: Record<string, ItemMeta> = {};
@@ -423,21 +571,21 @@ export function alsFit(
       sum: t.sum,
       ...(sd === undefined ? {} : { sd }),
     };
-    items[key] = { kind: s.kind, qid: s.qid, nOptions: s.nOptions, ...(s.opt === undefined ? {} : { opt: s.opt }) };
+    items[key] = {
+      kind: s.kind, qid: s.qid, nOptions: s.nOptions,
+      ...(s.opt === undefined ? {} : { opt: s.opt }),
+      ...(s.dim === undefined ? {} : { dim: s.dim, bucket: s.bucket as string }),
+    };
   }
   const model: AlsModel = { k, rows, items };
   // each person's observations, resolved to row references once
   const perPerson = sorted.map((p) => {
     const obs: { key: string; r: number }[] = [];
-    for (const [qid, idx] of Object.entries(p.a)) {
-      const specs = index.byQid.get(qid);
-      if (!specs || typeof idx !== "number") continue;
-      for (const s of specs) {
-        const row = rows[s.key];
-        if (!row) continue;
-        const r = residualFor(items[s.key], row, idx);
-        if (r !== null) obs.push({ key: s.key, r });
-      }
+    for (const { key, x } of encodedOf(index, p.a, p.an)) {
+      const row = rows[key];
+      if (!row) continue;
+      const r = residualOf(items[key], row, x);
+      if (r !== null) obs.push({ key, r });
     }
     return obs;
   });
@@ -502,6 +650,7 @@ export function alsScoreDay(
   entries: readonly DayEntry[],
   marginalStart: ReadonlyMap<string, { n: number; sum: number }>,
   lambdaU: number,
+  anchors?: ReadonlyMap<string, AnchorMap>,
 ): PatternsDayScore {
   const score: PatternsDayScore = { n: 0, bits: 0, baseBits: 0, perQ: {} };
   const running = new Map<string, { n: number; sum: number }>();
@@ -519,7 +668,10 @@ export function alsScoreDay(
       if (model && row) {
         let th = thetaCache.get(e.uid);
         if (!th) {
-          th = ridgeTheta(observationsOf(model, history.get(e.uid) ?? {}, index), model.k, lambdaU);
+          // the person's anchors are known before their answer is — the
+          // profile precedes the vote — so they are evidence one step
+          // ahead exactly as their earlier answers are (D433)
+          th = ridgeTheta(observationsOf(model, history.get(e.uid) ?? {}, index, undefined, anchors?.get(e.uid)), model.k, lambdaU);
           thetaCache.set(e.uid, th);
         }
         for (let i = 0; i < model.k; i++) dot += th[i] * (row.v[i] ?? 0);

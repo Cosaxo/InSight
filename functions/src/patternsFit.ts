@@ -97,6 +97,17 @@ export interface PatternsUserState {
    * collection if that ever matters.
    */
   a?: Record<string, number>;
+  /**
+   * The person's frozen anchors as their NEWEST ledgered answer carried
+   * them (D433): dim → value, BREAKDOWN_DIMS keys only, every value one
+   * `breakdownBucket` accepts. The candidate engine reads them as anchor
+   * items beside the answer map, so a vector starts from the person's
+   * demographics before their first answer. A snapshot, not a merge — a
+   * later answer's anchors replace the whole map, so a dim the person
+   * cleared is cleared here too. Public like the answer it came from (D8,
+   * D98); erased with the document.
+   */
+  an?: Record<string, string>;
 }
 
 export interface PatternsObservation {

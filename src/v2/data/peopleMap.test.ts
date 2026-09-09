@@ -135,6 +135,29 @@ describe("foldPeople", () => {
     expect(foldPeople(ITEMS, FETCHED, rowsOf, { viewerObs: [] }).me).toEqual(base.me);
   });
 
+  it("solves a stranger from their frozen chips against the fit's anchor rows (D433), and counts nothing extra", () => {
+    const base = foldPeople(ITEMS, FETCHED, rowsOf);
+    const pyOf = (f: ReturnType<typeof foldPeople>, uid: string) => f.placed.find((p) => p.uid === uid)!.py;
+    // an Oslo row along axis 1: everyone in this crowd is from Oslo, so
+    // every dot leans further that way than it did — and the counts
+    // beside the names do not move
+    const oslo = foldPeople(ITEMS, FETCHED, rowsOf, { anchorRows: [{ dim: "city", bucket: "Oslo, NO", L: [0, 1], marginal: 0 }] });
+    expect(oslo.placed.map((p) => p.uid)).toEqual(base.placed.map((p) => p.uid));
+    expect(oslo.placed.every((p) => p.py > pyOf(base, p.uid))).toBe(true);
+    expect(oslo.placed.map((p) => [p.agree, p.shared])).toEqual(base.placed.map((p) => [p.agree, p.shared]));
+    // a Bergen row: everyone carries the dim with another value, −1, and
+    // leans the other way
+    const bergen = foldPeople(ITEMS, FETCHED, rowsOf, { anchorRows: [{ dim: "city", bucket: "Bergen, NO", L: [0, 1], marginal: 0 }] });
+    expect(bergen.placed.every((p) => p.py < pyOf(base, p.uid))).toBe(true);
+    // a dim nobody filled in is no observation at all
+    const gender = foldPeople(ITEMS, FETCHED, rowsOf, { anchorRows: [{ dim: "gender", bucket: "Woman", L: [0, 1], marginal: 0 }] });
+    expect(gender.placed.map((p) => [p.px, p.py])).toEqual(base.placed.map((p) => [p.px, p.py]));
+    // the card's own count is still the viewer's two-option answers (the
+    // viewer's DRAWN spot can shift a pixel or two — the de-overlap pass
+    // nudges every dot against the crowd, and the crowd moved)
+    expect(oslo.answered).toBe(base.answered);
+  });
+
   it("names the tie by the RAREST shared answer, with its crowd share", () => {
     // a1 agrees on q7, whose option carries a 10% marginal share — rarer
     // than the 50% of every other shared answer

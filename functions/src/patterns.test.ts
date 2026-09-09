@@ -86,7 +86,7 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
   // how the retry guard shipped dead. A fake that carries more than its
   // subject proves nothing about it.
   const project = (s: PatternsUserState): PatternsUserState => ({
-    v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: { ...s.a } } : {}),
+    v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: { ...s.a } } : {}), ...(s.an ? { an: { ...s.an } } : {}),
   });
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
@@ -1124,5 +1124,85 @@ describe("the voter samples the sweep publishes", () => {
     await runPatternsFit(store, NOW);
     expect(state.samples.get(CORE_A)!.n).toBe(PATTERNS_SAMPLE_CAP);
     expect(PATTERNS_SAMPLE_CAP).toBe(200);
+  });
+});
+
+describe("anchors as items (D433)", () => {
+  const DAY = 24 * 3600 * 1000;
+  const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
+  const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;
+  /** Twenty people whose gender decides CORE_A and CORE_B: even uids are
+   * women who pick option 0, odd uids men who pick option 1. */
+  const genderedDay = (from: number, count: number): PatternsLedgerEntry[] => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = from; i < from + count; i++) {
+      const woman = i % 2 === 0;
+      const anchors = { gender: woman ? "Woman" : "Man", ageBand: "25-34" };
+      rows.push({ uid: pad(i), qid: CORE_A, optionIdx: woman ? 0 : 1, anchors });
+      rows.push({ uid: pad(i), qid: CORE_B, optionIdx: woman ? 0 : 1, anchors });
+    }
+    return rows;
+  };
+
+  it("keeps each person's newest valid anchors on their state, and publishes an item per value enough people carry", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < 20; i++) {
+      const woman = i % 2 === 0;
+      // the older snapshot carries a city and two things that are not dims
+      rows.push({ uid: pad(i), qid: CORE_A, optionIdx: woman ? 0 : 1, anchors: { gender: woman ? "Woman" : "Man", city: "Oslo, NO", age: "31", bogus: "x" } });
+      // the newer one has no city: the snapshot replaces the whole map
+      rows.push({ uid: pad(i), qid: CORE_B, optionIdx: woman ? 0 : 1, anchors: { gender: woman ? "Woman" : "Man", ageBand: "25-34" } });
+    }
+    // an entry whose anchors are all invalid carries none, and changes nothing
+    rows.push({ uid: pad(0), qid: TEST_ITEM, optionIdx: 2, anchors: { gender: "not a vocabulary word" } });
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    const r = await runPatternsFit(store, NOW);
+    expect(state.users.get(pad(0))?.an).toEqual({ gender: "Woman", ageBand: "25-34" });
+    expect(state.users.get(pad(1))?.an).toEqual({ gender: "Man", ageBand: "25-34" });
+    const cand = state.pub!.candidates.als!;
+    expect(cand.q["anchor~gender~Woman"]?.n, "everyone who filled the dim in").toBe(20);
+    expect(cand.q["anchor~gender~Man"]?.n).toBe(20);
+    expect(cand.q["anchor~gender~Woman"]?.sum, "ten carry it, ten carry the other value").toBe(0);
+    expect(cand.q["anchor~ageBand~25-34"]?.n).toBe(20);
+    expect(cand.q["anchor~city~Oslo, NO"], "the older snapshot's city went with it").toBeUndefined();
+    expect(cand.items?.["anchor~gender~Woman"]).toEqual({ kind: "anc", qid: "anchor~gender", nOptions: 2, dim: "gender", bucket: "Woman" });
+    // a value that decides the answers loads with them
+    const woman = cand.q["anchor~gender~Woman"]!.v;
+    const a = cand.q[CORE_A]!.v;
+    const cos = woman.reduce((acc, x, i) => acc + x * a[i], 0)
+      / (Math.hypot(...woman) * Math.hypot(...a));
+    expect(Math.abs(cos)).toBeGreaterThan(0.7);
+    // the online engine's rows, the pool gate and the Map never see an anchor row
+    expect(Object.keys(state.pub!.q).some((k) => k.startsWith("anchor~"))).toBe(false);
+    expect(r.engine).toBe("sgd");
+  });
+
+  it("a value under the floor is not an item; the scorecard solves a newcomer from their anchors one step ahead", async () => {
+    const d2 = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      // night one: forty people, gender decides both questions; three
+      // non-binary people are under the floor
+      [d2]: [
+        ...genderedDay(0, 40),
+        ...[100, 101, 102].map((i) => ({ uid: pad(i), qid: CORE_A, optionIdx: 0, anchors: { gender: "Non-binary" } })),
+      ],
+      // night two: forty NEWCOMERS, nothing answered before, their gender
+      // on their first entries
+      [yesterday]: genderedDay(200, 40),
+    });
+    await runPatternsFit(store, NOW - DAY);
+    const first = state.pub!.candidates.als!;
+    expect(first.q["anchor~gender~Non-binary"], "three people is not an item").toBeUndefined();
+    expect(first.q["anchor~gender~Woman"]?.n, "the three still counted −1 on the kept rows").toBe(43);
+    await runPatternsFit(store, NOW);
+    const second = state.pub!.candidates.als!;
+    // the newcomers were scored against night one's rows with their
+    // anchors as their only evidence — and beat the marginal
+    expect(second.quality?.n).toBe(80);
+    expect(second.quality!.bits).toBeLessThan(second.quality!.baselineBits);
+    expect(second.quality!.skill).toBeGreaterThan(0);
+    // and their state carries the anchors for the nights to come
+    expect(state.users.get(pad(200))?.an).toEqual({ gender: "Woman", ageBand: "25-34" });
+    expect(state.users.get(pad(200))?.a).toEqual({ [CORE_A]: 0, [CORE_B]: 0 });
   });
 });

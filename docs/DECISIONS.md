@@ -47202,3 +47202,93 @@ working's rows and floors, and that a pre-D432 record still grades.
 `PatternsOracle.test.tsx` renders the panel unchanged. `tsc -b`, eslint,
 `check:globals`, `check:public-copy` and the unit suite were green at
 the commit.
+
+## D433 · Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it
+
+**2026-09-09.** **Status:** binding. Step 2 of `PATTERNS-PLAN.md` (§4),
+built on the owner's *"ok build step 2"* the same day as step 1 (D432).
+The first half of the owner-list row that asks whether the fit may fold
+the anchors and whether the Map may draw them: the fold is this record,
+and the picture waits on the tick and on request 13.
+
+### What changed
+
+Every answer carries its frozen anchors (D8) and, since D397, so does
+its ledger entry. The compaction now keeps each person's NEWEST anchors
+on their state document beside the answer map — `an`, dim → value, only
+`BREAKDOWN_DIMS` keys and only values `breakdownBucket` would count, a
+snapshot replaced whole so a cleared dim clears. The candidate engine
+then treats each value enough people carry as an item of a fourth kind,
+`anc`: `anchor~gender~Woman` is a row like any pick's, +1 for a person
+whose anchors carry the value, −1 for one whose anchors carry the dim
+with another value, no observation for one who never filled the dim
+in. The items are compiled from the scanned PEOPLE, not from the bank —
+the values are data — floored at `ANCHOR_ITEM_FLOOR = PATTERNS_MIN_BASIS`
+people and capped per dim at `BREAKDOWN_MAX_BUCKETS`, biggest first and
+ties by label so every run compiles the same list; a value under the
+floor or past the cap is not an item, and a person carrying it still
+counts −1 on the dim's kept items, which is all the model can honestly
+say about them. `~` is outside the qid alphabet, so an anchor key can
+never name a bank question, and the device's pool join — which names
+rows by bank id — never draws one; `binRows` and the tab's mount gate
+never see one either.
+
+The fit reads them wherever it reads answers: one walk (`encodedOf`)
+feeds the item statistics, the person solves and the observations, and
+the scorecard solves a person from their anchors as well as their
+history — a newcomer's from the anchors on their first entries of the
+day, because the profile precedes the vote and is evidence one step
+ahead exactly as an earlier answer is. That is the property the tests
+pin: a crowd whose gender decides a question fits a gender row parallel
+to that question's, and a fresh crowd with nothing answered is scored
+above the marginal from their anchors alone.
+
+### What the device does with them
+
+- **The Oracle** encodes the viewer's own anchors against the rows as
+  evidence, under the WORLD centre only. There the demographics enter
+  through the model, as they do for everyone the People lens places;
+  under the cohort centre they already entered through D432's prior,
+  and twice is twice. So the two guesses sealed on every record are now
+  two clean answers to one question — the cells or the rows — and
+  `meter()` decides between them on each device's own record. Nothing
+  about which is live changed: `ORACLE_CENTRE` still says.
+- **The People lens** folds every stranger's frozen chips against the
+  rows (`PeopleFoldOpts.anchorRows`, `PATTERNS.anchorRows()`), so a dot
+  starts from the person's demographics as the viewer's does. Never
+  counted: `shared` and `agree` are answers, the placement floor is
+  answers, and the sentence beside a name stays an answer count.
+- **The Map** draws nothing new. An anchor drawn as a node changes what
+  the Map is a map OF, and that is the owner's row.
+
+### What it costs, and what it does not touch
+
+About a hundred rows at today's vocabularies — the short dims whole,
+job field's twenty, city and country at the cube's cap of 24 each — on
+the candidate's block of the loadings document, against the walls
+`PATTERNS-PLAN.md` §7.1 measures before step 3 adds the catalogue's.
+No new read anywhere: the anchors ride the ledger entries the pass
+already reads, and the rows ride the document the device already
+fetches. No new publication of anything about a person: the state
+document is readable by nobody as before, and a row on the loadings
+document is a summary of how a value predicts answers — the reading
+the Mirror's People and Compare lenses already give from the same
+splits (D98). Not a D334 ask. The rest row §4 of the plan sketched for
+city and country is not built: the cap bounds the rows without it, and
+a person outside the cap is already said by the −1s.
+
+### Proof
+
+`functions/src/patternsAls.test.ts` pins the compilation (floor, cap,
+validation, order, the index by dim), the fit (the gender row parallel
+to the trait it carries, a coin's row parallel to nothing, a person
+solved from anchors alone) and the scorecard (skill from anchors and
+nothing else); `functions/src/patterns.test.ts` pins the nightly pass
+(the newest snapshot on the state document with the non-dims dropped,
+the rows and metadata on the candidate's block, a value under the floor
+absent while its people count −1, and a second night scoring forty
+newcomers above the marginal from their anchors). On the device,
+`patterns.test.ts` pins the evidence under each centre and
+`anchorRows()`, and `peopleMap.test.ts` that a stranger's chips move
+their dot and never their counts. Both packages' suites, `tsc`, eslint
+and the check gates were green at the commit.
