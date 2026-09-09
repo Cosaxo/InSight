@@ -9,6 +9,20 @@ packs, the seats, the ratings, the 1v1's cast round, the retirements — into
 the three places a duel question lives, in an order that never refuses a
 real player twice.
 
+## Read this first: there are no users yet
+
+The owner, 2026-09-09, on reading the first draft: *"there is no users yet
+so most of this is not that deep."* True, and it changes the weight of
+every step below, not the order. With nobody on an old build, the bridge
+(step 2) is nothing to decide; with nobody mid-round, the one-time re-map
+at the bump is a fact and not a risk; with no data to lose, a wrong flip
+is a flag set back. What remains is three acts: **flip the retired
+questions off, reseed with `bump_rev`, and release build 35 when it is
+convenient** — in that order, because the order is free and the reverse
+costs a second bump. The eight steps stay written so the same rollout is
+right the day there are users; today, read them as a checklist, not a
+procedure.
+
 ## 0 · Where production is, measured 2026-09-09
 
 A duel question lives in three copies, and today they disagree on purpose:
