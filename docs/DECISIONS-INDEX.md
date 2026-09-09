@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 466 lines instead of
-48,244. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 467 lines instead of
+48,336. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D437 (+24) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D440 (+25) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -379,7 +379,7 @@ detect it.
 | **D350** | [The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory](DECISIONS.md#d350--the-lane-regulators-lose-their-ceilings-floors-demand-shares-and-the-holdover-inventory) | D401 | 35990 |
 |  | ↳ *amendment 2026-09-01* — [The bank-size failure was a question limit in everything but name](DECISIONS.md#d350-amendment-2026-09-01--the-bank-size-failure-was-a-question-limit-in-everything-but-name) | — | 36197 |
 | **D351** | [Current events get their lane: found by searching, never from memory](DECISIONS.md#d351--current-events-get-their-lane-found-by-searching-never-from-memory) | — | 36227 |
-| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D439 (+16) | 36282 |
+| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D440 (+17) | 36282 |
 | **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | D403 (+1) | 36389 |
 | **D354** | [The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32](DECISIONS.md#d354--the-store-leaves-the-bridge-and-the-sweep-behind-it-takes-the-coupling-ratchet-234--32) | D418 (+5) | 36532 |
 | **D355** | [The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB](DECISIONS.md#d355--the-mirror-leaves-the-eager-graph-through-a-same-tick-slot-761--619-kb) | D363 (+1) | 36631 |
@@ -477,6 +477,7 @@ detect it.
 | **D435** | [The duel bank leaves the JavaScript: learn's treatment, one bank over](DECISIONS.md#d435--the-duel-bank-leaves-the-javascript-learns-treatment-one-bank-over) | D437 | 47518 |
 | **D436** | [The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built](DECISIONS.md#d436--the-2026-09-09-design-arrives--how-1v1s-and-groups-work-now--recorded-planned-and-its-confusions-put-to-the-owner-before-anything-is-built) | — | 47623 |
 | **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | D438 | 47694 |
-| **D438** | [Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test](DECISIONS.md#d438--phase-3-of-the-rules-budget-the-gate--every-probe-pinned-at-its-measured-headroom-a-floor-of-50-fillers-and-a-denial-by-budget-is-a-red-test) | — | 47953 |
+| **D438** | [Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test](DECISIONS.md#d438--phase-3-of-the-rules-budget-the-gate--every-probe-pinned-at-its-measured-headroom-a-floor-of-50-fillers-and-a-denial-by-budget-is-a-red-test) | D440 | 47953 |
 | **D439** | [The bridge's read half: the fit's own scorecard becomes readable from `main`](DECISIONS.md#d439--the-bridges-read-half-the-fits-own-scorecard-becomes-readable-from-main) | — | 48046 |
-| **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48143 |
+| **D440** | [The owner of a directory row may delete it — clearing your display name unlists you](DECISIONS.md#d440--the-owner-of-a-directory-row-may-delete-it--clearing-your-display-name-unlists-you) | — | 48143 |
+| **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48235 |
