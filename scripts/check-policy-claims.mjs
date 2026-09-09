@@ -78,6 +78,12 @@ export const CLAIMS = [
     /no minimum, no delay/i],
   ["D98 · a blank display name hides the name, not the answers",
     /hides the\s+name, not the answers/i],
+  // D390 · the contest stake is points and never money, and that sentence
+  // is the whole reason the axis needs no verified entrants, no payment
+  // row and no gambling regime; a page that lost it would be describing a
+  // different product.
+  ["D390 · a contest stake is points, never money",
+    /points, never money/i],
   ["D146 · answers can be grouped by the Big Five type, retroactively",
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
   // The D146 row beside this one — "politics/values/social results are

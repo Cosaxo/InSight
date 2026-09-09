@@ -603,6 +603,14 @@ v2_purchases/{uid_bid}             one row per completed sale (PAID-PLAN
 read: the buyer (uid == auth.uid) · write: nobody client-side
 ```
 
+## Arranged contests (D390)
+
+`v2_contests/{cid}`, `v2_contest_attempts/{cid}`, `v2_users/{uid}/contests/{cid}`
+and `v2_users/{uid}.contest` — the record, the answer key, the per-person
+index and the summary. Every field, transition and callable is in
+[`CONTESTS.md`](CONTESTS.md); the rules' comments at each path say who
+reads what and why.
+
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
@@ -714,7 +722,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 197 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 203 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

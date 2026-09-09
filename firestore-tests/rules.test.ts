@@ -4150,6 +4150,86 @@ describe("the engagement rollup's field validation, which nothing exercised", ()
   });
 });
 
+describe("arranged contests (D390): sealed until settled, public after, written by nobody", () => {
+  const A = OWNER;
+  const B = FRIEND;
+  const offered = {
+    v: 1, domain: "logic", arm: "assigned", gv: 3, items: 12, a: A, b: B, aName: "Owner", bName: "Friend",
+    stake: { level: 1, points: 50 }, match: { rule: "band", pool: 4, band: 20, p: 0.25, blind: false },
+    role: "prior-informed", status: "offered", offeredAtMs: 1, offerExpiresAtMs: 2, sideA: {}, sideB: {},
+  };
+
+  it("the two participants read an offered or open contest; a stranger cannot", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_contests", "c1"), offered);
+      await setDoc(doc(db, "v2_contests", "c2"), { ...offered, status: "open", windowEndsMs: 9 });
+    });
+    await assertSucceeds(getDoc(doc(asUser(A), "v2_contests", "c1")));
+    await assertSucceeds(getDoc(doc(asUser(B), "v2_contests", "c2")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_contests", "c1")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_contests", "c2")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_contests", "c1")));
+  });
+
+  it("a scored contest is public to any signed-in user (D98), and still refuses the signed-out", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_contests", "c3"), { ...offered, status: "scored", scoreA: 9, scoreB: 4, seed: 7 });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_contests", "c3")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_contests", "c3")));
+  });
+
+  it("nobody writes a contest — not a participant, not to accept, not to score", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_contests", "c1"), offered);
+    });
+    await assertFails(setDoc(doc(asUser(A), "v2_contests", "c9"), offered));
+    await assertFails(updateDoc(doc(asUser(A), "v2_contests", "c1"), { "sideA.acceptedAtMs": 5 }));
+    await assertFails(updateDoc(doc(asUser(B), "v2_contests", "c1"), { status: "scored", scoreB: 12 }));
+    await assertFails(deleteDoc(doc(asUser(A), "v2_contests", "c1")));
+  });
+
+  it("the attempt doc — the seed and both sittings — is opaque even to its own participants", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_contest_attempts", "c1"), { cid: "c1", seed: 7, gv: 3, items: 12, a: {}, b: {} });
+    });
+    await assertFails(getDoc(doc(asUser(A), "v2_contest_attempts", "c1")));
+    await assertFails(getDoc(doc(asUser(B), "v2_contest_attempts", "c1")));
+    await assertFails(setDoc(doc(asUser(A), "v2_contest_attempts", "c1"), { a: { score: 12 } }, { merge: true }));
+  });
+
+  it("the per-person index is the owner's to read and nobody's to write", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", A, "contests", "c1"), { cid: "c1", status: "offered", opponent: B });
+    });
+    await assertSucceeds(getDoc(doc(asUser(A), "v2_users", A, "contests", "c1")));
+    await assertSucceeds(getDocs(query(collection(asUser(A), "v2_users", A, "contests"), limit(5))));
+    await assertFails(getDoc(doc(asUser(B), "v2_users", A, "contests", "c1")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", A, "contests", "c1")));
+    await assertFails(setDoc(doc(asUser(A), "v2_users", A, "contests", "c1"), { status: "scored" }, { merge: true }));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_users", A, "contests", "c1")));
+  });
+
+  it("the profile's contest summary is server-owned: no create, no change, no removal by the client", async () => {
+    const mine = doc(asUser(A), "v2_users", A);
+    // Introducing it is forgery — points from nowhere.
+    await assertFails(setDoc(mine, { displayName: "Owner", contest: { points: 9999, n: 0 } }, { merge: true }));
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", A), { displayName: "Owner", contest: { points: 450, n: 3, w: 1, l: 2, t: 0, rating: 61, openCid: null, exposure: [] } });
+    });
+    // A merge that carries it unchanged passes (every profile write is a merge).
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Owner Two",
+      contest: { points: 450, n: 3, w: 1, l: 2, t: 0, rating: 61, openCid: null, exposure: [] },
+    }, { merge: true }));
+    await assertFails(setDoc(mine, { contest: { points: 9999, n: 3, w: 1, l: 2, t: 0, rating: 61, openCid: null, exposure: [] } }, { merge: true }));
+    await assertFails(updateDoc(mine, { "contest.points": 9999 }));
+    // Removal would reset a balance and a record, so it is refused too —
+    // the one way this differs from testResults.logic.
+    await assertFails(updateDoc(mine, { contest: deleteField() }));
+  });
+});
+
 describe("every write gated on sign-in refuses a signed-out client", () => {
   // THE OTHER HALF. The read block below counts sign-in-gated READ arms and
   // holds the number; its own note says the write side is unwritten. The
@@ -4351,6 +4431,9 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // uncased.
     const rules = ruleSource().split("\n").map((l) => l.replace(/^\s*\/\/.*$/, "")).join("\n");
     const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
-    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(27);
+    // D390 added two arms of this shape: `v2_contests` (signed in AND
+    // scored-or-participant) and `v2_users/{uid}/contests` (signed in AND
+    // owner), both with their own cases in the contests block above.
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(29);
   });
 });

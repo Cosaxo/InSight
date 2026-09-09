@@ -45,6 +45,7 @@ owner's note on database, 2026-08-26).
 
 | Candidate | Raised by | Where it stands |
 | --- | --- | --- |
+| **Competition** (arranged contests) | the owner, 2026-09-08 — choosing the first axis to build under its paper (D390); `research/axiom-theory/paper-08-arranged-competition.md` | the backend is built and gated — consent, the offer, the sitting on a server-minted form, server-side scoring, settlement, the daily sweep, points stakes only, the assigned arm only — and no surface, because a surface needs the status word and the design (`VISUAL-REQUESTS.md` § 2). **The status word is yours**: `operational` lets the builder draw it once the canvas is accepted |
 | **Time-use / chronotype** | central, `cen-9` first; `AXIOM-THEORY.md` §2 | stays inside central until its cheap test survives; the binding confound is named |
 | **Learn as a knowledge axis** | `AXIOM-THEORY.md` §2 | a focus question to the questions lane; a lane only if the owner wants knowledge as an axis in its own right |
 | **The anchors as an axis of their own** | `AXIOM-THEORY.md` §2 | a focus question, not a lane — its theory is the questions lane's invariance work |

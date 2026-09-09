@@ -108,6 +108,7 @@ directions.
 | [`DECISIONS.md`](DECISIONS.md) | Every binding decision, with the arithmetic that produced it. Binding until an explicitly recorded reversal | tree |
 | [`DECISIONS-INDEX.md`](DECISIONS-INDEX.md) | Generated index of the above — one line per record instead of the whole file | tree |
 | [`MIRROR.md`](MIRROR.md) | The read path: which Mirror stop draws what, from where, and which parts are still prototype furniture | tree |
+| [`CONTESTS.md`](CONTESTS.md) | Arranged competition (D390): the contest record, its transitions and callables, what each field is for in the paper's terms, and what is deferred | tree |
 | [`SCHEMA-V2.md`](SCHEMA-V2.md) | Every collection, field and function in the core loop | tree |
 | [`data-inventory.md`](data-inventory.md) | Everything storable, where it lives, who may read it. The store privacy label derives from this | tree |
 | [`COPY.md`](COPY.md) | `visual > word > sentence > sentences`, the four shapes that keep growing back, and what the rule does **not** license | tree |

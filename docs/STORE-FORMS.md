@@ -13,6 +13,23 @@ holds the reasoning for the three that bite.
 Re-derive this file if any of these change: a new stored field, a new SDK,
 the takes surface going live, or product analytics being added.
 
+**Re-derived 2026-09-09 for D390 (arranged contests — the first axis
+built under its paper).** New stored fields: `v2_contests/{cid}` (a
+pair's contest record, public once settled), `v2_contest_attempts/{cid}`
+(server-only: the seed and both sittings), `v2_users/{uid}/contests/{cid}`
+(the owner-only per-person index) and `v2_users/{uid}.contest` (points,
+record, rating, exposure and the specific consent, server-written).
+**No answer below changes**: a contest score is a test score — User
+Content → Other User Content, already **Yes**, linked, App Functionality
+("Answers and test results") — and the points are a game balance with no
+monetary value, so Purchases and Financial Info stay No and
+**Gameplay Content stays No** (it is user-generated in-game content, which
+a scored form is not). The matcher's rule and probability, the offer's
+answers and the stake are operational data about that same content.
+Nothing new leaves the device: the sitting sends twelve pick indexes, as
+the verified logic test sends twenty-five. `data-inventory.md` carries the
+audited rows.
+
 **Re-derived 2026-08-26 for D322 (the interest profile, D317 phase 1).**
 New stored field: `v2_users/{uid}/taste/profile` — feed answers counted
 by topic, server-derived nightly, owner-readable only, used to size the

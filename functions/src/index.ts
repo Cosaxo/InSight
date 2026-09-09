@@ -1290,3 +1290,10 @@ export { rebuildAggregateV2 } from "./replay";
 // SDK off the two public documents. onRequest, and no App Check, because
 // it serves the open web; the reasoning is share.ts's header.
 export { resultsPageV2 } from "./share";
+// D390: arranged competition — the first axis built under its paper's
+// requirements (paper 8). Consent, the offer's two answers, the sitting
+// on a server-minted form, server-side scoring and settlement, and the
+// daily sweep that expires, settles and pairs. Points stakes only; the
+// assigned arm only; every pairing carries the matcher's rule and its
+// realised probability.
+export { contestOptInV2, contestRespondV2, contestStartV2, contestSubmitV2, contestSweepV2 } from "./contest";

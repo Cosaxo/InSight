@@ -42046,3 +42046,64 @@ paragraphs the dyadic literature does not owe.
 The gate learned one thing in the pass: a decision-number pattern
 matches inside an ACL Anthology DOI, so that rule now reads the body
 only. Nothing in the app moves.
+
+## D390 · Arranged competition is the first axis built under its paper: the assigned arm, the logic domain, points stakes — the backend shipped, the surface behind the design
+
+**2026-09-09.** **Status:** binding for what it builds and what it
+defers. Written on `claude/axiom-theory-restart-plan-0y5xsl`, numbered on
+that branch's base; the standing collision pattern (D289) may renumber it
+at merge.
+
+**The choice.** Asked which of the four unbuilt axes to build first so
+that real data starts to exist — the step the rating of the theory said
+was the only one that turns a plan into research — the owner was put the
+four with their arithmetic and chose *arranged competition*: the one
+axis that is software only, uses the verified logic instrument the app
+already has as its fixed-difficulty anchor, and yields the relational
+data G7 needs. Appearance needs photo custody, consent to be withheld
+and store-form face rows before its first reading; the ring needs
+hardware and the custody decision on the owner's list; genetics is
+behind the D168 carve-out and the legal review. None of those moved.
+
+**What is built.** `functions/src/contest.ts`, with its pure layer
+unit-tested: consent as a server-written specific opt-in; a daily sweep
+that expires yesterday's offers, settles open contests past their
+window, and pairs everyone opted in, verified and eligible — a quarter of
+pairings blind to the logic score and the rest within a band of it, each
+pairing recording the matcher's rule, the pool it drew from and the
+realised probability of this partner, and a stake drawn before
+acceptance from two points levels; the offer's two answers per side; a
+sitting on the same server-minted twelve-item form for both, scored
+server-side against a seed nobody can read; settlement with a forfeit as
+a recorded outcome and a transfer capped by the loser's balance; and the
+stakes contrast per person as the first pure fold. Rules: the contest is
+sealed to its two participants while offered or open and public once
+scored, the attempt doc is the logic-attempt deny one collection over,
+the per-person index is owner-only, and the profile's `contest` map is
+server-owned — presence allowed, mutation and removal refused, because a
+deletable balance is a forgeable one. Rules tests cover every path; the
+data inventory, the privacy page (*points, never money*, now a claim the
+gate holds), the store forms (no answer moves) and `CONTESTS.md` carry
+the record. A client transport exists and no surface imports it.
+
+**Why these shapes, from the paper.** The graded per-person score is
+paper 8 §4.1's order-of-magnitude saving; the assigned arm is §5's
+measurement arm, and the chosen arm is named as a later build so the two
+are never pooled; the stake drawn before acceptance is §4.4's forbidden
+move made impossible; the recorded rule and probability are G2's atom
+and G1's steering rule; the blind share is G1's roles at this grain,
+so that a coupling against the logic score is estimated on pairings that
+did not read it; the offer's answers per side are §6's intention to
+treat; the cumulative exposure cap is §6's bound on a trajectory rather
+than a contest; points are the smallest stake that can move performance
+without verified entrants, a payment row or a gambling regime.
+
+**What is deferred, and to whom.** The surface waits on the design
+(`VISUAL-REQUESTS.md` § 2) and on the status word, which is the owner's
+(`AXIOMS.md` lists the axis under *proposed* because a routine may add
+rows nowhere else; `OWNER-LIST.md` asks for the move). A push on offer
+is the owner's call, since it is a fifth notification kind. The chosen
+arm, the mismatched-side budget, a rating that moves against the
+anchors, the reported-against-enacted fold and an e2e leg are on the
+worklist with their gates. Nothing in the app's surfaces moves until the
+status word does.

@@ -328,7 +328,7 @@ service cloud.firestore {
           // on the belief that it worked. A dead allowlist entry is not
           // free, it is a promise the tree cannot keep.
           "displayName", "anchors", "consent", "createdAt", "updatedAt",
-          "testResults", "handle",
+          "testResults", "handle", "contest",
         ])
         // The consent record (D331) — today only `political`, keyed so the
         // next special-category ask is a sibling rather than a rename.
@@ -390,11 +390,37 @@ service cloud.firestore {
               || (resource != null
                 && request.resource.data.testResults.logic
                   == resource.data.get("testResults", {}).get("logic", null)))))
+        // `contest` is the arranged-competition summary (D390): points,
+        // record, rating, exposure and the specific consent to compete at
+        // randomized points stakes — every field written by the contest
+        // callables. Presence allowed (every profile write is a merge, so
+        // the key rides along), mutation not, and REMOVAL not either: the
+        // testResults.logic shape minus its deletion clause, because
+        // deleting this map would reset a balance and a record, which is
+        // the forgery the immutability exists to refuse. Absence is legal
+        // only while there is nothing to remove (the `handle` shape).
+        && (("contest" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.contest == resource.data.get("contest", null))
+          : (resource == null || resource.data.get("contest", null) == null))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isOptionalStamp(request.resource.data.get("createdAt", null))
         && isOptionalStamp(request.resource.data.get("updatedAt", null))
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
+
+      // Arranged contests, indexed per person (D390): server-written rows
+      // saying which contests this person was offered, accepted, played
+      // and how they ended — never the seed, never the other side's score
+      // before settlement. Owner-only, and not as a privacy floor: the
+      // settled contest is public at v2_contests. What this row holds
+      // that the contest does not is the OFFER arm's own datum — what
+      // this person declined or let expire — which is theirs to read and
+      // nobody's product.
+      match /contests/{cid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
 
       // Push registration tokens (D98) — server-only, both ways.
       //
@@ -1251,6 +1277,33 @@ service cloud.firestore {
       allow write: if false;
     }
     match /v2_logic_norms_private/{docId} {
+      allow read, write: if false;
+    }
+
+    // ─── arranged competition (D390) ────────────────────────────────
+    //
+    // A contest document is the record paper 8 asks for: the matcher's
+    // rule and its realised probability, the stake drawn before
+    // acceptance, each side's answer to the offer, and — once settled —
+    // both graded scores and the outcome. It is SEALED until settled, and
+    // that is game timing in the duel's sense, not privacy: the two
+    // participants read it while offered or open (their own offer, their
+    // own window, whether the other side has played — never a score),
+    // any signed-in user reads it once scored (D98: a contest result is
+    // a pair of answers' younger sibling), and nobody but the callables
+    // writes it. A client-writable contest would be a forgeable one.
+    match /v2_contests/{cid} {
+      allow read: if request.auth != null
+        && (resource.data.status == "scored"
+          || request.auth.uid == resource.data.a
+          || request.auth.uid == resource.data.b);
+      allow write: if false;
+    }
+    // The contest's answer key (the seed) and both sides' sittings — the
+    // v2_logic_attempts deny, one collection over: an owner-readable seed
+    // mid-contest is a devtools answer key, and the OTHER side's sitting
+    // is the score the seal exists to hold back.
+    match /v2_contest_attempts/{cid} {
       allow read, write: if false;
     }
 

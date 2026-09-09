@@ -87,6 +87,57 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   the rules make that true, and no screen makes it useful.
 - **status** — `requested`
 
+### 2 · Arranged contests: the offer, the sitting, the result
+
+- **title · asked by** — *Contests* · the owner, 2026-09-08, choosing
+  arranged competition as the first axis built under its paper (D390);
+  the backend is shipped, this is the surface it waits for.
+- **surface** — the **daily** tab, as a row under the day's question
+  and above the feed, in the duel cards' family: an *offer* row while an
+  offer is open, a *play* row while a contest is open, a *result* row
+  once settled; the sitting itself opens as an overlay in the verified
+  logic test's shape (`src/v2/spec/logic-overlay.jsx` is the sitting
+  that exists — twelve of its items, a header naming the opponent and
+  the stake, the same per-item timer); and a small standing line in the
+  profile overlay's General panel with the consent toggle and the
+  points balance.
+- **data and basis** — `v2_users/{me}/contests/{cid}` rows (owner-only,
+  server-written; `src/v2/data/contest.ts` reads them, newest first, one
+  bounded query) for the rows; the callables `contestOptInV2`,
+  `contestRespondV2`, `contestStartV2`, `contestSubmitV2` for consent,
+  the offer's answer, the items and the score; `v2_contests/{cid}` by id
+  for a settled contest (public then, D98). The offer carries the
+  opponent's name, the stake (10 or 50 points) and when it expires; the
+  open contest carries the window's end and whether the other side has
+  played — never their score; the result carries both scores, the
+  outcome and the points moved. D1's empty state is honest: no consent →
+  the consent line only; consent and no offer → nothing (an offer arrives
+  by the daily sweep, and a row that says "waiting" is a caption).
+- **states** — **no consent**: the profile line alone, one sentence
+  (*points, never money* is a claim and stays); **offered**: opponent,
+  stake, expiry, accept · decline; **open**: opponent, stake, window,
+  play (or *played — waiting for them*); **scored**: both names, both
+  scores, the points moved, tap for the contest; **demo**: the three rows
+  from `sample-data` shapes, no callable.
+- **interaction** — accept/decline are one tap each and irreversible
+  (the offer arm's datum); play opens the sitting; the sitting is the
+  logic overlay's item loop with a 90 s cap per item and submit at the
+  end, and it resumes with its original deadline if the app was closed;
+  the result row opens the settled contest.
+- **vocabulary** — the 2026-09-02 standalone family (`design/`), the
+  duel cards' idiom for the rows, the logic overlay's for the sitting,
+  the two palettes of D302, the copy rule D182: the stake is a number
+  and a unit, the outcome a word, and *points, never money* the one
+  sentence that may be long.
+- **constraints** — nothing eager: the rows live in the daily chunk's
+  own budget, the sitting reuses the logic overlay's chunk;
+  `check:bundle`; one query per open of the daily tab (the index, cached
+  for the session); tap targets (`check:tap-targets`).
+- **why** — paper 8 (arranged competition) §4.1 and §6: the assigned
+  arm with a visible, randomized stake is the measurement; a stake the
+  player cannot see cannot move performance, so the row states it.
+- **status** — `requested`
+
 ### 1 · Trait-axis directions on the patterns Map
 
 **Re-aimed 2026-09-02** at the ring the current vision draws

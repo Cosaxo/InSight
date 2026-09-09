@@ -317,7 +317,9 @@ describe("the lists on this tree", () => {
     // Designed → Built at D369 — the SECTION is the status, not the
     // `status` line inside the entry, so an entry that is built and left
     // under Designed reads as still waiting.
-    expect(v.requested.length).toBe(7);
+    // Eight since D390 filed request 2 (arranged contests: the offer, the
+    // sitting, the result) beside the seven that stood.
+    expect(v.requested.length).toBe(8);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(1);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
