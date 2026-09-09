@@ -79,7 +79,7 @@ describe('the demo store plays rounds', () => {
     expect(DUELS.groupPicksRound('g3', 12).counts.reduce((a, b) => a + b, 0)).toBe(DUELS.groupPicksRound('g3', 12).played.length);
   });
 
-  it('reads the room as a cast: the latest vote per role, a seat from two votes, a score per rating', () => {
+  it('reads the room as a cast: the latest vote per role, a seat from the votes cast at you, a score per rating', () => {
     const rv = DUELS.roleVotes('g1');
     // eight roles in the sample's two packs, nine role votes revealed —
     // the ninth is the first role again, so eight rows
@@ -89,9 +89,22 @@ describe('the demo store plays rounds', () => {
       expect(role.votes[role.winner]).toBeGreaterThan(0);
       expect(role.seat).toMatch(/^(engine|hands|heart|wild)$/);
     }
+    // UNCONDITIONAL, and the premise first. `A.total` is a sum of vote
+    // counts, so `toBeGreaterThanOrEqual(0)` could not fail, and the seat
+    // assertion behind `if (A.total >= 2)` ran only if the fixture happened
+    // to satisfy it. MEASURED: it does not — the demo room casts exactly ONE
+    // role vote at the reader (`TOTAL=1 SEAT=wild`), so that branch had never
+    // executed and the property in the case's own name was never asserted.
+    // The name said "a seat from two votes"; the fixture gives one, and one
+    // is enough to earn a seat, so the name moved to what is true.
     const A = DUELS.archetypeOf('g1', 'me');
-    expect(A.total).toBeGreaterThanOrEqual(0);
-    if (A.total >= 2) expect(A.seat.line).toMatch(/^the one/);
+    expect(A.total, 'the room cast no role votes at "me" — the seat below would be null')
+      .toBeGreaterThan(0);
+    expect(A.seat, 'a room that voted has no seat for the reader').not.toBeNull();
+    expect(A.seat.line).toMatch(/^the one/);
+    // …and the seat is one the roster defines, not a shape that merely has
+    // a `line`.
+    expect(DUELS.SEATS.map((s) => s.id)).toContain(A.seat.id);
     // two ratings revealed in eleven rounds at phase 0
     const scores = DUELS.groupScores('g1');
     expect(scores).toHaveLength(2);

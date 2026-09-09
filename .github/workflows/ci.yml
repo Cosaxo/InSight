@@ -289,6 +289,29 @@ jobs:
       # `npx cap sync` may rewrite — a red line here is the only way that
       # gets noticed.
       - run: npm run check:devicebind
+      # The backend's TEST files, typechecked — which nothing did until
+      # 2026-09-09. functions/tsconfig.json excludes `src/**/*.test.ts`,
+      # correctly, because the deployed bundle must not carry 39 test files;
+      # but no other config reached them either. The root tsconfig references
+      # only tsconfig.app.json and tsconfig.node.json, `npm run build
+      # --prefix functions` is a bare `tsc` against that same excluding
+      # config, and `vitest run` does not typecheck. So ~14k lines were
+      # compiled by nobody, and the first run of this config found 27 real
+      # errors — including a pricing fixture carrying a retired field and
+      # missing three required ones, i.e. the money path asserting about a
+      # shape the server cannot receive.
+      #
+      # A raw `npx tsc` line rather than a `check:*` script on purpose:
+      # check:docs rule 4 holds every `check:*` name in package.json to a row
+      # in the ORIENTATION gate table, and this is a compiler invocation
+      # rather than a gate with reasoning of its own — the reasoning is in
+      # functions/tsconfig.test.json's header.
+      #
+      # Client-side placement rule, deliberately off backend-checks.yml: a
+      # type error in a test file says nothing about whether a rules fix is
+      # safe to deploy, and it must not be able to block an emergency one.
+      - run: npm ci --prefix functions
+      - run: npx tsc -p functions/tsconfig.test.json --noEmit
 
   typecheck-build:
     runs-on: ubuntu-latest

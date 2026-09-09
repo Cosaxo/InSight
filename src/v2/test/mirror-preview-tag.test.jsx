@@ -51,7 +51,7 @@ async function openMirror(stop) {
 
 describe("the Mirror's preview tag on a live build that did not attach", () => {
   it("labels the You stop, which drew the sample persona unlabelled", async () => {
-    await mountApp();
+    const expectNoBoundary = mountApp();
     stickOnFallback();
     await openMirror(null);
     // The stop is really the You stop — otherwise this passes against
@@ -61,14 +61,26 @@ describe("the Mirror's preview tag on a live build that did not attach", () => {
     expect(within(ruler).getByRole("tab", { name: /^you$/i }).getAttribute("aria-selected")).toBe("true");
     expect(document.body.textContent,
       "a sample profile was drawn as the reader's own, with no label").toMatch(/sample profile/i);
+    expectNoBoundary("mirror · you · fallback");
   });
 
   it("says nothing there once the store is attached — the control", async () => {
     // The exclusion is right in an ordinary demo build and in live mode:
     // a "sample" badge over the reader's real anchors is its own lie, and
     // "never draws it" would pass the case above.
-    await mountApp();
+    //
+    // TWO THINGS THIS CASE HAS TO SAY, because an absence on its own says
+    // neither. It discarded mountApp's boundary checker and asserted only
+    // that a string is missing — so a Mirror tab that CRASHED passed it,
+    // silently and for the same reason app-shell wraps every tab in an
+    // ErrorBoundary: a crashed screen still returns cleanly from render().
+    const expectNoBoundary = mountApp();
     await openMirror(null);
+    // The anchor first: the stop really drew, so the absence below is about
+    // the badge and not about an empty screen.
+    const ruler = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
+    expect(within(ruler).getByRole("tab", { name: /^you$/i }).getAttribute("aria-selected")).toBe("true");
     expect(document.body.textContent).not.toMatch(/sample profile/i);
+    expectNoBoundary("mirror · you · attached");
   });
 });

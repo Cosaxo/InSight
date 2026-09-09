@@ -6,6 +6,7 @@
 //   4. the additions group by question in a deterministic order.
 import { describe, expect, it } from "vitest";
 import { PATTERNS_SAMPLE_CAP, emptySample, mergeSample, sampleAdditions, sampleOrder, type SampleAddition } from "./patternsSamples";
+import type { AnswerMap } from "./patternsAls";
 
 describe("mergeSample", () => {
   it("keeps one row per person and lets the newest answer win", () => {
@@ -48,7 +49,13 @@ describe("mergeSample", () => {
     expect(days[0] >= "2026-08-01").toBe(true);
     const dropped = adds.filter((x) => !a.rows[x.uid]);
     const kept = Object.values(a.rows);
-    expect(Math.max(...dropped.map((x) => x.day.localeCompare("")))).toBeDefined();
+    // The premise the loop below rests on, asserted rather than implied.
+    // This line used to be `Math.max(...dropped.map(x => x.day.localeCompare("")))
+    // .toBeDefined()`, which cannot fail: Math.max of numbers is a number.
+    // With an empty `dropped` the loop runs zero times and proves nothing,
+    // which is exactly what a cap that stopped dropping would look like.
+    expect(dropped.length, "the cap dropped nothing — the ordering loop below is vacuous")
+      .toBeGreaterThan(0);
     for (const d of dropped) for (const k of kept) expect(d.day <= k.d).toBe(true);
     // merging in two steps lands where one step does
     const half = mergeSample(null, "q", adds.slice(0, 100));
@@ -69,7 +76,11 @@ describe("mergeSample", () => {
 
 describe("sampleAdditions", () => {
   it("groups a day's compacted answers by question, people in uid order, chips attached where the entry had them", () => {
-    const byUid = new Map([
+    // Annotated: the two literals have different keys, so an unannotated
+    // `new Map([...])` infers a UNION of their shapes rather than AnswerMap
+    // — and a fixture whose type is not the one under test is a fixture that
+    // can drift away from it.
+    const byUid = new Map<string, AnswerMap>([
       ["u2", { qa: 1, qb: 0 }],
       ["u1", { qa: 0 }],
     ]);

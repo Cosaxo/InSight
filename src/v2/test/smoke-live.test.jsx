@@ -1720,21 +1720,49 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // it. The fixture's bank deliberately differs from the demo room. (2) A
   // pulse whose cadence does not ask today must not be on screen at all;
   // the fixture ships one daily and one weekly for exactly that contrast.
-  it("draws the pulses the live bank offers, and only the ones due", async () => {
-    const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
-    await growFeed();
-    // pace is daily — always due, always drawn, and its prompt comes from
-    // the bank rather than from the demo roster.
-    expect(screen.getByText("What pace was today?")).not.toBeNull();
-    // sleep is weekly (Sundays). On any other day it must be absent —
-    // no tray, no placeholder, nothing announcing what is not being asked.
-    const sunday = new Date().getUTCDay() === 0;
-    if (sunday) expect(screen.getByText("How did you sleep?")).not.toBeNull();
-    else expect(screen.queryByText("How did you sleep?")).toBeNull();
-    // The demo room's other three pulses are not in the live bank at all.
-    expect(screen.queryByText("How clear was your head today?")).toBeNull();
-    expect(screen.queryByText("How connected did you feel today?")).toBeNull();
-    expectNoBoundary();
+  //
+  // THE CLOCK IS PINNED, and that is the point of splitting this in two.
+  // It used to be one case that read `new Date().getUTCDay() === 0` and
+  // branched: the weekly pulse's PRESENCE was asserted one day in seven and
+  // its ABSENCE on the other six, so the suite's verdict changed with the
+  // calendar and the positive half went unrun almost always. A weekly pulse
+  // that stopped being offered at all would have been caught only on a
+  // Sunday.
+  //
+  // `vi.setSystemTime` alone, WITHOUT `vi.useFakeTimers()`: the roster is
+  // read at render so the clock has to be set before mountLive, and
+  // growFeed/act wait on real timers, which fake timers would hang.
+  it("draws the pulses the live bank offers — the weekly one on its day", async () => {
+    vi.setSystemTime(new Date("2026-09-06T12:00:00Z")); // a Sunday
+    try {
+      const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
+      await growFeed();
+      // pace is daily — always due, always drawn, and its prompt comes from
+      // the bank rather than from the demo roster.
+      expect(screen.getByText("What pace was today?")).not.toBeNull();
+      expect(screen.getByText("How did you sleep?"),
+        "the weekly pulse was not offered on its own day").not.toBeNull();
+      expectNoBoundary();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("…and not on any other day, with nothing standing in for it", async () => {
+    vi.setSystemTime(new Date("2026-09-09T12:00:00Z")); // a Wednesday
+    try {
+      const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
+      await growFeed();
+      expect(screen.getByText("What pace was today?")).not.toBeNull();
+      // No tray, no placeholder, nothing announcing what is not being asked.
+      expect(screen.queryByText("How did you sleep?")).toBeNull();
+      // The demo room's other three pulses are not in the live bank at all.
+      expect(screen.queryByText("How clear was your head today?")).toBeNull();
+      expect(screen.queryByText("How connected did you feel today?")).toBeNull();
+      expectNoBoundary();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // D195: a paid question is an ordinary question wearing a disclosure it

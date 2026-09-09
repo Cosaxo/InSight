@@ -37,6 +37,7 @@ import {
   reviewSubject,
   validatePaidBooking,
   type PaidBookingPayload,
+  type ReviewSweepStore,
   validatePaidLink,
   PAID_LINK_MAX,
 } from "./paid";
@@ -238,10 +239,20 @@ describe("validatePaidBooking", () => {
   });
 });
 
+// THESE CARDS ARE THE MONEY PATH'S FIXTURE, and until 2026-09-09 they were
+// checked by nothing: functions/src/*.test.ts was excluded from the build's
+// tsconfig and no other config reached it. They still carried `adBase`, a
+// field the type retired with the self-serve ad lane, and they were MISSING
+// `crowdFree`, `windowDays` and `menu` — three fields `PricingCard` requires
+// — so every case below priced a quote against a shape the server cannot be
+// handed. Written out rather than spread from PRICING_CARD, deliberately:
+// spreading the committed card would make these cases move with it and stop
+// being a pin on the arithmetic.
 describe("priceQuote", () => {
   it("prices off the committed card and locks the arithmetic", () => {
     const q = priceQuote("city", {
-      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, crowdFree: 3, capEur: 320, minEur: 20, budgets: [50, 320], floorWeek: 500,
+      windowDays: WINDOW_DAYS, menu: { city: 50, country: 100, world: 320 },
       generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 0.9, booked: [], nextOpen: null },
@@ -258,8 +269,9 @@ describe("priceQuote", () => {
 
   it("makes the buyer's budget the cap, and holds it to the card's range (D372)", () => {
     const card = {
-      base: 0.1, floorX: 1, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
-      generated: "2026-09-05", currency: "EUR", fx: {}, adBase: 320,
+      base: 0.1, floorX: 1, crowdStep: 0.5, crowdFree: 3, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
+      windowDays: WINDOW_DAYS, menu: { city: 50, country: 100, world: 320 },
+      generated: "2026-09-05", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 1, booked: [], nextOpen: null },
         country: { idx: 1.5, booked: [], nextOpen: null },
@@ -283,7 +295,8 @@ describe("priceQuote", () => {
 
   it("holds a card idx to the floor, and to nothing above it (D373)", () => {
     const card = {
-      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, crowdFree: 3, capEur: 320, minEur: 20, budgets: [50, 320], floorWeek: 500,
+      windowDays: WINDOW_DAYS, menu: { city: 50, country: 100, world: 320 },
       generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 9, booked: [], nextOpen: null },
@@ -635,22 +648,25 @@ describe("the ad lane is retired (D375)", () => {
 });
 
 describe("runReviewSweep", () => {
-  const store = (rows) => {
-    const state = { reviewed: [], pages: [] };
-    return {
-      state,
-      store: {
-        async heldPage(after, limit) {
-          const from = after ? rows.findIndex((r) => r.id === after) + 1 : 0;
-          const page = rows.slice(from, from + limit);
-          state.pages.push({ after, size: page.length });
-          return page;
-        },
-        async review(bid) { state.reviewed.push(bid); },
+  // Typed against `ReviewSweepStore` itself. Untyped, the fake's `state`
+  // inferred `never[]` for both arrays, so `state.pages[1].after` below was
+  // a property access on `never` — the case read as passing while asserting
+  // about a type that has no values.
+  type HeldRow = { id: string; attempts: number };
+  const store = (rows: HeldRow[]) => {
+    const state = { reviewed: [] as string[], pages: [] as Array<{ after: string | null; size: number }> };
+    const st: ReviewSweepStore = {
+      async heldPage(after: string | null, limit: number) {
+        const from = after ? rows.findIndex((r) => r.id === after) + 1 : 0;
+        const page = rows.slice(from, from + limit);
+        state.pages.push({ after, size: page.length });
+        return page;
       },
+      async review(bid: string) { state.reviewed.push(bid); },
     };
+    return { state, store: st };
   };
-  const held = (n, attempts) =>
+  const held = (n: number, attempts: number): HeldRow[] =>
     Array.from({ length: n }, (_, i) => ({ id: `b${String(i).padStart(4, "0")}`, attempts }));
 
   it("retries a booking under the ceiling", async () => {
@@ -787,7 +803,10 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
       reads.push(status);
       return {
         exists: true,
-        get: (k: string) => (k === "status" ? status : (BOOKING as Record<string, unknown>)[k]),
+        // `as unknown as` because PaidBookingPayload and an index signature
+        // do not overlap — the cast is to READ the fixture by key, not a
+        // claim that the payload is a bag.
+        get: (k: string) => (k === "status" ? status : (BOOKING as unknown as Record<string, unknown>)[k]),
       };
     };
     const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };

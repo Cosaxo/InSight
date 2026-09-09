@@ -915,8 +915,15 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
     } as unknown as Parameters<typeof firestoreAttentionStore>[0];
 
     const store = firestoreAttentionStore(db);
-    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: 3 }, q: {}, qOther: 0 }, ["shard1"]);
-    expect(calls[0].data.attn.s, "the guard removed a real counter map").toBeTruthy();
+    // `s` is Record<string, AttnCounter> — {reach, est}, not a bare number.
+    // This fixture fed a number and nothing said so, because these files were
+    // typechecked by nobody until functions/tsconfig.test.json existed.
+    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: { reach: 3, est: 3 } }, q: {}, qOther: 0 }, ["shard1"]);
+    // …and the assertion reads the counter it wrote, not just the map's
+    // existence: `toBeTruthy()` on the map would survive the counter being
+    // dropped, which is the thing this case is named for.
+    const s = calls[0].data.attn.s as Record<string, unknown>;
+    expect(s.opens, "the guard removed a real counter").toBeTruthy();
   });
 
   it("putStates merges rather than replacing, so fg7 survives the night", async () => {
@@ -975,8 +982,10 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
     await store.putDay({
       day: "2026-08-25", actives: 3, firstTime: 1, votes: 4, events: 5,
       bySurface: { daily: 3 },
+      // `returned`, not `came` — CohortReturn is {returned, of}. Same
+      // untypechecked drift as the counter above.
       returned: {
-        d1: { of: 2, came: 1 }, d7: { of: 0, came: 0 }, d30: { of: 0, came: 0 },
+        d1: { of: 2, returned: 1 }, d7: { of: 0, returned: 0 }, d30: { of: 0, returned: 0 },
       },
       streaksBroken: 0,
     });
