@@ -3778,6 +3778,15 @@ const SOCIAL = {
     const g = state.groups.find((x) => x.id === gid);
     return g ? duelQFor(g, round) : null;
   },
+  /** The bank's first role vote — what the first run's preview draws a
+   *  group round AS (D432), with nothing invented: a real prompt, pack and
+   *  role off the seeded bank. Null before the cast has reached this
+   *  device's bank, and the preview falls back to a World question
+   *  standing in, as it did before the cast. */
+  roleVotePreview(): { prompt: string; scen: { id: string; label: string; hue: number }; role: { id: string; label: string } } | null {
+    const q = state.duelBank.find((x) => x.surface === "group" && x.topic === "pick" && !!x.scen && !!x.role && x.active !== false);
+    return q && q.scen && q.role ? { prompt: q.prompt, scen: q.scen, role: q.role } : null;
+  },
   /** This account's sealed answer to the OPEN round, or null. */
   myDuelVote(gid: string): { optionIdx: number } | null {
     const g = state.groups.find((x) => x.id === gid);

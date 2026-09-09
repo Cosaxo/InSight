@@ -443,6 +443,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     groups: () => [],
     todayQ: () => null,
     roundQ: () => null,
+    // The first run's group preview (D432): the bank's first role vote —
+    // none in a fixture, so the screen keeps its World stand-in.
+    roleVotePreview: () => null,
     roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
     voteLate: async () => {},
     myDuelVote: () => null,

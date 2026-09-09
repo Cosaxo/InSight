@@ -235,6 +235,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
   "roundInfo", "roundQ", "voteLate",
+  // The first run's preview of a group round (D432): the bank's first role
+  // vote, so the screen draws a real one rather than a World stand-in.
+  "roleVotePreview",
   // Request 12's card: my answer AND my call on any sealed round.
   "myDuelCall",
   // The in-flight flag beside `takes` — listed here because the pin is
