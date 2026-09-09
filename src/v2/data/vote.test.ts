@@ -69,6 +69,14 @@ const h = vi.hoisted(() => ({
     data: Record<string, unknown>;
     opts?: Record<string, unknown>;
   }>,
+  // CALLABLE INVOCATIONS, for the writes that are no longer setDoc.
+  // `testResults` became server-only on 2026-09-09 (D431) because rules
+  // cannot bound a nested map's size, so the political coordinate reaches
+  // other people through `saveTestResultV2` rather than through a profile
+  // write. The cases below still assert on THE WRITE — that reasoning is
+  // unchanged and is the whole point of the block — the write just has a
+  // different shape now.
+  callableCalls: [] as Array<{ name: string; data: unknown }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
@@ -212,7 +220,17 @@ vi.mock("./engagement", async (importActual) => {
 
 vi.mock("firebase/functions", () => ({
   getFunctions: vi.fn(),
-  httpsCallable: vi.fn(),
+  // A vi.fn WITH A DEFAULT, not a plain one, and not a plain function.
+  // It has to stay a vi.fn because several cases below drive it through
+  // `vi.mocked(...).mockReturnValue(...)`. But a bare vi.fn() returns
+  // undefined, which `callable()` then awaits as `.data` — so any call
+  // would throw into the caller's catch and a case could pass because
+  // nothing happened. The default records and resolves; a case that wants
+  // its own invoke still overrides it.
+  httpsCallable: vi.fn((_fns: unknown, name: string) => (data: unknown) => {
+    h.callableCalls.push({ name, data });
+    return Promise.resolve({ data: {} });
+  }),
 }));
 
 vi.mock("firebase/firestore", () => {
@@ -525,6 +543,7 @@ beforeEach(() => {
   h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
+  h.callableCalls.length = 0;
   h.updateDocImpl = null;
   h.updateDocCalls.length = 0;
   h.snapshots.length = 0;
@@ -2744,9 +2763,16 @@ describe("window.LIVE public surface", () => {
   // Asserted on the WRITE rather than on the returned state, because the
   // write is what reaches other people.
   describe("the political compass is computed only with consent", () => {
+    // THE WRITE, WHEREVER IT LIVES. This read `h.setDocCalls` until
+    // 2026-09-09, when `testResults` became server-only (D431) because
+    // rules cannot bound a nested map's size. The block's reasoning is
+    // untouched — assert on what reaches other people, not on returned
+    // state — so this follows the write to the callable rather than the
+    // cases being weakened to match the new plumbing.
     const politicalWrites = () =>
-      h.setDocCalls.filter((c) => c.path === "v2_users/uid_test"
-        && !!(c.data.testResults as Record<string, unknown> | undefined)?.political);
+      h.callableCalls.filter((c) => c.name === "saveTestResultV2"
+        && (c.data as { kind?: string }).kind === "political"
+        && (c.data as { result?: unknown }).result !== null);
 
     // REAL prompts off the same axis, and this is what makes the cases
     // below bite. `testItemMeta` joins a bank item to an instrument BY
@@ -2844,28 +2870,65 @@ describe("window.LIVE public surface", () => {
       (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
       await flush();
       const kinds = new Set<string>();
-      for (const c of h.setDocCalls) {
-        if (c.path !== "v2_users/uid_test") continue;
-        for (const k of Object.keys((c.data.testResults as object) || {})) kinds.add(k);
+      for (const c of h.callableCalls) {
+        if (c.name !== "saveTestResultV2") continue;
+        const k = (c.data as { kind?: string }).kind;
+        if (k) kinds.add(k);
       }
       expect(kinds.has("political")).toBe(false);
+      // WHAT THIS CASE DOES NOT PROVE, found on 2026-09-09 (D431) by adding
+      // `expect(kinds.size).toBeGreaterThan(0)` and watching it fail: the
+      // set is EMPTY here, so the "still writes the OTHER instruments" half
+      // of the name is not checked by this fixture and never was. Only
+      // political prompts are seeded, and `passiveResult` refuses an
+      // instrument whose axes are not all behind MIN_AXIS_ITEMS — so big5,
+      // values and attachment fold to null whatever the gate does, and a
+      // gate placed one level too high would pass here.
+      //
+      // The assertion above is still real: it is another absence case, and
+      // the block's positive control carries the weight. Closing the other
+      // half needs two real prompts per axis for a second instrument (ten
+      // for the Big Five, matched BY PROMPT — `testItemMeta` refuses
+      // anything else), which is a fixture rather than a line, and it is
+      // not this change's to build. Left named as it is, with the gap
+      // written down, rather than renamed to hide it.
     });
 
     it("setPoliticalConsent(false) deletes the published compass in the SAME write", async () => {
       // The half a display toggle skips. A record written without the
       // deletion is a profile that still carries the coordinate behind a
       // switch reading "off" — worse than no switch, because it is a
-      // claim. One merge, so a partial failure cannot land that state.
+      // claim. One write, so a partial failure cannot land that state.
+      //
+      // STILL ONE WRITE, on the server since D431. `testResults` became
+      // server-only because rules cannot bound a nested map's size, and
+      // the obvious port — a client consent merge plus a callable removal
+      // — would have reintroduced exactly the window this case exists to
+      // forbid, most of all offline, where the old Firestore write simply
+      // queued. So the record rides WITH the removal in one call and one
+      // `set`. This case is what stops anyone splitting them again: it
+      // asserts both halves are in the SAME invocation, not merely that
+      // both happened.
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
         ? { consent: { political: { v: 1, at: 1 } } } : null);
       const LIVE = await bootLive();
       h.setDocCalls.length = 0;
+      h.callableCalls.length = 0;
       await LIVE.setPoliticalConsent(false);
-      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
-      expect(call, "no profile write at all").toBeTruthy();
-      const data = call!.data as Record<string, Record<string, unknown>>;
-      expect(data.consent.political).toMatchObject({ off: expect.any(Number) });
-      expect(data.testResults.political).toBe("__delete__");
+      const call = h.callableCalls.find((c) => c.name === "saveTestResultV2");
+      expect(call, "no withdrawal write at all").toBeTruthy();
+      const data = call!.data as Record<string, unknown>;
+      expect(data.kind).toBe("political");
+      expect(data.result, "the coordinate was not removed").toBe(null);
+      expect(data.politicalConsent, "the consent record did not ride along, so a "
+        + "failed call leaves the coordinate published behind an off switch",
+      ).toMatchObject({ off: expect.any(Number) });
+      // And nothing wrote `testResults` straight to the profile, which the
+      // rules would refuse — a client that still tried would take the
+      // whole withdrawal down with it.
+      const direct = h.setDocCalls.find((c) => c.path === "v2_users/uid_test"
+        && !!(c.data as Record<string, unknown>).testResults);
+      expect(direct, "a client profile write still carried testResults").toBeFalsy();
     });
 
     it("purges a compass a pre-gate build already published, with no consent on file", async () => {
@@ -2887,23 +2950,26 @@ describe("window.LIVE public surface", () => {
       const LIVE = await bootLive();
       await flush();
       h.setDocCalls.length = 0;
+      h.callableCalls.length = 0;
       (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
       await flush();
-      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      // Through the callable's remove arm since D431 — see politicalWrites
+      // above for why the assertion followed the write.
+      const call = h.callableCalls.find((c) => c.name === "saveTestResultV2"
+        && (c.data as { kind?: string }).kind === "political"
+        && (c.data as { result?: unknown }).result === null);
       expect(call, "the stored compass was left on the profile — the gate "
         + "stops a NEW one being computed and says nothing about the one "
         + "already published").toBeTruthy();
-      const data = call!.data as Record<string, Record<string, unknown>>;
-      expect(data.testResults.political).toBe("__delete__");
       // …and no real coordinate is written back in the same breath.
-      // `politicalWrites()` matches on truthiness and the delete sentinel
-      // is a truthy string, so this asks the sharper question: is any
-      // write carrying an actual result object?
-      const real = politicalWrites().filter((c) => {
-        const d = c.data as Record<string, Record<string, unknown>>;
-        return d.testResults.political !== "__delete__";
-      });
-      expect(real).toHaveLength(0);
+      // `politicalWrites()` already excludes the removal arm, so this is
+      // the sharp question on its own: did any call carry a result object?
+      expect(politicalWrites()).toHaveLength(0);
+      // The consent record does NOT ride along here, and that is the
+      // difference between this case and the withdrawal above: there is no
+      // consent on file to withdraw, so the callable is asked to remove a
+      // coordinate and nothing else.
+      expect((call!.data as Record<string, unknown>).politicalConsent).toBeUndefined();
     });
 
     it("purging costs no write when there is nothing to purge", async () => {
@@ -2956,13 +3022,26 @@ describe("window.LIVE public surface", () => {
       h.setDocCalls.length = 0;
       await LIVE.setPoliticalConsent(false);
       await LIVE.setPoliticalConsent(true);
-      const writes = h.setDocCalls.filter((c) => c.path === "v2_users/uid_test");
-      expect(writes.length, "the two writes did not both land").toBeGreaterThanOrEqual(2);
+      // THE TWO HALVES TRAVEL DIFFERENTLY SINCE D431, and the replay has to
+      // follow both or it reads only half the history. A withdrawal is one
+      // server-side write (`saveTestResultV2` carries the record with the
+      // coordinate removal, so a partial failure cannot leave the switch
+      // lying); a grant touches no test result and stays a client write.
+      // Withdrawal first, then grant — the order this case performs them —
+      // so concatenating in that order replays exactly what Firestore saw.
+      const withdrawals = h.callableCalls
+        .filter((c) => c.name === "saveTestResultV2"
+          && (c.data as { politicalConsent?: unknown }).politicalConsent !== undefined)
+        .map((c) => (c.data as { politicalConsent: Record<string, unknown> }).politicalConsent);
+      const grants = h.setDocCalls
+        .filter((c) => c.path === "v2_users/uid_test")
+        .map((c) => ((c.data as Record<string, Record<string, unknown>>).consent || {}).political)
+        .filter(Boolean) as unknown as Array<Record<string, unknown>>;
+      expect(withdrawals.length, "the withdrawal did not land").toBeGreaterThanOrEqual(1);
+      expect(grants.length, "the re-grant did not land").toBeGreaterThanOrEqual(1);
       const stored: Record<string, unknown> = {};
-      for (const w of writes) {
-        const pol = ((w.data as Record<string, Record<string, unknown>>).consent || {}).political;
-        if (!pol) continue;
-        for (const [k, v] of Object.entries(pol as Record<string, unknown>)) {
+      for (const pol of [...withdrawals, ...grants]) {
+        for (const [k, v] of Object.entries(pol)) {
           if (v === "__delete__") delete stored[k];
           else stored[k] = v;
         }

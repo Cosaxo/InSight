@@ -420,63 +420,50 @@ service cloud.firestore {
           ? (resource != null
             && request.resource.data.handle == resource.data.get("handle", null))
           : (resource == null || resource.data.get("handle", null) == null))
-        // testResults.logic is the VERIFIED logic score, written only by
-        // logicSubmitV2 (admin SDK bypasses rules) after server-side
-        // scoring — a client-writable copy would be a forgeable one (D57).
-        // Presence allowed (every client profile write is a merge, so the
-        // key rides along once the callable has written it), mutation not.
+        // testResults is SERVER-ONLY, WHOLE — written only by
+        // `saveTestResultV2` for the four folded kinds and by
+        // `logicSubmitV2` for `logic` (the admin SDK bypasses rules).
+        // `logic` has been server-written since D57 because a
+        // client-writable copy of a VERIFIED score would be a forgeable
+        // one; the other four joined it for size, below. The client may
+        // carry `testResults` along in a merge — every profile write here
+        // is one — but may not CHANGE it.
+        //
+        // WHY THE WHOLE MAP AND NOT A VOCABULARY. D429 (2026-09-09) bounded
+        // which KEYS may appear, and said in its own words that it "does NOT
+        // bound the size inside a legitimate kind; that needs per-kind shape
+        // checks and is its own increment". Those checks cannot be written
+        // here: rules have no quantifier over a list, so `dims` may hold
+        // eight entries whose `label` is a megabyte each and no clause can
+        // see it — on a document `voters.ts` fetches THIRTY of at a time,
+        // whole, with no field mask. Measured against the pre-D429 ruleset:
+        // a 300 KB string in `testResults.big5` was ACCEPTED where a
+        // 61-character display name was refused, and D429 did not move that.
+        //
+        // So the bound moved to where a loop can run — `saveTestResultV2`
+        // (functions/src/testResults.ts), which validates every field and
+        // REBUILDS the value, capping a stored result near 700 bytes. This
+        // clause is the other half: it is what makes the callable the only
+        // writer. `logic` needed exactly this treatment for a different
+        // reason (D57, forgery) and had it alone; the size argument makes it
+        // the rule for all five.
+        //
+        // AND IT IS CHEAPER THAN WHAT IT REPLACES, which matters on this arm
+        // in particular — D429 measured the profile create at 80–140
+        // expressions below the runtime ceiling and named this file's two
+        // ceilings. One equality replaces the vocabulary `hasOnly` AND the
+        // per-key `logic` comparison, because a map that cannot change
+        // cannot gain a key either. The vocabulary is now enforced by the
+        // callable's own `CLIENT_TEST_KINDS`, where it is a list an
+        // exhaustive test can read.
+        //
+        // On CREATE `resource` is null and the key must simply be absent:
+        // a profile is created before any fold has run, and the callable
+        // writes with a merge that creates the field afterwards.
         && (!("testResults" in request.resource.data)
-          || (request.resource.data.testResults is map
-            // KEYS, not just a count. `size() <= 8` bounded how MANY
-            // entries a profile carries and nothing bounded how big one
-            // is, on a document every other device downloads WHOLE —
-            // voters.ts resolves thirty uids per query and says so in its
-            // own comment ("the web SDK has no field mask, so the whole
-            // profile document — testResults included — was already on
-            // the wire"). Eight keys of arbitrary values is a 1 MiB
-            // profile from one free anonymous account, served to everyone
-            // who meets it. Measured 2026-09-09 against this ruleset: a
-            // 400 KB value was ACCEPTED while a 61-character display name
-            // was refused.
-            //
-            // The five are the whole vocabulary, verified rather than
-            // assumed: `CORE_TEST_KINDS` (big5, political, values,
-            // attachment) is the only set `saveTestResult` is ever called
-            // with — IS_TESTS defines exactly those four and
-            // `syncPassiveResults` iterates the same constant — plus
-            // `logic`, which only logicSubmitV2 writes through the admin
-            // SDK. Nothing else in the tree writes a key here.
-            //
-            // This does NOT bound the size inside a legitimate kind; that
-            // needs per-kind shape checks and is its own increment. What
-            // it removes is the arbitrary key, which is the whole of the
-            // cheap version of the attack.
-            //
-            // If lenses ever mirror their scores (lens-defs.js records why
-            // they do not), this list is what has to grow — that comment
-            // already says "the rules cap and its test", and this is it.
-            //
-            // AND IT REPLACES `keys().size() <= 8` rather than joining it.
-            // Five names cannot reach nine, so the count could never
-            // evaluate false again — rules-coverage said so on the first
-            // run, its never-false list going UP by one — and a knowingly
-            // dead clause on a path already near the expression ceiling is
-            // worse than no clause. The vocabulary bounds the count
-            // structurally, at whatever length the list is, forever.
-            //
-            // (The absolute figures that used to sit in that sentence, 44
-            // going to 45, were retired hours later the same night: the
-            // gate had been filing a predicate whose negative case ERRORS
-            // as never-false, and fixing that took the list from 44 to 8.
-            // The direction is what the argument rests on, so the numbers
-            // are gone rather than restated — a figure in a comment is the
-            // documentation error this repo keeps re-committing.)
-            && request.resource.data.testResults.keys()
-                 .hasOnly(["logic", "big5", "political", "values", "attachment"])
-            && (!("logic" in request.resource.data.testResults)
-              || (resource != null
-                && request.resource.data.testResults.logic
-                  == resource.data.get("testResults", {}).get("logic", null)))))
+          || (resource != null
+            && request.resource.data.testResults
+              == resource.data.get("testResults", {})))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isOptionalStamp(request.resource.data.get("createdAt", null))
         && isOptionalStamp(request.resource.data.get("updatedAt", null))

@@ -51,6 +51,18 @@
 	     and an error that names the entitlement rather than the portal.
 	     The dry run (ios-release.yml with upload off) is the cheap proof:
 	     it archives, signs and exports without spending a build number.
+	     RUN, AND IT PASSED — 2026-09-09, run 58 on commit d646394, with
+	     the upload step skipped. Archive and Export both succeeded, so
+	     the App ID does carry the capability and this key is granted by
+	     the profile.
+
+	     THE FIREBASE HALF IS ALSO ON, measured the same day. The provider
+	     must be enabled in Firebase Console → Authentication → Sign-in
+	     method too, or signInWithCredential refuses the Apple credential
+	     with auth/operation-not-allowed — a separate prerequisite that the
+	     archive above says nothing about. It was already enabled;
+	     `node scripts/check-auth-providers.mjs` reads it back and is the
+	     probe this repo did not know it had.
 
 	     "Default" is the whole value — the array exists because Apple also
 	     defines it for the sibling flow where an app signs users in on
