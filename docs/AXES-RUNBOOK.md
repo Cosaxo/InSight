@@ -100,6 +100,26 @@ trace. Fire-with-appended-text is retired as a diagnostic instrument —
 the appended text demonstrably did not preempt the stored prompt;
 minimal `create_session` probes are the instrument that measured true.
 
+**Third platform measurement (2026-09-01, the first retro): the
+dispatcher is a single queue, and a stall delays every lane
+silently.** After the database theory lane's fire on 2026-08-30
+08:03 UTC, the dispatcher session dispatched nothing until 2026-09-01
+12:51 — when ten queued firings (the 08-30 retro, the four
+even-date theory lanes dated 08-30, the 09-01 build fire and the
+four odd-date theory lanes dated 09-01) all delivered within two
+minutes. Observed consequences: the retro ran two days late; no
+sessions dated 2026-08-31 exist, so that day's odd-date theory fires
+were either skipped or absorbed into the 09-01 batch; and the flush
+ran ten lanes concurrently against one subscription window, which
+the schedule spacing exists to avoid. No lane could see this from
+inside its own run and no run-log line could have shown it — a lane
+that never fires writes nothing, so the silence was upstream of
+every reporter. The response is detection rather than rebinding
+(one stall is not a pattern): the retro lane's learned rule of the
+same date makes fire-time drift a weekly check. If it recurs, the
+lever is the binding itself, and that is the owner's call — this
+paragraph is the record to argue from.
+
 **The permission surface is committed, not per-session (added
 2026-08-25, owner's direction: lanes must never stall on a prompt).**
 `.claude/settings.json` on `main` pre-approves the lanes' working
@@ -217,6 +237,21 @@ and this file's unchecked steps. Outputs, in order:
    update rule (AXES-PLAN §10).
 3. **Nothing to amend → digest only**, and that is a healthy week, not
    a failed run.
+
+Learned rules, dated (the QUESTION-FARM amendment style):
+
+- **2026-09-01 — check fire times, not just run reports.** What
+  happened: the dispatcher stalled from 2026-08-30 08:06 to
+  2026-09-01 12:51 and every queued firing then delivered at once;
+  the retro itself ran two days late, and the run log showed nothing,
+  because a lane that never fires writes no line. What changes: every
+  retro compares actual lane session start times (`list_sessions`,
+  where readable) against each Routine's schedule since the last
+  retro, and the digest reports any gap or batch delivery. Why: the
+  dispatch layer is the one place where "correctly idle" and
+  "silently broken" look identical from outside — farm hard rule 7's
+  blind spot, one level up — and the retro is the only lane
+  positioned to see it.
 
 ## Canonical prompts
 
