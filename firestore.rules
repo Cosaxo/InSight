@@ -62,8 +62,14 @@ service cloud.firestore {
     // AND the update rule against one budget — stops reporting
     // PERMISSION_DENIED for running out of expressions.
     function isShortAnchor(anchors, key, max) {
-      return anchors.get(key, "") is string
-        && anchors.get(key, "").size() <= max;
+      // ONE READ, NOT TWO (RULES-BUDGET-PLAN §4, D433). The map was read
+      // once for `is string` and again for `size()`, ten keys deep on
+      // every answer and every profile write; bound once, it is read
+      // once and both tests see the same value. Same verdicts: an absent
+      // key is still "" (inside any bound), and a present non-string
+      // still fails `is string` before `size()` is asked of it.
+      let v = anchors.get(key, "");
+      return v is string && v.size() <= max;
     }
 
     // A moment, or nothing. Written for `v2_users.createdAt`/`updatedAt`,
