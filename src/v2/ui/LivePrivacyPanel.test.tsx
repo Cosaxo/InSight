@@ -425,3 +425,35 @@ describe("LivePrivacyPanel · the walkthrough can be shown again (D393)", () => 
     expect(WT.mountWalkthrough).toHaveBeenCalledWith({ again: true });
   });
 });
+
+// ── clearing the name (D440) ───────────────────────────────────────
+//
+// A blank Save used to return before reaching the store, so a name once
+// set could never be un-set from the one screen that edits it — and the
+// directory row it had written stood forever, which is the finding the
+// owner ruled on (OWNER-LIST, 2026-09-07). The store now deletes that row
+// on an empty name; what is pinned here is the only screen that can hand
+// it one, and that an account with nothing to clear still saves nothing.
+describe("LivePrivacyPanel · a blank Save clears a set name (D440)", () => {
+  afterEach(() => { LIVE.displayName = "Tester"; LIVE.saveDisplayName = async () => {}; });
+
+  it("hands the store the empty name when one is set", async () => {
+    const save = vi.fn(async () => {});
+    LIVE.saveDisplayName = save;
+    render(<LivePrivacyPanel />);
+    const field = screen.getByPlaceholderText("Add a name") as HTMLInputElement;
+    expect(field.value).toBe("Tester");
+    fireEvent.change(field, { target: { value: "  " } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(""));
+  });
+
+  it("stays a no-op on an account with no name to clear", () => {
+    const save = vi.fn(async () => {});
+    LIVE.saveDisplayName = save;
+    LIVE.displayName = "";
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    expect(save).not.toHaveBeenCalled();
+  });
+});
