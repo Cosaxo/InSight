@@ -383,25 +383,34 @@ arithmetic.
       is alive, and the scorecard fetch (`QUESTION-FARM.md` Phase A) is
       unblocked. `SHIP-CHECKLIST §2`.
 
-      **Google is enabled but UNVERIFIED.** The project-config endpoint
-      returns only `authorizedDomains` to an unauthenticated caller, no
-      `idpConfig`, so there is no remote probe for it. It is verified by
-      tapping *Link Google* in the app — which 0.1 requires anyway, since
-      the seed gate matches a Google-account uid. Treat 0.1 succeeding as
-      the proof.
+      **THERE IS A REMOTE PROBE AFTER ALL, and everything here is on.**
+      This said Google was *"enabled but UNVERIFIED"* because *"the
+      project-config endpoint returns only `authorizedDomains` to an
+      unauthenticated caller, no `idpConfig`, so there is no remote probe
+      for it"*. True about an unauthenticated caller, and false about this
+      repo: the deploy service account already in `FIREBASE_SERVICE_ACCOUNT`
+      reads the Identity Platform admin API, which returns exactly that
+      missing `idpConfig`. Measured 2026-09-09 against `prvfire33`
+      (HTTP 200): **apple.com on, google.com on, anonymous on, email on.**
+      `node scripts/check-auth-providers.mjs` re-runs it and fails if any
+      door the app offers is off — not a CI gate, because it needs a
+      production credential the PR path does not have.
 
-      **APPLE IS A THIRD PROVIDER THIS ITEM NEVER NAMED, and since
-      2026-09-09 the client asks for it.** The tick above is left as it
-      is because it is honest about what it says — Anonymous and Google —
-      but D414 added Apple's door, night shift A wired the native
-      provider list to reach it (`capacitor.config.ts`, previously
-      `["google.com"]` only), and nothing anywhere records Apple being
-      switched on in Sign-in method. It has the same absence of a remote
-      probe as Google and, unlike Google, no record of ever having been
-      enabled. It is on `OWNER-LIST.md` § Clicks with the failure mode
-      (`auth/operation-not-allowed`) and the scope (the toggle is the
-      whole of it for iOS native; a Services ID is only for the web
-      popup path, which the iOS-only wall does not use).
+      So Google is verified, and so is Apple, which this item never named.
+      Tapping *Link Google* in the app is still the end-to-end proof and
+      0.1 requires it anyway; what changed is that a wrong answer no longer
+      waits for a handset to reveal it.
+
+      **APPLE IS A THIRD PROVIDER THIS ITEM NEVER NAMED, and it is on.**
+      The tick above is left as it is because it is honest about what it
+      says — Anonymous and Google. D414 added Apple's door, night shift A
+      wired the native provider list to reach it (`capacitor.config.ts`,
+      previously `["google.com"]` only), and nothing in the tree recorded
+      whether the provider itself was enabled — so it went to the owner as
+      a click. It was already on: the probe above reads
+      `apple.com enabled=true`. The gap was the paper trail rather than the
+      console, which is why the probe is the fix and the click was not
+      needed.
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
       Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak

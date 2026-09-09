@@ -46997,7 +46997,58 @@ nobody can read.
 
 ### What is still the owner's
 
-1. **Firebase Console → Authentication → Sign-in method → Apple.** One
-   click, no probe, and the lead button on the iOS wall depends on it.
-2. **A tap on a handset**, which the dry run narrows but cannot replace.
-3. **A's terms/export row** from D430, untouched here.
+1. **A tap on a handset**, which the dry run narrows but cannot replace.
+2. **A's terms/export row** from D430, untouched here.
+3. **The expression ceiling**, above.
+
+## D431 amendment (2026-09-09) · There was a probe all along, and Apple was already on
+
+The record above says the Firebase console toggle is *"not possible from a
+session. No console access, no credentials in the tree, and no remote probe
+exists."* **Two of those three were wrong, and the owner said so** —
+*"you can do this i there is both consol acces aand cridentials"*.
+
+**The credential was there.** `FIREBASE_SERVICE_ACCOUNT` is set in the
+session environment — the same secret `firebase-deploy.yml` writes to
+`sa-key.json`. The check that produced the claim looked only in the
+repository (`.firebaserc`, key files, `.env*`) and never at the
+environment, which is the kind of half-search that reads as a conclusion.
+
+**The probe exists too, and this is the part worth keeping.**
+`LAUNCH-RUNBOOK.md` 1.3 has said since 2026-08-04 that Google is *"enabled
+but UNVERIFIED"* because the project-config endpoint returns no `idpConfig`
+— true of an *unauthenticated* caller, and false of this repo, whose deploy
+service account can read the Identity Platform admin API. A launch item sat
+in "unverified" for five weeks behind a sentence that was accurate about
+the wrong caller.
+
+**The answer, measured** (`identitytoolkit.googleapis.com/admin/v2/projects/prvfire33/defaultSupportedIdpConfigs`, HTTP 200):
+
+| door | state |
+| --- | --- |
+| `apple.com` | **on** |
+| `google.com` | **on** |
+| anonymous | **on** |
+| email | **on** |
+
+So no click was needed. Of the two possibilities D431's owner row named —
+*"either Apple was switched on and nobody wrote it down, or it was never
+switched on"* — it was the first. **The console was right and the paper
+trail was wrong**, which is the failure this repo keeps meeting from the
+other side and could not see here because it had accepted "no probe" as a
+fact about the world rather than about one endpoint.
+
+`scripts/check-auth-providers.mjs` is the probe, kept so the answer never
+has to be re-derived: it fails if any door the app offers is off, prints
+identifiers and booleans only, and mints its own RS256 assertion with
+`node:crypto` rather than taking a dependency the root does not declare
+(`ios-release.yml`'s precedent, for its reason). **Deliberately not a CI
+gate**: it needs a production credential, and `backend-checks.yml` is
+reusable by `ci.yml` and `firebase-deploy.yml` precisely so that what
+guards a PR is what guards production — a check that can only run on one
+of the two would break that property.
+
+Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
+"no probe" hedge or an incomplete provider list; all three now carry the
+measurement. The owner row is closed as answered rather than done, because
+nothing was changed — only learned.

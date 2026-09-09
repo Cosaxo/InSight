@@ -165,21 +165,21 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
-- **Enable the provider** — **Google and Anonymous done 2026-08-04;
-  APPLE IS NOT RECORDED AS DONE and the client now asks for it.**
-  Firebase Console → Authentication → Sign-in method: both **Google** and
-  **Anonymous** are on. D3 depends on Anonymous and it is measured, not
-  assumed — the same `accounts:signUp` probe that returned
-  `ADMIN_ONLY_OPERATION` on 2026-08-03 now returns an `idToken`. Google is
-  enabled but has no remote probe (§1 explains why); the seed run verifies
-  it. Apple has the same absence of a probe and, unlike Google, no record
-  of ever having been switched on — see the owner row, and the *Sign in
-  with Apple* item under **Before-public hardening** for the door itself.
-  Note the two Apple prerequisites are separate and only one is open: the
-  **Developer portal** capability on the App ID was confirmed on
-  2026-09-09 by an `ios-release.yml` dry run (upload off, run 58) whose
-  Archive step passed, which is the step that fails without it. The
-  **Firebase** Sign-in method toggle is the one still unrecorded. The client side is
+- ~~**Enable the provider**~~ — **done, and MEASURED 2026-09-09: every
+  door is on.** Firebase Console → Authentication → Sign-in method carries
+  **apple.com, google.com, anonymous and email**, all enabled — read from
+  the Identity Platform admin API with the deploy service account
+  (`node scripts/check-auth-providers.mjs`, HTTP 200). That probe is new
+  and it retires this item's own hedge: §1 said Google had *no remote
+  probe*, which is true only of an unauthenticated caller. D3 depends on
+  Anonymous and was already measured by the `accounts:signUp` probe that
+  returned `ADMIN_ONLY_OPERATION` on 2026-08-03 and an `idToken` after.
+  **Both Apple prerequisites are now measured and neither is open**: the
+  **Developer portal** capability on the App ID by an `ios-release.yml` dry
+  run (upload off, run 58) whose Archive step passed — the step that fails
+  without it — and the **Firebase** provider by the probe above. What is
+  left for that door is a tap on a handset, which is a test and not a
+  setting. The client side is
   wired: `capacitor.config.ts` declares
   `providers: ["apple.com", "google.com"]` (Apple added 2026-09-09 — the
   plugin builds a handler only for the ids named here, so every Apple
