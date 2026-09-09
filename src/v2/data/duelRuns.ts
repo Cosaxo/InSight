@@ -54,8 +54,25 @@ const qidOf = (v: RevealVoteLike, rowQid: string): string =>
  *
  * `history` may arrive in any order — `revealHistory()` returns newest
  * first and the runs are drawn oldest-left, so this sorts by day key rather
- * than trusting the caller. Reveals with no `day` sort last (they are the
- * live listener's copy of yesterday, which the caller stamps).
+ * than trusting the caller.
+ *
+ * A reveal with no `day` sorts FIRST, not last. This said "last" and the
+ * code never did it: the comparator is `String(a.day || "")`, and an empty
+ * string precedes every date key, so a dayless reveal — the live
+ * listener's copy of yesterday, before the caller stamps it — lands at the
+ * oldest end of a run drawn oldest-left. Nothing caught it because no case
+ * passes one. `sortsDayless` below is the pin, so the sentence and the
+ * comparator cannot drift apart again.
+ *
+ * NO PRODUCTION CALLER. Everything outside this module and its own test
+ * that names `duoRuns` is a COMMENT citing it — `LiveRolesPanel` and
+ * `roles.ts` both do — while the fold that actually runs is `roles.ts`'s
+ * private `duoFold`, reached through `duoRoleRounds` and `duoRole`. So
+ * there are two definitions of "a scored round" in the tree and this is
+ * the one nobody executes. Left standing rather than deleted on an
+ * unattended night, because removing a tested export that two comments
+ * point at is a bigger call than correcting a false sentence; recorded on
+ * the night list so the choice is made deliberately.
  */
 export function duoRuns(
   history: readonly RevealDocLike[],
