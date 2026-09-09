@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 474 lines instead of
-48,827. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 475 lines instead of
+48,979. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -14,7 +14,7 @@ detect it.
 
 | # | Decision | Cited later by | Line |
 | --- | --- | --- | --- |
-| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D446 (+52) | 14 |
+| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D446 (+53) | 14 |
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
 | **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D421 (+29) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
@@ -22,7 +22,7 @@ detect it.
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
 | **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D446 (+34) | 167 |
 |  | ↳ *amendment 2026-08-03* — [The retry-logging trigger now has an instrument](DECISIONS.md#d7-amendment-2026-08-03--the-retry-logging-trigger-now-has-an-instrument) | — | 3523 |
-| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D426 (+45) | 449 |
+| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D442 (+46) | 449 |
 | **D9** | [Near is your city — picked from a list, or located on the device](DECISIONS.md#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device) | D192 (+21) | 556 |
 | **D10** | [@capacitor-firebase/app-check is installed under an npm alias](DECISIONS.md#d10--capacitor-firebaseapp-check-is-installed-under-an-npm-alias) | D29 | 815 |
 | **D11** | [The feed's argument surfaces are demo-only, by structure not by flag](DECISIONS.md#d11--the-feeds-argument-surfaces-are-demo-only-by-structure-not-by-flag) | D280 (+4) | 884 |
@@ -103,7 +103,7 @@ detect it.
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D378 (+9) | 8049 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D370 (+8) | 8171 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D417 (+2) | 8248 |
-| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D437 (+31) | 8349 |
+| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D442 (+32) | 8349 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D303 (+5) | 8439 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8518 |
 | **D89** | [The feed's "knows this best" row is demo furniture — live mode refuses it](DECISIONS.md#d89--the-feeds-knows-this-best-row-is-demo-furniture--live-mode-refuses-it) | D133 (+2) | 8582 |
@@ -216,10 +216,10 @@ detect it.
 | **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D258 (+7) | 19927 |
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D377 (+12) | 20100 |
 | **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D341 (+4) | 20213 |
-| **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D424 (+14) | 20321 |
+| **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D442 (+15) | 20321 |
 | **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D381 (+6) | 20470 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20666 |
-| **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D344 (+4) | 20748 |
+| **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D442 (+5) | 20748 |
 | **D201** | [The functions follow the database to europe-west1](DECISIONS.md#d201--the-functions-follow-the-database-to-europe-west1) | D301 (+1) | 20897 |
 | **D202** | [The type mix reads every instrument, and D157 §4 is reversed](DECISIONS.md#d202--the-type-mix-reads-every-instrument-and-d157-4-is-reversed) | D252 (+3) | 21022 |
 | **D203** | [Five pulses, each with its own rhythm](DECISIONS.md#d203--five-pulses-each-with-its-own-rhythm) | D273 (+3) | 21124 |
@@ -298,7 +298,7 @@ detect it.
 | **D275** | [The private aggregate mirror collapses into the published one](DECISIONS.md#d275--the-private-aggregate-mirror-collapses-into-the-published-one) | D424 (+4) | 27541 |
 | **D276** | [The suite audited itself: what stayed green while being wrong](DECISIONS.md#d276--the-suite-audited-itself-what-stayed-green-while-being-wrong) | D352 (+9) | 27661 |
 | **D277** | [The similarity surfaces were ranking on a tier that could not fire](DECISIONS.md#d277--the-similarity-surfaces-were-ranking-on-a-tier-that-could-not-fire) | D299 (+4) | 27806 |
-| **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | D397 (+1) | 28071 |
+| **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | D442 (+2) | 28071 |
 | **D279** | [There were always five test runners, and the table said four](DECISIONS.md#d279--there-were-always-five-test-runners-and-the-table-said-four) | D284 | 28180 |
 | **D280** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d280--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D415 (+5) | 28283 |
 | **D281** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d281--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | D351 (+2) | 28431 |
@@ -431,7 +431,7 @@ detect it.
 | **D394** | [The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary](DECISIONS.md#d394--the-fit-had-not-left-its-seeds-and-the-scorecard-could-not-say-so-a-baseline-row-a-skill-score-and-a-seed-distance-summary) | D408 | 41660 |
 | **D395** | [Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover](DECISIONS.md#d395--two-engines-on-one-document-the-persons-answer-map-as-the-fits-substrate-a-batch-candidate-scored-beside-the-online-fit-and-a-fortnight-crossover) | D396 | 41750 |
 | **D396** | [The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about](DECISIONS.md#d396--the-device-reads-the-whole-corpus-the-viewers-evidence-in-every-kind-the-ridge-off-the-document-and-the-oracle-asks-what-it-knows-least-about) | — | 41890 |
-| **D397** | [The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred](DECISIONS.md#d397--the-nightly-voter-samples-kindred-the-people-lens-and-the-pair-card-read-one-document-per-question-instead-of-two-hundred) | D398 | 41975 |
+| **D397** | [The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred](DECISIONS.md#d397--the-nightly-voter-samples-kindred-the-people-lens-and-the-pair-card-read-one-document-per-question-instead-of-two-hundred) | D442 (+1) | 41975 |
 | **D398** | [The breakdown cap reports what it discards, three lens folds run once per input, and the Circle reads a member's newest answers](DECISIONS.md#d398--the-breakdown-cap-reports-what-it-discards-three-lens-folds-run-once-per-input-and-the-circle-reads-a-members-newest-answers) | D400 | 42053 |
 | **D399** | [One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once](DECISIONS.md#d399--one-nightly-pass-over-the-ledger-the-digest-the-patterns-fit-and-the-taste-fold-read-yesterdays-entries-once) | D406 | 42181 |
 | **D400** | [The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own](DECISIONS.md#d400--the-breakdown-caps-tail-every-city-and-country-cell-the-hot-document-cannot-hold-in-eight-shards-a-reader-opens-only-for-its-own) | D408 | 42268 |
@@ -482,9 +482,10 @@ detect it.
 | **D439** | [The bridge's read half: the fit's own scorecard becomes readable from `main`](DECISIONS.md#d439--the-bridges-read-half-the-fits-own-scorecard-becomes-readable-from-main) | — | 48064 |
 | **D440** | [The owner of a directory row may delete it — clearing your display name unlists you](DECISIONS.md#d440--the-owner-of-a-directory-row-may-delete-it--clearing-your-display-name-unlists-you) | — | 48161 |
 | **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48403 |
+| **D442** | [The nightly voter samples are seeded on first touch: one bounded query per question, once, at most 25 a night](DECISIONS.md#d442--the-nightly-voter-samples-are-seeded-on-first-touch-one-bounded-query-per-question-once-at-most-25-a-night) | — | 48504 |
 | **D444** | [The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's](DECISIONS.md#d444--the-ten-plain-picks-get-a-sixth-pack-any-given-evening-four-of-them-in-place-six-retired-by-the-one-role-a-seat-rule-the-live-flip-still-the-owners) | — | 48253 |
-| **D445** | [The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved](DECISIONS.md#d445--the-data-structure-is-rebuilt-for-users-ahead-of-demand-every-change-that-keeps-the-picture-is-approved) | — | 48505 |
-|  | ↳ *amendment 2026-09-08* — [Live, on the owner's word — and Phase 3 built with it](DECISIONS.md#d445-amendment-2026-09-08--live-on-the-owners-word--and-phase-3-built-with-it) | — | 48601 |
-| **D446** | [The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore](DECISIONS.md#d446--the-log-first-structure-hundreds-of-answers-a-day-and-millions-of-users-are-the-design-target-and-the-per-answer-path-leaves-firestore) | D447 | 48651 |
-|  | ↳ *amendment 2026-09-09, the same evening* — [Adopted on the owner's word, and phase A built](DECISIONS.md#d446-amendment-2026-09-09-the-same-evening--adopted-on-the-owners-word-and-phase-a-built) | — | 48707 |
-| **D447** | [The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on](DECISIONS.md#d447--the-exposure-pages-re-read-what-the-days-own-work-could-have-billed-bounded-the-same-evening--the-budget-acts-and-the-model-prices-the-database-it-is-on) | — | 48735 |
+| **D445** | [The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved](DECISIONS.md#d445--the-data-structure-is-rebuilt-for-users-ahead-of-demand-every-change-that-keeps-the-picture-is-approved) | — | 48657 |
+|  | ↳ *amendment 2026-09-08* — [Live, on the owner's word — and Phase 3 built with it](DECISIONS.md#d445-amendment-2026-09-08--live-on-the-owners-word--and-phase-3-built-with-it) | — | 48753 |
+| **D446** | [The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore](DECISIONS.md#d446--the-log-first-structure-hundreds-of-answers-a-day-and-millions-of-users-are-the-design-target-and-the-per-answer-path-leaves-firestore) | D447 | 48803 |
+|  | ↳ *amendment 2026-09-09, the same evening* — [Adopted on the owner's word, and phase A built](DECISIONS.md#d446-amendment-2026-09-09-the-same-evening--adopted-on-the-owners-word-and-phase-a-built) | — | 48859 |
+| **D447** | [The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on](DECISIONS.md#d447--the-exposure-pages-re-read-what-the-days-own-work-could-have-billed-bounded-the-same-evening--the-budget-acts-and-the-model-prices-the-database-it-is-on) | — | 48887 |
