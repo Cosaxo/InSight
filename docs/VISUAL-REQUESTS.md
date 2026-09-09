@@ -624,6 +624,60 @@ gates what the doors say.
   step 3 of `SIGNIN-PLAN.md`.
 
 
+### 13 · A node with more than two answers on the Map ring
+
+- **asked by** — the owner, 2026-09-09 (*"could add the catalog picks to
+  the question map"*), through `PATTERNS-PLAN.md` §5. The owner-list row
+  on instrument and multi-option items (D395, D396) already said a
+  wider Map is a visual and goes through this file; this is that
+  request.
+- **surface** — the **patterns** tab, Map lens as built: every
+  two-option core question a dot on the rim grouped by topic, a tie a
+  chord through the middle, and the card under the field saying *Pick
+  this here — and 78% pick that* (`ui/PatternsMap.tsx`,
+  `design/standalone-2026-09-02/question-map.jsx`). The request is the
+  dot and the card for a question whose answers are not two: a
+  three-or-four-option choice, a five-, ten- or twelve-point scale, and
+  a catalogue pick — one of about a thousand.
+- **data and basis** — the candidate engine's rows on
+  `v2_patterns/loadings`: `ord` (one row per scale question, with its
+  `sd`), `opt` (one row per option), and under the plan's §5 the
+  catalogue's per-entity rows above a floor plus one *everyone else*
+  row. What the card can say, exactly: for an option or an entity, the
+  same 2×2 count as today over the two bounded samples — *Pick Pikachu
+  here, and 64% pick tea*, basis stated (D146); for a scale, a lean
+  split at the median — *people who rate this high pick tea more often:
+  71% against 52%* — and the basis sentence must say it is a split. A
+  row under `PATTERNS_MIN_BASIS` draws no chord; an entity under the
+  entity floor is in *everyone else* and is never named.
+- **states** — the question's dot always; its chords only for rows
+  with basis; a catalogue with no entity above the floor: the dot, and
+  under it *no pick is common enough to say anything yet*; demo: never
+  — live only, like the rest of the tab (D167).
+- **interaction** — tap the dot and the card lists its ties. A question
+  with several answers first needs to know WHICH answer the ties are
+  about: the viewer's own if answered, else the most common, with a
+  chip row of the answers and the ties re-read on the chip. A chord's
+  sign — solid together, dashed opposite — is per answer, so a
+  four-answer question has four chord sets; the design decides whether
+  the rim shows the strongest answer's set at rest, or none until a
+  chip is chosen. A scale question's chip row is a low · mid · high
+  triplet, not twelve chips.
+- **vocabulary** — the ring and its ink-in family (`patterns.css`), the
+  tap card's rows, the guide ⓘ of 2026-09-06 (a basis sentence may move
+  behind it, never be deleted — D146), the copy rule D182.
+- **constraints** — no new reads: the rows are on the loadings
+  document and the 2×2 comes from the nightly samples the pair card
+  already shares; the ring's dot budget (`PATTERNS-PLAN.md` §7.2 — a
+  thousand dots on a rim of radius 131 is a line); tap targets
+  (`check:tap-targets`).
+- **why** — the app connects data and draws the connection where
+  someone can read it (CLAUDE.md, the first paragraph); half the core
+  corpus and every catalogue pick is invisible on the Map today, and
+  the owner's own example — *Pikachu and strawberries* — cannot be
+  drawn until this exists.
+- **status** — `requested`.
+
 ## Planned
 
 ## Drafted
