@@ -91,11 +91,25 @@ const rulesTests =
   countTests("firestore-tests/rules.test.ts")
   + countTests("firestore-tests/storage.rules.test.ts");
 
-// The seeded question bank. `functions/src/v2content.ts` is generated data
-// — one flat array of objects, each with a literal "id" and "surface" — so
-// counting the keys is exact rather than approximate. If that file ever
-// stops being generated and someone hand-writes an entry across lines, the
-// count still holds: the scan matches the key, not the object shape.
+// The seeded question bank, PARSED — not scanned for keys.
+//
+// It counted `"id":` occurrences until 2026-09-09 on the stated ground that
+// `functions/src/v2content.ts` is "one flat array of objects, each with a
+// literal id", so counting keys was exact. That ground held for as long as
+// the entries were flat, and D434 ended it the day the group became a cast:
+// a role vote carries `scen: { id … }` and `role: { id … }`, so 22 entries
+// grew two nested ids each and the key scan started reporting 1342 for a
+// bank of 1298. Nothing went red — this gate ENFORCES its own number, so it
+// pushed the wrong one into five files and `check:content`, printing the
+// real 1298 in the same CI job, disagreed with it all day.
+//
+// The lesson is the one D197 already paid for: the shared parser exists
+// (`scripts/v2content-lib.mjs`), this file already imports it and already
+// calls it five times below, and the ad-hoc regex two lines from those
+// calls was the only reader that could be wrong. So parse ONCE, here, and
+// derive both figures from the array — a nested member cannot be
+// miscounted as an entry, and a shape the parser cannot read is a loud
+// throw rather than an invented number.
 //
 // Two figures rather than one because they answer different questions.
 // The total is what `seedContent()` reports back to an operator, so it is
@@ -103,9 +117,14 @@ const rulesTests =
 // figure the launch plan reasons about — 90 questions is ~13 weeks at the
 // promotion cadence — and the two move independently.
 const v2content = read("functions/src/v2content.ts");
-const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m[1]);
-const seededQuestions = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
-const dailyQuestions = surfaces.filter((s) => s === "daily").length;
+// `scripts/v2content-lib.mjs` — one parser, shared with cost-arith and
+// question-quality, because all three had their own copy and all three
+// broke differently when a second export arrived (D197). Its header has the
+// three failure modes. Parsed once here and read by every figure below,
+// which is also six fewer parses of a 492 KB file per run.
+const bank = bankArray(v2content);
+const seededQuestions = bank.length;
+const dailyQuestions = bank.filter((q) => q.surface === "daily").length;
 
 // The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
 // measured off the file, because the file is TypeScript around the data:
@@ -115,14 +134,7 @@ const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 // One decimal place, and the gate compares the rounded value — the point is
 // to catch a promotion cycle moving the figure by kilobytes, not to make a
 // whitespace change red the tree.
-const bankKiB = (() => {
-  // scripts/v2content-lib.mjs — one parser, shared with cost-arith and
-  // question-quality, because all three had their own copy and all three
-  // broke differently when a second export arrived (D197). Its header has
-  // the three failure modes.
-  const arr = bankArray(v2content);
-  return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
-})();
+const bankKiB = Math.round((JSON.stringify(bank).length / 1024) * 10) / 10;
 
 // The Patterns fit's eligible corpus (D265) — two-option daily plus
 // two-option core feed, the rule `PATTERNS_QIDS` compiles from this same
@@ -130,11 +142,8 @@ const bankKiB = (() => {
 // pool floor is a fraction of, which is precisely the kind of sentence
 // this file exists for: it is true today, it moves every time the bank
 // grows a core question, and nothing else would notice.
-const patternsEligibleCount = (() => {
-  const arr = bankArray(v2content);
-  return arr.filter((q) => (q.options || []).length === 2
-    && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
-})();
+const patternsEligibleCount = bank.filter((q) => (q.options || []).length === 2
+  && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
 
 // WHAT A COLD BOOT ACTUALLY FETCHES, which stopped being "the whole
 // question bank" at D383 and was still pinned to the bank's size.
@@ -201,9 +210,8 @@ const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
 })();
 
 const coldBootBankDocs = (() => {
-  const arr = bankArray(v2content);
-  const whole = arr.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
-  const coreFeed = arr.filter((q) => q.surface === "feed" && q.core === true).length;
+  const whole = bank.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
+  const coreFeed = bank.filter((q) => q.surface === "feed" && q.core === true).length;
   return whole + coreFeed;
 })();
 
@@ -580,14 +588,8 @@ const callSites = (call) => {
 // The political marker's two figures, and the store header's own count of
 // the dynamic-import sites it points a reader at. All three sit in source
 // comments, which is where this repo's figure drift keeps surviving.
-const politicalQuestions = (() => {
-  const arr = bankArray(v2content);
-  return arr.filter((q) => q.political === true && q.surface !== "test").length;
-})();
-const dailyFeedQuestions = (() => {
-  const arr = bankArray(v2content);
-  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
-})();
+const politicalQuestions = bank.filter((q) => q.political === true && q.surface !== "test").length;
+const dailyFeedQuestions = bank.filter((q) => q.surface === "daily" || q.surface === "feed").length;
 const getDbSites = (() => {
   const src = stripComments(read("src/v2/data/live.ts"));
   return [...src.matchAll(/await getDb\(\)/g)].length;
