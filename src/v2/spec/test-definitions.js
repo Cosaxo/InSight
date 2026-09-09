@@ -121,33 +121,17 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
-  // The role instruments (D204). These are the baselines the matcher
-  // centres BOTH sides on before comparing, and they are authored like the
-  // four above rather than measured — deliberately, and for the reason
-  // D157 gave when it moved everything else onto measured folds: which
+  // The role instruments (D204; the owner's 2026-09-09 design's dims since
+  // D432). Authored, like the four above, and for the same reason: which
   // type you ARE must not drift with whoever the app happened to fetch
-  // this session. A duel record is also the thinnest sample in the app
-  // (14 readable reveal days), so a measured baseline here would be a
-  // handful of people wide.
-  //
-  // Not 50s: reading a partner is easier than being unreadable, and most
-  // people sit with their group more often than against it, so a neutral
-  // baseline would call an ordinary run remarkable.
-  //
-  // ON THE CHANCE SCALE since D386 (data/roles.ts, ROLES-PLAN §3.2): every
-  // rate is scored against luck per day, so 50 is guessing at random and
-  // the ordinary run sits ABOVE it. Re-authored from the raw figures that
-  // stood here (read/seen 62, like 54; group with-the-majority 66, agree
-  // 58) against the banks' mean chance — about 0.36 on a 1v1 day (13
-  // binary, 8 three-way, 11 four-way in the friends pool) and about 0.3
-  // on a group day (14 four-way, 4 binary, 8 picks): (0.62 − 0.36)/0.64
-  // ≈ 0.41 → 70; (0.54 − 0.36)/0.64 ≈ 0.28 → 64; with-the-majority
-  // (0.66 − 0.3)/0.7 ≈ 0.51 → 76, so away from it 24; agree
-  // (0.58 − 0.3)/0.7 ≈ 0.4 → 70. Steadiness is not a rate and did not
-  // move. Still authored, for the reason above; re-authoring from the
-  // first live fold is a one-line change and its own note.
-  duo:        { read: 70, seen: 70, like: 64, steady: 58 },
-  group:      { own: 24, pull: 70, settle: 58 },
+  // this session. Both instruments are SHARES now — a 1v1's four dims are
+  // the share of cast rounds in which they said you are each of four
+  // things, a group's the share of your received votes per seat — so the
+  // neutral is a quarter each, and 25 is the line a type is extreme
+  // against (the tables in archetype-data.js sit at 76/8 and 42/42 around
+  // it; data/roles.ts is the fold).
+  duo:        { trust: 25, spark: 25, judgement: 25, constancy: 25 },
+  group:      { engine: 25, hands: 25, heart: 25, wild: 25 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──

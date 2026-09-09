@@ -77,25 +77,28 @@ export const RP_TESTS = {
   // (`--c-people` rose for a 1v1, `--c-groups` gold for a group), which
   // means a role card is already the colour of the thing it describes and
   // no label has to say which one you are looking at.
+  // The dims are the owner's 2026-09-09 design's (D432): a 1v1's four
+  // axes a cast round names, a group's four seats.
   duo: {
     banner: 'oklch(0.47 0.11 8)',
     kicker: 'Role · in 1v1s',
-    hues: { read: 8, seen: 35, like: 62, steady: 340 },
+    hues: { trust: 8, spark: 35, judgement: 62, constancy: 340 },
     poles: {
-      read:   ['guessing', 'reading'],
-      seen:   ['unreadable', 'readable'],
-      like:   ['opposite', 'alike'],
-      steady: ['streaky', 'steady'],
+      trust:     ['told last', 'told first'],
+      spark:     ['along for it', 'starts it'],
+      judgement: ['not consulted', 'consulted'],
+      constancy: ['comes and goes', 'always there'],
     },
   },
   group: {
     banner: 'oklch(0.47 0.10 85)',
     kicker: 'Role · in groups',
-    hues: { own: 85, pull: 55, settle: 110 },
+    hues: { engine: 85, hands: 115, heart: 55, wild: 140 },
     poles: {
-      own:    ['with the room', 'your own'],
-      pull:   ['at the edge', 'in the middle'],
-      settle: ['streaky', 'steady'],
+      engine: ['waits for it', 'gets it going'],
+      hands:  ['watches', 'gets it done'],
+      heart:  ['apart', 'holds the room'],
+      wild:   ['predictable', 'the twist'],
     },
   },
 };
