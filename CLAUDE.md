@@ -553,11 +553,18 @@ an emergency rules fix.
   failure, so no pull request waits on another's merge to go green. Then
   say so and stop — **unless the
   owner tells you to merge, in that session and about that head, which
-  is the click**. What D385 retired was the unattended lane merging on a
+  is the click — or the PR is a content lane's own, which self-merges
+  on green (D212; the 2026-09-09 D385 amendment)**. What D385 retired
+  was the unattended lane merging on a
   label, and its first phrasing read as forbidding the instruction too;
-  the amendment is the owner's own correction (*"the sheperd did not
-  work merge when i say so"*), and it cost a round trip on #408 before
-  it was made. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where
+  the first amendment is the owner's own correction (*"the sheperd did
+  not work merge when i say so"*), and it cost a round trip on #408
+  before it was made. The second correction cost two days: the lanes
+  read *"no lane merges"* as covering them, ten green content PRs
+  waited for clicks across 09-07→09-09, and the owner's ruling — *"fix
+  the manual so lanes self merge again"* — is that a run merging the
+  head its own gates just proved was never the retired mechanism.
+  `docs/QUESTION-FARM.md` § The PR is that flow's contract. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where
   the owner tracks what is waiting, and a tick there is still how
   approval is recorded (D352); what changed is that nothing downstream
   acts on the tick.
