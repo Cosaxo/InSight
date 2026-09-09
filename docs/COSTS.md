@@ -106,10 +106,24 @@ roughly double on the three operation lines.
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Launch / TestFlight | 50 | 7.0 K | 1.4 K | 0.14 | 0.40 | **0.54** |
-| Friends-of-friends | 500 | 85.8 K | 14.3 K | 1.53 | 0.40 | **1.93** |
-| Real traction | 5,000 | 678 K | 153 K | 12 | 0.40 | **13** |
-| Scale | 50,000 | 6.6 M | 1.3 M | 116 | 2.60 | **118** |
-| Hit | 500,000 | 65.4 M | 12.9 M | 1,141 | 43 | **1,185** |
+| Friends-of-friends | 500 | 86.2 K | 14.4 K | 1.53 | 0.40 | **1.93** |
+| Real traction | 5,000 | 700 K | 171 K | 13 | 0.40 | **13** |
+| Scale | 50,000 | 6.8 M | 1.5 M | 123 | 2.60 | **125** |
+| Hit | 500,000 | 67.6 M | 14.6 M | 1,210 | 43 | **1,253** |
+
+> **Re-printed 2026-09-10 from `node scripts/cost-model.mjs` in this
+> commit**, which is the only thing that makes a table like this worth
+> reading. Two changes, one of them the reason for the re-print. The
+> profile fan-out term was charging less than the fan-out does: it
+> counted one sample document per answer where `sampleIdsFor` names two
+> (the world sample and the per-city one), folded the answer document's
+> own read into that same count, and sized an account's answers with
+> `CIRCLE_ANSWER_CAP` — a bound on what `circle.ts`'s query shows a
+> READER, not on what the fan-out pages, and one that binds today (300
+> of 360). Hit goes $1,185 → $1,253 and the server column 43 → 47 reads
+> a user-day. The rest of the drift is the table having been rounded by
+> hand off a run that was already a few commits old — 85.8 K where the
+> model said 86.1 K, and so on down the column.
 
 > **Re-printed 2026-09-09, on the database the app is on
 > (`COST-EXPOSURE.md` §6 C1).** Production has run on the named database
