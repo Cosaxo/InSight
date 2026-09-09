@@ -29,9 +29,23 @@ export let FRIENDS;
   // is written on first run and read back forever after. Clearing site data
   // (or the D51 purge) is what picks up a new seed.
   const SEED = ['f1', 'f2', 'f3', 'f4', 'f6', 'f8', 'f10', 'f12', 'f14', 'f17', 'f18', 'f20'];
+  // NOT ON A LIVE BUILD — the gate scenes.js and world-subtopics.js have
+  // carried since D66 and this store never got, though it is the one
+  // seeding PEOPLE. Consumers read `list()` and resolve the ids against
+  // IS_DATA.people, so a seeded roster put twelve invented friends —
+  // name, avatar, "sister · since birth · 86% match" — into the Search
+  // overlay's Friends section and invented standings into learn's
+  // reveals, on a release build whose boot had not attached. Those two
+  // surfaces gate on `LIVE.enabled`, which is FALSE in exactly that
+  // window: `demoInProd` is defined as a live build that has not
+  // attached, and its own declaration says D1 requires suppressing the
+  // seeded fake people there. On the build flag rather than on
+  // `LIVE.enabled` for scenes.js's reason — the default is derived
+  // before the boot attaches, and this store's is derived at import.
+  const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
   let S;
   try { S = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { S = null; }
-  if (!S || !Array.isArray(S.friends)) S = { friends: SEED.slice(), invited: {} };
+  if (!S || !Array.isArray(S.friends)) S = { friends: LIVE_BUILD ? [] : SEED.slice(), invited: {} };
   S.invited = S.invited && typeof S.invited === 'object' ? S.invited : {};
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
@@ -66,6 +80,6 @@ export let FRIENDS;
   // circle, exactly what load() yields with the key gone — or the next
   // invite/unfriend save() writes the previous account's edits back. fire()
   // without save(): notify, but do not re-create the purged key.
-  window.addEventListener('insight:local-purge', () => { S = { friends: SEED.slice(), invited: {} }; fire(); });
+  window.addEventListener('insight:local-purge', () => { S = { friends: LIVE_BUILD ? [] : SEED.slice(), invited: {} }; fire(); });
 })();
 
