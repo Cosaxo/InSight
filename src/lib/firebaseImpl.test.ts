@@ -28,6 +28,9 @@
 // test can execute — what this owns is that the app ASKS for it on native
 // and does not on web, which is the line that was wrong.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { cwd } from "node:process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -489,5 +492,72 @@ describe("Firestore construction", () => {
       h.firestoreCalls[0].settings.localCache,
       "initializeFirestore was called with no localCache — an offline boot falls back to the demo deck with the real bank on disk",
     ).toEqual({ __persistent: true });
+  });
+});
+
+// ── THE NATIVE PROVIDER LIST IS PART OF THE SIGN-IN PATH ─────────────
+//
+// `@capacitor-firebase/authentication` builds a handler per provider and
+// only for the ones named in `capacitor.config.ts`:
+//
+//     if config.providers.contains(ProviderId.apple) {
+//       self.appleAuthProviderHandler = AppleAuthProviderHandler(self)
+//     }
+//
+// and every entry point guards on it — `signInWithApple` and
+// `linkWithApple` both `call.reject("Apple sign-in provider is not
+// enabled")` when the handler is null. Android is byte-for-byte the same
+// shape.
+//
+// Apple was missing from that list while `LiveSignInGate` rendered
+// "Sign in with Apple" as the FIRST door on iOS, which guideline 4.8 is
+// the reason for. On device the primary button on the account wall
+// rejected; on web nothing was wrong, because `appleSignIn`/`linkApple`
+// take `signInWithPopup` off-native and never reach the plugin. So no
+// test here could see it: every case in this file mocks the plugin.
+//
+// Derived rather than listed, so the next provider cannot be added to
+// the app and forgotten in the config — the shape the overlay coverage
+// table uses. The map is the plugin's own naming, and a call this file
+// does not know about fails loudly rather than passing quietly.
+describe("the native sign-in providers", () => {
+  const PROVIDER_ID: Record<string, string> = {
+    signInWithApple: "apple.com",
+    linkWithApple: "apple.com",
+    signInWithGoogle: "google.com",
+    linkWithGoogle: "google.com",
+    signInWithFacebook: "facebook.com",
+    signInWithGameCenter: "gamecenter",
+  };
+
+  it("names every provider the app asks the native plugin for", () => {
+    const impl = readFileSync(resolve(cwd(), "src/lib/firebaseImpl.ts"), "utf8");
+    const called = [...impl.matchAll(/FirebaseAuthentication\.(\w+)\(/g)].map((m) => m[1]);
+    const needed = [...new Set(
+      called.filter((c) => c in PROVIDER_ID).map((c) => PROVIDER_ID[c]),
+    )];
+    expect(needed.length, "no native provider calls found — the pattern stopped matching")
+      .toBeGreaterThan(0);
+
+    const config = readFileSync(resolve(cwd(), "capacitor.config.ts"), "utf8");
+    const listed = (config.match(/providers:\s*\[([^\]]*)\]/)?.[1] ?? "")
+      .split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+
+    for (const id of needed) {
+      expect(
+        listed,
+        `firebaseImpl calls the native plugin for ${id}, but capacitor.config.ts does not load it — `
+        + "the plugin rejects with \"provider is not enabled\" on device, and only on device",
+      ).toContain(id);
+    }
+  });
+
+  it("…and the app really does ask for Apple, not only Google", () => {
+    // The control. The case above passes vacuously if the call-site scan
+    // ever stops finding Apple — which is exactly what a refactor to the
+    // web popup everywhere would look like, and would be a different bug.
+    const impl = readFileSync(resolve(cwd(), "src/lib/firebaseImpl.ts"), "utf8");
+    expect(impl).toMatch(/FirebaseAuthentication\.signInWithApple\(/);
+    expect(impl).toMatch(/FirebaseAuthentication\.signInWithGoogle\(/);
   });
 });
