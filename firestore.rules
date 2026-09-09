@@ -1308,7 +1308,12 @@ service cloud.firestore {
           // where every other case sends the cheap end — so the day a new
           // clause crosses the line the suite reds instead of the release.
           // The filler probe scripts/rules-budget.mjs appends lands on the
-          // line below; keep it the last conjunct.
+          // line below; keep it the last conjunct. `test:rules` holds the
+          // number (D434): every probe pinned at exactly its measured
+          // headroom, a floor of 50 fillers (~405 units) under all of
+          // them, and the file still loading at 80 — so a clause that
+          // costs expressions moves a pin and says why, and one that
+          // would land under the floor is argued rather than edited in.
           && createArm();
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,

@@ -15,7 +15,10 @@ import {
   CREATE_TAIL,
   delta,
   evalCounts,
+  judge,
+  planGate,
   UPDATE_TAIL,
+  unchanged,
   withCalibrateBlock,
   withFillers,
 } from "./rules-budget.mjs";
@@ -210,5 +213,84 @@ describe("bisect", () => {
     const ok = async (n) => { calls += 1; return n <= 137; };
     await bisect(ok, 0, 400);
     expect(calls).toBeLessThanOrEqual(2 + 10);
+  });
+});
+
+// ── the gate (D434): what it asserts is decided without an emulator ────
+
+describe("planGate", () => {
+  const PROBES = [
+    { name: "legal", expect: "allowed" },
+    { name: "refusal", expect: "refused" },
+    { name: "edit", expect: "allowed", update: true },
+  ];
+  const baseline = (over = {}) => ({
+    fillersOn: "create",
+    floorFillers: 50,
+    compileFloorFillers: 80,
+    probes: [
+      { name: "legal", fillers: 58, bounded: false },
+      { name: "refusal", fillers: 94, bounded: true },
+      { name: "edit", fillers: null, bounded: false },
+    ],
+    ...over,
+  });
+
+  it("pins a flippable probe on BOTH sides and holds a compile-bounded one at the floor", () => {
+    const g = planGate(baseline(), PROBES);
+    expect(g.floor).toBe(50);
+    expect(g.compileFloor).toBe(80);
+    expect(g.checks.map((c) => [c.probe.name, c.n, c.want])).toEqual([
+      ["legal", 58, "unchanged"],
+      ["legal", 59, "budget"],
+      ["refusal", 50, "unchanged"],
+    ]);
+    // The update probe carries no create-arm pin and asks for nothing.
+    expect(g.checks.some((c) => c.probe.name === "edit")).toBe(false);
+  });
+
+  // THE CASES THAT MATTER: every way the baseline could stop describing
+  // the probes is a refusal to run, not a pass. A gate that measured the
+  // old shape and said OK is the D197 failure with an emulator in it.
+  it("refuses a probe with no row, and a row with no probe", () => {
+    expect(() => planGate(baseline({ probes: baseline().probes.slice(1) }), PROBES)).toThrow(/no baseline row for the probe "legal"/);
+    expect(() => planGate(baseline({ probes: [...baseline().probes, { name: "ghost", fillers: 10 }] }), PROBES)).toThrow(/rows with no probe behind them: ghost/);
+  });
+
+  it("refuses a pin under the floor — that is the change to argue, not the number to edit", () => {
+    const b = baseline();
+    b.probes[0].fillers = 49;
+    expect(() => planGate(b, PROBES)).toThrow(/pinned at 49 fillers, under the floor of 50/);
+  });
+
+  it("refuses a pin that is not a headroom, a baseline without floors, and fillers on the wrong arm", () => {
+    const b = baseline();
+    b.probes[0].fillers = -1;
+    expect(() => planGate(b, PROBES)).toThrow(/not a headroom/);
+    expect(() => planGate(baseline({ floorFillers: undefined }), PROBES)).toThrow(/needs integer floorFillers/);
+    expect(() => planGate(baseline({ compileFloorFillers: 50 }), PROBES)).toThrow(/compile floor above the runtime one/);
+    expect(() => planGate(baseline({ fillersOn: "update" }), PROBES)).toThrow(/fillers are on the update arm/);
+    expect(() => planGate(null, PROBES)).toThrow(/needs integer floorFillers/);
+  });
+});
+
+describe("judge and unchanged", () => {
+  const legal = { name: "legal", expect: "allowed" };
+  const refusal = { name: "refusal", expect: "refused" };
+
+  it("unchanged means allowed-still-allowed, or refused FOR A REASON", () => {
+    expect(unchanged(legal, "allowed")).toBe(true);
+    expect(unchanged(legal, "budget")).toBe(false);
+    expect(unchanged(refusal, "refused")).toBe(true);
+    // A refusal by budget is the thing the whole gate exists to catch.
+    expect(unchanged(refusal, "budget")).toBe(false);
+    expect(unchanged(refusal, "compile")).toBe(false);
+  });
+
+  it("the far side of a pin wants BUDGET specifically — a variant that did not load is not a flip", () => {
+    expect(judge({ probe: legal, n: 59, want: "budget" }, "budget").ok).toBe(true);
+    expect(judge({ probe: legal, n: 59, want: "budget" }, "compile").ok).toBe(false);
+    expect(judge({ probe: legal, n: 59, want: "budget" }, "allowed").ok).toBe(false);
+    expect(judge({ probe: legal, n: 58, want: "unchanged" }, "allowed")).toMatchObject({ n: 58, verdict: "allowed", ok: true });
   });
 });

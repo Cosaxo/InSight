@@ -1,7 +1,10 @@
 {
   "measured": "2026-09-09",
+  "pinned": "2026-09-09",
   "variant": "base",
   "fillersOn": "create",
+  "floorFillers": 50,
+  "compileFloorFillers": 80,
   "compileCeiling": 94,
   "unit": 8.1,
   "calibration": [
@@ -24,7 +27,7 @@
   ],
   "probes": [
     {
-      "name": "world · all ten anchors at their bounds",
+      "name": "world \u00b7 all ten anchors at their bounds",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 474,
@@ -32,7 +35,7 @@
       "bounded": false
     },
     {
-      "name": "duel · own bank",
+      "name": "duel \u00b7 own bank",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 609,
@@ -40,7 +43,7 @@
       "bounded": false
     },
     {
-      "name": "duel · WORLD content (thinnest, D429)",
+      "name": "duel \u00b7 WORLD content (thinnest, D429)",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 609,
@@ -48,7 +51,7 @@
       "bounded": false
     },
     {
-      "name": "duel · pick round (thinnest, D429)",
+      "name": "duel \u00b7 pick round (thinnest, D429)",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 609,
@@ -56,7 +59,7 @@
       "bounded": false
     },
     {
-      "name": "duel · late answer",
+      "name": "duel \u00b7 late answer",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 609,
@@ -72,7 +75,7 @@
       "bounded": false
     },
     {
-      "name": "duel · 32-member room",
+      "name": "duel \u00b7 32-member room",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 609,
@@ -88,7 +91,7 @@
       "bounded": false
     },
     {
-      "name": "REFUSE · round already revealed",
+      "name": "REFUSE \u00b7 round already revealed",
       "expect": "refused",
       "verdict": "refused",
       "cost": 445,
@@ -96,7 +99,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE · entity on a non-catalog question",
+      "name": "REFUSE \u00b7 entity on a non-catalog question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 317,
@@ -104,7 +107,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE · a second ranking on the same question",
+      "name": "REFUSE \u00b7 a second ranking on the same question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 254,
@@ -112,7 +115,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE · optionIdx on a rank question",
+      "name": "REFUSE \u00b7 optionIdx on a rank question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 312,
@@ -120,7 +123,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE · world answer on a killed question",
+      "name": "REFUSE \u00b7 world answer on a killed question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 312,
@@ -128,7 +131,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE · non-member in a room",
+      "name": "REFUSE \u00b7 non-member in a room",
       "expect": "refused",
       "verdict": "refused",
       "cost": 445,
@@ -136,7 +139,7 @@
       "bounded": true
     },
     {
-      "name": "update · optionIdx edit",
+      "name": "update \u00b7 optionIdx edit",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 192,
