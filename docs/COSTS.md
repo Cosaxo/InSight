@@ -1073,12 +1073,15 @@ threshold in the money the account bills, not a raise.)
 Firestore — the only hard stop is a budget → Pub/Sub → function that
 detaches the billing account, which takes the app down with it. That is a
 real option and a deliberate one, not a default: for an app whose worst
-modelled month at launch size is $2, an outage is the more expensive
-failure. Recorded as available, not built (D7). Since D332 the same wire
-has a softer target worth building first: the budget's Pub/Sub
-notification flipping `budgetMode` (the read breaker below) instead of
-detaching billing — recorded there, an evening's work once the budget
-itself exists. And the repo side no longer waits for the invoice to ask
+modelled month at launch size is a few dollars, an outage is the more
+expensive failure. Recorded as available, not built (D7); the owner's
+row on `OWNER-LIST.md` carries the arithmetic. Since D332 the same wire
+has a softer target, **built 2026-09-09** (`COST-EXPOSURE.md` §6 C4,
+`functions/src/budget.ts`): the budget's Pub/Sub notification flips
+`budgetMode` (the read breaker below) at 100 % instead of detaching
+billing, and releases it when the next month arrives under the line —
+the hours between a budget mail and a person, closed. `DEPLOYMENT.md`
+§ The budget's wire has the two clicks that stand it up. And the repo side no longer waits for the invoice to ask
 the question: the pulse's usage-vs-revenue guard
 (`monitoring/rates.json`, the same $50) reds the daily run when the
 modelled bill at the *measured* actives outruns recorded revenue.

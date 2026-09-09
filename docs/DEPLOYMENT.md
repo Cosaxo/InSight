@@ -669,6 +669,37 @@ The backfill (`backfill-log.yml`, `backfillLogV2`) loads the answers
 written before the deploy's day; its cutoff is that day, so no row is
 appended twice. Both clicks are on `OWNER-LIST.md`.
 
+### The budget's wire (`onBudgetAlert`, COST-EXPOSURE.md §6 C4)
+
+Since 2026-09-09 the Cloud Billing budget (D332, `scripts/apply-budget.mjs`)
+publishes its state to the Pub/Sub topic `budget-alerts` every twenty to
+thirty minutes, and `functions/src/budget.ts` sets the read breaker —
+`budgetMode` on `v2_meta/app`, the field `scripts/budget-mode.mjs` writes
+by hand — to level 1 the first time a month's spend reaches the budget,
+and releases it when the next month's first notification arrives under
+the line. A level set by hand is never touched. It never detaches
+billing (that hard stop is the owner's, on `OWNER-LIST.md`).
+
+- **Standing it up, once, in this order:** the deploy that carries the
+  function creates the topic; then dispatch *Arm budget* (dry, then
+  `apply`), which attaches the topic to the budget and prints the one
+  grant the API cannot make; then run that grant in Cloud Shell — the
+  budget's service agent must be allowed to publish:
+  `gcloud pubsub topics add-iam-policy-binding budget-alerts --project
+  prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com
+  --role roles/pubsub.publisher`. Until the grant, the budget's publishes
+  are refused and the function sees nothing; the console's budget page
+  (*Connect a Pub/Sub topic*) makes the same grant with a click.
+- **Reading it:** `budget_message` (an info line per notification, the
+  level as it stands), `budget_mode_set` (a warning with `level` 1 or 0
+  when the breaker moved — the line to page on), `budget_message_unreadable`
+  (something on the topic that was not a budget notification). On
+  `service_name="onbudgetalert"`.
+- **Releasing early** is what it always was: `node scripts/budget-mode.mjs
+  --level 0` (its `--status` shows the reason the function wrote).
+  Leaving the function's own release to the month is deliberate — a
+  budget message never says spend fell inside a month.
+
 ### Reading the velocity scan (D54)
 
 The velocity scan runs inside the nightly pass (`digestEngagementV2`,

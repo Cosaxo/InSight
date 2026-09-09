@@ -77,6 +77,58 @@ const anthropicKey = () => process.env.ANTHROPIC_API_KEY || "";
  * Claude review someone pays for — us). */
 export const BOOKINGS_PER_DAY = 5;
 
+/**
+ * Model calls the WHOLE PROJECT may make in a day (COST-EXPOSURE.md §3.C,
+ * §6 C3). The per-account budget above bounds one account at five bookings
+ * a day, and MAX_REVIEW_ATTEMPTS bounds one booking at six calls; nothing
+ * bounded accounts × bookings × attempts, and the model call is the one
+ * user-facing thing here that bills per use on a key. Fifty is ten
+ * bookings at every attempt, or fifty first-try verdicts — a day's real
+ * reviews with room for the retries an outage causes. Past it a review
+ * is HELD, not declined and not counted as an attempt (a held booking
+ * keeps its place; the sweep retries it when the window has room), so a
+ * flood spends nothing and stalls nobody.
+ */
+export const REVIEW_CALLS_PER_DAY = 50;
+/**
+ * What one verdict needs: a JSON object with a one-line reason, a few
+ * hundred tokens. The ceiling used to be 16,000 — the model's maximum
+ * output, never a size a verdict approached — which made the worst case
+ * of a stuck or verbose call sixteen thousand billed tokens (§6 C3).
+ */
+export const REVIEW_MAX_TOKENS = 1024;
+
+/** Thrown, not returned: the sweep's hold-and-retry path is the right
+ * outcome and the caller tells it apart from an outage by type. */
+export class ReviewBudgetHeld extends Error {
+  constructor(public readonly calls: number) {
+    super(`the project's review budget is spent: ${calls} model calls in the last day (REVIEW_CALLS_PER_DAY = ${REVIEW_CALLS_PER_DAY})`);
+    this.name = "ReviewBudgetHeld";
+  }
+}
+
+/** Pure: the sliding-window arithmetic of the project-wide budget, so the
+ * test can drive it without a database. */
+export function takeReviewCall(events: readonly number[], nowMs: number, cap = REVIEW_CALLS_PER_DAY): { allowed: boolean; events: number[] } {
+  const live = events.filter((t) => typeof t === "number" && t > nowMs - 86_400_000);
+  if (live.length >= cap) return { allowed: false, events: live };
+  return { allowed: true, events: [...live, nowMs] };
+}
+
+/** One slot from the project's daily budget, or ReviewBudgetHeld — the
+ * same ledger shape as the per-account budgets, in the same server-only
+ * collection, under one id for the whole project. */
+async function assertReviewCallBudget(db: Firestore): Promise<void> {
+  const ref = db.collection("v2_ratelimits").doc("paidreview_global");
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const { allowed, events } = takeReviewCall(((snap.exists && snap.get("events")) || []) as number[], now);
+    if (!allowed) throw new ReviewBudgetHeld(events.length);
+    tx.set(ref, { events, expireAt: new Date(now + 2 * 86400000) });
+  });
+}
+
 /** The fixed window every self-serve question runs (the door's "29 days"
  * chip; PAID-PLAN §8's 366-day gate bounds it from far above). Inclusive
  * of its last day: until = start + WINDOW_DAYS - 1. On the rate card
@@ -432,10 +484,15 @@ export function parseVerdict(text: string): { verdict: "approve" | "decline"; re
 export const REVIEW_MODEL = "claude-opus-5";
 
 /**
- * The full review: gates, then the model. Throws on an API failure so the
- * caller leaves the booking in "review" (hold-and-retry).
+ * The full review: gates, then the project's budget, then the model.
+ * Throws on an API failure so the caller leaves the booking in "review"
+ * (hold-and-retry); throws ReviewBudgetHeld when the day's calls are
+ * spent, which the caller holds WITHOUT counting an attempt. `takeCall`
+ * is the budget's slot, taken only when a model call is about to be made
+ * — a gates-only deploy spends nothing — and injectable so the test can
+ * refuse it. EXPORTED for that test.
  */
-async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null): Promise<ReviewVerdict> {
+export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null, takeCall?: () => Promise<void>): Promise<ReviewVerdict> {
   const gate = reviewGates(b);
   if (gate) return { verdict: "decline", reason: gate, by: "gates" };
   const key = anthropicKey();
@@ -447,11 +504,12 @@ async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null)
     });
     return { verdict: "approve", reason: null, by: "gates-only" };
   }
+  if (takeCall) await takeCall();
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const client = new Anthropic({ apiKey: key });
   const response = await client.messages.create({
     model: REVIEW_MODEL,
-    max_tokens: 16000,
+    max_tokens: REVIEW_MAX_TOKENS,
     system: REVIEW_GUIDELINES,
     messages: [{
       role: "user",
@@ -543,7 +601,7 @@ export const MAX_REVIEW_ATTEMPTS = 6;
  * note): the adapter that talks to Firestore runs under nothing while an
  * in-memory fake goes on proving the loop works.
  */
-export async function reviewBooking(db: Firestore, bid: string): Promise<void> {
+export async function reviewBooking(db: Firestore, bid: string, takeCall: () => Promise<void> = () => assertReviewCallBudget(db)): Promise<void> {
   const ref = db.collection("v2_paid_bookings").doc(bid);
   const snap = await ref.get();
   if (!snap.exists || snap.get("status") !== "review") return;
@@ -577,8 +635,19 @@ export async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   const buyerName = (snap.get("buyerName") as string | null) ?? null;
   let verdict: ReviewVerdict;
   try {
-    verdict = await runReviewVerdict(payload, buyerName);
+    verdict = await runReviewVerdict(payload, buyerName, takeCall);
   } catch (err) {
+    if (err instanceof ReviewBudgetHeld) {
+      // The project's day of calls is spent: hold WITHOUT an attempt —
+      // the ceiling is for a booking that cannot be reviewed, not for a
+      // day that reviewed enough — and let the sweep come back.
+      logger.warn(`[paid] review of ${bid} held — ${err.message}`, {
+        metric: "paid_review_budget_held",
+        bid,
+        calls: err.calls,
+      });
+      return;
+    }
     // Hold, count, retry (the sweep). The attempt counter is telemetry —
     // a booking climbing it is the alert that the reviewer is down.
     await ref.update({ reviewAttempts: FieldValue.increment(1), reviewTriedAt: FieldValue.serverTimestamp() });

@@ -32,6 +32,11 @@ import {
   priceQuote,
   refundEurFor,
   reviewBooking,
+  runReviewVerdict,
+  takeReviewCall,
+  ReviewBudgetHeld,
+  REVIEW_CALLS_PER_DAY,
+  REVIEW_MAX_TOKENS,
   goLive,
   reviewGates,
   reviewSubject,
@@ -968,5 +973,78 @@ describe("expirePriorSession", () => {
       checkout: { sessions: { expire: async () => { throw new Error("already completed"); } } },
     };
     await expect(expirePriorSession(client, { sessionId: "cs_done" }, "b1")).resolves.toBeUndefined();
+  });
+});
+
+describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
+  const DAY = 86_400_000;
+
+  it("takeReviewCall: a sliding day, the cap, and a slot taken only when allowed", () => {
+    const t0 = Date.UTC(2026, 8, 9, 12);
+    let events: number[] = [];
+    for (let i = 0; i < REVIEW_CALLS_PER_DAY; i += 1) {
+      const r = takeReviewCall(events, t0 + i * 1000);
+      expect(r.allowed).toBe(true);
+      events = r.events;
+    }
+    const refused = takeReviewCall(events, t0 + DAY - 1);
+    expect(refused.allowed).toBe(false);
+    expect(refused.events, "a refused call spends nothing").toHaveLength(REVIEW_CALLS_PER_DAY);
+    // The first call falls out of the window a day after it was made.
+    const again = takeReviewCall(events, t0 + DAY + 1);
+    expect(again.allowed).toBe(true);
+    expect(again.events).toHaveLength(REVIEW_CALLS_PER_DAY);
+    // Junk in the ledger is dropped, not counted.
+    expect(takeReviewCall([NaN as number, "x" as unknown as number], t0).events).toEqual([t0]);
+  });
+
+  it("the ceiling is a day's real reviews, and the verdict's tokens are the verdict's", () => {
+    // Fifty is ten bookings at every attempt; sixteen thousand tokens was
+    // the model's maximum, not a verdict's size.
+    expect(REVIEW_CALLS_PER_DAY).toBeGreaterThanOrEqual(2 * BOOKINGS_PER_DAY * MAX_REVIEW_ATTEMPTS / 2);
+    expect(REVIEW_MAX_TOKENS).toBeGreaterThanOrEqual(256);
+    expect(REVIEW_MAX_TOKENS).toBeLessThanOrEqual(4096);
+    const src = readFileSync(new URL("./paid.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/max_tokens:\s*REVIEW_MAX_TOKENS/);
+    expect(src).not.toMatch(/max_tokens:\s*\d/);
+  });
+
+  it("runReviewVerdict takes the slot only when a model call is about to be made", async () => {
+    const was = process.env.ANTHROPIC_API_KEY;
+    let taken = 0;
+    const refuse = async () => { taken += 1; throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); };
+    try {
+      // No key: gates-only, and the budget is untouched.
+      delete process.env.ANTHROPIC_API_KEY;
+      expect((await runReviewVerdict(BOOKING, null, refuse)).by).toBe("gates-only");
+      expect(taken).toBe(0);
+      // A gated decline never reaches the budget either.
+      process.env.ANTHROPIC_API_KEY = "test-key";
+      expect((await runReviewVerdict({ ...BOOKING, prompt: "???" }, null, refuse)).by).toBe("gates");
+      expect(taken).toBe(0);
+      // With a key and a valid booking the slot is taken before any SDK is
+      // loaded, and a refused slot is the typed hold.
+      await expect(runReviewVerdict(BOOKING, null, refuse)).rejects.toBeInstanceOf(ReviewBudgetHeld);
+      expect(taken).toBe(1);
+    } finally {
+      if (was === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = was;
+    }
+  });
+
+  it("reviewBooking holds a budget refusal without counting an attempt or touching the booking", async () => {
+    const was = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    const data: Record<string, unknown> = { ...BOOKING, status: "review", reviewAttempts: 2, buyerName: null };
+    const updates: unknown[] = [];
+    let transactions = 0;
+    const ref = { async get() { return { exists: true, get: (f: string) => data[f] }; }, async update(d: unknown) { updates.push(d); } };
+    const db = { collection: () => ({ doc: () => ref }), async runTransaction() { transactions += 1; } };
+    try {
+      await reviewBooking(db as unknown as Parameters<typeof reviewBooking>[0], "b1", async () => { throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); });
+      expect(updates, "no attempt counted, no status moved").toEqual([]);
+      expect(transactions).toBe(0);
+    } finally {
+      if (was === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = was;
+    }
   });
 });

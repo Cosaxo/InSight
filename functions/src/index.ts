@@ -1471,6 +1471,10 @@ export { rebuildAggregateV2 } from "./replay";
 // cursor, driven by scripts/backfill-answer-maps.mjs from its workflow.
 export { backfillAnswerMapsV2 } from "./answerMaps";
 export { backfillLogV2 } from "./log";
+// COST-EXPOSURE.md §6 C4: the Cloud Billing budget's notification, off its
+// Pub/Sub topic, sets the D332 read breaker at 100 % — the hours between a
+// budget mail and a person, closed.
+export { onBudgetAlert } from "./budget";
 // D379: the shareable results page — a public web page per sponsored
 // question at the hosting rewrite /q/{qid}, rendered here on the admin
 // SDK off the two public documents. onRequest, and no App Check, because
