@@ -292,8 +292,8 @@ export const CLAIMS = [
   // phrase that happens to break across a line is still on the page.
   ["D443 · your data can be downloaded as one JSON file, and it is the list deletion removes",
     /download\s+button[\s\S]{0,160}?one\s+JSON\s+file[\s\S]{0,900}?list\s+deletion\s+removes/i],
-  ["D443 · and the file says what it leaves out: the logic answer key, who reported you, the push token",
-    /leaves\s+three\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token/i],
+  ["D443 · and the file says what it leaves out: the logic answer key, who reported you, the push token, the presence cell",
+    /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
   ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
     /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
   ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",

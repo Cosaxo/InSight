@@ -48181,8 +48181,8 @@ to. The owner chose the third, the row's own recommendation.
   voter samples; the v2 subtree by LISTING its subcollections, so a
   subcollection the tree grows next is covered the day it ships (the
   property `recursiveDelete` gives the erasure); the logic attempt;
-  takes, flags, the face's document and the presence cell; the photo's
-  bytes out of Storage; the circles and what each document says about
+  takes, flags, the face's document and the presence square as held-until;
+  the photo's bytes out of Storage; the circles and what each document says about
   this member; every reveal that names the account — its own circles
   walked, the circles it left and the picks that name it through the two
   collection-group queries the erasure uses; the v1 discoverable doc;
@@ -48227,7 +48227,7 @@ to. The owner chose the third, the row's own recommendation.
 - **The page moves with the feature (D183).** `web/privacy.html` gains
   *Downloading everything* above *Deleting everything*: that the export
   exists, that it is one file, that it is deletion's list read instead
-  of removed, the three things it leaves out, the bound, and the email
+  of removed, the four things it leaves out, the bound, and the email
   route — held by three `check:policy-claims` rows. `web/terms.html`'s
   sentence stays as it is because it is now true.
   `web/delete-account.html` points at the row and says the email route
@@ -48245,13 +48245,18 @@ to. The owner chose the third, the row's own recommendation.
   three route sentences and the refused case; `exportFile.test.ts` pins
   the three routes; `live-surface.ts` pins the new member.
 
-**What it leaves out, and says so inside the file.** Three things, each
-one of the denies CLAUDE.md keeps outside the D334 ask — so none was a
+**What it leaves out, and says so inside the file.** Four things — the
+three denies CLAUDE.md keeps outside the D334 ask, and the credential
+beside them on the pull-request template's list — so none was a
 preference to put to the owner: the logic attempt's `seed` (the unscored
 answer key: the items are generated from it by public code, so a copy is
 a way to start an attempt, read the answers and submit), who reported
 the account (flag authorship, anti-retaliation — flags cast ON the
-account are counted, never listed), and the push token (a credential,
+account are counted, never listed), the presence CELL (physical safety:
+refused to every reader, the owner included, and this file is built to
+travel by share sheet, mailbox and clipboard, so the export says a
+square is held and until when and never which — the phase is twinned,
+the location is not copied), and the push token (a credential,
 `allow read: if false` to the owner too). Other people's records that
 merely point at the account — their follows of it, their v1 relations —
 are counted rather than copied, and a reveal row carries this account's
@@ -48273,7 +48278,9 @@ the installed shell does not have throws on the call, while a JSON file
 on the clipboard is the same bytes today. It schedules, caches and
 stores no export anywhere — the file is the person's, not the app's. It
 changes nothing about who can read what: the caller reads its own uid's
-graph on the admin SDK, and the three denies stand at their paths. And
+graph on the admin SDK, and the four closed things stay closed — the
+owner is handed nothing the rules refuse them, only what they may
+already read plus the three server-only ledgers about their own acts. And
 it does not soften the terms: the sentence is kept because it is now
 true, which was the whole point.
 

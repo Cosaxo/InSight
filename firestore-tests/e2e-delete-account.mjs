@@ -654,7 +654,7 @@ for (const [cond, label] of [
   [exp.avatar?.token === "tok0e2e0000", "the photo's document"],
   [exp.photo?.base64 === Buffer.from([0xff, 0xd8, 0xff]).toString("base64"),
     "the photo's bytes out of Storage (D178)"],
-  [exp.presence?.cell === "5999_1074", "the presence cell (D84)"],
+  [exp.presence?.held === true && typeof exp.presence?.until === "string", "the presence square, as held-until (D84)"],
   [exp.groups?.some((g) => g.gid === SOLO && g.owner) && exp.groups?.some((g) => g.gid === SHARED && g.owner),
     "the circles they are in"],
   [exp.ownedGroups?.some((g) => g.gid === OWNED_LEFT), "the circle they created and left"],
@@ -692,9 +692,10 @@ for (const theirs of [
   "Not this account's campaign", "evt_theirs", "somebodyelse", "fourth_party", "Someone Else",
   `"uid":"${OTHER}"`,
 ]) if (expText.includes(theirs)) fail("the export carries someone else's data: " + theirs);
-// The three things the file leaves out, and says so (exportAccount.ts's header).
+// The four things the file leaves out, and says so (exportAccount.ts's header).
 if (exp.logicAttempt?.seed !== undefined) fail("the export carries the logic attempt's seed — the answer key");
 if (exp.collections?.push !== undefined) fail("the export carries the push-token subcollection — a credential");
+if (expText.includes("5999_1074")) fail("the export carries the presence CELL — a location, in a file built to travel");
 if (!Array.isArray(exp.omitted) || !exp.omitted.some((o) => o.what === "logicAttempt.seed"))
   fail("the export does not say what it leaves out");
 ok(`the export carries every phase's documents (${exp.bytes} bytes) and nothing of anyone else's`);

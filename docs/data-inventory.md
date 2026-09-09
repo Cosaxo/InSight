@@ -192,11 +192,13 @@ Check like every user-facing callable, served through the account panel's
 read of anyone else's data: other people's records that point at the
 account (their follows of it, their v1 relations) are counted rather than
 copied, a reveal row carries this account's vote, name and how many
-picked it and never the other members' votes, and three things are left
+picked it and never the other members' votes, and four things are left
 out and named inside the file — the logic attempt's seed (the answer
-key), who reported the account (flag authorship), and the push token (a
-credential) — the three the rules keep closed to everyone, the owner
-included. It is what `web/terms.html`'s "a chance to download your data
+key), who reported the account (flag authorship), the presence CELL (the
+export says a square is held and until when, never which — a location in
+a file built to travel), and the push token (a credential) — the four the
+rules keep closed to everyone, the owner included. It is what
+`web/terms.html`'s "a chance to download your data
 first" is now backed by, and the app's answer to GDPR Art. 20
 portability; `web/privacy.html` states it under *Downloading everything*,
 held by `check:policy-claims`.

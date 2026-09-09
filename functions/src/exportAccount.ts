@@ -19,13 +19,17 @@
 // than a silent gap — the failure this file is most likely to grow, since
 // the two walks are written in different files by different hands.
 //
-// THREE THINGS ARE NOT IN THE FILE, and each is one of the denies CLAUDE.md
-// keeps outside the D334 ask:
+// FOUR THINGS ARE NOT IN THE FILE, and each is one of the things the rules
+// keep closed for a non-privacy reason — the set CLAUDE.md keeps outside the
+// D334 ask, plus the credential:
 //   · the logic attempt's `seed` (the unscored answer key, anti-cheat): the
 //     items are generated from it by code that is public, so an export that
 //     carried it would be a way to start an attempt, read the key and submit;
 //   · who reported you (flag authorship, anti-retaliation): flags cast ON
 //     this account are counted, never listed;
+//   · the presence CELL (physical safety): refused to every reader, the
+//     owner included, and this file is built to travel — the export says a
+//     square is held and until when, and never which;
 //   · the push token (a credential, `allow read: if false` even to the
 //     owner): the subcollection is skipped and named in `omitted`.
 // Other people's records that merely point at this account — their follows
@@ -359,11 +363,22 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
     });
     const face = await db.collection("v2_avatars").doc(uid).get();
     out.avatar = m.add(face.exists ? toPlain(face.data()) : null);
-    // The cell this phone last stood in, if it is still standing there
-    // (presence is a rolling window, D174). Its room caches are rosters of
-    // other people and are not copied.
+    // The presence square (D84) is the one datum the rules refuse to every
+    // client, the owner included, and this file is built to travel — a
+    // share sheet, a mailbox, a clipboard — so the CELL stays out of it.
+    // What the file says is that a square is held, and since and until
+    // when: the erasure's phase is twinned, the location is not copied.
+    // Its room caches are rosters of other people and are not read.
     const pres = await db.collection("v2_presence").doc(uid).get();
-    out.presence = m.add(pres.exists ? toPlain(pres.data()) : null);
+    out.presence = m.add(pres.exists
+      ? { held: true, at: toPlain(pres.get("at")), until: toPlain(pres.get("until")) }
+      : null);
+    omitted.push({
+      what: "presence.cell",
+      why: "the square your phone last stood in is refused to every reader, you included, "
+        + "and a file that leaves the app is not the place for a location; the export says "
+        + "that a square is held and until when",
+    });
   }
 
   // The photo's bytes (D178) — the one thing the erasure removes from

@@ -191,7 +191,7 @@ function seed() {
   set(`v2_avatars/${ME}`, { token: "tok0", hidden: false });
   set(`v2_avatars/${OTHER}`, { token: "tok1", hidden: false });
   objects.set(`avatars/${ME}`, Buffer.from([0xff, 0xd8, 0xff]));
-  set(`v2_presence/${ME}`, { cell: "5999_1074" });
+  set(`v2_presence/${ME}`, { cell: "5999_1074", until: Timestamp.fromDate(new Date("2026-09-08T12:00:00Z")) });
   set("v2_presence_room/5999_1074", { people: [{ uid: ME }, { uid: OTHER }] });
   // 1c, 1c-bis — circles in every relation the erasure distinguishes.
   set("v2_groups/g_solo", { name: "Solo", mode: "group", ownerUid: ME, memberUids: [ME], played: { r3: [ME] }, pushAt: { [ME]: 5 } });
@@ -298,7 +298,10 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     expect(b.flags.receivedOnTakes).toBe(1);
     expect(b.flags.receivedOnPhoto).toBe(1);
     expect(b.avatar).toEqual({ token: "tok0", hidden: false });
-    expect(b.presence).toEqual({ cell: "5999_1074" });
+    // The square is reported as HELD, never as a place: the cell is the
+    // fourth closed thing, and this file is built to travel.
+    expect(b.presence).toEqual({ held: true, at: null, until: "2026-09-08T12:00:00.000Z" });
+    expect(JSON.stringify(b)).not.toContain("5999_1074");
     expect(b.photo).toEqual({ contentType: "image/jpeg", bytes: 3, base64: "/9j/" });
     // 1c — the two circles the account is in, with what the document says about it.
     expect(b.groups.map((g: { gid: string }) => g.gid).sort()).toEqual(["g_shared", "g_solo"]);
@@ -368,17 +371,21 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     expect(typeof b.followers).toBe("number");
   });
 
-  // The three denies CLAUDE.md keeps outside the D334 ask, each one a line.
-  it("leaves out the logic seed, who reported you, and the push token", async () => {
+  // The four things the rules keep closed to everyone — the PR template's
+  // list, and CLAUDE.md's three denies plus the credential — each one a line.
+  it("leaves out the logic seed, who reported you, the presence cell and the push token", async () => {
     const b = await buildExport(ME) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
     const text = JSON.stringify(b);
     expect(b.logicAttempt.seed).toBeUndefined();
     expect(text).not.toContain("secret-push-token");
     expect(Object.keys(b.collections)).not.toContain("push");
     expect(b.flags.cast.every((f: { uid: string }) => f.uid === ME)).toBe(true);
+    expect(text).not.toContain("5999_1074");
     // …and the file says so, rather than leaving the absence to be inferred.
     const omitted = (b.omitted as { what: string }[]).map((o) => o.what);
-    expect(omitted).toEqual(expect.arrayContaining(["collections.push", "logicAttempt.seed", "flags.received*", "followers"]));
+    expect(omitted).toEqual(expect.arrayContaining([
+      "collections.push", "logicAttempt.seed", "flags.received*", "presence.cell", "followers",
+    ]));
   });
 
   it("refuses past the byte bound with the plain message, before reading the rest", async () => {
