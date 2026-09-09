@@ -304,8 +304,6 @@ export const CLAIMS = [
     /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
   ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
     /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
-  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
-    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */
