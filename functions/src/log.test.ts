@@ -60,7 +60,12 @@ describe("runLogReconcile", () => {
       async ledgerDay(day) { return day === "2026-09-08" ? o.entries : []; },
       async presentIds() { return o.present; },
       async append(rows) { appended.push([...rows]); },
-      async pendingErasures() { return o.pending ?? []; },
+      // HONOURS THE LIMIT, which it used to ignore — and that is why the
+      // case below could pin three statements a night against a store
+      // whose real query has always returned at most one page. A fake
+      // that answers more than its contract allows proves nothing about
+      // the caller.
+      async pendingErasures(_beforeMs, limit) { return (o.pending ?? []).slice(0, limit); },
       async deleteUsers(uids) { deleted.push([...uids]); return uids.some((u) => o.refuse?.has(u)) ? "deferred" : "done"; },
       async eraseDone(uid) { done.push(uid); },
     };
@@ -111,12 +116,35 @@ describe("runLogReconcile", () => {
     expect(empty.deleted).toEqual([]);
   });
 
-  it("pages a long marker list at LOG_ERASE_BATCH accounts a statement", async () => {
+  it("runs ONE statement a night however many are waiting, and says when it did not reach them all", async () => {
+    // The bound the header prices: a DELETE is a pass over the table, so
+    // a second statement doubles the night's largest line at scale to
+    // reach the 501st account. This case used to assert THREE statements
+    // — the loop was general, the store's query was capped at one page,
+    // and the fake honoured neither, so what passed was a property of
+    // the fixture. The ceiling also used to be silent: `erasures` read
+    // as "all that were waiting" whether or not any were left.
     const pending = Array.from({ length: LOG_ERASE_BATCH * 2 + 1 }, (_, i) => `u${i}`);
-    const { store, deleted } = fakeStore({ present: new Set(), entries: [], pending });
+    const { store, deleted, done } = fakeStore({ present: new Set(), entries: [], pending });
     const out = await runLogReconcile(store, NOW, quiet);
-    expect(deleted.map((c) => c.length)).toEqual([LOG_ERASE_BATCH, LOG_ERASE_BATCH, 1]);
-    expect(out).toMatchObject({ erasures: pending.length, erased: pending.length, passes: 3 });
+    expect(deleted.map((c) => c.length)).toEqual([LOG_ERASE_BATCH]);
+    expect(out).toMatchObject({ erasures: LOG_ERASE_BATCH, erased: LOG_ERASE_BATCH, passes: 1, left: true });
+    // The rest keep their markers — nothing is dropped, it waits.
+    expect(done).toHaveLength(LOG_ERASE_BATCH);
+    expect(done).not.toContain(`u${LOG_ERASE_BATCH}`);
+  });
+
+  it("a night that reaches everyone does not cry backlog — including at exactly the ceiling", async () => {
+    // The control, and the reason the query asks for one id MORE than the
+    // statement can take: a night with exactly LOG_ERASE_BATCH waiting is
+    // indistinguishable from a night with a backlog if you infer it from
+    // the count alone, and that inference would warn every busy night
+    // forever.
+    const exact = Array.from({ length: LOG_ERASE_BATCH }, (_, i) => `u${i}`);
+    const { store, deleted } = fakeStore({ present: new Set(), entries: [], pending: exact });
+    const out = await runLogReconcile(store, NOW, quiet);
+    expect(deleted.map((c) => c.length)).toEqual([LOG_ERASE_BATCH]);
+    expect(out).toMatchObject({ erasures: LOG_ERASE_BATCH, erased: LOG_ERASE_BATCH, passes: 1, left: false });
   });
 });
 
