@@ -18,6 +18,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { cwd } from "node:process";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
@@ -188,10 +189,15 @@ describe("the overlays with no button — opened through the nav registry", () =
     // `&& <window.X` render guard in app-shell reddens this until it has a
     // row here; removing one reddens it until the row goes.
     it("covers every `window.X &&` render guard app-shell actually has", () => {
-      // `resolve(process.cwd(), …)` rather than `import.meta.url`, which
-      // vitest's jsdom transform does not hand back as a file: URL —
-      // vote.test.ts reads live.ts the same way for the same reason.
-      const shell = readFileSync(resolve(process.cwd(), "src/v2/spec/app-shell.jsx"), "utf8");
+      // `cwd()` off an explicit `node:process` import rather than
+      // `import.meta.url`, which vitest's jsdom transform does not hand
+      // back as a file: URL. vote.test.ts reads live.ts the same way, but
+      // it takes `process` as a bare global — which it can, because it is
+      // a .ts file under data/. `no-undef` is ON for the spec layer and
+      // for the mount suites (CLAUDE.md: the seeded scanner), so here the
+      // global does not exist and the import is the fix. Adding an eslint
+      // exception would be the wrong direction: the rule is right.
+      const shell = readFileSync(resolve(cwd(), "src/v2/spec/app-shell.jsx"), "utf8");
       const guards = [...shell.matchAll(/&&\s*<window\.(\w+)/g)].map((m) => m[1]);
       expect(guards.length, "no render guards found — the pattern stopped matching").toBeGreaterThan(0);
       expect([...guards].sort()).toEqual(GUARDED.map(([g]) => g).sort());
