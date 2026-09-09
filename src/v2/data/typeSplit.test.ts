@@ -87,6 +87,54 @@ describe("typeSplitFor", () => {
     expect(split.absent.length).toBe(typeNames().length - 1);
   });
 
+  it("does not call a type absent when somebody here carries it", () => {
+    // A typed voter whose answer landed in NO column — an out-of-range
+    // index, or a catalog answer. They are counted in `typedN` (the
+    // header's "N carry a Big Five"), and they contribute to no bar,
+    // because `n` has to equal what the bars add up to.
+    //
+    // `absent` used to be `n === 0`, so this person's type was named as
+    // one nobody here carries while the same fold counted them. Two
+    // comments in the source disagreed about which was intended; the code
+    // followed one and the name followed the other.
+    const split = typeSplitFor([
+      ...many(QUIET, 0, 10),
+      { uid: "loud-offgrid", optionIdx: 7, results: results(LOUD) },
+    ], 2);
+    expect(split.typedN, "the off-grid voter is counted in the header").toBe(11);
+    expect(
+      split.absent,
+      "a type somebody here carries was named as absent",
+    ).not.toContain(LOUD_TYPE);
+    // …and they are not silently dropped either: no columns means thin,
+    // so every type still lands in exactly one of the three lists.
+    expect(split.thin.map((r) => r.type)).toContain(LOUD_TYPE);
+    expect(split.thin.find((r) => r.type === LOUD_TYPE)!.n).toBe(0);
+    const all = [...split.ranked, ...split.thin].map((r) => r.type).concat(split.absent);
+    expect(new Set(all).size).toBe(typeNames().length);
+  });
+
+  it("…and DOES call a type absent when nobody carries it", () => {
+    // The control: without it, "never absent" passes, and `absent` — a
+    // finding in its own right (D141) — would quietly stop reporting.
+    const split = typeSplitFor(many(QUIET, 0, 10), 2);
+    expect(split.absent).toContain(LOUD_TYPE);
+  });
+
+  it("counts an answer into a column only when the option exists", () => {
+    // The bound is what makes the two lists above differ, and it was
+    // pinned by nothing: widening it to `<= optionCount` writes a phantom
+    // column past the question's options, and the whole client suite
+    // stayed green. `overall` is what the sheet's own bars are drawn
+    // from, so a phantom column is a bar for an option nobody was offered.
+    const split = typeSplitFor([
+      ...many(QUIET, 0, 3),
+      { uid: "past-the-end", optionIdx: 2, results: results(QUIET) },
+    ], 2);
+    expect(split.overall, "an answer past the last option was given a column").toEqual([3, 0]);
+    expect(split.overall.length).toBe(2);
+  });
+
   it("withholds shares until the typed sample can carry them", () => {
     expect(typeSplitFor(many(QUIET, 0, TYPE_SPLIT_SMALL - 1), 2).enough).toBe(false);
     expect(typeSplitFor(many(QUIET, 0, TYPE_SPLIT_SMALL), 2).enough).toBe(true);
