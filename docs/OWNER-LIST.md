@@ -164,7 +164,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 2 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-09).
+- [ ] 1 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-09).
 <!-- console:end -->
 
 ## Store and legal
@@ -183,8 +183,6 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **1.1b [UN-PARKED — D345] Register the ENK and apply for the D-U-N-S** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **2.6 [UN-PARKED — D345] Android signing** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **3.4 Only after 24–48h of App Check metrics showing verified
-      requests near 100%,** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
       TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
       committed and not applied** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
@@ -202,6 +200,8 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **5.15 Ads need no switch of their own, and that is the design** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.16 The two Firebase auth emails now stand between a user and
       the app (D414)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **5.17 Stand the budget's wire up — two clicks after the deploy
+      (`COST-EXPOSURE.md` §6 C4, 2026-09-09)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.1b App Review Information — a demo account is now MANDATORY
       (D414)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
