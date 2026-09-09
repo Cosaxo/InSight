@@ -471,6 +471,46 @@ describe("standingIn — where you sit in the split", () => {
     expect(standingIn([1, 1, 4], 2, "rating")).toEqual({ kind: "below", pct: 34 });
   });
 
+  // ── the two halves of "which side", neither of them pinned ────────
+  //
+  // This sentence prints under EVERY row of the Mirror's Answers lens, and
+  // both decisions behind it could be changed with the whole tree green
+  // (201 files / 2970 tests). The two cases above use margins of 15-vs-0
+  // and 0-vs-9, so option 0 never carries the answer and nothing sits near
+  // a tie — the two places the arithmetic can actually go wrong.
+
+  it("counts option 0 on the side below you", () => {
+    // `counts.slice(0, mine)` — dropping the 0 (an easy "skip the first
+    // bucket" edit) makes below 0 and above 3, and the sentence flips from
+    // "63% are below you" to "37% are above you" about the same room.
+    expect(pctFor([5, 0, 0, 0, 3])).toEqual([63, 0, 0, 0, 37]);
+    expect(
+      standingIn([5, 0, 0, 0, 3], 2, "rating"),
+      "the lowest option was left out of the room below you",
+    ).toEqual({ kind: "below", pct: 63 });
+  });
+
+  it("gives an exact tie to the room below you", () => {
+    // The comment above the branch argues this at length — "WHICH SIDE is
+    // still decided on the raw counts … 'the bigger of the two' is a claim
+    // about the room rather than about the bar" — and `>=` is what makes
+    // it true. `>` sends an even split the other way, and nothing saw it.
+    // The shares are identical on both sides here (50 and 50), so only the
+    // WORD changes: the reader is told they are above a room they are
+    // exactly level with.
+    expect(pctFor([4, 0, 4])).toEqual([50, 0, 50]);
+    expect(
+      standingIn([4, 0, 4], 1, "rating"),
+      "an even split was reported as the room being above you",
+    ).toEqual({ kind: "below", pct: 50 });
+  });
+
+  it("…and still says 'above' when the room really is above", () => {
+    // The control for the tie case: without it, "always below" passes too,
+    // and that is a worse sentence than the one being fixed.
+    expect(standingIn([1, 0, 9], 1, "rating")).toMatchObject({ kind: "above" });
+  });
+
   it("is null when you have not answered, or the room is empty", () => {
     expect(standingIn([12, 8], -1, "binary")).toBeNull();
     expect(standingIn([0, 0], 1, "binary")).toBeNull();

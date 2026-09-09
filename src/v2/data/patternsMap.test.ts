@@ -61,6 +61,53 @@ describe("sim and the web", () => {
     expect(hub[POOL.findIndex((q) => q.id === "weak")]).toBeLessThan(0.2);
   });
 
+  // THE SCAN HAS TO REACH INDEX 0, and nothing asked it to. The case
+  // above takes index 0 as the SUBJECT (`nearOf(U, 0, 2)`), where `j = 0`
+  // is skipped as self anyway; the edge case below asserts uniqueness and
+  // sort order, never endpoints. So `for (let j = 1; …)` — one character
+  // — left the whole client suite green while the first question became
+  // nobody's neighbour: a dot with no chords on the Patterns map, and a
+  // missing row in the selected question's strongest ties.
+  //
+  // This module is the worst-covered in the fold slice: 42 of 84 mutants
+  // survive its own suite. Its sibling on the next line IS caught (making
+  // every edge a self-loop reddens the UI suite), which is what makes the
+  // scan bound a real gap rather than a blanket one.
+  it("finds index 0 as somebody else's neighbour, not only as a subject", () => {
+    // "a2" is (0.9, 0.1); "a" at index 0 is (1, 0) — its strongest tie by
+    // a wide margin, and the only question in the pool it should name
+    // first.
+    const near = nearOf(U, 1, 1);
+    expect(
+      near.map((x) => x.j),
+      "the scan never reached index 0, so the first question is nobody's neighbour",
+    ).toEqual([0]);
+  });
+
+  it("scans the whole pool — every question is reachable as a neighbour", () => {
+    // BOTH ENDS, and the middle. The case above catches `j = 1` and was
+    // silent on `j < U.length - 1`, which drops the LAST question instead
+    // — the same defect, the same invisible symptom, one character away.
+    // Asked as a property so no bound can be trimmed at either end: over
+    // the whole pool, with k as wide as the pool, every index must turn up
+    // as somebody's neighbour.
+    const seen = new Set<number>();
+    for (let i = 0; i < U.length; i++) for (const x of nearOf(U, i, U.length)) seen.add(x.j);
+    expect(
+      [...seen].sort((a, b) => a - b),
+      "some question is never anyone's neighbour — the scan does not cover the pool",
+    ).toEqual(U.map((_, i) => i));
+  });
+
+  it("draws at least one edge touching the first question", () => {
+    // The same hole seen through the web the Map actually renders.
+    const edges = edgesOf(U, 3);
+    expect(
+      edges.some((e) => e.i === 0 || e.j === 0),
+      "no edge touches question 0 — it would draw as a dot with no chords",
+    ).toBe(true);
+  });
+
   it("dedupes the web and sorts it strongest first", () => {
     const edges = edgesOf(U, 3);
     const keys = edges.map((e) => `${e.i}:${e.j}`);
