@@ -46615,3 +46615,201 @@ so this record cannot quietly stop being true.
 
 None to reverse — nothing was built. If the per-kind bound is wanted,
 the budget has to be bought first.
+
+## D430 · The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides
+
+**2026-09-09.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+fifty-four commits are kept as written; nothing was reverted. What this
+review adds is the composition and three fixes for things no shift could
+see alone. The owner's instruction was *"cheak the night shifts and merge
+the approved parts"*: every part is approved, and this record says which
+parts the composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260909` | 25 | 9 behind | shift A, Claude 2's, 21:27–05:26 UTC |
+| `nightb-20260909` | 29 | 7 behind | shift B, Claude 1's, 20:16–04:16 UTC |
+
+`main` took nine commits during the night and every one was the console
+or the pulse trail, so no decision number moved and no shift had to
+follow one. B claimed D429; A claimed none; `main` sat at D428. This
+record is D430.
+
+**ZERO FILES WERE TOUCHED BY BOTH.** Thirty-one files on A's side and
+forty-four on B's, and the intersection is empty — against seven the
+night before (D420) and twenty the night before that (D406). Both merges
+applied clean; there was nothing to resolve. That is the headline and it
+is also the warning, because the D380/D406/D420 pattern is that the
+defects live in the files that merge cleanly, and a night with no
+conflicts at all is a night where nothing stops you to ask. So the review
+was spent where a conflict cannot reach: on prose in one shift's
+territory describing code in the other's.
+
+### The composition defect: a retired ruleset, still current in three places
+
+B's D429 replaced `testResults.keys().size() <= 8` with a five-name
+`hasOnly` vocabulary, and B's closing flow swept its own citations —
+`firestore.rules`, `lens-defs.js`, `v2social.ts`. Three more survive
+elsewhere in the tree, and the composition is what makes them findable:
+B changed the ruleset, A edited the file that DESCRIBES it, and neither
+shift reads the other's branch.
+
+**`docs/OWNER-LIST.md` is the one that matters**, because it is a surface
+the owner acts from. Its open row *"one profile field has no size limit"*
+stated the current bound as the key COUNT and offered `hasOnly` as one of
+three shapes the owner had not chosen — while B shipped exactly that
+shape overnight. The row also warned that `hasOnly` *"would foreclose"*
+`lens-defs.js`'s plan to mirror lens scores. It does not: the list grows
+by a name instead of the cap growing by a number, which is the same
+one-line edit, and both files now say so at their own paths. So the owner
+was being asked to pick among three options, one of which was already in
+the tree, on a description of a ruleset that no longer existed.
+
+**The row stays open and stays the owner's.** B closed the cheap half —
+the arbitrary key, eight keys of 100 KB each — and B's own comment says
+the expensive half is untouched: nothing bounds the bytes inside a
+legitimate kind, so a 300 KB `testResults.big5` is still allowed and
+still read back whole by every stranger, thirty rows to a query. Rewritten
+to ask what is actually left, not deleted and not ticked; the
+recommendation is unchanged (server-only).
+
+`src/v2/data/similarity.ts` said the rules *"validate nothing about its
+shape (only key count and the server-owned `logic`)"* — squarely inside
+B's own sweep and simply missed. The correction strengthens the reason
+the parse is defensive rather than weakening it: the vocabulary narrowed
+WHICH keys arrive, never what is under one.
+
+`docs/VISION-2026-09-07.md` is the current vision — `ORIENTATION.md`
+classes it `plan`, not a record — and its §5.2 constraint cited the old
+cap. Worth stating for that plan specifically: facets need no new key,
+since they ride inside `testResults.big5` and `.political`, so the
+vocabulary does not block them and the byte question is the half that
+still stands.
+
+`DECISIONS.md`'s four citations are left alone. Records describe their
+moment, and D406's is a correct account of what B found that night.
+
+### The fix that moves a failure one layer up
+
+Shift A's `b8dd54b` is the night's most consequential commit.
+`capacitor.config.ts` named `["google.com"]`, and
+`@capacitor-firebase/authentication` builds a handler only for the ids in
+that list — so every Apple entry point rejected on device with *"Apple
+sign-in provider is not enabled"*, read out of the installed plugin's own
+source. Only on device: off-native both paths take `signInWithPopup` and
+never touch the plugin, which is why no test could see it. A added
+`"apple.com"` and derived a case from the native call sites so a third
+provider cannot be added and forgotten again.
+
+Reviewed against the rest of the tree, that fix has a half A did not
+reach — and it is the half no session can do at all. **Nothing anywhere
+records Apple being enabled in Firebase Console → Authentication →
+Sign-in method.** `LAUNCH-RUNBOOK.md` 1.3 is ticked for *"enable
+Anonymous AND Google"* and names no third provider; `SHIP-CHECKLIST.md`
+§2 recorded *"both Google and Anonymous are on"*. With the provider off
+there, `signInWithCredential` refuses the Apple credential with
+`auth/operation-not-allowed` — the lead button on the iOS wall still
+fails, later and with a different word.
+
+**Not measured, and it cannot be from here.** The project-config endpoint
+returns only `authorizedDomains` to an unauthenticated caller, which is
+the same reason 1.3 already calls Google *"enabled but UNVERIFIED"*. What
+is established is the paper trail, so the owner row asks rather than
+asserts: either Apple was switched on and nobody wrote it down, or it was
+never switched on. It is first under § Clicks because guideline 4.8 is
+why Apple exists here (D414), `LiveSignInGate` renders it as the FIRST
+button, and the wall is iOS-only — the primary door on the only platform
+that has one. Scoped so the click is not larger than it is: iOS native
+signs in through the plugin with the bundle id, so the toggle is the
+whole of it; a Services ID and key are for the web/Android popup path the
+wall does not use.
+
+`SHIP-CHECKLIST.md` §2 is canonical (`ORIENTATION.md`: `tree`) and still
+quoted the old provider list; corrected, and no longer struck through,
+because it read as done and is done for two providers of three. Runbook
+1.3 gains the same note and **keeps its tick** — the tick is honest about
+what its own sentence says, and a tick is the owner's.
+
+### What was checked and did NOT need changing
+
+Worth recording, because each was a live candidate for the defect the
+night did not have:
+
+- **B's new React net over the App-mounting harness.**
+  `mount-app.jsx` stopped swallowing React's own reports and now fails on
+  three patterns (render-time state updates, duplicate and missing keys),
+  measured by B as an empty set across every App-mounting suite — *on B's
+  tree*. A reshaped three list-rendering components on the other branch,
+  including wrapping `LiveCircleBody`'s row map in a fragment with a new
+  sibling. Every key is present and the composed unit suite is green, so
+  the net caught nothing. This is the shape that would have failed only
+  here, and it was checked rather than assumed.
+- **A removed `counted` and `people` from the `TypeMix` interface.**
+  `tsc` cannot see spec-layer `.jsx` consumers, which is the class
+  `CLAUDE.md` warns about by name. Verified independently of A's claim:
+  `TypeMixCard.tsx` is the only caller of `typeMixFor`, it is typed, and
+  a tree-wide grep for `.counted` finds no reader.
+- **B's `hasOnly` vocabulary against everything that writes a key.**
+  Re-verified on the composed tree rather than B's: `IS_TESTS`' top-level
+  keys are exactly `big5, political, values, attachment`,
+  `POLITICAL_RESULT_KEY` is `"political"`, and `logic` is admin-SDK only.
+  Nothing A added writes a sixth.
+- **`CLAUDE.md`'s "ten suites mount the whole App"** against B's commit
+  message saying eleven. The figure is gated (`check-figures.mjs`), it
+  passes, and the eleventh file is the harness itself; `smoke-live` mounts
+  through its own fixture, which the sentence already accounts for.
+- **A's `duelRuns.ts` pointing at "the night list".** An established
+  idiom here — three other sites use it — not a dangling reference of the
+  kind A had just fixed in `7f8c913`.
+- **`check:store-copy` is red**, on
+  `web/.well-known/assetlinks.json`'s unfilled Play signing SHA. Verified
+  present in that same file on `origin/main` and untouched by both
+  branches, so it is pre-existing and not this night's. It is on no CI
+  path.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module references across 8
+files, at baseline) · `check:figures` (106 figures across 310 files) ·
+`check:docs` · `check:taxonomy` · `check:data-inventory` (40 collections,
+34 held to a read rule) · `check:policy-claims` (55 disclosures) ·
+`check:store-forms` (11 Play rows) · `check:public-copy` (270 strings) ·
+`check:quality` · `check:labels` · `check:versions` · `check:appcheck` ·
+`check:fn-runtime` (41 functions) · `check:deploy-targets` ·
+`check:eager-content` · `check:anchors` · `check:answer-shape` ·
+`check:purge` · the four catalogue gates · `test:scripts` 70 files /
+1216 · functions 38 files / 828 · `test:unit` 202 files / 2995 ·
+`test:rules` 213 with `rules-coverage` 8 of 363 at baseline 8 ·
+`test:e2e:all` green on one emulator boot, all three suites, ending
+*"moderation e2e: every leg green"*.
+
+**The bundle has 4 KB of eager headroom left.** 2247 KB total / 548 KB
+eager against 2440 / 552, from 2195 / 544 at D420 — so the night spent
+52 KB of total and 4 KB of eager, and the eager ceiling is now the one to
+watch. Measured on the shipping build (`VITE_V2_LIVE=true` and a
+non-empty DSN), because the gate refuses to grade anything else.
+
+### What is the owner's
+
+Merged, not decided:
+
+1. **Is Sign in with Apple enabled in the Firebase console?** The row
+   above, first under § Clicks. One toggle, and the lead door on iOS
+   depends on it.
+2. **A's Apple fix is unproven on a handset.** A said so in its own
+   commit — *"a device is the only place this fully proves"*. The cheap
+   confirmation is the `ios-release.yml` dry run with upload off that the
+   entitlement's comment already names.
+3. **The `testResults` byte bound**, narrowed but still open — the
+   rewritten row above.
+4. **A's terms/export row**: `web/terms.html` promises a data download at
+   termination and no export path exists anywhere in the tree. Build the
+   export, soften the sentence, or leave it stated out loud.
+
+### Reversal
+
+Each half is its own merge commit and each of the two fixes is its own
+commit; the pull request is one squash. Reverting this record's tree
+restores `main` at `a2ac97e`.
