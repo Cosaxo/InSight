@@ -993,6 +993,14 @@ button.card:active,
 .wf-sheet-body { overflow-y: auto; padding: 4px 16px 24px; scrollbar-width: none; }
 .wf-sheet-body::-webkit-scrollbar { display: none; }
 @keyframes wfScrimIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* The Groups stop's role map (D432, ui/LgRoleMap.tsx): a satellite fades in
+   and drifts on a seeded path; a picked shared role's dashed thread flows.
+   Declared once here rather than in a <style> the component would re-mount. */
+@keyframes lgIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lgDrift { to { transform: translate(var(--dx), var(--dy)); } }
+@keyframes lgFlow { to { stroke-dashoffset: -18; } }
+@media (prefers-reduced-motion: reduce) { .lg-sat { animation: none !important; } }
 @keyframes wfSheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 /* sheet dismiss — scrim fades, sheet slides down, then unmounts */
 .wf-scrim.is-closing { animation: wfScrimIn 0.22s ease reverse both; }

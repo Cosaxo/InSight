@@ -213,11 +213,15 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     const votes = r.votes;
     if (!votes || myUid == null) continue;
     const mine = votes[myUid];
-    if (!mine || typeof mine.optionIdx !== "number") continue;
+    // Blind answers only, on both sides: a late answer was written with the
+    // table in view (ROUNDS-PLAN §4), and agreeing with what you could see
+    // is not casting the room alike.
+    if (!mine || typeof mine.optionIdx !== "number" || mine.late) continue;
     const rowQid = r.qid ?? null;
     const myQid = voteQid(mine, rowQid);
+    const myPick = typeof mine.pickUid === "string" && mine.pickUid ? mine.pickUid : null;
     for (const [uid, v] of Object.entries(votes)) {
-      if (uid === myUid || !v || typeof v.optionIdx !== "number") continue;
+      if (uid === myUid || !v || typeof v.optionIdx !== "number" || v.late) continue;
       // A day we answered DIFFERENT questions is not a shared day. Counting
       // it either way is wrong: as agreement it invents a kinship, as
       // disagreement it invents a rift — and both feed the "twin" and
@@ -225,7 +229,14 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
       if (voteQid(v, rowQid) !== myQid) continue;
       const a = (acc[uid] = acc[uid] || { shared: 0, agree: 0 });
       a.shared++;
-      if (v.optionIdx === mine.optionIdx) a.agree++;
+      // On a pick day the SNAPSHOT is the answer (D224): two clients can
+      // hold the roster in different orders, so the same index need not
+      // be the same person and the same person need not be the same
+      // index. Where both votes carry one, compare whom they named;
+      // otherwise the index is all there is.
+      const theirPick = typeof v.pickUid === "string" && v.pickUid ? v.pickUid : null;
+      const same = myPick && theirPick ? myPick === theirPick : v.optionIdx === mine.optionIdx;
+      if (same) a.agree++;
     }
   }
   const people: PortraitPerson[] = Object.entries(acc)

@@ -396,10 +396,10 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     expect(reveal.textContent).not.toMatch(/The room landed on/);
     // …and nothing in a group is called (D432)
     expect(reveal.textContent).not.toMatch(/you called/);
-    // the crowned row is first and marked
-    const crowned = reveal.querySelector("[data-crown]");
-    expect(crowned).not.toBeNull();
-    expect(crowned!.textContent).toMatch(/Ada/);
+    // the held row is first and marked
+    const held = reveal.querySelector("[data-held]");
+    expect(held).not.toBeNull();
+    expect(held!.textContent).toMatch(/Ada/);
   });
 
   it("a rating's reveal says where the group landed, with the poles and the marks", () => {

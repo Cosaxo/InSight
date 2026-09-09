@@ -182,19 +182,19 @@ describe("groupRole — your seat in the room", () => {
     expect(T.shares).toEqual({ engine: 3, hands: 1, heart: 1, wild: 0 });
   });
 
-  it("names the roles you hold — the most-named, or a contested second", () => {
+  it("seats a member from the votes they received, and nobody under the floor", () => {
     const hist = [
-      vote("2026-09-01", "r1", { [ME]: "a", a: "me", b: "me", c: "a" }),   // I hold the mastermind
-      vote("2026-09-02", "r2", { [ME]: "a", a: "b", b: "a", c: "b" }),     // b and a share it — not me
-      vote("2026-09-03", "r3", { [ME]: "a", a: "me", b: "me", c: "b" }),   // 2 me · 1 b (and my vote for a): mine, uncontested
-      vote("2026-09-04", "r1", { [ME]: "b", a: "b", b: "c", c: "b" }),     // the mastermind again — b takes it, the latest vote per role
+      vote("2026-09-01", "r1", { [ME]: "a", a: "me", b: "me", c: "a" }),
+      vote("2026-09-02", "r2", { [ME]: "a", a: "b", b: "a", c: "b" }),
+      vote("2026-09-03", "r3", { [ME]: "a", a: "me", b: "me", c: "b" }),
+      vote("2026-09-04", "r1", { [ME]: "b", a: "b", b: "c", c: "b" }),
     ];
-    const T = seatTally(hist, ME, bank);
-    expect(T.held.map((h) => h.id)).toEqual(["inside"]);
-    expect(T.held[0].contested).toBe(false);
     // a member under the floor is nobody's seat yet
     expect(seatFor(hist, "c", bank)).toBeNull();
     expect(seatFor(hist, "b", bank)!.seat.id).toBe("engine");
+    // Who HOLDS a role is not this fold's to say — groupCast.roleVotes
+    // reads it by the card's rule — so the tally carries no such list.
+    expect(Object.keys(seatTally(hist, ME, bank)).sort()).toEqual(["shares", "total"]);
   });
 
   it("reads nothing without a bank — a vote's seat cannot be told", () => {

@@ -141,7 +141,7 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | --- | --- | --- | --- |
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
-| **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
+| **Groups** | your named circles, drawn as a cast | real reveal history — `groupCast.ts` (who the room named, how it rates itself), `groupPortrait.ts` (who casts the room like you), `roles.ts` (everyone's seat) | yes |
 | **Near** | who is around you right now — the radius counter (D84), an anonymous field (D150), and since D177 the room itself: Answers · People · Compare | `nearbyCountV2` for the count and the mix (D176); `nearbyRoomV2` for the roster and the room's answers, both gated on the caller having a live position of their own. The field draws the ROOM since D181 — the same people, placed by test-score likeness and still unnamed — where it drew the city's crowd from D150. The presence CELL stays one of D98's three denies; what D177 discloses is membership, not place | yes |
 | **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]` — and, for a question whose hot map is at its 24-bucket cap without your city, your own shard of `v2_agg_overflow/{qid}-{s}` merged in (D400, `LIVE.loadOverflow`); kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
 | **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`, with your country's tail shard merged in where the hot map is at its cap (D400); city profiles folded from `by.city` (D112) — the hot 24 only | yes |
@@ -179,32 +179,54 @@ Follows start in exactly two places: a question's who-voted sheet, and
 the People lens's Kindred rows. Both are screens where a uid has already
 become a person with a reading attached.
 
-**Groups.** The alignment ring, the answer rows and the per-member
-likeness are all computed from `v2_groups/{gid}/reveals/r{n}` documents
-the viewer can already read, over the last fortnight
-(`REVEAL_HIST_DAYS`) — every number is one the user could recompute from
-the reveals themselves. Duos are excluded on purpose: with two voters,
-"with the majority" is always true and the ring would read 100% forever.
-Since D190 the two cards are tabs — **Answers** (what the group landed
-on, one row per revealed day) and **People** (who runs closest to you) —
-with **Compare** beside them. A group is one of the two Mirror populations
-with no counts to fold — its history is its own reveals, never the test
-bank — so since D193 its side of the comparison is the MEAN of its
-members' completed `testResults`, public since D98 and cached beside the
-names the stop already resolves. Same as Circle: the row is there with no
-group at all, above the field and its Start-a-group door.
-What the demo body showed and this one still does not — trait axes, "how
-they see you" crowns — is unbuilt rather than refused since D98. The
-compare populations it invented (`spec/compare-pop.js`, whose own comment
-says "Tuned, not random") are measured now. The crowns' data source began
-accruing at D224: a "pick" answer snapshots the picked member's uid into
-the reveal, so the votes stop being roster-relative indexes — building
-the crowns (or the role map) on those days was its own decision once
-enough of them existed — and D429 made it: since the owner's 2026-09-08
-design three rounds in four are role votes in scenario packs, so the days
-exist, and the cast, the votes lens and the ratings lens are step 3 of
-`docs/VISION-2026-09-08.md`, designed in
-`design/standalone-2026-09-08/group-mirror.jsx` and `group-role-map.jsx`.
+**Groups.** The room drawn as a cast (D432, the owner's 2026-09-09
+design). Everything is computed from `v2_groups/{gid}/reveals/r{n}`
+documents the viewer can already read, over the newest
+`REVEAL_HIST_DAYS` of them — every number is one the user could recompute
+from the reveals themselves, and the stop reads only the open room's
+history. The head's ring is roles cast over all the roles in the packs;
+under the name, *Here, you are the one who gets things going · 5 of 15
+votes say so* once two votes have named you (`groupRole`, `MIN_GROUP`) —
+a seat is said as its LINE in play, its title being a result card's. The
+field is the role map (`ui/LgRoleMap.tsx` over `data/roleField.ts`,
+lazy): everyone on a ring, each role the room has voted somebody into a
+satellite in its pack's colour beside its holder, a shared or contested
+role on a dashed thread between the two; a tap opens who voted for whom,
+or how the room has cast a person. The row is **Votes** (who the room
+named, by pack, the latest vote per role, a row opening onto who voted
+for whom) · **People** (the constellation, placed by naming the same
+people on the same role votes; *Ada casts the room like you · same pick
+on 4 of 5 rounds* over `MIN_SHARED`; everyone's seat with its count, or
+*not named yet*) · **Scores** (how the group rates itself: one pole row
+per rating, the members' marks, the group's dot, yours in ink; open, the
+lean counts) · **Compare** (your profile against the members' mean, as
+below, and *How they see you*: the roles you hold as chips, hollow when
+shared or contested, and *the room named you N of M votes* — the one
+place that sentence appears). Who HOLDS a role is the card's rule
+(`revealTally`: every blind vote, a vote for yourself included), so the
+Votes lens and the reveal agree; the instrument underneath is stricter
+(`seatTally`: a vote for yourself is not the room naming you). Every
+vote is placed by its D224 snapshot, never by an index the roster
+remaps; a reveal older than the snapshot counts for nobody.
+
+A group is one of the two Mirror populations with no counts to fold — its
+history is its own reveals, never the test bank — so since D193 its side
+of the comparison is the MEAN of its members' completed `testResults`,
+public since D98 and cached beside the names the stop already resolves.
+Same as Circle: the row is there with no group at all, above the field
+and its Start-a-group door.
+
+What left with the call (D432): the alignment ring and *aligned with you
+· N of M days*, the Answers rows of what the group "landed on", the
+cross-group *runs most like you* line and its fan-out over every room's
+history. A room's votes are about its people, not about a side, so there
+is no side to have been on — and the words themselves are held out of
+the duel surfaces by `check:public-copy`'s voice list (rounds, never
+days; named, never crowned; no majority). Duos are excluded on purpose:
+a 1v1 has its own Mirror in the reveal, and a room of two names nobody
+the other did not. The demo body (`spec/group-mirror.jsx`) still draws
+the sample people and the old shape until step 6 of
+`docs/VISION-2026-09-09.md` ports the family.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
 are within a few hundred metres (the 3x3 of 0.002° cells, ~600 m across
@@ -578,8 +600,9 @@ Two gaps are worth stating in prose because no badge covers them:
 | Near's room tabs — Answers · People · Compare over a server fold (D177) | `src/v2/ui/LiveRoomTabs.tsx` + `ui/roomShape.ts` |
 | the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
-| Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
-| the group as a cast of roles | `src/v2/spec/group-role-map.jsx` |
+| Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupCast.ts`, `data/groupPortrait.ts`, `data/roles.ts` |
+| the group as a cast of roles, live (D432) | `src/v2/ui/LgRoleMap.tsx` + `data/roleField.ts` |
+| the group as a cast of roles, demo | `src/v2/spec/group-role-map.jsx` |
 | Compare, live (D193) | `src/v2/ui/LiveCompareLens.tsx` + `data/compare.ts` |
 | Compare's drawing, shared with the demo | `src/v2/spec/compare-breakdown.jsx` (`CBAssess`, `CBAlignGlyph`) |
 | Explore | `src/v2/spec/segment-explorer.jsx` |

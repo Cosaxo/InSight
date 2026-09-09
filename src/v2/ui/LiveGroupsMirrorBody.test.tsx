@@ -6,25 +6,23 @@
 // its own — but it does make claims ABOUT those people, and a wrong claim
 // here is the fabrication the whole live Groups portrait replaced.
 //
-// The arithmetic is `data/groupPortrait.ts` and is well covered by
-// groupPortrait.test.ts. What was not covered is this component: which
-// claims it is willing to print, and which states it refuses to print
-// anything for.
+// The arithmetic is `data/groupCast.ts` (who the room named, how it rates
+// itself), `data/groupPortrait.ts` (who casts the room like you) and
+// `data/roles.ts` (everyone's seat), each pinned in its own suite. What
+// is pinned here is the component: which claims it is willing to print,
+// in which tab, and which states it refuses to print anything for.
 //
-// The three properties worth executing, all of them recorded in D9's
-// 2026-07-29 update:
-//
-//   - nobody is named "most like you" on fewer than MIN_SHARED shared days,
-//     because one shared day is a coin flip and a label built on it is
-//     exactly the invention this replaced;
-//   - duos are excluded, because with two voters any disagreement is a 1-1
-//     tie and the alignment ring would read 100% forever;
-//   - a group with no reveals yet gets a sentence about sealing, not an
-//     empty portrait or a zeroed one.
+// The stop since D432 (the owner's 2026-09-09 design): the seat line and
+// the role map above the row, and Votes · People · Scores · Compare in
+// it. What left with the majority — the alignment ring, the Answers rows,
+// the cross-group "runs most like you" line — is asserted absent, because
+// "aligned with you · 3 of 4 days" is exactly the sentence the owner's
+// voice rules retire (rounds, not days; nothing in a group is called).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MIN_SHARED } from "../data/groupPortrait";
+import { MIN_GROUP } from "../data/roles";
 import { registerNav } from "../data/nav";
 
 const LIVE = vi.hoisted(() => {
@@ -32,11 +30,12 @@ const LIVE = vi.hoisted(() => {
     groups: (mode?: string) => { void mode; return [] as Array<Record<string, unknown>>; },
     revealHistory: () => [] as Array<Record<string, unknown>>,
     /** Settled by default — every case below is about a history that HAS
-     *  been read. The reading arm has its own two cases. */
+     *  been read. The reading arm has its own cases. */
     reading: false,
     revealHistoryLoading(this: { reading: boolean }) { return this.reading; },
-    loadRevealHistory: async () => {},
-    bankQ: () => null as Record<string, unknown> | null,
+    loadRevealHistory: vi.fn(async () => {}),
+    bankQ: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
+    groupBankCounts: () => ({ roles: 10, ratings: 4 }),
   };
   return {
     enabled: true, uid: "u_me", social, subscribe: () => () => {},
@@ -59,16 +58,42 @@ const GROUP = {
   id: "g1",
   name: "The Crew",
   mode: "group",
-  memberUids: ["u_me", "u_ada", "u_bo"],
-  memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
+  memberUids: ["u_me", "u_ada", "u_bo", "u_cy"],
+  memberNames: { u_me: "Me", u_ada: "Ada Lovelace", u_bo: "Bo", u_cy: "Cy" },
 };
 
-// One revealed day. `mine`/`ada`/`bo` are option indexes.
-const day = (d: string, me: number, ada: number, bo: number) => ({
-  day: d,
-  qid: "group-gu0",
-  votes: { u_me: { optionIdx: me }, u_ada: { optionIdx: ada }, u_bo: { optionIdx: bo } },
+// The bank the folds read: two roles in one pack, one in another, a rating.
+const HEIST = { id: "heist", label: "Bank Heist", hue: 25 };
+const ISLAND = { id: "island", label: "Desert Island", hue: 150 };
+const BANK: Record<string, Record<string, unknown>> = {
+  r_mind: { kind: "pick", prompt: "Who plans it?", scen: HEIST, role: { id: "mind", label: "the mastermind", seat: "engine" } },
+  r_wheel: { kind: "pick", prompt: "Who drives?", scen: HEIST, role: { id: "wheel", label: "the getaway driver", seat: "hands" } },
+  r_fire: { kind: "pick", prompt: "Who keeps the fire going?", scen: ISLAND, role: { id: "fire", label: "the fire keeper", seat: "heart" } },
+  s_pace: { kind: "rate", prompt: "This group's energy?", poles: ["Calm", "Chaos"], options: ["Calm", "Mostly calm", "In between", "Mostly chaos", "Chaos"] },
+};
+
+/** A role vote's reveal: who named whom, by the D224 snapshot — and the
+ *  index that snapshot meant on this roster, as a real client writes it. */
+const vote = (day: string, round: number, qid: string, picks: Record<string, string>, late: string[] = []) => ({
+  day, round, qid,
+  votes: Object.fromEntries(Object.entries(picks).map(([voter, who]) => [voter, {
+    optionIdx: GROUP.memberUids.indexOf(who), pickUid: who, ...(late.includes(voter) ? { late: true } : {}),
+  }])),
 });
+/** A rating's reveal: who stood on which step. */
+const rate = (day: string, round: number, steps: Record<string, number>) => ({
+  day, round, qid: "s_pace",
+  votes: Object.fromEntries(Object.entries(steps).map(([uid, step]) => [uid, { optionIdx: step }])),
+});
+
+// A room with history: Ada the mastermind twice over, the driver
+// contested between Bo and me, the fire keeper mine, one rating.
+const HISTORY = [
+  rate("2026-09-04", 4, { u_me: 4, u_ada: 3, u_bo: 3, u_cy: 2 }),
+  vote("2026-09-03", 3, "r_fire", { u_me: "u_ada", u_ada: "u_me", u_bo: "u_me", u_cy: "u_me" }),
+  vote("2026-09-02", 2, "r_wheel", { u_me: "u_bo", u_ada: "u_bo", u_bo: "u_me", u_cy: "u_me" }),   // 2–2: shared
+  vote("2026-09-01", 1, "r_mind", { u_me: "u_ada", u_ada: "u_bo", u_bo: "u_ada", u_cy: "u_ada" }),
+];
 
 // The stop's readings live behind its tab row since D190, closed on
 // arrival like every other Mirror stop (D155). Every case that asserts on a
@@ -76,6 +101,7 @@ const day = (d: string, me: number, ada: number, bo: number) => ({
 // that the tab is there and reaches its body.
 const openTab = (label: string) =>
   fireEvent.click(screen.getByRole("tab", { name: label }));
+const panel = () => screen.getByRole("tabpanel");
 
 beforeEach(() => {
   LIVE.enabled = true;
@@ -83,99 +109,77 @@ beforeEach(() => {
   LIVE.social.groups = () => [GROUP];
   LIVE.social.revealHistory = () => [];
   LIVE.social.reading = false;
-  // Restored explicitly: three cases below replace this with a per-group
-  // predicate, and a stub left in place would silently change what every
-  // later case is rendering.
   LIVE.social.revealHistoryLoading = function (this: { reading: boolean }) { return this.reading; } as never;
-  LIVE.social.bankQ = () => ({ prompt: "Who moves first?", options: ["Left", "Right"] });
+  LIVE.social.bankQ = (qid: string) => BANK[qid] || null;
+  LIVE.social.groupBankCounts = () => ({ roles: 10, ratings: 4 });
   LIVE.myTestResults = () => ({});
   LIVE.scoresFor = () => null;
 });
 afterEach(cleanup);
 
-describe("LiveGroupsMirrorBody · thin history makes no claims about people", () => {
-  it(`names nobody "most like you" on fewer than ${MIN_SHARED} shared days`, () => {
-    // One shared day, and on it Ada agreed with me perfectly. 100% — and
-    // meaningless, because it is one coin flip. The panel must not print it.
-    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+describe("LiveGroupsMirrorBody · the head", () => {
+  it("counts the roles cast and the scores, over all the roles in the packs", () => {
+    LIVE.social.revealHistory = () => HISTORY;
     render(<LiveGroupsMirrorBody />);
-    openTab("People");
+    expect(screen.getByText("3 roles cast · 1 score")).toBeTruthy();
+    // and nothing about days, sides or a majority — the words the owner
+    // retired with the call
     const text = document.body.textContent || "";
-    expect(text).not.toMatch(/most like you/i);
-    expect(text).not.toMatch(/100%/);
+    expect(text).not.toMatch(/aligned with you/);
+    expect(text).not.toMatch(/\bdays?\b/);
+    expect(text).not.toMatch(/majority/i);
   });
 
-  it(`names someone once there ARE ${MIN_SHARED} shared days`, () => {
-    // The control. Without it the assertion above passes for a panel that
-    // never names anyone at all, which would be a different bug wearing the
-    // same green tick.
-    LIVE.social.revealHistory = () => [
-      day("2026-07-29", 0, 0, 1),
-      day("2026-07-28", 1, 1, 0),
-    ];
+  it("says no rounds have revealed, and that it is reading while it reads", () => {
     render(<LiveGroupsMirrorBody />);
-    openTab("People");
-    const text = document.body.textContent || "";
-    expect(text).toMatch(/Ada/);
+    expect(screen.getByText("no rounds revealed yet")).toBeTruthy();
+    cleanup();
+    LIVE.social.reading = true;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.getByText("reading the rounds…")).toBeTruthy();
+    expect(screen.queryByText("no rounds revealed yet"), "an unread history was called an empty one").toBeNull();
+  });
+
+  it(`says your seat once ${MIN_GROUP} votes have named you, in the seat's own line`, () => {
+    LIVE.social.revealHistory = () => HISTORY;
+    render(<LiveGroupsMirrorBody />);
+    // fire keeper: 3 votes (heart) · driver: 2 votes (hands) — the heart
+    // seat, said as its line, never as "the Heart"
+    const line = screen.getByText(/Here, you are/);
+    expect(line.textContent).toContain("the one who holds the room together");
+    expect(line.parentElement!.textContent).toContain("3 of 5 votes say so");
+    expect(document.body.textContent).not.toMatch(/the Heart\b/);
+  });
+
+  it("says no seat under the floor — one vote is a coin with a title on it", () => {
+    LIVE.social.revealHistory = () => [vote("2026-09-01", 1, "r_mind", { u_me: "u_ada", u_ada: "u_me", u_bo: "u_ada" })];
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/Here, you are/)).toBeNull();
+  });
+
+  it("draws the role map above the row, with everyone on it", async () => {
+    LIVE.social.revealHistory = () => HISTORY;
+    render(<LiveGroupsMirrorBody />);
+    // lazy chunk — the map arrives after the numbers
+    const map = await screen.findByTestId("lg-role-map");
+    expect(within(map).getByRole("button", { name: /^Ada/ })).toBeTruthy();
+    expect(within(map).getByRole("button", { name: /^You/ })).toBeTruthy();
+    expect(within(map).getByRole("button", { name: /the mastermind · Ada/ })).toBeTruthy();
+  });
+
+  it("loads the open room's history and no other room's", () => {
+    const GROUP2 = { ...GROUP, id: "g2", name: "Book Club" };
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.loadRevealHistory.mockClear();
+    render(<LiveGroupsMirrorBody />);
+    expect(LIVE.social.loadRevealHistory).toHaveBeenCalledWith("g1");
+    expect(LIVE.social.loadRevealHistory).not.toHaveBeenCalledWith("g2");
+    fireEvent.click(screen.getByRole("button", { name: "Book Club" }));
+    expect(LIVE.social.loadRevealHistory).toHaveBeenCalledWith("g2");
   });
 });
 
 describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
-  it("says how many revealed days the Answers card is NOT showing", () => {
-    // The card draws at most seven rows and the header counts every
-    // revealed day the store holds — up to fourteen. With nothing between
-    // them, "10 days revealed" over seven rows reads as a list of ten that
-    // simply stopped, which is the shape the places field's own comment
-    // calls "a cap that silently eats rows reads as 'that is all of them'".
-    const days = Array.from({ length: 10 }, (_, i) =>
-      day(`2026-07-${String(10 + i).padStart(2, "0")}`, 0, 0, 1));
-    LIVE.social.revealHistory = () => days;
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    const text = document.body.textContent || "";
-    expect(text, "the header stopped counting every revealed day").toMatch(/10 days revealed/);
-    expect(text, "the card ate three rows without saying so").toMatch(/3 older days not shown/);
-  });
-
-  it("…and says nothing about a cap it did not reach", () => {
-    // The control: a line printed always would be a caption for a shape
-    // that is not there, which docs/COPY.md deletes.
-    const days = Array.from({ length: 3 }, (_, i) =>
-      day(`2026-07-${String(10 + i).padStart(2, "0")}`, 0, 0, 1));
-    LIVE.social.revealHistory = () => days;
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    expect(document.body.textContent || "").not.toMatch(/not shown/);
-  });
-
-  it("says it is reading rather than that nothing was ever revealed", () => {
-    // The stop OPENS on a fan-out of one getDoc per day, and
-    // `revealHistory()` is empty for a history still arriving as much as
-    // for a group that has never played. So the cold frame told a group
-    // with weeks of history that nothing had been revealed — a claim about
-    // the group, made about the read.
-    //
-    // The loader is careful about exactly this one function up: a
-    // permission-denied caches null permanently, while a transient error
-    // leaves the key absent "so a later call retries it rather than
-    // freezing a gap into the portrait". The surface threw the
-    // distinction away.
-    LIVE.social.revealHistory = () => [];
-    LIVE.social.reading = true;
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.queryByText(/Nothing revealed yet/),
-      "an unread history was called an empty one").toBeNull();
-  });
-
-  it("says answers are sealed when the group has no reveals yet", () => {
-    LIVE.social.revealHistory = () => [];
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/answers stay sealed until the reveal/i)).toBeTruthy();
-    // Not a zeroed portrait: an alignment of 0 of 0 days would read as
-    // "you never agree with these people".
-    expect(document.body.textContent).not.toMatch(/0 of 0/);
-  });
-
   it("offers to start one when there are no groups, rather than rendering blank", () => {
     LIVE.social.groups = () => [];
     const { container } = render(<LiveGroupsMirrorBody />);
@@ -193,7 +197,6 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     // group and delivers a duel. The pin is on the goNav key, because the
     // difference is one argument and the wrong one still "navigates".
     const goNav = vi.fn();
-    // The nav registry since D248, not a window global.
     const dropNav = registerNav({ goNav });
     try {
       LIVE.social.groups = () => [];
@@ -212,15 +215,11 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     const { container } = render(<LiveGroupsMirrorBody />);
     expect(container.textContent).toBe("");
   });
-});
 
-describe("LiveGroupsMirrorBody · duos are excluded by construction (D9)", () => {
   it("asks the store for groups only, never duos", () => {
-    // With two voters every disagreement is a 1-1 tie, so "with the
-    // majority" is always true and the ring would read 100% forever. The
-    // exclusion is a filter argument at the call site, which is easy to drop
-    // and impossible to notice — the panel would just start showing duos
-    // with a perfect score.
+    // A 1v1 has its own Mirror in the reveal itself, and a room of two
+    // names nobody the other did not. The exclusion is a filter argument
+    // at the call site, which is easy to drop and impossible to notice.
     const seen: Array<string | undefined> = [];
     LIVE.social.groups = (mode?: string) => { seen.push(mode); return [GROUP]; };
     render(<LiveGroupsMirrorBody />);
@@ -229,168 +228,152 @@ describe("LiveGroupsMirrorBody · duos are excluded by construction (D9)", () =>
   });
 });
 
-describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", () => {
-  beforeEach(() => {
-    LIVE.social.revealHistory = () => [
-      day("2026-07-29", 0, 0, 1),
-      day("2026-07-28", 1, 1, 0),
-    ];
-  });
-
-  it("the Answers tab says it is reading, not that nothing was revealed", () => {
-    // The tab arm, which the stop-card case above does not reach: with the
-    // row bar drawn, an empty Answers tab is its own sentence, and it was
-    // the same conflation. D190's rule is that a tab says WHY it is empty
-    // — "still reading" and "never played" are two different whys.
-    LIVE.social.revealHistory = () => [];
-    LIVE.social.reading = true;
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    expect(screen.queryByText(/Nothing revealed yet/),
-      "an unread history was called an empty one").toBeNull();
-    expect(screen.getByText(/Reading the days/)).toBeTruthy();
-  });
-
-  it("labels the majority option from the bank, not the option index", () => {
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    // 2 of 3 picked index 0 on the 29th -> "Left"; index 1 on the 28th ->
-    // "Right". Printing "Option 1" instead would be the fallback path for a
-    // question the bank cannot resolve, and would be wrong here.
-    expect(screen.getAllByText("Left").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Right").length).toBeGreaterThan(0);
-    expect(document.body.textContent).not.toMatch(/Option \d/);
-  });
-
-  it("falls back to a member's name for a pick question with no bank options", () => {
-    // "pick" questions carry no bank options — their options ARE the
-    // members — so the label has to resolve through memberUids instead.
-    LIVE.social.bankQ = () => ({ prompt: "Who would you trust with a secret?", options: [] });
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    // index 0 -> memberUids[0] -> "Me"; the row label is the picked member.
-    expect(document.body.textContent).not.toMatch(/Option \d/);
-    expect(document.body.textContent).toMatch(/Me|Ada|Bo/);
-  });
-
-  it("prefers a pick vote's own snapshot over the current roster order (D224)", () => {
-    // The votes below were cast when the roster ordered differently: the
-    // majority sits at index 0, which TODAY'S memberUids resolve to "Me" —
-    // the wrong person. Each vote snapshots who it meant, and the label
-    // must follow the snapshot, not the reshuffled index.
-    LIVE.social.bankQ = () => ({ prompt: "Who would you trust with a secret?", options: [] });
-    LIVE.social.revealHistory = () => [{
-      day: "2026-07-29",
-      qid: "group-gu0",
-      votes: {
-        u_me: { optionIdx: 2, pickUid: "u_ada" },
-        u_ada: { optionIdx: 0, pickUid: "u_bo" },
-        u_bo: { optionIdx: 0, pickUid: "u_bo" },
-      },
-    }];
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    expect(screen.getByText("Bo")).toBeTruthy();
-    expect(screen.queryByText("Me"), "the current-roster index leaked into a label").toBeNull();
-    // …and my own line reads MY snapshot: index 2 is "Bo" today, but the
-    // vote says who I actually picked.
-    fireEvent.click(screen.getByText("Bo"));
-    expect(screen.getByText(/you picked Ada/)).toBeTruthy();
-  });
-
-  it("reports alignment over days the viewer actually played", () => {
-    // I played both days and was with the majority on both.
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/2 of 2 days/i)).toBeTruthy();
-  });
-
-  it("does not count days the viewer sat out as days they lost", () => {
-    // No vote from u_me on the 28th. The denominator is days played, not
-    // days revealed — counting a skipped day as a miss would make the ring
-    // punish absence and read as disagreement.
-    LIVE.social.revealHistory = () => [
-      day("2026-07-29", 0, 0, 1),
-      { day: "2026-07-28", qid: "group-gu0", votes: { u_ada: { optionIdx: 1 }, u_bo: { optionIdx: 0 } } },
-    ];
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/1 of 1 days/i)).toBeTruthy();
-  });
-});
-
-describe("LiveGroupsMirrorBody · the expand row is reachable without a mouse", () => {
-  it("renders each day as a button with aria-expanded", () => {
-    // It was a clickable <div>, which no keyboard could open. Asserted here
-    // rather than left to the a11y ratchet, because the ratchet only counts
-    // findings — it would stay green if this regressed to a <div> carrying
-    // a role and a tabIndex but no working key handler.
-    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
-    render(<LiveGroupsMirrorBody />);
-    openTab("Answers");
-    const rows = screen.getAllByRole("button", { expanded: false });
-    expect(rows.length).toBeGreaterThan(0);
-  });
-});
-
-// ── the stop has a tab row, and has it when empty (D190) ─────────────
-//
-// D188 measured every Mirror stop's row against the prototype and recorded
-// what it had not touched: "Circle and Groups have no row at all in live
-// mode… a missing feature, not a misplaced one." This is the feature, and
-// the case that matters is the EMPTY one — a row that appears only once a
-// stop has data is a stop that reads as unfinished on the day a new account
-// meets it, which is the same argument D160 made for drawing an empty field.
 describe("LiveGroupsMirrorBody · the row is the stop's, not the data's", () => {
-  const tabNames = () =>
-    screen.getAllByRole("tab").map((t) => t.textContent);
-
-  it("draws Answers · People · Compare with a group", () => {
-    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+  it("draws Votes · People · Scores · Compare with a group, and with none", () => {
     render(<LiveGroupsMirrorBody />);
-    expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
-  });
-
-  it("draws the same row with no groups at all", () => {
+    const names = () => screen.getAllByRole("tab").map((t) => t.textContent);
+    expect(names()).toEqual(["Votes", "People", "Scores", "Compare"]);
+    expect(screen.queryByRole("tab", { name: "Answers" }), "the Answers tab outlived the majority").toBeNull();
+    cleanup();
     LIVE.social.groups = () => [];
     render(<LiveGroupsMirrorBody />);
-    expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
-    // …and the empty field above it, which is what the stop is FOR before
-    // a group exists.
-    expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
+    expect(names()).toEqual(["Votes", "People", "Scores", "Compare"]);
   });
 
   it("opens on nothing, and a second tap closes what it opened", () => {
-    // D155's shape: a stop with nothing open is a header, a field and a tab
-    // bar sitting where a tab bar belongs.
-    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
     render(<LiveGroupsMirrorBody />);
     expect(screen.queryByRole("tabpanel")).toBeNull();
-    openTab("Answers");
+    openTab("Votes");
     expect(screen.getByRole("tabpanel")).toBeTruthy();
-    openTab("Answers");
+    openTab("Votes");
     expect(screen.queryByRole("tabpanel")).toBeNull();
   });
 
   it("says why a tab is empty rather than drawing nothing", () => {
-    // A card that renders null is fine when it is one of two things stacked
-    // on a page; behind a tab somebody tapped, it reads as a broken screen.
     LIVE.social.groups = () => [];
     render(<LiveGroupsMirrorBody />);
-    openTab("People");
-    expect(screen.getByRole("tabpanel").textContent).toMatch(/Start a group and this fills in/i);
+    openTab("Votes");
+    expect(panel().textContent).toMatch(/Start a group and this fills in from the first reveal/);
   });
 });
 
-// ── Compare is the profile drawing here too (D193) ──────────────────
-//
-// The group is the population that has to be read from PEOPLE rather than
-// counts: its history is a stack of its own reveals, so there are no test
-// answers to fold, and what it does have is members whose completed
-// instruments are public since D98. The two cases are the reading and the
-// refusal, because a group where nobody has sat a test must say so rather
-// than draw a shape out of one member.
-describe("LiveGroupsMirrorBody · Compare averages the members' own results", () => {
+describe("LiveGroupsMirrorBody · Votes: who the room named", () => {
+  it("lists the latest vote per role by pack, the holder's face and name first", () => {
+    LIVE.social.revealHistory = () => HISTORY;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Votes");
+    const text = panel().textContent || "";
+    expect(text).toMatch(/Who the room named/);
+    expect(text).toMatch(/3 votes/);
+    expect(text).toMatch(/Bank Heist/);
+    expect(text).toMatch(/Desert Island/);
+    // the holder leads the row (its face's initials ride in the text):
+    // latest first, gathered by pack — the island's fire keeper, then the
+    // heist's two
+    const rows = within(panel()).getAllByRole("button", { expanded: false }).map((r) => r.textContent || "");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatch(/You.*the fire keeper$/);
+    expect(rows[1]).toMatch(/Bo & You.*the getaway driver · shared$/);
+    expect(rows[2]).toMatch(/Ada.*the mastermind$/);
+  });
+
+  it("opens a row onto who voted for whom", () => {
+    LIVE.social.revealHistory = () => HISTORY;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Votes");
+    fireEvent.click(within(panel()).getByRole("button", { name: /the mastermind/ }));
+    const text = panel().textContent || "";
+    expect(text).toMatch(/Who plans it\? · round 1/);
+    expect(text).toMatch(/Adaby/);   // "Ada · by · [faces]"
+    expect(text).toMatch(/Boby/);
+    expect(within(panel()).getByLabelText("3 votes")).toBeTruthy();
+    expect(within(panel()).getByLabelText("1 vote")).toBeTruthy();
+  });
+
+  it("says the first role is on the table with nothing revealed, and that it is reading while it reads", () => {
+    render(<LiveGroupsMirrorBody />);
+    openTab("Votes");
+    expect(panel().textContent).toMatch(/No votes revealed yet — the first role is on the table/);
+    cleanup();
+    LIVE.social.reading = true;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Votes");
+    expect(panel().textContent).toMatch(/Reading the rounds/);
+    expect(panel().textContent).not.toMatch(/No votes revealed yet/);
+  });
+});
+
+describe("LiveGroupsMirrorBody · People: who casts the room like you, and everyone's seat", () => {
+  it(`names nobody as casting like you on fewer than ${MIN_SHARED} shared rounds`, () => {
+    // One shared round, and on it Ada named the same person I did. 100% —
+    // and meaningless, because it is one coin flip.
+    LIVE.social.revealHistory = () => [vote("2026-09-01", 1, "r_mind", { u_me: "u_bo", u_ada: "u_bo", u_bo: "u_ada" })];
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    expect(panel().textContent).not.toMatch(/casts the room like you ·/);
+  });
+
+  it(`names the twin once there ARE ${MIN_SHARED} shared rounds, with the count the claim is made of`, () => {
+    LIVE.social.revealHistory = () => [
+      vote("2026-09-01", 1, "r_mind", { u_me: "u_bo", u_ada: "u_bo", u_bo: "u_ada" }),
+      vote("2026-09-02", 2, "r_wheel", { u_me: "u_cy", u_ada: "u_cy", u_bo: "u_ada" }),
+    ];
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    expect(panel().textContent).toMatch(/Ada casts the room like you · same pick on 2 of 2 rounds/);
+  });
+
+  it("lists everyone's seat in the seat's line, with its count, and 'not named yet' under the floor", () => {
+    LIVE.social.revealHistory = () => HISTORY;
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    const text = panel().textContent || "";
+    // Ada: 3 as the mastermind (engine) and my 1 as the fire keeper (heart)
+    // · Bo: 2 as the driver (hands) and Ada's 1 as the mastermind (engine)
+    // · Cy: none. The viewer is the seat line above, not a row here.
+    expect(text).toMatch(/Adathe one who gets things going3 of 4 votes/);
+    expect(text).toMatch(/Bothe one who gets it done2 of 3 votes/);
+    expect(text).toMatch(/Cynot named yet/);
+    expect(text).not.toMatch(/the Engine|the Hands/);
+  });
+
+  it("says it is reading, not that places await a first reveal", () => {
+    LIVE.social.reading = true;
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    expect(panel().textContent).toMatch(/Reading the rounds/);
+    expect(panel().textContent).not.toMatch(/Places are taken from the first reveal/);
+  });
+});
+
+describe("LiveGroupsMirrorBody · Scores: how the group rates itself", () => {
+  it("draws a pole row per rating, strongest lean first, and opens onto the count", () => {
+    LIVE.social.revealHistory = () => HISTORY;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Scores");
+    expect(panel().textContent).toMatch(/How the group rates itself/);
+    expect(panel().textContent).toMatch(/1 of 4 rated/);
+    const row = within(panel()).getByRole("button", { name: /Calm to Chaos/ });
+    // 4·3·3·2 → mean 3 → 75
+    expect(row.getAttribute("aria-label")).toContain("the group · 75");
+    fireEvent.click(row);
+    const text = panel().textContent || "";
+    expect(text).toMatch(/This group's energy\?/);
+    expect(text).toMatch(/Mostly chaos · 75 · round 4/);
+    expect(text).toMatch(/3 of 4 lean Chaos · 1 of 4 in between · you said Chaos/);
+  });
+
+  it("says every fourth round asks the group about itself when none has", () => {
+    render(<LiveGroupsMirrorBody />);
+    openTab("Scores");
+    expect(panel().textContent).toMatch(/No ratings yet — every fourth round asks the group about itself/);
+    expect(panel().textContent).toMatch(/0 of 4 rated/);
+  });
+});
+
+describe("LiveGroupsMirrorBody · Compare: your profile against theirs, and how they see you", () => {
   beforeEach(() => {
-    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+    LIVE.social.revealHistory = () => HISTORY;
     LIVE.myTestResults = () => ({
       big5: { dims: [
         { id: "O", value: 70 }, { id: "C", value: 60 }, { id: "E", value: 50 },
@@ -411,15 +394,11 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     openTab("Compare");
     // gaps 20, 10, 0, 10, 20 → mean 12 → 88.
     expect(await screen.findByText(/across 5 axes/)).toBeTruthy();
-    const panel = screen.getByRole("tabpanel").textContent || "";
-    expect(panel).toMatch(/88/);
-    expect(panel).toMatch(/The Crew/);
-    // The basis, over the members who actually have one — and "them" is
-    // the group WITHOUT the viewer, so the denominator is two, not three.
-    // This read "2 of 3" while the viewer was inside their own comparison
-    // population: u_me has no result here, so the third slot was the
-    // viewer being counted as somebody they might align with.
-    expect(panel).toMatch(/2 of 2 have taken one/);
+    const text = panel().textContent || "";
+    expect(text).toMatch(/88/);
+    expect(text).toMatch(/The Crew/);
+    // "them" is the group WITHOUT the viewer: two of the three others
+    expect(text).toMatch(/2 of 3 have taken one/);
   });
 
   it("says nobody here has finished a test rather than drawing one member", async () => {
@@ -428,11 +407,6 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
   });
 
-  // The sharp case for the population. When the VIEWER is the only member
-  // with a result, "them" is empty — and the lens has an empty state for
-  // exactly that. Passing the whole membership put the viewer on both
-  // sides instead, so the card compared them with themselves and printed a
-  // perfect score: "You ↔ The Crew · 100% aligned · 1 of 3 have taken one".
   it("does not compare you with yourself when you are the only one who has taken a test", async () => {
     LIVE.scoresFor = (uid: string) => (uid === "u_me"
       ? { big5: { O: 40, C: 40, E: 40, A: 40, N: 40 } }
@@ -440,154 +414,37 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     render(<LiveGroupsMirrorBody />);
     openTab("Compare");
     expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
-    const panel = screen.getByRole("tabpanel").textContent || "";
-    expect(panel, "the viewer was counted as somebody they align with").not.toMatch(/100/);
-    expect(panel).not.toMatch(/across 5 axes/);
+    expect(panel().textContent, "the viewer was counted as somebody they align with").not.toMatch(/across 5 axes/);
   });
 
-  it("resolves the members' profiles in one batched call", async () => {
+  it("resolves the members' profiles in one batched call, without the viewer", async () => {
     render(<LiveGroupsMirrorBody />);
     openTab("Compare");
-    // The scores ride the same document as the names (live.ts loadNames),
-    // so a group's Compare costs one read per member and not one per
-    // member per instrument — and not one for the VIEWER, whose profile
-    // this side of the comparison does not contain.
     await vi.waitFor(() => {
-      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_ada", "u_bo"]);
+      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_ada", "u_bo", "u_cy"]);
     });
   });
-});
 
-// ── the cross-group line (D287's groups half, D288 runbook phase 6) ──
-//
-// "Runs most like you" is a superlative, so it renders only when it is a
-// real comparison: two or more groups whose history clears the roles floor
-// (MIN_GROUP days the viewer played). Below either bar the picture stands
-// alone — one group is a caption, thin history is a guess.
-describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
-  const GROUP2 = {
-    id: "g2",
-    name: "Book Club",
-    mode: "group",
-    memberUids: ["u_me", "u_ada", "u_bo"],
-    memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
-  };
-  // The Crew: with the majority on all three days · Book Club: on one of three
-  const CREW_DAYS = [day("2026-08-01", 0, 0, 1), day("2026-08-02", 1, 1, 0), day("2026-08-03", 0, 0, 0)];
-  const CLUB_DAYS = [day("2026-08-01", 1, 0, 0), day("2026-08-02", 0, 1, 1), day("2026-08-03", 0, 0, 0)];
-
-  it("names the most-aligned group, with the count the claim is made of", () => {
-    LIVE.social.groups = () => [GROUP, GROUP2];
-    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS)) as never;
+  it("chips the roles you hold, hollow when shared, and says how often the room named you", async () => {
     render(<LiveGroupsMirrorBody />);
-    const line = screen.getByText(/runs most like you/);
-    expect(line.textContent).toContain("The Crew");
-    expect(line.textContent).toContain("3 of the 3 days you played");
+    openTab("Compare");
+    await screen.findByText(/How they see you/);
+    const text = panel().textContent || "";
+    expect(text).toMatch(/the fire keeper/);
+    expect(text).toMatch(/the getaway driver/);
+    expect(text).not.toMatch(/the mastermind/);
+    expect(text).toMatch(/hollow = shared or contested/);
+    // the others cast 9 votes on role votes; 5 named me (3 fire, 2 driver)
+    expect(text).toMatch(/the room named you5 of 9 votes/);
   });
 
-  it("crowns the deep record over the thin one — the printed pct cannot decide it", () => {
-    // D277 §2's rule, and the site that had not converted when bfb5e9f6
-    // said every sibling had: two days both with the majority is 100% and
-    // 12 of 15 is 80%, so a pct sort announces the coin that landed twice.
-    const withMaj = (d: string) => day(d, 0, 0, 1);   // me with ada, bo apart
-    const against = (d: string) => day(d, 1, 0, 0);   // me alone
-    const thin = [withMaj("2026-08-01"), withMaj("2026-08-02")];
-    const deep = Array.from({ length: 15 }, (_, i) => {
-      const d = `2026-07-${String(i + 1).padStart(2, "0")}`;
-      return i < 12 ? withMaj(d) : against(d);
-    });
-    LIVE.social.groups = () => [GROUP, GROUP2];
-    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? thin : deep)) as never;
+  it("says no roles yet, and no count, when the room has named nobody", async () => {
+    LIVE.social.revealHistory = () => [];
     render(<LiveGroupsMirrorBody />);
-    const line = screen.getByText(/runs most like you/);
-    expect(line.textContent).toContain("Book Club");
-    expect(line.textContent).toContain("12 of the 15 days you played");
-  });
-
-  it("says nothing when the field is flat — a name tiebreak is not a finding", () => {
-    // The comparator's last clause is a NAME tiebreak that never returns
-    // 0, so two circles on identical figures had one crowned
-    // alphabetically and presented as the answer. groupPortrait's own
-    // twin/breaks-ranks labels carry the same guard.
-    LIVE.social.groups = () => [GROUP, GROUP2];
-    LIVE.social.revealHistory = (() => CREW_DAYS) as never;
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.queryByText(/runs most like you/)).toBeNull();
-  });
-
-  it("says nothing with one group — a superlative of one is a caption", () => {
-    LIVE.social.groups = () => [GROUP];
-    LIVE.social.revealHistory = (() => CREW_DAYS) as never;
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.queryByText(/runs most like you/)).toBeNull();
-  });
-
-  it("says nothing while the second group is under the floor", () => {
-    LIVE.social.groups = () => [GROUP, GROUP2];
-    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS.slice(0, 1))) as never;
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.queryByText(/runs most like you/)).toBeNull();
-  });
-
-  // A CROWN HANDED TO THE WRONG CIRCLE IS WORSE THAN A BEAT OF NOTHING.
-  // `revealHistory()` answers `[]` for "never fetched", "in flight" and
-  // "genuinely nothing revealed" alike, so a circle with fifteen days
-  // reads as `daysPlayed: 0` and is dropped by the floor while it is on
-  // the wire — and the loader is a sequential fan-out over every group,
-  // so that is what the first visit looks like. The reader saw a
-  // superlative that changed its mind one round trip later.
-  //
-  // THREE circles, and that is the whole shape of the bug — my first draft
-  // used two and passed with the fix reverted, because with two the floor
-  // already suppresses the crown when one is empty. It takes a field that
-  // still has two settled members to print a superlative at all, plus a
-  // third arriving one that would have won it.
-  const GROUP3 = {
-    id: "g3", name: "Old Friends", mode: "group",
-    memberUids: ["u_me", "u_ada", "u_bo"],
-    memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
-  };
-  const deep15 = Array.from({ length: 15 }, (_, i) => day(`2026-07-${String(i + 1).padStart(2, "0")}`, 0, 0, 1));
-
-  it("crowns nobody while another circle's history is still being read", () => {
-    LIVE.social.groups = () => [GROUP, GROUP2, GROUP3];
-    // Crew and Book Club have landed and differ, so a crown WOULD print.
-    // Old Friends holds fifteen days and is still on the wire.
-    LIVE.social.revealHistory = ((gid: string) =>
-      (gid === "g1" ? CREW_DAYS : gid === "g2" ? CLUB_DAYS : [])) as never;
-    LIVE.social.revealHistoryLoading = ((gid: string) => gid === "g3") as never;
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.queryByText(/runs most like you/),
-      "a circle was crowned over a field that was still arriving").toBeNull();
-  });
-
-  it("crowns the arriving circle once it lands — the control", () => {
-    // Without this, "never crowns anyone" would pass the case above. Same
-    // three circles, nothing in flight: Old Friends wins on 15 of 15 and
-    // is exactly the answer the reader would NOT have been given a moment
-    // earlier.
-    LIVE.social.groups = () => [GROUP, GROUP2, GROUP3];
-    LIVE.social.revealHistory = ((gid: string) =>
-      (gid === "g1" ? CREW_DAYS : gid === "g2" ? CLUB_DAYS : deep15)) as never;
-    LIVE.social.revealHistoryLoading = (() => false) as never;
-    render(<LiveGroupsMirrorBody />);
-    const line = screen.getByText(/runs most like you/);
-    expect(line.textContent).toContain("Old Friends");
-    expect(line.textContent).toContain("15 of the 15 days you played");
-  });
-
-  it("the People tab says it is reading, not that places await a first reveal", () => {
-    // `P.people` is built only from reveals, so with none read it is empty
-    // — and the tab explained that emptiness as a fact about the circle
-    // while the reveals were still arriving. The Answers tab beside it
-    // already said "Reading the days…" on the identical state.
-    LIVE.social.groups = () => [GROUP];
-    LIVE.social.revealHistory = (() => []) as never;
-    LIVE.social.revealHistoryLoading = (() => true) as never;
-    render(<LiveGroupsMirrorBody />);
-    openTab("People");
-    const text = document.body.textContent || "";
-    expect(text).toMatch(/Reading the days/);
-    expect(text).not.toMatch(/Places are taken from the first shared reveal/);
+    openTab("Compare");
+    await screen.findByText(/How they see you/);
+    expect(panel().textContent).toMatch(/No roles yet — the next vote could change that/);
+    expect(panel().textContent).not.toMatch(/the room named you/);
+    expect(panel().textContent).not.toMatch(/0 of 0/);
   });
 });

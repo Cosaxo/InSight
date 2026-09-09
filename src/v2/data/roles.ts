@@ -70,9 +70,14 @@ export const seatOf = (id: string | null | undefined): Seat | null =>
  * seeded `topic` — a group's pick/rate/us/classic, a 1v1's domain or
  * `cast`), a role vote's role and seat, a cast round's them forms. */
 export interface BankEntryLike {
+  prompt?: string | null;
   options?: readonly string[] | null;
   kind?: string | null;
+  /** A role vote's scenario pack (D429) — the Groups stop's ink per row. */
+  scen?: { id: string; label: string; hue: number } | null;
   role?: { id: string; label: string; seat?: string | null } | null;
+  /** A rating's two poles (D429). */
+  poles?: readonly string[] | null;
   them?: readonly string[] | null;
   dims?: readonly string[] | null;
 }
@@ -275,9 +280,6 @@ export interface SeatTally {
   shares: Record<SeatId, number>;
   /** votes received in all */
   total: number;
-  /** the roles you hold — the option(s) with the most votes on a role vote
-   * named you — one per role, the latest vote per role */
-  held: Array<{ id: string; label: string; seat: SeatId; contested: boolean }>;
 }
 
 /**
@@ -286,6 +288,12 @@ export interface SeatTally {
  * reveals the app already holds. A vote counts only when its snapshot
  * names the member (D224), it was blind, and it was an answer to the
  * reveal's own question; a vote for yourself is not the room naming you.
+ *
+ * Who HOLDS a role is not read here: that is the card's rule (every blind
+ * vote, self-votes included) and `groupCast.roleVotes` folds it, so the
+ * Mirror's Votes lens and the reveal agree about who the mastermind is.
+ * This fold is the reading underneath — the share of the votes that came
+ * from other people.
  */
 export function seatTally(
   reveals: readonly PortraitReveal[],
@@ -293,36 +301,22 @@ export function seatTally(
   lookup?: BankLookup,
 ): SeatTally {
   const shares: Record<SeatId, number> = { engine: 0, hands: 0, heart: 0, wild: 0 };
-  const heldBy = new Map<string, { id: string; label: string; seat: SeatId; contested: boolean }>();
   let total = 0;
-  if (!uid || !lookup) return { shares, total, held: [] };
-  for (const r of byDay(reveals as Array<PortraitReveal & { round?: number }>)) {
+  if (!uid || !lookup) return { shares, total };
+  for (const r of reveals) {
     const rowQid = r.qid || "";
     const q = rowQid ? lookup(rowQid) : null;
     const seat = q && q.kind === "pick" && q.role ? seatOf(q.role.seat) : null;
     if (!q || !q.role || !seat) continue;
-    const named = new Map<string, number>(); // whom each counted vote named
     for (const [voter, v] of Object.entries(r.votes || {})) {
       if (!v || v.late || typeof v.optionIdx !== "number") continue;
       if (voteQid(v, rowQid) !== rowQid) continue;
       const who = typeof v.pickUid === "string" && v.pickUid ? v.pickUid : null;
       if (!who || who === voter) continue; // no snapshot, or a vote for yourself
-      named.set(who, (named.get(who) || 0) + 1);
       if (who === uid) { shares[seat.id] += 1; total += 1; }
     }
-    // the role's holder: the most-named, contested when a runner-up with
-    // two or more is within one vote (the card's rule)
-    const order = [...named.entries()].sort((a, b) => b[1] - a[1]);
-    if (order.length && order[0][1] > 0) {
-      const [winner, top] = order[0];
-      const second = order[1] || null;
-      const contested = !!second && second[1] >= 2 && top - second[1] <= 1;
-      if (winner === uid || (contested && second && second[0] === uid)) {
-        heldBy.set(q.role.id, { id: q.role.id, label: q.role.label, seat: seat.id, contested });
-      } else heldBy.delete(q.role.id);
-    }
   }
-  return { shares, total, held: [...heldBy.values()] };
+  return { shares, total };
 }
 
 /** How many votes a member has received — the thin row's "1 of 2". */
@@ -338,7 +332,6 @@ export interface GroupRoleResult extends RoleResult {
   /** the seat with the most votes, first in SEATS' order on a tie */
   seat: Seat;
   shares: Record<SeatId, number>;
-  held: SeatTally["held"];
 }
 
 /**
@@ -359,7 +352,7 @@ export function groupRole(
     note: `${T.shares[s.id]} of ${T.total} votes in ${s.label.toLowerCase()} roles`,
   }));
   const seat = [...SEATS].sort((a, b) => T.shares[b.id] - T.shares[a.id])[0];
-  return { n: T.total, dims, seat, shares: T.shares, held: T.held };
+  return { n: T.total, dims, seat, shares: T.shares };
 }
 
 /** A member's seat in a group — the fold above run for somebody else,

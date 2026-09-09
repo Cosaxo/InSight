@@ -238,6 +238,7 @@ export const LIVE_SOCIAL_MEMBERS = [
   // The first run's preview of a group round (D432): the bank's first role
   // vote, so the screen draws a real one rather than a World stand-in.
   "roleVotePreview",
+  "groupBankCounts",
   // Request 12's card: my answer AND my call on any sealed round.
   "myDuelCall",
   // The in-flight flag beside `takes` — listed here because the pin is

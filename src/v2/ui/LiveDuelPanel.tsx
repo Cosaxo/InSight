@@ -1088,7 +1088,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
         <LdRateReveal reveal={reveal} opts={opts} poles={cq.poles} names={names} uid={uid} tint={tint} />
       ) : duo ? duoTable() : (
         <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint}
-          cast={roleVote ? { ink, crown: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead } : undefined} />
+          cast={roleVote ? { ink, held: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead } : undefined} />
       )}
       {openSeats.length > 0 && seats()}
       {line()}
@@ -1321,7 +1321,7 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
    *  contested runner-up, and each option's member as its lead. The rows
    *  are then ordered by count — the design's `VoteReveal` — because a
    *  cast's rows are people, and the crown reads from the top. */
-  cast?: { ink: string; crown: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode };
+  cast?: { ink: string; held: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode };
 }) {
   // R2/D270: a reveal on screen is the duel loop's payoff being
   // collected — the one signal rung 0 could never see (the reveal doc is
@@ -1352,24 +1352,24 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
       {order.map((i) => {
         const row = byOpt.get(i) as { uids: string[]; late: string[] };
         const isMine = !!mine && mine.optionIdx === i && (row.uids.includes(uid) || row.late.includes(uid));
-        const crowned = !!cast && cast.crown.includes(i);
+        const held = !!cast && cast.held.includes(i);
         const rival = !!cast && cast.rival === i;
         const fill = cast ? cast.ink : tint;
         const border = cast
-          ? (crowned ? `1.5px solid color-mix(in oklch, ${fill} 60%, transparent)` : rival ? `1.5px solid color-mix(in oklch, ${fill} 40%, transparent)` : LD_LINE)
+          ? (held ? `1.5px solid color-mix(in oklch, ${fill} 60%, transparent)` : rival ? `1.5px solid color-mix(in oklch, ${fill} 40%, transparent)` : LD_LINE)
           : (isMine ? `1.5px solid color-mix(in oklch, ${tint} 55%, transparent)` : LD_LINE);
         return (
-          <div key={i} data-crown={crowned ? "true" : undefined} style={{
+          <div key={i} data-held={held ? "true" : undefined} style={{
             position: "relative", overflow: "hidden", borderRadius: 14,
             border,
             background: "var(--surface-2)", boxShadow: "none",
           }}>
             <div style={{ position: "absolute", top: 0, left: 0, bottom: 0,
               width: ((row.uids.length + row.late.length) / total) * 100 + "%",
-              background: `color-mix(in oklch, ${fill} ${cast && (crowned || rival) ? 14 : cast ? 7 : 13}%, transparent)` }} />
+              background: `color-mix(in oklch, ${fill} ${cast && (held || rival) ? 14 : cast ? 7 : 13}%, transparent)` }} />
             <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px 8px 9px", minHeight: 44, boxSizing: "border-box" }}>
               {cast && cast.leadFor(i)}
-              <span style={{ flex: 1, minWidth: 0, fontWeight: crowned || rival ? 800 : 700, fontSize: 13.5 }}>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: held || rival ? 800 : 700, fontSize: 13.5 }}>
                 {opts[i] != null ? opts[i] : "Option " + (i + 1)}
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>

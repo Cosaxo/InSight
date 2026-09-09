@@ -3787,6 +3787,19 @@ const SOCIAL = {
     const q = state.duelBank.find((x) => x.surface === "group" && x.topic === "pick" && !!x.scen && !!x.role && x.active !== false);
     return q && q.scen && q.role ? { prompt: q.prompt, scen: q.scen, role: q.role } : null;
   },
+  /** How many roles the packs hold and how many ratings the bank asks —
+   *  the denominators the Groups stop prints its progress against
+   *  (D432: the identity ring is roles cast over all roles; the Scores
+   *  lens says "2 of 10 rated"). Active entries in this device's bank. */
+  groupBankCounts(): { roles: number; ratings: number } {
+    let roles = 0, ratings = 0;
+    for (const q of state.duelBank) {
+      if (q.surface !== "group" || q.active === false) continue;
+      if (q.topic === "pick" && q.role) roles += 1;
+      else if (q.topic === "rate") ratings += 1;
+    }
+    return { roles, ratings };
+  },
   /** This account's sealed answer to the OPEN round, or null. */
   myDuelVote(gid: string): { optionIdx: number } | null {
     const g = state.groups.find((x) => x.id === gid);
