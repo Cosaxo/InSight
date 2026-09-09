@@ -48483,3 +48483,155 @@ chunk (`SignInGate`'s header), so the eager graph does not move.
 
 **Measured before the push:** the gates and their counts are in the PR
 body.
+## D442 · The nightly voter samples are seeded on first touch: one bounded query per question, once, at most 25 a night
+
+**2026-09-09.** **Status:** binding. The owner's answer to the
+`OWNER-LIST.md` row *"The nightly voter samples have never held anyone
+who answered before they existed — pay ~23,000 reads once to seed them,
+or keep a floor that is lying?"* — seed on first touch, bounded at 25
+questions a night — which is the row's own recommendation, taken.
+
+### What was wrong
+
+D397 replaced the newest-200 answer query behind Kindred, the People
+lens and the pair card with one published document per question, built
+by the nightly pass from the ledger day it already reads
+(`mergeSample`), and the saving was real: reads/day −16% wherever the
+cap binds. What nothing did was SEED it. A person answers a given
+question once, so a ledger day carries only that night's answerers, and
+the two hundred people who answered a question before its sample
+existed never arrived — a long-standing question published a sample of
+however many had answered it since D397 shipped. Real rows, and the
+reader could not tell them from a complete list. It landed on the
+floors: `say()` and `tell()` both want 12 in both samples, so the pair
+card and the Oracle's working panel went quiet and reported `thin`, and
+"of the N in both samples" named a population the document did not
+hold — **a claim about the crowd whose real subject was the deploy
+date**, D1's honesty failing on a surface nothing measured. What a
+routine could do alone was done first: an EMPTY sample no longer reads
+as a crowd of nobody (`d4bd84a8`); a SHORT one is undetectable from the
+device, which is why the row went to the owner rather than being fixed
+quietly.
+
+### The two ways through
+
+*Seed on first touch* — one bounded collection-group query the first
+night the pass meets a question, then nothing forever. It needed two
+things nobody had chosen: a second copy of the answer-surface list
+inside `functions/` (the client's lives in `data/voters.ts`, and D197 is
+this tree's record of one parser in three copies), and a per-run bound,
+because seeding every question on one busy night is the whole corpus's
+reads inside a single invocation with a timeout. *Fall back when the
+sample is short* — no writes, no new list, but it re-reads two hundred
+documents per question per session for the whole legacy corpus,
+permanently: most of what D397 bought, paid back monthly. The owner
+took the first, at 25 a night.
+
+### What was built
+
+**The seed** (`functions/src/patternsSamples.ts`, pure; the pass in
+`patterns.ts`). The first night the nightly meets a question whose
+sample document does not exist or carries no `seeded` stamp, it runs
+the who-voted sheet's OWN query once — `collectionGroup("answers")`,
+`qid ==`, `surface in` the world list, `answeredAt desc`, limit
+`PATTERNS_SAMPLE_CAP` (200), on the collection-group index
+`firestore.indexes.json` already declares for the client's
+`fetchVoterPicks` — and folds the rows in exactly as a ledger day is
+folded: one row per person, the newest day wins, the cap keeps the
+newest (`seedSample` is `mergeSample` plus the stamp). Each row's day
+is the day the answer last MOVED — `editedAt` when a D86 edit stamped
+it, else `answeredAt` — because that is the day the ledger folded it,
+so a seeded row lands where the ledger would have put it and an edit
+the ledger already moved meets the seed as a tie: one row, the edited
+option, never a rollback and never a second person (pinned in all three
+orders the two can arrive in). The chips are the answer's frozen
+anchors (D8), string values only — `ledgerAnchors`' own filter — so a
+seeded row and a ledgered row of the same answer are byte-identical.
+The seed runs BEFORE the day's additions are merged, so an entry
+ledgered tonight wins its tie with the seed's copy of the same answer.
+Then the document is stamped `seeded: <UTC day>`, and the stamp is the
+whole idempotence: a stamped sample is never read again, `mergeSample`
+carries the stamp across every nightly rewrite (the document is a `set`
+with no merge — a merge that rebuilt it without the stamp would re-seed
+the question nightly), and `store-projection.test.ts` pins the field in
+both directions of the Firestore store, the `d`/`a` lesson one method
+up.
+
+**The bound.** `PATTERNS_SEED_PER_RUN = 25`, per RUN rather than per
+day — a catch-up folds up to seven days in one invocation, and the
+bound exists to cap what one invocation reads. Questions are met in qid
+order, so a night's budget spends the same way twice. When it is spent,
+a sample that EXISTS still takes the day (short as it was, no shorter)
+and a sample that does not exist is **not created short**: with no
+document the device keeps the live query, which is complete, and the
+seed lands the next night the question is met — nothing is lost to it,
+because the seed reads the answers themselves rather than the ledger.
+The fit's heartbeat line (`metric: "patterns_fit"`) carries `seeded`,
+the count paid for tonight, beside `samples`.
+
+**The list.** `functions/src/answerSurfaces.ts` is the server's copy of
+`WORLD_ANSWER_SURFACES`, and `answerSurfaces.test.ts` reads
+`src/v2/data/voters.ts` across the package boundary and pins the two
+arrays equal — the client's `voters.test.ts` pins its list against the
+value test in `firestore.rules`, so the three agree transitively. The
+copy is HELD rather than trusted for a reason the client's copy does
+not have: the admin SDK walks past the rules, so a drifted server list
+would not be refused, it would seed a crowd the sheet does not show.
+
+### The reads arithmetic
+
+At the `europe-west1` read price of $0.03 per 100 k (D200):
+
+- **Per seeded question:** one query, at most `PATTERNS_SAMPLE_CAP` =
+  200 billed reads (fewer where fewer answers exist; one for an empty
+  result). No new write — the stamp rides the `putSamples` write a
+  touched question already gets — and no new index.
+- **Per seeding night:** at most 25 × 200 = **5,000 reads ≈ $0.0015**,
+  on top of the pass's own reads, which are unchanged.
+- **The corpus.** The row priced ~113 core questions × 200 ≈ 23,000
+  reads, which was the two-option pool (`PATTERNS_QIDS`, 115 today).
+  The sample family is written for every item the candidate's corpus
+  names (`PATTERNS_ITEM_QIDS` — 540 today: 138 daily, 86 core feed, 316
+  instrument items), because D397 wrote a sample for every question a
+  day's compaction touches, and Kindred's twelve are chosen from the
+  viewer's own vote map by divisiveness, which does not exclude an
+  instrument item. So the ceiling is 540 × 200 = **108,000 reads ≈
+  $0.03, once**, over at most ceil(540 / 25) = **22 seeding nights** if
+  every night met 25 unstamped questions — and the real figure is the
+  number of answer documents that exist, min(answers, 200) per
+  question, which pre-launch is far under the ceiling. Only questions a
+  day's answers touch are met at all, so the nights that seed anything
+  are the nights people answered questions with a history.
+- **After that:** zero, forever. The stamp is one string on a document
+  the pass already reads for every touched question.
+
+### What it does not do
+
+- It does not seed a sample nobody touches. A document written by the
+  nights since D397 shipped and before this deploy, for a question
+  nobody answers again, stays as it was — short — until someone does;
+  the first answer seeds it. The alternative, a nightly sweep of
+  `v2_patterns` for unstamped documents, is a few hundred reads a night
+  against "then nothing forever", for a residue that is finite, tiny
+  pre-launch, and enumerable in the console (`sample-*` documents
+  without `seeded`). Recorded, not built; the row is the owner's to
+  reopen if the residue ever matters.
+- It does not touch a rule, an index, the client, or any collection
+  shape beyond the `seeded` field: the seed runs on the admin SDK under
+  the sample's existing rule (reads signed-in, writes nobody), the
+  query is the client's own on the index the client already needs, and
+  the reader's fallback and floors are as they were. The one client
+  file touched is `voters.ts`, in a docstring alone — its "nothing
+  seeds it" paragraph stopped being true.
+- It does not seed the who-voted sheet or the City pass — both keep the
+  live query (D397, D278), for the reasons D397 gives.
+- It was not run against production (a session makes no production
+  writes), and the emulator e2e never invokes the nightly, so the
+  first seed is the first nightly after deploy; `seeded` on the
+  heartbeat line is what says it happened, and how many were paid for.
+
+**Measured before the push:** functions 40 files / 851 tests (837 + 14
+— six D442 cases in `patterns.test.ts`, four in
+`patternsSamples.test.ts`, two in `answerSurfaces.test.ts`, two more
+rows in `store-projection.test.ts`), `tsc` clean; the rest of the gates
+are in the PR body.

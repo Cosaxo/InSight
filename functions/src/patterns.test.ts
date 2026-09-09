@@ -35,7 +35,8 @@ import {
   type PatternsUserState,
 } from "./patternsFit";
 import { ALS_LAMBDAS_U, PATTERNS_CROSSOVER_NIGHTS, procrustes, symmetricEigen } from "./patternsAls";
-import { PATTERNS_SAMPLE_CAP, type SampleDoc } from "./patternsSamples";
+import { PATTERNS_SAMPLE_CAP, PATTERNS_SEED_PER_RUN, type SampleAddition, type SampleDoc } from "./patternsSamples";
+import { WORLD_ANSWER_SURFACES } from "./answerSurfaces";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 
@@ -43,12 +44,20 @@ const EMPTY_DISPLACEMENT: PatternsDisplacement = { space: "loading", n: 0, moved
 const EMPTY_SEEDS: PatternsSeeds = { n: 0, meanCos: 0, share90: 0, meanNorm: 0, seedNorm: 0 };
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
-function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
+function memoryStore(
+  ledger: Record<string, PatternsLedgerEntry[]>,
+  // The answers collection as the seed query would return it (D442): per
+  // question, the newest cap of its world answers already projected to
+  // additions. Absent means the question has no answers on disk.
+  answers: Record<string, SampleAddition[]> = {},
+) {
   const users = new Map<string, PatternsUserState>();
   const samples = new Map<string, SampleDoc>();
   const state = {
     /** The voter samples as the last putSamples left them (D397). */
     samples,
+    /** Every seed query the run paid for, in order (D442). */
+    seedCalls: [] as string[],
     /** The publication as the last putModel left it — whole, cloned, the
      * way the Firestore store reads the document back (D395). */
     pub: null as PatternsPublication | null,
@@ -120,6 +129,10 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     },
     async putSamples(next) {
       for (const [qid, d] of next) samples.set(qid, clone(d));
+    },
+    async seedRows(qid) {
+      state.seedCalls.push(qid);
+      return clone(answers[qid] ?? []);
     },
   };
   return { store, state };
@@ -1124,5 +1137,233 @@ describe("the voter samples the sweep publishes", () => {
     await runPatternsFit(store, NOW);
     expect(state.samples.get(CORE_A)!.n).toBe(PATTERNS_SAMPLE_CAP);
     expect(PATTERNS_SAMPLE_CAP).toBe(200);
+  });
+});
+
+// ── seeded on first touch (D442) ──────────────────────────────────────
+//
+// The sample's only input was the ledger day, and a person answers a
+// question once — so as D397 shipped, everyone who answered before the
+// samples existed never arrived, and a long-standing question published
+// a SHORT sample the reader could not tell from a complete one, landing
+// on the 12-voter floors as `thin` (the OWNER-LIST row the owner answered
+// 2026-09-09: seed on first touch, bounded at 25 a night). Pinned:
+//
+//   1. an unstamped sample is seeded from the bounded query, then takes
+//      the day — the seed's rows and the day's rows in one document;
+//   2. a stamped sample is never read again — the stamp is the whole
+//      idempotence, whether this run set it or an earlier night's did;
+//   3. the bound is per RUN: the 26th unstamped question waits for the
+//      next night, a catch-up's days share one budget, and a sample the
+//      budget cannot seed is not CREATED short — an existing one still
+//      takes the day;
+//   4. a D86 edit the ledger already moved meets the seed as a tie — one
+//      row, the edited option, never a rollback and never a second
+//      person — in all three orders the two can arrive in;
+//   5. the Firestore store's seed is the who-voted sheet's own query, and
+//      its projection is the addition's.
+describe("seeding the voter samples on first touch (D442)", () => {
+  const DAY = 24 * 3600 * 1000;
+  const today = utcDay(NOW, 0);
+  const threeBack = utcDay(NOW, -3);
+  // one more corpus question than a night's budget, in the order the run
+  // walks them (sorted qids), so the one that waits is known
+  const MANY = [...PATTERNS_ITEM_QIDS].sort().slice(0, PATTERNS_SEED_PER_RUN + 1);
+  const LAST = MANY[MANY.length - 1];
+  const seedOf = (qids: readonly string[]): Record<string, SampleAddition[]> =>
+    Object.fromEntries(qids.map((qid) => [qid, [{ uid: `old-${qid}`, optionIdx: 0, day: threeBack }]]));
+
+  it("a question with no sample is seeded from the bounded query, then takes the day", async () => {
+    const { store, state } = memoryStore(
+      { [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0, anchors: { city: "Oslo, NO" } }] },
+      {
+        [CORE_A]: [
+          { uid: "old1", optionIdx: 1, anchors: { city: "Bergen, NO" }, day: threeBack },
+          { uid: "old2", optionIdx: 0, day: twoBack },
+        ],
+      },
+    );
+    const r = await runPatternsFit(store, NOW);
+    expect(state.seedCalls).toEqual([CORE_A]);
+    expect(r.seeded).toBe(1);
+    expect(r.samples).toBe(1);
+    const s = state.samples.get(CORE_A)!;
+    expect(s.n).toBe(3);
+    expect(s.rows.old1).toEqual({ o: 1, a: { city: "Bergen, NO" }, d: threeBack });
+    expect(s.rows.old2).toEqual({ o: 0, a: {}, d: twoBack });
+    expect(s.rows.u1).toEqual({ o: 0, a: { city: "Oslo, NO" }, d: yesterday });
+    expect(s.seeded).toBe(today);
+  });
+
+  it("a seeded question is never read again — on the next night, or when the document arrived stamped", async () => {
+    const { store, state } = memoryStore(
+      {
+        [twoBack]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+        [yesterday]: [{ uid: "u2", qid: CORE_A, optionIdx: 1 }, { uid: "u2", qid: CORE_B, optionIdx: 1 }],
+      },
+      { [CORE_A]: [{ uid: "old1", optionIdx: 1, day: threeBack }], [CORE_B]: [{ uid: "old9", optionIdx: 0, day: threeBack }] },
+    );
+    // CORE_B's document was seeded by an earlier night's run
+    state.samples.set(CORE_B, { qid: CORE_B, rows: { z: { o: 0, a: {}, d: threeBack } }, n: 1, seeded: threeBack });
+    await runPatternsFit(store, NOW - DAY); // folds twoBack: CORE_A met, seeded
+    expect(state.seedCalls).toEqual([CORE_A]);
+    expect(state.samples.get(CORE_A)!.seeded).toBe(utcDay(NOW - DAY, 0));
+    const r = await runPatternsFit(store, NOW); // folds yesterday: both met, neither read
+    expect(state.seedCalls, "a stamped sample was re-read").toEqual([CORE_A]);
+    expect(r.seeded).toBe(0);
+    expect(r.samples).toBe(2);
+    expect(state.samples.get(CORE_A)!.n).toBe(3);
+    expect(state.samples.get(CORE_A)!.seeded).toBe(utcDay(NOW - DAY, 0));
+    const b = state.samples.get(CORE_B)!;
+    expect(b.n).toBe(2);
+    expect(b.rows.old9, "a sample that arrived stamped was re-seeded").toBeUndefined();
+    expect(b.seeded).toBe(threeBack);
+  });
+
+  it("the 26th unstamped question on one night waits for the next — the bound is per run, not per day, and it is not created short", async () => {
+    const half = Math.floor(MANY.length / 2);
+    // one person answers every one of them, split across two owed days
+    const ledger: Record<string, PatternsLedgerEntry[]> = {
+      [twoBack]: MANY.slice(0, half).map((qid) => ({ uid: "u1", qid, optionIdx: 0 })),
+      [yesterday]: MANY.slice(half).map((qid) => ({ uid: "u1", qid, optionIdx: 0 })),
+    };
+    const answers = seedOf(MANY);
+    // the answers collection holds u1's answer to LAST too — the seed reads
+    // the answers themselves, so a day the sample skipped is not lost to it
+    answers[LAST].push({ uid: "u1", optionIdx: 0, day: yesterday });
+    const { store, state } = memoryStore(ledger, answers);
+    const r = await runPatternsFit(store, NOW);
+    expect(state.seedCalls.length, "two owed days each spent their own budget").toBe(PATTERNS_SEED_PER_RUN);
+    expect(r.seeded).toBe(PATTERNS_SEED_PER_RUN);
+    expect(state.seedCalls).not.toContain(LAST);
+    expect(state.samples.has(LAST), "a sample was created short rather than left to the live query").toBe(false);
+    expect(r.samples).toBe(PATTERNS_SEED_PER_RUN);
+    for (const qid of MANY.slice(0, -1)) expect(state.samples.get(qid)!.seeded).toBe(today);
+    // the next night meets it again, with a fresh budget
+    ledger[today] = [{ uid: "u2", qid: LAST, optionIdx: 1 }];
+    const r2 = await runPatternsFit(store, NOW + DAY);
+    expect(r2.seeded).toBe(1);
+    expect(state.seedCalls.length).toBe(PATTERNS_SEED_PER_RUN + 1);
+    expect(state.seedCalls[PATTERNS_SEED_PER_RUN]).toBe(LAST);
+    const s = state.samples.get(LAST)!;
+    expect(s.n).toBe(3);
+    expect(s.rows.u1, "the day the sample skipped did not come back through the seed").toEqual({ o: 0, a: {}, d: yesterday });
+    expect(s.rows.u2.d).toBe(today);
+    expect(s.seeded).toBe(utcDay(NOW + DAY, 0));
+  });
+
+  it("with the budget spent, a sample that already exists still takes the day — and is seeded the night after", async () => {
+    // 25 fresh questions ahead of LAST in qid order, and a pre-D442
+    // document of LAST's own, fed by the ledger alone
+    const ledger: Record<string, PatternsLedgerEntry[]> = { [yesterday]: MANY.map((qid) => ({ uid: "u1", qid, optionIdx: 0 })) };
+    const { store, state } = memoryStore(ledger, seedOf(MANY));
+    state.samples.set(LAST, { qid: LAST, rows: { s1: { o: 1, a: {}, d: threeBack } }, n: 1 });
+    const r = await runPatternsFit(store, NOW);
+    expect(state.seedCalls).not.toContain(LAST);
+    expect(r.samples, "the existing sample was not rewritten with the day").toBe(PATTERNS_SEED_PER_RUN + 1);
+    const s = state.samples.get(LAST)!;
+    expect(s.n).toBe(2);
+    expect(s.rows.u1.d).toBe(yesterday);
+    expect(s.seeded, "an unseeded sample was stamped without its query").toBeUndefined();
+    ledger[today] = [{ uid: "u2", qid: LAST, optionIdx: 1 }];
+    await runPatternsFit(store, NOW + DAY);
+    expect(state.seedCalls[state.seedCalls.length - 1]).toBe(LAST);
+    const after = state.samples.get(LAST)!;
+    expect(after.seeded).toBe(utcDay(NOW + DAY, 0));
+    expect(after.n).toBe(4); // s1, u1, u2, and the seed's old-LAST
+  });
+
+  it("a D86 edit the ledger already moved is a tie with the seed — one row, the edited option, no rollback", async () => {
+    // (a) the edit was folded by an earlier night into a sample that
+    //     predates the seed; the document on disk carries the edited
+    //     option under its editedAt day
+    {
+      const { store, state } = memoryStore(
+        { [yesterday]: [{ uid: "u2", qid: CORE_A, optionIdx: 0 }] },
+        { [CORE_A]: [{ uid: "u1", optionIdx: 1, day: twoBack }] },
+      );
+      state.samples.set(CORE_A, { qid: CORE_A, rows: { u1: { o: 1, a: {}, d: twoBack } }, n: 1 });
+      await runPatternsFit(store, NOW);
+      const s = state.samples.get(CORE_A)!;
+      expect(state.seedCalls).toEqual([CORE_A]);
+      expect(s.n, "the seed's copy of an edit the ledger moved counted as a second person").toBe(2);
+      expect(s.rows.u1).toEqual({ o: 1, a: {}, d: twoBack });
+      expect(s.seeded).toBe(today);
+    }
+    // (b) the create and the edit are both owed tonight; the seed runs on
+    //     the first day met and already holds the edited document
+    {
+      const { store, state } = memoryStore(
+        {
+          [twoBack]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+          [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }],
+        },
+        { [CORE_A]: [{ uid: "u1", optionIdx: 1, day: yesterday }] },
+      );
+      await runPatternsFit(store, NOW);
+      expect(state.seedCalls).toEqual([CORE_A]);
+      const s = state.samples.get(CORE_A)!;
+      expect(s.n).toBe(1);
+      expect(s.rows.u1, "the create's older day rolled the seeded row back").toEqual({ o: 1, a: {}, d: yesterday });
+      // the fit's own basis agrees: one person, not two who disagree
+      expect(state.pub!.q[CORE_A].n).toBe(1);
+    }
+    // (c) the seed came first, the edit the night after: the row moves,
+    //     nobody is added, nothing is re-read
+    {
+      const ledger: Record<string, PatternsLedgerEntry[]> = { [twoBack]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }] };
+      const { store, state } = memoryStore(ledger, { [CORE_A]: [{ uid: "u1", optionIdx: 0, day: twoBack }] });
+      await runPatternsFit(store, NOW - DAY);
+      expect(state.samples.get(CORE_A)!.rows.u1).toEqual({ o: 0, a: {}, d: twoBack });
+      ledger[yesterday] = [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }];
+      await runPatternsFit(store, NOW);
+      const s = state.samples.get(CORE_A)!;
+      expect(state.seedCalls).toEqual([CORE_A]);
+      expect(s.n).toBe(1);
+      expect(s.rows.u1).toEqual({ o: 1, a: {}, d: yesterday });
+    }
+  });
+
+  it("the store's seed is the who-voted sheet's own query, projected to additions", async () => {
+    const TS = (ms: number) => ({ toMillis: () => ms });
+    const calls: unknown[][] = [];
+    const docs = [
+      // a D86 edit: the edited option, under its editedAt day; a non-string chip dropped
+      { uid: "u1", data: { optionIdx: 1, anchors: { city: "Oslo, NO", n: 3 }, answeredAt: TS(Date.UTC(2026, 7, 10)), editedAt: TS(Date.UTC(2026, 7, 12)) } },
+      { uid: "u2", data: { optionIdx: 0, answeredAt: TS(Date.UTC(2026, 7, 11)) } },
+      // a catalog answer carries `entity` and no option column: skipped, not coerced
+      { uid: "u3", data: { entity: 42, answeredAt: TS(Date.UTC(2026, 7, 11)) } },
+    ];
+    const q = {
+      where(...a: unknown[]) { calls.push(["where", ...a]); return q; },
+      orderBy(...a: unknown[]) { calls.push(["orderBy", ...a]); return q; },
+      limit(...a: unknown[]) { calls.push(["limit", ...a]); return q; },
+      select(...a: unknown[]) { calls.push(["select", ...a]); return q; },
+      async get() {
+        return {
+          docs: docs.map((d) => ({
+            ref: { parent: { parent: { id: d.uid } } },
+            get: (f: string) => (d.data as Record<string, unknown>)[f],
+          })),
+        };
+      },
+    };
+    const db = {
+      collection() { return { doc() { return {}; } }; },
+      collectionGroup(name: string) { calls.push(["collectionGroup", name]); return q; },
+    };
+    const rows = await firestorePatternsStore(db as unknown as Firestore).seedRows(CORE_A);
+    expect(calls).toEqual([
+      ["collectionGroup", "answers"],
+      ["where", "qid", "==", CORE_A],
+      ["where", "surface", "in", [...WORLD_ANSWER_SURFACES]],
+      ["orderBy", "answeredAt", "desc"],
+      ["limit", PATTERNS_SAMPLE_CAP],
+      ["select", "optionIdx", "anchors", "answeredAt", "editedAt"],
+    ]);
+    expect(rows).toEqual([
+      { uid: "u1", optionIdx: 1, anchors: { city: "Oslo, NO" }, day: "2026-08-12" },
+      { uid: "u2", optionIdx: 0, day: "2026-08-11" },
+    ]);
   });
 });
