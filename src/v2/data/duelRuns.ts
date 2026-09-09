@@ -61,8 +61,8 @@ const qidOf = (v: RevealVoteLike, rowQid: string): string =>
  * string precedes every date key, so a dayless reveal — the live
  * listener's copy of yesterday, before the caller stamps it — lands at the
  * oldest end of a run drawn oldest-left. Nothing caught it because no case
- * passes one. `sortsDayless` below is the pin, so the sentence and the
- * comparator cannot drift apart again.
+ * passes one. duelRuns.test.ts's "sorts a dayless reveal FIRST" is the
+ * pin, so the sentence and the comparator cannot drift apart again.
  *
  * NO PRODUCTION CALLER. Everything outside this module and its own test
  * that names `duoRuns` is a COMMENT citing it — `LiveRolesPanel` and
