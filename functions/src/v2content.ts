@@ -2902,6 +2902,44 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-136",
+  "surface": "daily",
+  "seq": 136,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Dessert: every day, or a special occasion?",
+  "options": [
+   "Every day",
+   "Special occasion"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Habits",
+  "tag": "Dessert",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-137",
+  "surface": "daily",
+  "seq": 137,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What do you follow most closely?",
+  "options": [
+   "A sport",
+   "A show",
+   "An artist",
+   "A subject"
+  ],
+  "topic": "light",
+  "branch": "Interests",
+  "sub": "Following",
+  "tag": "Following",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3965,7 +4003,9 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s07",
   "surface": "feed",
@@ -3997,9 +4037,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s09",
   "surface": "feed",
@@ -8192,7 +8230,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 12,
   "hi": 24,
   "unit": "h"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl41",
   "surface": "feed",
@@ -8248,9 +8288,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "min"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl43",
   "surface": "feed",
@@ -9972,7 +10010,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_etiquette"
  },
  {
   "id": "feed-f259",
@@ -9987,7 +10026,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_etiquette"
  },
  {
   "id": "feed-f260",
@@ -10003,7 +10043,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_etiquette"
  },
  {
   "id": "feed-f261",
@@ -10018,7 +10059,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_etiquette"
  },
  {
   "id": "feed-f262",
@@ -10079,7 +10121,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_eatingout"
  },
  {
   "id": "feed-f266",
@@ -11170,9 +11213,1177 @@ const BANK_2: V2SeedQuestion[] = [
   }
  },
  {
-  "id": "feed-n18",
+  "id": "feed-f272",
   "surface": "feed",
   "seq": 393,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The underarm serve: clever, or beneath the game?",
+  "options": [
+   "Clever",
+   "Beneath the game"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_tennis"
+ },
+ {
+  "id": "feed-f273",
+  "surface": "feed",
+  "seq": 394,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Night matches: tennis at its best, or past everyone’s bedtime?",
+  "options": [
+   "Tennis at its best",
+   "Past bedtime"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_tennis"
+ },
+ {
+  "id": "feed-f274",
+  "surface": "feed",
+  "seq": 395,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sponsors on football shirts: part of the game now, or ruining the kit?",
+  "options": [
+   "Part of the game",
+   "Ruining the kit"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_football"
+ },
+ {
+  "id": "feed-f275",
+  "surface": "feed",
+  "seq": 396,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Safe standing terraces: bring the atmosphere back, or seats forever?",
+  "options": [
+   "Bring them back",
+   "Seats forever"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_football"
+ },
+ {
+  "id": "feed-f276",
+  "surface": "feed",
+  "seq": 397,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Running with music, or with your own thoughts?",
+  "options": [
+   "With music",
+   "My own thoughts"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_running"
+ },
+ {
+  "id": "feed-dl64",
+  "surface": "feed",
+  "seq": 398,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Kilometres you run or walk in an average week?",
+  "options": [
+   "0–4 km",
+   "4–8 km",
+   "8–12 km",
+   "12–16 km",
+   "16–20 km",
+   "20–24 km",
+   "24–28 km",
+   "28–32 km",
+   "32–36 km",
+   "36–40 km",
+   "40–44 km",
+   "44–48 km"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_running",
+  "lo": 0,
+  "hi": 48,
+  "unit": "km"
+ },
+ {
+  "id": "feed-f277",
+  "surface": "feed",
+  "seq": 399,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Is your red my red?",
+  "options": [
+   "Surely yes",
+   "No way to know",
+   "Definitely not"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-f278",
+  "surface": "feed",
+  "seq": 400,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your thoughts: do you author them, or do they just arrive?",
+  "options": [
+   "I author them",
+   "They just arrive"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-f279",
+  "surface": "feed",
+  "seq": 401,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your earliest memory: the real thing, or a story you built later?",
+  "options": [
+   "The real thing",
+   "A story I built"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-f280",
+  "surface": "feed",
+  "seq": 402,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Dreams: mail from yourself, or noise?",
+  "options": [
+   "Mail from yourself",
+   "Noise",
+   "Noise you can read"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-f281",
+  "surface": "feed",
+  "seq": 403,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Progress: real, or just change with better marketing?",
+  "options": [
+   "Real",
+   "Change, marketed"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl65",
+  "surface": "feed",
+  "seq": 404,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Hours of your day spent on autopilot?",
+  "options": [
+   "0–2 hours",
+   "2–4 hours",
+   "4–6 hours",
+   "6–8 hours",
+   "8–10 hours",
+   "10–12 hours",
+   "12–14 hours",
+   "14–16 hours",
+   "16–18 hours",
+   "18–20 hours",
+   "20–22 hours",
+   "22–24 hours"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind",
+  "lo": 0,
+  "hi": 24,
+  "unit": "hours"
+ },
+ {
+  "id": "feed-f282",
+  "surface": "feed",
+  "seq": 405,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Reclining your seat on a plane: your right, or an act of war?",
+  "options": [
+   "My right",
+   "An act of war"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_etiquette"
+ },
+ {
+  "id": "feed-f283",
+  "surface": "feed",
+  "seq": 406,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Splitting the bill: evenly and cheerfully, or item by item?",
+  "options": [
+   "Evenly, cheerfully",
+   "Item by item"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_etiquette"
+ },
+ {
+  "id": "feed-f284",
+  "surface": "feed",
+  "seq": 407,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Double-dipping: a crime, or a fuss over nothing?",
+  "options": [
+   "A crime",
+   "Fuss over nothing"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_etiquette"
+ },
+ {
+  "id": "feed-f285",
+  "surface": "feed",
+  "seq": 408,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Applauding when the plane lands: joy, or never?",
+  "options": [
+   "Joy",
+   "Never"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_etiquette"
+ },
+ {
+  "id": "feed-f286",
+  "surface": "feed",
+  "seq": 409,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your neighbours: know them well, or nod politely forever?",
+  "options": [
+   "Know them well",
+   "Nod politely"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-fd20",
+  "surface": "feed",
+  "seq": 410,
+  "type": "field",
+  "domain": null,
+  "prompt": "Manners — place it",
+  "options": [
+   "strict · decaying",
+   "lean strict · decaying",
+   "lean relaxed · decaying",
+   "relaxed · decaying",
+   "strict · middle",
+   "lean strict · middle",
+   "lean relaxed · middle",
+   "relaxed · middle",
+   "strict · improving",
+   "lean strict · improving",
+   "lean relaxed · improving",
+   "relaxed · improving"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_etiquette",
+  "ax": [
+   "strict",
+   "relaxed"
+  ],
+  "ay": [
+   "improving",
+   "decaying"
+  ]
+ },
+ {
+  "id": "feed-f287",
+  "surface": "feed",
+  "seq": 411,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Free rent forever, but you can never move: deal?",
+  "options": [
+   "Deal",
+   "No deal"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_deals"
+ },
+ {
+  "id": "feed-f288",
+  "surface": "feed",
+  "seq": 412,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Skip sleep with no cost — but lose dreams forever: deal?",
+  "options": [
+   "Deal",
+   "Keep the dreams"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_deals"
+ },
+ {
+  "id": "feed-f289",
+  "surface": "feed",
+  "seq": 413,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A button erases your worst memory — and you won’t know what it was. Press it?",
+  "options": [
+   "Press it",
+   "Keep the memory"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_deals"
+ },
+ {
+  "id": "feed-f290",
+  "surface": "feed",
+  "seq": 414,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Talk with animals — but they answer honestly: deal?",
+  "options": [
+   "Deal",
+   "Too risky"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_deals"
+ },
+ {
+  "id": "feed-f291",
+  "surface": "feed",
+  "seq": 415,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The trolley problem: pull the lever?",
+  "options": [
+   "Pull it",
+   "Don’t touch it",
+   "Refuse the question"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "bg": "A runaway trolley will hit five people; pulling a lever diverts it to a track where it hits one. A 1967 thought experiment by Philippa Foot, now philosophy’s most argued-over fork."
+ },
+ {
+  "id": "feed-fd21",
+  "surface": "feed",
+  "seq": 416,
+  "type": "field",
+  "domain": null,
+  "prompt": "Risk — place it",
+  "options": [
+   "seek it · regret passes",
+   "lean seek it · regret passes",
+   "lean avoid it · regret passes",
+   "avoid it · regret passes",
+   "seek it · middle",
+   "lean seek it · middle",
+   "lean avoid it · middle",
+   "avoid it · middle",
+   "seek it · regret risks",
+   "lean seek it · regret risks",
+   "lean avoid it · regret risks",
+   "avoid it · regret risks"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "seek it",
+   "avoid it"
+  ],
+  "ay": [
+   "regret risks",
+   "regret passes"
+  ]
+ },
+ {
+  "id": "feed-f292",
+  "surface": "feed",
+  "seq": 417,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Open-plan offices: collaboration, or surveillance with plants?",
+  "options": [
+   "Collaboration",
+   "Surveillance with plants"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work"
+ },
+ {
+  "id": "feed-f293",
+  "surface": "feed",
+  "seq": 418,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The office party: gladly, strategically, or never?",
+  "options": [
+   "Gladly",
+   "Strategically",
+   "Never"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work"
+ },
+ {
+  "id": "feed-f294",
+  "surface": "feed",
+  "seq": 419,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Retirement: as early as possible, or never fully?",
+  "options": [
+   "As early as possible",
+   "Never fully"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work"
+ },
+ {
+  "id": "feed-f295",
+  "surface": "feed",
+  "seq": 420,
+  "type": "vote",
+  "domain": null,
+  "prompt": "World Expos: still matter, or a relic?",
+  "options": [
+   "Still matter",
+   "A relic",
+   "Never thought about them"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl66",
+  "surface": "feed",
+  "seq": 421,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Meetings this week that could have been an email?",
+  "options": [
+   "0–2 meetings",
+   "2–4 meetings",
+   "4–6 meetings",
+   "6–8 meetings",
+   "8–10 meetings",
+   "10–12 meetings",
+   "12–14 meetings",
+   "14–16 meetings",
+   "16–18 meetings",
+   "18–20 meetings",
+   "20–22 meetings",
+   "22–24 meetings"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work",
+  "lo": 0,
+  "hi": 24,
+  "unit": "meetings"
+ },
+ {
+  "id": "feed-dl67",
+  "surface": "feed",
+  "seq": 422,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Holiday days you’ll lose unused this year?",
+  "options": [
+   "0–2 days",
+   "2–4 days",
+   "4–6 days",
+   "6–8 days",
+   "8–10 days",
+   "10–12 days",
+   "12–14 days",
+   "14–16 days",
+   "16–18 days",
+   "18–20 days",
+   "20–22 days",
+   "22–24 days"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work",
+  "lo": 0,
+  "hi": 24,
+  "unit": "days"
+ },
+ {
+  "id": "feed-f296",
+  "surface": "feed",
+  "seq": 423,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Asking the waiter what’s good: always, or never?",
+  "options": [
+   "Always",
+   "Never",
+   "Only when lost"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_eatingout"
+ },
+ {
+  "id": "feed-f297",
+  "surface": "feed",
+  "seq": 424,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Eating at the bar: the best seat, or the consolation seat?",
+  "options": [
+   "The best seat",
+   "The consolation seat"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_eatingout"
+ },
+ {
+  "id": "feed-f298",
+  "surface": "feed",
+  "seq": 425,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The dessert menu: always look, or know your answer walking in?",
+  "options": [
+   "Always look",
+   "I walk in knowing"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_eatingout"
+ },
+ {
+  "id": "feed-f299",
+  "surface": "feed",
+  "seq": 426,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Chain restaurants: reliable joy, or admitting defeat?",
+  "options": [
+   "Reliable joy",
+   "Admitting defeat"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_eatingout"
+ },
+ {
+  "id": "feed-f300",
+  "surface": "feed",
+  "seq": 427,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Soup for breakfast: perfectly normal, or chaos?",
+  "options": [
+   "Perfectly normal",
+   "Chaos"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl68",
+  "surface": "feed",
+  "seq": 428,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Glasses of water you actually drink a day?",
+  "options": [
+   "0–1 glasses",
+   "1–2 glasses",
+   "2–3 glasses",
+   "3–4 glasses",
+   "4–5 glasses",
+   "5–6 glasses",
+   "6–7 glasses",
+   "7–8 glasses",
+   "8–9 glasses",
+   "9–10 glasses",
+   "10–11 glasses",
+   "11–12 glasses"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "glasses"
+ },
+ {
+  "id": "feed-f301",
+  "surface": "feed",
+  "seq": 429,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your portrait, painted by: Frida Kahlo, Van Gogh, or a Renaissance master?",
+  "options": [
+   "Frida Kahlo",
+   "Van Gogh",
+   "A Renaissance master"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f302",
+  "surface": "feed",
+  "seq": 430,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The historical figure you’d want live-posting their day: Napoleon, Marie Antoinette, or Julius Caesar?",
+  "options": [
+   "Napoleon",
+   "Marie Antoinette",
+   "Julius Caesar"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f303",
+  "surface": "feed",
+  "seq": 431,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who lasts longest a week in the wilderness: Beyoncé, Keanu Reeves, or Taylor Swift?",
+  "options": [
+   "Beyoncé",
+   "Keanu Reeves",
+   "Taylor Swift"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f304",
+  "surface": "feed",
+  "seq": 432,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The fictional home you’d take: the Shire, Hogwarts, or the Starship Enterprise?",
+  "options": [
+   "The Shire",
+   "Hogwarts",
+   "The Enterprise"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl69",
+  "surface": "feed",
+  "seq": 433,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Living famous people you could name in sixty seconds?",
+  "options": [
+   "0–5 names",
+   "5–10 names",
+   "10–15 names",
+   "15–20 names",
+   "20–25 names",
+   "25–30 names",
+   "30–35 names",
+   "35–40 names",
+   "40–45 names",
+   "45–50 names",
+   "50–55 names",
+   "55–60 names"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "names"
+ },
+ {
+  "id": "feed-fd22",
+  "surface": "feed",
+  "seq": 434,
+  "type": "field",
+  "domain": null,
+  "prompt": "Heroes — place it",
+  "options": [
+   "born · outgrew them",
+   "lean born · outgrew them",
+   "lean made · outgrew them",
+   "made · outgrew them",
+   "born · middle",
+   "lean born · middle",
+   "lean made · middle",
+   "made · middle",
+   "born · have one",
+   "lean born · have one",
+   "lean made · have one",
+   "made · have one"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "born",
+   "made"
+  ],
+  "ay": [
+   "have one",
+   "outgrew them"
+  ]
+ },
+ {
+  "id": "feed-f305",
+  "surface": "feed",
+  "seq": 435,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Documentaries: as gripping as fiction, or homework?",
+  "options": [
+   "As gripping",
+   "Homework",
+   "Depends who’s narrating"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f306",
+  "surface": "feed",
+  "seq": 436,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Film twists: guess them proudly, or ride along?",
+  "options": [
+   "Guess them proudly",
+   "Ride along"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f307",
+  "surface": "feed",
+  "seq": 437,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Directors’ cuts: the real film, or self-indulgence?",
+  "options": [
+   "The real film",
+   "Self-indulgence"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f308",
+  "surface": "feed",
+  "seq": 438,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watching the Oscars: for the films, for the dresses, or not at all?",
+  "options": [
+   "For the films",
+   "For the dresses",
+   "Not at all"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl70",
+  "surface": "feed",
+  "seq": 439,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes before you abandon a bad film?",
+  "options": [
+   "0–10 minutes",
+   "10–20 minutes",
+   "20–30 minutes",
+   "30–40 minutes",
+   "40–50 minutes",
+   "50–60 minutes",
+   "60–70 minutes",
+   "70–80 minutes",
+   "80–90 minutes",
+   "90–100 minutes",
+   "100–110 minutes",
+   "110–120 minutes"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 120,
+  "unit": "minutes"
+ },
+ {
+  "id": "feed-fd23",
+  "surface": "feed",
+  "seq": 440,
+  "type": "field",
+  "domain": null,
+  "prompt": "Animation — place it",
+  "options": [
+   "for kids · rarely watch",
+   "lean for kids · rarely watch",
+   "lean for everyone · rarely watch",
+   "for everyone · rarely watch",
+   "for kids · middle",
+   "lean for kids · middle",
+   "lean for everyone · middle",
+   "for everyone · middle",
+   "for kids · watch lots",
+   "lean for kids · watch lots",
+   "lean for everyone · watch lots",
+   "for everyone · watch lots"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "for kids",
+   "for everyone"
+  ],
+  "ay": [
+   "watch lots",
+   "rarely watch"
+  ]
+ },
+ {
+  "id": "feed-f309",
+  "surface": "feed",
+  "seq": 441,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Covers: honour the original, or leave it alone?",
+  "options": [
+   "Honour it",
+   "Leave it alone",
+   "Only if they transform it"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f310",
+  "surface": "feed",
+  "seq": 442,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Album art: still part of the music, or lost with the sleeve?",
+  "options": [
+   "Still part of it",
+   "Lost with the sleeve"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f311",
+  "surface": "feed",
+  "seq": 443,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A song you love in an ad: fair game, or a small betrayal?",
+  "options": [
+   "Fair game",
+   "A small betrayal"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f312",
+  "surface": "feed",
+  "seq": 444,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Backing tracks at a live show: cheating, or part of the craft?",
+  "options": [
+   "Cheating",
+   "Part of the craft"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl71",
+  "surface": "feed",
+  "seq": 445,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Years since you last bought physical music?",
+  "options": [
+   "0–2 years",
+   "2–4 years",
+   "4–6 years",
+   "6–8 years",
+   "8–10 years",
+   "10–12 years",
+   "12–14 years",
+   "14–16 years",
+   "16–18 years",
+   "18–20 years",
+   "20–22 years",
+   "22–24 years"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "years"
+ },
+ {
+  "id": "feed-fd24",
+  "surface": "feed",
+  "seq": 446,
+  "type": "field",
+  "domain": null,
+  "prompt": "Festivals — place it",
+  "options": [
+   "the music · never again",
+   "lean the music · never again",
+   "lean the scene · never again",
+   "the scene · never again",
+   "the music · middle",
+   "lean the music · middle",
+   "lean the scene · middle",
+   "the scene · middle",
+   "the music · yearly",
+   "lean the music · yearly",
+   "lean the scene · yearly",
+   "the scene · yearly"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "the music",
+   "the scene"
+  ],
+  "ay": [
+   "yearly",
+   "never again"
+  ]
+ },
+ {
+  "id": "feed-f313",
+  "surface": "feed",
+  "seq": 447,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A dumbphone month: tempting, or unthinkable?",
+  "options": [
+   "Tempting",
+   "Unthinkable"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f314",
+  "surface": "feed",
+  "seq": 448,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Software updates: install tonight, or ‘remind me later’ forever?",
+  "options": [
+   "Install tonight",
+   "Remind me later, forever"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f315",
+  "surface": "feed",
+  "seq": 449,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Wireless earbuds: liberation, or three more things to lose?",
+  "options": [
+   "Liberation",
+   "Three more things to lose"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f316",
+  "surface": "feed",
+  "seq": 450,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your files: meticulous folders, or search and pray?",
+  "options": [
+   "Meticulous folders",
+   "Search and pray"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl72",
+  "surface": "feed",
+  "seq": 451,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Devices in your home that need charging?",
+  "options": [
+   "0–2 devices",
+   "2–4 devices",
+   "4–6 devices",
+   "6–8 devices",
+   "8–10 devices",
+   "10–12 devices",
+   "12–14 devices",
+   "14–16 devices",
+   "16–18 devices",
+   "18–20 devices",
+   "20–22 devices",
+   "22–24 devices"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "devices"
+ },
+ {
+  "id": "feed-fd25",
+  "surface": "feed",
+  "seq": 452,
+  "type": "field",
+  "domain": null,
+  "prompt": "The cloud — place it",
+  "options": [
+   "trust it · local first",
+   "lean trust it · local first",
+   "lean fear it · local first",
+   "fear it · local first",
+   "trust it · middle",
+   "lean trust it · middle",
+   "lean fear it · middle",
+   "fear it · middle",
+   "trust it · all in",
+   "lean trust it · all in",
+   "lean fear it · all in",
+   "fear it · all in"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "trust it",
+   "fear it"
+  ],
+  "ay": [
+   "all in",
+   "local first"
+  ]
+ },
+ {
+  "id": "feed-n18",
+  "surface": "feed",
+  "seq": 453,
   "type": "vote",
   "domain": null,
   "prompt": "The foldable iPhone is expected on stage today. A phone that opens like a book: would you carry one?",
@@ -11191,7 +12402,7 @@ const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-n19",
   "surface": "feed",
-  "seq": 394,
+  "seq": 454,
   "type": "vote",
   "domain": null,
   "prompt": "A million-person study ties 1,260 DNA variants to personality. What made you you — mostly genes, or mostly life?",
@@ -11291,7 +12502,9 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "fav",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk14",
   "surface": "feed",
@@ -11891,6 +13104,126 @@ const BANK_2: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "group-gu12",
+  "surface": "group",
+  "seq": 26,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Our default meeting place is…",
+  "options": [
+   "Someone’s kitchen",
+   "The same café",
+   "Wherever’s central",
+   "The group chat itself"
+  ],
+  "topic": "us",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gd9",
+  "surface": "group",
+  "seq": 27,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A friend’s terrible haircut: the truth, or “it’s great”?",
+  "options": [
+   "The truth",
+   "It’s great"
+  ],
+  "topic": "classic",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gp8",
+  "surface": "group",
+  "seq": 28,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who would survive longest without their phone?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gu13",
+  "surface": "group",
+  "seq": 29,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When one of us wins something, we…",
+  "options": [
+   "Make it loud",
+   "Tease them",
+   "Quiet pride",
+   "Plan a dinner"
+  ],
+  "topic": "us",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gd10",
+  "surface": "group",
+  "seq": 30,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Surprise parties: throw them, or ban them?",
+  "options": [
+   "Throw them",
+   "Ban them"
+  ],
+  "topic": "classic",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gp9",
+  "surface": "group",
+  "seq": 31,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who’s secretly keeping the group together?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gu14",
+  "surface": "group",
+  "seq": 32,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Trouble hits one of us at 3am. The group…",
+  "options": [
+   "All lights on",
+   "One goes",
+   "Waits for morning",
+   "Depends who"
+  ],
+  "topic": "us",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "group-gd11",
+  "surface": "group",
+  "seq": 33,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Borrowed money between friends: fine, or never?",
+  "options": [
+   "Fine",
+   "Never"
+  ],
+  "topic": "classic",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-000",
   "surface": "duo",
   "seq": 0,
@@ -12192,9 +13525,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "heat",
   "axis": null,
   "test": null
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-014",
   "surface": "duo",
@@ -12403,9 +13734,139 @@ const BANK_3: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-020",
+  "id": "duo-056",
   "surface": "duo",
   "seq": 32,
+  "type": "binary",
+  "domain": null,
+  "prompt": "First thing after waking:",
+  "options": [
+   "Phone",
+   "Coffee",
+   "Snooze",
+   "Straight up"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-057",
+  "surface": "duo",
+  "seq": 33,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their comfort rewatch is…",
+  "options": [
+   "A sitcom",
+   "An epic",
+   "Cartoons",
+   "They don’t rewatch"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-058",
+  "surface": "duo",
+  "seq": 34,
+  "type": "binary",
+  "domain": null,
+  "prompt": "When a plan falls apart, they…",
+  "options": [
+   "Re-plan instantly",
+   "Shrug and drift",
+   "Rage quietly",
+   "Blame the plan"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-059",
+  "surface": "duo",
+  "seq": 35,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their wedding toast would be…",
+  "options": [
+   "A tear-jerker",
+   "A roast",
+   "Three words",
+   "An overlong epic"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-060",
+  "surface": "duo",
+  "seq": 36,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Being early: respect, or wasted life?",
+  "options": [
+   "Respect",
+   "Wasted life"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-061",
+  "surface": "duo",
+  "seq": 37,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Lending your favourite thing: gladly, or never again after last time?",
+  "options": [
+   "Gladly",
+   "Never again"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-062",
+  "surface": "duo",
+  "seq": 38,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their real superpower:",
+  "options": [
+   "Reading rooms",
+   "Remembering everything",
+   "Making people laugh",
+   "Staying calm"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-063",
+  "surface": "duo",
+  "seq": 39,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The silent treatment: sometimes deserved, or always childish?",
+  "options": [
+   "Sometimes deserved",
+   "Always childish"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 40,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -12423,7 +13884,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 33,
+  "seq": 41,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -12441,7 +13902,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 34,
+  "seq": 42,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -12459,7 +13920,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 35,
+  "seq": 43,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -12476,7 +13937,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 36,
+  "seq": 44,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -12495,7 +13956,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 37,
+  "seq": 45,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -12513,7 +13974,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 38,
+  "seq": 46,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -12530,7 +13991,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 39,
+  "seq": 47,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -12548,7 +14009,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 40,
+  "seq": 48,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -12567,7 +14028,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 41,
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -12584,7 +14045,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 42,
+  "seq": 50,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -12602,7 +14063,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 43,
+  "seq": 51,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -12620,7 +14081,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 44,
+  "seq": 52,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -12638,7 +14099,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 45,
+  "seq": 53,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -12656,7 +14117,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 46,
+  "seq": 54,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -12675,7 +14136,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 47,
+  "seq": 55,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -12693,7 +14154,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 48,
+  "seq": 56,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -12712,7 +14173,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 49,
+  "seq": 57,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -12730,7 +14191,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 50,
+  "seq": 58,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -12749,7 +14210,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 51,
+  "seq": 59,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
@@ -12766,7 +14227,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-051",
   "surface": "duo",
-  "seq": 52,
+  "seq": 60,
   "type": "binary",
   "domain": null,
   "prompt": "After a fight, the first move back is usually…",
@@ -12785,7 +14246,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-052",
   "surface": "duo",
-  "seq": 53,
+  "seq": 61,
   "type": "binary",
   "domain": null,
   "prompt": "The retirement dream: settled deep somewhere, or still moving?",
@@ -12802,7 +14263,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-054",
   "surface": "duo",
-  "seq": 54,
+  "seq": 62,
   "type": "binary",
   "domain": null,
   "prompt": "When they need help, they…",
@@ -12820,7 +14281,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-055",
   "surface": "duo",
-  "seq": 55,
+  "seq": 63,
   "type": "binary",
   "domain": null,
   "prompt": "Ten years on, the two of you are known for…",
@@ -12829,6 +14290,172 @@ const BANK_3: V2SeedQuestion[] = [
    "The adventures",
    "The quiet steadiness",
    "The double act"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-064",
+  "surface": "duo",
+  "seq": 64,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Sunday morning, no plans:",
+  "options": [
+   "Slow breakfast",
+   "Straight outside",
+   "Separate corners, happy",
+   "Back to sleep"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-065",
+  "surface": "duo",
+  "seq": 65,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Cooking together: romance, or chaos?",
+  "options": [
+   "Romance",
+   "Chaos",
+   "Chaos we like"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-066",
+  "surface": "duo",
+  "seq": 66,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Jealousy: a little is healthy, or none ever?",
+  "options": [
+   "A little is healthy",
+   "None ever"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-067",
+  "surface": "duo",
+  "seq": 67,
+  "type": "binary",
+  "domain": null,
+  "prompt": "An argument at midnight: settle it now, or sleep on it?",
+  "options": [
+   "Settle it now",
+   "Sleep on it"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-068",
+  "surface": "duo",
+  "seq": 68,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Who says sorry first?",
+  "options": [
+   "Me",
+   "Them",
+   "Whoever’s right",
+   "Whoever’s tired"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-069",
+  "surface": "duo",
+  "seq": 69,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The dream kitchen table seats…",
+  "options": [
+   "Two",
+   "Four",
+   "Eight",
+   "The whole street"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-070",
+  "surface": "duo",
+  "seq": 70,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Growing old together looks like…",
+  "options": [
+   "A garden",
+   "A city flat",
+   "A campervan",
+   "Near the sea"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-071",
+  "surface": "duo",
+  "seq": 71,
+  "type": "binary",
+  "domain": null,
+  "prompt": "In twenty years we’ll still argue about…",
+  "options": [
+   "Directions",
+   "The thermostat",
+   "Whose turn it is",
+   "Nothing — we’ll have won"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-072",
+  "surface": "duo",
+  "seq": 72,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The thing we’ll be glad we started early:",
+  "options": [
+   "Saving",
+   "Traditions",
+   "The photo albums",
+   "Saying sorry fast"
   ],
   "topic": "ahead",
   "axis": null,
@@ -14203,7 +15830,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "circle",
   "test": "values"
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-values-21",
   "surface": "test",
@@ -15775,9 +17404,7 @@ const BANK_3: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "anxiety",
   "invert": true
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-28",
   "surface": "test",
@@ -17981,7 +19608,9 @@ const BANK_4: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "selfdiscipline",
   "invert": true
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-big5-141",
   "surface": "test",
@@ -19755,9 +21384,7 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 66,
   "k": "Universe: 13.8 billion years"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-str8",
   "surface": "learn",
@@ -22183,7 +23810,9 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 40,
   "k": "Pyramid builders were paid",
   "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "learn-anc18",
   "surface": "learn",
@@ -22756,6 +24385,666 @@ const BANK_5: V2SeedQuestion[] = [
   "w": "Jealousy strictly fears losing what you already have; envy covets what you don't. Everyday use blurs them — careful writing keeps the line."
  },
  {
+  "id": "learn-flag1",
+  "surface": "learn",
+  "seq": 186,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The only national flag with more than four sides belongs to…",
+  "options": [
+   "Switzerland",
+   "Nepal",
+   "Bhutan",
+   "Vatican City"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 55,
+  "k": "Nepal’s flag has five sides",
+  "w": "Switzerland and Vatican City are the square ones — still four sides. Nepal’s two stacked pennants make five."
+ },
+ {
+  "id": "learn-flag2",
+  "surface": "learn",
+  "seq": 187,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The national flag with a rifle on it belongs to…",
+  "options": [
+   "Angola",
+   "Cuba",
+   "Mozambique",
+   "Vietnam"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 45,
+  "k": "Mozambique’s flag bears a rifle",
+  "w": "Angola is the near-miss — machete and cog-wheel. Mozambique’s carries an AK-47, crossed with a hoe over a book."
+ },
+ {
+  "id": "learn-flag3",
+  "surface": "learn",
+  "seq": 188,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Indonesia’s flag is almost identical to…",
+  "options": [
+   "Poland’s",
+   "Monaco’s",
+   "Singapore’s",
+   "Austria’s"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 50,
+  "k": "Indonesia matches Monaco",
+  "w": "Poland is the flip — white over red. Monaco’s red-over-white differs from Indonesia’s only in proportions."
+ },
+ {
+  "id": "learn-flag4",
+  "surface": "learn",
+  "seq": 189,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many stars are on the flag of China?",
+  "options": [
+   "One",
+   "Four",
+   "Five",
+   "Ten"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 70,
+  "k": "China’s flag has five stars",
+  "w": "One large star and four small — the big one is what memory keeps, and the trap."
+ },
+ {
+  "id": "learn-flag5",
+  "surface": "learn",
+  "seq": 190,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Union Jack combines the crosses of…",
+  "options": [
+   "England, Scotland and Wales",
+   "England, Scotland and Ireland",
+   "England and Scotland only",
+   "All four home nations"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 48,
+  "k": "No Wales in the Union Jack",
+  "w": "St George, St Andrew and St Patrick — the Welsh dragon never made it in."
+ },
+ {
+  "id": "learn-flag6",
+  "surface": "learn",
+  "seq": 191,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which colour appears on the most national flags?",
+  "options": [
+   "Blue",
+   "White",
+   "Red",
+   "Green"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 40,
+  "k": "Red is the commonest flag colour",
+  "w": "Roughly three in four national flags carry red; white runs it close, blue further back."
+ },
+ {
+  "id": "learn-ear14",
+  "surface": "learn",
+  "seq": 192,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The world’s largest island is…",
+  "options": [
+   "Australia",
+   "Greenland",
+   "Madagascar",
+   "Borneo"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 62,
+  "k": "Greenland is the largest island",
+  "w": "Australia is bigger but counts as a continent — the exact line this question exists to draw."
+ },
+ {
+  "id": "learn-ear15",
+  "surface": "learn",
+  "seq": 193,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The lowest point on Earth’s land surface is the shore of…",
+  "options": [
+   "Death Valley",
+   "The Dead Sea",
+   "The Caspian Sea",
+   "Lake Eyre"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 51,
+  "k": "The Dead Sea sits lowest",
+  "w": "About 430 m below sea level. Death Valley is North America’s low point, not the world’s."
+ },
+ {
+  "id": "learn-ear16",
+  "surface": "learn",
+  "seq": 194,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Strictly speaking, the largest desert on Earth is…",
+  "options": [
+   "The Sahara",
+   "The Gobi",
+   "Antarctica",
+   "The Arabian"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 44,
+  "k": "Antarctica is the biggest desert",
+  "w": "A desert is defined by precipitation, not sand — and the ice sheet gets almost none."
+ },
+ {
+  "id": "learn-ear17",
+  "surface": "learn",
+  "seq": 195,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Volga, Europe’s longest river, empties into…",
+  "options": [
+   "The Black Sea",
+   "The Caspian Sea",
+   "The Baltic",
+   "The Mediterranean"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 38,
+  "k": "The Volga ends in the Caspian",
+  "w": "A closed sea — the Volga never reaches the open ocean at all."
+ },
+ {
+  "id": "learn-evo14",
+  "surface": "learn",
+  "seq": 196,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly when did the dinosaurs (except birds) die out?",
+  "options": [
+   "6 million years ago",
+   "66 million years ago",
+   "660 million years ago",
+   "66,000 years ago"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 57,
+  "k": "Dinosaurs fell 66 million years ago",
+  "w": "The asteroid’s boundary layer dates it; each near-miss option is a thousandfold off."
+ },
+ {
+  "id": "learn-evo15",
+  "surface": "learn",
+  "seq": 197,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which of these is OLDEST as a group?",
+  "options": [
+   "Trees",
+   "Sharks",
+   "Dinosaurs",
+   "Grass"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 36,
+  "k": "Sharks are older than trees",
+  "w": "Sharks swam tens of millions of years before the first true trees stood; grass is younger than T. rex."
+ },
+ {
+  "id": "learn-evo16",
+  "surface": "learn",
+  "seq": 198,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A trait that spreads because mates prefer it is…",
+  "options": [
+   "Natural selection",
+   "Sexual selection",
+   "Genetic drift",
+   "Mutation"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 49,
+  "k": "Peacock tails are sexual selection",
+  "w": "Darwin’s second engine: the tail costs survival and pays in mates."
+ },
+ {
+  "id": "learn-evo17",
+  "surface": "learn",
+  "seq": 199,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Insects and birds both fly. Their wings are…",
+  "options": [
+   "Homologous",
+   "Analogous",
+   "Vestigial",
+   "The same genes"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 42,
+  "k": "Same job, different origin",
+  "w": "Analogous — same use from separate origins. The mirror of homologous, and the swap everyone makes."
+ },
+ {
+  "id": "learn-gene14",
+  "surface": "learn",
+  "seq": 200,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What does DNA stand for?",
+  "options": [
+   "Deoxyribonucleic acid",
+   "Dinucleic acid",
+   "Deoxyribose nitrate",
+   "Double nucleic acid"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 68,
+  "k": "DNA is deoxyribonucleic acid",
+  "w": "The sugar is deoxyribose — the plausible wrong answers all garble that half."
+ },
+ {
+  "id": "learn-gene15",
+  "surface": "learn",
+  "seq": 201,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The DNA in one of your cells, stretched out, runs about…",
+  "options": [
+   "2 centimetres",
+   "2 metres",
+   "2 kilometres",
+   "2 millimetres"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 46,
+  "k": "Two metres of DNA per cell",
+  "w": "Coiled around histones into a nucleus a hundredth of a millimetre wide."
+ },
+ {
+  "id": "learn-gene16",
+  "surface": "learn",
+  "seq": 202,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The enzyme that copies DNA is…",
+  "options": [
+   "The ribosome",
+   "DNA polymerase",
+   "ATP synthase",
+   "Amylase"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 39,
+  "k": "Polymerase copies DNA",
+  "w": "Ribosomes read RNA into protein — the copying itself is polymerase’s job."
+ },
+ {
+  "id": "learn-gene17",
+  "surface": "learn",
+  "seq": 203,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your blood type is inherited from…",
+  "options": [
+   "Your mother only",
+   "Both parents",
+   "Your father only",
+   "Neither — it’s random"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 74,
+  "k": "Blood type comes from both",
+  "w": "A and B are co-dominant; two O parents can only make O — the kitchen-table proof."
+ },
+ {
+  "id": "learn-org14",
+  "surface": "learn",
+  "seq": 204,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Companion” literally means someone you share…",
+  "options": [
+   "A road",
+   "Bread",
+   "A house",
+   "A fight"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 42,
+  "k": "A companion shares bread",
+  "w": "Latin com + panis. The road answer belongs to “travel”, from travail."
+ },
+ {
+  "id": "learn-org15",
+  "surface": "learn",
+  "seq": 205,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Deadline” began as…",
+  "options": [
+   "A printing term",
+   "A line at a prison camp",
+   "A fishing term",
+   "A telegraph term"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 34,
+  "k": "Deadline began at a prison",
+  "w": "A Civil-War camp boundary not to be crossed; newspapers took the word, not the stakes."
+ },
+ {
+  "id": "learn-org16",
+  "surface": "learn",
+  "seq": 206,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Vaccine” comes from the Latin for…",
+  "options": [
+   "Shield",
+   "Cow",
+   "Needle",
+   "Health"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 56,
+  "k": "Vaccine comes from cow",
+  "w": "Vacca — Jenner’s cowpox inoculations named the whole idea."
+ },
+ {
+  "id": "learn-org17",
+  "surface": "learn",
+  "seq": 207,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A “freelancer” was originally…",
+  "options": [
+   "A newspaper writer",
+   "A mercenary with a lance",
+   "A freed servant",
+   "A fence-builder"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 52,
+  "k": "Freelancers carried lances",
+  "w": "Scott’s Ivanhoe popularised it: a lance for hire, loyal to whoever paid."
+ },
+ {
+  "id": "learn-sol14",
+  "surface": "learn",
+  "seq": 208,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The tallest known volcano in the solar system stands on…",
+  "options": [
+   "Venus",
+   "Mars",
+   "Earth",
+   "Mercury"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 59,
+  "k": "Olympus Mons stands on Mars",
+  "w": "Three times Everest — low gravity and no drifting plates let it keep growing in place."
+ },
+ {
+  "id": "learn-sol15",
+  "surface": "learn",
+  "seq": 209,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Saturn’s rings are mostly…",
+  "options": [
+   "Rock",
+   "Water ice",
+   "Gas",
+   "Dust"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 61,
+  "k": "Saturn’s rings are ice",
+  "w": "Billions of ice pieces, grains to houses — bright precisely because ice reflects."
+ },
+ {
+  "id": "learn-sol16",
+  "surface": "learn",
+  "seq": 210,
+  "type": "choice",
+  "domain": null,
+  "prompt": "One day on Mercury, sunrise to sunrise, lasts about…",
+  "options": [
+   "24 hours",
+   "176 Earth days",
+   "One Earth year",
+   "59 minutes"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 31,
+  "k": "A Mercury day outlasts its year",
+  "w": "It spins three times for every two orbits — sunrise to sunrise beats its own 88-day year."
+ },
+ {
+  "id": "learn-sol17",
+  "surface": "learn",
+  "seq": 211,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Moon is slowly…",
+  "options": [
+   "Falling toward Earth",
+   "Drifting away from Earth",
+   "Fixed in its orbit",
+   "Wobbling at random"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 50,
+  "k": "The Moon drifts away",
+  "w": "About 3.8 cm a year — measured by bouncing lasers off Apollo’s mirrors."
+ },
+ {
+  "id": "learn-str14",
+  "surface": "learn",
+  "seq": 212,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When the Sun dies, it will…",
+  "options": [
+   "Explode as a supernova",
+   "Swell, then fade to an ember",
+   "Collapse to a black hole",
+   "Simply go dark"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 47,
+  "k": "The Sun ends as an ember",
+  "w": "Too light to go supernova — red giant first, then a white dwarf, cooling for eternity."
+ },
+ {
+  "id": "learn-str15",
+  "surface": "learn",
+  "seq": 213,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Milky Way and Andromeda are…",
+  "options": [
+   "Drifting apart",
+   "Drifting closer",
+   "Orbiting each other",
+   "Unrelated"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 43,
+  "k": "Andromeda is inbound",
+  "w": "Due in about four billion years — stars are so sparse that almost none will collide."
+ },
+ {
+  "id": "learn-str16",
+  "surface": "learn",
+  "seq": 214,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A teaspoon of neutron star would weigh about…",
+  "options": [
+   "A tonne",
+   "A billion tonnes",
+   "A kilogram",
+   "Nothing — it’s gas"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 54,
+  "k": "Neutron-star matter is absurdly dense",
+  "w": "A city-sized core with the Sun’s mass — what a supernova leaves compressed behind."
+ },
+ {
+  "id": "learn-str17",
+  "surface": "learn",
+  "seq": 215,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Stars twinkle because of…",
+  "options": [
+   "Their own flickering",
+   "Earth’s atmosphere",
+   "Interstellar dust",
+   "Moonlight"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 72,
+  "k": "Twinkling is our air",
+  "w": "Turbulent air bends the light on its way down; from orbit, stars burn steady."
+ },
+ {
   "id": "pulse-pace",
   "surface": "pulse",
   "seq": 0,
@@ -22922,7 +25211,7 @@ const BANK_5: V2SeedQuestion[] = [
   "active": false
  }
 ];
-export const V2_QUESTIONS: V2SeedQuestion[] = [...BANK_0, ...BANK_1, ...BANK_2, ...BANK_3, ...BANK_4, ...BANK_5];
+export const V2_QUESTIONS: V2SeedQuestion[] = [...BANK_0, ...BANK_1, ...BANK_2, ...BANK_3, ...BANK_4, ...BANK_5, ...BANK_6];
 
 // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
 // sponsored questions. An ad takes no answer and folds into no

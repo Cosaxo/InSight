@@ -286,6 +286,10 @@ describe("7 · retirement is complete, and nothing is orphaned", () => {
   it("accepts a leaf retired at every site — and its created row keeps its history", () => {
     const e = errs((s) => {
       s.subtopics = s.subtopics.filter((l) => l.id !== "sub_tennis");
+      // "Every site" includes the bank rows tagged into the leaf — real
+      // since 2026-09-09, when the feed lane's first births tagged
+      // questions with `sub` (the fixture predates any tagged row).
+      for (const q of s.feedQuestions) if (q.sub === "sub_tennis") delete q.sub;
       s.ledger.created.push({ id: "sub_tennis", level: "leaf", surface: "feed", parent: "sport", label: "Tennis" });
       s.ledger.retired.push(retired());
     });
@@ -297,7 +301,12 @@ describe("7 · retirement is complete, and nothing is orphaned", () => {
       s.palette = s.palette.filter((t) => t.id !== "culture");
       s.wire = s.wire.filter((t) => t.id !== "culture");
       delete s.ripples.culture;
-      for (const q of s.feedQuestions) { if (q.cat === "culture") q.cat = "people"; if (Array.isArray(q.also)) q.also = q.also.filter((a) => a !== "culture"); }
+      // A top's fold carries its leaves with it (culture parents
+      // sub_etiquette since 2026-09-09) — remove the leaf and its tags
+      // too, or the checker rightly reports the fold stopped part way.
+      const leaves = new Set(s.subtopics.filter((l) => l.parent === "culture").map((l) => l.id));
+      s.subtopics = s.subtopics.filter((l) => l.parent !== "culture");
+      for (const q of s.feedQuestions) { if (q.cat === "culture") q.cat = "people"; if (leaves.has(q.sub)) delete q.sub; if (Array.isArray(q.also)) q.also = q.also.filter((a) => a !== "culture"); }
     };
     fires((s) => s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })), /still at WORLD_TOPICS/);
     fires((s) => { gone(s); s.ripples.culture = "Values"; s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })); }, /still at WF_BRANCH/);
@@ -316,11 +325,47 @@ describe("7 · retirement is complete, and nothing is orphaned", () => {
         if (Array.isArray(q.alts)) q.alts = q.alts.map((a) => (a?.[0] === "Travel" ? ["Interests", a[1]] : a));
       }
     };
-    const row = { id: "Travel", level: "top", surface: "daily", into: "Interests", retiredAt: "2026-09-08" };
+    // `seedId: null` because Travel is one of the seven daily tops that
+    // has none — its hub entry is `top-travel`. The field is required on
+    // a daily row either way; see the case below.
+    const row = { id: "Travel", level: "top", surface: "daily", into: "Interests", retiredAt: "2026-09-08", seedId: null };
     fires((s) => { gone(s); s.groups[1].cats.push("top-travel"); s.ledger.retired.push(row); }, /still at a hub's cats/);
     fires((s) => { gone(s); s.fallback.Travel = []; s.ledger.retired.push(row); }, /still at map-anchors FALLBACK/);
     fires((s) => { gone(s); s.dailyQuestions[0].alts = [["Travel", "x"], ["Mind", "y"]]; s.ledger.retired.push(row); }, /still at an archive row's alts/);
     expect(errs((s) => { gone(s); s.ledger.retired.push(row); }).filter((m) => /Travel/.test(m))).toEqual([]);
+  });
+
+  it("catches a retired daily top with a seedId — the half that read a row retirement has deleted", () => {
+    // Seven of the fourteen daily tops carry a seedId, and their hub entry
+    // is the bare branch id (`home`), not `top-home`. The check read the
+    // seedId out of CAT_META — which a complete retirement deletes — so
+    // for exactly those seven both halves of the hub test were dead, and
+    // the case above passes only because `Travel` has none. Measured:
+    // Home, Goals, Skills and Story retired completely but left in a hub
+    // gave 0 errors before this.
+    const gone = (s) => {
+      delete s.catMeta.Home;
+      delete s.fallback.Home;
+      for (const q of s.dailyQuestions) {
+        if (Array.isArray(q.cat) && q.cat[0] === "Home") q.cat[0] = "Mind";
+        if (Array.isArray(q.alts)) q.alts = q.alts.filter((a) => !(Array.isArray(a) && a[0] === "Home"));
+      }
+      s.seedBranches = s.seedBranches.filter((b) => b.id !== "home");
+      for (const g of s.groups) g.cats = (g.cats ?? []).filter((c) => c !== "home");
+    };
+    const row = (over = {}) => ({ id: "Home", level: "top", surface: "daily", into: "Mind", retiredAt: "2026-09-08", seedId: "home", ...over });
+    fires((s) => { gone(s); s.groups[0].cats.push("home"); s.ledger.retired.push(row()); }, /still at a hub's cats/);
+    fires((s) => { gone(s); s.seedBranches.push({ id: "home", hue: 200 }); s.ledger.retired.push(row()); }, /still at map-branches\.js/);
+    // the control: every site removed, and the row is clean
+    expect(errs((s) => { gone(s); s.ledger.retired.push(row()); }).filter((m) => /retired "Home"/.test(m))).toEqual([]);
+    // and a row that does not state its seedId cannot silently skip them
+    fires((s) => {
+      gone(s); s.groups[0].cats.push("home");
+      const bare = row(); delete bare.seedId;
+      s.ledger.retired.push(bare);
+    }, /must state `seedId`/);
+    expect(errs((s) => { gone(s); s.ledger.retired.push(row({ seedId: null })); })
+      .filter((m) => /retired "Home"/.test(m))).toEqual([]);
   });
 
   it("catches a retired learn field still carried by a card", () => {

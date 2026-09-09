@@ -74,9 +74,25 @@ export function booleanAtoms(data) {
     const pos = node.sourcePosition;
     if (pos && isBool(node) && !hasBoolChild(node)) {
       const key = `${pos.currentOffset}:${pos.endOffset}`;
-      const prev = out.get(key) || { line: pos.line, t: 0, f: 0 };
+      const prev = out.get(key) || { line: pos.line, t: 0, f: 0, e: 0 };
       for (const b of node.values) {
-        if (!b || !b.value || !("boolValue" in b.value)) continue;
+        if (!b || !b.value) continue;
+        // A NON-BOOLEAN VALUE IS AN EVALUATION, and it was being thrown
+        // away. Rules short-circuit on an ERROR as well as on false —
+        // `resource.data.optionIdx is int` on a document with no
+        // `optionIdx` errors rather than returning false — so a predicate
+        // whose negative case is an error looked never-false while being
+        // perfectly well tested. Measured on firestore.rules:1251 (the
+        // guard keeping rank answers out of the D86 edit arm): reported
+        // `true 12×` with no falses, yet deleting it turns the suite red
+        // and lets a rank answer gain an optionIdx through the edit arm.
+        //
+        // Counted apart from `f` rather than folded into it, because they
+        // are different facts about the suite: `f` is "a test made this
+        // say no", `e` is "a test made this refuse to answer". Both mean
+        // the conjunct is doing something; only the first means the rule
+        // returned false.
+        if (!("boolValue" in b.value)) { prev.e += b.count || 0; continue; }
         if (b.value.boolValue) prev.t += b.count || 0;
         else prev.f += b.count || 0;
       }
@@ -88,10 +104,17 @@ export function booleanAtoms(data) {
   return out;
 }
 
-/** Those that never once evaluated false — the ones a deletion would hide. */
+/**
+ * Those a deletion would hide: never false AND never an error. A
+ * predicate whose negative case ERRORS is exercised — the suite made it
+ * refuse to answer, which is a fact about the suite even though the rule
+ * did not return false — so it does not belong on a list read as "the
+ * conjuncts nothing tests". Before this it did, and the list was a poor
+ * worklist because the genuinely untested ones were hidden among them.
+ */
 export function neverFalse(atoms) {
   return [...atoms.entries()]
-    .filter(([, v]) => v.f === 0)
+    .filter(([, v]) => v.f === 0 && !v.e)
     .map(([k, v]) => ({ range: k, line: v.line, t: v.t }))
     .sort((a, b) => a.line - b.line);
 }

@@ -6586,7 +6586,8 @@
           "label": "Unforgivable",
           "count": 2500
         }
-      ]
+      ],
+      "sub": "sub_etiquette"
     },
     {
       "id": "f259",
@@ -6603,7 +6604,8 @@
           "label": "Five late is on time",
           "count": 2900
         }
-      ]
+      ],
+      "sub": "sub_etiquette"
     },
     {
       "id": "f260",
@@ -6624,7 +6626,8 @@
           "label": "Live and let live",
           "count": 2200
         }
-      ]
+      ],
+      "sub": "sub_etiquette"
     },
     {
       "id": "f261",
@@ -6641,7 +6644,8 @@
           "label": "Hope they guess",
           "count": 2800
         }
-      ]
+      ],
+      "sub": "sub_etiquette"
     },
     {
       "id": "f262",
@@ -6713,7 +6717,8 @@
           "label": "Depends on the table",
           "count": 2200
         }
-      ]
+      ],
+      "sub": "sub_eatingout"
     },
     {
       "id": "f266",
@@ -7515,6 +7520,1033 @@
           "line": "Read once, alone, as instructed. Filed with the things you don’t reread."
         }
       }
+    },
+    {
+      "id": "f272",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_tennis",
+      "type": "vote",
+      "prompt": "The underarm serve: clever, or beneath the game?",
+      "options": [
+        {
+          "label": "Clever",
+          "count": 2900
+        },
+        {
+          "label": "Beneath the game",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f273",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_tennis",
+      "type": "vote",
+      "prompt": "Night matches: tennis at its best, or past everyone’s bedtime?",
+      "options": [
+        {
+          "label": "Tennis at its best",
+          "count": 3100
+        },
+        {
+          "label": "Past bedtime",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f274",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_football",
+      "type": "vote",
+      "prompt": "Sponsors on football shirts: part of the game now, or ruining the kit?",
+      "options": [
+        {
+          "label": "Part of the game",
+          "count": 3300
+        },
+        {
+          "label": "Ruining the kit",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f275",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_football",
+      "type": "vote",
+      "prompt": "Safe standing terraces: bring the atmosphere back, or seats forever?",
+      "options": [
+        {
+          "label": "Bring them back",
+          "count": 3600
+        },
+        {
+          "label": "Seats forever",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f276",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_running",
+      "type": "vote",
+      "prompt": "Running with music, or with your own thoughts?",
+      "options": [
+        {
+          "label": "With music",
+          "count": 3800
+        },
+        {
+          "label": "My own thoughts",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "dl64",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_running",
+      "type": "dial",
+      "prompt": "Kilometres you run or walk in an average week?",
+      "lo": 0,
+      "hi": 48,
+      "unit": "km"
+    },
+    {
+      "id": "f277",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Is your red my red?",
+      "options": [
+        {
+          "label": "Surely yes",
+          "count": 2400
+        },
+        {
+          "label": "No way to know",
+          "count": 3900
+        },
+        {
+          "label": "Definitely not",
+          "count": 1100
+        }
+      ]
+    },
+    {
+      "id": "f278",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Your thoughts: do you author them, or do they just arrive?",
+      "options": [
+        {
+          "label": "I author them",
+          "count": 2800
+        },
+        {
+          "label": "They just arrive",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f279",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Your earliest memory: the real thing, or a story you built later?",
+      "options": [
+        {
+          "label": "The real thing",
+          "count": 2600
+        },
+        {
+          "label": "A story I built",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "f280",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Dreams: mail from yourself, or noise?",
+      "options": [
+        {
+          "label": "Mail from yourself",
+          "count": 3100
+        },
+        {
+          "label": "Noise",
+          "count": 2500
+        },
+        {
+          "label": "Noise you can read",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "f281",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Progress: real, or just change with better marketing?",
+      "options": [
+        {
+          "label": "Real",
+          "count": 3500
+        },
+        {
+          "label": "Change, marketed",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "dl65",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "dial",
+      "prompt": "Hours of your day spent on autopilot?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "hours"
+    },
+    {
+      "id": "f282",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "vote",
+      "prompt": "Reclining your seat on a plane: your right, or an act of war?",
+      "options": [
+        {
+          "label": "My right",
+          "count": 2900
+        },
+        {
+          "label": "An act of war",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "f283",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "vote",
+      "prompt": "Splitting the bill: evenly and cheerfully, or item by item?",
+      "options": [
+        {
+          "label": "Evenly, cheerfully",
+          "count": 3700
+        },
+        {
+          "label": "Item by item",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f284",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "vote",
+      "prompt": "Double-dipping: a crime, or a fuss over nothing?",
+      "options": [
+        {
+          "label": "A crime",
+          "count": 2800
+        },
+        {
+          "label": "Fuss over nothing",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f285",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "vote",
+      "prompt": "Applauding when the plane lands: joy, or never?",
+      "options": [
+        {
+          "label": "Joy",
+          "count": 2200
+        },
+        {
+          "label": "Never",
+          "count": 4100
+        }
+      ]
+    },
+    {
+      "id": "f286",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Your neighbours: know them well, or nod politely forever?",
+      "options": [
+        {
+          "label": "Know them well",
+          "count": 3200
+        },
+        {
+          "label": "Nod politely",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "fd20",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "field",
+      "prompt": "Manners — place it",
+      "ax": [
+        "strict",
+        "relaxed"
+      ],
+      "ay": [
+        "improving",
+        "decaying"
+      ]
+    },
+    {
+      "id": "f287",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "Free rent forever, but you can never move: deal?",
+      "options": [
+        {
+          "label": "Deal",
+          "count": 3100
+        },
+        {
+          "label": "No deal",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f288",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "Skip sleep with no cost — but lose dreams forever: deal?",
+      "options": [
+        {
+          "label": "Deal",
+          "count": 3600
+        },
+        {
+          "label": "Keep the dreams",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f289",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "A button erases your worst memory — and you won’t know what it was. Press it?",
+      "options": [
+        {
+          "label": "Press it",
+          "count": 2400
+        },
+        {
+          "label": "Keep the memory",
+          "count": 3800
+        }
+      ]
+    },
+    {
+      "id": "f290",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "Talk with animals — but they answer honestly: deal?",
+      "options": [
+        {
+          "label": "Deal",
+          "count": 4200
+        },
+        {
+          "label": "Too risky",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f291",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "The trolley problem: pull the lever?",
+      "bg": "A runaway trolley will hit five people; pulling a lever diverts it to a track where it hits one. A 1967 thought experiment by Philippa Foot, now philosophy’s most argued-over fork.",
+      "options": [
+        {
+          "label": "Pull it",
+          "count": 3900
+        },
+        {
+          "label": "Don’t touch it",
+          "count": 1800
+        },
+        {
+          "label": "Refuse the question",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "fd21",
+      "core": false,
+      "cat": "dilemma",
+      "type": "field",
+      "prompt": "Risk — place it",
+      "ax": [
+        "seek it",
+        "avoid it"
+      ],
+      "ay": [
+        "regret risks",
+        "regret passes"
+      ]
+    },
+    {
+      "id": "f292",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "Open-plan offices: collaboration, or surveillance with plants?",
+      "options": [
+        {
+          "label": "Collaboration",
+          "count": 2100
+        },
+        {
+          "label": "Surveillance with plants",
+          "count": 3900
+        }
+      ]
+    },
+    {
+      "id": "f293",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "The office party: gladly, strategically, or never?",
+      "options": [
+        {
+          "label": "Gladly",
+          "count": 2400
+        },
+        {
+          "label": "Strategically",
+          "count": 2900
+        },
+        {
+          "label": "Never",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f294",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "Retirement: as early as possible, or never fully?",
+      "options": [
+        {
+          "label": "As early as possible",
+          "count": 3600
+        },
+        {
+          "label": "Never fully",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f295",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "World Expos: still matter, or a relic?",
+      "options": [
+        {
+          "label": "Still matter",
+          "count": 2300
+        },
+        {
+          "label": "A relic",
+          "count": 2800
+        },
+        {
+          "label": "Never thought about them",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "dl66",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "dial",
+      "prompt": "Meetings this week that could have been an email?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "meetings"
+    },
+    {
+      "id": "dl67",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "dial",
+      "prompt": "Holiday days you’ll lose unused this year?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "days"
+    },
+    {
+      "id": "f296",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "Asking the waiter what’s good: always, or never?",
+      "options": [
+        {
+          "label": "Always",
+          "count": 3200
+        },
+        {
+          "label": "Never",
+          "count": 2400
+        },
+        {
+          "label": "Only when lost",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f297",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "Eating at the bar: the best seat, or the consolation seat?",
+      "options": [
+        {
+          "label": "The best seat",
+          "count": 3100
+        },
+        {
+          "label": "The consolation seat",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f298",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "The dessert menu: always look, or know your answer walking in?",
+      "options": [
+        {
+          "label": "Always look",
+          "count": 3600
+        },
+        {
+          "label": "I walk in knowing",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f299",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "Chain restaurants: reliable joy, or admitting defeat?",
+      "options": [
+        {
+          "label": "Reliable joy",
+          "count": 3300
+        },
+        {
+          "label": "Admitting defeat",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f300",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Soup for breakfast: perfectly normal, or chaos?",
+      "options": [
+        {
+          "label": "Perfectly normal",
+          "count": 2700
+        },
+        {
+          "label": "Chaos",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "dl68",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Glasses of water you actually drink a day?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "glasses"
+    },
+    {
+      "id": "f301",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your portrait, painted by: Frida Kahlo, Van Gogh, or a Renaissance master?",
+      "options": [
+        {
+          "label": "Frida Kahlo",
+          "count": 2700
+        },
+        {
+          "label": "Van Gogh",
+          "count": 3100
+        },
+        {
+          "label": "A Renaissance master",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f302",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The historical figure you’d want live-posting their day: Napoleon, Marie Antoinette, or Julius Caesar?",
+      "options": [
+        {
+          "label": "Napoleon",
+          "count": 2800
+        },
+        {
+          "label": "Marie Antoinette",
+          "count": 2900
+        },
+        {
+          "label": "Julius Caesar",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f303",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Who lasts longest a week in the wilderness: Beyoncé, Keanu Reeves, or Taylor Swift?",
+      "options": [
+        {
+          "label": "Beyoncé",
+          "count": 2600
+        },
+        {
+          "label": "Keanu Reeves",
+          "count": 3800
+        },
+        {
+          "label": "Taylor Swift",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f304",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The fictional home you’d take: the Shire, Hogwarts, or the Starship Enterprise?",
+      "options": [
+        {
+          "label": "The Shire",
+          "count": 3400
+        },
+        {
+          "label": "Hogwarts",
+          "count": 3000
+        },
+        {
+          "label": "The Enterprise",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "dl69",
+      "core": false,
+      "cat": "people",
+      "type": "dial",
+      "prompt": "Living famous people you could name in sixty seconds?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "names"
+    },
+    {
+      "id": "fd22",
+      "core": false,
+      "cat": "people",
+      "type": "field",
+      "prompt": "Heroes — place it",
+      "ax": [
+        "born",
+        "made"
+      ],
+      "ay": [
+        "have one",
+        "outgrew them"
+      ]
+    },
+    {
+      "id": "f305",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Documentaries: as gripping as fiction, or homework?",
+      "options": [
+        {
+          "label": "As gripping",
+          "count": 3300
+        },
+        {
+          "label": "Homework",
+          "count": 2400
+        },
+        {
+          "label": "Depends who’s narrating",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f306",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Film twists: guess them proudly, or ride along?",
+      "options": [
+        {
+          "label": "Guess them proudly",
+          "count": 2500
+        },
+        {
+          "label": "Ride along",
+          "count": 3900
+        }
+      ]
+    },
+    {
+      "id": "f307",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Directors’ cuts: the real film, or self-indulgence?",
+      "options": [
+        {
+          "label": "The real film",
+          "count": 3000
+        },
+        {
+          "label": "Self-indulgence",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f308",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Watching the Oscars: for the films, for the dresses, or not at all?",
+      "options": [
+        {
+          "label": "For the films",
+          "count": 2200
+        },
+        {
+          "label": "For the dresses",
+          "count": 2500
+        },
+        {
+          "label": "Not at all",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "dl70",
+      "core": false,
+      "cat": "movies",
+      "type": "dial",
+      "prompt": "Minutes before you abandon a bad film?",
+      "lo": 0,
+      "hi": 120,
+      "unit": "minutes"
+    },
+    {
+      "id": "fd23",
+      "core": false,
+      "cat": "movies",
+      "type": "field",
+      "prompt": "Animation — place it",
+      "ax": [
+        "for kids",
+        "for everyone"
+      ],
+      "ay": [
+        "watch lots",
+        "rarely watch"
+      ]
+    },
+    {
+      "id": "f309",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Covers: honour the original, or leave it alone?",
+      "options": [
+        {
+          "label": "Honour it",
+          "count": 3400
+        },
+        {
+          "label": "Leave it alone",
+          "count": 2300
+        },
+        {
+          "label": "Only if they transform it",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f310",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Album art: still part of the music, or lost with the sleeve?",
+      "options": [
+        {
+          "label": "Still part of it",
+          "count": 3100
+        },
+        {
+          "label": "Lost with the sleeve",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f311",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "A song you love in an ad: fair game, or a small betrayal?",
+      "options": [
+        {
+          "label": "Fair game",
+          "count": 2900
+        },
+        {
+          "label": "A small betrayal",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "f312",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Backing tracks at a live show: cheating, or part of the craft?",
+      "options": [
+        {
+          "label": "Cheating",
+          "count": 2800
+        },
+        {
+          "label": "Part of the craft",
+          "count": 3000
+        }
+      ]
+    },
+    {
+      "id": "dl71",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "Years since you last bought physical music?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "years"
+    },
+    {
+      "id": "fd24",
+      "core": false,
+      "cat": "music",
+      "type": "field",
+      "prompt": "Festivals — place it",
+      "ax": [
+        "the music",
+        "the scene"
+      ],
+      "ay": [
+        "yearly",
+        "never again"
+      ]
+    },
+    {
+      "id": "f313",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "A dumbphone month: tempting, or unthinkable?",
+      "options": [
+        {
+          "label": "Tempting",
+          "count": 3500
+        },
+        {
+          "label": "Unthinkable",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f314",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Software updates: install tonight, or ‘remind me later’ forever?",
+      "options": [
+        {
+          "label": "Install tonight",
+          "count": 2800
+        },
+        {
+          "label": "Remind me later, forever",
+          "count": 3700
+        }
+      ]
+    },
+    {
+      "id": "f315",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Wireless earbuds: liberation, or three more things to lose?",
+      "options": [
+        {
+          "label": "Liberation",
+          "count": 3300
+        },
+        {
+          "label": "Three more things to lose",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f316",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Your files: meticulous folders, or search and pray?",
+      "options": [
+        {
+          "label": "Meticulous folders",
+          "count": 2900
+        },
+        {
+          "label": "Search and pray",
+          "count": 3500
+        }
+      ]
+    },
+    {
+      "id": "dl72",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "Devices in your home that need charging?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "devices"
+    },
+    {
+      "id": "fd25",
+      "core": false,
+      "cat": "tech",
+      "type": "field",
+      "prompt": "The cloud — place it",
+      "ax": [
+        "trust it",
+        "fear it"
+      ],
+      "ay": [
+        "all in",
+        "local first"
+      ]
     },
     {
       "id": "n18",

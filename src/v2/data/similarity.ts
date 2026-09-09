@@ -290,13 +290,17 @@ export type ParsedResults = Record<string, Record<string, number>>;
  * Parse a profile's `testResults` field into axis values, keeping only
  * what is arithmetically usable.
  *
- * The field is owner-written and the rules validate nothing about its
- * shape (only key count and the server-owned `logic`), so this read has
- * to survive any value a hostile or merely broken client stored: wrong
- * types, absurd numbers, thousand-entry dims arrays. `keys` bounds which
- * instruments are read at all; values coerce to finite numbers or are
- * dropped; the clamp keeps a stored 4e9 from parking someone at the far
- * edge of every axis.
+ * The field is owner-written and the rules validate almost nothing about
+ * its shape — since 2026-09-09 they bound the key VOCABULARY (the five
+ * names in `firestore.rules`, replacing a bare `keys().size() <= 8`) and
+ * the server-owned `logic`, and that is all: inside a legitimate kind the
+ * value is still any JSON a client cares to write, of any size. So this
+ * read still has to survive anything a hostile or merely broken client
+ * stored: wrong types, absurd numbers, thousand-entry dims arrays. The
+ * vocabulary narrowed WHICH keys arrive, never what is under one.
+ * `keys` bounds which instruments are read at all; values coerce to
+ * finite numbers or are dropped; the clamp keeps a stored 4e9 from
+ * parking someone at the far edge of every axis.
  *
  * Returns null when nothing usable survives, so "has no scores" is one
  * check — the same absent-vs-zero discipline as everywhere else.

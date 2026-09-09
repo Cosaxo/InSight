@@ -21,11 +21,29 @@ describe("WPAL.opt gives every side its own hue", () => {
 
   it("leaves the 2- and 3-option cases exactly where they were", () => {
     // The control on the other side: this fix must not repaint the whole
-    // app. Two and three options keep the steps they had.
-    expect(WPAL.opt("oklch(0.62 0.17 20)", 1, 2)).toBe(WPAL.opt("oklch(0.62 0.17 20)", 1, 2));
-    expect(sides(2)).toHaveLength(2);
-    expect(sides(3)).toHaveLength(3);
-    // …and a caller that passes no `n` at all is on the old path.
+    // app. Two and three options keep the steps they had — n=2 at 150°,
+    // n=3 at 120°, which is what the source claims it "checked
+    // byte-identical".
+    //
+    // THE BYTES ARE THE POINT, and this case used to assert none of them:
+    // it compared `WPAL.opt(c, 1, 2)` to ITSELF, and asked `sides(2)` and
+    // `sides(3)` for their lengths — which `Array.from({length: n})` makes
+    // true whatever the colours are. Collapsing the nested ternary to
+    // `n > 3 ? 360 / n : 120` repaints every two-option question in the
+    // app and left this file 9/9 green. These bars carry no labels, so
+    // the colour is the whole encoding.
+    expect(sides(2)).toEqual([
+      "oklch(0.589 0.200 20.0)",
+      "oklch(0.654 0.126 170.0)",
+    ]);
+    expect(sides(3)).toEqual([
+      "oklch(0.589 0.200 20.0)",
+      "oklch(0.650 0.200 140.0)",
+      "oklch(0.575 0.200 260.0)",
+    ]);
+    // …and a caller that passes no `n` at all is on the old path. This one
+    // was always real: it pins the equivalence rather than the value, and
+    // `undefined > 3` being false is the whole of why the 4+ fix was safe.
     expect(WPAL.opt("oklch(0.62 0.17 20)", 1)).toBe(WPAL.opt("oklch(0.62 0.17 20)", 1, 2));
   });
 

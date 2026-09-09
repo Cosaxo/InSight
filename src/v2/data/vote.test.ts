@@ -685,6 +685,225 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
 // vector was therefore scored on its leading run, and `divisiveness`
 // normalises by option COUNT, so the short vector is not merely missing
 // zeros: it is rescaled.
+// ── the rounds a duel answer is written for ─────────────────────────
+//
+// NOTHING EXECUTED THIS CODE. `test/live-fixture.ts` stubs every
+// `LIVE.social` rounds member and `live-surface.ts` pins only the NAMES,
+// so `roundKey` changed to `r${n + 1}` — which moves every duel answer's
+// document id, the reveal listener's target and which rounds count as
+// sealed — left the whole client suite at 201 files / 2951 tests, exit
+// 0. Two separate reviews measured it the same way on the same night,
+// and it is why two live defects in this file shipped past tsc, eslint,
+// check:globals and the window.LIVE pin: all four are name-level.
+//
+// So this drives the real store: a group document through the store's
+// own listener, a duel question through the bank, and the assertion is
+// on the DOCUMENT THAT GETS WRITTEN.
+describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
+  const duelDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "duo", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true,
+    },
+  });
+
+  /** The group listener's own snapshot shape: `snap.docs.map(d => ({ id,
+   *  ...d.data() }))`. */
+  const groupSnap = (docs: Array<{ id: string; data: Record<string, unknown> }>) => ({
+    size: docs.length,
+    docs: docs.map((d) => ({ id: d.id, data: () => d.data, get: (k: string) => d.data[k] })),
+  });
+
+  const withRoom = async (room: Record<string, unknown>) => {
+    h.bankDocs.push(duelDoc("duo-t1", ["Tea", "Coffee"]), duelDoc("duo-t2", ["Cats", "Dogs"]));
+    const LIVE = await bootLive();
+    const sub = h.snapshots.find((x) => x.path === "v2_groups");
+    expect(sub, "no v2_groups listener — this fixture cannot reach the store").toBeTruthy();
+    sub!.next(groupSnap([{ id: "g1", data: room }]));
+    return LIVE;
+  };
+
+  it("writes the open round's answer at its own id, carrying the round and the question", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info, "the room never reached the store").toBeTruthy();
+    expect(info.open).toBe(3);
+    expect(info.next, "the open round is the one to answer").toBe(3);
+    expect(info.sealed).toEqual([]);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const wrote = h.setDocCalls.find((c) => c.path.includes("/answers/g_g1_"));
+    expect(wrote, "no duel answer was written at all").toBeTruthy();
+    // THE ID IS THE ASSERTION. It is what the reveal listener reads back
+    // and what `roundsOf` calls sealed, so an off-by-one here is silent
+    // everywhere else.
+    expect(wrote!.path).toBe("v2_users/uid_test/answers/g_g1_r3");
+    expect(wrote!.data).toMatchObject({ gid: "g1", round: 3, optionIdx: 1, surface: "duo" });
+    expect(typeof wrote!.data.qid).toBe("string");
+    expect(String(wrote!.data.qid), "the answer names no question").toMatch(/^duo-t[12]$/);
+  });
+
+  it("…and the next round is the next one, sealed behind it", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    await LIVE.social.voteDuel("g1", 0);
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info.sealed, "the answered round is not sealed").toEqual([3]);
+    expect(info.next, "the lead did not advance").toBe(4);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const ids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.path);
+    expect(ids).toEqual([
+      "v2_users/uid_test/answers/g_g1_r3",
+      "v2_users/uid_test/answers/g_g1_r4",
+    ]);
+    // Two rounds, two questions: the round is part of the pick, so the
+    // same room does not ask the same thing twice in a row.
+    const qids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.data.qid);
+    expect(new Set(qids).size, "both rounds drew the same question").toBe(2);
+  });
+
+  it("a LATE answer names the question it was GIVEN, not one re-derived from today's bank", async () => {
+    // The defect this closes (fixed earlier tonight, and until now held by
+    // nothing that runs `voteLate`): the card renders a revealed round's
+    // buttons from the reveal's own qid, while `voteLate` re-derived the
+    // round's question with `duelQFor` — a hash over the CURRENT bank and
+    // world pool. One question appended to either remaps every past round,
+    // and a late answer is by definition given after its round revealed.
+    //
+    // Asserted by handing it a qid `duelQFor` would NOT have chosen and
+    // checking the write carries that one. A test that passed the derived
+    // qid would pass with the fix reverted.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 4, played: {} });
+    // What the round would resolve to on today's bank, so the case can
+    // assert it is NOT what gets written.
+    await LIVE.social.voteDuel("g1", 0);       // seals round 4 and names its question
+    const sealedQid = String(h.setDocCalls.find((c) => c.path.endsWith("g_g1_r4"))!.data.qid);
+    const other = sealedQid === "duo-t1" ? "duo-t2" : "duo-t1";
+
+    await LIVE.social.voteLate("g1", 2, 1, other);
+    const late = h.setDocCalls.find((c) => c.path.endsWith("g_g1_r2"));
+    expect(late, "no late answer was written").toBeTruthy();
+    expect(late!.data).toMatchObject({ gid: "g1", round: 2, optionIdx: 1, late: true });
+    expect(late!.data.qid, "the late answer was filed under a re-derived question").toBe(other);
+  });
+
+  it("a late answer stays inside the lead behind the open round, and never overwrites", async () => {
+    // The window the rules enforce, checked on the client so the tap does
+    // not become a refused write. `open - ROUND_LEAD` is the floor.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 9, played: {} });
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteLate("g1", 3, 0, "duo-t1");   // 9 - 5 = 4, so 3 is out
+    expect(h.setDocCalls.length, "a late answer past the lead was written").toBe(before);
+    await LIVE.social.voteLate("g1", 9, 0, "duo-t1");   // the open round is not late
+    expect(h.setDocCalls.length, "the open round was answered through the late door").toBe(before);
+
+    await LIVE.social.voteLate("g1", 5, 0, "duo-t1");
+    expect(h.setDocCalls.length, "a legal late answer was refused").toBe(before + 1);
+    // …and a second tap on the same round writes nothing: the seal is the
+    // product, and a late answer is still an answer.
+    await LIVE.social.voteLate("g1", 5, 1, "duo-t1");
+    expect(h.setDocCalls.length, "a late answer was overwritten").toBe(before + 1);
+  });
+
+  it("myDuelCall reports the vote and the call it was sealed with", async () => {
+    // The reveal card reads this to decide whether it can say "you read
+    // them" — a guess that silently stopped being remembered would make
+    // the row vanish with nothing red.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
+    await LIVE.social.voteDuel("g1", 1, 0);
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // A vote with no call reads as a pick alone, not as a missing vote.
+    await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
+  });
+
+  it("refuses past the lead rather than writing an answer nothing will accept", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 1, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    for (let i = 0; i < info.lead; i++) await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.roundInfo("g1")!.sealed).toHaveLength(info.lead);
+    expect(LIVE.social.roundInfo("g1")!.next, "the lead's edge is not the end of the road").toBeNull();
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteDuel("g1", 0);
+    expect(h.setDocCalls.length, "a write past the lead the rules would refuse").toBe(before);
+  });
+});
+
+// ── the reveal's World column ───────────────────────────────────────
+//
+// `worldSplit` is the third column of a world-question reveal
+// (ROUNDS-PLAN §6.2): you, them, and the crowd. It folds `countsFor`,
+// which SUBTRACTS the viewer's own vote by convention — "the UI layer
+// adds its own +1", and every surface that prints a crowd percentage
+// does (`wfPcts`, `dialDist`, the feed's meta sheet). The reveal divided
+// them raw, so the one person guaranteed to have answered the question
+// was the one person missing from the crowd.
+describe("LIVE.social.worldSplit — the crowd, with the viewer in it", () => {
+  const feedDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "feed", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true, core: true,
+    },
+  });
+
+  /** Boot with the question in the feed bank and the viewer's vote in,
+   *  then land the published counts through the store's own refresh —
+   *  the only path that fills `state.aggs`. */
+  const withCrowd = async (qid: string, options: string[], counts: Record<string, number>, mine: string) => {
+    h.bankDocs.push(feedDoc(qid, options));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote(qid, mine);
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain(qid);
+    });
+    h.aggDocs = [{ id: qid, data: { total: Object.values(counts).reduce((a, b) => a + b, 0), counts } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    return LIVE;
+  };
+
+  it("counts the viewer, whether or not the trigger has folded them yet", async () => {
+    // The aggregate says 1–1 and the viewer is on option 0. Whether the
+    // fold has landed decides what `countsFor` hands over — [1,1] while
+    // the vote is still unaggregated, [0,1] once it is in — and exactly
+    // one vote is owed back in both directions. Raw, this printed
+    // 0% / 100% for a crowd that is not one-sided at all.
+    const LIVE = await withCrowd("q_ws", ["A", "B"], { "0": 1, "1": 1 }, "0");
+    const split = LIVE.social.worldSplit("q_ws")!;
+    expect(split, "no split at all — the aggregate did not land").toBeTruthy();
+    expect(split.total).toBe(split.counts.reduce((a, b) => a + b, 0));
+    // The viewer is in it: option 0 carries at least one more than the
+    // crowd's own 1, and the two options are not 0/100.
+    const pct = split.counts.map((c) => Math.round((c / split.total) * 100));
+    expect(pct[0], "the viewer's own option read 0%").toBeGreaterThan(0);
+    expect(pct[1], "the other option read 100% of a split crowd").toBeLessThan(100);
+    expect(split.counts[0]).toBeGreaterThanOrEqual(1);
+    expect(split.counts[1]).toBe(1);
+  });
+
+  it("does not make the column vanish when the viewer is the only voter", async () => {
+    // `worldSplit` returns null on a total of zero, and with the viewer
+    // subtracted a lone voter's question totalled zero — so the column
+    // disappeared from the one reveal where it is certainly true.
+    const LIVE = await withCrowd("q_solo", ["A", "B"], { "0": 1 }, "0");
+    const split = LIVE.social.worldSplit("q_solo");
+    expect(split, "the World column vanished on a question the viewer answered").toBeTruthy();
+    expect(split!.total).toBeGreaterThan(0);
+  });
+
+  it("says nothing about a question with no published aggregate", async () => {
+    // The control: the +1 must not conjure a crowd out of nothing.
+    h.bankDocs.push(feedDoc("q_none", ["A", "B"]));
+    const LIVE = await bootLive();
+    expect(LIVE.social.worldSplit("q_none")).toBeNull();
+    expect(LIVE.social.worldSplit("q_not_in_any_bank")).toBeNull();
+  });
+});
+
 describe("divisivenessOf reads the whole question, not its leading run", () => {
   const bankDoc = (id: string, options: string[]) => ({
     id,
