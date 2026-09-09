@@ -347,7 +347,7 @@ Two rules for working with it:
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:scripts` | the gates and the regulators themselves — their parsers, their budget arithmetic, their tripwires | nothing |
-| `npm run test:rules` | Firestore **and** Storage rules, plus the two ratchets on the same boot: never-false coverage and the expression-budget pins (D434) | Java 21 |
+| `npm run test:rules` | Firestore **and** Storage rules, plus the two ratchets on the same boot: never-false coverage and the expression-budget pins (D438) | Java 21 |
 | `npm run test:e2e` / `:e2e:erasure` / `:e2e:moderation` — or **`test:e2e:all`**, all three on ONE emulator boot, which is what CI runs (D276) | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
 **The fifth one hides, and that has shipped breakage three times.**

@@ -1,6 +1,6 @@
 # The rules expression budget — buying it back, and holding it
 
-**Status: plan notes — Phases 0 to 3 are BUILT and measured (D432, D433, D434); Phase 4 remains a proposal, priced and untaken.** Every number in §§0–6 is marked as either
+**Status: plan notes — Phases 0 to 3 are BUILT and measured (D432, D433, D438); Phase 4 remains a proposal, priced and untaken.** Every number in §§0–6 is marked as either
 *measured* (D429's filler runs, the e2e log, the tree) or *estimate*, as
 it was written before Phase 0 ran; **§9 is the measured table** and where
 the two disagree §9 is the correction — starting with the unit itself,
@@ -292,7 +292,7 @@ touching D8's snapshot semantics.
 
 ## 5 · Phase 3 — the gate that holds it
 
-**BUILT 2026-09-09 (D434), with two of its numbers re-derived.** The
+**BUILT 2026-09-09 (D438), with two of its numbers re-derived.** The
 plan below wrote *FLOOR ≈ 130 fillers ≈ 400 expressions* and *FLOOR +
 60 must load* in D429's unit; D432 measured the unit at 8.1, the
 thinnest legal create at 58 fillers and the compile ceiling at 94, so
@@ -339,7 +339,7 @@ is on the **PR path and the deploy path both**, because it runs inside
 guards a PR is what guards production) is kept by construction.
 
 **Done when:** the three assertions run in CI, the baseline is checked
-in, and D434 records the floor and why it is that number.
+in, and D438 records the floor and why it is that number.
 
 ## 6 · Phase 4 — the fallback, priced
 
@@ -389,7 +389,7 @@ is on the table now, not discovered after §3 disappoints.
 | 0 — instrument | one, `scripts/rules-budget.mjs` + baseline, no rule change | D432: the calibration and the cost table | no |
 | 1 — restructure | one PR, four commits (a)–(d), each measured | D433: before/after per probe | **go/no-go on this plan** |
 | 2 — anchors | folded into Phase 1's PR as commit (e), or its own | in D433 | no |
-| 3 — gate | one, the three assertions + docs | D434: the floor | no |
+| 3 — gate | one, the three assertions + docs | D438: the floor | no |
 | 4 — fallback | its own plan, only if triggered | its own decision | yes — a migration |
 
 Phase 0 is safe to start without a decision: it changes no rule and

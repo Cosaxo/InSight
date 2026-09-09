@@ -47,7 +47,7 @@
 //   firebase emulators:exec --only firestore "node scripts/rules-budget.mjs"
 //
 // Options:
-//   --gate                    THE GATE (D434): assert the baseline's pins on
+//   --gate                    THE GATE (D438): assert the baseline's pins on
 //                             the tree's rules — every probe's verdict
 //                             unchanged at its pinned N and BUDGET at N+1,
 //                             every pin at or above the floor, the file
@@ -264,23 +264,29 @@ export const PROBES = [
   // legal creates
   { name: "world · all ten anchors at their bounds", expect: "allowed", uid: U.owner, aid: "daily-000",
     data: { qid: "daily-000", surface: "daily", optionIdx: 1, anchors: FAT } },
+  // A group answer carries no guess (D437 — nothing in a group is called;
+  // the rules refuse one), and the world arm D429 measured left at D426's
+  // third amendment, so the guess-carrying probe is the 1v1's: the arm
+  // that still evaluates the guess clauses.
   { name: "duel · own bank", expect: "allowed", uid: U.owner, aid: `g_${GID}_r2`,
-    data: { qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0, gid: GID, round: 2, anchors: FAT } },
-  { name: "duel · WORLD content (thinnest, D429)", expect: "allowed", uid: U.friend, aid: `g_${GID}_r2`,
-    data: { qid: "feed-w0", surface: "group", optionIdx: 1, guessIdx: 0, gid: GID, round: 2, anchors: FAT } },
+    data: { qid: "group-b0", surface: "group", optionIdx: 1, gid: GID, round: 2, anchors: FAT } },
+  { name: "duel · 1v1 with its guess (the guess clauses)", expect: "allowed", uid: U.friend, aid: "g_d_budget_r2",
+    data: { qid: "duo-b0", surface: "duo", optionIdx: 1, guessIdx: 0, gid: "d_budget", round: 2, anchors: FAT } },
   { name: "duel · pick round (thinnest, D429)", expect: "allowed", uid: U.stranger, aid: `g_${GID}_r2`,
-    data: { qid: "group-pick0", surface: "group", optionIdx: 1, guessIdx: 2, pickUid: U.friend, gid: GID, round: 2, anchors: FAT } },
+    data: { qid: "group-pick0", surface: "group", optionIdx: 1, pickUid: U.friend, gid: GID, round: 2, anchors: FAT } },
   { name: "duel · late answer", expect: "allowed", uid: U.owner, aid: `g_${GID}_r1`,
     data: { qid: "group-b0", surface: "group", optionIdx: 0, late: true, gid: GID, round: 1, anchors: FAT } },
   { name: "rank", expect: "allowed", uid: U.owner, aid: "feed-rank0",
     data: { qid: "feed-rank0", surface: "feed", order: [2, 0, 1, 3], anchors: FAT } },
   { name: "duel · 32-member room", expect: "allowed", uid: "m31", aid: "g_g_big_r2",
-    data: { qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0, gid: "g_big", round: 2, anchors: FAT } },
+    data: { qid: "group-b0", surface: "group", optionIdx: 1, gid: "g_big", round: 2, anchors: FAT } },
   { name: "pulse", expect: "allowed", uid: U.owner, aid: "pulse-pace_2026-09-09",
     data: { qid: "pulse-pace_2026-09-09", baseQid: "pulse-pace", day: "2026-09-09", surface: "pulse", optionIdx: 1, anchors: FAT } },
   // refusals, in the e2e's shapes
   { name: "REFUSE · round already revealed", expect: "refused", uid: U.owner, aid: `g_${GID}_r1`,
-    data: { qid: "group-b0", surface: "group", optionIdx: 0, guessIdx: 0, gid: GID, round: 1, anchors: FAT } },
+    data: { qid: "group-b0", surface: "group", optionIdx: 0, gid: GID, round: 1, anchors: FAT } },
+  { name: "REFUSE · a guess on a group answer (D437)", expect: "refused", uid: U.owner, aid: `g_${GID}_r2`,
+    data: { qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0, gid: GID, round: 2, anchors: FAT } },
   { name: "REFUSE · entity on a non-catalog question", expect: "refused", uid: U.owner, aid: "feed-w0",
     data: { qid: "feed-w0", surface: "feed", entity: 128514, anchors: FAT } },
   { name: "REFUSE · a second ranking on the same question", expect: "refused", uid: U.friend, aid: "feed-rank0",
@@ -290,7 +296,7 @@ export const PROBES = [
   { name: "REFUSE · world answer on a killed question", expect: "refused", uid: U.owner, aid: "daily-dead",
     data: { qid: "daily-dead", surface: "daily", optionIdx: 0, anchors: FAT } },
   { name: "REFUSE · non-member in a room", expect: "refused", uid: "nobody", aid: `g_${GID}_r2`,
-    data: { qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0, gid: GID, round: 2, anchors: FAT } },
+    data: { qid: "group-b0", surface: "group", optionIdx: 1, gid: GID, round: 2, anchors: FAT } },
   // one legal update (D86's one edit shape)
   { name: "update · optionIdx edit", expect: "allowed", uid: U.friend, aid: "daily-000", update: true,
     data: { optionIdx: 1 } },
@@ -344,6 +350,10 @@ async function seed(env) {
     // out of budget erroring on a missing document.
     await q("pulse-pace", { surface: "pulse", seq: 5, type: "vote", prompt: "?", options: ["a", "b", "c"], active: true });
     await setDoc(doc(db, "v2_groups", GID), { name: "Room", mode: "group", memberUids: [U.owner, U.friend, U.stranger], round: 2 });
+    // …and a pair on the duo pool's own bank, for the one arm that still
+    // carries a guess (rules.test.ts § the heaviest LEGAL create).
+    await q("duo-b0", { surface: "duo", seq: 6, type: "classic", prompt: "?", options: ["a", "b"], active: true });
+    await setDoc(doc(db, "v2_groups", "d_budget"), { name: "Pair", mode: "duo", memberUids: [U.owner, U.friend], round: 2 });
     await setDoc(doc(db, "v2_groups", "g_big"), {
       name: "Crowd", mode: "group", memberUids: Array.from({ length: 32 }, (_, i) => `m${i}`), round: 2,
     });
@@ -483,7 +493,7 @@ async function measureHeadroom(rules, label, where, maxFillers) {
   return out;
 }
 
-// ── the gate (D434) ─────────────────────────────────────────────────
+// ── the gate (D438) ─────────────────────────────────────────────────
 
 /**
  * The gate's checks, from the baseline alone — pure, so WHAT is asserted
@@ -791,7 +801,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
   if (process.argv.includes("--write-baseline")) {
     // The floors are policy and survive a re-measurement; the defaults are
-    // D434's numbers for a tree that has none yet.
+    // D438's numbers for a tree that has none yet.
     let prior = {};
     try { prior = readBaseline(); } catch { prior = {}; }
     writeBaseline({

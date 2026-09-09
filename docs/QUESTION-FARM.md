@@ -933,12 +933,45 @@ for a duel run:
   `duel-budget.test.mjs` pins the properties — including that the dark
   romantic pool counts at full weight, because its entries light up in
   one operator step.
-- **Append only, at the end of the right array.** Group order is
-  rotation order — interleaved us/pick/classic, never sorted. Both 1v1
-  pools are ordered light → deep; append deep. Ids continue each series
-  (group: the gu/gp/gd prefixes; 1v1: the next `NNN` suffix, shared
-  across `oneVsOne` and `romantic` — they are one `duo-NNN` id
-  namespace).
+- **Append only, at the end of the right array.** Group order is the
+  demo's rotation order, never sorted. Both 1v1 pools are ordered light
+  → deep; append deep. Ids continue each series (group: `gr` for a role
+  vote, `gs` for a rating — the older gu/gp/gd series are closed; 1v1:
+  the next `NNN` suffix, shared across `oneVsOne` and `romantic` — they
+  are one `duo-NNN` id namespace). **The cast round is not the lane's**:
+  each 1v1 pool holds exactly one `"kind": "cast"` entry (`073`, `074` —
+  *Most days, {name} is…*, D437), dealt every fourth round; never write
+  another, and never give an ordinary 1v1 entry `them` or `dims`.
+- **The group is a CAST (D434, the owner's 2026-09-08 design —
+  `docs/VISION-2026-09-08.md`).** A group question is one of two kinds
+  now. A **role vote** is a `pick` (no options — the members are the
+  options) tagged with the scenario pack it belongs to (`"scen":
+  "<pack id>"`, one of the packs in the file's top-level `scenarios`:
+  Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip) and
+  the role it casts (`"role": { "id", "label", "seat" }` — *the
+  mastermind*, said of a person in front of their group, so `COPY.md`
+  §3 applies word by word; the **seat** is `engine` · `hands` · `heart`
+  · `wild`, what a member's received votes cluster into — D437). A new
+  pack is **four roles, one a seat**, and a hue, added to `scenarios`
+  first; `check:content` refuses a pack with two roles in one seat or a
+  seat empty. A **rating** is `"kind": "rate"` with two
+  `"poles"` and no options — the seed derives the five step labels
+  (*Calm · mostly Calm · in between · mostly Chaos · Chaos*), so a pole
+  has to read as a step's end word. The live rotation deals three role
+  votes and then a rating (`isRatingRound`, data/deck.ts); the older
+  us/classic questions are in the bank and out of the rotation, so
+  **do not write more of them**. `check:content` holds the kinds and
+  their shapes.
+- **The bank is not compiled into the app (D435).** The demo build
+  carries `content/duel-sample.json` — a generated slice (the first few
+  served questions of each group kind and each 1v1 domain, in bank
+  order, plus the packs those votes name), written by
+  `scripts/gen-duel-sample.mjs` and held to its source by
+  `check:duel-sample`. An **append never moves it**, so a run has no cap
+  to stop at and nothing to regenerate beyond `build:content`. The one
+  edit that does move it is a retirement (the next entry of that kind
+  slides in), which is the operator's, and the gate names the fix:
+  `npm run build:duel-sample`. Never edit the sample by hand.
 - **Match the pool's `active` posture.** While the romantic pool is dark
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,

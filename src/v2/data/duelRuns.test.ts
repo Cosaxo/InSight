@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duoRuns, revealTally } from "./duelRuns";
+import { duoRuns, namedBy, revealTally, roleTally } from "./duelRuns";
 
 const day = (d: string, votes: Record<string, { optionIdx?: number; guessIdx?: number; qid?: string }>, qid = "q1") =>
   ({ day: d, qid, votes });
@@ -140,5 +140,33 @@ describe("duoRuns — rounds within a day, and a late answer", () => {
     ], "me", "you");
     expect(runs.read).toEqual([true]);
     expect(runs.by).toEqual([true]);
+  });
+});
+
+describe("roleTally — who a role vote names", () => {
+  it("folds by the snapshot, so two indexes naming one member are one row and no tie", () => {
+    // Roster [a, b, c, d]: a votes index 3 (d); c leaves; b votes index 2,
+    // which is d now. By index that is a tie between d and d; by who it is
+    // d, 2–0 — what the Mirror's Votes lens says, and what the card must.
+    const reveal = {
+      day: "2026-09-09", qid: "r1",
+      votes: { a: { optionIdx: 3, pickUid: "d" }, b: { optionIdx: 2, pickUid: "d" } },
+    };
+    expect(revealTally(reveal, 3).map((r) => r.uids.length)).toEqual([1, 1]);
+    expect(roleTally(reveal, ["a", "b", "d"])).toEqual([{ optionIdx: 2, uid: "d", uids: ["a", "b"] }]);
+  });
+
+  it("places a snapshot-less vote by the reveal's own roster, never the live one, and keeps a late answer out", () => {
+    expect(namedBy({ optionIdx: 1 }, ["a", "b"])).toBe("b");
+    expect(namedBy({ optionIdx: 5 }, ["a", "b"])).toBeNull();
+    expect(namedBy({ optionIdx: 1, pickUid: "z" }, ["a", "b"])).toBe("z");
+    const reveal = {
+      day: "2026-09-09", qid: "r1",
+      votes: { a: { optionIdx: 1 }, b: { optionIdx: 7 }, c: { optionIdx: 1, late: true } },
+    };
+    expect(roleTally(reveal, ["a", "b"])).toEqual([
+      { optionIdx: 1, uid: "b", uids: ["a"] },
+      { optionIdx: 7, uid: null, uids: ["b"] },
+    ]);
   });
 });

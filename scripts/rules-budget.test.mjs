@@ -216,7 +216,7 @@ describe("bisect", () => {
   });
 });
 
-// ── the gate (D434): what it asserts is decided without an emulator ────
+// ── the gate (D438): what it asserts is decided without an emulator ────
 
 describe("planGate", () => {
   const PROBES = [

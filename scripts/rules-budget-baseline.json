@@ -27,7 +27,7 @@
   ],
   "probes": [
     {
-      "name": "world \u00b7 all ten anchors at their bounds",
+      "name": "world · all ten anchors at their bounds",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 474,
@@ -35,35 +35,35 @@
       "bounded": false
     },
     {
-      "name": "duel \u00b7 own bank",
+      "name": "duel · own bank",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 62,
+      "cost": 608,
+      "fillers": 59,
       "bounded": false
     },
     {
-      "name": "duel \u00b7 WORLD content (thinnest, D429)",
+      "name": "duel · 1v1 with its guess (the guess clauses)",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 58,
-      "bounded": false
-    },
-    {
-      "name": "duel \u00b7 pick round (thinnest, D429)",
-      "expect": "allowed",
-      "verdict": "allowed",
-      "cost": 609,
-      "fillers": 58,
-      "bounded": false
-    },
-    {
-      "name": "duel \u00b7 late answer",
-      "expect": "allowed",
-      "verdict": "allowed",
-      "cost": 609,
+      "cost": 608,
       "fillers": 60,
+      "bounded": false
+    },
+    {
+      "name": "duel · pick round (thinnest, D429)",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 57,
+      "bounded": false
+    },
+    {
+      "name": "duel · late answer",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 58,
       "bounded": false
     },
     {
@@ -75,11 +75,11 @@
       "bounded": false
     },
     {
-      "name": "duel \u00b7 32-member room",
+      "name": "duel · 32-member room",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 62,
+      "cost": 608,
+      "fillers": 59,
       "bounded": false
     },
     {
@@ -91,15 +91,23 @@
       "bounded": false
     },
     {
-      "name": "REFUSE \u00b7 round already revealed",
+      "name": "REFUSE · round already revealed",
       "expect": "refused",
       "verdict": "refused",
-      "cost": 445,
+      "cost": 444,
       "fillers": 94,
       "bounded": true
     },
     {
-      "name": "REFUSE \u00b7 entity on a non-catalog question",
+      "name": "REFUSE · a guess on a group answer (D437)",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 344,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · entity on a non-catalog question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 317,
@@ -107,7 +115,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE \u00b7 a second ranking on the same question",
+      "name": "REFUSE · a second ranking on the same question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 254,
@@ -115,7 +123,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE \u00b7 optionIdx on a rank question",
+      "name": "REFUSE · optionIdx on a rank question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 312,
@@ -123,7 +131,7 @@
       "bounded": true
     },
     {
-      "name": "REFUSE \u00b7 world answer on a killed question",
+      "name": "REFUSE · world answer on a killed question",
       "expect": "refused",
       "verdict": "refused",
       "cost": 312,
@@ -131,15 +139,15 @@
       "bounded": true
     },
     {
-      "name": "REFUSE \u00b7 non-member in a room",
+      "name": "REFUSE · non-member in a room",
       "expect": "refused",
       "verdict": "refused",
-      "cost": 445,
+      "cost": 444,
       "fillers": 94,
       "bounded": true
     },
     {
-      "name": "update \u00b7 optionIdx edit",
+      "name": "update · optionIdx edit",
       "expect": "allowed",
       "verdict": "allowed",
       "cost": 192,

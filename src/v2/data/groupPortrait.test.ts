@@ -278,6 +278,46 @@ describe("the pick-day snapshot (D224)", () => {
 // given to something else. Nothing that compares two optionIdx values may
 // look across that line: option 2 of one prompt has nothing to do with
 // option 2 of another.
+describe("who casts the room like you — the snapshot, not the index (D437)", () => {
+  // Two clients can hold the roster in different orders, so on a pick day
+  // the same index need not be the same person and the same person need
+  // not be the same index. The pairwise fold compared indexes until D437,
+  // which put "casts the room like you" beside somebody who had named a
+  // DIFFERENT person at the same index.
+  const pick = (n: number, votes: Record<string, { o: number; p?: string; late?: boolean }>) => ({
+    day: day(n),
+    qid: "q" + n,
+    votes: Object.fromEntries(Object.entries(votes).map(([u, v]) => [u, {
+      optionIdx: v.o, ...(v.p ? { pickUid: v.p } : {}), ...(v.late ? { late: true } : {}),
+    }])),
+  });
+
+  it("agrees on WHOM was named, where both votes carry a snapshot", () => {
+    const p = groupPortrait([
+      pick(1, { me: { o: 0, p: "bo" }, a: { o: 2, p: "bo" }, b: { o: 0, p: "cy" } }),
+      pick(2, { me: { o: 1, p: "cy" }, a: { o: 3, p: "cy" }, b: { o: 1, p: "a" } }),
+    ], "me");
+    const a = p.people.find((x) => x.uid === "a")!;
+    const b = p.people.find((x) => x.uid === "b")!;
+    expect([a.shared, a.agree]).toEqual([2, 2]);
+    expect([b.shared, b.agree]).toEqual([2, 0]);
+    expect(p.twin!.uid).toBe("a");
+  });
+
+  it("falls back to the index where either vote predates the snapshot", () => {
+    const p = groupPortrait([pick(1, { me: { o: 0 }, a: { o: 0, p: "bo" } })], "me");
+    expect(p.people[0].agree).toBe(1);
+  });
+
+  it("counts no late answer on either side — agreeing with what you could see is not casting alike", () => {
+    const p = groupPortrait([
+      pick(1, { me: { o: 0, p: "bo" }, a: { o: 0, p: "bo", late: true } }),
+      pick(2, { me: { o: 0, p: "bo", late: true }, a: { o: 0, p: "bo" } }),
+    ], "me");
+    expect(p.people).toEqual([]);
+  });
+});
+
 describe("votes answered against a different question", () => {
   // b was asked something else that day
   const split = (n: number, votes: Record<string, number>, odd: Record<string, string>) => ({

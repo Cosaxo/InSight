@@ -984,6 +984,15 @@ service cloud.firestore {
             && request.resource.data.gid is string
             && request.resource.data.round is int
             && request.resource.data.round >= 1
+            // NOTHING IN A GROUP IS CALLED (D437 — the owner's 2026-09-09
+            // brief: "The room casts roles and rates itself; that's all").
+            // A guess is a 1v1's, at what the other person said; a group
+            // answer carrying one is refused HERE rather than ignored
+            // downstream, so "no call" is a rule the table keeps and not a
+            // client's manners. D386 admitted it for one week; the fold in
+            // functions/src/pure.ts scores nothing for a group either way.
+            && !(request.resource.data.surface == "group"
+                 && request.resource.data.keys().hasAny(["guessIdx"]))
             // The id IS the round. string() over an int resolves in rules
             // — probed in the emulator 2026-09-08 before this was written.
             && aid == "g_" + request.resource.data.gid + "_r" + string(request.resource.data.round)
@@ -1064,32 +1073,26 @@ service cloud.firestore {
             // votes, kept being published in reveals, and kept feeding a
             // public aggregate.
             && q.get("active", true) == true
-            // EQUALITY, like isWorldAnswer's — or the world arm beside it.
-            // duelQFor (data/deck.ts) draws a round's question from the
-            // bank whose surface matches the answer's own "group"/"duo",
-            // and since ROUNDS-PLAN §6.2 every other round from the feed's
-            // core: the second arm admits exactly that and nothing else.
-            // Without the equality a group could seal a vote against a
-            // catalog question — whose `options` is empty, so
+            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
+            // the round's question with `q.surface === mode`, so the bank a
+            // group can legitimately answer from is exactly the one whose
+            // surface matches the answer's own "group"/"duo". Without it a
+            // group could seal a vote against a daily, feed or catalog
+            // question — and for a catalog question `options` is empty, so
             // duelIndexSpace() falls through to the member count and the
             // vote is folded as if it were a "pick".
-            && (
-              q.get("surface", "daily") == d.surface
-              // …OR a WORLD question as duel content (ROUNDS-PLAN §6.2, the
-              // owner's word 2026-09-08): a daily or feed question whose
-              // answer is an option index. Written as an explicit second
-              // arm, never as a relaxation of the equality above — that
-              // equality is what stops a catalog question (type catalog,
-              // options []) falling through duelIndexSpace() to the member
-              // count and being folded as a pick, and the type test here
-              // keeps rank (an order, not an index), dial and field (a
-              // position on a range) and path out for the same reason: a
-              // duel answer's optionIdx has to name one of the question's
-              // own options.
-              || (q.get("surface", "daily") in ["daily", "feed"]
-                && q.get("type", "") in ["vote", "binary", "choice"]
-                && q.options.size() > 0)
-            )
+            //
+            // For one day (2026-09-08, ROUNDS-PLAN §6.2) a second arm stood
+            // beside this equality admitting a daily or feed question of an
+            // option-index type as a round's content. The owner retired it
+            // on seeing the first such reveal — the feed already asks those
+            // — and the equality is again the whole test (D426's third
+            // amendment). Widen it only as an explicit arm, never by
+            // relaxing this line: the catalog hole above is what the
+            // equality closes. (The arm read the question this function is
+            // handed, so its leaving moves no fetch — D433's fourteen sites
+            // are fourteen still.)
+            && q.get("surface", "daily") == d.surface
             && (d.get("guessIdx", 0) is int)
             && d.get("guessIdx", 0) >= 0
             // SAME bound as optionIdx, and the SAME COMPARISON — a guess
@@ -1309,7 +1312,7 @@ service cloud.firestore {
           // clause crosses the line the suite reds instead of the release.
           // The filler probe scripts/rules-budget.mjs appends lands on the
           // line below; keep it the last conjunct. `test:rules` holds the
-          // number (D434): every probe pinned at exactly its measured
+          // number (D438): every probe pinned at exactly its measured
           // headroom, a floor of 50 fillers (~405 units) under all of
           // them, and the file still loading at 80 — so a clause that
           // costs expressions moves a pin and says why, and one that

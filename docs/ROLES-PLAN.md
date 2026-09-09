@@ -1,7 +1,15 @@
 # The 1v1 and group profile — the plan
 
-**Status: plan notes — §5's steps 1 and 2 are built (D386, 2026-09-06,
-the owner's *"yes build the first two steps"*); the rest proposes.** Written
+**Status: plan notes — §5's steps 1 and 2 were built (D386, 2026-09-06,
+the owner's *"yes build the first two steps"*); the instrument question
+was then answered by the owner's 2026-09-09 design rather than by this
+plan (D437): one idea in two settings — a 1v1's dims the share of cast
+rounds that named you each axis, a group's the share of your received
+votes per seat — ten and eleven types, `MIN_DUO` 3 casts and `MIN_GROUP`
+2 votes. §3.4–§3.5's tables are answered, not adopted; §3.6's name rule
+stands over the new dims; §3.3's ledger is still open; the guess on
+group days (§6) was retired with the call. §2's measurements describe
+the instrument this replaced.** Written
 2026-09-06 on the owner's ask of that day — *"how could we make the 1v1
 and groups profile better, and check if you want to improve the
 questions that decide what type, and if you want to change anything
@@ -367,6 +375,15 @@ row on the reveal, the reading as a receipt row (`asides` in
 `roles.ts`) and in the signal (`duelAggDelta` scores a group's guess
 against the option the room landed on); it becomes a matched dim with
 the table in step 4.
+
+**The owner's 2026-09-08 design supplies the pick days** (D434,
+`docs/VISION-2026-09-08.md`): twenty role votes in five scenario packs
+and a rating of the group every fourth round, so Standing is folded from
+three rounds in four rather than from the eight picks the bank had. It
+arrived as an aside (*the room named you in N of M role votes*, chance-
+scaled) — the tables are step 2 of that plan, and this section's
+`named` against the prototype's `cast` is the choice it puts to the
+owner.
 
 **Standing is the pick days.** Only votes carrying a D224 snapshot
 count, only when the counted votes agree (the `majorityPickUid` rule),

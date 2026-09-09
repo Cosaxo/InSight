@@ -111,6 +111,15 @@ hero.
 Recorded here rather than by editing the canvas, the same way
 `ROUNDS-PLAN.md` §0a records the model's departures from its plan.
 
+- **No World round.** State 8 — a World question as the round, no guess
+  when Ada already answered it in the feed, the reveal's three columns —
+  was built from the canvas and retired the same evening on the owner's
+  ruling at the first reveal (*"that is stufff you already find on the
+  world feed so is totaly pointless"*; D426's third amendment). A round
+  draws from the room's own bank only, so the kicker never says *· World*,
+  the reveal is always the SAID · CALLED table or the split with faces,
+  and the ask always takes the guess. The first run's stand-in (state 9)
+  is unchanged: it stands in for a room's question and says so.
 - **A 1v1 can close at the deadline.** The design's note says a 1v1 has
   no deadline, so its rounds cannot close without you. The model the
   owner ruled applies the deadline to both surfaces (§0a: a partner who
@@ -133,9 +142,9 @@ Recorded here rather than by editing the canvas, the same way
   documents the boot's delta reads anyway; a round whose call is not in
   hand names your pick alone (`myDuelCall`, `data/live.ts`).
 - **A sixth dot.** The run has one kind the design did not need: a round
-  you played that carried no call to score — a World round whose guess
-  was a lookup, or a reveal from before rounds — drawn as a plain ring,
-  titled *played · no call*.
+  you played that carried no call to score — a reveal from before rounds,
+  or one of the World rounds of 2026-09-08 whose guess was a lookup —
+  drawn as a plain ring, titled *played · no call*.
 - **Seats draw only when one is open**, and the kicker says *closed at
   the deadline* when a seat is open and your own answer was not late —
   which is the reading the two artboards (states 6 and 7) agree on.

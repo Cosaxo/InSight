@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — every step is BUILT (2026-09-08, D426's second amendment): 0–5 and 7 in the tree, 6's regulator built and its daily cadence re-paced by the owner, 8 from the owner's canvas of 2026-09-08 (`design/rounds-card-2026-09-08/`).** The follow-through on
+**Status: plan notes — every step was BUILT on 2026-09-08 (D426's second amendment): 0–5 in the tree, 6's regulator built and its daily cadence re-paced by the owner, 8 from the owner's canvas of 2026-09-08 (`design/rounds-card-2026-09-08/`) — and 7, world questions as duel content, built in the afternoon and RETIRED the same evening on the owner's ruling (D426's third amendment; §6.2 stays as the record).** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -10,7 +10,13 @@ message and the lead cap asked for as a reflection (§5). **On the same
 day, to the model explained in plain words — five rounds ahead, a late
 answer marked and not counted, *waiting on Leo*, world questions with
 the world's split on the reveal — the owner said *"yeah lets do that"*,
-and asked whether notifications connect to it (§7.4).** Every item is
+and asked whether notifications connect to it (§7.4). And the same
+evening, at the first world round's reveal on a device, the owner retired
+§6.2 — *"that is stufff you already find on the world feed so is totaly
+pointless"*, and *"its worst for group as that should mostly be about
+what role you have in the group"* — so a round draws from the room's own
+bank only (D426's third amendment; §0a says what came out and what
+stays).** Every item is
 measured against the tree with the constraint that shapes it and its
 backend half named (D167); §11 is the build order and the gate per step.
 
@@ -79,36 +85,31 @@ the tree does not do.
   the next prompt. No sentence names a cadence (D419 §3).
 - **`test-users.mjs` plays rounds** (`play`, `reveal` = the forced
   lever, `history --rounds N`); `--day` is gone.
-- **World rounds are the EVEN rounds, off the feed's core** (§6.2,
-  built 2026-09-08 on the owner's word). `worldDuelPool` is the core
-  (`core: true`) restricted to `vote`/`binary`/`choice` with two or more
-  options and not retired, sorted by id — the list every device holds
-  at boot, so the rotation is the same function everywhere; the feed's
-  tail is out on purpose, since tail pages land per device and a pool
-  two members disagree about is D70's drift by design. `duelQFor`
-  draws even rounds from it and odd rounds from the room's bank (`% 2`
-  is one dial); a device with no pool yet draws every round from the
-  bank, and `revealQid` keeps a drifted client coherent. The rules
-  admit the arm explicitly — surface `daily`/`feed`, type in the three,
-  `options.size() > 0` — so the catalog stays out.
-- **The partner's public answer is a NO-GUESS signal, not an
-  exclusion.** §6.2 proposed not serving a question the partner had
-  already answered in public. Excluding per partner would make the
-  round's question a function of one member's answer set, which the
-  other device does not hold at the same moment — drift again. As built
-  the question is served; in a 1v1 the card asks no guess when the
-  partner's public answer is known (the guess would be a lookup) and
-  says so, and a group's world round asks no guess at all. The lookup
-  is `fetchAnswersOf`, the Circle stop's own capped query, once per
-  pair per session on the first world round the card draws.
-- **The third column costs ONE read, not the zero §6.2 assumed.** The
-  feed's cache holds the aggregates of the questions you have ANSWERED
-  — the blind answer means a card fetches its split after the vote —
-  and a duel answer is keyed `g_…`, so the boot's top-up never asks for
-  a world round's question. The reveal fetches `v2_question_aggs/{qid}`
-  once per question per session when the cache has no published counts
-  (`ensureWorldSplit`), and the world's own count does not move (the
-  e2e's 8a leg pins the total).
+- **World rounds were built and retired on the same day** (§6.2; D426's
+  third amendment). As built, even rounds drew a feed-core question
+  through `worldDuelPool` (the core, option-shaped, sorted by id so every
+  device drew the same one), the rules admitted a `daily`/`feed`
+  option-index question as an explicit second arm beside the surface
+  equality, the partner's public answer was a no-guess signal rather
+  than §6.2's exclusion (excluding per partner would have made the
+  round's question a function of one device's data — drift), and the
+  reveal's third column cost ONE read per question per session rather
+  than the zero §6.2 assumed, because the feed's cache holds the
+  aggregates of the questions you have answered and a duel answer is
+  keyed `g_…`. The owner met the first such reveal on a device — *Round
+  28 · World · revealed*, "What do you want more of this year?", three
+  columns, *Henrik answered this in the World feed, so there was no
+  guess* — and ruled it out: *"that is stufff you already find on the
+  world feed so is totaly pointless"*, and *"its worst for group as that
+  should mostly be about what role you have in the group"*. Every piece
+  came out the same evening: the pool and the even-round branch
+  (`duelQFor` walks the room's own bank every round), the arm (the
+  equality is again the whole test, and `scripts/pulse.test.mjs`'s
+  get() site count is back at 34), the split and the partner query with
+  their store fields, the card's kicker, columns and note, the e2e's 8a
+  leg and the COSTS row. **What stays:** `bankQ`'s lookup of a feed
+  qid, so the reveals written that day still draw the question they
+  were about (D71) rather than the members' names.
 - **The nudge is one push per TURN, and the stamp is on the group
   document** (§7.4, built 2026-09-08 on the owner's word — *"yes on the
   notification"*). §7.4 said one push per recipient per window, naming
@@ -183,7 +184,7 @@ the tree does not do.
 | **A group reveals when all have played, or at the deadline** (§3) | build — the owner's rule, 2026-09-08 | the 2-hourly scan queries `roundDeadlineAt <= now` instead of `pendingDays array-contains` | The deadline is what the day used to do; without it a stalled member freezes the group forever, which is *worse* than today |
 | **A late answer is marked, and does not score** (§4) | build — the enforceable half of the owner's rule | `late: true` required by rules when the reveal exists; no `guessIdx` allowed with it | Reveals are world-readable (D98), so a straggler *can* read the table before answering — the rule makes the flag true rather than trusting the client |
 | **The lead cap `K`** (§5) | **owner row — the recommendation is 5** | one constant shared by rules and client | Some bound must exist or a client writes `r999999` and pins the pair's rotation forever |
-| **The bank** (§6) | build — a lane burst; and an owner row for world questions | the duel lane's cap and target; a rules widening for world-surface duel answers | 32 · 26 questions is one evening at rounds pace. `check:neighbors`, the voice and every farm hard rule are unchanged |
+| **The bank** (§6) | build — a lane burst; the owner row for world questions (§6.2) was built and then answered NO the same day | the duel lane's cap and target | 32 · 26 questions is one evening at rounds pace, and since §6.2's retirement the burst is the only answer to it. `check:neighbors`, the voice and every farm hard rule are unchanged |
 | **Reveal history by query** (§7.1) | build — a strict cost win, ships alone | one `orderBy("revealedAt","desc")` query replaces up to 14 day-key `getDoc`s | Round ids are not guessable, so the day-key fan-out cannot survive anyway. Reads both id shapes |
 | **The ledger** (§7.2) | **already an owner row — rounds make it a dependency** | `ROLES-PLAN.md` §3.3, unchanged | A fortnight of reveals is the roles fold's substrate; rounds put hundreds of reveals in a fortnight |
 | **Notifications: *your turn*, and the reveal, debounced** (§7.4) | build — the owner's ask, 2026-09-08 | one send site in the answer trigger, a per-recipient `pushAt` map on the group document, a third Android channel | **`web/privacy.html` moves first (D183)**: it names four notifications and this is a fifth; `check:policy-claims` holds the list and `check:figures` holds the count against the send sites, so the gates refuse the send until the page says it |
@@ -442,6 +443,18 @@ about sixteen runs.
 
 ### 6.2 · World questions as duel content — the one that serves the axiom
 
+**Retired 2026-09-08, the day it was built** (D426's third amendment).
+Built in the afternoon on the owner's bundled *"yeah lets do that"*; at
+the first reveal the owner saw on a device the ruling was *"that is
+stufff you already find on the world feed so is totaly pointless"*, and
+*"its worst for group as that should mostly be about what role you have
+in the group"*. The section stands as the record of the argument and of
+what it missed: the Mirror already draws every feed answer against the
+crowd, so the third column put a link that is drawn already in a second
+place, and a group round exists to read the ROOM — the roles instrument
+(`ROLES-PLAN.md`) — which a feed question cannot. The ties axiom's shared
+items come from the duel bank's growth (§6.1) instead.
+
 Counted from the shipped banks: **134 daily** and **333 feed** questions,
 of which **245 are `vote`-shaped** with two or more options. That is an
 order of magnitude more duel content than the duel pools hold, already
@@ -674,7 +687,9 @@ to make (D352).
    answer still shows in the reveal, marked. Confirm or overrule.
 3. **World questions as duel content** — §6.2. It changes what a 1v1 is,
    it multiplies the bank by an order of magnitude, it draws pair against
-   population on one card, and it is what the ties axiom needs.
+   population on one card, and it is what the ties axiom needs. **Answered
+   NO, 2026-09-08 — built and retired the same day (D426's third
+   amendment).**
 4. **`roundPlayers` says who has played** — §2.4. Strictly less than the
    reveal shows, to the same people, one round earlier; it is what lets
    the card dim the avatars honestly. Yours to veto.
@@ -707,11 +722,14 @@ Each step is shippable and green on its own.
    Routine fires weekly on an account this tree cannot re-pace, so the
    daily run the burst wants is an owner row — at weekly, 25 a run reaches
    400 a pool in about eight months; at daily, in about five weeks.
-7. **World questions in duels** (§6.2) — **built 2026-09-08**, on the
-   owner's word: the rules' second arm, `worldDuelPool` over the feed's
-   core with even rounds drawing from it, the partner's public answers
-   read as a no-guess signal rather than an exclusion (§0a says why), and
-   the reveal's third column.
+7. **World questions in duels** (§6.2) — **built and RETIRED
+   2026-09-08**: built in the afternoon on the owner's word (the rules'
+   second arm, `worldDuelPool` over the feed's core with even rounds
+   drawing from it, the partner's public answers read as a no-guess
+   signal rather than an exclusion, the reveal's third column) and taken
+   out the same evening when the owner met the first reveal on a device
+   (D426's third amendment; §0a). Only `bankQ`'s lookup of a feed qid
+   remains, for that day's reveals.
 8. **The screens** (§7.5) — **built 2026-09-08** from the owner's own
    canvas (request 12 went from `requested` to the owner's design in one
    day): extracted to `design/rounds-card-2026-09-08/`, built as
@@ -739,7 +757,7 @@ rules accept both id shapes, and that is a materially bigger change.
 | 4 | `npm run test:rules`, `npm run test --prefix functions` | an unflagged answer after the reveal is REFUSED; a late answer with `guessIdx` is refused; a late answer moves no dim, no ledger figure and no `duel-{qid}` count |
 | 5 | `npm run check:policy-claims`, `npm run check:figures`, `npm run test --prefix functions`, `npm run test:unit` | the page names five kinds before the fifth send exists; five rounds in a window send one push naming five (as built: one push per TURN — the stamp, §0a — and the count is named when it clears); the partner who has answered gets the reveal and the one who has not gets *your turn*, never both; a group member is nudged once per round |
 | 6 | `npm run check:content`, `check:neighbors`, `check:figures` | the dedup floor holds across a burst; the budget script's numbers match its prose |
-| 7 | `npm run test:rules`, `npm run test:unit` | a catalog question is still refused on a duel surface; the world split on the reveal costs no extra read (as built: ONE read per question per session, on the reveal — §0a says why the zero was wrong) |
+| 7 | `npm run test:rules`, `npm run test:unit`, `npm run test:scripts` | RETIRED (D426's third amendment): a catalog question is still refused on a duel surface, and a daily or feed question with it — the surface equality is the whole test again, and the rules' get() site count is back at 34 |
 | 8 | `npm run test:unit`, `check:a11y`, `check:tap-targets`, `check:public-copy` | the 1v1 draws no clock; the group's clock is the deadline; no cadence word in copy (D419 §3) — all four green on the build, 2026-09-08 |
 
 ## 13 · What this plan does not decide

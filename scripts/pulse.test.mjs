@@ -396,10 +396,10 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // unchanged, because every one of those sites read the same group
       // document the membership clause already fetched.
       //
-      // 34 → 37 gets (ROUNDS-PLAN §6.2, the owner's word 2026-09-08): the
-      // WORLD ARM. isDuelAnswer's surface equality gained a second arm
-      // that admits a daily or feed question as a round's content — three
-      // get() sites (surface, type, options.size()) on the SAME
+      // 34 → 37 → 34 gets, on one day (2026-09-08): the WORLD ARM. Under
+      // ROUNDS-PLAN §6.2 isDuelAnswer's surface equality gained a second
+      // arm admitting a daily or feed question as a round's content —
+      // three get() sites (surface, type, options.size()) on the SAME
       // /v2_questions document the kill switch and duelIndexSpace()
       // already fetch, so a duel create still bills the question once and
       // RULE_READS.duel stays 2. Sites, not reads, moved — the third time
@@ -414,6 +414,11 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // document, and the sites were what had the create path refusing by
       // budget. Every removed site read a document a remaining site still
       // fetches, so RULE_READS is unchanged: world 1, duel 2, call 2.
+      //
+      // And the world arm itself left at D426's third amendment (the owner
+      // retired world questions from the duels on the first such reveal):
+      // by then it read the question document `duelBody` is handed, so its
+      // leaving moved no site and the count stays 14.
     ).toEqual({ gets: 14, exists: 2 });
   });
 

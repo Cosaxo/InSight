@@ -28,6 +28,9 @@ export interface RevealVoteLike {
   optionIdx?: number;
   guessIdx?: number;
   qid?: string;
+  /** The member a pick named, snapshotted at write time (D224) — the
+   *  index above is roster-relative and a leave remaps it. */
+  pickUid?: string | null;
   /** Answered after the round revealed, with the table in view (ROUNDS-PLAN
    *  §4). Shown in the reveal; counted by no fold, because it was not blind. */
   late?: boolean;
@@ -142,4 +145,64 @@ export function revealTally(
     if (uids && uids.length) out.push({ optionIdx: i, uids });
   }
   return out;
+}
+
+/** A role vote's row: who the counted votes named, and by whom. */
+export interface RoleTallyRow {
+  /** The lowest option index the row folded — the ballot's order, and the
+   *  index the bars, `held` and `rival` still speak in. */
+  optionIdx: number;
+  /** The member named; null for a vote neither a snapshot nor the reveal's
+   *  roster can place. */
+  uid: string | null;
+  uids: string[];
+}
+
+/**
+ * Who one counted role vote names: its D224 snapshot (`pickUid`), else the
+ * reveal's OWN roster at that index (`members`, the room as it stood
+ * before the reveal) — never the live roster, which a leave remaps. This
+ * is the one definition of "who does this option name": the card, its run
+ * and the Mirror's Votes lens answered it in three places with three
+ * fallbacks, which is how the card and the lens came to disagree (the
+ * second review of #456).
+ */
+export function namedBy(
+  v: { optionIdx?: number | null; pickUid?: string | null },
+  roster: readonly string[],
+): string | null {
+  if (typeof v.pickUid === "string" && v.pickUid) return v.pickUid;
+  return typeof v.optionIdx === "number" ? (roster[v.optionIdx] ?? null) : null;
+}
+
+/**
+ * The role vote's tally by WHO was named, not by option index. Two indexes
+ * can name one member: A votes index 3 (snapshot D), C leaves, B votes
+ * index 2 — which is D now, and D's snapshot says so. By index that is a
+ * tie and the card read "D and D share the mastermind"; by snapshot D
+ * holds it 2–0, which is what `groupCast.roleVotes` says on the Mirror,
+ * and the card must agree with the stop. The same counted votes as
+ * `revealTally` (this question, not late); rows in option order.
+ */
+export function roleTally(reveal: RevealDocLike, roster: readonly string[]): RoleTallyRow[] {
+  const votes = reveal.votes || {};
+  const rowQid = reveal.qid || "";
+  const byWho = new Map<string, RoleTallyRow>();
+  const byIdx = new Map<number, RoleTallyRow>();
+  for (const voter of Object.keys(votes)) {
+    const v = votes[voter];
+    if (typeof v.optionIdx !== "number") continue;
+    if (qidOf(v, rowQid) !== rowQid) continue;
+    if (v.late) continue;
+    const who = namedBy(v, roster);
+    const have = who ? byWho.get(who) : byIdx.get(v.optionIdx);
+    if (have) {
+      have.uids.push(voter);
+      if (v.optionIdx < have.optionIdx) have.optionIdx = v.optionIdx;
+    } else {
+      const row: RoleTallyRow = { optionIdx: v.optionIdx, uid: who, uids: [voter] };
+      if (who) byWho.set(who, row); else byIdx.set(v.optionIdx, row);
+    }
+  }
+  return [...byWho.values(), ...byIdx.values()].sort((a, b) => a.optionIdx - b.optionIdx);
 }
