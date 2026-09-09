@@ -2192,6 +2192,10 @@ async function hydrate(): Promise<void> {
       state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
       // The read breaker (D332) rides the same one read — see budgetMode.ts.
       state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
+      // …and the attention channel's coin (DATA-EFFICIENCY-RUNBOOK 4.2):
+      // the nightly fold publishes the rate it can drain at; a field the
+      // document does not carry leaves the coin at the constant.
+      engagement.setSampleRate(meta.get("attnSampleRate"));
     }
   } catch {
     /* meta is best-effort — absence just means no caching/update info */

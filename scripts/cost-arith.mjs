@@ -352,11 +352,17 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 // about, is unchanged.
 export const TRIGGER_READS = { world: 3, duel: 0 };
 
-// The daily velocity scan (D54) reads every ledger entry written since its
-// last run. One entry per world answer, so this is worldAnswers per user per
-// day — a flat term the size of the boot's top-up and reseed combined, and
-// invisible in the model until now. `.select()` narrows egress, not reads.
-export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
+// The velocity scan (D54) read every ledger entry written since its last
+// run — one per world answer, a flat term the size of the boot's top-up
+// and reseed combined, invisible in the model until D54's pass — until
+// DATA-EFFICIENCY-RUNBOOK 4.4 moved it inside the nightly pass: the whole
+// days of its window come off the reader the pass already shares (D399),
+// and only the partial day since midnight is its own paged read. The pass
+// runs at 02:23 UTC, so that is 143 of 1,440 minutes; charged as if the
+// day's answers were uniform over the clock, which at these hours errs
+// high (the morning window is later) rather than low. `.select()` narrows
+// egress, not reads.
+export const VELOCITY_READS_PER_LEDGER_ENTRY = 143 / 1440;
 // THE NIGHTLY PASS (D399): one read of the day's ledger entries serving
 // the engagement digest, the Patterns fit and the taste fold together
 // (functions/src/nightly.ts). Until D399 this was two constants of 1 —
@@ -378,12 +384,18 @@ export const LEDGER_PASS_READS_PER_ENTRY = 1;
 export const PATTERNS_USER_STATE_OPS = 1;
 // The candidate engine (D395) re-solves nightly over EVERY fitted person's
 // answer map — one state read per person who has ever answered a core
-// item, which the model charges as one read per MAU per night
-// (`B.mauMultiple` per DAU-day). Counted separately from the online fit's
-// active-user read above so the two terms can be told apart on the bill:
-// at 50 k DAU that is 150 k reads a night, $0.045, against the ledger
-// re-read's 200 k.
-export const PATTERNS_SCAN_READS_PER_MAU = 1;
+// item, which the model charges per MAU per night (`B.mauMultiple` per
+// DAU-day). Counted separately from the online fit's active-user read
+// above so the two terms can be told apart on the bill. STREAMED since
+// DATA-EFFICIENCY-RUNBOOK 4.3: the solve holds no person, so it scans the
+// people once for the item statistics and once per ALS sweep — 1 +
+// ALS_SWEEPS reads per fitted person a night where the buffered solve
+// read them once and ran out of memory near 150,000 of them. At 50 k DAU
+// that is 600 k reads a night, $0.18; the incremental step (runbook
+// 4.3b, `scanActiveOnly` in cost-structure.mjs) is what takes it back
+// down, to the people who answered since the last solve.
+export const PATTERNS_SCAN_READS_PER_MAU = 1 + readNum(
+  "functions/src/patternsAls.ts", /export const ALS_SWEEPS = (\d+)/, "ALS_SWEEPS");
 // The answer maps (DATA-EFFICIENCY-RUNBOOK Phase 3, live on the owner's
 // word): the world-answer trigger merges each answer onto the person's
 // own map in the aggregate transaction — one more write per world
@@ -411,6 +423,15 @@ export const ENGAGEMENT_USER_STATE_OPS = 1;
 // day, under any rounding here.
 export const ATTN_SAMPLE_RATE = readNum(
   "src/v2/data/engagement.ts", /SHARD_SAMPLE_RATE = ([\d.]+)/, "SHARD_SAMPLE_RATE");
+// …which is the LAUNCH rate: since DATA-EFFICIENCY-RUNBOOK 4.2 the shard
+// fold publishes the rate it can drain at (0.8 × its nightly cap over
+// the device population, never above the constant) and the device draws
+// its coin at that. So the per-user-day shard terms are the rate the
+// crowd settles at — the constant below the cap, falling with 1/DAU
+// above it.
+export const SHARD_FOLD_CAP = readNum(
+  "functions/src/engagement.ts", /export const SHARD_FOLD_CAP = ([\d_]+)/, "SHARD_FOLD_CAP");
+export const attnRate = (dau) => Math.min(ATTN_SAMPLE_RATE, (0.8 * SHARD_FOLD_CAP) / Math.max(1, dau));
 // Rung 2's person rollups (R3/D272): one uid-keyed day rollup per active
 // device per day (client-written, NOT sampled — it is the person channel),
 // then the nightly fold's sweep: one page read and one folded-mark write
@@ -840,7 +861,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + PATTERNS_USER_STATE_OPS
       + B.mauMultiple * PATTERNS_SCAN_READS_PER_MAU
       + ENGAGEMENT_USER_STATE_OPS
-      + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
+      + attnRate(dau) // the shard fold reads each sampled device's shard once
       + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize)
       + citySampleOps(dau) // the per-city samples' read-before-merge (runbook 2.5)
@@ -903,10 +924,10 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     //
     // + the answer map's merge per world answer (runbook 3.2), the one
     // write the owner chose "live" over nightly for (D421 amendment).
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + attnRate(dau) + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
-    const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);
+    const deletes = dau * (B.worldAnswers + attnRate(dau) + 1);
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each
     // invocation effectively owns its instance for the request.

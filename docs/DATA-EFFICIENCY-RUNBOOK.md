@@ -290,36 +290,94 @@ answer is in your Circle within seconds — **met**; `npm run costs`
 prints social ≈ 1 — **48**, for the reason 2.6 states: the hot sheets'
 46 are the owner's sentence.
 
-## Phase 4 — the folds that fail before they cost · **M**
+## Phase 4 — the folds that fail before they cost · **M, one pull request** · **DONE 2026-09-09, one step open**
 
-- [ ] **4.1 The rollup fold drains.** `runRollupFold` loops pages until a
-      short page or a time budget (300 of the 480 s), reports `capped`
-      only when the budget ended it, and logs the count left. ·
-      **Gate:** `engagement.test.ts` — a 25,000-rollup fixture drains;
-      a budget stop leaves the rest unfolded, not lost.
-- [ ] **4.2 The attention channel samples itself.** The fold computes
-      tomorrow's rate from today's shard count (`min(1, 0.8 ×
-      SHARD_FOLD_CAP / shards)`) and publishes `attnSampleRate` on
-      `v2_meta/app`; the device reads it off the meta read it already
-      makes and uses it instead of the constant; shards already carry
-      their rate, so the estimates rescale. · **Gate:**
-      `engagement.test.ts` (fold and client), `warm-boot.test.ts` (no
-      new read).
-- [ ] **4.3 The candidate scan streams.** `patternsAls.ts` gains an
-      accumulator for per-item sufficient statistics (an 8×8 Gram and an
-      8-vector per item); `scanUsers` feeds pages through it and holds no
-      person; then the incremental step — subtract a changed person's
-      previous contribution (their stored `v` and a hash of their map)
-      and add the new — so only people who answered since the last solve
-      are read. · **Gate:** `patternsAls.test.ts` (the streamed solve
-      equals the buffered one on a fixture), `patternsFit.test.ts`, and a
-      probe over 200,000 synthetic people under 256 MiB.
-- [ ] **4.4 Velocity reads the pass's day.** `velocity.ts` takes the
-      memoised day reader for the whole days in its window and reads only
-      the partial-day tail itself; the cursor semantics stay. · **Gate:**
-      `velocity.test.ts` (same flags on the same fixture).
+Four folds that were fine at one user and stopped working — silently —
+at sizes the tables reach. None costs a read to fix; one (4.3) costs
+reads until its second half is built, and says so.
 
-**Done when:** the fixtures above pass at ten times today's caps.
+- [x] **4.1 The rollup fold drains. DONE 2026-09-09** — `runRollupFold`
+      loops pages of `ROLLUP_FOLD_CAP` until a short page, a full page
+      that folded nothing (junk rows the fold declines and never marks —
+      asking again returns the same ones forever, the attention fold's
+      own rule) or the time budget (`ROLLUP_FOLD_BUDGET_MS`, 300 of the
+      pass's 480 s). `capped` is true only when the budget ended it, and
+      then the summary carries `left` — a `count()` aggregation over the
+      unfolded rollups, one read per 1,000 counted, paid only on a
+      budget stop — so the warning names a number rather than a hope. `engagement.test.ts`: a 25,000-rollup fixture
+      drains in three pages; a budget stop reports what is left and
+      leaves it unfolded, not lost; a page of junk stops rather than
+      spins.
+- [x] **4.2 The attention channel samples itself. DONE 2026-09-09** —
+      `nextSampleRate` computes tomorrow's rate from tonight's shard
+      count at tonight's rate (`current × 0.8 × SHARD_FOLD_CAP / shards`,
+      clamped to `[MIN_SHARD_RATE, 1]` — the rules' own floor — and
+      rounded to three places) and the fold publishes it as
+      `attnSampleRate` on `v2_meta/app`, one merged field on the
+      document every device reads at boot. The device takes it off that
+      read (`engagement.setSampleRate`, no new read), persists it with
+      the tallies, and draws tomorrow's coin at it instead of the
+      constant; shards already carry the rate they were drawn at, so the
+      estimates rescale as they always did. At 100,000 devices the rate
+      settles near 0.16 in a few nights — 16,000 shards, 80 % of the
+      cap — and climbs back toward 1 when the pile shrinks.
+      `engagement.test.ts` (the fold publishes 0.8 then 1; the
+      convergence; the client's accepted, refused and persisted rates);
+      `warm-boot.test.ts` holds its read count.
+- [x] **4.3 The candidate scan streams. DONE 2026-09-09 — the memory
+      half; the read half is 4.3b** — `alsFitStreamed`
+      (`patternsAls.ts`) holds no person: each sweep streams the people
+      through `scanUsers`, solves each person's ridge vector on the fly
+      and accumulates it into per-item sufficient statistics (an 8×8
+      Gram and an 8-vector per item), then solves the items from those.
+      Resident memory is the item statistics — a fixed set — where it was
+      one answer map per person ever fitted (the out-of-memory near
+      150,000 people on 256 MiB, ~600,000 on the 1 GiB Phase 1.3 gave
+      it). `patternsAls.test.ts`: the streamed solve equals the buffered
+      one on a fixture to nine places; a probe over 200,000 synthetic
+      people (`ALS_PROBE=1`, opt-in — it runs 20 s) grows the heap by
+      under 64 MB. **What it costs:** the scan is 1 + `ALS_SWEEPS` = 4
+      state reads per fitted person a night where it was one, because
+      each sweep reads the people again rather than holding them —
+      `PATTERNS_SCAN_READS_PER_MAU` in the model, ~600 k reads a night
+      at 50 k DAU, $0.18 a night. Cents today, and the trade is
+      deliberate: a night that costs a dollar beats a night that dies.
+- [ ] **4.3b The changed-since step.** Keep each person's last
+      contribution to the item statistics (their stored `v` and a hash
+      of their map) and, per night, subtract the old contribution and add
+      the new for the people whose map changed since the last solve —
+      so the nightly read is one per ACTIVE person, not four per person
+      ever fitted. The `scanActiveOnly` row of `npm run costs:structure`
+      prices it: 11 reads per user-day, $4.95 a month at 50 k DAU, $50
+      at 500 k. Worth building when the fitted population passes
+      ~100,000, or sooner if the bill says so. · **Gate:**
+      `patternsAls.test.ts` (the incremental solve equals the streamed
+      one after a changed person), `patternsFit.test.ts`.
+- [x] **4.4 Velocity reads the pass's day. DONE 2026-09-09** —
+      `runVelocityScan` (`velocity.ts`) runs inside `digestEngagementV2`
+      as the pass's fourth runner, off the same memoised ledger reader as
+      the digest, the fit, the taste fold and the heal: the WHOLE days in
+      its window (`lastScanAt → now`, ≤72 h, the cursor semantics kept)
+      come off the read the pass already makes, and only the partial day
+      since midnight is its own paged read — 143 of 1,440 minutes at
+      02:23 UTC, so `VELOCITY_READS_PER_LEDGER_ENTRY` is 0.1 where it
+      was 1. The signals, the flags, the `bind_coverage` line and the
+      `velocity_scan` heartbeat are unchanged; the heartbeat now comes
+      from `digestengagementv2` (`DEPLOYMENT.md` § Reading the velocity
+      scan, and the monitoring policy's own text). The scheduled
+      `ledgerVelocityScan` left the source and the deploy's `--only`
+      list, so — as with `fitPatternsV2` and `fitTasteV2` — the deploy
+      cannot remove it: **its `functions:delete` is on `OWNER-LIST.md`'s
+      existing row.** `velocity.test.ts`: the same flags on the same
+      fixture; the whole days asked of the reader and the tail of the
+      store; an empty tail does not move the cursor.
+
+**Done when:** the fixtures above pass at ten times today's caps —
+**met where a cap exists**: 25,000 rollups against a page of 10,000,
+100,000 devices against a shard cap of 20,000, 200,000 people against
+the 150,000 that used to fail. `npm run costs`: server reads 40 → 44 per
+user-day at maturity (velocity −3.6, the streamed scan +9 until 4.3b,
+the sampled shard fold −0.7), the whole 129 → 134.
 
 ## Phase 5 — the write path at scale · **L**
 
@@ -369,8 +427,13 @@ and `npm run costs` prints boot ≈ 15.
 
 ## Waiting on the owner, not on this file
 
-- **The word "live"** for Phase 3 (D421 §2 records the recommendation
-  and the arithmetic).
+- **The word "live"** for Phase 3 — given 2026-09-08 (the D421
+  amendment records it). What stays the owner's from that phase is the
+  backfill's click, dry then `apply` (`OWNER-LIST.md`).
+- **The `functions:delete`** of the three retired nightly functions —
+  `fitPatternsV2` and `fitTasteV2` since D399, `ledgerVelocityScan` since
+  runbook 4.4 — one row on `OWNER-LIST.md`; the deploy's `--only` list
+  cannot remove what it no longer names.
 - **The reveal-history document** (`DATA-EFFICIENCY.md` §2.8): one
   document per group would show a late joiner the days before they
   joined, which today's per-day rule refuses. A privacy-shaped ask

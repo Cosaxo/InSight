@@ -104,7 +104,7 @@ import type { ProfileStamp } from "./profileStamp";
 import {
   ALS_LAMBDAS_U,
   PATTERNS_CROSSOVER_NIGHTS,
-  alsFit,
+  alsFitStreamed,
   alsScoreDay,
   binRows,
   candidateWon,
@@ -659,13 +659,19 @@ export async function runPatternsFit(
   const alsQuality = scored.length
     ? publishableQuality(alsScored.get(bestLambda)!, alsQualityPrev?.series ?? [])
     : alsQualityPrev;
-  const people: { uid: string; a: AnswerMap }[] = [];
-  await store.scanUsers((uid, st) => {
-    if (st.a && Object.keys(st.a).length) people.push({ uid, a: st.a });
+  // STREAMED (DATA-EFFICIENCY-RUNBOOK 4.3): the scan is handed to the
+  // solve as a function it runs once per sweep, so no person's map is
+  // held past the callback — the buffered `people[]` this replaced was
+  // ~1 KB a person resident, the out-of-memory this file's header
+  // predicted near 150,000 people. The reads are 1 + ALS_SWEEPS scans a
+  // night instead of one; the model carries that (PATTERNS_SCAN_READS_PER_MAU).
+  const scan = (each: (uid: string, a: AnswerMap) => void) => store.scanUsers((uid, st) => {
+    if (st.a && Object.keys(st.a).length) each(uid, st.a);
   });
   let als: AlsModel | null = alsPrev;
-  if (people.length) {
-    const solved = alsFit(alsPrev, people, index, k);
+  const streamed = await alsFitStreamed(alsPrev, scan, index, k);
+  if (streamed.people) {
+    const solved = streamed.model;
     als = alsPrev ? rotateModel(solved, procrustes(
       Object.fromEntries(Object.entries(solved.rows).map(([key, r]) => [key, r.v])),
       prevAlsPub,

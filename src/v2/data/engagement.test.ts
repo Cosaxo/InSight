@@ -22,8 +22,8 @@ import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   arm, bucketize, bucketizeMinutes, daypartOf, flushPast, markDepthEnd,
-  note, noteAnswer, noteQid, utcDay,
-  LS_KEY, MAX_SHARD_AGE_DAYS, QIDS_CAP, QID_OTHER, SESSION_GAP_MS, S_KEYS,
+  note, noteAnswer, noteQid, setSampleRate, utcDay,
+  LS_KEY, MAX_SHARD_AGE_DAYS, QIDS_CAP, QID_OTHER, SESSION_GAP_MS, SHARD_SAMPLE_RATE, S_KEYS,
   _engagementForTest,
   type AttentionShard, type EngagementRollup, type SKey,
 } from "./engagement";
@@ -150,6 +150,54 @@ describe("the qids map (R4/D271)", () => {
     const keys = Object.keys(t.q);
     expect(keys.length).toBeLessThanOrEqual(QIDS_CAP);
     expect(t.q[QID_OTHER]?.s).toBe(31); // the 120th distinct qid onward
+  });
+});
+
+describe("the published rate (DATA-EFFICIENCY-RUNBOOK 4.2)", () => {
+  it("draws tomorrow's coin at the published rate, and the shard says which rate it was drawn at", async () => {
+    const h = harness(D1, 0.5);
+    // published mid-day: today's tally keeps the rate it was drawn at
+    note("opens");
+    setSampleRate(0.25);
+    expect(_engagementForTest().sampleRate).toBe(0.25);
+    expect(_engagementForTest().days[utcDay(D1)].sampled).toBe(true);
+    // the next day's coin is drawn at 0.25 — a 0.5 draw is unsampled
+    h.now = D2;
+    note("opens");
+    expect(_engagementForTest().days[utcDay(D2)].sampled).toBe(false);
+    // and the day after, a draw under the rate is sampled and reports 0.25
+    h.coin = 0.1;
+    h.now = D2 + 86_400_000;
+    note("opens");
+    const third = utcDay(D2 + 86_400_000);
+    expect(_engagementForTest().days[third]).toMatchObject({ sampled: true, rate: 0.25 });
+    h.now = D2 + 2 * 86_400_000;
+    await flushPast();
+    const shard = h.written.find((s) => s.day === third);
+    expect(shard?.rate).toBe(0.25);
+    // the first day's shard still says 1: the rate it was drawn at
+    expect(h.written.find((s) => s.day === utcDay(D1))?.rate).toBe(1);
+  });
+
+  it("ignores a rate the rules would refuse on a shard, and keeps the constant when nothing is published", () => {
+    harness();
+    for (const junk of [undefined, null, "0.5", 0, 1.5, -1, NaN, 0.0001]) setSampleRate(junk);
+    expect(_engagementForTest().sampleRate).toBe(SHARD_SAMPLE_RATE);
+    setSampleRate(0.001);
+    expect(_engagementForTest().sampleRate).toBe(0.001);
+  });
+
+  it("persists the published rate with the tallies, so a cold boot's first coin is drawn at it", () => {
+    harness(D1, 0.5);
+    setSampleRate(0.2);
+    _engagementForTest().saveNow();
+    _engagementForTest().reset();
+    expect(_engagementForTest().sampleRate).toBe(SHARD_SAMPLE_RATE);
+    const h = harness(D2, 0.5);
+    note("opens");
+    expect(_engagementForTest().sampleRate).toBe(0.2);
+    expect(_engagementForTest().days[utcDay(D2)]).toMatchObject({ sampled: false, rate: 0.2 });
+    void h;
   });
 });
 

@@ -45111,3 +45111,26 @@ document is bounded by the bank, not by time.
 hot sheet's sentence (runbook 2.4). `npm run costs` after: 357 → 129
 reads per user-day at maturity, the D98 column 282 → 48.
 
+**Phase 4 built 2026-09-09 (*"start phase 4"*) — the four folds
+`DATA-EFFICIENCY.md` §3 named as failing before they cost.** The
+rollup fold drains in pages under a 300 s budget and counts what a
+budget stop leaves (runbook 4.1); the attention channel publishes its
+own sampling rate on `v2_meta/app` — the rate that lands 80 % of the
+fold's cap — and the device draws at it off the read it already makes
+(4.2); the candidate scan streams the people through per-item
+sufficient statistics and holds none of them (4.3); and the velocity
+scan runs inside the nightly pass, its whole days off the read the
+pass already makes and only the partial-day tail its own (4.4) — so
+`ledgerVelocityScan` is retired and joins `fitPatternsV2` and
+`fitTasteV2` on `OWNER-LIST.md`'s delete row, because `--only` names
+what to update and leaves the rest standing. **One trade recorded
+rather than hidden:** the streamed solve reads the fitted people once
+per sweep — 1 + `ALS_SWEEPS` = 4 state reads a night per person where
+the buffered solve read them once and ran out of memory near 150,000 —
+$0.18 a night at 50 k DAU; the runbook's 4.3b (subtract a changed
+person's old contribution, add the new, read only who changed) is the
+step that takes it back to one read per active person, open and priced
+at 11 reads per user-day. `npm run costs` after: server reads 40 → 44
+per user-day at maturity, the whole 129 → 134. Nothing a user sees
+moved, and nothing a device reads changed size.
+

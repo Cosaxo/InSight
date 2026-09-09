@@ -5,8 +5,10 @@ morning; §5 is the build order, approved by the owner the same day (D421)
 and carried as steps in
 [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md). Phases 1, 2
 and 3 were built the same day (the runbook has what moved; the owner's
-word on *live* came the same afternoon); §2's table is re-printed after
-them, and §§2.1, 2.2, 2.3 and 2.9 are marked built.** Written on the owner's redirection of the same
+word on *live* came the same afternoon) and Phase 4 the day after — the
+four folds §3 names as failing before they cost; §2's table is
+re-printed after them, §§2.1, 2.2, 2.3, 2.6 and 2.9 are marked built,
+and §2.7 is marked half built with the open half priced.** Written on the owner's redirection of the same
 day (*"go through the data structure and see if we could optimize the
 firebase cost when we get users … what is needed is that we have an
 efficient as possible structure when we actually get users"*), against
@@ -67,7 +69,10 @@ not a saving — and changes the documents, never the picture.
   the voter-sample merge materialises a whole day's answers per hot
   question, and the answer trigger's `maxInstances: 10` is a ceiling of
   200 folds in flight. None is a bill; each is a night that fails
-  silently at a size the tables above reach.
+  silently at a size the tables above reach. **Three of the four are
+  closed** — the merge at runbook 2.2, the fold and the scan at Phase 4
+  (2026-09-09; §3 says what each became) — and the ceiling moves with
+  the shards it must move with (Phase 5).
 - **One decision is the owner's, and it decides the cost of the build:**
   whether Circle, the sheet and Kindred may draw from documents the
   nightly fold writes — a day behind the live answers — or whether the
@@ -116,29 +121,32 @@ it is what this page moves.
 
 ## 2 · The reshapes, priced
 
-`npm run costs:structure`, 2026-09-08 after Phases 1, 2 and 3 shipped
+`npm run costs:structure`, 2026-09-09 after Phases 1–4 shipped
 (regional sheet, no free allowance; "writes+" is per user-day; a row
 leaves the table when it becomes the baseline — the foreground row at
 runbook 1.4, the names-on-the-sample and sheet rows at Phase 2, the
 Circle row at Phase 3, whose built sizes the model's `socialTerms` now
 carries: social 282 → 48 at maturity, the 48 being the hot sheets' 46,
 Kindred and the city pass at one document each, and Circle's 0.5; the
-whole 357 → 129):
+velocity row at Phase 4. The candidate row stayed and grew: the
+streaming half of 2.7 is built and reads the fitted people once per
+sweep, so what the changed-since half (runbook 4.3b) would now save is
+11 reads per user-day where it was 2. The whole: 357 → 134 at
+maturity):
 
 ```
 reshape                                                                          saved/user-day  writes+   $/mo saved  5k · 50k · 500k DAU
 One deck document per day: seven aggregates in one read at boot                      8.4        1              $0.24 · $2.43 · $24
 Aggregate counters folded by increment, not read-modify-write of the whole document     4.0        0              $0.18 · $1.80 · $18
-Velocity scan folds from the nightly pass's one ledger read                          4.0        0              $0.18 · $1.80 · $18
-Candidate-engine scan re-solves only people who answered since the last fit          2.0        0              $0.09 · $0.90 · $9.00
+Candidate-engine scan re-solves only people who answered since the last fit (runbook 4.3b)    11.0        0              $0.49 · $4.95 · $50
 
 all reshapes together — reads and writes per month, straight off the sheet
 scenario                 DAU   reads/user-day        $/mo before → after
-Launch / TestFlight        50        168 → 97             $0.10 → $0.07   (−28%)
-Friends-of-friends        500        267 → 97             $1.47 → $0.74   (−50%)
-Real traction            5000        357 → 57               $19 → $5.57   (−70%)
-Scale                   50000        357 → 57                $188 → $56   (−70%)
-Hit                    500000        357 → 57             $1,879 → $557   (−70%)
+Launch / TestFlight        50       142 → 119             $0.10 → $0.09   (−9%)
+Friends-of-friends        500       174 → 150             $1.17 → $1.07   (−8%)
+Real traction            5000       138 → 114               $10 → $9.42   (−9%)
+Scale                   50000       134 → 110                 $96 → $87   (−10%)
+Hit                    500000       133 → 109               $945 → $853   (−10%)
 ```
 
 ### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day · **BUILT 2026-09-08 (runbook 3.1–3.7), live**
@@ -298,7 +306,7 @@ compactor §3 describes writes it once a minute for nothing extra. Worth
 8.4 reads per user-day, and only after 2.4 — before it, the foreground
 term dwarfs it. Low priority; listed so it is not rediscovered.
 
-### 2.6 · The velocity scan reads the pass's entries — 4 reads per user-day
+### 2.6 · The velocity scan reads the pass's entries — 4 reads per user-day · **BUILT 2026-09-09 (runbook 4.4): velocity runs inside the pass**
 
 `ledgerVelocityScan` and the nightly pass each read the day's ledger
 entries (`velocity.ts`, `nightly.ts`): D399 folded three readers into one
@@ -308,7 +316,17 @@ day's entries plus its own overlap window, or velocity can run inside the
 pass with the cursor honoured — server-side only, nothing a user sees,
 one read per world answer per night saved.
 
-### 2.7 · The candidate scan stops re-reading everyone — 3 → 1 reads per user-day
+**Built as the second shape.** `runVelocityScan` is the pass's fourth
+runner, off the memoised day reader the digest, the fit, the taste fold
+and the heal already share: the whole days in its window come off that
+read, and only the partial day since midnight is its own — 143 of 1,440
+minutes at 02:23 UTC, so the term is 0.1 of a read per entry where it
+was 1. The cursor semantics stand (`lastScanAt`, the 72 h cap, the same
+flags on the same fixture). `ledgerVelocityScan` is retired, and the
+deploy cannot remove it — its delete is on `OWNER-LIST.md`'s row with
+the two D399 retirements.
+
+### 2.7 · The candidate scan stops re-reading everyone — 3 → 1 reads per user-day · **HALF BUILT 2026-09-09 (runbook 4.3): the streaming, which is the memory; the changed-since step is 4.3b, and until it lands the term is 12, not 1**
 
 The candidate engine (D395) re-reads **every** `patterns/state` document
 ever written, nightly (`patterns.ts` `scanUsers`, a collection-group
@@ -323,6 +341,18 @@ people whose map changed since the last solve. That takes the nightly
 read from one per person ever fitted to one per active person, and the
 resident memory from one entry per person to a fixed set of item
 statistics — the memory being the part that fails first (§3).
+
+**What was built is the streaming**, because the memory is what fails
+first: `alsFitStreamed` streams the people through the item statistics
+and holds none of them, so the nightly solve is bounded by the bank
+rather than by the population (a probe over 200,000 synthetic people
+grows the heap by under 64 MB). **What it costs until 4.3b:** each
+sweep reads the people again — 1 + `ALS_SWEEPS` = 4 state reads per
+fitted person a night where the buffered solve read them once — so the
+term went 3 → 12 reads per user-day at three MAU per DAU, $0.18 a night
+at 50 k DAU, and the changed-since step is what brings it to 1: the
+`scanActiveOnly` row of §2's table, 11 reads per user-day, is now that
+step's price alone.
 
 ### 2.8 · Not in the per-day model, worth a document anyway
 
@@ -484,8 +514,10 @@ morning window is ~175 answers a second; past the ceiling Eventarc
 backlog becomes latency, then retries, then contention on the same qid.
 Raise it together with the sharding, not before.
 
-**What fails before it costs.** Four structures that are fine today and
-stop working — silently — at sizes the tables above reach:
+**What fails before it costs.** Four structures that were fine at one
+user and stopped working — silently — at sizes the tables above reach.
+**All four are closed** (runbook 2.2 and Phase 4, 2026-09-09); each
+bullet keeps the failure as found and says what it became:
 
 - **The rollup fold reads one page and stops.** `engagement.ts`'s
   `runRollupFold` has no outer loop and `ROLLUP_FOLD_CAP = 10,000`;
@@ -493,20 +525,31 @@ stop working — silently — at sizes the tables above reach:
   active devices a day the same low-sorting days fold first, the rest
   die unfolded at the 90-day TTL, and the "leftovers fold tomorrow"
   warning is false. A paging loop like the attention fold's, or sampling
-  the channel, with a real budget.
+  the channel, with a real budget. **Built (runbook 4.1):** the loop, a
+  300 s budget of the pass's 480, `capped` only when the budget ended
+  it, and a `count()` of what is left so the warning names a number.
 - **`scanUsers` buffers everyone.** §2.7: ~1 KB a person resident on a
   256 MiB instance, an out-of-memory near 150,000 people, and a pass
   that dies identically every night thereafter because nothing advances
-  its cursor. The fix is the header's own plan.
+  its cursor. The fix is the header's own plan. **Built (runbook 4.3),
+  the memory half:** the streamed solve holds no person; the read half —
+  only the people who changed — is 4.3b, and §2.7 has its price.
 - **`mergeSample` materialises the day.** The voter-sample merge builds
   a `rows` object of 200 + the day's answers to that question and sorts
   it to keep 200 — at 500,000 DAU the daily question is a 500,000-entry
   object and sort, inside the same 256 MiB / 480 s budget as everything
   else. A bounded top-K over the order the file already defines is
-  O(200).
+  O(200). **Bounded (runbook 2.2):** the additions — one per person who
+  answered that question today, rows the pass already holds for the
+  compaction — are cut to the cap in the sample's own order BEFORE the
+  merge, so the object the merge builds is at most twice the cap, never
+  the day.
 - **The attention shard fold** is capped at 20,000 a night and every
   device writes a shard every day (`SHARD_SAMPLE_RATE = 1`); past
   ~20,000 DAU it never drains. The file names sampling as the lever.
+  **Built (runbook 4.2):** the fold publishes tomorrow's rate on
+  `v2_meta/app` — the rate that lands 80 % of its cap — and the device
+  draws at it off the read it already makes.
 
 ## 4 · What looks wasteful and is not
 
@@ -561,8 +604,11 @@ stop working — silently — at sizes the tables above reach:
 6. **The four failures (§3)** — the rollup fold's paging, the candidate
    scan's streaming, the sample merge's top-K, the shard fold's sampling.
    Each is a night that would fail silently at a size the tables reach;
-   none costs a read today.
+   none costs a read today. **Built** — the merge at runbook 2.2
+   (2026-09-08), the other three at Phase 4 (2026-09-09).
 7. **The two server folds (2.6, 2.7)** — 6 reads per user-day, invisible.
+   **2.6 built at runbook 4.4; 2.7's streaming at 4.3, its changed-since
+   step (4.3b) open and priced in §2's table.**
 8. **The sharded daily with the increment fold (§3)** — the scale item,
    with the `by` correction in the design; build ahead of the first push
    spike rather than on the alert, since D403 lifted the shelf, and raise

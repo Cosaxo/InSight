@@ -539,7 +539,7 @@ section didn't already say while the system was calm.
 investigative — Auth creation-time clusters, App Check token metadata in
 the function logs, answer velocity across `v2_agg_events` timestamps.
 Since D54 the first pass of that investigation runs on a clock:
-`ledgerVelocityScan` reads the ledger daily and logs `velocity_flag`
+the velocity scan (inside `digestEngagementV2` since DATA-EFFICIENCY-RUNBOOK 4.4) reads the ledger daily and logs `velocity_flag`
 lines ("Reading the velocity scan" below). A flag is this runbook's
 INPUT, not a verdict — honest crowds trip the same signals on their best
 days. What is guaranteed is mechanical once you HAVE a uid list:
@@ -631,14 +631,17 @@ What must not be improvised is the order of operations above.
 
 ### Reading the velocity scan (D54)
 
-`ledgerVelocityScan` runs daily at 03:47 UTC over the ledger entries
-since its last run (72h catch-up cap) and emits two kinds of line —
-a heartbeat per run, and a warning per finding:
+The velocity scan runs inside the nightly pass (`digestEngagementV2`,
+02:23 UTC — DATA-EFFICIENCY-RUNBOOK 4.4; it was its own
+`ledgerVelocityScan` at 03:47 before) over the ledger entries since its
+last run (72h catch-up cap), the whole days off the read the pass already
+makes, and emits two kinds of line — a heartbeat per run, and a warning
+per finding:
 
 ```bash
 # The heartbeat — one per day; a silent week means the scan is not running:
 gcloud logging read 'resource.type="cloud_run_revision"
-  resource.labels.service_name="ledgervelocityscan"
+  resource.labels.service_name="digestengagementv2"
   jsonPayload.metric="velocity_scan"' \
   --project prvfire33 --limit 7 --format="value(timestamp,jsonPayload.message)"
 
@@ -840,7 +843,8 @@ conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
 indistinguishable from health. The nightly jobs are the obvious next
-— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+— `digestEngagementV2` (which carries the velocity scan since
+DATA-EFFICIENCY-RUNBOOK 4.4), `rankBankV2`,
 `closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
 failure delays a surface by a day and self-heals on the next run, so
 they can wait until someone is actually reading the alerts.

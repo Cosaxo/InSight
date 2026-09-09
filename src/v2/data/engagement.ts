@@ -31,10 +31,33 @@
 export const LS_KEY = "insight.engagement.v1";
 
 /** The sampling lever for the SHARD (ATTENTION.md §4) — the rollup is
- * the person channel and is not sampled. 1 for launch; the shard carries
- * the rate so fold estimates rescale server-side when this drops. The
- * cost model reads this constant from source (ATTN_SAMPLE_RATE). */
+ * the person channel and is not sampled. 1 for launch, and the DEFAULT
+ * since DATA-EFFICIENCY-RUNBOOK 4.2: the nightly fold publishes the rate
+ * it can drain at on `v2_meta/app.attnSampleRate` and live.ts hands it to
+ * `setSampleRate` off the meta read it already makes, so a growing crowd
+ * writes fewer shards without a release. The shard carries the rate its
+ * coin was drawn at, so fold estimates rescale server-side. The cost
+ * model reads this constant from source (ATTN_SAMPLE_RATE) as the launch
+ * rate and the cap as what it falls to. */
 export const SHARD_SAMPLE_RATE = 1;
+
+/** The rate the coin is drawn at — the published one once live.ts has
+ * read it, the constant before, persisted with the tallies so a cold
+ * boot's first note uses last session's rather than 1. */
+let sampleRate = SHARD_SAMPLE_RATE;
+
+/** Take the published rate (`v2_meta/app.attnSampleRate`). Anything that
+ * is not a number the rules would admit on a shard — [0.001, 1] — is
+ * ignored, so a missing or junk field leaves the coin where it was. Takes
+ * effect on the next day's coin: today's tally already carries the rate
+ * it was drawn at. */
+export function setSampleRate(rate: unknown): void {
+  if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0.001 || rate > 1) return;
+  if (rate === sampleRate) return;
+  sampleRate = rate;
+  load();
+  save();
+}
 
 /** A finished day older than this is dropped, not flushed: the rules
  * windows refuse it anyway, and a week-dormant phone is a retention fact
@@ -165,6 +188,10 @@ interface RollupCounters {
 }
 interface DayTally {
   sampled: boolean;
+  /** The rate the day's coin was drawn at (runbook 4.2) — what the shard
+   *  reports, whatever the published rate has become since. Absent on a
+   *  tally from before the field: drawn at the constant. */
+  rate?: number;
   s: Record<string, number>; // exact ints, device-local only
   q: Record<string, Partial<Record<QidKind, number>>>; // exact, device-local
   r: RollupCounters;
@@ -172,6 +199,9 @@ interface DayTally {
 interface Stored {
   v: 1;
   days: Record<string, DayTally>;
+  /** The published rate as last seen, so the first coin of a cold boot
+   *  is drawn at it rather than at the constant (runbook 4.2). */
+  rate?: number;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -203,6 +233,7 @@ function emptyR(): RollupCounters {
 function normalize(t: Partial<DayTally> & { sampled?: boolean }): DayTally {
   return {
     sampled: !!t.sampled,
+    ...(typeof t.rate === "number" && t.rate >= 0.001 && t.rate <= 1 ? { rate: t.rate } : {}),
     s: t.s && typeof t.s === "object" ? t.s : {},
     q: t.q && typeof t.q === "object" ? t.q : {},
     r: t.r && typeof t.r === "object" ? { ...emptyR(), ...t.r } : emptyR(),
@@ -239,6 +270,7 @@ function load(): void {
       if (parsed && parsed.v === 1 && parsed.days && typeof parsed.days === "object") {
         days = {};
         for (const [day, t] of Object.entries(parsed.days)) days[day] = normalize(t);
+        if (typeof parsed.rate === "number" && parsed.rate >= 0.001 && parsed.rate <= 1) sampleRate = parsed.rate;
       }
     }
   } catch { /* best-effort */ }
@@ -258,7 +290,7 @@ function saveNow(): void {
     saveTimer = null;
   }
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify({ v: 1, days } satisfies Stored));
+    localStorage.setItem(LS_KEY, JSON.stringify({ v: 1, days, rate: sampleRate } satisfies Stored));
   } catch { /* best-effort */ }
 }
 
@@ -268,7 +300,7 @@ function ensureToday(): DayTally {
   if (!t) {
     // The shard's coin, drawn once per day; the rollup side is never
     // sampled — it is the person channel and one write regardless.
-    t = { sampled: rand() < SHARD_SAMPLE_RATE, s: {}, q: {}, r: emptyR() };
+    t = { sampled: rand() < sampleRate, rate: sampleRate, s: {}, q: {}, r: emptyR() };
     days[day] = t;
     save();
     void flushPast();
@@ -311,7 +343,7 @@ export async function flushPast(): Promise<void> {
         build: armed.build,
         platform: platformName(),
         sampled: true,
-        rate: SHARD_SAMPLE_RATE,
+        rate: tally.rate ?? SHARD_SAMPLE_RATE,
         s,
         ...(Object.keys(qids).length ? { qids } : {}),
       };
@@ -525,6 +557,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 export function _engagementForTest(): {
   armed: boolean;
   days: Record<string, DayTally>;
+  sampleRate: number;
   reset: () => void;
   saveNow: () => void;
   visibility: (hidden: boolean) => void;
@@ -532,10 +565,12 @@ export function _engagementForTest(): {
   return {
     armed: !!armed,
     days,
+    get sampleRate() { return sampleRate; },
     reset: () => {
       armed = null;
       days = {};
       loaded = false;
+      sampleRate = SHARD_SAMPLE_RATE;
       visibleSince = 0;
       lastHiddenAt = 0;
       sessionOpen = false;

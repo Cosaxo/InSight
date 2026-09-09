@@ -416,11 +416,16 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     ).toBe(9);
   });
 
-  it("the velocity scan still walks the ledger once per entry", () => {
-    // VELOCITY_READS_PER_LEDGER_ENTRY = 1 rests on this being a paged query
-    // over the window rather than a counter or an aggregation query.
+  it("the velocity scan's own read is a paged query over the partial day, and the whole days come off the pass's reader", () => {
+    // VELOCITY_READS_PER_LEDGER_ENTRY rests on this being a paged query
+    // over the tail rather than a counter or an aggregation query — and,
+    // since DATA-EFFICIENCY-RUNBOOK 4.4, on the whole days of the window
+    // coming off the memoised reader the pass shares (D399), which is
+    // why the constant is the partial day's share and not 1.
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
+    expect(v, "the whole days no longer come off the shared reader").toMatch(/ledgerDay\(utcDayKeyOf\(dayStart\)\)/);
+    expect(read("functions/src/nightly.ts"), "the pass no longer runs the scan").toMatch(/runVelocityScan\(firestoreVelocityStore\(db, ledgerDay\), now\)/);
     // The FIELD LIST is not the tripwire and must not be pinned as one:
     // `select()` narrows egress, not billed reads, so adding a field (as
     // `fromIdx` was, to tell a D86 edit's row from a create) changes the

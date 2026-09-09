@@ -25,7 +25,7 @@
 // the one the invoice will confirm.
 
 import {
-  B, VOTER_FETCH_CAP, DECK_DAYS,
+  B, VOTER_FETCH_CAP, DECK_DAYS, PATTERNS_SCAN_READS_PER_MAU,
   SCENARIOS, costModel, REGIONAL, priceSheet, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
@@ -64,15 +64,14 @@ export const RESHAPES = [
     writes: () => 0,
   },
   {
-    key: "velocityInPass",
-    name: "Velocity scan folds from the nightly pass's one ledger read",
-    reads: () => B.worldAnswers,
-    writes: () => 0,
-  },
-  {
     key: "scanActiveOnly",
-    name: "Candidate-engine scan re-solves only people who answered since the last fit",
-    reads: () => B.mauMultiple - 1,
+    name: "Candidate-engine scan re-solves only people who answered since the last fit (runbook 4.3b)",
+    // The streamed solve (runbook 4.3) reads every fitted person once for
+    // the item statistics and once per ALS sweep — PATTERNS_SCAN_READS_
+    // PER_MAU per MAU a night. Keeping the per-item statistics between
+    // nights and re-reading only the people whose map changed takes that
+    // to about one read per ACTIVE person, which the pass already makes.
+    reads: () => PATTERNS_SCAN_READS_PER_MAU * B.mauMultiple - 1,
     writes: () => 0,
   },
 ];

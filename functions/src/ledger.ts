@@ -45,6 +45,10 @@ export interface LedgerDayEntry {
   s?: Record<string, Record<string, number>> | null;
   /** The verified logic percentile (D57), null when untested; absent with `n`. */
   l?: number | null;
+  /** When the entry was ledgered, in ms — the velocity scan's cadence
+   *  and burst signals read it (DATA-EFFICIENCY-RUNBOOK 4.4); 0 on a
+   *  snapshot that carries none. Selected for the ordering all along. */
+  at: number;
 }
 
 const PAGE = 5000;
@@ -95,10 +99,14 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
   for (;;) {
     const snap = await query.get();
     for (const d of snap.docs) {
+      const rawAt = d.get("at") as { toMillis?: () => number } | Date | undefined;
       out.push({
         uid: String(d.get("uid") ?? ""),
         qid: String(d.get("qid") ?? ""),
         optionIdx: d.get("optionIdx") as number | undefined,
+        at: rawAt && typeof (rawAt as { toMillis?: unknown }).toMillis === "function"
+          ? (rawAt as { toMillis: () => number }).toMillis()
+          : rawAt instanceof Date ? rawAt.getTime() : 0,
         ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
         ...(d.get("anchors") ? { anchors: d.get("anchors") as Record<string, string> } : {}),
         // The stamp travels as a unit: `n` present means the entry was

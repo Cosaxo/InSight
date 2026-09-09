@@ -24,7 +24,7 @@
 // accounts, and which, would the new bar exclude" BEFORE the edit.
 //
 // READ THIS ALONGSIDE THE NIGHTLY COVERAGE LINE, not instead of it. This
-// counts ACCOUNTS; `ledgerVelocityScan`'s `bind_coverage` counts ANSWERS
+// counts ACCOUNTS; the nightly velocity scan's `bind_coverage` line counts ANSWERS
 // from accounts that actually voted. They answer different questions and
 // they diverge hard: a thousand dormant unbound accounts barely move the
 // published numbers, while one heavy unbound voter moves them a lot. The
@@ -124,7 +124,7 @@ async function main() {
     const share = total === 0 ? 0 : Math.round((under.length / total) * 1000) / 10;
     console.log(`\n  raising the bar to ${below} (${nameOf(below)}) would exclude ${under.length} account(s) — ${share}% of all accounts.`);
     console.log("  That is the POPULATION cost. For the cost to the published numbers, read");
-    console.log("  ledgerVelocityScan's bind_coverage line, which counts answers from accounts that voted.");
+    console.log("  the velocity scan's bind_coverage line (digestEngagementV2), which counts answers from accounts that voted.");
     if (list) for (const uid of under) console.log(`    ${uid}`);
     else if (under.length) console.log("  (--list to print the uids)");
   }

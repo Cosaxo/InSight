@@ -1376,7 +1376,9 @@ export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from
 export { activateDeviceV2 } from "./deviceBind";
 // D54: the daily ledger velocity scan — detection for D28's correction
 // story. Logs flags for manual review; never denies a vote.
-export { ledgerVelocityScan } from "./velocity";
+// D54's velocity scan runs inside the nightly pass since DATA-EFFICIENCY-
+// RUNBOOK 4.4 (nightly.ts) — `ledgerVelocityScan` is no longer a function
+// of its own; the project's copy is deleted by hand (OWNER-LIST.md).
 export { logicStartV2, logicSubmitV2 } from "./logic";
 // D194: Foresight CALL, tier A — the daily pass that grades a sealed
 // prediction against our OWN published aggregate and publishes the numbers

@@ -66,6 +66,7 @@ import {
 import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
 import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
+import { runVelocityScan, firestoreVelocityStore } from "./velocity";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -80,6 +81,10 @@ export interface NightlyRunners {
    *  off the same ledger read; a night that skips it leaves the trigger's
    *  own writes standing, which is the whole point of a heal. */
   answerMaps: () => ReturnType<typeof runAnswerMapHeal>;
+  /** D54's velocity scan (runbook 4.4) — the seventh, its whole days off
+   *  the same reader and the partial day its own read. It logs its own
+   *  flags and heartbeat (`velocity_scan`). */
+  velocity: () => ReturnType<typeof runVelocityScan>;
 }
 
 /** The three log levels the pass speaks — `logger`'s, injectable. */
@@ -117,6 +122,10 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   if (fit && (fit.folded > 0 || fit.days > 0)) log.info("patterns fit", { metric: "patterns_fit", ...fit });
   const taste = await attempt("taste", r.taste);
   if (taste && taste.days > 0) log.info("taste fold", { metric: "taste_fold", ...taste });
+  // The velocity scan (runbook 4.4) speaks for itself — its flags and its
+  // `velocity_scan` heartbeat are logged inside the runner, unchanged
+  // from the scheduled function's, so the silence policy keeps counting.
+  await attempt("velocity", r.velocity);
   // The heal speaks only when it healed: in steady state the trigger
   // wrote every entry live and the heal's read finds nothing missing, so
   // a line every night would be a heartbeat for the absence of work. A
@@ -140,9 +149,12 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   // arrivals sweep like late shards do.
   const roll = await attempt("rollup", r.rollup);
   if (roll?.capped) {
+    // The TIME budget ended the night (DATA-EFFICIENCY-RUNBOOK 4.1) — a
+    // full page is no longer a stop — so the number that matters is what
+    // is left: leftovers do fold tomorrow, and this says how many.
     log.warn(
-      `[engagement] rollup fold hit its cap (${ROLLUP_FOLD_CAP}) — leftovers fold tomorrow`,
-      { metric: "engagement_rollup_cap", rollups: roll.rollups },
+      `[engagement] rollup fold stopped at its time budget after ${roll.rollups} rollups (pages of ${ROLLUP_FOLD_CAP}) — ${roll.left} left unfolded, first in tomorrow's queue`,
+      { metric: "engagement_rollup_cap", rollups: roll.rollups, left: roll.left },
     );
   }
   // The heartbeat — monitoring/digestEngagementV2-silent.json watches for
@@ -192,6 +204,7 @@ export const digestEngagementV2 = onSchedule(
       digest: () => runEngagementDigest(firestoreEngagementStore(db, ledgerDay), now),
       patterns: () => runPatternsFit(firestorePatternsStore(db, ledgerDay), now),
       taste: () => runTasteFold(firestoreTasteStore(db, ledgerDay), now),
+      velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
       answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
       rollup: () => runRollupFold(firestoreRollupStore(db)),
