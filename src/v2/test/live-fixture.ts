@@ -896,6 +896,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // directions).
     seedContent: async () => ({ written: 0, skipped: 0 }),
     deleteAccount: async () => {},
+    exportAccount: async () => ({}),
   };
 
   // The same globals buildFeedGlobals() publishes. WORLD_FEED_COMMENTS is

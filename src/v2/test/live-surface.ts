@@ -114,7 +114,11 @@ export const LIVE_MEMBERS = [
   // withheld is never rendered as one that is absent.
   "budgetPaused",
   "confirmedVotes", "dailyBank", "deck",
-  "deleteAccount", "demoInProd", "displayName", "handle",
+  "deleteAccount",
+  // D443: the data export — the read-only twin of deleteAccount, called
+  // from the same panel one row up.
+  "exportAccount",
+  "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/
   // test answer to a different option. Returns false without writing when
   // there is nothing to move or the 60s cooldown holds.

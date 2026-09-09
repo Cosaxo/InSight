@@ -48635,3 +48635,155 @@ At the `europe-west1` read price of $0.03 per 100 k (D200):
 `patternsSamples.test.ts`, two in `answerSurfaces.test.ts`, two more
 rows in `store-projection.test.ts`), `tsc` clean; the rest of the gates
 are in the PR body.
+## D443 · The data export: deleteAccount's read-only twin, and the terms' download promise gets its mechanism
+
+**2026-09-09.** **Status:** binding. The owner's decision on the
+2026-09-08 owner-list row *"The terms promise a data download the app
+has no way to give — build the export, or soften the sentence?"* — the
+answer was to build it. This record is what was built, the bound it
+carries, what it leaves out and why, and what it deliberately does not
+do.
+
+**The promise.** `web/terms.html` has said since it was written that
+before we terminate or suspend an account *"we'll try to notify you and
+give you a chance to download your data first."* Night shift A measured
+on 2026-09-08 that there was no export path anywhere in the tree — a
+grep for the five obvious spellings returned nothing, and
+`web/delete-account.html` described deletion as the only self-serve data
+operation there is. So the one moment the sentence was about was the one
+moment it could not be honoured. Not a D98 question: nothing here is
+about who can see what; it is about whether a written promise has a
+mechanism.
+
+**The three shapes, and the one taken.** *Soften the sentence* to what
+the app does — a notice, and the delete button — which is accurate and
+strictly less than what was promised, a promise taken away from users
+rather than a night shift's fix. *Leave it* and do it by hand for the
+handful of terminations a small app has — the status quo stated out
+loud. *Build the export* — the erasure callable already walks the whole
+graph of what is about one account, phase by phase, so a read-only twin
+of `deleteAccount` that returns JSON is the smallest honest version, and
+it also answers GDPR Art. 20 portability, which the app had no answer
+to. The owner chose the third, the row's own recommendation.
+
+**What was built.**
+
+- **`functions/src/exportAccount.ts` — `exportAccountV2`**, an owner-only
+  callable (App Check demanded, `check:appcheck`; `LIGHT_UNBOUNDED`, since
+  the walk is unbounded per account the way the erasure's is) that walks
+  EXACTLY the graph `deleteAccount` erases, in its order, reading only:
+  the sign-in record; the journal-era subtree; the agg-events ledger; the
+  voter samples; the v2 subtree by LISTING its subcollections, so a
+  subcollection the tree grows next is covered the day it ships (the
+  property `recursiveDelete` gives the erasure); the logic attempt;
+  takes, flags, the face's document and the presence square as held-until;
+  the photo's bytes out of Storage; the circles and what each document says about
+  this member; every reveal that names the account — its own circles
+  walked, the circles it left and the picks that name it through the two
+  collection-group queries the erasure uses; the v1 discoverable doc;
+  impressions sent; follows of it; the handle; pending joins; the
+  directory row; invitations both ways; relations to it; the five
+  rate-limit ledgers; suggestions; purchases with the ads and sponsor
+  bylines they point at; paid bookings. One JSON object, timestamps as
+  ISO strings, with an `omitted` list naming what is not in it and why.
+- **The twin is held by a test, not a convention.** `TWIN` maps every
+  label `deleteAccount` pushes onto `failed` to the export section that
+  reads what that phase erases; `exportAccount.test.ts` reads `index.ts`
+  and refuses a label with no twin, and refuses a twin naming a section
+  nothing writes. A wipe phase added without an export section is a red
+  test — the failure this pair is most likely to grow, since the two
+  walks live in different files and will be edited by different hands.
+- **The byte bound is 8 MiB**, measured section by section while the
+  walk runs. A callable answers in one HTTPS response, and 10 MB is the
+  smallest ceiling any generation of that transport has documented; 8
+  MiB leaves room for the `{ result: … }` envelope the SDK wraps a payload
+  in, and for the phone that has to hold the whole string to write a
+  file or a share sheet from it. Past the bound the walk STOPS reading
+  and refuses as `resource-exhausted` with a plain sentence naming the
+  number and the way round it (ask by email — the deletion page's own
+  route), rather than reading everything and failing as `internal` with
+  nothing in it to read. Measured: the unit test's whole two-user graph
+  exports at 3.6 KB, and a real account is bounded well below the ceiling
+  by the bank (one answer per question) and by the rate limits on
+  everything free-text; the bound is for the account nobody has designed
+  for, not a number an ordinary export meets.
+- **The panel row.** `LivePrivacyPanel` gains *Download your data*
+  directly above *Delete everything*, in the order the terms put them,
+  with no confirm step — nothing about it is irreversible.
+  `LIVE.exportAccount()` calls the callable; `src/v2/data/exportFile.ts`,
+  fetched on the tap so the panel's chunk carries none of it (the
+  walkthrough's shape, D393), hands the JSON over by whichever route the
+  platform has: a share sheet with the file in it where
+  `navigator.canShare({ files })` says yes (iOS WebKit, the mobile
+  browsers), an anchor download on the web, the clipboard where neither
+  exists. The route is REPORTED — *Saved ✓*, *Shared ✓*, *Copied to the
+  clipboard ✓* — because the three are different next steps. A refusal
+  lands where a refused delete does and reloads nothing.
+- **The page moves with the feature (D183).** `web/privacy.html` gains
+  *Downloading everything* above *Deleting everything*: that the export
+  exists, that it is one file, that it is deletion's list read instead
+  of removed, the four things it leaves out, the bound, and the email
+  route — held by three `check:policy-claims` rows. `web/terms.html`'s
+  sentence stays as it is because it is now true.
+  `web/delete-account.html` points at the row and says the email route
+  serves an export too. `docs/data-inventory.md` carries the callable
+  beside its deletion paragraph; `functions/README.md` and
+  `ORIENTATION.md` name the module; the deploy `--only` list carries the
+  43rd function (`check:deploy-targets`, `check:fn-runtime`).
+- **Tests.** The functions suite seeds a two-user graph and asserts every
+  phase's documents are carried and nothing of the other user's is —
+  asserted on the serialised file, since that is what leaves the server;
+  the erasure e2e exports BEFORE it deletes, on the same emulator boot,
+  and holds the export to the same seeded graph the deletion is then
+  held to, photo bytes and the left circle's reveal included;
+  `LivePrivacyPanel.test.tsx` pins the row's place, the handoff, the
+  three route sentences and the refused case; `exportFile.test.ts` pins
+  the three routes; `live-surface.ts` pins the new member.
+
+**What it leaves out, and says so inside the file.** Four things — the
+three denies CLAUDE.md keeps outside the D334 ask, and the credential
+beside them on the pull-request template's list — so none was a
+preference to put to the owner: the logic attempt's `seed` (the unscored
+answer key: the items are generated from it by public code, so a copy is
+a way to start an attempt, read the answers and submit), who reported
+the account (flag authorship, anti-retaliation — flags cast ON the
+account are counted, never listed), the presence CELL (physical safety:
+refused to every reader, the owner included, and this file is built to
+travel by share sheet, mailbox and clipboard, so the export says a
+square is held and until when and never which — the phase is twinned,
+the location is not copied), and the push token (a credential,
+`allow read: if false` to the owner too). Other people's records that
+merely point at the account — their follows of it, their v1 relations —
+are counted rather than copied, and a reveal row carries this account's
+vote, name and how many picked it, never the other members' votes:
+everything this account WROTE is in the file in full, and a file that
+leaves the app does not carry other people's uids beside things they did
+not write to this account. The presence room caches are rosters of other
+people and the moderation queue is keyed on a take being gone rather
+than on whose it was; neither is per-account data and neither is read.
+
+**What it does not do.** It adds no native dependency: the app carries
+neither `@capacitor/share` nor `@capacitor/filesystem`, and Android's
+WebView implements neither the Web Share API nor the download listener
+the shell would have to add — so on Android the export lands on the
+clipboard and the row says so. The native share sheet is one plugin pair
+and a `cap sync` away, a native config change the store builds have to
+carry, and it is the follow-up rather than this change because a plugin
+the installed shell does not have throws on the call, while a JSON file
+on the clipboard is the same bytes today. It schedules, caches and
+stores no export anywhere — the file is the person's, not the app's. It
+changes nothing about who can read what: the caller reads its own uid's
+graph on the admin SDK, and the four closed things stay closed — the
+owner is handed nothing the rules refuse them, only what they may
+already read plus the three server-only ledgers about their own acts. And
+it does not soften the terms: the sentence is kept because it is now
+true, which was the whole point.
+
+**Arithmetic.** One export reads roughly what one deletion reads: the
+subtree, a dozen uid-equality queries, two collection-group queries over
+reveals, and every voter-sample document (a few hundred reads — the
+scrub's own price for "gone means gone" without a caveat, paid here for
+"everything" without one). At the rate people export their data that is
+nothing on `COSTS.md`'s rows, which do not move.
+
+**Measured before the push:** the counts are in the PR body.

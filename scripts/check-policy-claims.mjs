@@ -289,6 +289,21 @@ export const CLAIMS = [
     /two histories are not\s+merged[\s\S]{0,200}?says so on the screen before it\s+happens/i],
   ["D441 · the retired email-door caveat is gone",
     (src) => !/With an\s+email address it does not/i.test(src)],
+  // D443 · the terms have promised "a chance to download your data first"
+  // since they were written, and the export (functions/src/exportAccount.ts)
+  // is what makes that a mechanism. Three rows: that a download EXISTS and
+  // is deletion's own list (the sentence a reader is owed one heading above
+  // the delete button), what it leaves out (an export described as
+  // "everything" that quietly omits things is exactly the shape this file's
+  // header is about), and the bound with the way round it.
+  // `\s+` inside each phrase, because the page wraps at 76 columns and a
+  // phrase that happens to break across a line is still on the page.
+  ["D443 · your data can be downloaded as one JSON file, and it is the list deletion removes",
+    /download\s+button[\s\S]{0,160}?one\s+JSON\s+file[\s\S]{0,900}?list\s+deletion\s+removes/i],
+  ["D443 · and the file says what it leaves out: the logic answer key, who reported you, the push token, the presence cell",
+    /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
+  ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
+    /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

@@ -77,7 +77,7 @@ who decides:
 | `src/v2/main.jsx` | Styles + spec-index, then renders `globalThis.App` | `src/v2/README.md` |
 | `src/lib/` | Firebase init, anonymous-first auth, emulator wiring, Sentry | `docs/LOCAL-TESTING.md` |
 | `src/dev/` | `TweaksPanel.jsx`, the host-era design-time panel. Behind `import.meta.env.DEV` and a dynamic import, so a production build has no reference to this directory at all and rolldown drops it whole (D223) | `src/v2/README.md` |
-| `functions/src/` | `v2.ts` (seed + aggregates) · `v2social.ts` (groups, duos, reveals, push) · `moderation.ts` · `index.ts` (account deletion) · `ops.ts` (**where `setGlobalOptions` lives**) · `pure.ts` (the fold arithmetic) | `functions/README.md`, `docs/SCHEMA-V2.md` |
+| `functions/src/` | `v2.ts` (seed + aggregates) · `v2social.ts` (groups, duos, reveals, push) · `moderation.ts` · `index.ts` (account deletion) · `exportAccount.ts` (its read-only twin, the data export — D443) · `ops.ts` (**where `setGlobalOptions` lives**) · `pure.ts` (the fold arithmetic) | `functions/README.md`, `docs/SCHEMA-V2.md` |
 | `firestore.rules` | The access model. `firestore.rules.v1-archive` is the retired v1 client's rules — reference, NOT deployed | `docs/data-inventory.md` |
 | `firestore-tests/` | Rules tests and the three e2e suites against emulated functions | `firestore-tests/README.md` |
 | `content/` | The canonical question banks and archetypes — the seed source | `content/README.md`, `docs/QUESTION-FARM.md` |

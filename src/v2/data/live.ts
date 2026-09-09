@@ -6511,6 +6511,13 @@ const LIVE = {
   async seedContent(bumpRev = false): Promise<unknown> {
     return callable("seedContentV2", { bumpRev: bumpRev === true });
   },
+  // The data export (D443): deleteAccount's read-only twin, one JSON object
+  // of everything the account holds, under the server's byte bound. The
+  // panel hands it to the device (data/exportFile.ts); nothing here is
+  // cached or kept, because the file is the person's and not the app's.
+  async exportAccount(): Promise<Record<string, unknown>> {
+    return callable("exportAccountV2", {});
+  },
   async deleteAccount(): Promise<void> {
     // Latched BEFORE the call, deliberately — see `torndown` above: work
     // already in flight must not re-create an `insight.*` key while the wipe
