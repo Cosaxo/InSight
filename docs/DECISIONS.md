@@ -48140,6 +48140,98 @@ own rule.
 `build`, `check:globals`, `check:docs`, `check:figures` — the counts are
 in the PR body.
 
+## D440 · The owner of a directory row may delete it — clearing your display name unlists you
+
+**2026-09-09.** **Status:** binding. The owner, on the `OWNER-LIST.md`
+row night shift B filed 2026-09-07 (*"Clearing your display name does
+not unlist you from the people directory — may the owner of a row delete
+it?"*): allow it. This record is the build and the arithmetic the row
+carried, kept where a decision is found by number.
+
+**What was wrong.** Saving an empty display name wrote `displayName: ""`
+to the profile and then SKIPPED the directory row: `writeDirectoryRow`
+returned early on an empty name. The `v2_people` rule requires
+`name.size() > 0`, so there was no empty row to write instead, and
+`allow delete: if false` closed the only other path. The old name went
+on standing in `v2_people`, which the people search reads by `nameKey`
+prefix — so a person who cleared their name to stop being found stayed
+found, permanently, with nothing in the app able to change it. That was
+measured 2026-09-07 at the store. Measured again today one level up, it
+was worse: NO screen could hand the store a blank name at all. The
+account panel's Save has returned early on a blank since the P1 batch,
+and the setup screen's `newName` requires a non-blank — so a name was a
+one-way door from the day the directory shipped, and the store-level
+fix alone would have been reachable from nowhere.
+
+**Why the refusal no longer held.** The deny was deliberate and had a
+test behind it — *"nobody deletes a row from a client, not even their
+own"* — whose stated reason was that `deleteAccount` owns removal and
+*"a client delete would be the one path able to strip a row the erasure
+counts on"*. Erasure phase 3d is ``db.doc(`v2_people/${uid}`).delete()``
+followed by `counts.peopleRow = 1`: an idempotent delete and a constant,
+not a measurement. A row the owner removed first changes neither the
+erasure's verdict nor its report, and the e2e that holds the erasure
+(`e2e-delete-account.mjs`) asserts the row is GONE afterwards, beside a
+control row that must survive — which a row deleted earlier satisfies
+trivially. So the refusal rested on an argument that was never true of
+the code it named. D334 is why it went to the owner rather than being
+lifted on a shift: a recorded refusal on a rules write surface, with
+another session's deliberate assertion behind it, is the owner's to
+lift.
+
+**What was built.** The row's shape, plus the one step its measurement
+had not reached:
+
+- `firestore.rules`, the people directory: `allow delete: if
+  request.auth != null && request.auth.uid == uid`. Own row only. The
+  comment at the arm carries why the old reason fell and what of phase
+  3d is still true — it still needs its own arm, because this is a
+  top-level document phase 1b's recursive delete walks past, and most
+  erased accounts never cleared their name.
+- `src/v2/data/socialFetch.ts` `writeDirectoryRow`: an empty name
+  DELETES the row instead of returning. No read first — a delete of a
+  row that does not exist is a legal no-op under the arm (it reads no
+  `resource`), and the rules suite holds that with a second delete.
+- `firestore-tests/rules.test.ts`: the case asserting the opposite is
+  replaced by the owner/stranger pair — the owner deletes their own row
+  (twice), a stranger may not, and neither may a signed-out client. The
+  signed-out case is not decoration: the sign-in conjunct is its own
+  predicate on the new arm, and `rules-coverage` (D438's companion
+  ratchet) counts a conjunct the suite never sees refuse, so without it
+  the never-false baseline would have moved up by one.
+- `src/v2/data/socialFetch.test.ts`, new: the empty branch deletes and
+  writes nothing; the named branch writes the fold and deletes nothing.
+- `src/v2/ui/LivePrivacyPanel.tsx`: a blank Save clears a NAME THAT IS
+  SET, and only then — an account with no name has nothing to clear and
+  keeps the no-op, since a write of `""` over `""` would be a profile
+  write plus a delete of nothing for no visible result. Pinned in
+  `LivePrivacyPanel.test.tsx` both ways. Not a visual in D352's sense:
+  the control exists; what changed is what a blank in it does.
+- `docs/data-inventory.md`'s `v2_people` row says who may delete now
+  and that 3d is idempotent; `functions/src/index.ts` says at 3d why
+  the constant is a constant, so nobody improves it into the
+  measurement that would make the retired argument true.
+
+**What it does not do.** It is not erasure: 3d still runs for every
+account, and an erased account that never cleared its name is unlisted
+by the erasure exactly as before. It does not let anyone touch another
+account's row — the arm is the uid equality and nothing else, and the
+grant can only ever reduce what is published. The setup screen still
+saves no blank (`newName` is unchanged); the account panel is the
+editing surface, and the one that needed to open. `web/privacy.html` is
+untouched: the page never described the directory, and its sentence on
+a blank name — *"hides the name, not the answers"* — is exactly as true
+after this as before, so `check:policy-claims` holds an unchanged page.
+And it does not unmake a circle: a directory row is read at search
+time, never held by a searcher, so once it is gone nobody finds the name
+again — but a circle that already holds you holds you by uid, and still
+does.
+
+**The arithmetic.** One delete per blank save, on a document nothing
+else reads by that path; zero new reads. The new arm is two predicates,
+both seen refusing, so `rules-coverage` stays at its baseline; the arm
+is not on the answer create path, so no `rules-budget` pin moves — both
+measured on the branch, and the counts are in the PR body.
 ## D444 · The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's
 
 **Date:** 2026-09-09 · **Status:** binding, built in the bank; the live
