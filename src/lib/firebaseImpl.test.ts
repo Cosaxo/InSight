@@ -521,8 +521,19 @@ describe("Firestore construction", () => {
 //
 // Derived rather than listed, so the next provider cannot be added to
 // the app and forgotten in the config — the shape the overlay coverage
-// table uses. The map is the plugin's own naming, and a call this file
-// does not know about fails loudly rather than passing quietly.
+// table uses. The ids are the PLUGIN'S OWN, copied from its definitions:
+// Game Center is "gc.apple.com", not "gamecenter", which is what this map
+// said when it was written. Inert, because nothing calls Game Center —
+// and exactly the trap the map exists to prevent, since the entry would
+// have demanded a string the plugin never compares against and gone green
+// on a config loading nothing.
+//
+// An unrecognised provider call FAILS rather than being skipped. The
+// first version filtered to the names it knew (`c in PROVIDER_ID`), so a
+// new `signInWithMicrosoft` would have passed quietly — the comment here
+// claimed the opposite. `NOT_A_PROVIDER` is the deliberate exception
+// list: plugin methods that need no `providers` entry because the plugin
+// builds no handler for them.
 describe("the native sign-in providers", () => {
   const PROVIDER_ID: Record<string, string> = {
     signInWithApple: "apple.com",
@@ -530,12 +541,33 @@ describe("the native sign-in providers", () => {
     signInWithGoogle: "google.com",
     linkWithGoogle: "google.com",
     signInWithFacebook: "facebook.com",
-    signInWithGameCenter: "gamecenter",
+    signInWithGameCenter: "gc.apple.com",
   };
+  /** Calls that are not a loadable provider — no handler, no config entry. */
+  const NOT_A_PROVIDER = new Set([
+    "signOut", "signInWithCustomToken", "signInWithEmailLink",
+    "signInWithEmailAndPassword", "createUserWithEmailAndPassword",
+    "linkWithEmailAndPassword", "signInAnonymously", "getCurrentUser",
+    "getIdToken", "updateProfile", "deleteUser", "sendEmailVerification",
+    "sendPasswordResetEmail", "confirmPasswordReset", "useEmulator",
+    "addListener", "removeAllListeners", "reload", "unlink",
+  ]);
 
   it("names every provider the app asks the native plugin for", () => {
     const impl = readFileSync(resolve(cwd(), "src/lib/firebaseImpl.ts"), "utf8");
-    const called = [...impl.matchAll(/FirebaseAuthentication\.(\w+)\(/g)].map((m) => m[1]);
+    const called = [...new Set(
+      [...impl.matchAll(/FirebaseAuthentication\.(\w+)\(/g)].map((m) => m[1]),
+    )];
+    // Loud, not silent: a native call this map has never heard of is a
+    // provider nobody has decided about, and skipping it is how the
+    // config would go stale again.
+    for (const c of called) {
+      expect(
+        c in PROVIDER_ID || NOT_A_PROVIDER.has(c),
+        `firebaseImpl calls FirebaseAuthentication.${c}, which this map does not know. `
+        + "Add its provider id to PROVIDER_ID, or to NOT_A_PROVIDER if the plugin loads no handler for it.",
+      ).toBe(true);
+    }
     const needed = [...new Set(
       called.filter((c) => c in PROVIDER_ID).map((c) => PROVIDER_ID[c]),
     )];
