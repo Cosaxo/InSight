@@ -346,6 +346,35 @@ function TogetherSection({ p, me, isFriend, firstName, themColor }) {
   );
 }
 
+// The person's map, as a SCREEN of its own — extracted from PersonOverlay's
+// render so that `useDialog` can mount and unmount with it.
+//
+// Inline, it was the one `.overlay` root in the tree with no dialog props at
+// all, and a hook cannot be conditional, so there was nowhere to put them.
+// What that cost: the map opened as a second full-screen layer over the
+// profile, and the profile's OWN useDialog was still the one listening — so
+// Escape (and Android back, through the same handler) closed both at once,
+// peeling two layers on one press, and focus never entered the map.
+function PersonMapScreen({ p, isFriend, firstName, themColor, onBack }) {
+  const dlg = useDialog(onBack, firstName + '\u2019s map');
+  return (
+    <div className="overlay surface-tint" {...dlg} style={{ zIndex: 24 }}>
+      <div className="app-header">
+        <button className="avatar-btn" aria-label="Back" onClick={onBack}>←</button>
+        <div className="h-title" style={{ flex: 1, minWidth: 0 }}>{firstName}{'\u2019'}s map</div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <PersonMindMap p={p} following={isFriend} centerName={firstName} />
+      </div>
+      {/* the legend belongs where the dots are big enough to read */}
+      <div style={{ flexShrink: 0, display: 'flex', gap: 16, padding: '10px 16px 14px', borderTop: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ width: 10, height: 10, borderRadius: 99, background: themColor }}></span>same answer</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ width: 10, height: 10, borderRadius: 99, boxSizing: 'border-box', border: `2px solid ${themColor}` }}></span>you differ</span>
+      </div>
+    </div>
+  );
+}
+
 function PersonOverlay({ p: rawP, onClose, me }) {
   const dlg = useDialog(onClose, rawP && rawP.name ? `${rawP.name} profile` : 'Person profile');
   // Hooks first, unconditionally, ABOVE the `!rawP` guard below. None of
@@ -395,7 +424,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   return (
     <div className="overlay surface-tint" {...dlg}>
       <div className="app-header">
-        <button className="avatar-btn" onClick={onClose}>←</button>
+        <button className="avatar-btn" aria-label="Back" onClick={onClose}>←</button>
         <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
         <div className="h-meta" style={{ flexShrink: 0 }}>{p.dist || (p.anon ? 'nearby' : 'in your orbit')}</div>
       </div>
@@ -611,20 +640,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
 
       {/* the live map gets the whole screen — where it can actually be explored */}
       {mapOpen ? (
-        <div className="overlay surface-tint" style={{ zIndex: 24 }}>
-          <div className="app-header">
-            <button className="avatar-btn" onClick={() => setMapOpen(false)}>←</button>
-            <div className="h-title" style={{ flex: 1, minWidth: 0 }}>{firstName}{'\u2019'}s map</div>
-          </div>
-          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-            <PersonMindMap p={p} following={isFriend} centerName={firstName} />
-          </div>
-          {/* the legend belongs where the dots are big enough to read */}
-          <div style={{ flexShrink: 0, display: 'flex', gap: 16, padding: '10px 16px 14px', borderTop: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ width: 10, height: 10, borderRadius: 99, background: themColor }}></span>same answer</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ width: 10, height: 10, borderRadius: 99, boxSizing: 'border-box', border: `2px solid ${themColor}` }}></span>you differ</span>
-          </div>
-        </div>
+        <PersonMapScreen p={p} isFriend={isFriend} firstName={firstName} themColor={themColor} onBack={() => setMapOpen(false)} />
       ) : null}
     </div>
   );

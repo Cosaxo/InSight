@@ -36,7 +36,7 @@ function CityOverlay({ city, onClose }) {
   return (
     <div className="overlay surface-tint" {...dlg}>
       <div className="app-header">
-        <button className="avatar-btn" onClick={onClose}>←</button>
+        <button className="avatar-btn" aria-label="Back" onClick={onClose}>←</button>
         <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city.name}</div>
         <div className="h-meta" style={{ flexShrink: 0 }}>{city.region.toLowerCase()}</div>
       </div>

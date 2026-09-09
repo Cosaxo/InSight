@@ -513,7 +513,7 @@ export let LOGIC;
     return (
       <div className="overlay surface-tint" {...dlg}>
         <div className="app-header">
-          <button className="avatar-btn" onClick={onClose}>✕</button>
+          <button className="avatar-btn" aria-label="Close" onClick={onClose}>✕</button>
           <div className="h-title">Logic</div>
           <div style={{ width: 32, flexShrink: 0 }}></div>
         </div>

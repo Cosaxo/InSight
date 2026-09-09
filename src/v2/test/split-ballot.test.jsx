@@ -136,8 +136,31 @@ describe("the split ballot", () => {
     // the press surface survived the re-layout: it is your side, it says
     // what a hold does, and it is the only side that says it
     expect(mine.getAttribute("title")).toMatch(/Hold to change/);
-    expect(mine.getAttribute("aria-label")).toMatch(/your vote\. Hold to change it\./);
+    expect(mine.getAttribute("aria-label")).toMatch(/your vote\. Hold, or press Enter, to change it\./);
     expect(document.querySelectorAll("[title='Hold to change your vote']").length).toBe(1);
     expectNoBoundary("the edit surface");
+  });
+
+  it("…and offers a KEYBOARD route to the same act", async () => {
+    // The hold was the only route to it, which meant a keyboard or switch
+    // user could not reach D86's change-your-vote at all. Nothing could see
+    // that: jsx-a11y has no rule for a pointer-only handler (its `handlers`
+    // list stops at mouse events), so check:a11y was green over a feature
+    // with no keyboard path.
+    //
+    // Asserted as REACHABILITY plus the act, not as attributes: a
+    // role/tabIndex pair that fires nothing would pass an attribute check.
+    const expectNoBoundary = mountApp();
+    const sides = await voteAndReveal();
+    const stamp = screen.getByText("you");
+    const mine = [...stageOf(stamp, sides).children].find((side) => side.contains(stamp));
+    expect(mine.getAttribute("role"), "your own side is not a control").toBe("button");
+    expect(mine.getAttribute("tabindex"), "your own side cannot be focused").toBe("0");
+    // …and Enter really re-opens the ballot, which is what onReset does.
+    await act(async () => {
+      fireEvent.keyDown(mine, { key: "Enter" });
+    });
+    expect(screen.queryByText("you"), "Enter did not return the card to its ballot").toBeNull();
+    expectNoBoundary("the keyboard edit route");
   });
 });

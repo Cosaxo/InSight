@@ -1196,8 +1196,19 @@ export class DailySplit extends React.Component {
                   onPointerDown: () => { clearTimeout(this._lpT); this.setState({ pressing: true }); this._lpT = setTimeout(() => { this.setState({ pressing: false }); onReset(); }, 550); },
                   onPointerUp: lpEnd, onPointerLeave: lpEnd, onPointerCancel: lpEnd,
                   onContextMenu: (e) => e.preventDefault(),
+                  // …and a keyboard route to the same thing. The hold was the
+                  // ONLY route to D86's change-your-vote — a pointer gesture
+                  // on a plain div, so a keyboard or switch user could not
+                  // reach the feature at all, and no gate can see that:
+                  // jsx-a11y has no rule for a pointer-only handler (its
+                  // `handlers` list stops at mouse events) and check:a11y
+                  // inherits that blindness. Enter/Space is the same act
+                  // without the 550 ms, because a key has no hold.
+                  role: 'button', tabIndex: 0,
+                  onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReset(); } },
                   title: 'Hold to change your vote',
-                  'aria-label': 'You said ' + (myIdx + 1) + '. Hold to change it.',
+                  // The label names BOTH routes, since both now exist (D1).
+                  'aria-label': 'You said ' + (myIdx + 1) + '. Hold, or press Enter, to change it.',
                 } : {};
                 return h('div', { ...lp, style: { display: 'flex', flexDirection: 'column', gap: 9, padding: '2px 2px 0', transform: st.pressing ? 'scale(0.985)' : 'none', transition: 'transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: canChange ? 'pointer' : 'default' } },
                   h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
@@ -1235,8 +1246,12 @@ export class DailySplit extends React.Component {
                 onPointerDown: () => { clearTimeout(this._lpT); this.setState({ pressing: true }); this._lpT = setTimeout(() => { this.setState({ pressing: false }); onReset(); }, 550); },
                 onPointerUp: lpEnd, onPointerLeave: lpEnd, onPointerCancel: lpEnd,
                 onContextMenu: (e) => e.preventDefault(),
+                // The keyboard route to the same act \u2014 see the ridge twin
+                // above for why the hold alone was not enough.
+                role: 'button', tabIndex: 0,
+                onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReset(); } },
                 title: 'Hold to change your vote',
-                'aria-label': o.label + ' \u2014 your vote. Hold to change it.',
+                'aria-label': o.label + ' \u2014 your vote. Hold, or press Enter, to change it.',
               } : {};
               // the option tiles ARE the chart — each one's height is its share
               return h('div', { key: o.id, ...lp, style: { flex: (floored ? 10 : Math.max(rp[i], 9)) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
