@@ -1672,11 +1672,25 @@ service cloud.firestore {
           ? (resource != null
             && request.resource.data.handle == resource.data.get("handle", null))
           : (resource == null || resource.data.get("handle", null) == null));
-      // deleteAccount (admin SDK) owns removal — phase 3d. This row is a
-      // top-level document keyed by uid, so phase 1b's recursiveDelete of
-      // v2_users/{uid} does not reach it, the same trap the handle
-      // registry set in 3b.
-      allow delete: if false;
+      // The owner deletes their own row (D440) — clearing your display
+      // name UNLISTS you. The arm above refuses an empty `name`, so there
+      // is no unlisted row to write instead; a delete is the only shape a
+      // person who set a name can stop being found by it in.
+      //
+      // This was `if false` from D239 to D440, on the argument that
+      // deleteAccount (admin SDK) owns removal — phase 3d — and that a
+      // client delete would be "the one path able to strip a row the
+      // erasure counts on". Measured, the erasure counts on nothing here:
+      // 3d is an idempotent `delete()` followed by a CONSTANT
+      // (`counts.peopleRow = 1`), not a measurement, so a row its owner
+      // removed first changes neither the erasure's verdict nor its
+      // report. What is still true of 3d, and still needs its own arm:
+      // this is a top-level document keyed by uid, so phase 1b's
+      // recursiveDelete of v2_users/{uid} does not reach it — the trap
+      // the handle registry set in 3b — and most erased accounts never
+      // cleared their name. Own row only: the grant can only ever reduce
+      // what is published, and it is not erasure.
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────

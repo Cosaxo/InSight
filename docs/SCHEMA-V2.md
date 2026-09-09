@@ -376,6 +376,14 @@ v2_patterns/sample-{qid}           the nightly voter sample (D397)
                                    a person is one row (an edit moves it)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
+  seeded?                          the UTC day the sample was seeded from
+                                   the answers themselves (D442) — the
+                                   newest cap of the question's world
+                                   answers, folded in once the first night
+                                   the pass met it; absent on a document
+                                   only the ledger has fed, which is the
+                                   pass's cue to seed it (at most 25 a
+                                   night, PATTERNS_SEED_PER_RUN)
 read: signed-in (the loadings document's own rule — same collection) ·
 write: NOBODY — merged nightly by the pass (D399) from the ledger day it
 already reads. What Kindred, the People lens and the pair card read in
@@ -765,7 +773,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (1342 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1298 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -842,7 +850,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (1342 docs) caches in localStorage keyed by
+everything. The question bank (1298 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

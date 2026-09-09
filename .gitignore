@@ -153,3 +153,8 @@ NIGHTB_SUMMARY.md
 # and their report. The night shifts write theirs under .nightb/ and
 # .night-shift/ (above); this is where a hand run lands.
 .device-screens/
+
+# Claude Code build agents check out sibling branches under .claude/worktrees/
+# (a worktree per agent). They are other branches, not this tree: not for the
+# index, and not for the docs gate, which walks the working tree for READMEs.
+.claude/worktrees/

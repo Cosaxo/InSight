@@ -5,6 +5,10 @@
 //     owned by the user + every reference to them in others' subtrees
 //     and deletes them, then drops the auth user. App Store + Play
 //     Store both require this for any app with sign-up.
+//   - exportAccountV2 (./exportAccount, D443): the read-only twin of
+//     that walk — the same graph, phase by phase, returned as one JSON
+//     object. A wipe phase added here without a section there is a red
+//     test (exportAccount.test.ts reads this file's `failed` labels).
 //   - the v2 daily/mirror loop, re-exported at the foot of this file
 //     from ./v2 and ./v2social.
 //
@@ -985,6 +989,14 @@ export const deleteAccount = onCall(
     //     registry, and worse if missed: the row holds a name, so leaving
     //     it means an erased account stays findable by the search this
     //     feature exists to provide.
+    //
+    //     The count is a CONSTANT on purpose, and since D440 that is
+    //     load-bearing: the owner may already have deleted this row by
+    //     clearing their name, and the delete below is idempotent, so an
+    //     erasure that finds no row succeeds and reports exactly as one
+    //     that found it. The old client-side deny rested on this phase
+    //     "counting on" the row; it never did, and a measurement here
+    //     (exists-then-delete) would be the change that made that true.
     try {
       await db.doc(`v2_people/${uid}`).delete();
       counts.peopleRow = 1;
@@ -1404,3 +1416,9 @@ export { rebuildAggregateV2 } from "./replay";
 // SDK off the two public documents. onRequest, and no App Check, because
 // it serves the open web; the reasoning is share.ts's header.
 export { resultsPageV2 } from "./share";
+// D443: the data export — deleteAccount's read-only twin, owner-only, one
+// JSON object under a byte bound. What web/terms.html's "a chance to
+// download your data first" is now backed by, and the app's answer to
+// GDPR Art. 20; exportAccount.ts's header has the three things it leaves
+// out and why.
+export { exportAccountV2 } from "./exportAccount";
