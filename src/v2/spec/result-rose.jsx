@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // result-rose.jsx — the "results profile" treatment for the per-test
 // profile tabs. Every test speaks one visual language:
@@ -71,6 +70,37 @@ export const RP_TESTS = {
       easy:  ['invested', 'easygoing'],
     },
   },
+  // ── the role instruments (D204) ──────────────────────────────────────
+  // A role card IS a result card — same rose, same rarity, same nearby
+  // types — so the two settings need exactly what every other instrument
+  // needs and nothing more. The hues sit in each setting's own family
+  // (`--c-people` rose for a 1v1, `--c-groups` gold for a group), which
+  // means a role card is already the colour of the thing it describes and
+  // no label has to say which one you are looking at.
+  // The dims are the owner's 2026-09-09 design's (D437): a 1v1's four
+  // axes a cast round names, a group's four seats.
+  duo: {
+    banner: 'oklch(0.47 0.11 8)',
+    kicker: 'Role · in 1v1s',
+    hues: { trust: 8, spark: 35, judgement: 62, constancy: 340 },
+    poles: {
+      trust:     ['told last', 'told first'],
+      spark:     ['along for it', 'starts it'],
+      judgement: ['not consulted', 'consulted'],
+      constancy: ['comes and goes', 'always there'],
+    },
+  },
+  group: {
+    banner: 'oklch(0.47 0.10 85)',
+    kicker: 'Role · in groups',
+    hues: { engine: 85, hands: 115, heart: 55, wild: 140 },
+    poles: {
+      engine: ['waits for it', 'gets it going'],
+      hands:  ['watches', 'gets it done'],
+      heart:  ['apart', 'holds the room'],
+      wild:   ['predictable', 'the twist'],
+    },
+  },
 };
 
 // hue → petal fill / deep text / dot colours (same L+C family everywhere)
@@ -78,8 +108,11 @@ const rpPetal = (h) => `oklch(0.64 0.115 ${h})`;
 const rpDeep  = (h) => `oklch(0.46 0.13 ${h})`;
 
 // ── Petal rose — petal length encodes the score, 0–100 ──
-function RosePetals({ dims, hueOf, subOf, animate }) {
-  const W = 360, H = 330, cx = 180, cy = 168, R = 92, labelR = 106, r0 = 9;
+// `compact` (2026-08-24): the same rose at side-by-side size — the Roles
+// panel already asks for it (LiveRolesPanel passes compact={true}), and
+// until this landed the prop was silently ignored and the rose drew full.
+function RosePetals({ dims, hueOf, subOf, animate, compact }) {
+  const W = 360, H = compact ? 238 : 330, cx = 180, cy = compact ? 121 : 168, R = compact ? 70 : 92, labelR = compact ? 84 : 106, r0 = compact ? 7 : 9;
   const n = dims.length, slice = 360 / n, gapD = n > 6 ? 9 : 12;
   const rad = (d) => (d * Math.PI) / 180;
   const pt = (aDeg, r) => [cx + Math.cos(rad(aDeg)) * r, cy + Math.sin(rad(aDeg)) * r];
@@ -147,7 +180,7 @@ export function RoseMini({ testKey, dims, size = 46 }) {
 // values) encode petal length as CONVICTION (distance from centre) and label
 // each petal with the pole it leans toward — a raw 13-of-100 is a strong
 // stance, not a short petal. Unipolar tests keep score = length. ──
-export function TestRose({ testKey, dims, animate }) {
+export function TestRose({ testKey, dims, animate, compact }) {
   const cfg = RP_TESTS[testKey];
   if (!cfg || !dims || !dims.length) return null;
   const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
@@ -157,5 +190,5 @@ export function TestRose({ testKey, dims, animate }) {
   const subOf = cfg.bipolar
     ? (d) => { const w = (cfg.poles[d.id] || ['low', 'high'])[(d.raw != null ? d.raw : d.value) >= 50 ? 1 : 0]; return w.toLowerCase() === d.label.toLowerCase() ? '' : w; }
     : null;
-  return <RosePetals dims={roseDims} hueOf={hueOf} subOf={subOf} animate={animate} />;
+  return <RosePetals dims={roseDims} hueOf={hueOf} subOf={subOf} animate={animate} compact={compact} />;
 }

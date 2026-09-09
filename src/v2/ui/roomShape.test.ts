@@ -40,10 +40,12 @@ describe("roomQuestions", () => {
   });
 
   it("carries the viewer's own pick, and -1 when there isn't one", () => {
-    // Compare's whole sentence is "you against them", and `mine` is the
-    // "you". -1 rather than 0 for unanswered: 0 is a real option index,
-    // and a viewer who never answered would otherwise read as having
-    // picked the first one.
+    // The Answers row marks your own pick in the room's split and prints
+    // "62% of this room are with you" under it, and `mine` is the "you".
+    // (It read Compare's sentence too until D193, when that lens stopped
+    // folding option splits at all.) -1 rather than 0 for unanswered: 0 is
+    // a real option index, and a viewer who never answered would otherwise
+    // read as having picked the first one.
     const [answered, not] = roomQuestions(
       [q("a", ["Yes", "No"]), q("b", ["Yes", "No"])],
       {},

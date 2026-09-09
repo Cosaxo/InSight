@@ -32,10 +32,15 @@ because it had this step filed under "no accounts needed".
 **Status 2026-08-04: the switch is thrown, so this is unblocked** —
 Anonymous is measured working (`accounts:signUp` returns an `idToken`,
 where the same probe returned `ADMIN_ONLY_OPERATION` a day earlier).
-Google is enabled but **unverified**: the project-config endpoint returns
+**And Google is measured too, since 2026-09-09.** This said it was
+"enabled but **unverified**" because "the project-config endpoint returns
 only `authorizedDomains` to an unauthenticated caller, never `idpConfig`,
-so there is no remote probe for it. Signing in and running the seed IS
-the verification — treat a successful seed as proof of both.
+so there is no remote probe for it" — accurate about an *unauthenticated*
+caller, and wrong about this repo, whose deploy service account reads the
+Identity Platform admin API and gets exactly that `idpConfig`.
+`node scripts/check-auth-providers.mjs` reports **apple.com, google.com,
+anonymous and email all on**. Signing in and running the seed is still the
+end-to-end verification; what it is no longer is the ONLY one.
 
 1. ~~Copy your uid~~ — done; the maintainer's Google-account uid, the
    same one `MOD_UIDS` holds. (For a future extra operator: it's shown by
@@ -55,10 +60,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   537 questions land in `v2_questions`. Re-running is safe (idempotent,
+   1342 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 537-read
+   alone, so a reseed no longer costs every returning device a 1342-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -131,6 +136,25 @@ Both apps must be registered under `com.cosaxo.insight`:
   the file is a snapshot, not a live lookup. Nothing in this repo can see
   either omission: the file is gitignored and account-gated, so
   `check:store-copy` and CI are both blind to it.
+
+  **And register the app for App Check with the Play Integrity provider,
+  which this entry did not name until 2026-09-01.** Every callable in the
+  tree demands App Check attestation (D36, `check:appcheck` on the deploy
+  path). `src/lib/appcheck.ts` initialises the native plugin, which
+  auto-selects DeviceCheck on iOS and **Play Integrity on Android** — so
+  the Android half needs the Play Integrity API enabled on the linked
+  Cloud project, the Play Console account linked to it, and the Android
+  app registered in Firebase Console → App Check with that provider.
+
+  Miss it and the app installs, opens, renders, and **every callable is
+  rejected**. That is the same silent shape as the two traps above, and
+  the reason it was missing is worth keeping: on iOS this was satisfied as
+  a side effect of enrolling in the Apple Developer Program, so the
+  omission could not show up on the platform that shipped.
+  `docs/DEVICE-BIND.md` §1 already carries the Play Integrity console
+  steps for D29's purposes — the App Check registration is a different
+  switch on the same API, and doing one does not do the other.
+  `docs/PLAY-RELEASE.md` §2.3 has the rest of the Play path.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
   `ios/App/App/` in Xcode (add to target), then copy that file's
   `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`
@@ -146,30 +170,44 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
-- ~~**Enable the provider**~~ — **done 2026-08-04.** Firebase Console →
-  Authentication → Sign-in method: both **Google** and **Anonymous** are
-  on. D3 depends on Anonymous and it is measured, not assumed — the same
-  `accounts:signUp` probe that returned `ADMIN_ONLY_OPERATION` on
-  2026-08-03 now returns an `idToken`. Google is enabled but has no remote
-  probe (§1 explains why); the seed run verifies it. The client side is
+- ~~**Enable the provider**~~ — **done, and MEASURED 2026-09-09: every
+  door is on.** Firebase Console → Authentication → Sign-in method carries
+  **apple.com, google.com, anonymous and email**, all enabled — read from
+  the Identity Platform admin API with the deploy service account
+  (`node scripts/check-auth-providers.mjs`, HTTP 200). That probe is new
+  and it retires this item's own hedge: §1 said Google had *no remote
+  probe*, which is true only of an unauthenticated caller. D3 depends on
+  Anonymous and was already measured by the `accounts:signUp` probe that
+  returned `ADMIN_ONLY_OPERATION` on 2026-08-03 and an `idToken` after.
+  **Both Apple prerequisites are now measured and neither is open**: the
+  **Developer portal** capability on the App ID by an `ios-release.yml` dry
+  run (upload off, run 58) whose Archive step passed — the step that fails
+  without it — and the **Firebase** provider by the probe above. What is
+  left for that door is a tap on a handset, which is a test and not a
+  setting. The client side is
   wired: `capacitor.config.ts` declares
-  `providers: ["google.com"]` and `android/variables.gradle` sets
+  `providers: ["apple.com", "google.com"]` (Apple added 2026-09-09 — the
+  plugin builds a handler only for the ids named here, so every Apple
+  entry point rejected on device until it was) and
+  `android/variables.gradle` sets
   `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
   flag the Google libraries are `compileOnly`, so an Android build
-  compiles and ships but throws the moment anyone taps *Link Google*.
+  compiles and ships but throws the moment anyone taps *Continue with
+  Google* (the D134 gate — since D211 the only Google entry point).
 - Run `npm run sync` after any `capacitor.config.ts` change — the native
   shells read the copied config, not this file.
 
 ## 3 · Store accounts & builds (device-gated)
 
-- **App icon — done, but it is a first pass.** Both shells shipped the
-  stock Capacitor mark until now, which is a hard rejection on iOS and an
-  instant tell on Android; nothing in this checklist mentioned it. The
-  mark now lives in `design/icon/mark.svg` (the Mirror in one glyph: you,
-  and the people you are placed among) in the design system's own colours,
-  and `node scripts/gen-icons.mjs` rasterises all 16 launcher assets from
-  it. Replace the SVG and re-run if a designer takes it further — do not
-  hand-edit the PNGs, they are generated.
+- **App icon — the iris (D302).** Both shells shipped the stock Capacitor
+  mark until 2026-08-03's first pass, and that pass was replaced by the
+  identity canvas's iris on 2026-08-26: hexagon-and-spokes lattice in the
+  app's seven accent hues on the ink tile, you at the pupil. The mark
+  lives in `design/icon/mark.svg` (two palette groups over one geometry —
+  D302 says why one is not enough), and `node scripts/gen-icons.mjs`
+  rasterises all 16 launcher assets from it. Replace the SVG and re-run
+  if a designer takes it further — do not hand-edit the PNGs, they are
+  generated.
   - **The rest of the imagery is generated too, as of 2026-08-03.**
     `npm run build:screenshots` drives the real app through six scenes at
     both stores' pixel sizes (`design/store/screenshots/`), and
@@ -219,15 +257,34 @@ Both apps must be registered under `com.cosaxo.insight`:
   account opens as an organization**, backed by an ENK and a D-U-N-S.
   Two stores, two answers.
 
-  **Superseded on timing by [D42](DECISIONS.md) (2026-08-04): Play is
-  deferred and InSight launches on iOS alone.** D41's answer is not
-  reversed, it is conditional — organization is still the right account
-  type *if Play is opened before there is an installed base*. After one,
-  the 12×14 gate may be satisfiable by asking existing users, because the
-  two routes' costs move in opposite directions: the ENK chain costs the
-  same whenever taken, while recruiting twelve installed testers is brutal
-  cold and easy with an audience. So deferring may retire D41 unused
-  rather than merely postponing it. Nothing below about Apple changes.
+  **Deferred on timing by [D42](DECISIONS.md) (2026-08-04) — and
+  UN-DEFERRED by [D345](DECISIONS.md) (2026-09-01), which is the state
+  today.** D42 never reversed D41, it made it conditional: organization is
+  the right account type *if Play is opened before there is an installed
+  base*, and after one the 12×14 gate may be satisfiable by asking
+  existing users, because the two routes' costs move in opposite
+  directions — the ENK chain costs the same whenever taken, while
+  recruiting twelve installed testers is brutal cold and easy with an
+  audience.
+
+  **The owner took the before-an-installed-base branch** (*"yes, do both
+  and i will go for a ENK"*), which is the branch D41 was written for, so
+  **D41 stands in full and needs no re-deriving**. Two of its figures moved
+  in this choice's favour: the gate is 12 testers rather than the 20 D41
+  launched at, and tester *engagement* is now checked as well as count.
+  D345 also built the two code items that blocked any Android artifact —
+  release signing and `play-release.yml` — so Play is work rather than
+  backlog. The one thing still unverified is the one that costs money:
+  whether Google's organization verification accepts an
+  Enhetsregisteret-only ENK or wants Foretaksregisteret (~3,000 kr); check
+  it in the Play Console account-type flow before paying for a D-U-N-S
+  expedite. Nothing here about Apple changes.
+
+  **This paragraph said "iOS alone" for three days after it stopped being
+  true**, and this file is the canonical one — `LAUNCH-RUNBOOK.md` defers
+  to it. D345 named neither. No gate reads whether a sentence is still
+  true, which is `docs/DOC-SWEEP.md`'s subject and the reason that lane
+  exists.
 
   Registering the ENK does not change the values above — an ENK is not a
   separate legal person, so the operator is still Olaf Taule. **If it is
@@ -332,7 +389,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | User content → Other | Answers, test results | Yes | App functionality |
   | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
   | Location → Coarse | City name (see below) | Yes | App functionality |
-  | Diagnostics → Crash data | Sentry, **on by default, opt-out in the privacy panel** (D76), uid only | Yes | App functionality |
+  | Diagnostics → Crash data | Sentry, **on, no in-app switch** (D76, toggle removed at D211), uid only | Yes | App functionality |
   | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
 
   Three things to get right, because they are the ones that bite:
@@ -475,6 +532,45 @@ Both apps must be registered under `com.cosaxo.insight`:
   comfortable if a live takes surface ships later" — has come due twice
   over: the surface shipped at D83 with the report control alongside it,
   and D98 attached names. Both obligations are met above; keep them met.
+
+  **The second trap was guideline 3.1, and it is CLOSED — the door left
+  the binary at D368 (2026-09-05).** `src/v2/spec/suggestions.jsx` and
+  its `SuggestOverlay` no longer exist, and nothing in `src/` or `web/`
+  references them. This section described the funnel in the present
+  tense, and asked for a decision that had already been taken, until
+  2026-09-07: an operator reading the canonical release document met a
+  live 3.1 risk that was not there. Kept below as the REASONING, because
+  it is why the door moved and a reviewer may still ask.
+
+  What it said, as of 2026-08-31: the app carries a complete purchase
+  funnel — `SuggestOverlay` is the paid door, rate card, scope ruler,
+  composer, and a pay tap that opens Stripe, entered from the profile
+  tab, selling a question window at EUR 320 or an ad at EUR 288. (Both
+  prices are also gone: the card is now a menu of EUR 10 / 25 / 50 with a
+  EUR 50 cap, and the ad lane retired at D375.) D313's *"commerce stays
+  on the web side"* is a true sentence about where the payment **form**
+  renders; 3.1.1 is about where the **call to action** lives, and that
+  was inside the binary.
+
+  Two readings, and the gap between them is the risk. What is sold is
+  **advertising** — distribution to other people, not a feature unlocked
+  for the buyer — and MONETIZATION.md's *"a buyer gets no read path a
+  signed-in user does not have"* makes that structurally true rather
+  than merely argued. Apple's 3.1.3(e) *forbids* IAP for campaign
+  purchases, and Play has never required its billing for ad spend. But
+  3.1.3(e) is written for apps *"for the sole purpose of"* campaign
+  management and *"not offered to a general audience"*, and this is a
+  consumer app with a B2B door in its profile tab — Meta's "Boost Post"
+  shape, which Apple charged for.
+
+  **Decided before the first submission, which is what this paragraph
+  asked for.** It read "decide it before the first submission, not after
+  a rejection … the door can leave at no cost today", and that is what
+  happened at D368 — zero sales, no submission, no cycle spent. [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is the working —
+  including the finding that IAP could not express this product's
+  billing at all, since the closer's partial refund (D164) has no
+  in-app-purchase primitive, and the four legal facts to verify before
+  the decision is recorded.
 - Apple Developer Program (~2 days to approve — start early, as an
   **individual** enrollment). **A Mac is no longer required**: since
   2026-08-05 `.github/workflows/ios-release.yml` archives, exports and
@@ -495,28 +591,43 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## 3b · Invite links — two fingerprints (account-gated)
 
-The code half is live: sharing copies a `/join/CODE` link, the hosted
-fallback page works today, and the app prefills a tapped code. Direct
-app-open needs:
+**The custom scheme carries this now (D238).** `insight://join/CODE` is
+registered on both platforms and needs no fingerprint at all, so a tapped
+invite reaches the app today: `web/join.html`'s one button navigates
+there. Nothing below is on the critical path any more — a tapped code no
+longer has to be read by a person, because there is no field left to type
+it into.
+
+The two fingerprints are still worth having. A custom scheme cannot be
+VERIFIED — any app may claim it — and an https link that opens the app
+directly skips the landing page altogether. Step 1 is the one still
+outstanding:
 
 1. `web/.well-known/assetlinks.json` — replace
    `REPLACE_WITH_PLAY_SIGNING_SHA256` with the Play App Signing SHA-256
    (Play Console → Setup → App signing).
-2. `web/.well-known/apple-app-site-association` — replace
-   `REPLACE_WITH_TEAM_ID` with the Apple Team ID.
+2. `web/.well-known/apple-app-site-association` — **done, 2026-08-05.**
+   It carries the real Team ID (`U2LVW456S7.com.cosaxo.insight`), and
+   this step said `REPLACE_WITH_TEAM_ID` for seventeen days after it
+   stopped being true. Left in place rather than deleted because a step
+   that reads "replace this" against a file that already holds the real
+   value is how a good credential gets overwritten with a placeholder.
 3. Redeploy hosting, reinstall the app, tap a link. Android:
    `adb shell pm get-app-links com.cosaxo.insight` should show verified.
    iOS re-fetches AASA on install (CDN-cached; allow up to a day).
 
-Until then links open the fallback page — degraded, not broken.
+Until then an https link opens the fallback page, which offers the app
+by scheme — one tap, no code. `check:store-copy` fails while step 1 is
+unreplaced, and that failure is the reminder rather than a blocker on
+anything a user does.
 
 ## 4 · On-device verification list (first build)
 
 - [ ] App opens frameless, header clear of the notch, dock clear of the
       home indicator (light + dark).
 - [ ] Anonymous session survives app restarts (same uid, map intact).
-- [ ] Link Google from the privacy panel; reinstall the app; sign in —
-      history restored.
+- [ ] Sign in with Google at the D134 gate (the panel's Link row left at
+      D211); reinstall the app; sign in — history restored.
 - [ ] Create a duo on one phone, join by code on another, both seal —
       after the next UTC midnight the reveal push arrives and opens the
       app.
@@ -568,6 +679,16 @@ Until then links open the fallback page — degraded, not broken.
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
   — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
+
+- **TTL for the engagement rollups** (one-time, same shape — D272):
+  `gcloud firestore fields ttls update expireAt --collection-group=engagement --enable-ttl --project=prvfire33`
+  — the client stamps `expireAt` (+90 days, `ROLLUP_TTL_DAYS`). This is
+  the deletion for the person channel's uid-keyed trail: the fold marks
+  rollups, it never deletes them, so a policy never applied means the
+  rolling window quietly stops rolling — the privacy promise on
+  `web/privacy.html` ("deletes itself 90 days after its day") is what
+  this command makes true. The `_state` doc carries no expireAt and
+  correctly never expires; it dies with the account.
   The window is sized for attribution, not dedup: entries carry the
   answering uid so a discovered fake-account ring can be subtracted from
   the exact counts months later (D28; the correction runbook is in
@@ -603,6 +724,14 @@ Until then links open the fallback page — degraded, not broken.
   Record the answer next to this line once checked; it is the difference
   between "infrastructure is free below 5k DAU" being true and being
   approximately true.
+
+  **ANSWERED 2026-08-27 (D333): Firebase Authentication, the free
+  edition.** Read off the API rather than the console: the Identity
+  Toolkit admin config for `prvfire33` reports `subtype: FIREBASE_AUTH`,
+  and `identityplatform.googleapis.com` is not activated on the project
+  (Service Usage refuses to even describe it, which is how a
+  never-activated marketplace service answers). Anonymous-first costs $0
+  at any MAU until someone deliberately upgrades, and nothing here has.
 
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
@@ -767,34 +896,44 @@ Until then links open the fallback page — degraded, not broken.
      confirm nothing sensitive is tracked. A `git add -A` after a signing
      session is an incident a revert cannot fix — the object stays in
      history and the key must be rotated.
-- **Sign in with Apple (guideline 4.8) — prepared, not built.** Google is
-  currently the only third-party sign-in on iOS, which 4.8 says must be
-  accompanied by an equivalent privacy-preserving option. We expect to
-  pass without it, because the app's *primary* path is anonymous: no
-  account is required, nothing is requested, and Google is an optional
-  upgrade rather than a login wall. If a reviewer cites 4.8, reply with
-  that — and **stop there**.
+- **Sign in with Apple (guideline 4.8) — BUILT 2026-09-07 (D414), and
+  the reply below is retired with the posture that justified it.** 4.8
+  says a third-party sign-in must be accompanied by an equivalent
+  privacy-preserving option. The app now offers Apple's door beside
+  Google's and an email/password door of its own, so it satisfies the
+  rule directly rather than by argument. **Do not send the old reply**:
+  it rested on the app requiring no account, which stopped being true
+  the day the wall went up.
 
-  **Every word of that reply is conditional on a build flag, and the flag
-  defaults the wrong way for it (D134, D142).** `ios-release.yml` sets
-  `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
-  `true`**, so a release build opens on a mandatory Google sign-in and
-  nothing else works until it succeeds. Against such a binary *"no account
-  is required"* and *"an optional upgrade rather than a login wall"* are
-  both false, and sending them would argue against the app the reviewer is
-  holding — the same failure as the deleted email clause below, one level
-  up: not a sentence that went stale, but one a build setting can falsify
-  on any given run.
+  **This paragraph was itself stale in BOTH directions, which is worth
+  keeping as the warning.** It said `ios-release.yml` "defaults it to
+  `true`" — D219 changed that to `'false'` on 2026-08-20 and nobody came
+  back here, so for eighteen days the canonical release document
+  described a wall the builds did not have. D414 has now flipped it back
+  to `'true'`, which makes the sentence accidentally correct again for a
+  reason it never stated. The lesson is not about this flag: a document
+  that reads a build setting has to be updated by whoever moves the
+  setting, and neither D219 nor this file's own gate could see the
+  divergence.
 
-  So this reply is usable **only** from a build with `REQUIRE_SIGNIN` set
-  to `false`. The wall is right for TestFlight and wrong for submission;
-  D134 states that fork and leaves the choice — drop the wall, or build
-  Sign in with Apple — deliberately open. **Check the flag before quoting
-  this bullet**, and note that a wall raises 5.1.1(v) (an app should be
-  usable without an account unless its core features need one) before it
-  raises 4.8: this app's loop ran anonymously for twelve builds, so that
-  argument is about the product and costs more than adding a provider.
-  Runbook 6.2 carries the operational half.
+  D134's fork — drop the wall, or build Sign in with Apple — is closed:
+  D414 took the second branch, and both doors ship. What is left is the
+  half a provider cannot answer. **A wall raises 5.1.1(v)** (an app
+  should be usable without an account unless its core features need one)
+  **before it raises 4.8**, and this app's loop ran anonymously for
+  twelve builds, so that argument is about the product and costs more
+  than adding a provider. D414 §5 has the reply written out. Runbook
+  6.2 carries the operational half.
+
+  **The wall now passes on two conditions, not one** (D414's amendment):
+  the session is linked AND no address is waiting to be confirmed. An
+  account made at the email door does not reach the app until its
+  confirmation mail is opened — so if a reviewer creates an account with
+  a throwaway address they cannot read, they will be held at *Confirm
+  your address* and may report the app as broken. **Apple's own door
+  does not do this** (Apple hands over an address it has already
+  verified), and the review guide should point a reviewer at it. Runbook
+  5.16 is the mail's own dependency.
 
   **This bullet used to add "and the app collects no email or name via
   Google either". Delete that from any reply; it is false.**
@@ -851,9 +990,33 @@ Until then links open the fallback page — degraded, not broken.
 - ~~Functions runtime Node 20 → upgrade before 2026-10-30
   decommission.~~ Done: nodejs22 + firebase-functions v6 +
   firebase-admin v13. Verify the first scheduled runs after deploy.
-- `onV2AnswerCreated` region (us-central1) vs Firestore (eur3) — works,
-  cross-region hop; relocate when convenient (requires delete+recreate
-  of the trigger).
+- ~~**Every function runs in `us-central1`; the database has been
+  `europe-west1` since D165.**~~ **Moved in code (D201) — the DEPLOY is
+  outstanding, and it is not an ordinary one.** Both constants
+  (`functions/src/ops.ts`, `src/lib/region.ts`) read `europe-west1`, all 28
+  functions compile to it, and `check:fn-runtime` fails if the two sides
+  disagree or if a call site starts spelling a region out again.
+
+  This line named `eur3` until D200 and was stale in its facts while right
+  in its substance. D200 measured what the split cost before closing it:
+  ~5.5 KB crosses per answer through the fold, **$0.47/month at 5 k DAU and
+  $4.65 at 50 k** — about 2% of the Firestore line, so cost was never the
+  argument. The argument was a transatlantic round trip on every fold and
+  EU answers processed in the US, and the deadline is the install base:
+  every client calls the region its own bundle names, so this gets more
+  expensive with every person who installs the app.
+
+  **Two things make the deploy different from every other one here**, both
+  in `DEPLOYMENT.md § Moving the functions`: a region is part of a
+  function's identity, so the deploy CREATES the new copies and the old
+  ones must be confirmed gone — while both exist, both Firestore triggers
+  fire and **every answer folds twice**, which the event-ledger dedup does
+  not prevent (it keys on the CloudEvent id, so it makes a retry safe and
+  says nothing about a second subscription). And a client build has to
+  follow, because every build shipped before it — 21 and earlier — keeps
+  calling `us-central1` and gets
+  a 404 on every callable — the daily and the Mirror keep working, since
+  they read Firestore directly.
 - Ranking/scale feed card types; Circle/Near mirror population fields
   (need geo opt-in + circle data); world comments are OUT by decision D1.
 - Bundle: the world feed now loads after first paint (D25), taking the

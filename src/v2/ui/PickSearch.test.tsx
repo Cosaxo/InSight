@@ -35,6 +35,14 @@ const stores = vi.hoisted(() => ({
   artists: [
     { key: 1299, name: "Nina Simone" },
   ],
+  athletes: [
+    { key: 615, name: "Lionel Messi" },
+    { key: 11459, name: "Serena Williams" },
+  ],
+  videogames: [
+    { key: 213911, name: "The Legend of Zelda: Ocarina of Time (1998)" },
+    { key: 71910, name: "Tetris (1984)" },
+  ],
   emoji: [
     { key: 128293, name: "🔥 fire" },
   ],
@@ -44,6 +52,14 @@ const stores = vi.hoisted(() => ({
   ],
   dogs: [
     { key: 223, name: "Golden Retriever" },
+  ],
+  colors: [
+    { key: 256, name: "blue" },
+    { key: 1, name: "black" },
+  ],
+  languages: [
+    { key: 47, name: "French (Français)" },
+    { key: 37, name: "English" },
   ],
 }));
 
@@ -65,9 +81,13 @@ vi.mock("../data/pokedex", () => ({
 vi.mock("../data/catalogs", () => ({
   FILMS: catalogStore(() => stores.films),
   ARTISTS: catalogStore(() => stores.artists),
+  ATHLETES: catalogStore(() => stores.athletes),
+  VIDEOGAMES: catalogStore(() => stores.videogames),
   EMOJI: catalogStore(() => stores.emoji),
   COUNTRIES: catalogStore(() => stores.countries),
   DOGS: catalogStore(() => stores.dogs),
+  COLORS: catalogStore(() => stores.colors),
+  LANGUAGES: catalogStore(() => stores.languages),
 }));
 
 const { default: PickSearch } = await import("./PickSearch");
@@ -132,6 +152,22 @@ describe("PickSearch · each domain searches its own catalogue", () => {
     type("Nina");
     await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
     expect(screen.getAllByRole("option")[0].textContent).toMatch(/Nina Simone/);
+  });
+
+  it("offers athletes for the athletes domain, keyed by QID (D308)", async () => {
+    const { onPick } = mount("athletes");
+    type("serena");
+    await choose(/Serena Williams/);
+    // The QID key, like every QID domain — never the name.
+    expect(onPick).toHaveBeenCalledWith(11459);
+  });
+
+  it("offers games for the videogames domain, keyed by QID (2026-09-06)", async () => {
+    const { onPick } = mount("videogames");
+    type("ocarina");
+    await choose(/Ocarina of Time/);
+    // The QID key, like every QID domain — never the name.
+    expect(onPick).toHaveBeenCalledWith(213911);
   });
 
   it("falls back to pokemon for an unknown domain rather than rendering empty", () => {

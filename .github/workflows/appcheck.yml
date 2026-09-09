@@ -1,0 +1,152 @@
+# App Check — read the state, register a debug token, flip enforcement.
+#
+# WHY THIS EXISTS. LAUNCH-RUNBOOK 1.4 and 3.4 were written as Firebase
+# Console clicks, and a console-only step is one nobody can run from a
+# phone, prove after the fact, or diff. Both are real API resources
+# (`projects.apps.debugTokens`, `projects.services`), so the console was a
+# choice rather than a constraint — see `scripts/appcheck.mjs`, which is
+# where the reasoning and the not-yet-verified paths are written down.
+#
+# This is `monitoring.yml`'s shape one API over, deliberately: same
+# FIREBASE_SERVICE_ACCOUNT, same `environment: production`, same
+# dispatch-only, same `apply` off unless asked. Read that file's header for
+# why the environment line does more than scope a secret — it also means
+# this can only run from `main`.
+#
+# THE DEBUG TOKEN NEVER APPEARS IN A LOG. `register-debug-token` registers
+# the value already in the APPCHECK_DEBUG_TOKEN secret; the script neither
+# mints nor echoes one, and its suite pins that. A token printed here would
+# be a bypass credential (D337) sitting in a log readable by anyone with
+# repo read — a wider audience than the secret itself has.
+#
+# NOT ON THE DEPLOY PATH, and it must not become one. `enforce` is the
+# irreversible direction: after the flip, a client that cannot attest stops
+# getting rows with nothing in its output about why. A deploy that was
+# about something else must never be able to do that.
+
+name: App Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to do"
+        type: choice
+        default: report
+        options: [report, register-debug-token, enforce]
+      apply:
+        description: "Actually change it. Off = report what would happen and change nothing."
+        type: boolean
+        default: false
+      app:
+        description: "register-debug-token: the Firebase app id (run `report` first to list them)"
+        type: string
+        required: false
+        default: ""
+      display_name:
+        description: "register-debug-token: a name for the token, so it can be revoked by sight"
+        type: string
+        required: false
+        default: ""
+      service:
+        description: "enforce: which service"
+        type: choice
+        default: firestore.googleapis.com
+        options:
+          - firestore.googleapis.com
+          - firebasestorage.googleapis.com
+          - identitytoolkit.googleapis.com
+          - firebasedatabase.googleapis.com
+          - oauth2.googleapis.com
+      mode:
+        description: "enforce: UNENFORCED collects metrics and refuses nothing. ENFORCED refuses."
+        type: choice
+        default: UNENFORCED
+        options: [UNENFORCED, ENFORCED, OFF]
+
+permissions:
+  contents: read
+
+# Two concurrent runs could register the same token twice, or race a flip
+# against a read. Not cancel-in-progress: killing a run mid-PATCH leaves the
+# state unknown, which is worse than waiting.
+concurrency:
+  group: appcheck
+  cancel-in-progress: false
+
+jobs:
+  appcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Run
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+          APPCHECK_DEBUG_TOKEN: ${{ secrets.APPCHECK_DEBUG_TOKEN }}
+          # Free text travels through the environment, never through GitHub
+          # expression syntax — an expression is substituted before the shell
+          # parses the line, so operator-supplied text would land directly in
+          # the command. The choice inputs ARE interpolated, and that is safe
+          # for a different reason: an enum can only carry its own options.
+          APP: ${{ inputs.app }}
+          DISPLAY_NAME: ${{ inputs.display_name }}
+        run: |
+          # pipefail, for the reason seed-content.yml records: `cmd | tee`
+          # reports TEE's status, so without it a FAILED run is a green job.
+          set -o pipefail
+          ARGS=()
+          case "${{ inputs.action }}" in
+            report)
+              ;;
+            register-debug-token)
+              if [ -z "$APPCHECK_DEBUG_TOKEN" ]; then
+                echo "APPCHECK_DEBUG_TOKEN is not set on this environment."
+                echo "Generate a UUID4, put it in the secret, then dispatch this again."
+                echo "The script deliberately cannot mint one — see its header."
+                exit 1
+              fi
+              ARGS+=(--register-debug-token --app "$APP")
+              [ -n "$DISPLAY_NAME" ] && ARGS+=(--display-name "$DISPLAY_NAME")
+              ;;
+            enforce)
+              ARGS+=(--enforce "${{ inputs.service }}" --mode "${{ inputs.mode }}")
+              ;;
+          esac
+          [ "${{ inputs.apply }}" = "true" ] && ARGS+=(--apply)
+          node scripts/appcheck.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/appcheck.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### App Check — ${{ inputs.action }}"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/appcheck.txt" 2>/dev/null || echo "(the script did not run — see the step log)"
+            echo '```'
+            echo ""
+            echo "#### Reading it"
+            echo ""
+            echo "\`+ … would\` is a DRY RUN. Nothing changed. Re-dispatch with \`apply\` on."
+            echo ""
+            echo "A failure naming \`roles/…\` is a role missing from the deploy service"
+            echo "account, not a code change. App Check management wants"
+            echo "\`roles/firebaseappcheck.admin\` if \`Editor\` does not already cover it."
+            echo ""
+            echo "**Order matters (LAUNCH-RUNBOOK 1.4 → 3.4).** Register both debug tokens"
+            echo "— yours and CI's, separate values so they revoke independently — and let"
+            echo "24–48h of metrics accrue while everything is UNENFORCED. Only then"
+            echo "enforce, Firestore first, then Storage. After the flip an unattested"
+            echo "browser simply stops returning rows with nothing in its output about"
+            echo "why, and a dev machine and the screenshot job are both that browser."
+            echo ""
+            echo "reCAPTCHA is deliberately NOT provisioned (D337): there is no public web"
+            echo "client, so the web provider only ever served those two browsers."
+          } >> "$GITHUB_STEP_SUMMARY"

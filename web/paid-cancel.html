@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InSight — payment not completed</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.svg" />
+  <!--
+    Stripe Checkout's cancel_url (paid.ts createPaidCheckoutV2, D313).
+    Nothing happened: no charge, no state moved — the booking simply
+    stays approved, and the app's pay button mints a fresh session
+    whenever the buyer is ready. Same spare register as paid-done.html.
+  -->
+  <style>
+    :root {
+      --paper: #f7f1e8;
+      --ink: #2a2419;
+      --ink-2: #4d4538;
+      --ink-3: #7d705a;
+      --rule: #cfc6b3;
+      --accent: oklch(0.55 0.13 38);
+      --serif: "Fraunces", Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0 auto;
+      padding: 64px 20px 80px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; }
+    p { margin: 14px 0; color: var(--ink-2); }
+    .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-3); }
+  </style>
+</head>
+<body>
+  <h1>No charge — the payment wasn't completed.</h1>
+  <p>
+    Your question is still approved and waiting. Back in the app, the
+    <strong>Pay</strong> button on your ask opens a fresh payment page
+    whenever you're ready.
+  </p>
+  <p class="foot">
+    InSight · <a href="/privacy.html">privacy</a> · <a href="/terms.html">terms</a>
+  </p>
+</body>
+</html>

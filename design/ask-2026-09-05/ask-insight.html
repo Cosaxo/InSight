@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html><head>
+
+
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="cabbe36d-b87f-4e0b-828e-25930d464784"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("7284e9e1-e8ac-405f-a435-16e0e30a0f2d") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("5cf6eb4f-3049-4ff5-91a2-29b082cc14c7") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("8b155039-d954-487e-94d2-d06a475309e0") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("2822902a-3aaf-4394-b679-9212d2f66be6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("7284e9e1-e8ac-405f-a435-16e0e30a0f2d") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("5cf6eb4f-3049-4ff5-91a2-29b082cc14c7") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("8b155039-d954-487e-94d2-d06a475309e0") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("2822902a-3aaf-4394-b679-9212d2f66be6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("7284e9e1-e8ac-405f-a435-16e0e30a0f2d") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("5cf6eb4f-3049-4ff5-91a2-29b082cc14c7") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("8b155039-d954-487e-94d2-d06a475309e0") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("2822902a-3aaf-4394-b679-9212d2f66be6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("7284e9e1-e8ac-405f-a435-16e0e30a0f2d") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("5cf6eb4f-3049-4ff5-91a2-29b082cc14c7") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("8b155039-d954-487e-94d2-d06a475309e0") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("2822902a-3aaf-4394-b679-9212d2f66be6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("7284e9e1-e8ac-405f-a435-16e0e30a0f2d") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("5cf6eb4f-3049-4ff5-91a2-29b082cc14c7") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("8b155039-d954-487e-94d2-d06a475309e0") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("2822902a-3aaf-4394-b679-9212d2f66be6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("25ae3780-1f00-46d6-9e3d-bc5df580d825") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("bb87966d-54db-43cd-bb15-c54fe111ef88") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("88498326-5f7a-4db6-9455-703d87c59443") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("170b8f66-3714-4341-beff-fec58a2eff3d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("39740be5-4bde-4469-a4a1-8c13be7b0401") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("569ebbbf-58f9-4837-bac7-51da0cdc16f6") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("048c84ef-50db-44c6-ba04-d00d61bd5f51") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("c5d8c927-c0b9-4a1a-a4f9-289e6ccb51bc") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("7f0f6cf6-aa4b-4b8e-a728-86ed39b41d74") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("cd6bf8c9-126b-4219-a7f0-d73f3cfd7da1") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("d165a741-e557-4d59-8f0d-603e3eb740a8") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("4b8aab22-55ba-48d5-8fd6-3c92ba56a9df") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("64d09c7f-3369-446b-92e3-eb37cd7373d0") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("39f9605a-f091-4196-8a1f-a711f4f2d443") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("424ea7bf-3f6a-44fa-8901-8cfee33967bd") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("0b167e21-95ea-4eec-8780-9f8f8a1a11f3") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("c23ed555-f644-458e-9b94-67954be38f1f") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("e04b2c21-7b4a-487d-aa01-6013f02d95f4") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("e68d4789-34aa-44e3-a943-ba8877b7c3f9") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("7ffd6b22-fa78-4970-92ae-68f85aadc408") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+html,body{margin:0;padding:0;background:oklch(0.965 0.004 75);}
+body{font-family:'Hanken Grotesk',system-ui,sans-serif;color:oklch(0.216 0.011 70);-webkit-font-smoothing:antialiased;}
+a{color:oklch(0.44 0.13 265);text-decoration:none;}a:hover{color:oklch(0.216 0.011 70);}
+input,textarea,button{font-family:inherit;}
+input:focus,textarea:focus{outline:none;}
+@keyframes ask-pulse{0%,100%{opacity:0.35}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 60% at 50% -10%, color-mix(in oklch, oklch(0.52 0.14 265) 7%, oklch(0.965 0.004 75)), oklch(0.965 0.004 75) 70%);">
+<div style="max-width:1040px;margin:0 auto;padding:22px 24px 64px;box-sizing:border-box;">
+
+  <!-- site header: the hosting site, not the app -->
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-size:19px;font-weight:800;letter-spacing:-0.02em;">in<span style="color:oklch(0.44 0.13 265);">Sight</span></span>
+      <span style="font-size:12px;font-weight:600;color:oklch(0.472 0.010 68);">insight.app</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;font-size:13px;font-weight:600;color:oklch(0.41 0.011 68);">
+      <span style="color:oklch(0.216 0.011 70);border-bottom:2px solid oklch(0.52 0.14 265);padding-bottom:2px;white-space:nowrap;">Ask InSight</span>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <sc-if value="{{ signedIn }}" hint-placeholder-val="{{ true }}">
+        <span style="display:inline-flex;align-items:center;gap:7px;border:0.5px solid oklch(0.905 0.006 74);border-radius:999px;padding:4px 10px 4px 5px;background:oklch(0.994 0.0025 80);">
+          <span style="width:20px;height:20px;border-radius:50%;background:oklch(0.216 0.011 70);color:oklch(0.965 0.004 75);font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">MH</span>
+          <span style="font-size:12px;font-weight:700;">mira@…</span>
+        </span>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- hero -->
+  <div style="margin-top:56px;max-width:720px;">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:oklch(0.472 0.010 68);">Ask InSight · a question to a real population</div>
+    <h1 style="margin:12px 0 0;font-family:'Spectral',Georgia,serif;font-weight:500;font-size:clamp(30px, 4.6vw, 44px);line-height:1.12;letter-spacing:-0.015em;text-wrap:pretty;">One question. Asked of a city, a country, or everyone. Answered by named people, counted in public.</h1>
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;color:oklch(0.41 0.011 68);max-width:600px;text-wrap:pretty;">For a city hall, a brand, a newsroom or a researcher. You pay the cap up front; whatever the population does not answer in {{ refundDays }} days comes back on its own.</p>
+  </div>
+
+  <!-- composer + aside -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 380px), 1fr));gap:22px;margin-top:38px;align-items:start;">
+
+    <!-- ── left: the composer / the quote ── -->
+    <div style="position:relative;">
+
+      <!-- composing -->
+      <sc-if value="{{ isComposing }}" hint-placeholder-val="{{ true }}">
+        <div style="border:1px solid color-mix(in oklch, oklch(0.905 0.006 74), oklch(0.52 0.14 265) 9%);border-radius:18px;background:oklch(0.994 0.0025 80);box-shadow:0 1px 1px oklch(0.24 0.02 275 / 0.04), 0 2px 6px -2px oklch(0.24 0.02 275 / 0.07), 0 12px 28px -14px oklch(0.24 0.02 275 / 0.12);padding:18px 20px 20px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:oklch(0.472 0.010 68);">your question</span>
+            <span style="font-size:11px;font-weight:600;color:oklch(0.472 0.010 68);font-variant-numeric:tabular-nums;">{{ promptLen }} / 120</span>
+          </div>
+          <textarea rows="3" value="{{ prompt }}" sc-camel-on-change="{{ onPrompt }}" placeholder="Should Oslo’s night buses run all night at weekends?" style="display:block;width:100%;box-sizing:border-box;margin-top:8px;border:none;background:transparent;resize:none;overflow:hidden;min-height:100px;font-family:'Spectral',Georgia,serif;font-size:27px;font-weight:500;line-height:1.22;letter-spacing:-0.012em;color:oklch(0.216 0.011 70);padding:0;"></textarea>
+          <div style="display:flex;gap:6px;margin-top:16px;flex-wrap:wrap;align-items:center;">
+            <sc-for list="{{ types }}" as="t" hint-placeholder-count="4">
+              <button sc-camel-on-click="{{ t.pick }}" style="min-height:34px;padding:0 13px;border-radius:999px;border:0.5px solid {{ t.border }};background:{{ t.bg }};color:{{ t.ink }};font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">{{ t.label }}</button>
+            </sc-for>
+            <span style="font-size:11px;font-weight:600;color:oklch(0.472 0.010 68);margin-left:auto;">{{ typeHint }}</span>
+          </div>
+          <sc-if value="{{ hasOptions }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+              <sc-for list="{{ opts }}" as="o" hint-placeholder-count="2">
+                <div style="position:relative;display:flex;align-items:center;">
+                  <span style="position:absolute;left:12px;font-size:11px;font-weight:800;color:oklch(0.472 0.010 68);font-variant-numeric:tabular-nums;">{{ o.num }}</span>
+                  <input value="{{ o.value }}" sc-camel-on-change="{{ o.onChange }}" placeholder="{{ o.placeholder }}" style="min-height:46px;box-sizing:border-box;border:1.4px solid oklch(0.905 0.006 74);border-radius:12px;background:oklch(0.965 0.004 75);padding:0 34px 0 30px;font-size:16px;font-weight:650;color:oklch(0.216 0.011 70);width:100%;">
+                  <sc-if value="{{ o.removable }}" hint-placeholder-val="{{ false }}">
+                    <button sc-camel-on-click="{{ o.remove }}" aria-label="Remove option" style="position:absolute;right:6px;width:28px;height:28px;border-radius:50%;border:none;background:transparent;color:oklch(0.472 0.010 68);font-size:16px;cursor:pointer;line-height:1;">×</button>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <sc-if value="{{ canAddOpt }}" hint-placeholder-val="{{ true }}">
+                <button sc-camel-on-click="{{ addOpt }}" style="min-height:46px;border-radius:12px;border:1.4px dashed oklch(0.905 0.006 74);background:transparent;color:oklch(0.472 0.010 68);font-size:13.5px;font-weight:700;cursor:pointer;">+ {{ addLabel }}</button>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isScale }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;">
+              <sc-for list="{{ scaleSteps }}" as="k" hint-placeholder-count="5">
+                <div style="min-height:46px;border-radius:12px;border:1.4px solid oklch(0.905 0.006 74);background:oklch(0.965 0.004 75);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:650;color:oklch(0.41 0.011 68);text-align:center;padding:0 4px;">{{ k }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isRating }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;display:grid;grid-template-columns:repeat(10, 1fr);gap:4px;">
+              <sc-for list="{{ ratingSteps }}" as="k" hint-placeholder-count="10">
+                <div style="min-height:46px;border-radius:10px;border:1.4px solid oklch(0.905 0.006 74);background:oklch(0.965 0.004 75);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:oklch(0.41 0.011 68);font-variant-numeric:tabular-nums;">{{ k }}</div>
+              </sc-for>
+            </div>
+            <input value="{{ axis }}" sc-camel-on-change="{{ onAxis }}" placeholder="What 10 means — e.g. completely safe" style="margin-top:8px;min-height:46px;box-sizing:border-box;border:1.4px solid oklch(0.905 0.006 74);border-radius:12px;background:oklch(0.965 0.004 75);padding:0 12px;font-size:16px;font-weight:650;color:oklch(0.216 0.011 70);width:100%;">
+          </sc-if>
+
+          <!-- scope ruler: prices ride the same axis -->
+          <div style="margin-top:26px;display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:oklch(0.472 0.010 68);">scope — who gets asked</span>
+            <span style="font-size:11px;font-weight:600;color:oklch(0.472 0.010 68);">per answer, index today</span>
+          </div>
+          <div ref="{{ rulerRef }}" sc-camel-on-pointer-down="{{ onRulerDown }}" sc-camel-on-pointer-move="{{ onRulerMove }}" sc-camel-on-pointer-up="{{ onRulerUp }}" style="position:relative;height:118px;margin-top:6px;cursor:pointer;touch-action:none;user-select:none;">
+            <div style="position:absolute;left:0;right:0;top:64px;height:1px;background:oklch(0.905 0.006 74);"></div>
+            <sc-for list="{{ stops }}" as="s" hint-placeholder-count="3">
+              <div style="position:absolute;left:{{ s.x }}%;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;width:120px;">
+                <div style="font-size:{{ s.priceSize }};font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:{{ s.priceColor }};transition:color 0.2s ease, font-size 0.2s cubic-bezier(0.2,0.8,0.2,1);line-height:1;height:26px;display:flex;align-items:flex-end;">{{ s.rate }}</div>
+                <div style="font-size:10.5px;font-weight:600;color:oklch(0.472 0.010 68);margin-top:4px;height:14px;">{{ s.perAnswer }}</div>
+                <div style="height:20px;display:flex;align-items:flex-end;margin-top:0;">
+                  <div style="width:{{ s.tickW }};height:{{ s.tickH }};border-radius:99px;background:{{ s.tickColor }};transition:all 0.2s cubic-bezier(0.2,0.8,0.2,1);"></div>
+                </div>
+                <div style="margin-top:9px;font-size:13.5px;font-weight:{{ s.labelWeight }};color:{{ s.labelColor }};letter-spacing:-0.01em;">{{ s.label }}</div>
+                <div style="font-size:11px;font-weight:600;color:oklch(0.472 0.010 68);font-variant-numeric:tabular-nums;margin-top:2px;">{{ s.answers }}</div>
+              </div>
+            </sc-for>
+            <div style="position:absolute;top:64px;left:{{ thumbX }}%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:2px solid oklch(0.52 0.14 265);background:oklch(0.994 0.0025 80);box-shadow:0 2px 8px -2px oklch(0.24 0.02 275 / 0.25);transition:left 0.22s cubic-bezier(0.2,0.8,0.2,1);pointer-events:none;"></div>
+          </div>
+
+          <!-- the one sentence -->
+          <div style="margin-top:18px;padding:14px 16px;border-radius:14px;background:oklch(0.965 0.004 75);border:0.5px solid oklch(0.905 0.006 74);">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+              <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1;">{{ capText }}</span>
+              <span style="font-size:13px;font-weight:700;color:oklch(0.41 0.011 68);white-space:nowrap;">up to {{ activeAnswers }} answers in {{ activeLabel }}</span>
+            </div>
+            <p style="margin:10px 0 0;font-family:'Spectral',Georgia,serif;font-size:17.5px;line-height:1.35;color:oklch(0.216 0.011 70);text-wrap:pretty;">You pay {{ capText }} now. {{ refundDays }} days later, the part nobody answered refunds itself: <span style="font-family:'Hanken Grotesk',sans-serif;font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">(cap − answers) × {{ activeRate }}</span> — from an answer count both of us can read.</p>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap;">
+            <sc-if value="{{ signedIn }}" hint-placeholder-val="{{ true }}">
+              <button sc-camel-on-click="{{ quote }}" style="min-height:46px;padding:0 20px;border-radius:999px;border:none;background:oklch(0.216 0.011 70);color:oklch(0.965 0.004 75);font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;" style-hover="transform:translateY(-1px)" style-active="transform:scale(0.96)"><span style="white-space:nowrap;">Lock the price for {{ activeLabel }}</span><span style="opacity:0.7;">→</span></button>
+              <span style="font-size:12px;font-weight:600;color:oklch(0.472 0.010 68);">Reviewed first. Nothing is charged until you tap pay.</span>
+            </sc-if>
+            <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ false }}">
+              <button sc-camel-on-click="{{ signIn }}" style="min-height:46px;padding:0 18px 0 14px;border-radius:999px;border:1px solid oklch(0.216 0.011 70);background:oklch(0.994 0.0025 80);color:oklch(0.216 0.011 70);font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:10px;" style-active="transform:scale(0.96)"><span style="width:18px;height:18px;border-radius:50%;border:2px solid oklch(0.52 0.14 265);box-sizing:border-box;display:inline-block;"></span>Continue with Google</button>
+              <span style="font-size:12px;font-weight:600;color:oklch(0.472 0.010 68);">Buying needs a Google-linked account — it is what the receipt and the report are tied to.</span>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- quoted / paying / declined / held share the dark quote panel -->
+      <sc-if value="{{ isPanel }}" hint-placeholder-val="{{ false }}">
+        <div style="border-radius:18px;background:{{ panelBg }};color:{{ panelInk }};padding:22px 24px 24px;box-shadow:0 1px 1px oklch(0.24 0.02 275 / 0.06), 0 14px 34px -14px oklch(0.24 0.04 285 / 0.45);transition:background 0.3s ease;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            <span style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};">{{ panelKicker }}</span>
+            <span style="display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:{{ panelMuted }};"><span style="width:7px;height:7px;border-radius:50%;background:{{ dotColor }};animation:{{ dotAnim }};"></span>{{ panelStatus }}</span>
+          </div>
+          <div style="margin-top:14px;font-family:'Spectral',Georgia,serif;font-size:27px;font-weight:500;line-height:1.2;letter-spacing:-0.012em;text-wrap:pretty;">{{ promptShown }}</div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+            <span style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};margin-right:4px;">{{ typeLabel }}</span>
+            <sc-for list="{{ optsShown }}" as="o" hint-placeholder-count="2">
+              <span style="border:1px solid {{ panelRule }};border-radius:999px;padding:5px 12px;font-size:13px;font-weight:650;">{{ o }}</span>
+            </sc-for>
+          </div>
+
+          <!-- declined: the reason, money never moved -->
+          <sc-if value="{{ isDeclined }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:22px;padding-top:18px;border-top:1px solid {{ panelRule }};">
+              <div style="font-size:19px;font-weight:800;letter-spacing:-0.02em;">Not sold, and nothing charged.</div>
+              <p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:{{ panelSoft }};text-wrap:pretty;">{{ declineReason }}</p>
+              <div style="margin-top:14px;display:flex;align-items:baseline;gap:10px;font-variant-numeric:tabular-nums;">
+                <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em;line-height:1;">{{ zeroText }}</span>
+                <span style="font-size:13px;font-weight:600;color:{{ panelMuted }};">moved · your card was never asked</span>
+              </div>
+              <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;align-items:center;">
+                <button sc-camel-on-click="{{ backToCompose }}" style="min-height:44px;padding:0 18px;border-radius:999px;border:none;background:{{ panelInk }};color:{{ panelBg }};font-size:14.5px;font-weight:700;cursor:pointer;" style-active="transform:scale(0.96)">Rephrase it</button>
+                <a href="mailto:ask@insight.app" style="font-size:13px;font-weight:700;color:{{ panelInk }};border-bottom:1px solid {{ panelRule }};">or write to us</a>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- held: outage holds, does not decline -->
+          <sc-if value="{{ isHeld }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:22px;padding-top:18px;border-top:1px solid {{ panelRule }};">
+              <div style="font-size:19px;font-weight:800;letter-spacing:-0.02em;">Held, not declined.</div>
+              <p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:{{ panelSoft }};text-wrap:pretty;">Review is unavailable right now, so your question is waiting rather than being judged in its absence. Nothing is charged while it waits. The price below is kept for 24 hours; pay opens the moment review returns.</p>
+              <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div style="padding:12px 14px;border-radius:12px;background:{{ panelWell }};">
+                  <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};">kept price</div>
+                  <div style="margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;">{{ capText }}</div>
+                  <div style="font-size:11.5px;font-weight:600;color:{{ panelMuted }};margin-top:2px;">{{ activeRate }} · {{ activeLabel }} · {{ activeIdx }}</div>
+                </div>
+                <div style="padding:12px 14px;border-radius:12px;background:{{ panelWell }};">
+                  <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};">held until</div>
+                  <div style="margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;">{{ heldUntil }}</div>
+                  <div style="font-size:11.5px;font-weight:600;color:{{ panelMuted }};margin-top:2px;">we email nothing — this page is the receipt</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;margin-top:18px;align-items:center;flex-wrap:wrap;">
+                <button disabled="{{ true }}" style="min-height:44px;padding:0 18px;border-radius:999px;border:1px solid {{ panelRule }};background:transparent;color:{{ panelMuted }};font-size:14.5px;font-weight:700;cursor:not-allowed;">Pay {{ capText }} · waiting for review</button>
+                <button sc-camel-on-click="{{ backToCompose }}" style="min-height:44px;padding:0 6px;border:none;background:none;color:{{ panelInk }};font-size:13px;font-weight:700;cursor:pointer;border-bottom:1px solid {{ panelRule }};border-radius:0;">Edit the question instead</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- quoted / paying: price locked, one pay tap -->
+          <sc-if value="{{ isQuotedOrPaying }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:22px;padding-top:18px;border-top:1px solid {{ panelRule }};display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;">
+              <div style="padding:12px 14px;border-radius:12px;background:{{ panelWell }};">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};">you pay now</div>
+                <div style="margin-top:6px;font-size:30px;font-weight:800;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1;">{{ capText }}</div>
+                <div style="font-size:11.5px;font-weight:600;color:{{ panelMuted }};margin-top:6px;">the cap · Stripe, card or bank</div>
+              </div>
+              <div style="padding:12px 14px;border-radius:12px;background:{{ panelWell }};">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};">per answer · locked</div>
+                <div style="margin-top:6px;font-size:30px;font-weight:800;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1;">{{ activeRate }}</div>
+                <div style="font-size:11.5px;font-weight:600;color:{{ panelMuted }};margin-top:6px;">{{ activeLabel }} · index {{ activeIdx }} · until {{ lockUntil }}</div>
+              </div>
+              <div style="padding:12px 14px;border-radius:12px;background:{{ panelWell }};">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:{{ panelMuted }};">up to</div>
+                <div style="margin-top:6px;font-size:30px;font-weight:800;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1;">{{ activeAnswers }}</div>
+                <div style="font-size:11.5px;font-weight:600;color:{{ panelMuted }};margin-top:6px;">answers, named, counted in public</div>
+              </div>
+            </div>
+            <p style="margin:18px 0 0;font-family:'Spectral',Georgia,serif;font-size:17.5px;line-height:1.35;text-wrap:pretty;">Day {{ refundDays }}: <span style="font-family:'Hanken Grotesk',sans-serif;font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">({{ activeAnswers }} − answers) × {{ activeRate }}</span> comes back to the same card, automatically. If {{ exampleAnswers }} people answer, {{ exampleRefund }} returns. The count is the public one on the card itself.</p>
+            <div style="display:flex;gap:14px;margin-top:20px;align-items:center;flex-wrap:wrap;">
+              <sc-if value="{{ isQuoted }}" hint-placeholder-val="{{ true }}">
+                <button sc-camel-on-click="{{ pay }}" style="min-height:48px;padding:0 22px;border-radius:999px;border:none;background:{{ panelInk }};color:{{ panelBg }};font-size:15.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:10px;" style-hover="transform:translateY(-1px)" style-active="transform:scale(0.96)">Pay {{ capText }} <span style="opacity:0.6;font-weight:600;">· Stripe</span></button>
+                <button sc-camel-on-click="{{ backToCompose }}" style="min-height:44px;padding:0 6px;border:none;background:none;color:{{ panelInk }};font-size:13px;font-weight:700;cursor:pointer;border-bottom:1px solid {{ panelRule }};border-radius:0;">Change scope or wording</button>
+              </sc-if>
+              <sc-if value="{{ isPaying }}" hint-placeholder-val="{{ false }}">
+                <div style="min-height:48px;padding:0 22px;border-radius:999px;background:{{ panelWell }};color:{{ panelInk }};font-size:15.5px;font-weight:700;display:inline-flex;align-items:center;gap:12px;">
+                  <span style="display:inline-flex;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;animation:ask-pulse 1.2s ease infinite;"></span><span style="width:6px;height:6px;border-radius:50%;background:currentColor;animation:ask-pulse 1.2s ease 0.2s infinite;"></span><span style="width:6px;height:6px;border-radius:50%;background:currentColor;animation:ask-pulse 1.2s ease 0.4s infinite;"></span></span>
+                  Handing {{ capText }} to Stripe
+                </div>
+                <span style="font-size:12.5px;font-weight:600;color:{{ panelMuted }};">You'll come back to one of three pages: paid, cancelled, or refunded.</span>
+                <button sc-camel-on-click="{{ backToQuote }}" style="min-height:44px;padding:0 6px;border:none;background:none;color:{{ panelInk }};font-size:13px;font-weight:700;cursor:pointer;border-bottom:1px solid {{ panelRule }};border-radius:0;">Cancel — nothing charged yet</button>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- ── right: what you get, the rate card ── -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div style="border:1px solid oklch(0.905 0.006 74);border-radius:18px;background:oklch(0.994 0.0025 80);padding:18px 20px;">
+        <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:oklch(0.472 0.010 68);">what you get</div>
+        <p style="margin:10px 0 0;font-family:'Spectral',Georgia,serif;font-size:19px;line-height:1.3;text-wrap:pretty;">You get the same public numbers everyone reads — the split, every cut, the named who-voted roll. There is no private cut.</p>
+        <div style="margin-top:14px;display:grid;gap:8px;font-size:13.5px;line-height:1.45;color:oklch(0.41 0.011 68);">
+          <div style="display:flex;gap:10px;"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.52 0.14 265);flex-shrink:0;margin-top:7px;"></span><span>The card always says <strong style="color:oklch(0.216 0.011 70);letter-spacing:0.12em;font-size:11px;">PAID</strong>. Your name on it is optional; the mark is not.</span></div>
+          <div style="display:flex;gap:10px;"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.52 0.14 265);flex-shrink:0;margin-top:7px;"></span><span>One paid card in the feed at a time. Demand moves the price, never the slot count.</span></div>
+          <div style="display:flex;gap:10px;"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.52 0.14 265);flex-shrink:0;margin-top:7px;"></span><span>A report at close — HTML and CSV, every number derivable from world-readable data.</span></div>
+        </div>
+      </div>
+
+      <div style="border:1px solid oklch(0.905 0.006 74);border-radius:18px;background:oklch(0.994 0.0025 80);padding:18px 20px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:oklch(0.472 0.010 68);">the rate card</span>
+          <span style="font-size:11px;font-weight:600;color:oklch(0.472 0.010 68);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;">{{ sourceFile }} · {{ committed }}</span>
+        </div>
+        <div style="margin-top:12px;font-variant-numeric:tabular-nums;font-size:13.5px;">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid oklch(0.905 0.006 74);"><span style="color:oklch(0.41 0.011 68);">Question cap, paid up front</span><strong>{{ capText }}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid oklch(0.905 0.006 74);"><span style="color:oklch(0.41 0.011 68);">Ad base, before its index</span><strong>{{ adBaseText }}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid oklch(0.905 0.006 74);"><span style="color:oklch(0.41 0.011 68);">Per answer, base line</span><strong>{{ baseRateText }}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid oklch(0.905 0.006 74);"><span style="color:oklch(0.41 0.011 68);">Index floor · ceiling</span><strong>{{ floorText }} · {{ ceilingText }}</strong></div>
+          <sc-for list="{{ stops }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid oklch(0.905 0.006 74);"><span style="color:oklch(0.41 0.011 68);">{{ s.label }} today</span><span><span style="color:oklch(0.472 0.010 68);font-weight:600;">{{ s.idx }}</span> &nbsp;<strong>{{ s.rate }}</strong></span></div>
+          </sc-for>
+        </div>
+        <p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:oklch(0.472 0.010 68);text-wrap:pretty;">Index = sold ÷ available person-days, recomputed daily, locked when you lock. The card is committed to the repo — a price a buyer can't see is a price that can discriminate.</p>
+        <div style="display:flex;gap:6px;margin-top:12px;">
+          <sc-for list="{{ currencies }}" as="c" hint-placeholder-count="2">
+            <button sc-camel-on-click="{{ c.pick }}" style="min-height:32px;padding:0 12px;border-radius:999px;border:0.5px solid {{ c.border }};background:{{ c.bg }};color:{{ c.ink }};font-size:12px;font-weight:700;cursor:pointer;">{{ c.code }}</button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- footer: the siblings -->
+  <div style="margin-top:56px;padding-top:18px;border-top:0.5px solid oklch(0.905 0.006 74);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;font-weight:600;color:oklch(0.472 0.010 68);">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <span>After Stripe:</span>
+      <a href="#">Paid</a><a href="#">Cancelled</a><a href="#">Refunded</a>
+    </div>
+    <span>Bought here, on the web. The app shows what everyone sees; it sells nothing.</span>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{
+  &quot;state&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;live&quot;, &quot;options&quot;: [&quot;live&quot;, &quot;signed-out&quot;, &quot;composing&quot;, &quot;quoted&quot;, &quot;declined&quot;, &quot;paying&quot;, &quot;held&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;States&quot; },
+  &quot;quotePanel&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;dark indigo&quot;, &quot;options&quot;: [&quot;dark indigo&quot;, &quot;light&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Palette&quot; }
+}">
+class Component extends DCLogic {
+  state = { P: null, st: 'composing', scope: 1, cur: 'EUR', prompt: '', qtype: 'vote', opts: ['', ''], axis: '', drag: false };
+  TYPES = [
+    { key: 'vote', label: 'Pick one', hint: '2–4 options · the split', min: 2, max: 4, ph: ['One side', 'The other', 'A third', 'A fourth'], add: 'option' },
+    { key: 'rank', label: 'Rank', hint: '3–4 items · order vs the crowd', min: 3, max: 4, ph: ['First item', 'Second', 'Third', 'Fourth'], add: 'item' },
+    { key: 'scale', label: 'Agree', hint: 'a statement · 5-step scale', min: 0, max: 0 },
+    { key: 'rating', label: 'Rate 1–10', hint: 'a “how much” · 1–10 histogram', min: 0, max: 0 },
+  ];
+  rulerRef = React.createRef();
+  componentDidMount() {
+    fetch((window.__resources && window.__resources.pricing) || 'ask-pricing.json').then(r => r.json()).then(P => this.setState({ P })).catch(() => {});
+  }
+  fmt(eur) {
+    const P = this.state.P; const c = (P && P.fx[this.state.cur]) || { sym: '€', rate: 1, pre: true };
+    let v = eur * c.rate;
+    if (v >= 1000) v = Math.round(v / 100) * 100; else if (v >= 100) v = Math.round(v / 10) * 10; else if (v >= 1) v = Math.round(v); else v = Math.round(v * 100) / 100;
+    const s = v >= 1 ? v.toLocaleString('en-US').replace(/,/g, ' ') : v.toFixed(2);
+    return c.pre ? c.sym + s : s + ' ' + c.sym;
+  }
+  n(v) { return Math.round(v).toLocaleString('en-US').replace(/,/g, ' '); }
+  scopeFromEvent(e) {
+    const el = this.rulerRef.current; if (!el) return null;
+    const r = el.getBoundingClientRect(); const f = (e.clientX - r.left) / r.width;
+    return f < 0.29 ? 0 : f < 0.71 ? 1 : 2;
+  }
+  renderVals() {
+    const { P, cur, prompt, scope, qtype, opts, axis } = this.state;
+    const T = this.TYPES.find(t => t.key === qtype) || this.TYPES[0];
+    const SCALE = ['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'];
+    const defaults = { vote: ['All night', 'The hours are fine'], rank: ['Bus', 'Tram', 'Metro', 'Bike'] };
+    const optsShown = T.max ? opts.map((o, i) => o || (defaults[qtype] || [])[i] || T.ph[i]) : qtype === 'scale' ? [SCALE[0], '…', SCALE[4]] : ['1', '…', '10 = ' + (axis || 'completely')];
+    const st = (this.props.state && this.props.state !== 'live') ? this.props.state : this.state.st;
+    const dark = (this.props.quotePanel ?? 'dark indigo') === 'dark indigo';
+    const ACC = 'oklch(0.52 0.14 265)', INK = 'oklch(0.216 0.011 70)', INK3 = 'oklch(0.472 0.010 68)', RULE = 'oklch(0.905 0.006 74)';
+    const cap = P ? P.capEur : 320, base = P ? P.perAnswerBaseEur : 0.16, days = P ? P.refundDays : 29;
+    const cohorts = P ? P.cohorts : [{ label: 'Oslo', index: 1.1 }, { label: 'Norway', index: 1.7 }, { label: 'Everyone', index: 2.5 }];
+    const xs = [9, 50, 91], hs = [9, 12, 15];
+    const rates = cohorts.map(c => base * c.index);
+    const answers = rates.map(r => Math.floor(cap / r));
+    const stops = cohorts.map((c, i) => ({
+      label: c.label, x: xs[i], idx: '×' + c.index.toFixed(1), rate: this.fmt(rates[i]), perAnswer: 'per answer',
+      answers: 'up to ' + this.n(answers[i]),
+      priceSize: i === scope ? '19px' : '14px', priceColor: i === scope ? INK : INK3,
+      tickW: i === scope ? '3px' : '1.5px', tickH: (i === scope ? 14 : hs[i]) + 'px', tickColor: i === scope ? ACC : 'color-mix(in oklch, ' + RULE + ', ' + INK + ' 30%)',
+      labelWeight: i === scope ? 800 : 600, labelColor: i === scope ? INK : 'oklch(0.41 0.011 68)',
+    }));
+    const a = answers[scope], ex = Math.round(a * 0.67);
+    const day = new Date(); day.setUTCDate(day.getUTCDate() + 1);
+    const fmtDay = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' 00:00 UTC';
+    const isPanel = ['quoted', 'paying', 'declined', 'held'].includes(st);
+    const pBg = dark ? 'oklch(0.235 0.045 285)' : 'oklch(0.994 0.0025 80)';
+    const pInk = dark ? 'oklch(0.965 0.006 80)' : INK;
+    const setScope = i => this.setState({ scope: i });
+    return {
+      refundDays: days, signedIn: st !== 'signed-out', signedOut: st === 'signed-out',
+      isComposing: st === 'composing' || st === 'signed-out',
+      isPanel, isDeclined: st === 'declined', isHeld: st === 'held', isQuoted: st === 'quoted', isPaying: st === 'paying', isQuotedOrPaying: st === 'quoted' || st === 'paying',
+      prompt, promptLen: prompt.length,
+      onPrompt: e => this.setState({ prompt: e.target.value.slice(0, 120) }),
+      promptShown: prompt || (qtype === 'scale' ? 'Oslo feels safe after dark.' : qtype === 'rating' ? 'How safe does Oslo feel after dark?' : qtype === 'rank' ? 'Rank how you would cross Oslo at night' : 'Should Oslo’s night buses run all night at weekends?'),
+      types: this.TYPES.map(t => ({ label: t.label, pick: () => this.setState({ qtype: t.key, opts: Array.from({ length: Math.max(t.min, 2) }, (_, i) => this.state.opts[i] || '') }), bg: t.key === qtype ? INK : 'oklch(0.994 0.0025 80)', ink: t.key === qtype ? 'oklch(0.965 0.004 75)' : 'oklch(0.41 0.011 68)', border: t.key === qtype ? INK : RULE })),
+      typeHint: T.hint, typeLabel: T.label, hasOptions: T.max > 0, isScale: qtype === 'scale', isRating: qtype === 'rating',
+      opts: opts.map((v, i) => ({ value: v, num: i + 1, placeholder: T.ph ? T.ph[i] : '', onChange: e => { const o = this.state.opts.slice(); o[i] = e.target.value; this.setState({ opts: o }); }, removable: opts.length > T.min, remove: () => this.setState({ opts: this.state.opts.filter((_, j) => j !== i) }) })),
+      canAddOpt: T.max > opts.length, addOpt: () => this.setState({ opts: this.state.opts.concat('') }), addLabel: T.add || '',
+      scaleSteps: SCALE, ratingSteps: Array.from({ length: 10 }, (_, i) => String(i + 1)), axis, onAxis: e => this.setState({ axis: e.target.value }),
+      optsShown,
+      stops, thumbX: xs[scope], activeLabel: cohorts[scope].label, activeRate: this.fmt(rates[scope]), activeIdx: '×' + cohorts[scope].index.toFixed(1), activeAnswers: this.n(a),
+      capText: this.fmt(cap), adBaseText: this.fmt(P ? P.adBaseEur : 320), baseRateText: this.fmt(base), floorText: '×' + (P ? P.floorIndex : 0.9).toFixed(1), ceilingText: '×' + (P ? P.ceilingIndex : 2.5).toFixed(1),
+      zeroText: this.fmt(0), exampleAnswers: this.n(ex), exampleRefund: this.fmt((a - ex) * rates[scope]),
+      sourceFile: P ? P.source : 'content/pricing.json', committed: P ? P.committed : '2026-09-02',
+      lockUntil: fmtDay(day), heldUntil: fmtDay(day),
+      rulerRef: this.rulerRef,
+      onRulerDown: e => { const i = this.scopeFromEvent(e); if (i != null) setScope(i); this.setState({ drag: true }); e.currentTarget.setPointerCapture && e.currentTarget.setPointerCapture(e.pointerId); },
+      onRulerMove: e => { if (!this.state.drag) return; const i = this.scopeFromEvent(e); if (i != null && i !== this.state.scope) setScope(i); },
+      onRulerUp: () => this.setState({ drag: false }),
+      signIn: () => this.setState({ st: 'composing' }),
+      quote: () => this.setState({ st: /kommune|council|mayor|ministry|government|parliament/i.test(prompt) ? 'declined' : 'quoted' }),
+      pay: () => this.setState({ st: 'paying' }),
+      backToCompose: () => this.setState({ st: 'composing' }),
+      backToQuote: () => this.setState({ st: 'quoted' }),
+      declineReason: 'Place-civic questions — anything asked in the voice of an authority — are put by the editors, not sold. Rephrase it as a question people can answer about their own lives, or write to us and we will read it by hand.',
+      panelBg: pBg, panelInk: pInk,
+      panelMuted: dark ? 'oklch(0.72 0.02 285)' : INK3, panelSoft: dark ? 'oklch(0.86 0.012 285)' : 'oklch(0.41 0.011 68)',
+      panelRule: dark ? 'oklch(0.40 0.04 285)' : RULE, panelWell: dark ? 'oklch(0.29 0.045 285)' : 'oklch(0.965 0.004 75)',
+      panelKicker: st === 'declined' ? 'reviewed' : st === 'held' ? 'review is down' : st === 'paying' ? 'leaving for stripe' : 'quoted · price locked',
+      panelStatus: st === 'declined' ? 'declined' : st === 'held' ? 'held' : st === 'paying' ? 'paying' : 'ready to pay',
+      dotColor: st === 'declined' ? 'oklch(0.62 0.15 40)' : st === 'held' ? 'oklch(0.75 0.13 85)' : 'oklch(0.72 0.12 150)',
+      dotAnim: st === 'paying' || st === 'held' ? 'ask-pulse 1.4s ease infinite' : 'none',
+      currencies: ['EUR', 'NOK'].map(code => ({ code, pick: () => this.setState({ cur: code }), bg: code === cur ? INK : 'transparent', ink: code === cur ? 'oklch(0.965 0.004 75)' : INK3, border: code === cur ? INK : RULE })),
+    };
+  }
+}
+</script>
+
+
+</body></html>

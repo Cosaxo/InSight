@@ -12,6 +12,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = join(root, "public", "pokedex.txt");
@@ -77,9 +78,21 @@ if (headerCount === null) {
 // validates entity keys against, so a regenerated, larger catalogue under a
 // stale ceiling means new species that can be picked and never counted —
 // the same silent failure class as a city that can't be a bucket key.
+// COMMENT-STRIPPED, because `.match` takes the FIRST hit. A superseded
+// value parked in a comment above the live `CATALOG_MAX_ENTITY` — or
+// merely the constant named in its own doc-comment, which is house style
+// here — pins this gate to the wrong number and the run goes green.
+// Measured: with the old line left above a raised ceiling this gate
+// printed its OK line and exited 0, on the DEPLOY path, while the thing
+// it exists to catch (a catalogue larger than the trigger's ceiling, so
+// new entries can be picked and never counted) was true.
+//
+// The class swept out of check-anchors, check-cities, account-level-lib
+// and check-figures on 2026-09-05, and out of cost-arith tonight. These
+// two were missed both times.
 const FN = join(root, "functions", "src", "v2.ts");
 try {
-  const m = readFileSync(FN, "utf8").match(/CATALOG_MAX_ENTITY = (\d+)/);
+  const m = stripComments(readFileSync(FN, "utf8")).match(/CATALOG_MAX_ENTITY = (\d+)/);
   if (!m) {
     errors.push("functions/src/v2.ts: no CATALOG_MAX_ENTITY constant to cross-check");
   } else if (Number(m[1]) !== count) {

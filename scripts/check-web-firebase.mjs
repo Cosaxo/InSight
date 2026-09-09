@@ -27,6 +27,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIVE_MARKERS, missingLiveMarkers } from "./live-build-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
@@ -57,6 +58,12 @@ if (missing.length) {
 // VITE_V2_LIVE is a separate gate in src/v2/main.jsx: initLive() returns
 // early unless it is the literal string "true", so a perfect Firebase config
 // with this unset still ships the demo deck. Same failure, different switch.
+//
+// This is the environment half, and until 2026-08-26 it was the only half —
+// which is the thing this file's own header refuses two paragraphs above
+// ("it is not enough to assert the variables are SET in the environment").
+// The disk half is in section 2, where every other claim about the build
+// already is.
 if ((process.env.VITE_V2_LIVE || "").trim() !== "true") {
   errors.push(
     `VITE_V2_LIVE is "${process.env.VITE_V2_LIVE ?? ""}", not "true".\n`
@@ -107,6 +114,22 @@ const notInlined = REQUIRED.filter((k) => {
   const v = (process.env[k] || "").trim();
   return v && !js.includes(v);
 });
+// The VITE_V2_LIVE half of the same question, asked of the build. The flag
+// is a build-time replacement that folds to `false` and takes the whole live
+// path out with it, so unlike the config values there is no literal to look
+// for — scripts/live-build-markers.mjs has the markers and the measurement.
+const liveMissing = missingLiveMarkers(js);
+if (liveMissing.length) {
+  errors.push(
+    "the built bundle does not carry the V2 live path: of "
+    + LIVE_MARKERS.map((m) => `\`${m}\``).join(", ") + `,\n  dist/ is missing `
+    + liveMissing.join(", ")
+    + ".\n\n  This is read from the BUILD OUTPUT, so exporting VITE_V2_LIVE for this\n"
+    + "  process will not change it — build again with the flag set. A stale\n"
+    + "  dist/ from an earlier step is the usual cause, same as above.",
+  );
+}
+
 if (notInlined.length) {
   errors.push(
     `these values are set in the environment but do NOT appear in the built\n`

@@ -17,10 +17,11 @@
 // own test doesn't declare.
 //
 // Regeneration stays a deliberate step: `npm run build:content`.
-import { readFileSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { buildAds, buildEntries, generate, loadContent, CATALOG_FILES, CONTENT_SOURCES, LENS_SCALE, LIKERT, PICK_SEQ_BASE, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -57,20 +58,33 @@ if (generate(content) !== committed) {
 // immutable docs keyed by qid, so a malformed or colliding id is forever.
 const ID_SHAPE = {
   daily: /^daily-\d{3}$/,
-  feed: /^feed-[A-Za-z0-9]+$/,
+  // Two id families share the feed surface since D14 went live: ordinary
+  // feed entries, and catalogue picks promoted from the pick archive —
+  // `pick-<archive id>`, kept verbatim so a live card and its
+  // pick-data.js entry share one name.
+  feed: /^(feed|pick)-[A-Za-z0-9]+$/,
   group: /^group-[A-Za-z0-9]+$/,
   duo: /^duo-\d{3}$/,
   // Two id families share the test surface: the core instruments'
   // `test-<key>-NN`, and the lens items' `lq-<lens>-<N>` — UNPADDED,
   // because the client minted those ids before the items had a backend
   // (lens-defs.js) and devices hold local state keyed by them (D91).
-  test: /^(test-[a-z0-9]+-\d{2}|lq-[a-z]+-\d{1,2})$/,
+  //
+  // Two OR THREE digits on the core instruments' family since D416: each
+  // instrument's deep items (its facets' or positions') continue its own
+  // numbering past the core items — big5 runs 00–24 then 25–144 — so the
+  // hundreds arrived with them. Widening the shape touches no shipped id.
+  test: /^(test-[a-z0-9]+-\d{2,3}|lq-[a-z]+-\d{1,2})$/,
   learn: /^learn-[a-z0-9]+$/,
   // The daily pulse's TEMPLATE ids (D139). Answers are keyed
   // {baseQid}_{day} against these, so the shape is forever like all of
   // them — and it must never admit an underscore, which is the day
   // separator the rules parse on.
   pulse: /^pulse-[a-z0-9]+$/,
+  // Foresight CALL ids (D194). Answers are keyed on them like every other
+  // world answer, and `v2_call_outcomes` is keyed on them too — so a
+  // reshaped id would orphan a published grade from the call it graded.
+  call: /^call-[a-z0-9]+$/,
 };
 const seenIds = new Set();
 for (const q of entries) {
@@ -80,12 +94,21 @@ for (const q of entries) {
   else if (!ID_SHAPE[q.surface].test(q.id)) errors.push(`${q.id}: id does not match the ${q.surface} shape`);
 }
 
-// ---- per-surface seq contiguity (the banks sort on it).
-const seqBySurface = new Map();
+// ---- per-surface seq contiguity (the banks sort on it). Catalogue picks
+// share the feed surface but run their own lane from PICK_SEQ_BASE, so a
+// feed append cannot renumber shipped pick docs — contiguity is per LANE,
+// and the guard after the loop is what keeps the two lanes from ever
+// meeting: the feed counter must stay strictly below the pick base.
+const laneOf = (q) => (q.surface === "feed" && q.type === "catalog" ? "feed picks" : q.surface);
+const seqByLane = new Map([["feed picks", PICK_SEQ_BASE]]);
 for (const q of entries) {
-  const want = seqBySurface.get(q.surface) ?? 0;
-  if (q.seq !== want) errors.push(`${q.id}: seq ${q.seq}, expected ${want} (per-surface, contiguous)`);
-  seqBySurface.set(q.surface, q.seq + 1);
+  const lane = laneOf(q);
+  const want = seqByLane.get(lane) ?? 0;
+  if (q.seq !== want) errors.push(`${q.id}: seq ${q.seq}, expected ${want} (per-lane, contiguous)`);
+  seqByLane.set(lane, q.seq + 1);
+}
+if ((seqByLane.get("feed") ?? 0) >= PICK_SEQ_BASE) {
+  errors.push(`the feed's seq counter reached ${seqByLane.get("feed")} — it may not cross PICK_SEQ_BASE (${PICK_SEQ_BASE}); raise the base deliberately (gen-v2content.mjs) before the lanes collide`);
 }
 
 // ---- options: scales must be exactly the agree scale, ratings exactly
@@ -93,15 +116,175 @@ for (const q of entries) {
 // (members fill them client-side); everything else needs 2..10 choices.
 const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+// THE SCALES, READ OFF THE CLIENT — the half this rule was missing.
+//
+// `LENS_SCALE` and `LIKERT` are imported from the GENERATOR, and
+// `buildEntries` in that same module ASSIGNS those very arrays as the
+// options (`options: LENS_SCALE`). So the per-question check below compared
+// an object with itself: every scale entry matched by identity, and the
+// rule could not fail. The comment above it says "Either drifting fails
+// here", and two more comments — in `spec/lens-defs.js` and
+// `test/lens-live.test.ts` — tell readers this drift is "drift-gated by
+// check:content".
+//
+// It was not. Flipping LENS_SCALE to disagree-first and regenerating leaves
+// this gate at exit 0 and the whole unit suite green, while the client's
+// own copy stays agree-first — at which point every stored `optionIdx` on a
+// lens question labels the opposite answer, and `world-feed`'s `4 - val`
+// store inversion goes with it.
+//
+// The client's lists are the independent source, parsed the way
+// check-anchors.mjs parses profile-vitals.js. A parse that finds nothing is
+// an ERROR rather than a skip: a gate that goes quiet when its input moves
+// is the same defect one level up.
+const scaleFrom = (file, name) => {
+  // COMMENTS BLANKED FIRST, because this takes the FIRST match and a
+  // retune's natural shape is to leave the old line above the new one:
+  //
+  //   // was: const SCALE = ['Strongly agree', …, 'Neutral', …];
+  //   const SCALE = ['Strongly agree', …, 'Neither', …];
+  //
+  // Measured on both halves — `SCALE` in spec/lens-defs.js and `SCALE5` in
+  // spec/daily-questions.js — the commented copy is what this read, so the
+  // drift the gate exists to catch passed. Three comments in the tree point
+  // readers at this gate as the drift gate ("drift-gated by
+  // check:content"). It is the one file the 2026-09-05 comment-stripping
+  // sweep missed; check-anchors, account-level-lib, check-figures,
+  // check-fn-runtime and check-monitoring all carry the identical fix.
+  const src = stripComments(readFileSync(resolve(root, file), "utf8"));
+  const m = src.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([^\\]]*)\\]`));
+  if (!m) {
+    errors.push(`${file}: could not read \`${name}\` — the scale gate has nothing to compare against`);
+    return null;
+  }
+  return [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
+};
+const clientLens = scaleFrom("src/v2/spec/lens-defs.js", "SCALE");
+const clientLikert = scaleFrom("src/v2/spec/daily-questions.js", "SCALE5");
+if (clientLens && !same(LENS_SCALE, clientLens)) {
+  errors.push("LENS_SCALE (gen-v2content.mjs) and SCALE (spec/lens-defs.js) disagree — "
+    + "a stored optionIdx on every lens question now means the opposite answer");
+}
+if (clientLikert && !same(LIKERT, clientLikert)) {
+  errors.push("LIKERT (gen-v2content.mjs) and SCALE5 (spec/daily-questions.js) disagree — "
+    + "a stored optionIdx on every scale question now means the opposite answer");
+}
 for (const q of entries) {
   if (!q.prompt || !q.prompt.trim()) errors.push(`${q.id}: empty prompt`);
-  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1):
+  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231):
   // feed-only — no other surface serves by date (the daily deck is
   // positional), and the client filter compares UTC day-key strings, so
-  // the shape must be exactly that.
-  if (q.until !== undefined) {
-    if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
-    else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
+  // the shape must be exactly that. Both ends are checked here; what the
+  // window may CONTAIN — how long it runs, which topic must carry one — is
+  // check:quality's, and deliberately not restated in this file.
+  for (const [field, label] of [["from", "opens"], ["until", "closes"]]) {
+    if (q[field] === undefined) continue;
+    if (q.surface !== "feed") {
+      errors.push(`${q.id}: \`${field}\` is the feed's current-events window (${label}) — no other surface carries it`);
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(q[field])) {
+      errors.push(`${q.id}: \`${field}\` must be a YYYY-MM-DD UTC day key`);
+    }
+  }
+  // Day keys are zero-padded, so string order IS date order — the same
+  // property the client's `fresh()` filter rests on.
+  if (typeof q.from === "string" && typeof q.until === "string" && q.until < q.from) {
+    errors.push(`${q.id}: the window closes (${q.until}) before it opens (${q.from})`);
+  }
+  // Background (D281) — the card's `i`. Shape only; whether the sentences
+  // are neutral, and whether the question needed them at all, is
+  // check:quality's and the reviewing run's, and is deliberately not
+  // restated here. An empty or whitespace `bg` is the failure worth
+  // catching in this file: the client's `WF_BGTEXT` falls back on a falsy
+  // value, so it would silently draw the pale button and no one would
+  // learn the field had been authored blank.
+  if (q.bg !== undefined) {
+    if (typeof q.bg !== "string" || !q.bg.trim()) {
+      errors.push(`${q.id}: \`bg\` is the background the card's i opens — a blank one is the same as none, but looks authored`);
+    } else if (q.bg !== q.bg.trim()) {
+      errors.push(`${q.id}: \`bg\` carries leading or trailing whitespace — the sheet renders it verbatim`);
+    }
+  }
+  // docs/SCALE-PLAN.md §1, the sponsored rule below pointed one field over.
+  // A core question is what the Mirror folds its cohort readings over, and
+  // that corpus has to be answerable by everyone: a windowed question can
+  // only ever be answered by whoever was here that week, so folding it
+  // reports when a person joined as if it were what they believe.
+  if (q.until !== undefined && q.core === true) {
+    errors.push(`${q.id}: a windowed question is never core — the Mirror's corpus must be answerable by someone who arrives next year`);
+  }
+  // Sponsored questions (D195). Every rule here is a promise the card
+  // makes on screen, held at the source so the disclosure cannot be
+  // authored away — a paid question that renders as an ordinary one is the
+  // single failure this whole path has to be unable to produce.
+  if (q.sponsor !== undefined) {
+    const s = q.sponsor;
+    if (q.surface !== "feed") {
+      errors.push(`${q.id}: only feed questions can be sponsored — the daily is one shared question and the tests are instruments`);
+    }
+    if (!s || typeof s !== "object" || Array.isArray(s)) {
+      errors.push(`${q.id}: sponsor must be an object`);
+    } else {
+      const extra = Object.keys(s).filter((k) => !["buyer", "audience", "link"].includes(k));
+      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer, audience and link. No colour, no logo, no creative`);
+      // The buyer's one link (D378): an https address, shown as its bare
+      // domain after a person has answered. Shape only — a committed
+      // sponsored question is a hand contract, and its link was read by
+      // a person; the self-serve path's is read by the review.
+      if (s.link !== undefined) {
+        let ok = false;
+        try { const u = new URL(String(s.link)); ok = u.protocol === "https:" && !u.username && !u.password && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(u.hostname); } catch { ok = false; }
+        if (!ok) errors.push(`${q.id}: sponsor.link must be one https address with a real site name — got ${JSON.stringify(s.link)}`);
+      }
+      // The buyer NAME is the buyer's choice since D228 — individuals may
+      // buy a question, and printing a person's name on every serve is
+      // theirs to want or to refuse. What stays non-optional is the PAID
+      // band itself: SponsorMark renders it from this block's PRESENCE,
+      // name or no name, because one covert paid card would make every
+      // unpaid card suspect. The contract-side purchase record still
+      // names who paid; the card just may not.
+      if (s.buyer !== undefined) {
+        if (typeof s.buyer !== "string" || !s.buyer.trim()) {
+          errors.push(`${q.id}: sponsor.buyer, when carried, is a non-empty name — for "paid, namelessly" omit the field rather than blanking it`);
+        } else if (s.buyer.length > 40) {
+          errors.push(`${q.id}: buyer name is ${s.buyer.length} chars (max 40) — it rides in a band, not a paragraph`);
+        }
+      }
+      if (s.audience !== undefined) {
+        if (!s.audience || typeof s.audience !== "object" || Array.isArray(s.audience)) {
+          errors.push(`${q.id}: sponsor.audience must be an object of dim → bucket`);
+        } else if (Object.keys(s.audience).length < 1 || Object.keys(s.audience).length > 3) {
+          // One to three tags since D228 — a cohort like "men 25-34 in
+          // the US" is three published dims, matched conjunctively on the
+          // device with EVERY matched dim printed on the band. Three is
+          // the coarseness ceiling: past it, compounding published dims
+          // starts shaping a person-sized query, which is the line
+          // docs/MONETIZATION.md draws. A key that is not a published dim
+          // matches nobody (data/sponsored.ts matches() fails closed), so
+          // an unknown dim is unsellable inventory rather than a leak.
+          errors.push(`${q.id}: sponsor.audience carries ${Object.keys(s.audience).length} tags — one to three, or none`);
+        }
+      }
+    }
+    // The window is `until`, not a second field, so the label the card
+    // prints and the filter that stops serving it are ONE value.
+    if (typeof q.until !== "string") {
+      errors.push(`${q.id}: a sponsored question carries \`until\` — a paid slot is a window, and an open-ended one is inventory nobody sold`);
+    }
+    // docs/SCALE-PLAN.md §5: sponsored content lives in the TAIL. A paid
+    // question inside the Mirror's corpus makes the honest aggregate a
+    // paid-for sample, which is the one asset MONETIZATION.md names.
+    if (q.core === true) {
+      errors.push(`${q.id}: a sponsored question is never core — paid questions in the Mirror's corpus make the honest aggregate a paid-for sample`);
+    }
+    // docs/TAGS-PLAN.md §3, the same line one field over: a paid card
+    // reaches the audience it declared, and doors would multiply where the
+    // slot surfaces. A buyer who wants two audiences buys two windows. (The
+    // demand rollup already excludes sponsored rows, so a door here could
+    // only ever be reach — there is no honest use left to allow.)
+    if (q.also !== undefined) {
+      errors.push(`${q.id}: a sponsored question carries no \`also\` — a paid slot reaches the audience it declared, and a buyer who wants two buys two windows`);
+    }
   }
   if (q.type === "scale") {
     // Lens items run the client's agree-FIRST scale (lens-defs.js SCALE):
@@ -122,6 +305,23 @@ for (const q of entries) {
     }
   } else if (q.surface === "pulse") {
     errors.push(`${q.id}: the pulse surface carries only pulse-type questions`);
+  } else if (q.type === "call") {
+    // Two options, always, and the order IS the grade: index 0 is the call
+    // coming true and index 1 is it not (callRubric.ts CALL_YES/CALL_NO).
+    // A third option would have no verdict to map to, and a swapped pair
+    // would mark every player backwards with nothing on screen to show it.
+    // The rubric's own well-formedness is check:calls' — it needs the
+    // module, and this gate stays dependency-free.
+    if (q.surface !== "call") errors.push(`${q.id}: call type outside the call surface`);
+    if (q.options.length !== 2 || q.options.some((o) => !o || !o.trim())) {
+      errors.push(`${q.id}: a call carries exactly two non-empty options — index 0 is it coming true`);
+    }
+    if (q.tier !== "A") errors.push(`${q.id}: tier ${JSON.stringify(q.tier)} — only tier A is admitted (D127)`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(q.resolvesAt))) {
+      errors.push(`${q.id}: resolvesAt must be a YYYY-MM-DD UTC day key`);
+    }
+  } else if (q.surface === "call") {
+    errors.push(`${q.id}: the call surface carries only call-type questions`);
   } else if (q.surface === "group" && q.topic === "pick") {
     if (q.options.length !== 0) errors.push(`${q.id}: pick questions carry no options`);
   } else if (q.type === "dial" || q.type === "field") {
@@ -149,25 +349,132 @@ for (const q of entries) {
         errors.push(`${q.id}: field options are not the synthesized cell labels for its ax/ay`);
       }
     }
+  } else if (q.type === "catalog") {
+    // Catalogue picks (D14): the shipped catalogue is the answer space, an
+    // answer is an `entity` key, and the aggregate trigger validates it
+    // per-domain — so the entry carries NO options and MUST name a domain
+    // whose catalogue file is committed under public/ (QUESTION-FARM.md
+    // rule 2: a card whose catalogue is absent opens straight into the
+    // picker's error state). Films joined the committed set at D266;
+    // artists is still refused here, because its catalogue waits on a
+    // curation ruling rather than an errand (D267). The rule is
+    // existsSync, not a name list, so this comment can go stale and the
+    // check cannot. CATALOG_FILES is the generator's (one map —
+    // promote-questions.mjs imports the same one).
+    if (q.surface !== "feed") errors.push(`${q.id}: catalog type outside the feed surface`);
+    if (q.options.length !== 0) errors.push(`${q.id}: a catalog question carries no options — the catalogue is its answer space`);
+    const file = CATALOG_FILES[q.domain];
+    // Names CATALOG_FILES, which is the map this line actually reads. It
+    // named CATALOG_DOMAINS in functions/src/v2.ts — the trigger's own map,
+    // which this scan never opens — so a domain missing from ONE of the two
+    // sent the reader to the other.
+    if (!file) errors.push(`${q.id}: domain ${JSON.stringify(q.domain)} is not a known catalogue domain (CATALOG_FILES, scripts/gen-v2content.mjs; the trigger's half is CATALOG_DOMAINS in functions/src/v2.ts)`);
+    else if (!existsSync(join(root, "public", file))) {
+      errors.push(`${q.id}: domain ${q.domain} has no committed catalogue (public/${file}) — the picker would open into its error state`);
+    }
+    if (q.core === true) {
+      errors.push(`${q.id}: a catalog question is never core — an entity answer has no option share for a cohort fold to read (D161)`);
+    }
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);
   }
 }
 
+// ---- feed ads (D197). Every rule here is a promise the card makes on
+// screen, held at the source. The refusals are BY NAME rather than by
+// omission — an ad that wanted a logo would fail with the word "logo" in
+// the message, which makes adding one a conversation rather than a commit.
+{
+  const ads = buildAds(content);
+  const seenAdIds = new Set();
+  const ALLOWED = ["id", "advertiser", "headline", "body", "until", "audience", "active"];
+  const REFUSED = {
+    image: "an image", img: "an image", logo: "a logo", brand: "a brand",
+    color: "a brand colour", colour: "a brand colour", url: "a link",
+    href: "a link", link: "a link", cta: "a call to action", script: "a script",
+    pixel: "a tracking pixel", track: "tracking",
+  };
+  // THE FIELD-NAME RULES READ THE SOURCE, NOT THE BUILT OUTPUT, and that is
+  // the whole reason they work. `buildAds` maps the fields it knows and
+  // drops the rest, so an ad carrying a logo would arrive here already
+  // stripped of it — every refusal below would pass while the source file
+  // said something the app does not do. Checked against the raw entries
+  // instead, so the gate sees what an author actually wrote.
+  const rawAds = content.ads?.ads ?? [];
+  rawAds.forEach((raw, i) => {
+    const at = `ads.json[${i}]${raw?.id ? ` (${raw.id})` : ""}`;
+    for (const k of Object.keys(raw ?? {})) {
+      if (ALLOWED.includes(k)) continue;
+      const why = REFUSED[k.toLowerCase()];
+      errors.push(
+        why
+          ? `${at}: an ad carries no ${k} — text only (D197), and ${why} is refused BY NAME rather than forgotten`
+          : `${at}: unknown ad field ${JSON.stringify(k)}`,
+      );
+    }
+  });
+  for (const a of ads) {
+    if (seenAdIds.has(a.id)) errors.push(`duplicate ad id ${a.id}`);
+    seenAdIds.add(a.id);
+    if (!/^ad-[a-z0-9]+$/.test(a.id)) errors.push(`${a.id}: ad id does not match ad-<id>`);
+    for (const [k, cap] of [["advertiser", 40], ["headline", 70], ["body", 140]]) {
+      const v = a[k];
+      if (typeof v !== "string" || !v.trim()) errors.push(`${a.id}: ad needs a non-empty ${k}`);
+      else if (v.length > cap) errors.push(`${a.id}: ${k} is ${v.length} chars (max ${cap})`);
+      // A link cannot arrive through the prose either — the card renders
+      // text, so a URL in it would be a link the app does not make tappable
+      // and the reader would type by hand. That is a worse click-out, not a
+      // clever one.
+      else if (/https?:\/\/|www\.|\.com\b|\.no\b/i.test(v)) {
+        errors.push(`${a.id}: ${k} carries a web address — an ad card has no tap-through (D197), and a typed-out one is a worse click-out rather than a clever one`);
+      }
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.until))) {
+      errors.push(`${a.id}: an ad carries \`until\` as a YYYY-MM-DD UTC day — a slot with no window is inventory nobody sold`);
+    }
+    if (a.audience !== undefined) {
+      if (!a.audience || typeof a.audience !== "object" || Array.isArray(a.audience)) {
+        errors.push(`${a.id}: audience must be an object of dim → bucket`);
+      } else if (Object.keys(a.audience).length !== 1) {
+        errors.push(`${a.id}: audience carries ${Object.keys(a.audience).length} tags — exactly one, or none`);
+      }
+    }
+  }
+  // Ads and questions share one id space in the reader's head, and one
+  // slot in the feed. A collision would be confusing rather than harmful,
+  // which is exactly the kind of thing that survives to production.
+  for (const a of ads) if (seenIds.has(a.id)) errors.push(`${a.id}: an ad and a question share an id`);
+}
+
 // ---- duplicate prompts within a surface read as the same question twice.
+// A retired entry (`active: false`) is not read at all, and its REPLACEMENT
+// carries the same prompt by design: a shipped dial's range is frozen with
+// its bucket labels (D114), so widening one means retiring the id and
+// appending a new one with the prompt unchanged (D358 did fourteen). The
+// retired entry stays in the bank — the seed and the deck read the flag
+// there — and stays out of this rule; check:neighbors makes the same
+// exclusion for the same reason.
 const promptsBySurface = new Map();
 for (const q of entries) {
-  const key = `${q.surface}\u0000${q.prompt}`;
+  if (q.active === false) continue;
+  // A cast round exists once per 1v1 POOL with the same prompt by design
+  // (D437): the friends and romantic pools are disjoint (`mode`), and a
+  // pair only ever draws from one of them — so the key carries the mode.
+  const key = `${q.surface}\u0000${q.topic === "cast" ? `${q.mode ?? ""}\u0000` : ""}${q.prompt}`;
   if (promptsBySurface.has(key)) {
     errors.push(`${q.id}: duplicate prompt within ${q.surface} (also ${promptsBySurface.get(key)})`);
   }
   promptsBySurface.set(key, q.id);
 }
 
-// ---- feed topics must exist in the taxonomy the client renders.
+// ---- feed topics must exist in the taxonomy the client renders. Catalog
+// picks are exempt BY SURFACE RULE, not oversight: they file against
+// WORLD_TOPICS — `fav` is a real topic the feed's chip row carries for
+// them (D145 §4) and deliberately not part of the feed's own subject
+// taxonomy; check:quality validates their `cat` against that wider set.
 const topicIds = new Set(content.feed.topics.map((t) => t.id));
 for (const q of entries) {
-  if (q.surface === "feed" && !topicIds.has(q.topic)) {
+  if (q.surface === "feed" && q.type !== "catalog" && !topicIds.has(q.topic)) {
     errors.push(`${q.id}: feed topic ${JSON.stringify(q.topic)} not in feed-questions.json topics`);
   }
 }
@@ -183,10 +490,111 @@ for (const q of entries) {
   }
 }
 
+// The seats a role is cast in and the axes a cast round names (D437) — the
+// two instruments' dims, closed here so a bank entry cannot invent one the
+// fold does not know (data/roles.ts reads both literally).
+const SEATS = ["engine", "hands", "heart", "wild"];
+const AXES = ["trust", "spark", "judgement", "constancy"];
+
 // ---- group kinds are a closed set (the reveal renders each differently).
+// `rate` joined at D434 (the owner's 2026-09-08 design): a five-step scale
+// between two poles, asked of the group about itself every fourth round.
+// Its shape is held here because the card and the fold both read it
+// literally — five options, two poles, or the ballot has no ends to draw.
+// A `pick` may carry the scenario pack and the role it casts, and a pack
+// without a role (or the reverse) is a half-tagged question nothing can
+// draw a kicker or a verdict for.
 for (const q of entries) {
-  if (q.surface === "group" && !["us", "pick", "classic"].includes(q.topic)) {
-    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic`);
+  if (q.surface !== "group") continue;
+  if (!["us", "pick", "classic", "rate"].includes(q.topic)) {
+    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic/rate`);
+  }
+  if (q.topic === "rate") {
+    if (!Array.isArray(q.poles) || q.poles.length !== 2 || q.poles.some((p) => typeof p !== "string" || !p.trim())) {
+      errors.push(`${q.id}: a rate question needs exactly two poles`);
+    }
+    if (!Array.isArray(q.options) || q.options.length !== 5) {
+      errors.push(`${q.id}: a rate question has five step labels, not ${Array.isArray(q.options) ? q.options.length : "none"}`);
+    }
+  } else if (q.poles !== undefined) {
+    errors.push(`${q.id}: poles on a ${q.topic} question — only a rate question has ends`);
+  }
+  if ((q.scen && !q.role) || (q.role && !q.scen)) {
+    errors.push(`${q.id}: a role vote carries both its pack (scen) and its role, or neither`);
+  }
+  if (q.scen && q.topic !== "pick") {
+    errors.push(`${q.id}: a scenario pack on a ${q.topic} question — only a pick casts a role`);
+  }
+  if (q.scen && (typeof q.scen.id !== "string" || typeof q.scen.label !== "string" || typeof q.scen.hue !== "number")) {
+    errors.push(`${q.id}: scen needs id, label and a numeric hue`);
+  }
+  if (q.role && (typeof q.role.id !== "string" || typeof q.role.label !== "string")) {
+    errors.push(`${q.id}: role needs id and label`);
+  }
+  // The SEAT (D437): what a member's received votes cluster into, so a
+  // role without one is a vote the instrument cannot count.
+  if (q.role && !SEATS.includes(q.role.seat)) {
+    errors.push(`${q.id}: role seat ${JSON.stringify(q.role.seat)} not ${SEATS.join("/")}`);
+  }
+}
+
+// ---- every pack is ONE role per seat (D437): the seats are what the group
+// instrument measures, and a pack with two hands and no heart would cast
+// its members into a seat nobody can earn there — which is exactly the
+// dead-axis shape D204 spent a release refusing. Over ACTIVE role votes:
+// a retired role is not dealt and its replacement carries the seat.
+{
+  const byPack = new Map();
+  for (const q of entries) {
+    if (q.surface !== "group" || !q.scen || !q.role || q.active === false) continue;
+    if (!byPack.has(q.scen.id)) byPack.set(q.scen.id, []);
+    byPack.get(q.scen.id).push(q);
+  }
+  for (const [pack, roles] of byPack) {
+    for (const seat of SEATS) {
+      const n = roles.filter((q) => q.role.seat === seat).length;
+      if (n !== 1) errors.push(`pack ${pack}: ${n} active roles in the ${seat} seat, want exactly one`);
+    }
+    // …and an id names ONE role within its pack: the Groups stop keys a
+    // role by (pack, id) — `groupCast.ts` — so a repeated id would fold two
+    // roles into one row and one satellite. Across packs an id may repeat.
+    const seen = new Map();
+    for (const q of roles) {
+      const prev = seen.get(q.role.id);
+      if (prev) errors.push(`pack ${pack}: role id ${JSON.stringify(q.role.id)} on ${prev} and ${q.id} — one role per id within a pack`);
+      else seen.set(q.role.id, q.id);
+    }
+  }
+}
+
+// ---- 1v1 domains are a closed set too (D386). The roles fold reads the
+// day's kind off this field — a `mirror` day is a read of the OTHER person
+// and is held apart from likeness and insight — so a 1v1 question with no
+// domain, or a new word nobody taught the fold, would be scored as
+// something it is not. Both pools, since they share the surface.
+// `cast` joined at D437 (the owner's 2026-09-09 design): the round that asks
+// what the other person is to you, one entry per pool, dealt every fourth
+// round. Its shape is held here because the card, the fold and the roles
+// instrument all read it literally — four answers, four *them* forms, four
+// axes from the instrument's closed set, and a prompt that carries the
+// `{name}` the card substitutes.
+const DUO_DOMAINS = ["day", "heat", "mirror", "ahead", "cast"];
+for (const q of entries) {
+  if (q.surface !== "duo") continue;
+  if (!DUO_DOMAINS.includes(q.topic)) {
+    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead/cast`);
+  }
+  if (q.topic === "cast") {
+    if (!Array.isArray(q.options) || q.options.length !== 4) errors.push(`${q.id}: a cast round has four answers`);
+    if (!Array.isArray(q.them) || q.them.length !== 4 || q.them.some((t) => typeof t !== "string" || !t.trim())) {
+      errors.push(`${q.id}: a cast round needs four them forms`);
+    }
+    if (!Array.isArray(q.dims) || q.dims.length !== 4 || q.dims.some((d, i) => d !== AXES[i])) {
+      errors.push(`${q.id}: a cast round's dims are ${AXES.join(" · ")}, in that order`);
+    }
+    if (!/\{name\}/.test(q.prompt)) errors.push(`${q.id}: a cast prompt carries {name}`);
+  } else if (q.them !== undefined || q.dims !== undefined) {
+    errors.push(`${q.id}: them/dims on a ${q.topic} question — only a cast round has them`);
   }
 }
 
@@ -197,6 +605,25 @@ for (const [key, t] of Object.entries(content.tests)) {
     if (q.test === key && !dims.has(q.axis)) {
       errors.push(`${q.id}: axis ${JSON.stringify(q.axis)} not a ${key} dimension`);
     }
+  }
+}
+
+// ---- deep items (D416) must name a facet their test declares, under the
+// axis they score. tests.json declares `facets` for exactly this check, the
+// way `dims` exists for the one above: a facet id the device's fold does
+// not know is a scored answer nobody can read, and a facet filed under the
+// wrong axis would fold an Anxiety answer into Extraversion.
+for (const [key, t] of Object.entries(content.tests)) {
+  const facets = new Map((t.facets || []).map((f) => [f.id, f]));
+  const dims = new Set(t.dims.map((d) => d.id));
+  for (const f of t.facets || []) {
+    if (!dims.has(f.d)) errors.push(`${key} facet ${f.id}: axis ${JSON.stringify(f.d)} not a ${key} dimension`);
+  }
+  for (const q of entries) {
+    if (q.test !== key || q.facet === undefined) continue;
+    const f = facets.get(q.facet);
+    if (!f) errors.push(`${q.id}: facet ${JSON.stringify(q.facet)} not declared by ${key}`);
+    else if (f.d !== q.axis) errors.push(`${q.id}: facet ${q.facet} belongs to ${f.d}, the item scores ${q.axis}`);
   }
 }
 
@@ -261,7 +688,152 @@ const NOT_SEEDED = {
   "scorecard.json":
     "generated measurement output, read by the scorecard renderer; never "
     + "an input to the bank",
+  "artist-review.json":
+    "build input, not content — the hand-reviewed exceptions to the artists "
+    + "catalogue's mechanical rule (D267), read by scripts/build-catalog.mjs "
+    + "and gated by check:catalogs against the committed catalogue",
+  "athlete-review.json":
+    "build input, not content — the athletes catalogue's reviewed "
+    + "exceptions (D308, the D267 shape one domain over), read by "
+    + "scripts/build-catalog.mjs and gated by check:catalogs against the "
+    + "committed catalogue",
+  "pricing.json":
+    "the published rate card, not question content (PAID-PLAN §6, D288 §3) "
+    + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "
+    + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
+    + "held to shape by check:pricing; never an input to the bank",
+  "topic-proposals.json":
+    "the taxonomy ledger, not content (D424) — questions a lane met that "
+    + "fit no existing category, parked with their run dates so "
+    + "scripts/topic-budget.mjs can rule on whether the gap has become a "
+    + "category. Read by that regulator and validated by check:taxonomy; "
+    + "a parked question is a CANDIDATE and reaches no bank until the "
+    + "category is created and it is written into one",
+  "learn-sample.json":
+    "generated OUTPUT, not an input — the fixed slice of learn-questions.json "
+    + "the JS bundle carries (D284: the whole bank used to be compiled in, and "
+    + "check:bundle had ~39 cards of headroom left). Written by "
+    + "scripts/gen-learn-sample.mjs, imported by src/v2/spec/learn-data.js so "
+    + "the demo build has cards, and held equal to its source by "
+    + "check:learn-sample. It is emphatically not a second bank to edit",
+  "duel-sample.json":
+    "generated OUTPUT, not an input — the fixed slice of duel-questions.json "
+    + "the JS bundle carries (D435: the whole bank used to be compiled in "
+    + "under the 24 KiB cap below, and the daily burst was one run from "
+    + "crossing it). Written by scripts/gen-duel-sample.mjs, imported by "
+    + "src/v2/spec/duels-data.js so the demo build has duel questions, and "
+    + "held equal to its source by check:duel-sample. It is emphatically "
+    + "not a second bank to edit",
 };
+
+// ---- content COMPILED INTO THE CLIENT, and how much of it there may be.
+//
+// THE GATE THIS FINDING WAS MISSING (D284). `spec/learn-data.js` imported
+// the whole learn bank, so every card shipped inside the JavaScript — and
+// `check:bundle` had about thirty-nine cards of headroom left, against a
+// lane whose own target was another hundred and forty. Nothing was
+// watching, and nothing could have been: question count lives in /content
+// and bundle weight lives in dist/, and no gate joined them. It surfaced
+// because somebody asked, which is not a mechanism.
+//
+// So: a /content file may be imported by `src/` only if it is named here
+// WITH a byte cap. The cap is not a budget to spend — it is the size at
+// which somebody has to think again, and the error says which thought.
+// A file imported and not listed fails; a file listed and not imported
+// fails too (the check-purge-listeners shape), so the list cannot outlive
+// its subjects.
+//
+// What is NOT here is the whole point: daily, feed, test, pick, pulse,
+// call, lens and — since D435 — duel content reach the client only through
+// Firestore, and must keep doing so. Adding a line here is the decision,
+// not the paperwork.
+const BUNDLED_CONTENT = {
+  "learn-sample.json": {
+    maxKiB: 32,
+    why:
+      "the fixed slice of the learn bank the demo build needs (D284) — "
+      + "generated at PER_FIELD cards a field, so it grows with the number "
+      + "of FIELDS and never with the bank. Crossing this means the taxonomy "
+      + "roughly doubled: re-derive PER_FIELD against the demo's needs "
+      + "rather than raising the cap",
+  },
+  "pricing.json": {
+    maxKiB: 8,
+    why:
+      "the published rate card (PAID-PLAN §6, D288 §3), imported by "
+      + "src/v2/data/pricing.ts because the committed file IS what the door "
+      + "prints — a price a buyer cannot diff is a price that can be quietly "
+      + "discriminated. Bounded structurally: constants, FX, and 3 cohorts "
+      + "of idx + 14 ticks + a date; estimates add one small object per "
+      + "cohort. Crossing this means the card grew a per-day series or a "
+      + "fourth cohort — reshape it, don't raise the cap",
+  },
+  "duel-sample.json": {
+    maxKiB: 16,
+    why:
+      "the fixed slice of the duel bank the demo build needs (D435) — "
+      + "generated at PER_KIND questions a group kind and PER_DOMAIN a 1v1 "
+      + "domain plus the packs those votes name, so it grows with the number "
+      + "of KINDS and DOMAINS and never with the bank. Crossing this means a "
+      + "count crept or a kind arrived: re-derive the counts against the "
+      + "demo's needs rather than raising the cap. (This entry replaced "
+      + "duel-questions.json at 24 KiB, the last bank compiled in whole — "
+      + "which the daily burst was one run from crossing)",
+  },
+};
+
+{
+  const srcDir = join(root, "src");
+  // Tests are excluded, and they are the majority of the readers: a suite
+  // comparing the shipped bank against its source has to import the source
+  // (content-parity, lens-content, world-channels all do), and none of it
+  // reaches a device. `src/v2/test/` whole, plus any `*.test.*` anywhere —
+  // the same two exclusions spec-globals.mjs makes, for the same reason.
+  const isTest = (at) =>
+    at.includes(`${sep}test${sep}`) || /\.test\.[jt]sx?$/.test(at);
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const at = join(dir, e.name);
+    if (e.isDirectory()) return walk(at);
+    return /\.(js|jsx|ts|tsx)$/.test(e.name) && !isTest(at) ? [at] : [];
+  });
+  const imported = new Map();
+  for (const file of walk(srcDir)) {
+    const src = readFileSync(file, "utf8");
+    for (const m of src.matchAll(/from\s+['"][^'"]*\/content\/([\w.-]+\.json)['"]/g)) {
+      if (!imported.has(m[1])) imported.set(m[1], []);
+      imported.get(m[1]).push(file.slice(root.length + 1));
+    }
+  }
+  for (const [f, sites] of imported) {
+    const rule = BUNDLED_CONTENT[f];
+    if (!rule) {
+      errors.push(
+        `content/${f} is imported into the client (${sites.join(", ")}) but is not `
+        + "listed in BUNDLED_CONTENT. A bank compiled into the app ships to every "
+        + "user and counts against check:bundle, and nothing else connects the two "
+        + "— which is exactly how the learn bank got within 39 cards of failing the "
+        + "build (D284). Either read it from the seeded bank instead, or add it "
+        + "here with a cap and the reason.",
+      );
+      continue;
+    }
+    const kib = statSync(join(root, "content", f)).size / 1024;
+    if (kib > rule.maxKiB) {
+      errors.push(
+        `content/${f} is ${kib.toFixed(1)} KiB, over its ${rule.maxKiB} KiB bundle cap `
+        + `— it is compiled into the app (${sites.join(", ")}).\n    ${rule.why}`,
+      );
+    }
+  }
+  for (const [f, rule] of Object.entries(BUNDLED_CONTENT)) {
+    if (!imported.has(f)) {
+      errors.push(
+        `BUNDLED_CONTENT lists content/${f} ("${rule.why}") but nothing under src/ `
+        + "imports it any more — drop the entry with the import.",
+      );
+    }
+  }
+}
 
 const contentFiles = readdirSync(join(root, "content"))
   .filter((f) => f.endsWith(".json"));

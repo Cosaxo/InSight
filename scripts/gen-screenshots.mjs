@@ -84,6 +84,25 @@ const PROFILES = {
 // Note the /mirror/i flag: the dock's DOM text is lowercase and CSS
 // uppercases it, so a case-sensitive match finds nothing. Found by
 // dumping the tabbar, not by reading the JSX.
+// The daily's nav is the ruler since v17 — role="tab" stops labelled
+// World · Circle · 1v1 — and TWO rulers carry that label at once: the
+// in-flow row and the compact copy the header holds ready to dock.
+// Resolve a stop the way smoke-nav.test.jsx does (the in-flow ruler is
+// the one outside .app-header), and fail loudly when it is missing. The
+// old duel/group drives clicked buttons named "1v1" and "Group": the
+// first is a tab rather than a button, and the second label left with
+// the pill — both were written against the pre-v17 app, and nothing ran
+// this harness between then and today to notice.
+async function clickRulerStop(page, label) {
+  await page.evaluate((want) => {
+    const rulers = [...document.querySelectorAll('[role="tablist"][aria-label="How far this answer reaches"]')];
+    const row = rulers.find((r) => !r.closest(".app-header"));
+    const tab = row && [...row.querySelectorAll('[role="tab"]')].find((b) => b.textContent.trim() === want);
+    if (!tab) throw new Error(`no in-flow ruler stop "${want}"`);
+    tab.click();
+  }, label);
+}
+
 const SCENES = [
   {
     id: "daily",
@@ -92,7 +111,15 @@ const SCENES = [
   {
     id: "reveal",
     async drive(p) {
-      await p.getByRole("button", { name: "Absolutely" }).first().click();
+      // The first option of today's card, whatever its text. This used
+      // to click "Absolutely" by name — the DEMO deck's first option —
+      // which live mode can only satisfy on days the real question
+      // happens to share that label. `sd-opt` is the ballot buttons'
+      // marker class (daily-split.jsx says so beside the ballot), so
+      // `.first()` still fails loudly when the card is missing, which is
+      // the property the by-name selector bought. The 2026-09-02 ballot
+      // rewrite dropped the class and this scene went dark until run 7.
+      await p.locator("button.sd-opt").first().click();
       await p.waitForTimeout(1400); // the split animates in
     },
   },
@@ -106,14 +133,17 @@ const SCENES = [
   {
     id: "duel",
     async drive(p) {
-      await p.getByRole("button", { name: /1v1/ }).first().click();
+      await clickRulerStop(p, "1v1");
       await p.waitForTimeout(900);
     },
   },
   {
     id: "group",
+    // The scene id and its caption key stay "group" — renaming to the
+    // ruler's word would orphan `05-group` in listing.json for no pixel
+    // difference.
     async drive(p) {
-      await p.getByRole("button", { name: /Group/ }).first().click();
+      await clickRulerStop(p, "Circle");
       await p.waitForTimeout(900);
     },
   },
@@ -122,7 +152,21 @@ const SCENES = [
     async drive(p) {
       // Count-free on purpose: the accessible name states the test count in
       // words and is derived from PASSIVE.KEYS, so a new test changes it.
-      await p.getByRole("button", { name: /Your \w+ profiles/ }).first().click();
+      const chip = p.getByRole("button", { name: /Your \w+ profiles/ }).first();
+      // Screenshots run 9 (2026-09-06) found the chip and then waited the
+      // full 30s for it to become actionable on the Play viewport, one
+      // minute after the same click had landed on the iPhone one. A
+      // Playwright click waits for the element to hold still for two
+      // frames, and a chip that is still settling never does — so after a
+      // bounded wait the click goes through without the stability check.
+      // It is still a click at the chip's own position: nothing covers it,
+      // and a covered chip would fail the capture rather than this line.
+      try {
+        await chip.click({ timeout: 10_000 });
+      } catch {
+        console.log("    (profiles chip was never still — clicked it anyway)");
+        await chip.click({ force: true });
+      }
       await p.waitForTimeout(900);
     },
   },
@@ -175,15 +219,57 @@ for (const [profileId, cfg] of profiles) {
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e)));
 
-    await page.goto(url, { waitUntil: "networkidle" });
+    // "load", not "networkidle": a LIVE build holds a Firestore listen
+    // channel open for as long as the page lives, so the network never
+    // goes idle — the old wait timed out on this harness's first live
+    // run (Screenshots run 2). The app renders only after live boot
+    // resolves (initLive().finally — src/v2/main.jsx), so the dock
+    // appearing IS the ready signal, in both modes; 60s covers a cold
+    // anonymous sign-in on a busy runner.
+    await page.goto(url, { waitUntil: "load" });
+    await page.getByRole("button", { name: /mirror/i }).first().waitFor({ timeout: 60_000 });
+    // Since D356 the dock rendering no longer means the live boot has
+    // ATTACHED: a live build paints first and hears from the server
+    // later, and `LIVE.enabled` flips on the attach. Run 7 read the mode
+    // 1.2s after the dock and captured a live build as DEMO. So wait for
+    // the boot to settle — enabled, or a recorded bootError — and when a
+    // live build still reads demo, write WHY into the manifest: the boot
+    // reason is a value (LIVE.bootError / bootStage) precisely so nobody
+    // has to guess from a PNG.
+    try {
+      await page.waitForFunction(
+        () => !window.LIVE || !window.LIVE.demoInProd || !!window.LIVE.bootError,
+        null, { timeout: 60_000 });
+    } catch { /* timed out still demoInProd — recorded below */ }
     await page.waitForTimeout(1200); // spec layer settles after first paint
 
     if (manifest.mode === null) {
-      manifest.mode = await page.evaluate(() =>
-        (window.LIVE && window.LIVE.enabled) ? "live" : "demo");
+      const boot = await page.evaluate(() => ({
+        live: !!(window.LIVE && window.LIVE.enabled),
+        liveBuild: !!(window.LIVE && window.LIVE.demoInProd !== undefined && (window.LIVE.enabled || window.LIVE.demoInProd)),
+        bootError: (window.LIVE && window.LIVE.bootError) || "",
+        bootStage: (window.LIVE && window.LIVE.bootStage) || "",
+      }));
+      manifest.mode = boot.live ? "live" : "demo";
+      if (!boot.live && boot.liveBuild) {
+        manifest.bootError = boot.bootError || `boot did not attach within 60s (stage: ${boot.bootStage || "?"})`;
+        problems.push(`live build captured in DEMO mode — ${manifest.bootError}`);
+      }
     }
 
-    await scene.drive(page);
+    // A scene whose drive fails records a problem and moves on rather
+    // than killing the process: the run still exits 1, but ONE run
+    // reports every wall and the artifact keeps whatever landed. Run 3
+    // paid the alternative — three good live captures died with the
+    // process because the duel scene's selector had no live match.
+    try {
+      await scene.drive(page);
+    } catch (e) {
+      problems.push(`${profileId}/${scene.id}: drive failed — ${String(e).slice(0, 200)}`);
+      console.log(`  ✗ ${profileId}/${scene.id}  (drive failed, no capture)`);
+      await page.close();
+      continue;
+    }
     await page.waitForTimeout(500);
 
     // Demo-only affordances, by their accessible names. Checked on the
@@ -202,11 +288,19 @@ for (const [profileId, cfg] of profiles) {
     // daily-split.jsx), so an honest live capture showing real named
     // voters does not trip this. That near-collision is the whole reason
     // to match on exact labels here rather than a substring.
-    const demoOnly = await page.evaluate(() =>
-      ["Comments", "Who voted what"].filter((label) => {
+    // "Who voted what" is carried by BOTH rows since D171: the demo
+    // sheet's door and the live row's LiveBreakdownPanel door
+    // (daily-split.jsx) share the exact label, and only the rows'
+    // S.live gates tell them apart. In live mode the demo row cannot
+    // render, so any match there IS the shippable D98 panel — checking
+    // it flagged run 3's honest live reveal as unshippable. The
+    // world-feed near-collision note above is about a third button and
+    // still holds; "Comments" stays demo-unique in both modes.
+    const demoOnly = await page.evaluate((labels) =>
+      labels.filter((label) => {
         const el = document.querySelector(`[aria-label="${label}"]`);
         return el && el.getBoundingClientRect().width > 0;
-      }));
+      }), manifest.mode === "live" ? ["Comments"] : ["Comments", "Who voted what"]);
 
     const n = String((onlyScene ? SCENES.findIndex((s) => s.id === scene.id) : i) + 1).padStart(2, "0");
     const file = join(dir, `${n}-${scene.id}.png`);

@@ -411,6 +411,433 @@ but the ordering: the bump was made *from* step 17's conclusion, not from
 a memory of it. Four that held (20, 21, 22, 28) against four skipped (18,
 19, 24, 26).
 
+**Build 20's pre-flight found nothing to do, and turned up a gap in a
+gate instead** (D191, 2026-08-17). Run 28 was still the highest run, its
+step 17 still `success`, and `appBuild` at `e76731d` still 19 against a
+tree at 20 — so *run as-is*, and no number moved. Third pre-flight to come
+out that way, and the correspondence is now four for four in both
+directions: every bump that held was made off the step list while it was
+on screen, every skip was a session that came back later or not at all.
+
+What it did find is that `check:bundle` documented two load-bearing
+variables and guarded one. Building the release bundle without
+`VITE_SENTRY_DSN` drops the 445 KB Sentry group as dead code, and the gate
+reported `SHIPPING bundle (VITE_V2_LIVE=true), 1877 KB total` — 454 KB
+light, against a total ceiling with 3 KB of headroom. The script now
+withholds the total ceiling when the DSN is absent rather than passing it,
+and names both halves of the artifact in its verdict; it does not fail,
+because a Sentry-less release is a supported build and this workflow
+passes the secret straight through as optional.
+
+**Runs 32 and 33 delivered build 21, and the bump landed off step 17's
+conclusion** (D199, 2026-08-19). Both archived `d547f7a` seven and a half
+minutes apart — run 32 (`32228796376`, 07:38:55Z) step 17 `skipped`, the
+dry run, 5m 18s; run 33 (`32229389551`, 07:46:29Z) `success`, 07:52:10Z →
+07:54:11Z, 2m 01s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery
+UUID `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`, 6,037,139 bytes. Fifth pair of
+this shape after 15/16, 23/24, 25/26 and 27/28.
+
+`appBuild` went 21 → 22 in the same session, read off step 17 rather than
+recalled. Five that held (20, 21, 22, 28, 33) against five skipped (18, 19,
+24, 26, 31) — and this is the first release run under D198's reading, which
+is narrower than "remember to bump": the bump is not a follow-up task, it is
+the reading of step 17.
+
+**D159's trap fired again and the rule caught it.** `5c9c4a5` merged; both
+runs archived `d547f7a`, a pulse trail row pushed in the ~40 seconds
+between. `appBuild` was 21 at both, so it cost nothing — the same outcome as
+run 22 — but it is the second worked example of why the comparison is made
+at the run's own `head_sha` and not at the commit you merged.
+
+
+**Runs 29, 30 and 31 delivered build 20, and the bump was skipped — by the
+pre-flight session itself** (D198, caught 2026-08-19). All three archived
+`f8c8465`, which is D191's own commit: run 29 (`32019625202`, 10:19:31Z)
+cancelled at Resolve Swift packages, run 30 (`32019849917`, 10:22:28Z)
+step 17 `skipped` — the dry run — and run 31 (`32020442257`, 10:30:02Z)
+`success`, 10:34:21Z → 10:35:38Z, 1m 17s of transfer. Fifth skip (runs 18,
+19, 24, 26, 31) against four that held.
+
+**This one refutes the correspondence D191 had just claimed.** That entry
+closed four for four: every skip a session that came back later or not at
+all, every bump that held made off the step list while it was on screen.
+`f8c8465` landed at 10:19:05Z and run 29 was dispatched **26 seconds
+later** — one session, holding the run list, cancelling one of its own
+three dispatches. It made the comparison *first*, got *run as-is*, and
+then spent the number that answer was about. **A pre-flight verdict has a
+shelf life of exactly one dispatch**, so "no number moved" is a report
+about a comparison and never a statement about the tree — the same claim
+this file struck for build 12, in the past tense. As in D184, no record
+was written either: nothing in `docs/` named any of the three runs or
+build 20's delivery until build 21's pre-flight read the run list.
+
+
+**Runs 34–36 delivered build 22 and the bump held; runs 37 and 38
+delivered build 23 and it did not** (D229, caught 2026-08-22). Both
+releases went out on 2026-08-20, and **neither was recorded** until this
+pre-flight read the run list — the D184 shape again, twice over.
+
+Build 22: run 34 (`32343292688`, 07:17:04Z) cancelled, run 35
+(`32343608284`, 07:21:11Z) step 17 `skipped` — the dry run — and run 36
+(`32344235798`, 07:29:16Z) `success`, 07:34:31Z → 07:36:04Z, 1m 33s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`9da8aa74-295d-4c29-884f-c2d1f73e2187`, 6,067,024 bytes. All three
+archived `8a51773`, a pulse trail row. `appBuild` went 22 → 23 that
+evening in `1c13fb6` (#246) — the sixth bump to hold.
+
+Build 23: run 37 (`32407729599`, 19:15:59Z) step 17 `skipped` — the dry
+run — and run 38 (`32409230777`, 19:32:37Z) `success`, 19:37:30Z →
+19:38:52Z, 1m 22s of transfer. `UPLOAD SUCCEEDED with no errors`,
+delivery UUID `52d5a479-a4dd-4976-8f97-da9e381fad53`, 6,059,740 bytes.
+Sixth pair of this shape after 15/16, 23/24, 25/26, 27/28 and 32/33 — and
+the bump after it was skipped. Six that held (20, 21, 22, 28, 33, 36)
+against six skipped (18, 19, 24, 26, 31, 38).
+
+**Two releases sixteen hours apart on one working day, and the habit held
+for the first and not the second.** Nothing separates them except that
+build 22's number was read off step 17 and build 23's was not, which is
+D198's reading at its sharpest: the bump is not a follow-up task, it is
+the reading of step 17. Both uploads printed the workflow's own `Bump
+appBuild in package.json before the next run` line at step 18, so the
+reminder is not the missing part — it was on screen both times.
+
+**Build 23's two runs archived different commits, which is D159's trap
+firing on something that is not a pulse row.** Run 37 archived `1c13fb6`,
+run 38 archived `fe6a8e2`: D219 landed in the sixteen minutes between
+them, and what D219 moves is `ios-release.yml`'s `VITE_REQUIRE_SIGNIN`
+default, `'true'` → `'false'`. With `vars.REQUIRE_SIGNIN` unset — which
+is what D219 and 5.6's neighbour at 4.8 both assert — the dry run
+therefore archived a **walled** app and the upload shipped a **wall-less**
+one. `appBuild` was 23 at both, so the comparison this file is about cost
+nothing: the third worked example after runs 22 and 32/33, and the first
+where the commit in the gap is a feature rather than a Routine's trail
+row.
+
+**What it did cost is narrower than it reads, and worth stating exactly.**
+The diff between the two commits touches the build step's env and nothing
+after it — the plist write, the Ruby link step, the ad-hoc archive, the
+cloud-signed export and both entitlement gates are identical, so
+everything the dry run exists to prove was proven on the inputs the
+upload used. What went unrehearsed is the bundle: build 23 is the first
+wall-less build, and no dry run has ever archived that bundle. **A dry
+run derisks the signing, not the build** — and the two are the same run
+only when both dispatches name one commit.
+
+
+**Runs 39 and 40 delivered build 24, and the bump was skipped by the
+session that had just made one** (D273, caught 2026-08-24). Both archived
+`1ade973` thirteen minutes apart — run 39 (`32573914036`, 12:46:43Z) step
+17 `skipped`, the dry run, 7m 21s; run 40 (`32574502233`, 12:59:43Z)
+`success`, 13:04:06Z → 13:05:33Z, 1m 27s of transfer. `UPLOAD SUCCEEDED
+with no errors`, delivery UUID `007fd1db-b647-4d7a-8133-6d3cc31b6094`,
+5,994,956 bytes. Seventh pair of this shape after 15/16, 23/24, 25/26,
+27/28, 32/33 and 37/38. Six that held (20, 21, 22, 28, 33, 36) against
+seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**`1ade973` is D229's own commit — the one that bumped 23 → 24 because
+build 23's upload was owed it — and run 39 was dispatched 68 seconds
+after it landed.** So the session that made the bump is the session that
+spent it. This is D198's shape with the last excuse removed: there was no
+gap between "the upload finished" and "someone came back to the tree",
+because the tree had been edited a minute earlier by the same hands. What
+D198 read as a verdict's shelf life is better stated about the number
+itself — **a bump has a shelf life of exactly one upload.** A session that
+bumps to N and then uploads N has discharged one debt and incurred an
+identical one in the same sitting, and nothing on screen distinguishes
+the two: `package.json` reads 24 both before the dispatch and after it,
+and step 18 printed its reminder into a session that had already done a
+bump that day.
+
+Both runs archived one commit, so D159's trap did not fire — the first
+release since run 21 where the dry run and the upload name the same
+tree, and the one place this release was clean.
+
+**No record was written either, which is the D184 shape for the third
+time** — nothing in `docs/` named run 39, run 40, or build 24's delivery
+until this pre-flight read the run list. The tree was returned to for two
+days and 27 commits, none of which had any reason to think about a build
+number.
+
+
+**Runs 41 and 42 delivered build 25, and the bump landed off step 17's
+conclusion** (D274, 2026-08-24). Run 41 (`32715780408`, 10:14:34Z)
+archived `fcc51d4` with step 17 `skipped` — the dry run, 4m 55s; run 42
+(`32716503010`, 10:23:03Z) archived `01d5570`, step 17 `success`,
+10:28:28Z → 10:29:42Z, 1m 14s of transfer. `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `857d1e15-7b99-40b8-a457-7b0095d8a29e`,
+6,039,930 bytes. Eighth pair of this shape. Seven that held (20, 21, 22,
+28, 33, 36, 42) against seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**The bump was made in the same session, from step 17's step list rather
+than from a memory of it** — the arrangement D186 named and the only one
+that has ever made it stick. D273 had just been written *about* this
+release's predecessor skipping it.
+
+**D159's trap fired, and this is the fourth worked example.** The dry run
+archived `fcc51d4` and the upload archived `01d5570`: two commits landed
+in the eight and a half minutes between the dispatches — `c304647`, a
+content batch of six feed questions (#278), and a pulse trail row. So the
+gap held a **content** change this time, between run 22's pulse row and
+build 23's feature. `appBuild` was 25 at both, so the comparison this
+file is about cost nothing.
+
+**What the gap cost is again the bundle, and again not the signing.** The
+diff is content plus a JSONL row; every step from the plist write through
+the ad-hoc archive, the cloud-signed export and both entitlement gates is
+identical, so what run 41 proved was proved on the inputs run 42 used.
+Six more feed questions than the dry run archived did reach the binary —
+but unlike build 23, nothing about that shipped unguarded: `check:bundle`
+and `check:web-firebase` run on the release path *before* `cap sync`, so
+run 42 measured its own bundle against the ceiling before it archived
+anything, and a break would have failed the job with no number spent.
+**A dry run derisks the signing; the gates on the release path derisk the
+bundle** — which is the half D229 could not say, because it was reading a
+run where the unrehearsed change was behavioural rather than content.
+
+**Build 26's pre-flight found nothing to do, and found a surface no gate
+on this path reads** (D324, 2026-08-27). Run 42 was still the highest run
+— nothing dispatched for three days — its step 17 still `success`, and
+`appBuild` at run 42's own `head_sha` `01d5570` still 25 against a tree at
+26. So *run as-is*, and no number moved. Fourth pre-flight to come out
+that way after D153, D158 and D191, and it is build 25's bump (D274, read
+off step 17 while the step list was on screen) that made it come out that
+way.
+
+**What it found instead is that the app icon is in neither half of the
+pair the last two releases settled.** D229 and D274 read: *a dry run
+derisks the signing; the gates on the release path derisk the bundle.*
+Both of those gates read `dist/` — `check:web-firebase` asks whether the
+JavaScript saw the config, `check:bundle` weighs the JavaScript `cap sync`
+is about to copy into the shell. `AppIcon-512@2x.png` reaches the binary
+from `ios/App/App/Assets.xcassets/` instead, which `cap sync` does not
+write and neither gate reads; `scripts/gen-icons.mjs` is the only thing
+that writes it, and it has no `package.json` entry and no workflow.
+Build 26 is the first build to carry the iris (D302), and it carries it
+because somebody ran that script by hand — verified for this build
+(`f819cc6` touched the file, tree clean at `ac9072f`) and unanswerable in
+general. D324 has why it is recorded rather than closed: the honest gate
+re-renders and compares, PNG rasterisation is not byte-reproducible across
+Chromium versions, and a flaky red on this path costs ~150 minutes of
+macOS quota.
+
+193 commits rode in that gap — the widest between two builds so far,
+against two days for 24 → 25 and sixteen hours for 22 → 23.
+
+**Runs 43 and 44 then delivered build 26, and the bump landed off step
+17's conclusion** (D324, 2026-08-27). Run 43 (`33070525476`, 12:08:58Z)
+step 17 `skipped` — the dry run, 6m 12s; run 44 (`33071251527`,
+12:18:34Z) `success`, 12:25:22Z → 12:27:13Z, 1m 51s of transfer.
+`UPLOAD SUCCEEDED with no errors`, delivery UUID
+`b1562663-98fe-4166-8aae-863bbcc5241d`, 6,128,733 bytes. Ninth pair of
+this shape. `appBuild` went 26 → 27 read off step 17 rather than
+recalled — **eight that held** (20, 21, 22, 28, 33, 36, 42, 44) against
+seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**D159's trap did not fire, and this time that was arranged rather than
+lucky.** Both runs archived `ac9072f`: `main` was read between the
+dispatches and had not moved, and the pre-flight record was deliberately
+left unmerged on its own branch so that merging it could not become the
+commit in the gap. That is the second release since run 21 where the dry
+run and the upload name one tree, and the first where the gap was closed
+on purpose — so what run 43 proved was proved on exactly the bundle run
+44 shipped, which is what D229 could not say about build 23.
+
+
+**Runs 45 and 46 delivered build 27, and the bump was skipped** (D339,
+caught 2026-08-31). Both archived `b78cd9c` nine minutes apart — run 45
+(`33324889659`, 17:18:30Z) step 17 `skipped`, the dry run, 6m 08s; run 46
+(`33325304169`, 17:27:23Z) `success`, 17:31:54Z → 17:33:17Z, 1m 23s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`16213c73-cb2e-4b3f-804e-7ad281523986`, 6,131,570 bytes. Tenth pair of
+this shape. Eight that held (20, 21, 22, 28, 33, 36, 42, 44) against
+**eight skipped** (18, 19, 24, 26, 31, 38, 40, 46) — the first time the
+two counts have been level.
+
+**No record was written either, which is the D184 shape for the fourth
+time** after runs 25/26, 29–31 (D198) and 39/40 (D273): nothing in
+`docs/` named run 45, run 46, or build 27's delivery until this
+pre-flight read the run list. The tree was returned to for a day and 40
+commits — D337, and the 2026-08-31 night audit's 35 (D338) — none of
+which had any reason to think about a build number.
+
+**The one line that looks like it should have caught this is not wrong,
+and that is the finding.** LAUNCH-RUNBOOK 5.6 read *"holds at 2.0.0
+build 27"* and was **correct**: `check:figures` holds that sentence to
+`package.json`, and `package.json` did say 27. A figure gate proves the
+tree agrees with itself. It cannot prove the tree agrees with Apple, and
+D184 already established that the sound invariant keys on the run list,
+which nothing in this tree can read. So the gate that fired during this
+release prep fired *because* the number moved — it is downstream of the
+bump, never upstream of it.
+
+**D159's trap did not fire.** Both runs archived `b78cd9c` — the third
+release since run 21 where the dry run and the upload name one tree,
+after 39/40 and 43/44. `b78cd9c` is itself a pulse trail row rather than
+any release commit, which is run 22's shape exactly: the dispatch ran
+against the branch as it stood, and reading `appBuild` at the run's own
+`head_sha` is what makes the comparison answerable.
+
+130 commits rode in the 26 → 27 gap, over three days — the second widest
+after build 26's 193.
+
+**Build 28's pre-flight found the debt rather than a clean tree** (D339,
+2026-08-31). Run 46 is the highest run in `ios-release.yml`'s list, its
+step 17 `success`, and `appBuild` at run 46's own `head_sha` `b78cd9c`
+is **27** — against a tree at `ed9ecf9` reading **27**. 27 is not greater
+than 27, so the answer is **bump**, and `appBuild` went 27 → 28 with
+`check:versions --fix` before anything was dispatched.
+
+That is the fifth pre-flight to open on a spent build (builds 12, 13, 14,
+and now 28 — D143's shape), against four that found nothing to do (D153,
+D158, D191, D324). **The comparison is the only thing that catches it**,
+and the cost of skipping it is not a red build: App Store Connect refuses
+a reused number *after* the transfer completes, so every gate in this
+repo passes, the archive signs, the upload runs, and ~150 minutes of
+macOS quota is spent on a rejection.
+
+**Runs 47 and 48 then delivered build 28, and the bump landed off step
+17's conclusion** (D339 amendment, 2026-08-31). Run 47 (`33424574013`,
+18:21:42Z) step 17 `skipped` — the dry run, 5m 51s; run 48
+(`33425156532`, 18:27:58Z) `success`, 18:33:57Z → 18:35:41Z, 1m 44s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`0b481684-32d0-46d5-b0cb-bb0488dd3741`, 6,131,775 bytes. Eleventh pair of
+this shape. `appBuild` went 28 → 29 read off step 17 rather than recalled
+— **nine that held** (20, 21, 22, 28, 33, 36, 42, 44, 48) against eight
+skipped (18, 19, 24, 26, 31, 38, 40, 46).
+
+**D159's trap did not fire, and the gap was closed on purpose for the
+second time** after runs 43/44. Both runs archived `8abb8e5`, and `main`
+was re-read between the dispatches and confirmed unmoved before the
+upload was sent. So what run 47 proved was proved on exactly the bundle
+run 48 shipped — the signing *and* the bundle, which is the pair D229 and
+D274 could only state by halves.
+
+**What is new here is which commit that one tree is.** Runs 43/44 closed
+the gap by leaving the release record unmerged, so the archived commit
+was `ac9072f`, a pulse trail row. This time the archived commit is
+`8abb8e5` — the merge of the release prep itself, carrying the bump that
+made the build number legal. The dry run and the upload therefore name
+the release commit rather than whatever the Routines happened to push
+last, which is the first time that has been true since run 21.
+
+42 commits rode in the 27 → 28 gap, over one day.
+
+**Runs 49 and 50 delivered build 29, and the bump was skipped** (D381,
+caught 2026-09-06). Both archived `74c84a0` seven minutes apart — run 49
+(`33650731413`, 15:46:32Z) step 17 `skipped`, the dry run, 6m 30s; run 50
+(`33651487283`, 15:53:40Z) `success`, 16:00:26Z → 16:02:20Z, 1m 54s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`e82cc4de-1466-4ce8-800f-a58dfb33e8c9`, 6,143,472 bytes. Twelfth pair of
+this shape. Nine that held (20, 21, 22, 28, 33, 36, 42, 44, 48) against
+**nine skipped** (18, 19, 24, 26, 31, 38, 40, 46, 50) — level again, one
+release after the held count first led.
+
+**No record was written either, which is the D184 shape for the fifth
+time** after runs 25/26, 29–31 (D198), 39/40 (D273) and 45/46 (D339):
+nothing in `docs/` named run 49, run 50, or build 29's delivery until
+this pre-flight read the run list.
+
+**What is new is that the remedy built for exactly this ran, and was
+empty.** D339 added step 18, *Fire the release recorder*, on the
+reasoning that the step which uploaded is the one thing that cannot
+forget the upload happened. Build 29 is the first release since, and
+that step's whole output was:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+It behaved exactly as written — inert, `success`, never red, because a
+build that uploaded is delivered whatever that step does. **A remedy
+waiting on a click nobody has made is not yet a remedy**, and its
+inertness is silent for the same reason every other failure on this path
+is: nothing in this tree can read the run list, so nothing could notice
+that the recorder had never once fired. The click is already a row on
+`docs/OWNER-LIST.md` § Clicks; what it was missing is this measurement of
+what the delay costs.
+
+**D159's trap did not fire.** Both runs archived `74c84a0` — the fifth
+release since run 21 where the dry run and the upload name one tree,
+after 39/40, 43/44, 45/46 and 47/48. It was not arranged this time: like
+run 46's, `74c84a0` is a pulse trail row rather than any release commit,
+which is run 22's shape exactly — the dispatch ran against the branch as
+it stood, and reading `appBuild` at the run's own `head_sha` is what
+makes the comparison answerable.
+
+50 commits rode in the 29 → 30 gap, over four days — the third widest
+after build 26's 193 and build 27's 130.
+
+**Build 31's pre-flight opened on a clean tree, and the dispatch, the bump
+and the record happened inside one session again** (2026-09-06, the
+release day D388 opened). Run 52 was the highest run in `ios-release.yml`'s
+list, its step 17 `success`, and `appBuild` at run 52's own `head_sha`
+`c5cc341` was **30** against a tree reading **31** — 31 is greater than 30,
+so *run as-is*, and no number moved before the dispatch (the fifth
+pre-flight to find nothing to do, after D153, D158, D191 and D324). Run 53
+(`34034773547`, 13:00:25Z) archived `8a2b326` — the merge of #414, the App
+Check bridge that makes this the first build whose phones can attest
+(D388) — with step 17 `skipped`, 5m 32s; run 54 (`34035079826`,
+13:06:20Z) archived `c3a59cb`, step 17 `success`, 13:11:46Z → 13:13:24Z,
+1m 38s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`f1f8362a-003c-4307-b9f8-90ff7ec8c369`, 6,205,166 bytes. Fourteenth pair
+of this shape, and D159's trap fired for the sixth time at the same cost
+as the fifth — nothing: the gap between the two heads is `docs/MERGE-LIST.md`, `docs/OWNER-LIST.md`, `monitoring/console-trail.jsonl`,
+nothing `dist/`, `ios/` or the shell reads. `appBuild` went 31 → 32 read
+off step 17 rather than recalled — **eleven that held** (20, 21, 22, 28,
+33, 36, 42, 44, 48, 52, 54) against nine skipped. Step 18 printed
+`release recorder not wired` for the third release running.
+
+**Build 30's pre-flight found the debt rather than a clean tree** (D381,
+2026-09-06). Run 50 is the highest run in `ios-release.yml`'s list, its
+step 17 `success`, and `appBuild` at run 50's own `head_sha` `74c84a0`
+is **29** — against a tree at `0469f5e` reading **29**. 29 is not greater
+than 29, so the answer is **bump**, and `appBuild` went 29 → 30 with
+`check:versions --fix` before anything was dispatched.
+
+That is the sixth pre-flight to open on a spent build — D143's shape,
+one more than D339's tally of five — against four that found nothing to
+do (D153, D158, D191, D324). **The comparison is still the only thing
+that catches it**, and it is now the only thing that has ever caught it:
+the gate D339 added to take that load off the comparison has not yet
+been switched on.
+
+
+**Runs 51 and 52 then delivered build 30, and the bump landed off step
+17's conclusion** (D381 amendment, 2026-09-06). Run 51 (`34025693929`,
+09:48:48Z) archived `bf24004` with step 17 `skipped` — the dry run,
+5m 48s; run 52 (`34026067310`, 09:57:16Z) archived `c5cc341`, step 17
+`success`, 10:01:23Z → 10:02:41Z, 1m 18s of transfer. `UPLOAD SUCCEEDED
+with no errors`, delivery UUID `96e50ef5-0a24-4308-ad52-7e0d7ea9252b`,
+6,199,752 bytes. Thirteenth pair of this shape. `appBuild` went 30 → 31
+read off step 17 rather than recalled — **ten that held** (20, 21, 22,
+28, 33, 36, 42, 44, 48, 52) against nine skipped (18, 19, 24, 26, 31,
+38, 40, 46, 50).
+
+**This is the first release the pre-flight, the dispatch, the bump and
+the record all happened inside**, with no gap for a session to come back
+across — the arrangement D186 named and D273 sharpened. The bump was
+made from run 52's own step list, not from a memory of it.
+
+**D159's trap fired, and this is the fifth worked example.** Run 51
+archived `bf24004` — the merge of the release prep itself, carrying the
+bump that made build 30 legal — and run 52 archived `c5cc341`, a console
+trail row the console workflow pushed in the eight and a half minutes
+between the dispatches. `appBuild` was 30 at both, so the comparison this
+file is about cost nothing, and the gap was *read* rather than assumed:
+the diff is `docs/MERGE-LIST.md`, `docs/OWNER-LIST.md` and
+`monitoring/console-trail.jsonl` — nothing `dist/`, `ios/` or the shell
+reads — so what run 51 proved about the signing was proved on the inputs
+run 52 used, and `check:bundle` and `check:web-firebase` graded run 52's
+own bundle before it archived anything.
+
+**Step 18 printed `release recorder not wired` for the second release
+running**, so build 30's delivery is recorded by hand exactly as build
+29's was. Two releases is now the measurement on that click
+(`OWNER-LIST.md` § Clicks): the step that cannot forget an upload has
+still never fired.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

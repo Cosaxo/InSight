@@ -44,6 +44,24 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
+      # Question content may not be in the static first-paint graph. The
+      # class this catches is the one that stopped the farm lane on
+      # 2026-09-05: `daily-questions.js` — a file a scheduled lane appends
+      # to EVERY DAY — was fetched before the app could paint, so the bank's
+      # size was the app's start-up cost and enough questions made a content
+      # lane unmergeable. check:bundle could not see the worst edge (a
+      # module inlined into the entry chunk has no chunk of its own to
+      # name), and the answer twice was to raise its ceiling. Client-only
+      # and off backend-checks.yml by the same rule as check:figures above.
+      - run: npm run check:eager-content
+      # D290's invariant: the answer document is the source of truth and
+      # every aggregate is a projection rebuilt from it, which holds only
+      # while the answer keeps carrying its `anchors` snapshot. Trim that to
+      # save a write and nothing else fails — the fold happily folds an
+      # answer with no anchors into nothing, so the Mirror just gets
+      # quieter. Client-side write path, so the same placement rule as
+      # check:figures: it cannot say whether a rules fix is safe to deploy.
+      - run: npm run check:answer-shape
       # The pulse console's collectors and renderer. Same placement rule and
       # the same reason: this is tooling, not the product, and nothing it
       # says bears on whether a rules fix is safe to deploy. Note this is the
@@ -74,6 +92,24 @@ jobs:
       # with vitest's CSS handling off, so the stylesheet size that caused it
       # never resolves there at all. Client-only, off backend-checks.yml.
       - run: npm run check:touch-zoom
+      # …and the other half of the same finger. check:touch-zoom is about a
+      # field being READABLE without iOS zooming the app; this is about a
+      # control being PRESSABLE at all. jsx-a11y has no size rule, so
+      # check:a11y reported 8 findings and green while fourteen controls sat
+      # at 7-26px of real hit area — including the Close button on every
+      # bottom sheet in the app. The class to fix it already existed and had
+      # been forgotten on one of two identical controls for months, which is
+      # the shape a gate holds and a convention does not. Client-only, so it
+      # stays off backend-checks.yml on that workflow's own rule.
+      - run: npm run check:tap-targets
+      # "one suite each, mutation-checked" — src/v2/README.md and
+      # ORIENTATION §3 have both said that about src/v2/ui/ for a long
+      # time, and it was a convention, so it drifted: nine panels had no
+      # suite, including PatternsTab, the entire shipped product of the
+      # on-trial third tab, at 4.71% branch coverage. A ratchet like
+      # check:a11y — the debt is listed by name and only moves down, and
+      # DELETING a suite fails here too. Client-only, same placement rule.
+      - run: npm run check:panel-suites
       # Every store that persists insight.* state must hear the purge
       # (insight:local-purge, D51) — deleting the keys is only half the
       # wipe when the in-memory copy writes itself back on the next
@@ -124,6 +160,22 @@ jobs:
       # deleted from that page is a claim deleted from the product.
       # Client/docs-only, same placement rule as the checks around it.
       - run: npm run check:policy-claims
+      # Every page under web/ is covered by a hosting headers rule. The
+      # commit that enumerated those rules named this gate as its own
+      # missing half and left it on the night's list; four pages were added
+      # without headers in the week that followed, the GDPR erasure route
+      # among them. Reads firebase.json only — client config, so it belongs
+      # here and not on backend-checks.yml.
+      - run: npm run check:web-headers
+      # The hash half, which check:web-headers deliberately does not do —
+      # it reads header KEYS, not values. A drifted script hash is silent:
+      # the browser refuses the script and the page renders as a form that
+      # does nothing, with every other gate green.
+      - run: npm run check:csp-hashes
+      # The web ask door's price card is generated from content/pricing.json
+      # and paid.ts's WINDOW_DAYS, so a refold that does not regenerate it
+      # leaves the door quoting a price the ledger has moved past.
+      - run: npm run check:ask-pricing
       # Every collection the rules grant access to is named in
       # data-inventory.md — the document app-privacy.json derives the App
       # Store privacy label from (D130). A name check, like check:globals.
@@ -134,6 +186,22 @@ jobs:
       # whether a rule is correct, and on that path a missing doc row would
       # block an emergency rules fix — the exact trade CLAUDE.md names.
       - run: npm run check:data-inventory
+      # The maps in docs/ORIENTATION.md — every doc, every README, every
+      # gate, and where each gate runs — plus whether DECISIONS-INDEX.md is
+      # current. A map is worth exactly its currency, and the alternative is
+      # a hand-maintained list of every document and every gate: the one
+      # documentation error this repo keeps re-committing, which
+      # check:figures exists for and counts four instances of.
+      #
+      # It also holds the Status column against each document's own
+      # declaration, because four of those files are proposals with no code
+      # behind them and reading one as a description of the tree is the most
+      # expensive mistake the page can cause.
+      #
+      # Docs-only, so the same placement rule as check:figures above: a stale
+      # map says nothing about whether a rules fix is safe to deploy, and
+      # nothing that cannot answer that question gets to block one.
+      - run: npm run check:docs
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # Near-duplicate questions across the banks (D63). Exact-dupe checks
@@ -148,6 +216,15 @@ jobs:
       # headroom tripwires. Content QUALITY again — same placement rule as
       # check:neighbors above, deliberately off the deploy path.
       - run: npm run check:quality
+      # A category is written at EVERY site or not at all (D424). The lanes
+      # create categories now, which made half-creation reachable on a
+      # schedule: a feed topic lives in world-feed-topics.js AND
+      # content/feed-questions.json, the daily's hues in CAT_META AND
+      # map-branches.js, and nothing compared either pair — the failure is
+      # silent in both directions (a chip that matches nothing, or a
+      # question no chip can reach). Client + content only, so the same
+      # placement rule as check:quality above.
+      - run: npm run check:taxonomy
       # The city catalogue is parsed at runtime and its names become
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
@@ -168,6 +245,14 @@ jobs:
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
+      # The pictures on the pick tiles (D420): every image under
+      # web/catalog-art/ has its credits row and vice versa, every key is in
+      # its catalogue, every licence is one the policy admits, the generated
+      # index agrees with the directories, and firebase.json serves the path
+      # with CORS and an hour's cache — the takedown's other half. Reads
+      # web/, src/ and firebase.json, so it belongs here and not on
+      # backend-checks.yml: nothing it says bears on a rules fix.
+      - run: npm run check:catalog-art
       # The logic generator ships in two byte-identical copies (client +
       # functions, D57) — drift means the server scores forms the client
       # never rendered. backend-checks.yml runs it on the deploy path too.
@@ -191,6 +276,14 @@ jobs:
       # names, reported by email after the upload transferred and the build
       # number was spent. Same side of the line as the two above.
       - run: npm run check:ios-location
+      # D29's device-bind bridge is WIRED, not merely present. Its whole
+      # failure mode is silence: an unregistered plugin leaves a green
+      # build, a passing suite and an app that behaves identically, because
+      # enforcement is soft. That is how the gate sat inert from D29 to
+      # D342. Registration hangs off Main.storyboard's customClass, which
+      # `npx cap sync` may rewrite — a red line here is the only way that
+      # gets noticed.
+      - run: npm run check:devicebind
 
   typecheck-build:
     runs-on: ubuntu-latest
@@ -225,6 +318,25 @@ jobs:
       # reCAPTCHA-key guard and defines nothing — verified by building with
       # each in isolation, where VITE_V2_LIVE alone reproduced the entire
       # delta. Setting it here would waive a guard this job wants enforced.
+      #
+      # …AND VITE_FIREBASE_API_KEY IS NOT SET EITHER, which means that guard
+      # cannot fire in this job however the line above reads: its condition
+      # short-circuits on the missing key before it reaches the throw. That
+      # was true unnoticed for the guard's whole life.
+      #
+      # It is NOT fixed by setting a dummy key here, and that is the point
+      # worth writing down. VITE_APPCHECK_RECAPTCHA_SITE_KEY is read through
+      # import.meta.env and replaced with a literal at build time, so setting
+      # the pair would change which branch of src/lib/appcheck.ts survives —
+      # and this job's whole argument is that it weighs the bundle a release
+      # weighs. Buying guard coverage with a bundle nobody ships is the exact
+      # trade the DSN comment above exists to undo.
+      #
+      # So the condition moved instead: scripts/appcheck-guard.ts holds it,
+      # `npm run test:scripts` runs both directions on every PR, and the
+      # build-time throw stays as the belt on a real release build (verified
+      # by hand — a production web build with a Firebase key and no site key
+      # refuses; with the site key it builds).
       - run: npm run build
         env:
           VITE_SENTRY_DSN: https://ci@example.invalid/0
@@ -232,15 +344,14 @@ jobs:
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
       #
-      # The variable is repeated rather than hoisted to job level on purpose:
-      # check:bundle now REFUSES to grade a build that was not made as the
-      # shipping one, and it reads the flag from its own environment. Passing
-      # it here is the assertion that these two steps agree about which
-      # bundle they are talking about — the exact thing that was untrue
-      # between this job and ios-release.yml.
+      # No env block, and that is the point. check:bundle REFUSES to grade a
+      # build that was not made as the shipping one, and since 2026-08-26 it
+      # asks dist/ rather than its own environment — so the two steps cannot
+      # disagree about which bundle they mean, whatever this one is passed.
+      # The variable used to be repeated here as an assertion that they
+      # agreed; an assertion made of the same variable it was checking is
+      # what let a demo bundle be graded as the shipping one.
       - run: npm run check:bundle
-        env:
-          VITE_V2_LIVE: "true"
 
   unit-tests:
     runs-on: ubuntu-latest

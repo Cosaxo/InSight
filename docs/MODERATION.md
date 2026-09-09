@@ -60,26 +60,28 @@ thread has to belong to one question.
 **World takes (D83, adopting D78 part 2) mount behind a post-vote
 toggle** on live world cards and the live daily — after your own blind
 vote, never before, because reading the discourse before answering is
-the same leak at world scale. They are anonymous (no author names
-rendered; the sentinel gid "world", one take per person per question via
-the `qid_uid` doc id), flaggable by any signed-in user, and carry the
-local mute control (`data/mutes.ts`) guideline 1.2 expects of a
-world-scale UGC surface.
+the same leak at world scale. They carry the sentinel gid "world" and one
+take per person per question via the `qid_uid` doc id, they are flaggable
+by any signed-in user, and they carry the local mute control
+(`data/mutes.ts`) guideline 1.2 expects of a world-scale UGC surface.
+They are NAMED — this sentence called them anonymous until 2026-08-31,
+which stopped being true at D98.
 
 **The client is done.** What remains is neither a screen nor a callable:
 the low-privilege Routine and the maintainer's answers to the open
 questions at the end. Until the Routine lands, the only verdict source
 is a MOD_UIDS operator acting by hand — with enforcement live, that hand
-now really hides, bounded per run by `MOD_RUN_CAP`. The policy and
-threat model below remain the contract.
+now really hides, bounded by one verdict per invocation and one verdict
+per take per queue generation. The policy and threat model below remain
+the contract.
 
 ## The job in one sentence
 
 A scheduled run reads the most-flagged takes and, for each, either
-removes it (soft-hide, citing a policy line), clears its flags, or
-escalates it to the maintainer — and is built so that a hostile comment
-can, at absolute worst, cause one wrong verdict, never a change to code
-or data.
+removes it (soft-hide, citing a policy line) or keeps it — clearing its
+flags either way — or escalates it to the maintainer, and is built so
+that a hostile comment can, at absolute worst, cause one wrong verdict,
+never a change to code or data.
 
 ## What exists today (and deliberately doesn't)
 
@@ -96,8 +98,52 @@ What is true now: the flags collection, the queue, the verdict log and
 both callables exist and are deployed (D22); the client can read, post,
 delete and flag circle takes, and `LiveTakesPanel` draws all of it
 including the report control, mounted on the reveal in `LdReveal`
-(D78 part 1 + amendment). The world-feed takes remain demo-only and
-`!S.live`-gated, which is D1 working rather than a gap.
+(D78 part 1 + amendment) **and, since D83, on the live world card and the
+live daily behind the post-vote toggle described above**
+(`world-feed.jsx:2232`, `gid="world"`).
+
+*This paragraph ended "The world-feed takes remain demo-only and
+`!S.live`-gated, which is D1 working rather than a gap" until 2026-08-26.
+That was true before D83 and false after it — pre-D83 residue that survived
+the same edit which added the D83 paragraph forty lines above, so the file
+asserted both. ORIENTATION lists this document as `tree`, i.e. a
+description of the app as it exists, which is exactly the promise a
+self-contradiction breaks. No gate could see it: `check:figures` covers
+quoted counts, `check:policy-claims` covers `web/privacy.html` alone, and
+`check:docs` holds the ORIENTATION row rather than a file's internals.*
+
+## Reading the queue and answering it
+
+`npm run mod:queue` — the reviewer's instrument, added 2026-08-26. Before
+it, the two callables had been deployed and enforcing since D22 with **no
+caller anywhere in the tree except `firestore-tests/e2e-moderation.mjs`**,
+so a maintainer holding MOD_UIDS had no screen, no script and no workflow:
+the substrate was live and the review half was a test harness.
+
+```bash
+npm run mod:queue                              # read it
+npm run mod:queue -- --keep <takeId>
+npm run mod:queue -- --escalate <takeId>
+npm run mod:queue -- --remove <takeId> --line H3
+```
+
+**One verdict per invocation, deliberately.** This IS the blast-radius
+bound — there is no bulk mode and no "remove everything over N flags",
+because a tool that can clear the queue in one command is a tool that
+eventually will, and confinement is the whole of D22's design. (`MOD_RUN_CAP`
+was described here as the bound and is not: the per-invocation `runId`
+below means the server's per-run counter always reads zero. See the cap's
+own note in `functions/src/moderation.ts`.) The `runId` is generated per
+invocation rather than accepted as a flag: one somebody can choose is one
+somebody can reuse.
+
+Credentials are `scripts/operator-call.mjs`'s, with one catch worth knowing
+before an incident: **the uid must be in `MOD_UIDS`, which is a different
+list from `SEED_ADMIN_UIDS`.** Being able to seed content does not make you
+a moderator, and the CLI says so when the callable refuses. Those two lists
+are meant to be disjoint and today hold the same uid —
+`operatorModeratorOverlap()` in `functions/src/ops.ts` reports it on every
+production cold start, and runbook 5.7 is the one-variable fix.
 
 ## The policy — permissive by default, with named hard lines
 
@@ -180,6 +226,28 @@ verdict.
    The session judges what the queue hands it; verdicts referencing ids
    not in the queue are rejected by rules. "Also moderate comment X"
    fails structurally.
+
+   Three things bound *which* takes fill those K slots, and each exists
+   because the obvious version starves the queue:
+   - **A settled target's flags are cleared** — on a remove as well as a
+     keep, and by the rebuild itself for anything it finds already gone.
+     The tally is what the queue is ranked by, so a flag that outlives
+     what it reported is a permanent vote for a target that can never be
+     queued again.
+   - **The cut to K happens after the visibility filter, not before.**
+     Only the rebuild can see that a take has vanished or is already
+     hidden, so the fold hands it a candidate *window*
+     (`MOD_QUEUE_CANDIDATES`) and it stops at `MOD_QUEUE_SIZE` live
+     entries. Cutting first gave the dead entries' slots to nobody.
+   - **Ties break on the earliest flag, not the take id.** A take id is
+     client-chosen, so id-ascending let anyone sort themselves to the
+     front of every generation; `at` is server-written. Earliest rather
+     than latest because an attacker can always make a take newly
+     flagged and can never make it older.
+
+   Plus a per-author cap (`MOD_QUEUE_PER_AUTHOR`) on one account's share
+   of a generation, and — in the rules rather than here — the refusal to
+   flag your own take, which the avatar arm has had since D178.
 4. **Soft removal only.** A removed take is hidden (`hidden: true`, with
    the annotation — `by`, `policyLine`, `runId`, `at` — alongside it in
    `hiddenMeta`), content retained — reversible by the maintainer,

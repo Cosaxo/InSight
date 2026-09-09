@@ -1,0 +1,63 @@
+--- recorded/tokens.css
++++ 2026-09-06/tokens.css
+@@ -173,7 +173,7 @@
+ .icon-btn:active { transform: scale(0.92); }
+ .h-meta {
+   font-family: var(--sans);
+-  font-size: 11px;
++  font-size: 12px;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: var(--ink-3);
+@@ -299,7 +299,7 @@
+ /* nav v2 — one primary bar of four: glyph over label so it fits a phone and
+    keeps 44px targets, instead of a two-item pill plus a second row up top */
+ .tabbar[data-n="4"] .tab-group, .tabbar[data-n="5"] .tab-group { gap: 2px; max-width: 100%; }
+-.tabbar[data-n="4"] .tab-btn, .tabbar[data-n="5"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
++.tabbar[data-n="4"] .tab-btn, .tabbar[data-n="5"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 12px; font-weight: 650; letter-spacing: 0.02em; }
+ .tabbar[data-n="5"] .tab-btn { padding: 5px 9px; }
+ .tabbar[data-n="4"] .tab-btn.is-active, .tabbar[data-n="5"] .tab-btn.is-active { font-weight: 800; }
+ 
+@@ -310,9 +310,9 @@
+    edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */
+ .kicker {
+   font-family: var(--sans);
+-  font-size: 10.5px;
++  font-size: 12px;
+   font-weight: 700;
+-  letter-spacing: 0.09em;
++  letter-spacing: 0.07em;
+   text-transform: uppercase;
+   color: var(--ink-3);
+   margin-bottom: 4px;
+@@ -322,10 +322,10 @@
+    inline forms the app kept re-inventing — legend keys, axis captions, row keys.
+    Same spec, one place, so two micro-labels in the same row can't disagree
+    about size, weight or tracking. Swatch colour comes in as --lgc. */
+-.klabel { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
++.klabel { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
+ .klabel--accent { color: var(--accent-ink); }
+ .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 16px; }
+-.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
++.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+ .lg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box; background: var(--lgc, var(--ink-3)); box-shadow: inset 0 0 0 0.5px color-mix(in oklch, var(--ink) 16%, transparent); }
+ .lg-dot[data-hollow] { background: var(--surface); border: 1.6px solid var(--lgc, var(--ink-3)); }
+ 
+@@ -463,7 +463,7 @@
+   border: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
+   color: var(--accent);
+   font-family: var(--sans);
+-  font-size: 10.5px;
++  font-size: 12px;
+   font-weight: 700;
+   letter-spacing: 0.1em;
+   text-transform: uppercase;
+@@ -781,7 +781,7 @@
+ }
+ .search-group {
+   font-family: var(--sans);
+-  font-size: 11px; font-weight: 700;
++  font-size: 12px; font-weight: 700;
+   letter-spacing: 0.1em; text-transform: uppercase;
+   color: var(--ink-3);
+   margin: 18px 2px 8px;

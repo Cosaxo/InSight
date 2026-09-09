@@ -1,0 +1,271 @@
+// bankPager.ts — which cards a device actually fetches (D320 for learn,
+// D321 for the feed tail; both build D316 phases 2–3).
+//
+// A paged surface left the whole-bank boot fetch: a device takes PAGES
+// against the order rankBankV2 publishes nightly onto `v2_rank/{surface}`
+// (D319). This module is the arithmetic of that — which qids are needed —
+// behind injected I/O, so the paging rules are unit-testable the way the
+// bank cache's are. Learn pages per followed field; the feed pages its
+// TAIL per topic while core ships whole at boot (D161: the corpus's value
+// is density, so it is never paged).
+//
+// THE SEEN-SET IS THE CACHE, and that is the design rather than a
+// shortcut. A card the device was ever handed is in the bank cache
+// (cacheStore.ts rows since the D312 merge), so "first N of the published order not in the cache"
+// is exactly "next N this device has not met" — no profile, no upload,
+// nothing the server learns (D317's phase 1 boundary: the fetch pattern
+// is topic-coarse, and the ORDER is the crowd's). Cached cards are never
+// re-fetched and never dropped: the learn map reads mastered cards out
+// of the pool and the feed's archive keeps expired docs (the n_closed
+// rule), so the cache must keep everything the device has history with —
+// which it does by construction.
+//
+// TOP-UPS RUN PER BOOT, not per serve. A page is more than a session
+// consumes (learn serves about one card in seven feed cards; the feed's
+// page rides on top of the whole core), so in-session exhaustion falls
+// back to what the device already holds until the next boot. That is a
+// recorded limit (D320), not an oversight: the alternative is the UI
+// signalling the data layer mid-session, a seam worth adding when a
+// measured session actually outruns a page.
+//
+// …AND A TOP-UP FILLS TO A PAGE, NOT BY A PAGE (D401, ALGORITHM-REFLECTION
+// §4.6's third item, D350's amendment). Until D401 a boot took the first
+// `pageSize` ids of the order the cache did not hold, whatever the device
+// already held unanswered — so a phone that booted daily and answered
+// little was handed a fresh page per topic every day and kept every one:
+// 12 topics × 12 = 144 rows a day, 50 k a year, all read into memory by
+// hydrate. The eviction D350 asked for would have dropped rows the device
+// had paid a read for and would then never show. The bound belongs at the
+// source: `held` is what the device holds UNANSWERED in memory for a
+// topic, and a page is `pageSize − held` — a device with a page of fresh
+// cards in a topic fetches nothing for it, and as it answers, the next
+// boot refills to a page. Memory is then a page per topic plus what was
+// answered (which the Mirror files and the archive lists, so it stays),
+// and the reads a boot pays are what the person consumed since the last.
+
+export interface PageOrderTopic {
+  qids: string[];
+  total: number;
+  /** How many questions the topic CARRIES — home plus every `also` door.
+   * Optional because an order published before the fold started stating
+   * it has none, and `qids.length` is then the best truth available. */
+  carry?: number;
+}
+
+export interface PageOrderDoc {
+  topics: Record<string, PageOrderTopic>;
+}
+
+/** Fresh learn cards fetched per followed field per boot. FIELD_TARGET's
+ * shape: a field's worth of runway, refilled every boot. */
+export const LEARN_PAGE = 24;
+
+/** Fresh tail questions fetched per feed topic per boot.
+ *
+ * This said the bank held about this many per topic in total, so that a
+ * paged feed reproduced the whole-bank feed exactly. That stopped being
+ * true: measured on the bank in the tree, a topic carries 13-26 questions
+ * of which 8-24 are tail, so TEN of twelve topics are over this page
+ * (all but culture at 11 and dilemma at 8) and a first boot holds 12-23
+ * of what its shelves carry. It said eight, which is the count over the
+ * ten subject shelves — it silently dropped `now` and `fav`, and the
+ * sentence says "of twelve". It converges -
+ * each boot pulls the next page and the cache keeps it - so the cost is a
+ * new install's first sessions, not a permanent one. What it is NOT is a
+ * number any surface may count and call the bank; `pageTotals` exists for
+ * that. */
+export const FEED_PAGE = 12;
+
+/**
+ * The qids to fetch, two obligations joined:
+ *
+ * 1. HISTORY the cache lost. A card this device has answered must be
+ *    fetchable whatever else happens — the learn map reads mastered
+ *    cards out of the pool, the Mirror files every answer — and a
+ *    contentRev bump refetches only the boot surfaces, so paged docs
+ *    fall out of the cache. Healed by id, order or no order, across
+ *    all fields/topics.
+ * 2. PAGES: for each named field/topic (null = every one the order
+ *    carries — learn's D283 follow-everything default, and the feed's
+ *    D96 always-on topics), enough of the published order the cache does
+ *    not already hold to bring what the device holds UNANSWERED in that
+ *    topic (`held`, D401) up to `pageSize`. A device holding a page of
+ *    fresh cards fetches nothing; one that answered them all is handed a
+ *    whole page; a caller that passes no `held` gets the pre-D401 page.
+ */
+export function pageNeedList(
+  order: PageOrderDoc | null,
+  cachedIds: ReadonlySet<string>,
+  fields: readonly string[] | null,
+  historyIds: readonly string[],
+  pageSize: number | ((field: string) => number),
+  held: ReadonlySet<string> = new Set(),
+): string[] {
+  const need: string[] = [];
+  const taken = new Set<string>();
+  for (const qid of historyIds) {
+    if (cachedIds.has(qid) || taken.has(qid)) continue;
+    need.push(qid);
+    taken.add(qid);
+  }
+  if (!order || !order.topics) return need;
+  const names = fields ?? Object.keys(order.topics);
+  const sizeOf = typeof pageSize === "function" ? pageSize : () => pageSize;
+  for (const f of names) {
+    const topic = order.topics[f];
+    if (!topic || !Array.isArray(topic.qids)) continue;
+    // The runway this topic already has: cards the device holds in memory
+    // and has not answered, counted only where the order still places
+    // them — a card that left the order is not runway the order will
+    // ever serve.
+    let holding = 0;
+    for (const qid of topic.qids) if (held.has(qid)) holding += 1;
+    const size = Math.max(0, sizeOf(f) - holding);
+    let fresh = 0;
+    for (const qid of topic.qids) {
+      if (fresh >= size) break;
+      if (cachedIds.has(qid) || taken.has(qid)) continue;
+      need.push(qid);
+      taken.add(qid);
+      fresh += 1;
+    }
+  }
+  return need;
+}
+
+/** How many answers a profile needs before it shapes anything, and how
+ * many in a topic before that topic counts as YOURS. Below the first,
+ * everyone gets the uniform feed — a profile of three answers "knowing"
+ * you is the over-eager personalization this floor refuses. */
+export const TASTE_MIN_TOTAL = 10;
+export const TASTE_TOPIC_MIN = 3;
+
+/**
+ * D317 phase 1's whole effect on serving, in one function: per-topic
+ * page sizes from the person's own profile. Topics they actually answer
+ * get the full page; the rest get a smaller one — never zero, because
+ * every topic stays on (D96: narrowing is a choice, not a default) and
+ * a cold topic must keep enough fresh cards to be discoverable, which
+ * is how a profile gets to change. Null profile, or one under the
+ * floor, means the flat base for everyone — a new device's feed is
+ * identical to the pre-profile feed.
+ */
+export function pageSizesByInterest(
+  profile: { t?: Record<string, number>; n?: number } | null,
+  base: number,
+): number | ((topic: string) => number) {
+  const total = profile?.n ?? 0;
+  const t = profile?.t;
+  if (!t || total < TASTE_MIN_TOTAL) return base;
+  const cold = Math.max(4, Math.ceil(base / 3));
+  return (topic) => ((t[topic] ?? 0) >= TASTE_TOPIC_MIN ? base : cold);
+}
+
+/** Per-field/topic bank totals off the order doc — the sheet's honest
+ * "N questions" once the pool is a page rather than the bank.
+ *
+ * `carry` where the fold states it, because the sheets count MEMBERSHIP
+ * and `qids` is home placement: on the feed those differ by every
+ * straddler, and the client cannot recover the difference — it sees
+ * `also` only on the questions it already holds. Learn has no `also`, so
+ * the two are equal there and the fallback is not a second behaviour,
+ * only what an order published before `carry` existed can offer. */
+export function pageTotals(order: PageOrderDoc | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!order || !order.topics) return out;
+  for (const [f, t] of Object.entries(order.topics)) {
+    if (t && Array.isArray(t.qids)) {
+      out[f] = typeof t.carry === "number" ? t.carry : t.qids.length;
+    }
+  }
+  return out;
+}
+
+// The feed's twin of learnBank's totals, and it exists for the same
+// reported failure (D283, fixed there): the topic sheet counted the
+// device's pool, which since D321 is core plus at most one FEED_PAGE of
+// tail per topic per boot — so a first boot read 12–23 questions on
+// shelves carrying 13–26. Null until a live build publishes, which is the
+// whole state machine: a demo build never calls the publisher, and a pool
+// it holds whole IS its bank.
+let feedTotals: Record<string, number> | null = null;
+
+/** Hand the sheet the bank's per-topic counts. Called by the feed pager.
+ *
+ * AN EMPTY MAP IS NO ORDER, NOT A BANK OF NOTHING — the same collapse
+ * `publishLearnTotals` documents at length: `pageTotals` returns `{}`
+ * when there is no order at all, `{}` is truthy, and `0 ?? pool` is 0, so
+ * every topic would read "0 questions" while its questions were being
+ * served. */
+export function publishFeedTotals(totals: Record<string, number> | null): void {
+  feedTotals = totals && Object.keys(totals).length ? totals : null;
+}
+
+/** The bank's count for one topic, or null where no order has loaded and
+ * the caller should count its pool instead. */
+export function feedTopicTotal(topic: string): number | null {
+  return feedTotals ? (feedTotals[topic] ?? 0) : null;
+}
+
+/** Drop back to counting the pool. Only the test fixtures need this. */
+export function resetFeedTotals(): void {
+  feedTotals = null;
+}
+
+export interface PagerIO<Row> {
+  /** The published order — one read of v2_rank/{surface}, null when the
+   * fold has not run yet (a fresh project), which pages nothing. */
+  order(): Promise<PageOrderDoc | null>;
+  /** Question documents by id, however many round trips that takes. */
+  fetchByIds(qids: string[]): Promise<Row[]>;
+}
+
+/**
+ * One boot's top-up for one surface: read the order, compute the need,
+ * fetch it. Returns the fetched rows and the order's per-field totals;
+ * the caller (live.ts) owns appending to state and cache — this module
+ * never touches either.
+ */
+export async function topUpPages<Row>(
+  io: PagerIO<Row>,
+  cachedIds: ReadonlySet<string>,
+  fields: readonly string[] | null,
+  historyIds: readonly string[],
+  pageSize: number | ((field: string) => number),
+  held: ReadonlySet<string> = new Set(),
+): Promise<{ rows: Row[]; totals: Record<string, number> }> {
+  const order = await io.order();
+  const need = pageNeedList(order, cachedIds, fields, historyIds, pageSize, held);
+  const rows = need.length ? await io.fetchByIds(need) : [];
+  return { rows, totals: pageTotals(order) };
+}
+
+/** The followed learn fields as the device stores them
+ * (learn-progress.js's `insight.learnFields.v1`), null when unset —
+ * which is D283's default, every field. Read here rather than asked of
+ * the engine because data/ must not import spec/ (the one-way rule). */
+export function followedFields(): string[] | null {
+  try {
+    const raw = localStorage.getItem("insight.learnFields.v1");
+    const parsed = raw == null ? null : (JSON.parse(raw) as unknown);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The learn card ids this device has HISTORY with (learn-progress.js's
+ * `insight.learn.v3` mastery map), in the bank's `learn-` spelling —
+ * the heal-list pageNeedList's first obligation reads. The feed's
+ * history comes from `state.votes` instead (already hydrated), so only
+ * learn needs a localStorage read. */
+export function learnHistoryIds(): string[] {
+  try {
+    const raw = localStorage.getItem("insight.learn.v3");
+    const parsed = raw == null ? null : (JSON.parse(raw) as { c?: Record<string, unknown> });
+    const c = parsed && typeof parsed === "object" ? parsed.c : null;
+    return c && typeof c === "object" ? Object.keys(c).map((id) => `learn-${id}`) : [];
+  } catch {
+    return [];
+  }
+}

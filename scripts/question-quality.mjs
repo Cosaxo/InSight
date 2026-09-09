@@ -67,6 +67,13 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { bankArray } from "./v2content-lib.mjs";
+// The batch-mix ceiling, from the module whose comment promises it is
+// "spelled once so the allocation and the gate agree". It was not: the
+// allocation held the constant and the GATE — this file, both batch
+// checks — held the literal twice. lane-tiers is pure and import-safe by
+// its own header, so the promise is cheap to keep.
+import { BATCH_TOPIC_SHARE } from "./lane-tiers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -74,6 +81,85 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const PROMPT_MAX = 120; // corpus max 97 — "short, concrete, blind-answerable"
 export const OPTION_MAX = 32; // corpus max 26 — an option is a label, not a sentence
 export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label", plus one of drift
+// Doors per question (docs/TAGS-PLAN.md §1). A ceiling, not a target: `also`
+// is for genuine straddlers, and a question that needs three doors is usually
+// a vague question — the same nose PROMPT_MAX encodes. The demand arithmetic
+// makes broad tagging pointless (credit is conserved, a door never adds any);
+// this cap is what makes it impossible to try at scale anyway.
+export const ALSO_MAX = 2;
+// Background text (D281) — what the card's `i` opens. The bounds are the
+// demo pool's own, measured: `WORLD_BG` in world-subtopics.js holds 24
+// entries running 152–236 characters over one to three sentences, written
+// by a person against the brief this field inherits ("facts and
+// definitions only, never the arguments" — world-feed.jsx's own comment on
+// the sheet it draws).
+//
+// The FLOOR is the load-bearing half and the one nobody expects. A ceiling
+// stops a card growing an essay; a floor stops the other failure, which is
+// worse because it looks like the feature working: a background that says
+// "Evergrande is a Chinese property developer" promotes the button to its
+// stronger ring, opens a sheet, and leaves the reader exactly as unable to
+// answer as before. If a question is worth a background at all it is worth
+// the facts that make it answerable, and 90 characters is under the
+// shortest thing in the corpus that ever did.
+export const BG_MIN = 90;
+export const BG_MAX = 320; // corpus max 236, plus room for a third clause
+// The unambiguous half of "never the arguments". Every one of these is a
+// sentence taking a side or telling the reader what to think, and none of
+// them appears anywhere in the 24 backgrounds the demo pool already ships
+// — which is the test that the list refuses a register rather than a
+// vocabulary. Deliberately short: a longer list would start catching
+// ordinary reporting ("critics said", "the ruling was upheld"), and the
+// half a regex cannot see belongs to the reviewing run either way.
+const BG_ARGUES = /\b(should(n't| not)?\b|obviously|clearly the|the (right|only) answer|it is (wrong|right) to|most (people|experts|economists) (agree|think)|there is no (real )?(case|argument) for)\b/i;
+// ── the current-events lane (D231, docs/NEXT-FUNCTIONALITY.md §1) ──
+//
+// `now` is the one topic whose questions expire. §1 asks for "a bounded
+// window so 'current' cannot mean months", and these are that bound, in
+// days SERVED (inclusive of both ends — a question opened and closed on
+// the same day serves for 1).
+//
+// MIN exists because a window shorter than a weekend is not a question,
+// it is a poll of whoever happened to open the app on a Tuesday; the
+// feed's own quality signal is per-question evenness, and a split
+// measured on a handful of answers is noise (feed-budget.mjs's dilution
+// bound, said about time instead of stock).
+//
+// MAX is §1's sentence made arithmetic. Three weeks is the outer edge of
+// what a reader would still call current; past it the topic is lying in
+// its own name.
+//
+// SHORT is the owner's direction (2026-08-23): every question gets the
+// window that fits it, but most should sit at the low end. A batch rule
+// rather than a per-question one, because "most" is a property of a
+// batch — a single 20-day question is a judgement call, six of them is a
+// lane that has quietly become a monthly.
+export const NOW_TOPIC = "now";
+export const WINDOW_MIN_DAYS = 3;
+export const WINDOW_MAX_DAYS = 21;
+export const WINDOW_SHORT_DAYS = 7;
+
+/** Days served, both ends inclusive. Null unless both ends are real day keys. */
+export function windowDays(from, until) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(until))) return null;
+  const a = Date.parse(`${from}T00:00:00Z`), b = Date.parse(`${until}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+// A prediction is a CALL, not a feed question (§1's first boundary, D127).
+// "Should X resign?" is an opinion and belongs here; "Will X win on
+// Sunday?" needs a sealed answer and a resolved outcome, and must arrive
+// through docs/FORESIGHT-CALLS.md's door or not at all — an unresolved
+// call takes the player's guess and never comes back.
+//
+// A TRIPWIRE, not a proof: the two shapes it catches are the prompt that
+// OPENS as a future interrogative, and the one that pins a claim to a
+// resolution date. "AI will replace most jobs — agree?" is an opinion
+// about the future that no rubric can settle, and it passes both, which
+// is correct. Judged false positives go in ALLOW under `call-shape`.
+const CALL_OPENER = /^\s*(will|won't|who will|what will|when will|how many\b[^?]*\bwill|which\b[^?]*\bwill)\b/i;
+const CALL_DATED = /\bwill\b[^?]*\b(by (the end of|next|this)?\s*\w|before (the|next|this)\b|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|this (week|month)\b|next (week|month)\b)/i;
 export const TONES = new Set(["light", "blend", "deep"]);
 // Option-count shapes per type, exactly as the corpus uses them. scale and
 // rating carry no options (labels are synthesized: LIKERT / "1".."10") and
@@ -185,6 +271,14 @@ export const PATH_AXES = new Set([
  * The two stories that cannot obey the axis rule, and why it is a permanent
  * exemption rather than a to-do.
  *
+ * RETIRED AT D413 (`active: false`, the operator's call this comment
+ * anticipated below) — the owner read them as "completely uninteresting",
+ * which is the same finding as the arithmetic under this map, heard from
+ * the reader's side. The waiver stays because the rows stay: a retired
+ * feed entry is still in the bank (the seed and the deck read the flag
+ * there), still walks this gate, and is still exactly as flat as it was.
+ * Dropping the waiver would fail CI on two stories nobody is served.
+ *
  * A path's OPTIONS are its eight ending names (pathOptions, gen-v2content),
  * so renaming one is an option edit — frozen by D52 and refused by the seed,
  * because the stored optionIdx would silently mean a different ending. And
@@ -281,7 +375,7 @@ function learnLevelBounds() {
 
 // ── hard rule 6's tripwire ──
 // A hand-kept watchlist, deliberately small: country names, demonyms, and
-// big cities — NOT the 10,929-place city catalogue, whose names collide
+// big cities — NOT the ~11k-place city catalogue, whose names collide
 // with ordinary English ("Nice", "Split", "Of") and would make the gate
 // dishonest. A hit needs BOTH a watched place and a civic cue in the same
 // question's text: "Mountains or sea?" and an Italian-cuisine option are
@@ -317,31 +411,48 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-// Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
-// that fetch, at which point the ceiling they watched stopped existing —
-// so they were re-pointed rather than deleted, because the NEXT silent
-// ceiling wants the same alarm at a different number.
+// Install headroom (D350 amendment, 2026-09-01). These guarded live.ts's
+// `limit(1500)` until D161 paged that fetch, then the localStorage quota
+// (gone at D312), then "every cached row read into memory each boot" —
+// counted as the SEEDED bank, which after D320/D321 is the wrong quantity:
+// the bank is not what a device holds. The owner's question that retired
+// the count: "does youtube have a limit to how many videos can exist or
+// twitter how many tweets?" A bank-size FAILURE was a question limit in
+// everything but name, and the constant is gone.
 //
-// The next one is the localStorage bank cache. live.ts writes the whole
-// bank to `insight.bankCache.v2` inside a try/catch that ignores failure,
-// so crossing the browser quota does not break the app: it silently stops
-// caching, and every boot then pays a full bank fetch forever. A cost
-// cliff with no symptom is exactly this gate's subject.
-//
-// Arithmetic: the quota is ~5 MB per origin, the bank is one of ~29
-// `insight.*` keys, so budget it roughly half. checkHeadroom() derives
-// bytes-per-document from the seed itself rather than assuming, and these
-// counts are that estimate rounded to something a human can hold:
-// 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+// What every fresh device IS handed whole — the boot surfaces (daily, test,
+// group, duo, pulse, call) plus the feed's core (D321: "core ships whole,
+// always") — is the install fetch, and that is what INSTALL_WARN watches:
+// a WARNING, never an error, at the size where a fresh install's first
+// fetch wants re-arguing (about 1 MB at the seed's measured bytes per
+// document; ~460 docs today, moving at the daily's promotion pace and the
+// core's curation, so years out). The paged surfaces — learn and the feed
+// tail — are not counted: a device fetches them a page at a time. What a
+// device ACCUMULATES over months of paging is a device-side design (an
+// eviction rule for unanswered pages — BANK-DELIVERY §4, D350 amendment),
+// not a number a content gate can hold, and never a reason to stop
+// writing questions. checkHeadroom() still derives bytes-per-document
+// from the seed itself so the message moves when the documents do.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
 export const AUDIT_ONE_IN = 20;
-export const BANK_WARN = 6000;
-export const BANK_FAIL = 10000;
+export const INSTALL_WARN = 4000;
+export const INSTALL_SURFACES = new Set(["daily", "test", "group", "duo", "pulse", "call"]);
+
+/** How many seed rows a fresh device is handed whole: the boot surfaces
+ * plus the feed's core (D321). The paged surfaces are not in it. */
+export function installDocs(rows) {
+  return rows.filter((q) => INSTALL_SURFACES.has(q.surface) || (q.surface === "feed" && q.core === true)).length;
+}
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
-function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
+// EXPORTED since D424 (check-taxonomy.mjs reads the palette literals with
+// it). D197's finding was one bank parser in three copies, one of which
+// swallowed its own failure in a try/catch and reported an invented number;
+// a new gate that needed this shape would have been the fourth copy. Take
+// this one rather than writing another.
+export function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
   const start = src.indexOf(marker);
   if (start < 0) throw new Error(`${at}: marker not found: ${marker}`);
   const open = src.indexOf(openChar, start);
@@ -362,7 +473,13 @@ function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
 export function loadCorpus() {
   const specSrc = readFileSync(join(root, "src", "v2", "spec", "daily-questions.js"), "utf8");
   const specQ = extractLiteral(specSrc, "const Q = [", "daily-questions.js");
-  const catMeta = extractLiteral(specSrc, "const CAT_META = {", "daily-questions.js", "{", "}");
+  // CAT_META moved to daily-cats.js when map-branches.js needed the
+  // taxonomy without the archive (the eager-content sweep). Read from
+  // there, not from `specSrc` — this is the ONLY site that parses it,
+  // checked rather than assumed, so D197's three-copies trap does not
+  // apply here.
+  const catSrc = readFileSync(join(root, "src", "v2", "spec", "daily-cats.js"), "utf8");
+  const catMeta = extractLiteral(catSrc, "export const CAT_META = {", "daily-cats.js", "{", "}");
   const baseM = specSrc.match(/const DQ_BASE = (\d+)/);
   if (!baseM) throw new Error("daily-questions.js: DQ_BASE not found");
   const dqBase = Number(baseM[1]);
@@ -377,9 +494,19 @@ export function loadCorpus() {
   const pulse = JSON.parse(readFileSync(join(root, "content", "pulse-questions.json"), "utf8")).questions;
   const pick = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
-    "window.PICK_QS = [",
+    // `PICK_QS = [`, not `window.PICK_QS = [`: the array is a named export
+    // now (the window mirror is assigned from it further down), and this
+    // marker matches either shape — which is the point, since a marker
+    // that names the bridge breaks the day the module crosses it.
+    "PICK_QS = [",
     "pick-data.js",
   );
+  // The LIVE pick seed (D14 go-live): the archive entries above that were
+  // promoted. Validated with the same pick rules, held byte-equal to the
+  // archive by id, and covered by provenance like every live bank.
+  const pickSeed = JSON.parse(
+    readFileSync(join(root, "content", "pick-questions.json"), "utf8"),
+  ).questions;
   const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
   // The demo pool is prototype filler EXCEPT its continuum entries
   // (dial/field), which are lane-authored production copy — the feed lane
@@ -388,13 +515,36 @@ export function loadCorpus() {
   // that: dragging the rest of the demo pool through production bounds
   // would fail scene fillers that are not production copy.
   const wfdSrc = readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8");
-  const wfd = extractLiteral(wfdSrc, "window.WORLD_FEED_QS = [", "world-feed-data.js");
+  const wfd = extractLiteral(wfdSrc, "const WFD_DEMO_POOL = [", "world-feed-data.js");
   // Pick cards file themselves against WORLD_TOPICS, which is a SUPERSET of
   // the feed's own taxonomy: `fav` and `places` are real topic ids that
   // world-feed filters out of the feed's chip row. So a pick card's `cat` is
   // checked against this set and a feed question's against feed.topics —
   // one vocabulary would reject every card that ships today.
-  const worldTopics = extractLiteral(wfdSrc, "window.WORLD_TOPICS = [", "world-feed-data.js");
+  // The marker followed the source: WORLD_TOPICS became a named export
+  // when the Patterns tab started importing it (the WPAL precedent), with
+  // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
+  // WORLD_TOPICS moved to world-feed-topics.js when the feed's pool left the
+  // first-paint graph — daily-split.jsx needed the palette and nothing else,
+  // and the import was carrying the bank. Read from there; the marker
+  // follows the source, as the note above records it did last time.
+  const worldTopics = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-topics.js"), "utf8"),
+    "export const WORLD_TOPICS = [", "world-feed-topics.js");
+  // The subtopic tree, for `also` (docs/TAGS-PLAN.md §1): a door may be a
+  // leaf, and the leaf→parent map is what the redundancy rule below reads —
+  // following a parent already gives you everything under it
+  // (world-subtopics.js), so a card carrying both says one thing twice.
+  const worldSubs = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-subtopics.js"), "utf8"),
+    // `const`, not `window.` — the publication was swept at D210 (nothing
+    // read the global; the file reads the value lexically). This marker is a
+    // TEXT dependency on a declaration form, which no grep for the name can
+    // see and which `question-quality.test.mjs` is the only thing that
+    // catches: it is what failed the sweep's first run.
+    "const WORLD_SUBTOPICS = [",
+    "world-subtopics.js",
+  );
   return {
     specQ,
     dailyIdOf,
@@ -403,8 +553,10 @@ export function loadCorpus() {
     feed,
     feedTopics: new Set(feed.topics.map((t) => t.id)),
     worldTopics: new Set(worldTopics.map((t) => t.id)),
+    subParents: new Map(worldSubs.map((s) => [s.id, s.parent])),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
+    pickSeed,
     learn,
     pulse,
     learnLevels: learnLevelBounds(),
@@ -441,6 +593,110 @@ export function placeCivicHit(q) {
   return { places: [...new Set(hits)], cue: text.match(CIVIC)[0] };
 }
 
+// ── the tragedy tripwire (D235) ──
+//
+// The owner's rule, on reading the first current-events batch: these
+// questions should avoid tragedies — a terror attack being the named
+// example — because it is an easy way to get the app in trouble.
+//
+// WHY IT IS A RULE AND NOT TASTE. News skews to catastrophe, so a lane
+// whose whole job is "what is happening now" walks into one most weeks.
+// A vote card under a death toll is a body count with buttons: it asks a
+// crowd to take a side on somebody's worst day, and since D98 it then
+// PUBLISHES the exact split doing so. There is no version of that which
+// reads as anything but the app monetising a funeral, and no answer to a
+// journalist asking why it exists.
+//
+// TWO TIERS, because one word list would either miss the thing or fail
+// honest content. The plain list is unambiguous whatever surrounds it.
+// The second fires only on an EVENT word beside a CASUALTY word, which is
+// what separates "markets crashed 8% — panic or noise?" (an event word,
+// no toll, fine) from "the crash that killed 14" (both, and not ours to
+// ask). Measured over the whole 653-entry bank the day it was written:
+// zero entries fire, and the three that trip a single tier are exactly
+// the content the conjunction exists to spare — the Library of
+// Alexandria's earthquake, what a gladiator fight ended in, and the Book
+// of the Dead.
+//
+// LEARN IS CARVED OUT, the same way it is for the place tripwire above
+// and for a sharper reason than symmetry: a learn card has a RIGHT
+// ANSWER. "Who was assassinated in 44 BC?" is history with one correct
+// response; it does not ask anybody to take a side, which is the entire
+// thing this rule is about. Every other surface asks for a side.
+//
+// A TRIPWIRE, NOT THE RULE. The rule lives in QUESTION-FARM.md and cannot
+// be written as a word list, because the same prompt can be ordinary in a
+// quiet week and grotesque in the week of an attack — "is airport
+// security theatre?" being the clean example — and no gate can see the
+// week. What this catches is the unambiguous case; judging the rest is
+// the writing run's job and the audit's. Judged false positives go in
+// ALLOW under `tragedy`, with the reason, the neighbours pattern.
+const TRAGEDY_PLAIN = /\b(terror|terrorist|terrorism|massacres?|genocide|atroci\w+|war crimes?|mass shooting|suicide bomb\w*|beheading|lynching|manslaughter|murder(ed|s)?|assassinat\w+|hostages?|kidnapp\w+|abduct\w+|torture|rape|p?a?edophil\w+)\b/i;
+const TRAGEDY_EVENT = /\b(attacks?|bombing|shootings?|stabbing|strikes?|crash(ed|es)?|derail\w*|sinking|quake|earthquake|floods?|wildfires?|hurricane|famine|outbreak|siege|raid)\b/i;
+const TRAGEDY_TOLL = /\b(death toll|casualt\w+|fatalit\w+|killed|dead|died|deaths|victims?|wounded|injured|mourn\w+|funerals?|bodies|survivors?|missing)\b/i;
+
+export function tragedyHit(q) {
+  const text = textOf(q);
+  const plain = text.match(TRAGEDY_PLAIN);
+  if (plain) return { kind: "plain", cue: plain[0] };
+  const event = text.match(TRAGEDY_EVENT);
+  const toll = text.match(TRAGEDY_TOLL);
+  if (event && toll) return { kind: "casualty", cue: `${event[0]} … ${toll[0]}` };
+  return null;
+}
+
+// ── doors (docs/TAGS-PLAN.md) ──
+// `also` is reach, never placement: the Map, kicker and stream grouping stay
+// on `cat`; the filter, stock, search and demand rollup read cat ∪ also.
+// These are the rules conservation cannot enforce by itself. An unknown id is
+// a door onto nothing and fails SILENTLY — the card serves, the filter just
+// never matches the door — which is the same failure class as a typo'd
+// `rates` scope, so it gets the same treatment: refused at the gate, not
+// discovered in production. The vocabulary is closed for the reason `cat`'s
+// is (farm hard rule 3): an open one is a free-text field wearing a schema.
+function checkAlso(q, topicVocab, ctx, err) {
+  if (q.also === undefined) return;
+  if (q.scene) {
+    // A scene is a room, not a topic; the filter matches room cards on the
+    // room alone (docs/TAGS-PLAN.md §2). A door here would be a publication
+    // nothing reads — check:globals rule 5's smell, arriving as content.
+    err("also", "a scene card cannot carry `also` — the filter matches room cards on the room alone, so a door here is metadata nothing reads");
+    return;
+  }
+  if (!Array.isArray(q.also) || q.also.some((t) => typeof t !== "string" || !t.trim())) {
+    err("also", `also must be an array of topic ids (got ${JSON.stringify(q.also)})`);
+    return;
+  }
+  if (!q.also.length) {
+    // Emit-when-set end to end: an empty array is "nobody decided" wearing
+    // a decision's bytes — the same argument `core` makes about absence.
+    err("also", "empty `also` — omit the key on a question with no doors");
+    return;
+  }
+  if (q.also.length > ALSO_MAX) {
+    err("also", `${q.also.length} doors (max ${ALSO_MAX}) — a question that needs more is usually a vague question (docs/TAGS-PLAN.md §1)`);
+  }
+  const seen = new Set();
+  for (const t of q.also) {
+    if (seen.has(t)) err("also", `door ${JSON.stringify(t)} repeats`);
+    seen.add(t);
+    if (t === q.cat) err("also", `door ${JSON.stringify(t)} repeats the home — \`cat\` already places the card there`);
+    else if (!topicVocab.has(t) && !ctx.subParents.has(t)) {
+      err("also", `door ${JSON.stringify(t)} is not a committed topic or subtopic id — the vocabulary is closed (farm hard rule 3; new topics go through § When no category fits)`);
+    }
+  }
+  // Parent/leaf redundancy, both directions: following a parent gives you
+  // everything under it, so home-or-door carrying a leaf AND its parent is
+  // one claim stated twice — and twice the demand credit dilution for it.
+  const carried = [q.cat, ...q.also];
+  for (const t of carried) {
+    const parent = ctx.subParents.get(t);
+    if (parent && carried.includes(parent)) {
+      err("also", `${JSON.stringify(t)} and its parent ${JSON.stringify(parent)} are both carried — following the parent already reaches the leaf`);
+    }
+  }
+}
+
 // Findings for one question. `surface` decides which rules apply: daily
 // carries the full card shape (tone/tag/cat/alts/axis); feed and pick carry a
 // topic; duel gets only the universal rules (prompt bounds, option bounds, the
@@ -464,9 +720,46 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     err("prompt", `prompt is ${q.prompt.length} chars (max ${PROMPT_MAX}) — short, concrete, blind-answerable`);
   }
 
+  // ── background, the card's `i` (D281) ────────────────────────────
+  //
+  // check:content owns the SHAPE (a non-blank, untrimmed-free string).
+  // What lives here is editorial: is it long enough to be worth opening,
+  // short enough to read on a card, and is it FACTS rather than a case?
+  //
+  // The last of those three is the one a gate can only half-see, so it
+  // only refuses the unambiguous form: a background that asks a question
+  // back, or that tells the reader what to conclude. "Most economists
+  // agree the sentence is excessive" is a side wearing a fact's clothes,
+  // and a poll whose context argues for one option is not a poll. The
+  // rest is the reviewing run's, exactly like the tragedy tripwire — a
+  // sentence can lean without using any of these words.
+  if (q.bg !== undefined) {
+    const bg = String(q.bg).trim();
+    if (!bg) {
+      err("bg", "`bg` is present and empty — the card falls back to the pale button and nobody learns the field was authored");
+    } else if (bg.length < BG_MIN) {
+      err("bg", `background is ${bg.length} chars (min ${BG_MIN}) — a sheet that opens on a half-fact leaves the reader where they were`);
+    } else if (bg.length > BG_MAX) {
+      err("bg", `background is ${bg.length} chars (max ${BG_MAX}) — facts and definitions, not the arguments; the arguments are the reveal`);
+    }
+    if (bg && bg.endsWith("?")) {
+      err("bg", "the background asks a question — the card already asked one; this is where its terms get explained");
+    }
+    if (bg && BG_ARGUES.test(bg)) {
+      err("bg", "the background argues rather than informs — a poll whose context leans is a poll about its own framing (a judged false positive goes in ALLOW under `bg`)");
+    }
+  }
+
   const opts = (q.options || []).map((o) => (o && typeof o === "object" ? o.label : o));
+  // A cast round's four answers ARE sentences by design (D437, the owner's
+  // 2026-09-09 brief: "every prompt and answer is a plain sentence a person
+  // would say" — *the one who thinks ahead for you both*), and the card
+  // draws them as full-width rows, never side by side, so the label bound
+  // that keeps a split ballot legible does not describe them. The bound
+  // still reaches every other 1v1 entry.
+  const sentences = q.kind === "cast";
   for (const o of opts) {
-    if (String(o).length > OPTION_MAX) {
+    if (!sentences && String(o).length > OPTION_MAX) {
       err("option-length", `option ${JSON.stringify(String(o))} is ${String(o).length} chars (max ${OPTION_MAX})`);
     }
   }
@@ -482,6 +775,27 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // geography are 4 of the 12 fields — so the false positives grow with the
   // bank. A gate that reliably cries wolf on legitimate content is one whose
   // waivers stop being read.
+  // Doors are a feed-surface mechanic (pick rides the same filter). On the
+  // daily the near-neighbour is `alts` — CANDIDATE placements the crowd
+  // votes between, not extra reach — and on every other surface a door is
+  // metadata nothing reads, which is how fields rot into lore.
+  if (q.also !== undefined && surface !== "feed" && surface !== "pick") {
+    err("also", `\`also\` is feed/pick only (docs/TAGS-PLAN.md §1) — on ${surface} nothing reads doors${surface === "daily" ? ", and alternative placements are `alts`" : ""}`);
+  }
+
+  // Same carve-out as the place rule below, for the reason in the
+  // tripwire's own header: a learn card has a right answer, so it can name
+  // an atrocity as history without asking anyone to take a side.
+  const tragedy = surface === "learn" ? null : tragedyHit(q);
+  if (tragedy) {
+    err(
+      "tragedy",
+      `reads as a question about a tragedy ("${tragedy.cue}") — this app does not put suffering to a vote (D235), ` +
+        "and a published split on one is how it ends up in a story about itself. " +
+        'A human may record "<id>~tragedy" in ALLOW if judged clear.',
+    );
+  }
+
   const place = surface === "learn" ? null : placeCivicHit(q);
   if (place) {
     err(
@@ -528,7 +842,9 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!FEED_TYPES.has(q.type)) {
       err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
-    if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
+    // rank is live-servable since D233 (answers carry an order); whether
+    // the FARM may author one is the lane contract's question
+    // (QUESTION-FARM.md), not a per-question warning's.
     // `cat` is REQUIRED, not merely validated-if-present. Every feed question
     // in the bank carries one, so this held by luck for as long as only humans
     // wrote them; a topic-less card has a broken kicker and never appears in
@@ -537,6 +853,23 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // rule that was true in the data becomes a rule in the gate.
     if (!q.cat) err("topic", "a feed question needs a topic — without one its kicker is broken and the topic filter cannot reach it");
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
+
+    checkAlso(q, ctx.feedTopics, ctx, err);
+    // The subtopic tag (D425): a feed question is a leaf's by `sub`, the field
+    // world-feed.jsx's filter fast-paths (`q.sub && leafOn[q.sub]`) and
+    // SUBTOPICS.count reads. A leaf is a PART of its parent, so the tag has
+    // to sit under the question's own home — a tennis question filed under
+    // food with sub_tennis would be met through Sport's leaf and placed on
+    // Food's branch. And it never repeats in `also`: the tag already places
+    // it there, so the door is one claim stated twice.
+    if (q.sub !== undefined) {
+      if (typeof q.sub !== "string" || !ctx.subParents.has(q.sub)) {
+        err("sub", `sub ${JSON.stringify(q.sub)} is not a committed subtopic leaf (world-subtopics.js) — the tree grows through § When no category fits`);
+      } else if (ctx.subParents.get(q.sub) !== q.cat) {
+        err("sub", `sub ${q.sub} is a leaf of ${JSON.stringify(ctx.subParents.get(q.sub))}, not of this question's home ${JSON.stringify(q.cat)} — a leaf is a part of its parent`);
+      }
+      if (Array.isArray(q.also) && q.also.includes(q.sub)) err("sub", `sub ${q.sub} repeats in \`also\` — the tag already places the card there`);
+    }
 
     // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
     //
@@ -561,6 +894,40 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       err("core", "a feed question must declare `core` (true = served to everyone and foldable into the Mirror's readings, false = personalized tail) — see docs/SCALE-PLAN.md §1");
     }
 
+    // ── the current-events lane (D231) ──
+    //
+    // check:content owns the SHAPE of the two window fields (day keys,
+    // feed-only, ordered) and the core refusal. What lives here is
+    // editorial: whether the window is one a reader would still call
+    // current, and whether the question is a question this lane may ask
+    // at all. The two gates deliberately do not restate each other.
+    const windowed = q.from !== undefined || q.until !== undefined;
+    if (q.cat === NOW_TOPIC && !(typeof q.from === "string" && typeof q.until === "string")) {
+      // Both ends, always. A `now` card with no close never stops being
+      // served, which is the whole failure the topic exists to avoid; one
+      // with no open cannot draw its remaining fraction, so the ring would
+      // have to guess — and a guessed deadline on a real one is worse than
+      // no ring at all.
+      err("window", `a ${NOW_TOPIC} question carries both \`from\` and \`until\` — the lane's promise is that it stops being asked`);
+    }
+    if (windowed && q.cat !== NOW_TOPIC && !q.sponsor) {
+      // A window on an ordinary topic is a card that vanishes from a chip
+      // row that gives the reader no reason to expect it. Sponsored slots
+      // are the one other windowed thing, and they announce themselves
+      // with a band (D195).
+      err("window", `a window belongs to the ${NOW_TOPIC} topic or a sponsored slot — an ordinary card that quietly expires is stock a reader cannot account for`);
+    }
+    const days = windowDays(q.from, q.until);
+    if (days !== null && (days < WINDOW_MIN_DAYS || days > WINDOW_MAX_DAYS)) {
+      err("window", `the window runs ${days} day${days === 1 ? "" : "s"} (${WINDOW_MIN_DAYS}-${WINDOW_MAX_DAYS}) — shorter polls whoever opened the app that day, longer stops being current`);
+    }
+    if (q.cat === NOW_TOPIC) {
+      const text = [q.prompt, ...(q.options || []).map((o) => (o && typeof o === "object" ? o.label : o))].filter(Boolean).join(" ");
+      if (CALL_OPENER.test(String(q.prompt || "")) || CALL_DATED.test(text)) {
+        err("call-shape", "this reads as a prediction, not an opinion — a resolved call needs a sealed answer and an executable rubric (docs/FORESIGHT-CALLS.md, D127), and must arrive through that door");
+      }
+    }
+
     // ── continuum shapes ── the whole entry is authored, crowd texture
     // included (the demo pool has no backend), so the gate holds the
     // texture to the same bar as the copy: a dial whose dist doesn't fit
@@ -579,6 +946,17 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       const num = (v) => typeof v === "number" && Number.isFinite(v);
       if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
         err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
+      } else if (q.active !== false && (q.hi - q.lo) / DIAL_BUCKETS < 1) {
+        // At least a whole unit per bucket (D358). `dialFmt` prints
+        // integers and the synthesized labels round their edges, so a
+        // 17–23 h dial's twelve buckets read "17–18 h", "18–18 h",
+        // "18–19 h" in the voters panel, and a 1–4 hrs dial has buckets no
+        // integer can sit in at all (the recorded limit in
+        // dial-bucket.test.jsx). Fourteen shipped like that before the
+        // rule existed; the fix is the UNIT (minutes, not hours), never a
+        // stretched end. Retired entries are exempt — they are the ones
+        // this rule retired, kept in the bank so the seed reads the flag.
+        err("step", `${q.hi - q.lo} ${q.unit || "units"} over ${DIAL_BUCKETS} buckets is under one unit per bucket — labels collapse ("18–18 h"); widen the span to at least ${DIAL_BUCKETS}, or change the unit (minutes, not hours)`);
       }
       if (texture) {
         if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {
@@ -733,10 +1111,6 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
   // absent — two gates disagreeing about the same rule is how one of them
   // gets edited to match the other and both stop meaning anything.
-  if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
-    err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
-  }
-
   if (surface === "pick") {
     // The catalog contract's rule 3 — "Every card carries a `cat`, always" —
     // had no gate behind it: pick got the universal rules only, and all
@@ -747,6 +1121,11 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // the feed's chip row filters out, and it is the one every card uses.
     if (!q.cat) err("topic", "a pick card needs a cat (catalog contract rule 3) — without one its kicker is broken and the topic filter cannot reach it");
     else if (!ctx.worldTopics.has(q.cat)) err("topic", `cat ${JSON.stringify(q.cat)} is not a WORLD_TOPICS id`);
+
+    // Same doors, wider vocabulary — a pick card's cat already validates
+    // against WORLD_TOPICS (the superset holding `fav`/`places`), so its
+    // doors do too.
+    checkAlso(q, ctx.worldTopics, ctx, err);
   }
 
   if (surface === "pulse") {
@@ -848,7 +1227,7 @@ export function checkBatch(batch) {
     const types = {};
     for (const q of daily) types[q.type] = (types[q.type] || 0) + 1;
     const [topType, topCount] = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
-    if (topCount > Math.ceil(daily.length * 0.75)) {
+    if (topCount > Math.ceil(daily.length * BATCH_TOPIC_SHARE)) {
       errs.push(`${topCount} of ${daily.length} daily questions are ${topType} — vary the forms (the scorecard's optionSlots say which earn their place)`);
     }
   }
@@ -863,10 +1242,70 @@ export function checkBatch(batch) {
   // form rule is why `dial`, `field` and `path` are authorable at all, and
   // the topic rule is the budget's own instruction ("spreads across thin
   // topics rather than chunking into one", feed-budget.mjs) said at the one
-  // moment a run can still obey it. The 0.75 ceiling is shared with daily
+  // moment a run can still obey it. The ceiling is shared with daily
   // deliberately — a batch of eight may be six votes, which is honest,
   // and may not be seven.
-  const feed = batch.filter((q) => q.surface === "feed");
+  // The current-events lane is not the budgeted farm lane, and the two
+  // rules below cannot judge it (D231). TOPIC spread is meaningless: `now`
+  // batches are single-topic by construction, so the rule would fail every
+  // batch this lane can legally write. FORM spread is meaningless for a
+  // reason worth writing down: the two continuum forms are authored TWICE,
+  // the second copy being permanent demo texture in world-feed-data.js,
+  // and a question about this week's news has no business becoming a card
+  // the demo build shows forever — while a `path` needs eight endings it
+  // would outlive by a fortnight. So the lane writes votes, and the form
+  // rule is not a bar it can clear, only one it can trip over.
+  //
+  // What replaces them is the rule this lane actually needs: windows.
+  const now = batch.filter((q) => q.surface === "feed" && q.cat === NOW_TOPIC);
+  const feed = batch.filter((q) => q.surface === "feed" && q.cat !== NOW_TOPIC);
+  if (now.length >= 3) {
+    // Distinct closes, because a batch that expires together empties the
+    // topic in one day — and a topic filter offering an empty chip is
+    // §1's own "reads as abandoned", which it names as worse than not
+    // having the topic at all. Staggering is also the honest thing: six
+    // stories do not stop being current on the same afternoon.
+    const closes = now.map((q) => q.until);
+    const dupes = closes.filter((d, i) => closes.indexOf(d) !== i);
+    if (dupes.length) {
+      errs.push(`${new Set(dupes).size} close date(s) shared across the batch (${[...new Set(dupes)].join(", ")}) — stagger them, or the topic empties in one day`);
+    }
+    // "Each question gets the window that fits it, but most should be
+    // towards the lower end" (the owner, 2026-08-23). Half is the
+    // arithmetic reading of "most" that a batch of three can still satisfy.
+    const short = now.filter((q) => {
+      const d = windowDays(q.from, q.until);
+      return d !== null && d <= WINDOW_SHORT_DAYS;
+    }).length;
+    if (short * 2 < now.length) {
+      errs.push(`${short} of ${now.length} ${NOW_TOPIC} questions run ${WINDOW_SHORT_DAYS} days or less — most of a batch should sit at the short end, or the lane is a monthly wearing a daily's name`);
+    }
+    // …and the same shape pointed at the answer space (D281). The lane's
+    // first batch was six questions and twelve options, and nothing had
+    // ever said not to: `check:content` allows 2–10, the fold allows
+    // twenty, and the bank already ships three- and four-option votes.
+    // The owner read the shipped six on a device and named it — "recent
+    // events should often have more options, some of them have too few".
+    //
+    // A BATCH RULE rather than a per-question one, because two is right
+    // often enough that a floor would be wrong: "about right / too far"
+    // on a sentence is a genuine binary, and a gate cannot tell that from
+    // a three-way story squeezed into two. What a gate CAN see is a whole
+    // batch in which no story turned out to have a third side, which is a
+    // claim about the news that is almost never true — it is the writer's
+    // habit showing. Same 3-question threshold and same "most" arithmetic
+    // as the window rule above, so the lane has one shape to learn.
+    //
+    // The cost of getting this wrong is asymmetric, which is why it is an
+    // error and not a note: a window can be re-authored, but a shipped
+    // card's options are frozen for the life of the bank (answers key on
+    // `optionIdx` — the D30 re-key rule), so the only repair for a card
+    // that needed a third option is a successor card.
+    const binary = now.filter((q) => (q.options || []).length <= 2).length;
+    if (binary * 2 > now.length) {
+      errs.push(`${binary} of ${now.length} ${NOW_TOPIC} questions offer two options — give a story the sides it has; two is for a story that is genuinely two-sided, and a whole batch of them is a habit rather than the news`);
+    }
+  }
   if (feed.length >= 3) {
     const dominant = (key, label, extra) => {
       const seen = {};
@@ -876,7 +1315,7 @@ export function checkBatch(batch) {
         errs.push(`a batch of ${feed.length} feed questions declares no ${label} — the gate cannot judge the spread`);
         return;
       }
-      if (top[1] > Math.ceil(feed.length * 0.75)) {
+      if (top[1] > Math.ceil(feed.length * BATCH_TOPIC_SHARE)) {
         errs.push(`${top[1]} of ${feed.length} feed questions are ${label} ${top[0]} — ${extra}`);
       }
     };
@@ -949,13 +1388,24 @@ export function checkPathGenre(corpus) {
 export function checkProvenance(corpus) {
   const errs = [];
   const path = join(root, "content", "provenance.json");
-  if (!existsSync(path)) return ["content/provenance.json is missing — the D97 vintage join has nothing to read"];
+  if (!existsSync(path)) {
+    return { errs: ["content/provenance.json is missing — the D97 vintage join has nothing to read"], warn: [] };
+  }
   const prov = JSON.parse(readFileSync(path, "utf8"));
-  const SOURCES = new Set(["editorial", "farm", "community"]);
+  // `sponsor` joined at D195 (docs/MONETIZATION.md path 2). It is a source
+  // like the others — who wrote the question — and it is the one that has
+  // to be true in BOTH directions: a sponsored question with an editorial
+  // provenance row would launder a paid question into the vintage rollup
+  // as house content, and an unpaid question filed as `sponsor` would put a
+  // PAID band on something nobody bought.
+  const SOURCES = new Set(["editorial", "farm", "community", "sponsor"]);
 
   for (const [surface, bank] of [
     ["daily", corpus.seed.map((q) => q.id)],
     ["feed", corpus.feed.questions.map((q) => q.id)],
+    // The live pick seed (D14 go-live). Rows are keyed by the archive's
+    // own pk id — which IS the seed id, so no archiveId field to rot.
+    ["pick", corpus.pickSeed.map((q) => q.id)],
   ]) {
     const rows = prov[surface] || {};
     for (const id of bank) {
@@ -968,6 +1418,24 @@ export function checkProvenance(corpus) {
       }
     }
   }
+  // ── sponsorship, both directions (D195) ──
+  {
+    const feedRows = prov.feed || {};
+    const paid = new Set(
+      corpus.feed.questions.filter((q) => q.sponsor !== undefined).map((q) => q.id),
+    );
+    for (const id of paid) {
+      if (feedRows[id] && feedRows[id].source !== "sponsor") {
+        errs.push(`provenance: feed ${id} carries a sponsor block but is filed as ${JSON.stringify(feedRows[id].source)} — a paid question filed as house content is undisclosed inventory`);
+      }
+    }
+    for (const [id, row] of Object.entries(feedRows)) {
+      if (row.source === "sponsor" && !paid.has(id)) {
+        errs.push(`provenance: feed ${id} is filed as sponsor but carries no sponsor block — the card would wear no PAID band`);
+      }
+    }
+  }
+
   const dailyRows = prov.daily || {};
   for (const [id, row] of Object.entries(dailyRows)) {
     if (row.archiveId && !/^dqx?\d+$/.test(row.archiveId)) {
@@ -988,7 +1456,7 @@ export function checkProvenance(corpus) {
   // two-gate design's whole point. Only content this repo did not
   // hand-write has to prove it was read.
   const aiReviewed = [];
-  for (const surface of ["daily", "feed"]) {
+  for (const surface of ["daily", "feed", "pick"]) {
     for (const [id, row] of Object.entries(prov[surface] || {})) {
       if (row.source !== "farm" && row.source !== "community") continue;
       const r = row.review;
@@ -1013,21 +1481,33 @@ export function checkProvenance(corpus) {
   // batch: at D162's 1-in-20 a weekly batch of seven rounds to zero, so a
   // per-batch gate would pass while nothing was ever audited. Cumulative
   // is the only shape that binds at both sizes.
+  //
+  // A WARNING since D212, not an error. As an error this was a human gate
+  // wearing a sampling rate: a person falling behind on audits turned CI
+  // red, which stopped the lanes — the exact dependence the owner removed.
+  // The sample keeps its D162 job (the only check on a reviewer that shares
+  // the generator's blind spots) but does it retrospectively: the gate
+  // reports the shortfall on every run, the operator audits on their own
+  // clock, and the kill switch (`active: false`) is what handles anything
+  // the audit then finds. What stays an ERROR above is the review verdict
+  // itself and its explicit `audited` boolean — those are facts a run must
+  // state, not work a person must keep up with.
+  const warn = [];
   if (aiReviewed.length) {
     const want = Math.ceil(aiReviewed.length / AUDIT_ONE_IN);
     const got = aiReviewed.filter((r) => r.audited).length;
     if (got < want) {
-      errs.push(
+      warn.push(
         `provenance: ${got} of ${aiReviewed.length} ai-reviewed questions carry an audit, want ≥ ${want} `
-        + `(D162's 1-in-${AUDIT_ONE_IN}) — the sample is the only check on a reviewer that shares the generator's blind spots`,
+        + `(D162's 1-in-${AUDIT_ONE_IN}, retrospective since D212) — audit when you can; the shortfall accrues, it does not block`,
       );
     }
   }
-  return errs;
+  return { errs, warn };
 }
 
 // ── headroom tripwires ──
-export function checkHeadroom(corpus) {
+export function checkHeadroom(corpus, { contentSrc } = {}) {
   const errs = [];
   const warn = [];
   const maxDailyId = Math.max(...corpus.seed.map((q) => Number(q.id)));
@@ -1039,32 +1519,48 @@ export function checkHeadroom(corpus) {
     warn.push(`daily ids at ${maxDailyId} of 999 — an id-scheme decision is approaching`);
   }
 
-  const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
-  const bankSize = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  // `contentSrc` is for the case below that cannot otherwise be reached:
+  // a bank the parser refuses. Defaults to the real file.
+  const v2content = contentSrc ?? readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
   // Measured, not assumed: the same wire-size scan check-figures runs, so
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
-  const bankBytes = (() => {
-    const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-    const body = v2content.slice(v2content.indexOf(head) + head.length);
-    try {
-      return JSON.stringify(JSON.parse(body.slice(0, body.lastIndexOf("];") + 1))).length;
-    } catch {
-      return bankSize * 250; // the scan's shape changed; fall back rather than crash the gate
-    }
-  })();
-  const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
-  if (bankSize >= BANK_FAIL) {
-    errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — over budget. `
-      + "live.ts caches the whole bank in `insight.bankCache.v2` and SWALLOWS a quota failure, so crossing this "
-      + "does not break anything: it silently stops caching and every boot pays a full bank fetch forever. "
-      + "Move the cache off localStorage (IndexedDB) before promoting more.",
-    );
-  } else if (bankSize >= BANK_WARN) {
+  let rows = null;
+  try {
+    rows = bankArray(v2content);
+  } catch {
+    // The fallback stays, and the comment it used to carry was too
+    // relaxed about it: this path reports an INVENTED wire size rather
+    // than failing, so a parser that quietly stopped working would move
+    // a documented figure with nothing to show for it. That is exactly
+    // what happened when V2_ADS arrived (D197) — the other two copies
+    // of this scan crashed and this one silently guessed. It survives
+    // because a scorecard is not worth crashing a gate over; the scan
+    // itself now lives in one place so it cannot half-break again.
+    rows = null;
+  }
+  const bankSize = rows ? rows.length : (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  const bankBytes = rows ? JSON.stringify(rows).length : bankSize * 250;
+  const mb = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
+  const install = rows ? installDocs(rows) : null;
+  // A PARSE FAILURE IS NOT A SMALL INSTALL. `install` was 0 on this path,
+  // so `0 >= INSTALL_WARN` was false and the one tripwire watching the
+  // first fetch could never fire when the parser broke — while `bankSize`
+  // above kept a regex fallback and carried on. That asymmetry is what
+  // the retired BANK_FAIL/BANK_WARN pair did NOT have: they counted
+  // `bankSize`, so they still fired through a parse failure. D197's shape,
+  // one function over.
+  if (install == null) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — the quota is the next `
-      + "silent ceiling (a failed write is caught and ignored), so plan the move to IndexedDB",
+      "the install-fetch count could not be computed — bankArray refused this bank, so the wire "
+      + "size above is a regex estimate and the INSTALL_WARN tripwire did not run. Fix the parser "
+      + "(scripts/v2content-lib.mjs); a tripwire that reads zero from a broken parse is worse than none",
+    );
+  } else if (install >= INSTALL_WARN) {
+    warn.push(
+      `a fresh install is handed ${install} docs whole ≈ ${mb(install)} MB (the boot surfaces plus the feed's core) — `
+      + "the first fetch wants re-arguing before this doubles (BANK-DELIVERY §4). The paged surfaces are not "
+      + "counted, and no bank size fails this gate (D350 amendment)",
     );
   }
   return { errs, warn };
@@ -1148,6 +1644,12 @@ if (invokedDirectly) {
       // copy and would otherwise have fired on every story for a field the
       // candidate did in fact declare and this function dropped.
       core: raw.core,
+      // …and the ask window, for the reason `id` is here (D231): the window
+      // rules read both ends and `sponsor` decides which of them applies, so
+      // a pre-flight that dropped them would print six ✓ on a batch CI is
+      // about to refuse — and the batch rules below would compare six
+      // `undefined` closes and call them a collision.
+      from: raw.from, until: raw.until, sponsor: raw.sponsor,
     };
   };
 
@@ -1277,15 +1779,37 @@ if (invokedDirectly) {
     for (const w of warn) console.log(`  • ${label} ${id}: ${w}`);
   };
 
+  // The ARCHIVE (src/v2/spec/daily-questions.js) — the frozen prototype the
+  // live bank was promoted from. Its own header says the twins must not
+  // drift, and only prompts are pinned.
   corpus.specQ.forEach((q, i) => {
     const { errs, warn } = checkQuestion(q, "daily", corpus);
     report("daily", corpus.dailyIdOf(i), errs, warn);
   });
+  // …AND THE BANK THAT ACTUALLY SHIPS, which this walk did not read.
+  //
+  // `content/daily-questions.json` is what the seed callable writes to
+  // Firestore and what 130 daily questions come off. It was loaded as
+  // `corpus.seed` and used only for provenance ids and the id headroom, so
+  // every tone and tag rule in this file ran over the archive and none of
+  // them over the live bank. Measured: the identical violation (a tone
+  // outside light/blend/deep, a tag over four words) fails in the archive
+  // and passes in the bank. `check:content` owns the structural half and
+  // has no tone or tag rule, so nothing else covered it either.
+  //
+  // The pick seed already gets this treatment one block down, with its
+  // reason written out — "a retyped prompt or a swapped domain here is the
+  // drift the script exists to make impossible". Daily is the same seed,
+  // one surface over.
+  corpus.seed.forEach((q) => {
+    const { errs, warn } = checkQuestion(q, "daily", corpus);
+    report("daily seed", q.id, errs, warn);
+  });
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
-    // rank's warn line stays out of gate output: the bank legitimately
-    // holds 8 rank questions (D12 keeps them out of the LIVE feed, not the
-    // bank), and a warning printed 8 times every CI run is noise.
+    // warns stay out of the feed walk's gate output (the old rank
+    // exclusion warning printed 8 times per run until D233 retired it;
+    // the suppression outlived it in case a future type earns one).
     report("feed", q.id, errs, []);
   });
   corpus.duel.forEach((q) => {
@@ -1296,6 +1820,29 @@ if (invokedDirectly) {
     const { errs, warn } = checkQuestion(q, "pick", corpus);
     report("pick", q.id, errs, warn);
   });
+  // The LIVE pick seed (D14 gone live) — the archive entries above,
+  // promoted. Two checks: the same pick rules (a hand edit to the seed
+  // alone should fail exactly like one to the archive), and PARITY with
+  // the archive by id, because the whole promote-script contract is
+  // byte-for-byte copies — a retyped prompt or a swapped domain here is
+  // the drift the script exists to make impossible, so the gate holds it.
+  {
+    const byPk = new Map(corpus.pick.map((q) => [q.id, q]));
+    corpus.pickSeed.forEach((q) => {
+      const { errs, warn } = checkQuestion(q, "pick", corpus);
+      report("pick(seed)", q.id, errs, warn);
+      const arch = byPk.get(q.id);
+      const drift = !arch ? "has no archive entry — the seed is promoted FROM pick-data.js, never authored directly"
+        : arch.prompt !== q.prompt ? `prompt differs from the archive's ${JSON.stringify(arch.prompt)}`
+        : arch.domain !== q.domain ? `domain differs from the archive's ${JSON.stringify(arch.domain)}`
+        : arch.cat !== q.cat ? `cat differs from the archive's ${JSON.stringify(arch.cat)}`
+        : null;
+      if (drift) {
+        failed = true;
+        console.error(`  ✗ pick(seed) ${q.id}: ${drift}`);
+      }
+    });
+  }
   corpus.learn.cards.forEach((card) => {
     const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
     report("learn", card.id, errs, warn);
@@ -1320,10 +1867,12 @@ if (invokedDirectly) {
     report("feed(demo)", q.id, errs, []);
   });
 
-  for (const e of checkProvenance(corpus)) {
+  const prov = checkProvenance(corpus);
+  for (const e of prov.errs) {
     failed = true;
     console.error(`  ✗ ${e}`);
   }
+  for (const w of prov.warn) console.log(`  • ${w}`);
   const head = checkHeadroom(corpus);
   for (const e of head.errs) {
     failed = true;
@@ -1331,8 +1880,15 @@ if (invokedDirectly) {
   }
   for (const w of head.warn) console.log(`  • ${w}`);
 
-  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length
-    + corpus.pick.length + corpus.continuum.length + corpus.learn.cards.length;
+  // EVERY WALK ABOVE, and the line is only worth printing if it is all of
+  // them. `pickSeed` and `pulse` were validated and uncounted, so the run
+  // under-reported itself — which matters here more than it looks: this
+  // number is the one thing a reader has to tell "the gate checked
+  // everything" from "the gate checked what it happened to reach", and
+  // that distinction is the whole subject of the walk added above it.
+  const n = corpus.specQ.length + corpus.seed.length + corpus.feed.questions.length
+    + corpus.duel.length + corpus.pick.length + corpus.pickSeed.length
+    + corpus.continuum.length + corpus.learn.cards.length + corpus.pulse.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }

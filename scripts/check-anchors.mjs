@@ -34,14 +34,28 @@
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { stripComments } from "./strip-comments.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PURE = "functions/src/pure.ts";
 const PROFILE = "src/v2/spec/profile-vitals.js";
+const RULES = "firestore.rules";
+const LIVE = "src/v2/data/live.ts";
 
-const pure = readFileSync(resolve(root, PURE), "utf8");
-const profile = readFileSync(resolve(root, PROFILE), "utf8");
+// COMMENTS ARE BLANKED BEFORE ANY OF THIS IS MATCHED, and it is not tidying.
+// Every read below is a regex over raw source that takes the FIRST match, so a
+// retuned value with its old line parked above it —
+//     // was: <the old line>
+//     <the new line>
+// — made the gate report the SUPERSEDED number and exit 0. Measured on the real
+// tree 2026-09-05. This is the same defect check:devicebind and check:ios-location
+// carried until 2026-09-04, where a commented-out call read as a live one; here it
+// is worse, because the gate reads a VALUE rather than merely a presence.
+// strip-comments.mjs blanks rather than deletes, so every offset and line number
+// this gate reports still points at the real file.
+const pure = stripComments(readFileSync(resolve(root, PURE), "utf8"));
+const profile = stripComments(readFileSync(resolve(root, PROFILE), "utf8"));
 
 const errors = [];
 
@@ -134,6 +148,11 @@ const PAIRS = [
   { dim: "education", client: clientVocab("EDU_OPTS"), where: "EDU_OPTS" },
   { dim: "relationship", client: clientVocab("REL_OPTS"), where: "REL_OPTS" },
   { dim: "heightBand", client: clientVocab("HEIGHT_OPTS"), where: "HEIGHT_OPTS" },
+  // D328. The client list here is JOB_FIELDS — the derived bucket
+  // vocabulary — and NOT JOB_OPTS, which is the pick and is deliberately
+  // longer than the cap. Pairing the wrong one would fail rule 2 and be
+  // right to: a 31-value dimension is exhaustible.
+  { dim: "jobField", client: clientVocab("JOB_FIELDS"), where: "JOB_FIELDS" },
 ];
 
 for (const p of PAIRS) {
@@ -189,6 +208,74 @@ for (const p of PAIRS) {
   if (dupes.length) errors.push(`${p.dim}: duplicate values ${JSON.stringify([...new Set(dupes)])}.`);
 }
 
+// 4b · every profession a user can PICK maps to a field the server knows.
+//
+// D328's pair has a failure mode the vocabulary rules above cannot see:
+// JOB_OPTS and JOB_FIELDS are both individually valid while an entry in
+// the first maps to nothing, or to a string absent from the second. Either
+// way that person's answers fold into no jobField bucket — the silent
+// non-counting this whole file exists to refuse, one level further out.
+//
+// `jobFieldOf` returns '' for an unmapped pick ON PURPOSE (a profile
+// written before D328 holds a string nothing claims to have grouped), so
+// the miss cannot be caught at runtime either. It has to be caught here.
+function clientMap(name) {
+  const at = profile.indexOf(`${name} = {`);
+  if (at === -1) {
+    errors.push(`${PROFILE}: no ${name}.`);
+    return null;
+  }
+  const close = profile.indexOf("\n};", at);
+  const body = profile.slice(at, close);
+  const out = new Map();
+  for (const m of body.matchAll(/'((?:[^'\\]|\\.)*)'\s*:\s*'((?:[^'\\]|\\.)*)'/g)) {
+    out.set(m[1].replace(/\\'/g, "'"), m[2].replace(/\\'/g, "'"));
+  }
+  if (!out.size) {
+    errors.push(`${PROFILE}: ${name} parsed as EMPTY, which cannot be right.`);
+    return null;
+  }
+  return out;
+}
+
+const jobOpts = clientVocab("JOB_OPTS");
+const jobFields = clientVocab("JOB_FIELDS");
+const jobFieldOf = clientMap("JOB_FIELD_OF");
+if (jobOpts && jobFields && jobFieldOf) {
+  const unmapped = jobOpts.filter((o) => !jobFieldOf.has(o));
+  if (unmapped.length) {
+    errors.push(
+      `JOB_FIELD_OF does not map ${JSON.stringify(unmapped)}.\n`
+      + "    Those picks fold into no jobField bucket — the answer writes\n"
+      + "    and the breakdown never counts it.",
+    );
+  }
+  const strays = [...new Set(jobFieldOf.values())].filter((f) => !jobFields.includes(f));
+  if (strays.length) {
+    errors.push(
+      `JOB_FIELD_OF points at ${JSON.stringify(strays)}, absent from JOB_FIELDS.\n`
+      + "    breakdownBucket checks membership, so those fold into nothing.",
+    );
+  }
+  const orphanKeys = [...jobFieldOf.keys()].filter((k) => !jobOpts.includes(k));
+  if (orphanKeys.length) {
+    errors.push(
+      `JOB_FIELD_OF maps ${JSON.stringify(orphanKeys)}, which JOB_OPTS does not offer.\n`
+      + "    Dead weight, and a sign the two lists were edited apart.",
+    );
+  }
+  // Not an error, but the reason the pick list may grow at all: if it ever
+  // becomes shorter than the cap somebody will be tempted to make it the
+  // dimension, and the headroom argument needs to survive that.
+  const unusedFields = jobFields.filter((f) => ![...jobFieldOf.values()].includes(f));
+  if (unusedFields.length) {
+    errors.push(
+      `JOB_FIELDS declares ${JSON.stringify(unusedFields)}, which no pick maps to.\n`
+      + "    A bucket nobody can land in is a cell that never fills.",
+    );
+  }
+}
+
 // 5 · the dimensions pure.ts declares closed are exactly the ones checked
 // here. A fifth added to BREAKDOWN_DIM_VOCAB without a pair above would be
 // enforced by the trigger and held to nothing.
@@ -208,6 +295,186 @@ if (!declaredDims.length) {
   errors.push(`${PURE}: BREAKDOWN_DIM_VOCAB parsed as EMPTY, which cannot be right.`);
 }
 
+// ── rule 5 · the per-field LENGTH caps, rules vs client ─────────
+//
+// A different pair from everything above — the vocabularies are about which
+// VALUES fold into a bucket; this is about how long a value may be.
+//
+// firestore.rules is the enforcement; ANCHOR_FIELDS in live.ts is the copy
+// the client truncates to, and its own comment said the two were kept "so
+// the client and the ruleset can be diffed against each other by eye". By
+// eye is what every other cross-deployable number here stopped being.
+//
+// THE FAILURE IS SILENT AND TOTAL. saveAnchors truncates to the CLIENT's
+// number, so tightening a rule below its client value means the client emits
+// a string the ruleset refuses — and because the anchors map is validated as
+// one object, the WHOLE profile write fails. The profile simply stops
+// saving, with nothing on screen to say so. The rules suite covers three of
+// the nine caps and holds them against the ruleset rather than against
+// ANCHOR_FIELDS, so it cannot see a divergence at all.
+//
+// `age: 3` is the sharpest of the nine: widen it to 4 in live.ts and nothing
+// else in the tree notices.
+const rules = stripComments(readFileSync(resolve(root, RULES), "utf8"));
+const live = stripComments(readFileSync(resolve(root, LIVE), "utf8"));
+
+// THE FORM IS `isShortAnchor(anchors, "city", 80)`, and it was
+// `isOptionalShortString(anchors.get("city", null), 80)` until D409 rewrote
+// the ruleset to spend two expansions per anchor instead of three. This scan
+// was left on the old form, so the rewrite landed with the gate RED — which
+// is the empty-match guard below doing exactly the job it was written for,
+// and the reason it is worth more than a scan that quietly matches nothing.
+//
+// ONE form on purpose, not both. A scan that accepts the old shape as well
+// would pass a half-converted ruleset, where the anchors still written the
+// old way go unheld while the gate reports success.
+const ruleCaps = new Map();
+for (const m of rules.matchAll(
+  /isShortAnchor\(\s*anchors\s*,\s*"(\w+)"\s*,\s*(\d+)\s*\)/g,
+)) ruleCaps.set(m[1], Number(m[2]));
+
+const liveBlock = live.match(/const ANCHOR_FIELDS[^=]*=\s*\{([\s\S]*?)\}/);
+const liveCaps = new Map();
+if (liveBlock) {
+  for (const m of liveBlock[1].matchAll(/(\w+)\s*:\s*(\d+)/g)) liveCaps.set(m[1], Number(m[2]));
+}
+
+// Both scans refuse to pass on nothing — an empty match is how a gate like
+// this stops meaning anything without ever failing.
+if (!ruleCaps.size) {
+  errors.push(
+    `${RULES}: found no isShortAnchor(anchors, "x", N) calls.\n`
+    + "    The ruleset's anchor validation was rewritten — fix this scan.",
+  );
+} else if (!liveCaps.size) {
+  errors.push(
+    `${LIVE}: ANCHOR_FIELDS did not parse as a { name: number } object.\n`
+    + "    Fix this scan rather than letting the pair go unchecked.",
+  );
+} else {
+  const names = [...new Set([...ruleCaps.keys(), ...liveCaps.keys()])].sort();
+  for (const n of names) {
+    const r = ruleCaps.get(n);
+    const c = liveCaps.get(n);
+    if (r === undefined) {
+      errors.push(`anchor "${n}" is capped at ${c} in ${LIVE} and is not validated in ${RULES}.`);
+    } else if (c === undefined) {
+      errors.push(
+        `anchor "${n}" is capped at ${r} in ${RULES} and is missing from ANCHOR_FIELDS in ${LIVE}.\n`
+        + "    The client would not truncate it, so an over-long value fails the whole write.",
+      );
+    } else if (r !== c) {
+      errors.push(
+        `anchor "${n}" is capped at ${r} in ${RULES} and ${c} in ${LIVE}.\n`
+        + (c > r
+          ? "    The client truncates to a length the ruleset refuses, so the ENTIRE\n"
+            + "    anchors write fails and the profile silently stops saving."
+          : "    The client truncates shorter than it needs to, so a legitimate value\n"
+            + "    is clipped before it is ever sent."),
+      );
+    }
+  }
+}
+
+// ── rule 7 · every breakdown dim has its index exemption ────────
+//
+// WHY THIS IS HERE AND NOT A PARAGRAPH. D64 measured it: Firestore indexes
+// every scalar leaf ASC and DESC by default, INCLUDING each map subfield,
+// so an un-exempted anchor key costs two index entries on every answer ever
+// written — for a field no query in this repo filters on. D64 cut `answers`
+// from 22 index entries per write to 2 by exempting them one path at a
+// time, and D140 then wrote "the anchors.heightBand index exemption (the
+// D64 storage-cost regression the checklist exists to not forget)" into a
+// new-dim CHECKLIST.
+//
+// D328 added `jobField` and skipped that line. Nothing caught it: the
+// exemption is absence-shaped — a missing row is a silently BILLED index,
+// never an error — and no test, gate or type reads this file. A checklist
+// item that has now been forgotten once is a gate's job, so this is the
+// paragraph converted.
+//
+// TWO LISTS, because the first cut used the wrong one. The paragraph is
+// about ANCHOR KEYS — what `anchorsFrom` stamps onto every answer — and
+// the gate read BREAKDOWN_DIMS, which is the set of keys the aggregate
+// BREAKS DOWN by. Those overlap and are not the same: `age` and
+// `profession` are written onto every answer and are not dims, so a rule
+// enumerating dims could not see either. `profession` happened to carry
+// its exemption already; `age` did not, and the gate reported "every
+// breakdown dim carries its exemption" while every answer ever written
+// paid two index entries for it. D155 added `age` and `heightBand`
+// together and only one of them got a row.
+//
+// So: the dims are still checked (a dim that is somehow not an anchor key
+// would still be a billed index), and the anchor keys are checked too,
+// read off `anchorsFrom`'s own return object rather than a hand-kept
+// copy — the drift every other rule in this file exists to prevent.
+const INDEXES = "firestore.indexes.json";
+try {
+  const dimsBlock = pure.slice(
+    pure.indexOf("BREAKDOWN_DIMS = ["),
+    pure.indexOf("] as const;", pure.indexOf("BREAKDOWN_DIMS = [")),
+  );
+  const dims = [...dimsBlock.matchAll(/"(\w+)"/g)].map((m) => m[1]);
+  const idx = JSON.parse(readFileSync(resolve(root, INDEXES), "utf8"));
+  const exempt = new Set(
+    (idx.fieldOverrides || [])
+      .filter((f) => f.collectionGroup === "answers"
+        && Array.isArray(f.indexes) && f.indexes.length === 0)
+      .map((f) => f.fieldPath),
+  );
+  // The keys `anchorsFrom` actually returns — the thing the paragraph is
+  // about. Sliced from the function rather than grepped file-wide so a
+  // key name appearing in a comment cannot join the list.
+  const anchorsBlock = profile.slice(
+    profile.indexOf("return {", profile.indexOf("function anchorsFrom")),
+    profile.indexOf("\n}", profile.indexOf("function anchorsFrom")),
+  );
+  // `key: value` AND bare `key,` — a SHORTHAND property is still an anchor.
+  // The first cut matched the colon form only, and `city` is written
+  // shorthand, so the rule that was added to stop enumerating the wrong
+  // list went on enumerating nine keys of ten. It cost nothing only
+  // because `city` happens to be a breakdown dim as well, and the other
+  // half of this rule caught it.
+  const anchorKeys = [...anchorsBlock.matchAll(/^ {4}(\w+)\s*[:,]/gm)].map((m) => m[1]);
+  if (!dims.length) {
+    errors.push(`${PURE}: BREAKDOWN_DIMS parsed as EMPTY, which cannot be right.`);
+  }
+  // AN EQUALITY, not a floor, for the reason the floor one file over was
+  // converted to a ratchet: a parse that quietly covers less than it says
+  // is this rule's whole failure mode, and slack is invisible. It parsed
+  // NINE of ten and the floor was eight, so the miss sat inside the
+  // allowance the floor granted.
+  //
+  // Adding or removing an anchor is already a several-file change
+  // (profile-vitals, the rules' allowlist, the index exemptions, the
+  // vocabularies); this is one more line, and it is the line that proves
+  // the rest of the rule is still reading the whole list.
+  const ANCHOR_KEYS_EXPECTED = 10;
+  if (anchorKeys.length !== ANCHOR_KEYS_EXPECTED) {
+    errors.push(
+      `${PROFILE}: anchorsFrom's returned keys parsed as `
+      + `[${anchorKeys.join(", ")}] — ${anchorKeys.length}, not `
+      + `${ANCHOR_KEYS_EXPECTED}.\n`
+      + "    If an anchor was added or removed, update ANCHOR_KEYS_EXPECTED in\n"
+      + "    this script in the same commit. If it was not, this rule has\n"
+      + "    stopped reading the whole list and is checking less than it says.",
+    );
+  }
+  for (const key of [...new Set([...dims, ...anchorKeys])]) {
+    if (!exempt.has(`anchors.${key}`)) {
+      errors.push(
+        `${INDEXES}: no single-field exemption for "anchors.${key}".\n`
+        + "    Every anchor key is written onto every answer and filtered on by\n"
+        + "    nothing, so without a `\"indexes\": []` override Firestore keeps two\n"
+        + "    index entries per answer for it — D64's storage-cost regression,\n"
+        + "    which is billed silently and never raises anything.",
+      );
+    }
+  }
+} catch (e) {
+  errors.push(`${INDEXES}: could not be read or parsed — ${e.message}`);
+}
+
 if (errors.length) {
   console.error("\ncheck-anchors FAILED:\n");
   for (const e of errors) console.error(`  ${e}\n`);
@@ -217,5 +484,7 @@ if (errors.length) {
 const sizes = PAIRS.map((p) => `${p.dim} ${serverVocab(p.dim).length}`).join(", ");
 console.log(
   `check:anchors OK — ${PAIRS.length} closed vocabularies match the profile's `
-  + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}`,
+  + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}; `
+  + `${ruleCaps.size} length caps agree between ${RULES} and ${LIVE}; `
+  + `every anchor key and breakdown dim carries its ${INDEXES} exemption`,
 );

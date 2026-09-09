@@ -10,8 +10,9 @@
 // total alone permits a single monolith.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIVE_MARKERS, missingLiveMarkers } from "./live-build-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
@@ -29,7 +30,11 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // The gap is not academic and not small: with the flag set the same tree
 // builds 67 chunks instead of 63, +12 KB of total JS, and **+9 KB in the
 // eager graph** — the number whose entire job is to keep a 293 KB
-// Firestore SDK and a 445 KB Sentry SDK out of first paint. Measured at
+// Firestore SDK and the Sentry SDK out of first paint. (Sentry was 445 KB
+// everywhere this file quotes it; it is ~100 KB since its dynamic import
+// stopped binding module namespaces, which is what let rolldown shake out
+// Replay, Feedback and browserTracing. The historical figures below are
+// left as measured — they are what those builds weighed.) Measured at
 // build 14: 2232/972 live against 2220/963 demo, against ceilings of
 // 2230/966. The live bundle was over BOTH and CI said OK, four times.
 //
@@ -46,25 +51,64 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // still has to know which command produced which numbers. Refusing to
 // grade the wrong artifact is the property that cannot rot.
 const DEMO = process.argv.includes("--demo");
-if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
-  console.error(
-    "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
-    + "not built as one — VITE_V2_LIVE is "
-    + (process.env.VITE_V2_LIVE === undefined
-      ? "unset"
-      : `"${process.env.VITE_V2_LIVE}"`)
-    + " for this process.\n\n"
-    + "  Build and check the bundle that ships:\n"
-    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
-    + "    VITE_V2_LIVE=true npm run check:bundle\n\n"
-    + "  The DSN is load-bearing too and for a different reason: without it\n"
-    + "  the 445 KB Sentry chunk is provably dead and rolldown drops it, so\n"
-    + "  the TOTAL comes out ~450 KB light. Any non-empty string restores it.\n\n"
-    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
-    + "  numbers and applies no ceiling, because they are not this app's.",
-  );
-  process.exit(1);
-}
+
+// ── THE SECOND LOAD-BEARING VARIABLE, which this file documented and did
+//    not guard (found by build 20's pre-flight) ───────────────────────
+//
+// The header above says it twice: without a DSN the Sentry group is
+// provably dead, rolldown drops it, and the TOTAL comes out light by its
+// whole size (~450 KB when this was written, ~100 KB now).
+// That was written as advice to whoever runs the command, and VITE_V2_LIVE
+// got a hard guard while this one got a paragraph. So the exact failure
+// this script exists to refuse — grading a bundle nobody installs and
+// calling it the shipping one — was still reachable, one variable over:
+// build with VITE_V2_LIVE=true and no DSN and the final line below prints
+// `SHIPPING bundle (VITE_V2_LIVE=true)` over a total that is missing a
+// fifth of the app. Measured on this tree at build 20, same command, DSN
+// the only difference: 1877 KB across 76 chunks against 2331 KB across 79.
+//
+// It is NOT a hard refusal, and that is the difference from VITE_V2_LIVE.
+// A Sentry-less release is a supported build — `ios-release.yml` passes
+// `secrets.VITE_SENTRY_DSN` straight through and documents it as optional,
+// "without it the release ships with no crash reporting", survivable and
+// deliberately not gated. Failing here would turn that documented choice
+// into a broken release path, which is a worse bug than the one being
+// fixed.
+//
+// So: grade what is still measurable and decline to grade what is not.
+// The per-chunk and eager ceilings are unaffected — Sentry is dynamically
+// imported, appears in no modulepreload link (D64 measured first paint
+// identical with and without it), and its chunk is 435 KB against a 735 KB
+// per-chunk limit. Only MAX_TOTAL_JS_KB counts those bytes, so only
+// MAX_TOTAL_JS_KB is withheld.
+//
+// WHICH IS DECIDED FROM dist/, and D198 is why that is not a detail. This
+// guard first read `process.env.VITE_SENTRY_DSN` — the environment of the
+// process running the CHECK, not of the one that ran the BUILD — and the
+// two are the same only because ios-release.yml happens to put the build
+// and this script in one `run:` block. Split them, as the script's own
+// error message tells you to ("set any non-empty DSN at BUILD time and
+// re-run"), and it reported `Sentry OUT` over a bundle with all 453 KB of
+// Sentry in it, withholding the total ceiling from the artifact the
+// ceiling exists for. Measured at build 21: 2349 KB graded as ungradable,
+// against a ceiling with 8 KB of headroom.
+//
+// That is this file's own founding bug, one variable further out. The
+// header above says it: refusing to grade the wrong artifact is the
+// property that cannot rot — and an artifact claim read off the
+// environment is exactly the kind that rots. check:web-firebase, its
+// neighbour in that same workflow step, already asserts against `dist/`
+// for this reason, "because a stale dist/ from a reordered step answers
+// that differently". SENTRY_IN is computed where the chunks are, below.
+//
+// AND SO IS LIVE_IN, for exactly the same reason and one variable over.
+// This guard read `process.env.VITE_V2_LIVE` until 2026-08-26 — the
+// environment of the process running the CHECK, not of the one that ran
+// the BUILD. `VITE_V2_LIVE=true npm run check:bundle` over a dist/ built
+// without the flag printed `SHIPPING bundle (VITE_V2_LIVE=true)` and
+// graded demo numbers against the shipping ceilings, which is the founding
+// bug of this file with the Sentry half fixed and the V2 half left in.
+// The refusal now lives beside the chunks, below.
 
 // Current largest chunk is the entry, 723.4 KB. The spec layer used to load
 // in one piece, and this comment used to say check-spec-globals required that —
@@ -133,8 +177,8 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // `import.meta.env.VITE_SENTRY_DSN` and Vite replaces that with a literal at
 // build time — unset, the whole `import("@sentry/capacitor")` branch is
 // provably dead and rolldown drops it. So CI has been weighing a bundle with
-// no Sentry in it, while ios-release.yml:132 sets the DSN (and does not run
-// this script). Measured both ways off the same tree:
+// no Sentry in it, while ios-release.yml's build step sets VITE_SENTRY_DSN
+// (and does not run this script). Measured both ways off the same tree:
 //
 //   no DSN   1577.2 KB across 40 chunks   ← what CI weighed
 //   with DSN 2058.4 KB across 44 chunks   ← what ships (+481.2 KB)
@@ -549,7 +593,131 @@ const MAX_CHUNK_KB = 735;
 // number to watch — it is the one defending first paint, and the next
 // thing added to the entry graph will very likely need a dynamic import
 // rather than a raise.
-const MAX_TOTAL_JS_KB = 2334;
+//
+// 2334 → 2340 (2026-08-17): D193's Compare. Measured with a DSN on this
+// tree, both ways: total 2331 → 2336 (+5), eager 964 → 965 (+1), 82
+// chunks up from 79.
+//
+// SEVENTH RAISE, and the smallest of them — worth a line anyway, because
+// the entry two above asked what a sixth would mean and the answer holds
+// here too: the total is a DRIFT ALARM, and 5 KB of new product code
+// (`ui/LiveCompareLens.tsx`, `data/compare.ts`) is the boring end of what
+// it should notice. The eager graph, which is the constant defending
+// anything, moved 1 KB.
+//
+// THE THREE NEW CHUNKS ARE A SPLIT, NOT NEW WEIGHT, and it is the
+// counter-intuitive half worth writing down: `spec/compare-breakdown.jsx`
+// was inside the entry chunk (spec-index imports it eagerly), and a lazy
+// importer appearing is what made rolldown pull it out into a shared 14 KB
+// chunk of its own. So bytes moved OUT of the entry graph, which is why
+// +5 KB of source cost first paint +1. That relocation is exactly what
+// the 2026-08-13 entries say the TOTAL cannot see, and correctly: it
+// counts every chunk, so only the genuinely new code shows up here.
+
+// 2340 → 2357 (2026-08-18): D194's Foresight CALL card, D195's sponsored
+// slot and D197's ad card, landing on top of the entry above rather than
+// instead of it — both branches raised this constant in the same window and
+// the merge is where the two deltas meet.
+//
+// MEASURED ON THE MERGE, not added up — and the two numbers differ, which
+// is the point. Each side measured its own delta against a 2331 KB base
+// (Compare +5, this branch +11), so the arithmetic says 2347. The merged
+// tree builds **2349 KB / 966 KB eager**, across 82 chunks. The extra two
+// kilobytes are the bundler re-splitting once both lazy importers exist —
+// exactly what the entry above documents happening to
+// `compare-breakdown.jsx` — and they are why a ceiling set by adding two
+// branches' deltas would have been wrong on the day it was written.
+//
+// The eager graph — the constant that defends first paint — is the half
+// worth watching, and it moved 1 KB per side: everything this branch adds is
+// reached through `world-feed.jsx`, already past first paint behind
+// `loadWorldFeed()` (D25).
+//
+// Headroom left: 8 KB on the total, 12 on the eager.
+//
+// 2357 → 2372 at build 22 (D202 · D203 · D204), and this one is genuine
+// growth rather than a re-split: three features landed, none of which
+// relocates bytes that were already there.
+//
+//   · D202, the type-mix system switch — a chip row, a persisted key and
+//     a wider name column. Smallest of the three.
+//   · D203, the pulse roster — `data/pulse.ts` roughly doubled (a roster,
+//     a cadence store, a second fetch path) and `PulseCard` gained the
+//     rhythm control. Both are EAGER, which is why the eager line moved
+//     with the total here and did not for the world-feed work above.
+//   · D204, Roles — `data/roles.ts`, `ui/LiveRolesPanel.tsx` and two new
+//     archetype tables. The panel is behind React.lazy from an eager
+//     importer (`profile-overlay.jsx`), so it is five of the extra chunks
+//     and almost none of the extra eager bytes.
+//
+// MEASURED ON THE MERGE, not on the branch, and the two differ enough to
+// be worth recording. On its own branch this work built 2364 KB / 974 KB
+// eager across 87 chunks, against 2349 / 966 / 82 at build 21 — the eager
+// graph taking 8 KB of the 15, all of it the pulse roster. Merged with the
+// relationship-map deferral that lowered MAX_EAGER_KB to 920, it builds
+// **2366 KB / 914 KB eager across 89 chunks**.
+//
+// So the eager line came DOWN 52 KB across the merge while three features
+// landed on it, which is the deferral paying for the roster and then some.
+// The total is the one that moved, and it moved for the reason above.
+//
+// Headroom left: 6 KB on the total, 6 on the eager. Both are tight and
+// MAX_EAGER_KB is not raiseable, so the next thing added to the daily
+// screen has to earn its bytes or defer.
+//
+// 2372 → 2404 (2026-08-19, the #231 merge): the Patterns tab (v28
+// §2, ON TRIAL per D166 §1), the lazy Map with its parked branches
+// (D207) and the trait web (v28 §13) land ON TOP of the D202–D204 entry
+// above. Everything the three add is lazy — app-shell reaches
+// ui/PatternsTab.tsx through React.lazy, the Map's seven modules left
+// the eager list for loadMapTab() (the MAX_EAGER_KB lowering below), and
+// the trait web rides behind the profile overlay. On their own branch
+// these measured 2383 KB / 850 KB eager across 95 chunks; MEASURED ON
+// THE MERGE: **2396 KB / 869 KB eager across 99 chunks** —
+// the Map deferral paying back the eager bytes the roster spent in the
+// entry above.
+//
+// 2404 → 2440 (2026-08-23): the Patterns tab remounts, on the data rather
+// than on a flag (D265). D217 unmounted it for the v1 release and the
+// entry above is the raise that admitted it in the first place, so this
+// is the same 42 KB coming back. MEASURED against a clean HEAD build (git
+// worktree, same command), 2374 → 2416 across 103 → 105 chunks, and the
+// two new files are not both new code:
+//
+//   +40.0 KB  PatternsTab-*.js — the tab and its three lenses, lazy
+//   +14.5 KB  world-feed-data-*.js — SPLIT OUT, not added: the tab imports
+//             WORLD_TOPICS from it, so rolldown lifted it into a shared
+//             chunk…
+//   −14.4 KB  …out of `catalogs` (63.1 → 48.7), which is where those
+//             bytes already were
+//   + 2.5 KB  entry (257.7 → 259.3) + live (64.3 → 65.1): the gate module,
+//             its wiring, and the earned-gate memory
+//
+// The eager graph is 839 → 841 for that last line alone: `world-feed-data`
+// joins the modulepreload list, but its bytes were already eager inside
+// `catalogs`, so the move is a relocation the ceiling below cannot see —
+// the shape the 978 → 920 entry names. So MAX_EAGER_KB — the ceiling that
+// is not raiseable — did not have to move for a whole tab: the tab itself
+// is behind React.lazy, and the gate that decides whether it is in the bar
+// is a 1 KB pure module.
+//
+// 2440 stands through the 2026-08-25 redesign build-out (D287/D288),
+// and the sentence above about raises got a live test: on its own branch
+// the paid mechanism's ~42 KB (the door rebuilt as the paid path, the
+// buyer's room behind React.lazy, CurSwitch shared between those two
+// chunks, the purchases store — every one deferred) tipped 2456 and this
+// number briefly read 2480 with the measured entry. The merge with the
+// D275–D286 audit took it back: that work shrank the app to 2093 KB
+// total / 753 KB eager, so the redesign rides inside headroom the same
+// week opened and the raise came out before it ever reached main. The
+// eager additions (profile-general's PaidMineCard, the privacy panel's
+// asked-by-you row, the two-crowd scorecards, the header's compose
+// button) sit against MAX_EAGER_KB's own unchanged 880.
+//
+// Still not room for a library — either SDK rejoining first paint lands
+// hundreds of KB over MAX_EAGER_KB and is caught there, which is where
+// that guarantee lives.
+const MAX_TOTAL_JS_KB = 2440;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -569,15 +737,226 @@ const MAX_TOTAL_JS_KB = 2334;
 // "the eager ceiling has been wrong for four builds" is exactly the shape
 // of report that ends with an SDK in first paint. Neither big lazy chunk
 // is preloaded in the live build: `dist/index.html` names 23 modules and
-// the largest is 40 KB — no 293 KB `index.esm-*` (Firestore), no 445 KB
-// `prod-*` (Sentry). Both were verified absent from the modulepreload list
-// at the same commit these numbers come from.
+// the largest is 40 KB — no 293 KB `index.esm-*` (Firestore), no `prod-*`
+// (Sentry, 445 KB at this commit and ~100 KB since). Both were verified
+// absent from the modulepreload list at the same commit these numbers come
+// from, and Sentry's shrinking does not change the argument: what matters
+// is that neither is preloaded, not what either weighs.
 //
 // 978 is still a ceiling and still not raiseable on request. The doctrine
 // from the 955 entry holds at the new figure: either SDK rejoining first
 // paint lands at 1265 or 1417, so any ceiling near 978 catches it, and the
 // 6 KB band is headroom for a feature rather than room for a library.
-const MAX_EAGER_KB = 978;
+//
+// 978 → 920 (2026-08-18): D200 took the relationship map off the eager
+// graph. THE FIRST TIME THIS CONSTANT HAS COME DOWN, and the entries above
+// are seven raises in a row, so it is worth naming what was different:
+// nothing was optimised. `spec/relmap.jsx` + its core and panels are
+// reachable only from the DEMO Circle field — a live build takes
+// LiveCircleBody (D101) — so the entry chunk was carrying ~102 KB of source
+// that a shipping app cannot execute. Measured both ways at this commit:
+// eager 966 → 906 (−60), entry chunk 494 → 435 (−59), total 2349 → 2349
+// and 82 → 83 chunks. The total not moving IS the finding: this is a
+// relocation, and the 2026-08-13 entries already say the total cannot see
+// one.
+//
+// THE BAND IS 14 KB, NOT 72, and that is the deliberate half. The freed
+// room is exactly what docs/VISION-V28.md §5 is waiting on — the Map's
+// Foresight and Crossroads branches are "blocked on bytes, not data" — and
+// leaving it inside the ceiling would hand it over silently. A ceiling with
+// 72 KB of slack defends nothing; the next feature to want that room should
+// raise this line with a measurement beside it, which is what every entry
+// above did.
+//
+// 920 → 860 (2026-08-19): v28 §5 opened the door the entry above was
+// holding — the Map's seven modules left the eager graph for loadMapTab()
+// (mirror-tab lazy-loads the body, main.jsx prewarms the chunk). Measured
+// at this commit: eager 890 → 849 (−41), total 2370 → 2371 and 86 → 92
+// chunks — a relocation again, which is the shape these moves have. The
+// same doctrine as the 978 → 920 entry: the freed room is FOR the parked
+// map branches (g-fore, g-paths, the pulse trend branch), and they now
+// grow inside the LAZY map chunk where the eager ceiling no longer taxes
+// them — so the band stays ~11 KB and this constant should not need to
+// move for them at all.
+//
+// 860 → 880 (2026-08-19, the #231 merge): the 860 above was measured on
+// the branch, before D203's pulse roster — legitimately eager, the entry
+// far above records why — joined the graph. Merged: 869 KB eager, the
+// deferral still paying for most of the roster. Band stays ~11 KB.
+//
+// 880 → 645 (2026-09-01, D355): the Mirror tab left the eager graph — the
+// thirteen spec modules behind the app's second tab now ride
+// loadMirrorTab(), prewarmed right behind the feed and rendered through a
+// slot that hands the module across synchronously once it has landed
+// (data/mirrorChunk), so the deferral costs no blank frame on the tab a
+// user reaches most. Measured at this commit: eager 761 → 633 (−128, the
+// largest single drop since D110 took the Firestore SDK out), entry chunk
+// 243 → 133, total 2154 → 2157 and 129 → 130 chunks — a relocation again,
+// which is the shape every honest move here has. The check:bundle header
+// had named this exact candidate ("the Mirror tab, ~168 KB, is what is
+// left of the obvious candidates, and it needs a guard the overlays did
+// not"); the guard turned out to be the same-tick handoff, not a render
+// guard. Band ~12 KB, the same posture as every entry above: the freed
+// room is not headroom for the next eager feature — a feature that wants
+// it raises this line with a measurement beside it.
+// 645 → 630 (2026-09-01, D354's sweep): ui/CityPicker and ui/PickSearch
+// left spec-index's eager list when their two consumers (profile-general,
+// world-feed — both lazy) started importing them, so each rides its
+// consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
+// Band ~11 KB, same posture.
+// 630 → 642 (2026-09-05, D365's night review): the composed night tree
+// measured 631 against 630 and the fixes that spent the kilobyte are all
+// in eager modules — the pulse write marking its answer unfolded so the
+// card counts you in the crowd it reports, the Circle rebuilding its
+// follow cache from who you FOLLOW rather than from whose answers loaded,
+// `testAggsState` so a refused read stops being drawn as "nobody has
+// answered", and `crowdN` so the rank reveal says which crowd it matched
+// you against. Measured with a DSN both ways: main 629.9, composed 630.8
+// (+856 bytes); total unmoved at 2185. Band ~11 KB, the same posture as
+// every entry above.
+//
+// THE ARGUMENT AGAINST RAISING THIS RETIRED WHEN THE SDK RULE WAS WRITTEN,
+// and the entries above still carry it, so it is worth saying once here:
+// "not raiseable, because it is the constant keeping the Firestore SDK out
+// of first paint" was true while this number was the only thing saying so.
+// It is not now — MAX_EAGER_CHUNK_KB below states that directly, catches
+// either SDK by a factor of at least 1.4, and its own note explains why
+// ("a guarantee that survives only while a number stays small is not one").
+// What this number still does is make an eager kilobyte a decision with a
+// measurement beside it, which is what this entry is.
+//
+// THE RATE IS THE THING TO WATCH, not this kilobyte. D354's sweep set 630
+// with the tree measuring 619; four days later main measures 629.9. That
+// is ~2.7 KB a day of ordinary bug-fixing landing in first paint, so a
+// band of 11 KB is about four days and the next trip is due before the
+// week is out. The answer then should be a deferral rather than another
+// raise.
+//
+// THE THREE CANDIDATES THIS ENTRY FIRST NAMED DO NOT MOVE BY THEIR OWN
+// LINES, and the correction matters because this note is the instruction
+// the next deferral will start from. It named explain-sheet (8.6 KB),
+// result-rose (4.9) and relmap-lenses (4.9) as "all three behind a tap,
+// all three in spec-index.js's ORDERED side-effect list". Two things in
+// that are wrong, measured 2026-09-06:
+//
+//   · **The side-effect line is not what holds them.** Each is imported BY
+//     NAME from a module that is itself eager, so the ESM graph pulls it in
+//     whatever spec-index.js does — which is the mechanism CLAUDE.md states
+//     ("rule 2 asks whether a file LOADS, not whether spec-index.js names
+//     it"). Proved rather than reasoned: delete explain-sheet's line,
+//     rebuild, and it is STILL in the modulepreload set, because
+//     result-card.jsx imports it.
+//   · **relmap-lenses is not behind a tap at all.** vote-cuts.js imports
+//     `RMLenses` and publishes VOTECUTS, which daily-split.jsx reads for the
+//     who-voted sheet's cuts — the landing screen, on the live path.
+//     spec-index.js says so beside its line and is right to; only its
+//     MECHANISM is stale there ("reads window.RMLenses" predates D354's
+//     sweep, which made it an import).
+//
+// WHAT ACTUALLY HOLDS THEM, traced to the anchor so the next attempt does
+// not have to: explain-sheet and result-rose are both pulled by
+// result-card.jsx; result-card and type-marks.jsx (4.9 KB, also on the
+// list) are both pulled by passive-meter.jsx (23.1 KB); and passive-meter
+// is imported and RENDERED by app-shell.jsx — `<PassiveMeter />` in the
+// header, unconditionally, on every screen, "because it reports across
+// tabs, not just the feed". relmap-lenses is not part of this chain and
+// should be left alone.
+//
+// SO THIS IS NOT A LOAD-ORDER PROBLEM, which is what an earlier draft of
+// this same entry assumed when it put the risk "on passive-meter". The
+// chain terminates in something that is ON SCREEN IN THE FIRST FRAME.
+// Deferring it is mechanically easy — app-shell.jsx already React.lazy's
+// four things and the pattern is right there — and the cost is that the
+// header's lens ring pops in after the paint instead of arriving with it.
+// That is a design call about the header, not a refactor, which is why
+// nothing here does it on the way past. ~38 KB sits behind that one call
+// (passive-meter, result-card, type-marks, result-rose, explain-sheet),
+// which is three bands rather than one, so it is worth asking properly.
+// 642 → 607 (2026-09-06, D382): the eager-content sweep. 642 was granted
+// four days ago to fit a tree measuring 631, and 35 KB of that was
+// question CONTENT — `daily-questions.js`, the archive the farm lane
+// appends to EVERY DAY, held in first paint by three static edges (the
+// spec-index side-effect line, daily-split.jsx's import for one demo id,
+// and map-branches.js wanting only the category taxonomy). It measures
+// 596 with all three cut. Re-set to the file's own ~11 KB band rather
+// than banked as slack, which is what every entry above did after a
+// sweep — 645 → 630 followed D354's the same way.
+//
+// THE RATE WARNING ABOVE STILL STANDS, and this does not answer it: 11 KB
+// is still about four days of ordinary drift. What changed is that the
+// drift can no longer be a question. `check:eager-content` forbids the
+// content class outright, so this ceiling is back to measuring what it
+// was written to measure — code in first paint — and a content lane can
+// no longer be blocked by it. Raising this number to fit content is now a
+// gate failure somewhere else, which is the point.
+// 607 → 552 (2026-09-06, D391): the second eager-content sweep, and the one
+// that finishes the job the first started. 607 was set when the DAILY lane's
+// archive came out; this takes the other two lanes with a bundled write
+// surface out with it — the feed's demo pool (its continuum twins are
+// appended on every run) and the duel bank (content/duel-questions.json).
+// 601 → 541 measured, and the eager graph is 75 modules where it was 93.
+//
+// THE THREE LINES THAT HELD THEM were all in spec-index.js, and all three
+// gave a reason that had gone stale: world-feed-data for a
+// `window.WORLD_TOPICS` module-scope read D354 had already converted to an
+// import, group-daily for a `GDAv` render-time lookup the same sweep had
+// converted, and duels-data for nothing it still published. The pattern is
+// worth naming because it will recur: a deferral note outlives the coupling
+// it describes, and nothing re-reads it, so the line stays.
+//
+// Same ~11 KB band as every entry above. What is different now is what a
+// trip MEANS: no question lane can cause one — check:eager-content's
+// allowlist is down to three demo archives, none of which grows when a lane
+// writes — so this ceiling is measuring code in first paint and nothing else.
+const MAX_EAGER_KB = 552;
+
+// THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
+// until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
+// render-blocking, shipped on every paint — and the whole font directory
+// sat outside every ceiling in the repo. An audit found 12 italic
+// @font-face blocks and four woff2 files, 66 KB, for a voice styles.css
+// states has no italic and `.app em { font-style: normal }` enforces. Pure
+// package weight in the .ipa and .aab, zero runtime cost, and nothing could
+// have caught it.
+//
+// Two numbers rather than one because they fail differently: CSS is
+// render-blocking, so its bytes are on the critical path the way an eager
+// chunk is; fonts are fetched on demand and cost download size and store
+// footprint rather than first paint.
+//
+// Measured after that removal: 70 KB of CSS, 76 KB of fonts. The headroom
+// is deliberately small — these are not numbers that should drift upward
+// unnoticed, which is the whole reason they now have a gate.
+//
+// ── AND THEN ONE NUMBER WAS DOING TWO JOBS (D265) ────────────────────
+//
+// `cssKb` sums every .css in dist/assets, and the sentence above — "CSS is
+// render-blocking, so its bytes are on the critical path" — stopped being
+// true of all of it the first time a lazily-loaded component imported a
+// stylesheet. Vite emits that as its own file, fetched with the chunk and
+// never before; `dist/index.html` links exactly one stylesheet, and only
+// that one blocks a paint. The Patterns tab is the case that made the
+// difference visible: 15 KB of chunk CSS behind a React.lazy import, which
+// the old single ceiling counted the same as 15 KB in the entry sheet.
+//
+// So state it directly, the way MAX_EAGER_KB's own note does — a
+// guarantee that survives only while a number stays small is not one:
+//
+//   MAX_BLOCKING_CSS_KB  the sheets index.html LINKS. The critical-path
+//                        number, and the one that must not drift. It has
+//                        NOT moved for the Patterns work — 69 KB before
+//                        and after, because none of those bytes are in
+//                        the entry sheet.
+//   MAX_CSS_KB           every stylesheet in the package. Install weight,
+//                        which is the footing fonts are already on.
+//
+// 78 → 88 (2026-08-23): the Patterns tab's 15 KB of lazy chunk CSS, on a
+// tree measuring 69 KB of blocking sheet and 84 KB in total. Raising the
+// total is the deliberate half; the number that guards first paint is the
+// new one, and it is tight on purpose.
+const MAX_BLOCKING_CSS_KB = 74;
+const MAX_CSS_KB = 88;
+const MAX_FONT_KB = 96;
 
 let files;
 try {
@@ -601,6 +980,91 @@ const sized = files
 
 const totalKb = sized.reduce((n, s) => n + s.kb, 0);
 const over = sized.filter((s) => s.kb > MAX_CHUNK_KB);
+
+// The non-JS half. CSS lands in dist/assets beside the chunks; fonts are
+// copied from public/ to dist/fonts, so both roots are walked. A missing
+// directory is 0 rather than a throw — a demo build may not emit either.
+const kbOf = (dir, re) => {
+  try {
+    return readdirSync(dir, { recursive: true })
+      .map((f) => String(f).split(sep).join("/"))
+      .filter((f) => re.test(f))
+      .reduce((n, f) => n + statSync(join(dir, f)).size / 1024, 0);
+  } catch { return 0; }
+};
+const cssKb = kbOf(ASSETS, /\.css$/);
+const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
+
+// ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
+//
+// Markers, not a filename: the group is `prod-*.js` today, which is a
+// rolldown output name and not a promise. These four are SDK internals —
+// two of them Sentry's own globals — and each splits cleanly. Measured on
+// this tree at build 21, the same command with the DSN the only
+// difference:
+//
+//                        chunks WITH dsn   chunks WITHOUT
+//   __SENTRY__                  2                0
+//   _sentryDebugIds             1                0
+//   sentryWrapped               1                0
+//   captureException            3                0
+//
+// The obvious marker is the one that does NOT work: the bare string
+// "sentry" matches 12 chunks with the DSN and 9 without, because the app
+// names its own lazy module and its dynamic-import path after it. A
+// detector that cannot tell `src/lib/sentry.ts` from `@sentry/browser`
+// would report the SDK present in every build, which fails in the
+// direction that grades a 1895 KB bundle against the full ceiling and
+// calls it the shipping one.
+const SENTRY_MARKERS = ["__SENTRY__", "_sentryDebugIds", "sentryWrapped", "captureException"];
+const sentryChunks = sized.filter(({ f }) => {
+  const src = readFileSync(join(ASSETS, f), "utf8");
+  return SENTRY_MARKERS.some((m) => src.includes(m));
+});
+const SENTRY_IN = sentryChunks.length > 0;
+const sentryKb = sentryChunks.reduce((n, s) => n + s.kb, 0);
+
+// ── IS THE V2 LIVE PATH IN THIS BUNDLE? Asked of the bundle ──────────
+//
+// scripts/live-build-markers.mjs is where the markers and the measurement
+// behind them live; check-web-firebase asks the same question off the same
+// list, which is the point of the module.
+const liveMissing = missingLiveMarkers(sized.map(({ f }) => readFileSync(join(ASSETS, f), "utf8")).join("\n"));
+const liveMarkersSeen = LIVE_MARKERS.filter((m) => !liveMissing.includes(m));
+const LIVE_IN = liveMissing.length === 0;
+
+if (!DEMO && !LIVE_IN) {
+  console.error(
+    "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
+    + "not built as one — of "
+    + LIVE_MARKERS.map((m) => `\`${m}\``).join(", ")
+    + `, dist/assets carries ${liveMarkersSeen.length ? liveMarkersSeen.join(", ") : "none"}.\n`
+    + "This is read from the BUILD OUTPUT, so setting VITE_V2_LIVE for this\n"
+    + "process will not change the answer — rebuild.\n\n"
+    + "  Build and check the bundle that ships:\n"
+    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
+    + "    npm run check:bundle\n\n"
+    + "  The DSN is load-bearing too and for a different reason: without it\n"
+    + "  the Sentry chunk is provably dead and rolldown drops it, so the\n"
+    + "  TOTAL comes out ~100 KB light. Any non-empty string restores it.\n\n"
+    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
+    + "  numbers and applies no ceiling, because they are not this app's.",
+  );
+  process.exit(1);
+}
+
+// The same refusal the other way. `--demo` applies no ceiling and says the
+// numbers are not this app's — over a live dist/ that is the identical
+// wrong-artifact claim, just quieter, and it would report the shipping
+// bundle's weight as the demo's.
+if (DEMO && LIVE_IN) {
+  console.error(
+    "check-bundle: --demo says these numbers are a demo build's, and dist/\n"
+    + `carries the live path (${liveMarkersSeen.join(", ")}). Rebuild without\n`
+    + "VITE_V2_LIVE to measure a demo, or drop --demo to grade this one.",
+  );
+  process.exit(1);
+}
 
 // ── the eager graph ─────────────────────────────────────────────────
 //
@@ -635,6 +1099,33 @@ if (!eagerNames.length) {
   );
   process.exit(1);
 }
+
+// The render-blocking half of the stylesheet budget, asked of the artifact
+// for the same reason the eager graph is: a `<link rel="stylesheet">` in
+// index.html is fetched and parsed before the first paint, and a chunk's
+// own .css beside it in assets/ is not. Same failure shape as the eager
+// regexes above, so the same guard: zero links means the emit changed and
+// this budget is measuring nothing.
+const blockingCssNames = [
+  ...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="\/assets\/([^"]+\.css)"/g),
+  ...html.matchAll(/<link[^>]+href="\/assets\/([^"]+\.css)"[^>]*rel="stylesheet"/g),
+].map((m) => m[1]);
+if (!blockingCssNames.length) {
+  console.error(
+    "check-bundle: dist/index.html links no stylesheet — the emit shape\n"
+    + "changed and the render-blocking CSS budget is measuring nothing.",
+  );
+  process.exit(1);
+}
+const blockingCssKb = [...new Set(blockingCssNames)].reduce((n, f) => {
+  try {
+    return n + statSync(join(ASSETS, f)).size / 1024;
+  } catch {
+    console.error(`check-bundle: dist/index.html links ${f}, which is not in dist/assets.`);
+    process.exit(1);
+    return n;
+  }
+}, 0);
 
 const byName = new Map(sized.map((x) => [x.f, x.kb]));
 const eager = [...new Set(eagerNames)].map((f) => {
@@ -674,7 +1165,8 @@ for (const s of over) {
 // ── the SDK rule ────────────────────────────────────────────────────
 //
 // MAX_EAGER_KB's stated purpose is keeping the Firestore (293 KB) and
-// Sentry (445 KB) SDKs out of first paint, but it only does that as a side
+// Sentry (445 KB then, ~100 KB now) SDKs out of first paint, but it only
+// does that as a side
 // effect of arithmetic: it is one number covering 23 chunks, so it holds
 // exactly as long as nobody raises it. It has been raised four times in
 // four days, twice by me, and D144 raised it while REPORTING that first
@@ -707,7 +1199,21 @@ for (const s of eager.slice(1)) {
     failed = true;
   }
 }
-if (totalKb > MAX_TOTAL_JS_KB) {
+// Withheld rather than passed when Sentry is out — see SENTRY_IN. A total
+// that is missing 450 KB of the app cannot fail this ceiling and must not
+// be reported as having cleared it.
+if (!SENTRY_IN) {
+  console.log(
+    `\n  total NOT GRADED — no Sentry chunk in ${ASSETS.replace(root + "/", "")}, so the build saw no\n`
+    + `  VITE_SENTRY_DSN and the group is dead code rolldown dropped.\n`
+    + `  ${totalKb.toFixed(0)} KB is ~100 KB light and is not this app's size;\n`
+    + `  MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and eager\n`
+    + `  ceilings above still hold — Sentry is in neither.\n\n`
+    + `  To grade the total, set any non-empty DSN and REBUILD — the check\n`
+    + `  reads dist/, so exporting it for this process alone changes nothing:\n`
+    + `    VITE_SENTRY_DSN=https://ci@example.invalid/0 VITE_V2_LIVE=true npm run build`,
+  );
+} else if (totalKb > MAX_TOTAL_JS_KB) {
   console.error(`\nOVER total budget: ${totalKb.toFixed(0)} KB (max ${MAX_TOTAL_JS_KB} KB)`);
   failed = true;
 }
@@ -725,6 +1231,28 @@ if (eagerKb > MAX_EAGER_KB) {
   failed = true;
 }
 
+// The non-JS ceilings. Applied on the same footing as the JS ones and,
+// like MAX_TOTAL_JS_KB, only on a build that was made as the shipping one —
+// a demo build's asset set is not this app's.
+if (!DEMO) {
+  for (const [what, kb, max] of [
+    ["render-blocking stylesheet", blockingCssKb, MAX_BLOCKING_CSS_KB],
+    ["stylesheet total", cssKb, MAX_CSS_KB],
+    ["fonts", fontKb, MAX_FONT_KB],
+  ]) {
+    if (kb > max) {
+      console.error(
+        `check-bundle: ${what} is ${kb.toFixed(0)} KB, over the ${max} KB ceiling.\n`
+        + "  These bytes ship on every install, and the render-blocking sheet is\n"
+        + "  fetched before anything paints. Trim them, move the bytes behind a\n"
+        + "  lazy import (which moves them off the blocking number, not off the\n"
+        + "  total), or raise the ceiling here deliberately with a note saying why.",
+      );
+      failed = true;
+    }
+  }
+}
+
 if (failed) {
   console.error(
     "\nEither trim what was added, or raise the ceiling in this script —\n"
@@ -736,8 +1264,22 @@ if (failed) {
 // Name the artifact, not just the verdict. Every failure this gate has had
 // was a question of WHICH bundle got measured, so a log line saying "OK"
 // without saying "of what" is the one that let four builds through.
+// "SHIPPING bundle (VITE_V2_LIVE=true)" was itself an artifact claim that
+// could be false twice over: the flag said the V2 half is in and said
+// nothing about Sentry, and it was read off this process's environment
+// rather than off dist/, so it could be false about the V2 half too. Both
+// halves are named now and both are read from the build output, so the
+// line cannot assert more than was measured.
 console.log(
-  `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true), `
-  + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
-  + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`,
+  SENTRY_IN
+    ? `bundle budget OK — SHIPPING bundle (V2 live path in dist, Sentry in, `
+      + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
+      + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
+      + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB}); `
+      + `${blockingCssKb.toFixed(0)} KB blocking css / ${cssKb.toFixed(0)} KB css total `
+      + `/ ${fontKb.toFixed(0)} KB fonts `
+      + `(max ${MAX_BLOCKING_CSS_KB} / ${MAX_CSS_KB} / ${MAX_FONT_KB})`
+    : `bundle budget OK on what was gradable — V2 live path in dist, Sentry OUT, `
+      + `${eagerKb.toFixed(0)} KB eager (max ${MAX_EAGER_KB}); `
+      + `total ${totalKb.toFixed(0)} KB ungraded`,
 );

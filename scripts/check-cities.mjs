@@ -11,6 +11,7 @@
 // Regeneration stays a manual step: `npm run build:cities`.
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
+import { stripComments } from "./strip-comments.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -22,7 +23,18 @@ const FILE = join(root, "public", "cities.txt");
 // hand-maintained copy of the bound is one more way to arrive there. Same
 // argument check-pokedex.mjs already makes by cross-reading
 // CATALOG_MAX_ENTITY, and the one D39 makes about figures in prose.
-const PURE = readFileSync(join(root, "functions", "src", "pure.ts"), "utf8");
+// COMMENTS ARE BLANKED BEFORE ANY OF THIS IS MATCHED, and it is not tidying.
+// Every read below is a regex over raw source that takes the FIRST match, so a
+// retuned value with its old line parked above it —
+//     // was: <the old line>
+//     <the new line>
+// — made the gate report the SUPERSEDED number and exit 0. Measured on the real
+// tree 2026-09-05. This is the same defect check:devicebind and check:ios-location
+// carried until 2026-09-04, where a commented-out call read as a live one; here it
+// is worse, because the gate reads a VALUE rather than merely a presence.
+// strip-comments.mjs blanks rather than deletes, so every offset and line number
+// this gate reports still points at the real file.
+const PURE = stripComments(readFileSync(join(root, "functions", "src", "pure.ts"), "utf8"));
 function fromPure(pattern, what) {
   const m = PURE.match(pattern);
   if (!m) {

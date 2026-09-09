@@ -26,6 +26,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { installLive } from "./live-fixture";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { PASSIVE } from "../spec/passive-progress.js";
 
 const LIKERT5 = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
 
@@ -45,6 +46,8 @@ function bankFor(kind) {
 
 let ownProgress;
 let ownResult;
+let passiveStanding;
+let passiveCount;
 let live;
 let demoResults;
 
@@ -52,6 +55,7 @@ beforeAll(async () => {
   // Imported here rather than at the top because result-card.jsx injects a
   // <style> at module scope — it needs the jsdom document to exist first.
   ({ ownProgress, ownResult } = await import("../spec/result-card.jsx"));
+  ({ passiveStanding, passiveCount } = await import("../spec/passive-meter.jsx"));
   demoResults = JSON.parse(JSON.stringify(IS_TEST_RESULTS));
 });
 
@@ -85,8 +89,122 @@ function withVotes(kind, picks) {
   const bank = bankFor(kind);
   live.LIVE.testFeedItems = () => bank;
   for (const [i, v] of Object.entries(picks)) live.votes[bank[i].id] = String(v);
+  // The real store notifies on every write and passive-meter.jsx holds its
+  // fold behind that signal; the fixture installs its own `subscribe`, so
+  // nothing here would reach the listener. PASSIVE's notify does.
+  PASSIVE.poke();
   return bank;
 }
+
+describe("passiveCount — the number the ring, the sheet row and the card tag draw", () => {
+  it("reads the answers, not the device's tally of taps", () => {
+    // THE SAME FAILURE ONE COMPONENT OVER. `PASSIVE.done` counts
+    // `st.seen`, a localStorage map written at the moment of the tap, so on
+    // a SECOND DEVICE — or after a reinstall — it is empty for a profile
+    // the fold draws as complete. result-card.jsx switched to the fold and
+    // said why; the ring, the sheet row and the per-card tag did not, so
+    // inside passive-meter.jsx the colour came from the fold and the count
+    // came from the device.
+    //
+    // `withVotes` puts the answers in the STORE and never calls
+    // PASSIVE.record, which is exactly what a second device looks like:
+    // the answers are on the server, the tally is not on this disk.
+    withVotes("political", { 0: 4, 1: 0, 2: 3, 3: 1, 4: 2, 5: 4 });
+    expect(PASSIVE.done("political"), "the fixture is not a second device")
+      .toBe(0);
+    const c = passiveCount("political");
+    expect(c.done).toBe(6);
+    expect(c.needed).toBe(30);
+    expect(c.pct).toBe(20);
+    expect(c.full).toBe(false);
+  });
+
+  it("calls a fully answered instrument complete, on a device that never counted a tap", () => {
+    const picks = {};
+    for (let i = 0; i < IS_TESTS.political.questions.length; i++) picks[i] = 2;
+    withVotes("political", picks);
+    const c = passiveCount("political");
+    expect(c.done).toBe(30);
+    expect(c.pct).toBe(100);
+    expect(c.full, "a complete profile still read as incomplete").toBe(true);
+  });
+
+  it("falls back to the device tally where there is no fold — the demo build", () => {
+    // THE CONTROL, and not a courtesy: `ownProgress` returns null with LIVE
+    // off by design, because test-definitions.js's seeded stagger IS the
+    // demo's content. A reader that always took the fold would draw zero
+    // for every instrument in the demo.
+    expect(passiveCount("political")).toEqual({
+      done: PASSIVE.done("political"),
+      needed: PASSIVE.needed("political"),
+      pct: PASSIVE.pct("political"),
+      full: PASSIVE.complete("political"),
+    });
+    expect(passiveCount("political").needed).toBeGreaterThan(0);
+  });
+});
+
+// ── the ring's denominator, and the card that must stay out of it ─────
+//
+// D416's deep items are a facet's or a position's card, served through the
+// same feed test stream as the domain questions — `testFor()` says yes to
+// them on purpose, because the feed filters that stream through it and the
+// card has to be served. What must NOT happen is the ring counting one:
+// `needed()` is the domain-level set `IS_TESTS` carries, so a facet answer
+// would fill a ring whose denominator never included it, and a person who
+// answered enough deep items would read "30 of 30" having answered fewer
+// than thirty of the thirty.
+//
+// The guard is one clause — `|| q.facet` — and nothing reached it. It
+// survived a full-suite mutation sweep: deleting it left every runner
+// green, because no test calls `record()` with a deep card at all.
+describe("PASSIVE.record and the deep item (D416)", () => {
+  // `attachment`, and the choice matters: `passiveDone` is
+  // `min(needed, seed + seen)`, and big5's demo seed already fills its
+  // twenty-five — so a card recorded against it cannot move the number and
+  // the case would pass for the wrong reason. attachment seeds at zero.
+  const K = "attachment";
+
+  // THE TALLY THIS CASE WRITES IS PUT BACK, through the store's own purge
+  // (data/live.ts, D51) rather than a second definition of "empty". The
+  // 2026-09-08 night review found the composition defect: this describe
+  // and the profile-card one at the foot of the file were written by
+  // different shifts, each green on its own branch, and red together —
+  // `record()` here leaves `attachment` at one seen card in module state
+  // AND in localStorage, and the profile card's control below then draws
+  // a Social ring with a real sweep for "an untouched profile". The card is
+  // right to (the fold is empty for an instrument the bank serves no
+  // items for, so `passiveCount` falls back to the tally, by design); the
+  // fixture was wrong to leave it. Vitest runs a file's describes in
+  // order, so the leak only ever pointed one way, which is why neither
+  // shift could see it.
+  afterEach(() => {
+    try { localStorage.removeItem("insight.passive.v1"); } catch { /* jsdom always has it */ }
+    window.dispatchEvent(new Event("insight:local-purge"));
+  });
+
+  it("counts a domain question and refuses a facet card", () => {
+    expect(PASSIVE.seedCount(K), `${K} is now seeded, so the tally below is capped and this case is vacuous`).toBe(0);
+    const before = PASSIVE.passiveDone(K);
+    // A domain-level card moves the tally…
+    expect(
+      PASSIVE.record({ id: "zz-domain-probe", test: K }),
+      "a domain test card was not recorded at all — this case is now vacuous",
+    ).toBeTruthy();
+    const after = PASSIVE.passiveDone(K);
+    expect(after, "recording a domain card did not move the ring").toBe(before + 1);
+    // …and a deep one does not, though `testFor` still claims it.
+    expect(
+      PASSIVE.testFor({ id: "zz-facet-probe", test: K, facet: "anxiety" }),
+      "testFor stopped naming a deep item's test — the feed filters its stream through it, so the card would stop being served",
+    ).toBe(K);
+    expect(
+      PASSIVE.record({ id: "zz-facet-probe", test: K, facet: "anxiety" }),
+      "a deep item was recorded into the ring, whose denominator does not include it",
+    ).toBeNull();
+    expect(PASSIVE.passiveDone(K), "a facet answer moved the ring").toBe(after);
+  });
+});
 
 describe("ownProgress — the number under the profile's progress bar", () => {
   it("counts answers given through the store, not zero", () => {
@@ -148,5 +266,126 @@ describe("ownResult — a type appears once every axis is behind it", () => {
   it("refuses a half-answered one rather than drawing a type from it", () => {
     withVotes("big5", { 0: 4, 1: 4 });   // two items, both Openness
     expect(ownResult("big5")).toBeNull();
+  });
+});
+
+// ── the colour those same answers already justify (D230) ──────────────
+//
+// The fold reaching `ready` is what earns a TYPE, and the two cases above
+// pin that threshold. The colour is the other half: it comes from the same
+// dims long before they are ready, because a hue that moves with your
+// answers is not the claim a name is. What is asserted here is that it is
+// the CURRENT reading and not a family accent — the same answers moved to
+// different axes have to produce different hues, or the split is decorative.
+describe("passiveStanding — the two-tone split before there is a type", () => {
+  // Politics' items pair up by axis: 0,1 econ · 2,3 auth · 4,5 foreign ·
+  // 6,7 env. Extremes on one pair and dead-centre on the next make the
+  // first the dominant axis and the second the runner-up, which is exactly
+  // what the split is built from.
+  const HUES = { econ: 235, auth: 265, foreign: 195, env: 170 };
+
+  it("colours from the current fold, and names nothing", () => {
+    withVotes("political", { 0: 4, 1: 0, 2: 2, 3: 2 });   // econ extreme, auth neutral
+    const st = passiveStanding("political");
+    // Four answers of thirty: a type would be a claim, and there is none.
+    expect(ownResult("political")).toBeNull();
+    expect(st.standing).toBeNull();
+    // …and yet the row has a colour, and it is econ's over auth's.
+    expect(st.sp).not.toBeNull();
+    expect(st.sp.deep).toBe(`oklch(0.52 0.14 ${HUES.econ})`);
+    expect(st.sp.lift).toBe(`oklch(0.68 0.115 ${HUES.auth})`);
+    expect(st.col).toBe(st.sp.deep);
+  });
+
+  it("moves when the answers move", () => {
+    withVotes("political", { 4: 4, 5: 4, 6: 2, 7: 2 });   // foreign extreme, env neutral
+    const st = passiveStanding("political");
+    expect(st.sp.deep).toBe(`oklch(0.52 0.14 ${HUES.foreign})`);
+    expect(st.sp.lift).toBe(`oklch(0.68 0.115 ${HUES.env})`);
+  });
+
+  it("stays the flat category accent when nothing has been answered", () => {
+    withVotes("political", {});
+    const st = passiveStanding("political");
+    expect(st.sp).toBeNull();
+    expect(st.col).toBe(PASSIVE.META.political.accent);
+  });
+
+  it("still lets a stored result win, and name its type", () => {
+    // The demo persona's Politics result, put back on an account that has
+    // also answered four feed items. A stored result is a finished
+    // instrument; the fold is an estimate of the same thing from fewer
+    // answers, and ownResult's order has to hold for the colour too.
+    withVotes("political", { 4: 4, 5: 4, 6: 2, 7: 2 });
+    window.dispatchEvent(new CustomEvent("insight:test-results", { detail: demoResults }));
+    const st = passiveStanding("political");
+    expect(st.standing).toBe("Green Left");
+    expect(st.sp.deep).not.toBe(`oklch(0.52 0.14 ${HUES.foreign})`);
+  });
+});
+
+// ── the profile's "Your tests" card, which was the last one out ─────
+//
+// `passiveCount` above is the fix passive-meter.jsx made for its own ring,
+// sheet row and card tag. `profile-general.jsx` draws the SAME four rings
+// on the profile's landing tab and kept taking their length from
+// `PASSIVE.pct` — the device tally — while taking their colour from
+// `passiveStanding`, the fold. It was the last `PASSIVE.pct` reader
+// outside passive-meter.jsx and was not switched with the rest, under a
+// comment written in that same commit claiming it now "reads the same
+// standing the rest of the app does".
+//
+// What that costs on a reinstall or a second device: four grey rings at
+// zero for four complete instruments, one tap away from the same profile's
+// per-instrument tab drawing "30 of 30 answered" and a full rose.
+//
+// Asserted on the ARC GEOMETRY rather than on text, because the card has
+// no number — the ring IS the reading, and a sweep of zero length is the
+// whole of what a user sees wrong.
+describe("the profile card's arcs come from the fold, not the device", () => {
+  let GeneralPanel;
+  beforeAll(async () => {
+    ({ GeneralPanel } = await import("../spec/profile-general.jsx"));
+  });
+
+  /** Every stroke-dasharray the card drew that is not a full-circle track. */
+  const sweeps = (container) => [...container.querySelectorAll("circle[stroke-dasharray]")]
+    .map((c) => c.getAttribute("stroke-dasharray"))
+    .filter((d) => d && !/^0[ ,]/.test(d) && Number(String(d).split(/[ ,]/)[0]) > 0);
+
+  it("draws a complete instrument as a full arc on a device that never counted a tap", async () => {
+    const { render, cleanup } = await import("@testing-library/react");
+    const React = (await import("react")).default;
+    const picks = {};
+    for (let i = 0; i < IS_TESTS.political.questions.length; i++) picks[i] = 2;
+    withVotes("political", picks);
+    // The precondition, asserted rather than assumed: this IS the second
+    // -device state. The tally is empty and the fold is complete.
+    expect(PASSIVE.pct("political"), "the fixture counted a tap — not a second device").toBe(0);
+    expect(passiveCount("political").pct).toBe(100);
+
+    const { container } = render(<GeneralPanel />);
+    try {
+      expect(
+        sweeps(container).length,
+        "four complete instruments drew four empty rings — the arc read the device's tally",
+      ).toBeGreaterThan(0);
+    } finally { cleanup(); }
+  });
+
+  it("…and draws nothing for an instrument genuinely unanswered", async () => {
+    // THE CONTROL. An arc that always draws is as wrong as one that never
+    // does — with no answers anywhere, the rings are empty and should be.
+    const { render, cleanup } = await import("@testing-library/react");
+    const React = (await import("react")).default;
+    withVotes("political", {});
+    expect(passiveCount("political").pct).toBe(0);
+    const { container } = render(<GeneralPanel />);
+    try {
+      expect(
+        sweeps(container).length,
+        "an untouched profile drew a filled ring",
+      ).toBe(0);
+    } finally { cleanup(); }
   });
 });

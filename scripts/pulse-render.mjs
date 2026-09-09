@@ -405,6 +405,39 @@ function panelMoney(p) {
       <td>${path.monthlyUsd > 0 ? usd(path.monthlyUsd) : "—"}</td>
     </tr>`).join("");
 
+  const g = p.guard;
+  const guardBanner = g.state === "over"
+    ? `<div class="banner" style="border-left-color:var(--critical)">
+        <div><strong>The bill is outrunning revenue (D332).</strong>
+        Modelled burn ${usd(g.burnUsd)}/mo at the measured ${int(g.measuredActives)} actives
+        against ${usd(g.revenueUsd)}/mo recorded — net ${usd(g.netBurnUsd)}/mo, over the
+        ${usd(g.allowanceUsd)} allowance. Price a path, pull the read breaker
+        (<code>npm run budget:mode -- --level 1</code>), or raise the allowance in the
+        commit that says why.</div></div>`
+    : g.state === "stale"
+      ? `<div class="banner" style="border-left-color:var(--s4)">
+          <div><strong>The usage guard is measuring a stopped trail.</strong>
+          Its last folded day is ${esc(g.measuredOn || "")}, ${int(g.measuredAgeDays)} days back, and it
+          averages a seven-day window — so the ${usd(g.netBurnUsd)}/mo it reads against the
+          ${usd(g.allowanceUsd)} allowance describes a week that has passed. Refresh it
+          (<code>npm run scorecard -- --fetch</code>); if the trail will not move, the digest
+          has stopped folding days.</div></div>`
+    : g.state === "ok"
+      ? `<div class="banner" style="border-left-color:var(--s3)">
+          <div><strong>Usage vs revenue: inside the allowance.</strong>
+          Net burn ${usd(g.netBurnUsd)}/mo at the measured ${int(g.measuredActives)} actives
+          (${esc(g.measuredOn || "")}), against a ${usd(g.allowanceUsd)}/mo allowance
+          (<code>monitoring/rates.json</code> guard). A model at the measured size, not an
+          invoice — the Cloud Billing budget is the outcome-side control.</div></div>`
+      : `<div class="banner" style="border-left-color:var(--s4)">
+          <div><strong>Usage-vs-revenue guard: ${g.state === "unmeasured" ? "no measured population yet" : "unarmed"}.</strong>
+          ${g.state === "unmeasured"
+            ? `It compares the modelled bill at the MEASURED actives against recorded revenue,
+               and arms itself on the first committed engagement trail
+               (<code>npm run scorecard -- --fetch</code>).`
+            : `Set <code>guard.maxNetBurnUsdPerMonth</code> in <code>monitoring/rates.json</code>
+               to say how much net burn a month is acceptable.`}</div></div>`;
+
   return `<section class="panel">
     <h2>Money — the break-even surface</h2>
     <p class="decision"><b>The decision:</b> what would you have to charge, and to how
@@ -412,6 +445,8 @@ function panelMoney(p) {
       <b>${usd(m.revenueUsdPerMonth)}</b> and this panel does not pretend otherwise —
       what it computes instead is the shape a price would have to have. That question
       needs no revenue data, which is why it is answerable now and the rest is not.</p>
+
+    ${guardBanner}
 
     ${tiles([
       { k: "Fixed cost", v: usd(m.fixedUsdPerMonth), unit: "/mo",
@@ -477,7 +512,7 @@ function panelPipeline(p, trail) {
     ? scorecardBlock(scorecard)
     : `<div class="empty"><b>No scorecard yet.</b> ${esc(scorecard.note)}<br><br>
         Once it exists, this fills with the draw and evenness distribution across every
-        question that has cleared the k-floor — the farm's only view of what worked, and
+        question that has been answered — the farm's only view of what worked, and
         the only place in this console where real user behaviour appears at all.</div>`;
 
   return `<section class="panel">
@@ -653,8 +688,8 @@ function scorecardBlock(sc) {
 
   return `${tiles([
     { k: "Questions scored", v: int(sc.scoredQuestions),
-      n: `of ${int(sc.questionsTracked)} tracked — cleared the k-floor of 5` },
-    { k: "Answers counted", v: int(sc.totalAnswers), n: "a floor — under-floor questions publish nothing" },
+      n: `of ${int(sc.questionsTracked)} tracked — carrying at least one answer` },
+    { k: "Answers counted", v: int(sc.totalAnswers), n: "a floor — an unanswered question has no aggregate to count" },
     { k: "Never served", v: int(sc.unserved),
       n: "written, but the deck has not reached them yet" },
     { k: "Scorecard age", v: sc.ageDays == null ? "?" : int(sc.ageDays), unit: "days",
@@ -662,11 +697,10 @@ function scorecardBlock(sc) {
   ])}
 
   ${nothingScored ? `<div class="empty" style="margin-top:16px"><b>A scorecard exists, and
-    nothing has cleared the floor yet.</b> ${int(sc.questionsTracked)} questions are
-    tracked and ${int(sc.unserved)} have never been served; ${int(sc.belowFloor)} are
-    served but not yet answered. Both readings are what a bank that has
-    not met a crowd looks like — the instrument is working, the population has not
-    arrived. The evenness distribution below fills in as questions cross the floor.</div>`
+    no question has been answered yet.</b> ${int(sc.questionsTracked)} questions are
+    tracked and ${int(sc.unserved)} have never been served. That is what a bank
+    that has not met a crowd looks like — the instrument is working, the population
+    has not arrived. The evenness distribution below fills in as answers land.</div>`
     : ""}
 
   <h3>Evenness — "splits, not landslides", as a distribution</h3>
@@ -675,7 +709,7 @@ function scorecardBlock(sc) {
     bar. <b>Do not optimise toward the right-hand bars.</b> The farm doc's guardrail
     outranks this chart: if evenness and warmth conflict, warmth wins.
     ${sc.learnCards ? `The learn lane is scored separately —
-      ${int(sc.learnScored)} of ${int(sc.learnCards)} cards have cleared the floor.` : ""}</p>`;
+      ${int(sc.learnScored)} of ${int(sc.learnCards)} cards have been answered.` : ""}</p>`;
 }
 
 // ── panel 4 · population ────────────────────────────────────────
@@ -694,14 +728,14 @@ function panelPopulation(p) {
 
     <div class="banner">
       <div><strong>State: ${esc(pop.state)}.</strong> ${pop.state === "pre-launch"
-        ? "No answers have cleared the k-floor, so every live figure below is null. That is the correct reading of a product that has not launched — not a broken pipeline."
-        : "Live figures come from the k-floored public mirror only."}</div>
+        ? "No answer has landed yet, so every live figure below is null. That is the correct reading of a product that has not launched — not a broken pipeline."
+        : "Live figures come from the public aggregate mirror only."}</div>
     </div>
 
     <div class="split" style="margin-top:18px">
       <div class="col live">
         <h4>Derivable today</h4>
-        <p class="h">From the k-floored public mirror. No credentials beyond the web API key.</p>
+        <p class="h">From the public aggregate mirror. No credentials beyond the web API key.</p>
         ${li(pop.live, (x) => `<li>
           <b>${esc(x.metric)}${x.value == null ? "" : ` — ${int(x.value)}`}</b>
           <code>${esc(x.source)}</code>
@@ -726,12 +760,99 @@ function panelPopulation(p) {
     </div>
 
     <p class="note">The middle column is where the honest wins are. The largest —
-      real DAU and retention — needs <b>no new collection</b>: <code>v2_agg_events</code>
-      already holds (qid, uid, at) with a 90-day TTL, erased with the account. But it was
-      justified as fake-account attribution, and counting distinct users per day is a new
-      purpose for existing data. That is a decision record, not a script — which is
-      exactly the sort of thing this console exists to make visible rather than to
-      quietly do.</p>
+      real DAU and retention — needed <b>no new collection</b>, only a recorded decision:
+      counting people with <code>v2_agg_events</code> was a new purpose for data justified
+      as fake-account attribution (D28), and this console listed it as blocked on exactly
+      that record until <b>D268 took it</b> (2026-08-23). The digest that came with the
+      record is the engagement panel below — the row moved columns the way this console
+      exists to make visible rather than to quietly do.</p>
+  </section>`;
+}
+
+// ── panel 4b · engagement ───────────────────────────────────────
+
+function panelEngagement(p) {
+  const e = p.engagement;
+  const head = `<h2>Engagement — the digest trail (R1/D268)</h2>
+    <p class="decision"><b>The decision:</b> is anyone coming back — and which surfaces hold
+      them? Counts of <b>answering</b> accounts, folded nightly from the ledger by
+      <code>digestEngagementV2</code>: floors, not measurements (a person who opens and answers
+      nothing is invisible at rung 0), and a day the digest never folded is a gap in the
+      trail, never a zero.</p>`;
+  if (!e || !e.present) {
+    return `<section class="panel">
+    ${head}
+    <div class="banner">
+      <div><strong>No trail yet.</strong> ${esc(e?.note || "monitoring/engagement.json is not committed.")}</div>
+    </div>
+  </section>`;
+  }
+  const pct = (r) =>
+    r.rate == null
+      ? `<em>unknown — ${r.of === 0 ? "empty cohort" : "cohort day never folded"}</em>`
+      : `<b>${Math.round(r.rate * 100)}%</b> (${int(r.returned)}/${int(r.of)})`;
+  const surfaces = Object.entries(e.latest.bySurface || {}).sort((a, b) => b[1] - a[1]);
+  return `<section class="panel">
+    ${head}
+    ${tiles([
+      { k: `actives · ${e.latest.day}`, v: int(e.latest.actives) },
+      { k: "first-time answerers", v: int(e.latest.firstTime) },
+      { k: "votes (deduped)", v: int(e.latest.votes) },
+      { k: "7-day mean actives", v: e.weekMeanActives },
+      { k: "streaks broken", v: int(e.latest.streaksBroken) },
+    ])}
+    <div class="scroll"><table>
+      <thead><tr><th>signup-cohort return</th><th>reading</th></tr></thead>
+      <tbody>
+        <tr><td>D1 — first answered the day before</td><td>${pct(e.returned.d1)}</td></tr>
+        <tr><td>D7</td><td>${pct(e.returned.d7)}</td></tr>
+        <tr><td>D30</td><td>${pct(e.returned.d30)}</td></tr>
+      </tbody>
+    </table></div>
+    ${surfaces.length ? `<div class="scroll"><table>
+      <thead><tr><th>surface · ${esc(e.latest.day)}</th><th>votes</th></tr></thead>
+      <tbody>${surfaces.map(([s, n]) => `<tr><td>${esc(s)}</td><td>${int(n)}</td></tr>`).join("")}</tbody>
+    </table></div>` : ""}
+    ${e.attn ? `<div class="scroll"><table>
+      <thead><tr><th>feature · ${esc(e.attn.day)} · ~${int(Math.round(e.attn.devices))} device(s)</th><th>reach</th><th>est. uses</th></tr></thead>
+      <tbody>${e.attn.features.slice(0, 14).map((f) =>
+        `<tr><td>${esc(f.key)}</td><td>${int(Math.round(f.reach))}</td><td>${int(Math.round(f.est))}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note">The feature rows are rung 1's anonymous device shards (R2/D270), folded
+      and deleted nightly: <b>reach</b> counts devices that used the feature at all —
+      bucketing cannot distort it — and <b>est.</b> sums bucket midpoints, scaled by the
+      sampling rate: an estimate, and labelled one.${e.attn.qidCount
+        ? ` Per-question attention (${int(e.attn.qidCount)} qid(s), D271) lives in the
+      scorecard, where its D33 warning travels with it.` : ""}</p>` : ""}
+    ${e.people ? tiles([
+      { k: `rollups · ${e.people.day}`, v: int(e.people.rollups) },
+      { k: "sessions", v: int(e.people.sessions) },
+      { k: "quiet-session share", v: e.people.quietShare == null ? "—" : Math.round(e.people.quietShare * 100) + "%" },
+      { k: "fading people", v: int(e.people.fading) },
+      { k: "hit the feed's end", v: int(e.people.reachedEnd) },
+      { k: "read the Mirror", v: e.people.readShare == null ? "—" : Math.round(e.people.readShare * 100) + "%" },
+      { k: "opened a lens", v: e.people.lensShare == null ? "—" : Math.round(e.people.lensShare * 100) + "%" },
+      { k: "feed depth", v: e.people.feedBuckets == null ? "—" : e.people.feedBuckets.join(" · ") },
+    ]) + `
+    <p class="note">The person channel (R3/D272): uid-keyed day rollups readable by nobody,
+      folded here into counts — <b>fading</b> is a trailing foreground window sinking two
+      buckets, the win-back trigger rung 2 exists for. Per-person rows never leave the
+      fold; what prints is how many.</p>
+    <p class="note"><b>Read the Mirror</b> and <b>opened a lens</b> are the answer to the one
+      thing ENGAGEMENT-PLAN.md's rung-0 table says rung 0 cannot see — <em>"the entire Mirror
+      — does anyone open it, which stops, which lenses"</em>, because "reading is the point
+      and reading writes nothing". Both are shares of that day's rollups, and both count
+      PEOPLE rather than stops: one person opening nine stops is one reader, which is the
+      question being asked. <b>Feed depth</b> is the 0–4 bracket histogram, low to high.
+      Read the two Mirror shares against <b>answers</b> above: this app's stated shape is
+      that the Mirror outweighs the daily and the feed put together, and these are the
+      cheapest measure of whether that is true of its READERS rather than of its
+      module count.</p>` : ""}
+    <p class="note">Read it against its moment, not in isolation: a new surface's share is
+      inflated for as long as it is new — judge shares against neighbours over ≥ a month —
+      and a rate whose cohort day predates the digest reads <em>unknown</em>, never 0%
+      (docs/ENGAGEMENT-PLAN.md §3.4). Trail: ${int(e.days)} day(s)${e.gaps ? `, ${int(e.gaps)} gap(s)` : ""},
+      fetched ${esc(e.fetchedOn || "?")} via <code>npm run scorecard -- --fetch</code>.</p>
   </section>`;
 }
 
@@ -821,6 +942,7 @@ export function renderPulse(p, trail = []) {
   ${panelCost(p)}
   ${panelMoney(p)}
   ${panelPopulation(p)}
+  ${panelEngagement(p)}
   ${panelInstrumentation(p)}
 
   <footer>

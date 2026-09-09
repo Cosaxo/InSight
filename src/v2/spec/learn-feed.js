@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 import { LEARN } from './learn-progress.js';
 
 // learn-feed.js — knowledge questions as a stream in the World feed rather than
@@ -15,7 +14,7 @@ import { LEARN } from './learn-progress.js';
 // slider: the number of knowledge fields you follow is already an intensity
 // control, and a continuous dial is a settings-shaped answer to a design
 // question — almost nobody moves it, so the default is the product.
-window.LEARN_FEED = (function () {
+export const LEARN_FEED = (function () {
   const LS = 'insight.learnFreq.v1';
   const RATE = { off: 0, some: 7, lots: 3 };   // one knowledge card every N feed cards
   let f = 'some';
@@ -30,7 +29,7 @@ window.LEARN_FEED = (function () {
   return {
     LEVELS: ['off', 'some', 'lots'],
     freq: () => f,
-    setFreq: (v) => { if (RATE[v] === undefined) return; f = v; try { localStorage.setItem(LS, v); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } subs.forEach((fn) => { try { fn(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); },
+    setFreq: (v) => { if (RATE[v] === undefined) return; f = v; try { localStorage.setItem(LS, v); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } subs.forEach((fn) => { try { fn(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } }); },
     every: () => RATE[f],
     // n cards from the fields you follow, minus any chip you've muted
     cards: (n, muted) => {

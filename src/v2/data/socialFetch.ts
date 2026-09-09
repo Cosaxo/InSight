@@ -1,12 +1,15 @@
-// The two Firestore reads behind handles and invitations (D122).
+// The Firestore reads behind handles, invitations and the people
+// directory (D122, D239).
 //
 // WHY THEY ARE NOT IN ./handles AND ./invites, where they read more
 // naturally: those two are imported by LiveDuelPanel and
-// LivePrivacyPanel, which are EAGER (they self-register on globalThis for
-// the spec layer's render-time lookups). A `firebase/firestore` import
-// reachable from an eager module puts the whole SDK on the first-paint
-// path — check:bundle measured 1270 KB against a 955 KB ceiling, which is
-// exactly the tree as it stood before D110.
+// LivePrivacyPanel, which sat on the first-paint path when this split was
+// made (both are off it now — a React.lazy since D156, the overlays chunk
+// since D344 — but ./handles' own header has why the split outlives
+// them). A `firebase/firestore` import reachable from an eager module
+// puts the whole SDK on the first-paint path — check:bundle measured
+// 1270 KB against a 955 KB ceiling, which is exactly the tree as it
+// stood before D110.
 //
 // So the split is by WHAT MAY BE IMPORTED EAGERLY, not by subject: the
 // validation and the wording are pure and live with their features, and
@@ -15,7 +18,7 @@
 // data/circle.ts has, for the same measured reason.
 
 import {
-  collectionGroup, doc, getDoc, getDocs, limit as fsLimit, orderBy, query, where,
+  collection, collectionGroup, doc, getDoc, getDocs, limit as fsLimit, orderBy, query, where,
   type Firestore,
 } from "firebase/firestore";
 import { normalizeHandle } from "./handles";
@@ -78,4 +81,112 @@ export async function fetchInvites(db: Firestore, me: string): Promise<Invite[]>
     });
   }
   return out;
+}
+
+/**
+ * How many directory rows one search will draw.
+ *
+ * Not a product limit — it is the bound on a query whose cost grows with
+ * how short a prefix somebody types. "a" matches most of the population;
+ * this is what stops that being most of the population's worth of reads.
+ */
+export const PEOPLE_SEARCH_CAP = 8;
+
+/** One row of the people directory (D239) — a name, and a handle if claimed. */
+export interface DirectoryPerson {
+  uid: string;
+  name: string;
+  handle: string;
+}
+
+/**
+ * Fold a display name to its directory key.
+ *
+ * ASCII-ONLY, and that is not a simplification — `firestore.rules` checks
+ * `nameKey == name.lower()`, and the rules engine's `.lower()` touches
+ * A-Z and nothing else. JavaScript's `toLowerCase()` is full Unicode, so
+ * for any name carrying a non-ASCII capital the two disagree and the rule
+ * REFUSES the write outright: the account ends up with no directory row
+ * at all, invisible rather than merely hard to find. Measured against the
+ * emulator: {name:"Ólaf", nameKey:"ólaf"} is denied, {name:"Ólaf",
+ * nameKey:"Ólaf"} is allowed.
+ *
+ * The residual, recorded rather than hidden: a non-ASCII capital stays
+ * capital in the key, so "Ólaf" is found by typing "Ó…" and not by "ó…".
+ * Case-sensitive for those characters, which is a far smaller loss than
+ * absent, and it cannot be closed on the client alone — the rule can only
+ * compare against something the rules engine can compute.
+ */
+export const foldName = (s: string) => s.replace(/[A-Z]/g, (c) => c.toLowerCase());
+
+/**
+ * People whose display name starts with what was typed.
+ *
+ * A PREFIX RANGE, which is the only text matching Firestore has: the
+ * lower bound is the key itself and the upper bound is that key with
+ * U+F8FF appended — written as an ESCAPE rather than the literal
+ * character, which is invisible in an editor and survives a careless
+ * copy only by luck. So `["ada", "ada\uf8ff")` spans every name
+ * beginning "ada" and nothing that does not. There is no substring search
+ * and no fuzzy match to be had here — "lovelace" will not find "Ada
+ * Lovelace", and a directory that pretended otherwise would be worse
+ * than one whose limit is legible.
+ *
+ * Matching happens on `nameKey`, the lowercase copy that firestore.rules
+ * forces to equal `name` — so the search is case-insensitive without a
+ * second query, and what you searched by is what the row displays.
+ *
+ * `nameKey` is a single field, so Firestore indexes it automatically and
+ * this needs no entry in firestore.indexes.json.
+ */
+
+export async function searchPeopleByName(
+  db: Firestore,
+  raw: string,
+  cap: number = PEOPLE_SEARCH_CAP,
+): Promise<DirectoryPerson[]> {
+  const key = foldName(raw.trim());
+  // An empty prefix spans the WHOLE directory. Refused here rather than
+  // bounded by `cap`, because "the first eight people who ever signed
+  // up" is not a search result — it is a listing, which is the one thing
+  // D122 kept this app from having.
+  if (!key) return [];
+  const snap = await getDocs(query(
+    collection(db, "v2_people"),
+    where("nameKey", ">=", key),
+    where("nameKey", "<", key + "\uf8ff"),
+    orderBy("nameKey"),
+    fsLimit(cap),
+  ));
+  const out: DirectoryPerson[] = [];
+  snap.forEach((d) => {
+    const name = String(d.get("name") || "").trim();
+    // A row with no name cannot be drawn and cannot have matched
+    // anything a person typed — skip rather than render "Someone",
+    // which would read as an account rather than as a broken row.
+    if (name) out.push({ uid: d.id, name, handle: String(d.get("handle") || "") });
+  });
+  return out;
+}
+
+/**
+ * Write this account's directory row.
+ *
+ * The client owns the name half (the handle half is `claimHandleV2`'s,
+ * and is immutable here — see firestore.rules). `nameKey` is written
+ * beside it and the rules check the two agree, so this cannot publish a
+ * name it is not also found by.
+ */
+export async function writeDirectoryRow(
+  db: Firestore,
+  uid: string,
+  name: string,
+): Promise<void> {
+  const clean = name.trim();
+  if (!clean) return;
+  const { doc: fsDoc, setDoc } = await import("firebase/firestore");
+  await setDoc(fsDoc(db, "v2_people", uid), {
+    name: clean,
+    nameKey: foldName(clean),
+  }, { merge: true });
 }

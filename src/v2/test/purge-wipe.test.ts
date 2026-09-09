@@ -22,16 +22,23 @@
 // covered in smoke-live.test.jsx, where a mounted tree exists to assert
 // on. This file covers the module-scope stores.
 import { beforeEach, describe, expect, it } from "vitest";
-import "../spec/feed-read.js";
+import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, patternsEarned } from "../data/patternsReady";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { FEEDREAD } from "../spec/feed-read.js";
 import "../spec/follows.js";
-import "../spec/learn-feed.js";
+// Imported by NAME since D246 — learn-feed.js no longer publishes to
+// window, so `W.LEARN_FEED` would be undefined.
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { LEARN_FEED } from "../spec/learn-feed.js";
 import "../spec/test-definitions.js";
 import "../spec/passive-progress.js";
-import "../spec/pick-data.js";
-import "../spec/place-stats.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { PICKS } from "../spec/pick-data.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { PLACESTATS } from "../spec/place-stats.js";
 import "../spec/world-subtopics.js";
-import "../spec/suggestions.js";
-import "../spec/world-feed-report.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { WF_REPORT } from "../spec/world-feed-report.js";
 // Named imports from untyped .js spec modules — the suppressions are
 // scoped to exactly that (TS7016); the .jsx suites import these freely.
 // @ts-expect-error TS7016 — untyped spec module
@@ -57,13 +64,14 @@ import { SCENES } from "../spec/scenes.js";
 import { LEARN } from "../spec/learn-progress.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { LEARN_CARDS } from "../spec/learn-data.js";
-// …and the suggestion store with the v24 board sync (D138's client half).
+// …and the subtopic store, by name since its window mirror went with the
+// module's move off the eager list.
 // @ts-expect-error TS7016 — untyped spec module
-import { SUGGESTIONS } from "../spec/suggestions.js";
+import { SUBTOPICS } from "../spec/world-subtopics.js";
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
-   window surface is untyped by design; these tests drive it as consumers do */
-const W = window as any;
+// No `window as any` handle any more: the last two stores this file drove
+// through the window (FEEDREAD, WF_REPORT) became imports with D354's
+// sweep, the way every other store here already was.
 
 // Exactly purgeLocalTrace's behaviour: remove every insight.* key, then
 // announce it.
@@ -87,13 +95,13 @@ beforeEach(() => {
 
 describe("module stores drop their memory on the purge (D51)", () => {
   it("FEEDREAD: the read-room log", () => {
-    W.FEEDREAD.log("purge-w-1", { maj: true });
-    expect(W.FEEDREAD.stats().n).toBe(1);
+    FEEDREAD.log("purge-w-1", { maj: true });
+    expect(FEEDREAD.stats().n).toBe(1);
     expect(stored("insight.readRoom.v1")).toContain("purge-w-1");
     purge();
-    expect(W.FEEDREAD.stats().n).toBe(0);
+    expect(FEEDREAD.stats().n).toBe(0);
     expect(stored("insight.readRoom.v1")).toBeNull();
-    W.FEEDREAD.log("purge-w-2", { maj: false });
+    FEEDREAD.log("purge-w-2", { maj: false });
     expect(stored("insight.readRoom.v1")).toContain("purge-w-2");
     expect(stored("insight.readRoom.v1")).not.toContain("purge-w-1");
   });
@@ -123,10 +131,10 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("LEARN_FEED: the frequency setting", () => {
-    W.LEARN_FEED.setFreq("lots");
+    LEARN_FEED.setFreq("lots");
     expect(stored("insight.learnFreq.v1")).toBe("lots");
     purge();
-    expect(W.LEARN_FEED.freq()).toBe("some");
+    expect(LEARN_FEED.freq()).toBe("some");
     expect(stored("insight.learnFreq.v1")).toBeNull();
   });
 
@@ -144,30 +152,30 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("PICKS: catalogue picks", () => {
-    W.PICKS.pick("purge-q", 25);
-    expect(W.PICKS.my("purge-q")).toBe(25);
+    PICKS.pick("purge-q", 25);
+    expect(PICKS.my("purge-q")).toBe(25);
     purge();
-    expect(W.PICKS.my("purge-q")).toBeNull();
+    expect(PICKS.my("purge-q")).toBeNull();
     expect(stored("insight.picks.v1")).toBeNull();
-    W.PICKS.pick("purge-q2", 6);
+    PICKS.pick("purge-q2", 6);
     const after = stored("insight.picks.v1")!;
     expect(after).toContain("purge-q2");
     expect(after).not.toContain("purge-q\"");
   });
 
   it("PLACESTATS: place ratings", () => {
-    W.PLACESTATS.rate("city", "nature", 9);
-    expect(W.PLACESTATS.myScore("city", "nature")).toBe(9);
+    PLACESTATS.rate("city", "nature", 9);
+    expect(PLACESTATS.myScore("city", "nature")).toBe(9);
     purge();
-    expect(W.PLACESTATS.myScore("city", "nature")).toBeNull();
-    W.PLACESTATS.rate("city", "food", 5);
+    expect(PLACESTATS.myScore("city", "nature")).toBeNull();
+    PLACESTATS.rate("city", "food", 5);
     const after = stored("insight.placeRatings.v1")!;
     expect(after).toContain("city:food");
     expect(after).not.toContain("city:nature");
   });
 
   it("SCENES: the follow list returns to the sample default", () => {
-    const dflt = (IS_DATA.groups || []).filter((g: any) => g.joined).map((g: any) => g.id).sort();
+    const dflt = (IS_DATA.groups || []).filter((g: { joined?: boolean }) => g.joined).map((g: { id: string }) => g.id).sort();
     SCENES.follow("purge-scene");
     expect(SCENES.has("purge-scene")).toBe(true);
     purge();
@@ -179,51 +187,38 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("SUBTOPICS: leaf follows return to the day-one default", () => {
-    W.SUBTOPICS.unfollow("sub_tennis");
-    expect(W.SUBTOPICS.has("sub_tennis")).toBe(false);
+    SUBTOPICS.unfollow("sub_tennis");
+    expect(SUBTOPICS.has("sub_tennis")).toBe(false);
     purge();
-    expect(W.SUBTOPICS.has("sub_tennis")).toBe(true); // default restored
+    expect(SUBTOPICS.has("sub_tennis")).toBe(true); // default restored
     expect(stored("insight.subtopics.v1")).toBeNull();
-    W.SUBTOPICS.follow("sub_football");
+    SUBTOPICS.follow("sub_football");
     expect(stored("insight.subtopics.v1")).toContain("sub_tennis"); // the unfollow did not survive
   });
 
-  it("SUGGESTIONS: authored questions stop rendering as the new account's 'You'", async () => {
-    await SUGGESTIONS.submit({ prompt: "purge-sentinel-question", type: "binary", options: ["a", "b"] });
-    // Your first real submission takes the board over from the demo trio
-    // (the v24 rule: the demo rows exist only until you have made your own).
-    expect(SUGGESTIONS.counts().mine).toBe(1);
-    purge();
-    // Post-purge the demo trio returns — baked content, identical for every
-    // account, so nothing of the PREVIOUS account survives in it. What must
-    // be gone is the sentinel, asserted below on the persisted payload.
-    expect(SUGGESTIONS.counts().mine).toBe(3);
-    expect(stored("insight.suggestions.v1")).toBeNull();
-    SUGGESTIONS.toggleVote("sg01");
-    const after = stored("insight.suggestions.v1")!;
-    expect(after).toContain("sg01");
-    expect(after).not.toContain("purge-sentinel-question");
-  });
+  // The SUGGESTIONS purge case stood here until D368 took the paid door
+  // out of the binary: its store and its `insight.suggestions.v1` key
+  // went with it, so there is no longer a key for the purge to clear.
 
   it("DUELS: duel answers and social edits", () => {
     DUELS.answerDuo("purge-p", { a: 1 });
     expect(DUELS.myDuo("purge-p").a).toBe(1);
     purge();
     expect(DUELS.myDuo("purge-p").a).toBeUndefined();
-    expect(stored("insight.duels.v1")).toBeNull();
+    expect(stored("insight.duels.v2")).toBeNull();
     DUELS.answerDuo("purge-p2", { a: 0 });
-    const after = stored("insight.duels.v1")!;
+    const after = stored("insight.duels.v2")!;
     expect(after).toContain("purge-p2");
     expect(after).not.toContain("purge-p\"");
   });
 
   it("WF_REPORT: the report history", () => {
-    W.WF_REPORT.report("purge-take", "Spam");
-    expect(W.WF_REPORT.has("purge-take")).toBe(true);
+    WF_REPORT.report("purge-take", "Spam");
+    expect(WF_REPORT.has("purge-take")).toBe(true);
     purge();
-    expect(W.WF_REPORT.has("purge-take")).toBe(false);
+    expect(WF_REPORT.has("purge-take")).toBe(false);
     expect(stored("insight.reports.v1")).toBeNull();
-    W.WF_REPORT.report("purge-take2", "Spam");
+    WF_REPORT.report("purge-take2", "Spam");
     expect(stored("insight.reports.v1")).not.toContain("purge-take\"");
   });
 
@@ -237,6 +232,22 @@ describe("module stores drop their memory on the purge (D51)", () => {
     const after = stored("insight.dailyq.v1")!;
     expect(after).toContain("purge-dq2");
     expect(after).not.toContain("purge-dq\"");
+  });
+
+  it("PATTERNS: the earned gate is forgotten, and not re-earned by the read", () => {
+    // The Patterns tab's mount gate (D265) remembers that this account
+    // crossed the floor, so that retiring a question the viewer answered
+    // cannot take the tab back off them. That memory is account state:
+    // the next uid has to earn it. The second half is the resurrection
+    // this file exists for — `patternsEarned` WRITES the key whenever the
+    // live signal passes, so a purged device must read as un-earned AND
+    // stay that way when the fresh account's (empty) signal is offered.
+    expect(patternsEarned({ pool: 999, basis: PATTERNS_MIN_BASIS, mine: 999 })).toBe(true);
+    expect(stored(PATTERNS_EARNED_KEY)).toBe("1");
+    purge();
+    expect(stored(PATTERNS_EARNED_KEY)).toBeNull();
+    expect(patternsEarned({})).toBe(false);
+    expect(stored(PATTERNS_EARNED_KEY)).toBeNull();
   });
 
   it("IS_TEST_RESULTS: the mirror restores the pristine demo seed", () => {
@@ -255,5 +266,39 @@ describe("module stores drop their memory on the purge (D51)", () => {
     // the new account's result
     persistTestResult("big5", { title: "B", taken: "now", dims: [] });
     expect(stored("insight.testResults.v2")).not.toContain("purge-zz");
+  });
+});
+
+// ── the engagement tally (R2/D270) ──────────────────────────────────────
+// The newest insight.* store, driven through the same resurrection
+// scenario. Module-scope like the others; its unit suite
+// (data/engagement.test.ts) covers the tally arithmetic, this covers the
+// wipe contract alongside its peers.
+import {
+  arm as engagementArm, note as engagementNote,
+  LS_KEY as ENGAGEMENT_LS, _engagementForTest,
+} from "../data/engagement";
+
+describe("engagement tally (insight.engagement.v1)", () => {
+  it("seed → purge → fresh → remutate persists only the new data", () => {
+    const t = _engagementForTest();
+    t.reset();
+    engagementArm({
+      write: async () => {}, writeRollup: async () => {}, hasUid: () => true, build: 1,
+    });
+    engagementNote("feedPass");
+    t.saveNow();
+    expect(localStorage.getItem(ENGAGEMENT_LS)).toContain("feedPass");
+
+    purge();
+    // fresh-boot, and critically: nothing wrote the key back
+    expect(localStorage.getItem(ENGAGEMENT_LS)).toBeNull();
+
+    engagementNote("feedSeen");
+    t.saveNow();
+    const after = localStorage.getItem(ENGAGEMENT_LS) || "";
+    expect(after).toContain("feedSeen");
+    expect(after).not.toContain("feedPass");
+    t.reset();
   });
 });

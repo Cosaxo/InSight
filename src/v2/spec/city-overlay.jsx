@@ -6,6 +6,7 @@
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { Kicker, useDialog } from './primitives.jsx';
+import { Donut, RadarChart } from './viz-primitives.jsx';
 
 // CityOverlay — opens when you tap a city in the World tab atlas
 const { useState: useStateCO } = React;

@@ -7,12 +7,23 @@ import React from 'react';
 import { RMCore } from './relmap-core.js';
 import { RMPersonPanel, RMHubPanel } from './relmap-panels.jsx';
 import { useDialog } from './primitives.jsx';
+import NAV from '../data/nav';
+import { RMLenses } from './relmap-lenses.jsx';
 
 // RelationshipMap — a force-directed map of your people.
 // You sit at the center; each circle (family, friends, work…) gathers around its
 // own hub; members orbit their hub. Four lenses recolor the graph. Pan, zoom,
 // drag a node to pin it, search to filter, tap a node for the full profile.
-// Data + layout: relationship-map-core.js · panels: relationship-map-panels.jsx
+// Data + layout: relmap-core.js · panels: relmap-panels.jsx
+//
+// The map itself is EXPORTED (D200) in the shape relmap-core.js beside it
+// already uses: a binding hoisted out of the IIFE, assigned at the foot,
+// re-exported as a const. Its one consumer — mirror-field-pops.jsx, the
+// demo Circle field — imports it and dynamic-imports this file, which is
+// what takes ~102 KB of map off the eager graph. The window mirror below
+// keeps ONLY the overlay, because a publication nothing reads is a
+// check:globals rule 5 failure and the map now has an importer instead.
+let RelationshipMapExport;
 (function () {
   const { DEFAULT_GROUPS, AGE_BANDS, ageBand, ageColor, statusMeta, yearsWord,
     politicalColor, personalityColor, politicalLabel, personalityLabel,
@@ -352,8 +363,8 @@ import { useDialog } from './primitives.jsx';
       const sc = st.pxScale || (this.props.embedded ? 0.5 : 0.55);
       const upx = (t) => t / sc / Math.max(1, zoom * 0.8);
       // ── test lenses: stable per-person values for the active test ──
-      const RL = window.RMLenses;
-      const isLens = RL && RL.TESTS[mode];
+      const RL = RMLenses;
+      const isLens = RL.TESTS[mode];
       let lensVals = null;
       if (isLens) {
         lensVals = {};
@@ -706,7 +717,6 @@ import { useDialog } from './primitives.jsx';
       const v = this.computeVals();
       const st = this.state;
       const SANS = "'Hanken Grotesk', sans-serif";
-      const SERIF = "'Hanken Grotesk', sans-serif";
       const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 'var(--field-size)', color: P.ink };
       const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
       const pillBg = { background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow };
@@ -718,7 +728,7 @@ import { useDialog } from './primitives.jsx';
 
           {/* close */}
           {this.props.onClose && (
-            <button onClick={(e) => { e.stopPropagation(); this.props.onClose(); }} title="Close"
+            <button className="tap44" onClick={(e) => { e.stopPropagation(); this.props.onClose(); }} title="Close"
               style={{ position: 'absolute', top: 16, right: 16, zIndex: 9, width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + P.rule, background: P.card, boxShadow: P.shadow, cursor: 'pointer', color: P.ink2, fontSize: 15, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           )}
 
@@ -726,13 +736,13 @@ import { useDialog } from './primitives.jsx';
           {!this.props.embedded && (
             <div style={{ position: 'absolute', top: 17, left: 20, right: 62, pointerEvents: 'none' }}>
               <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.faint, marginBottom: 5 }}>Relationship map</div>
-              <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(22px, 5vw, 30px)', lineHeight: 1, margin: 0, letterSpacing: '-0.01em', color: P.inkName }}>Your People</h1>
+              <h1 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 'clamp(22px, 5vw, 30px)', lineHeight: 1, margin: 0, letterSpacing: '-0.01em', color: P.inkName }}>Your People</h1>
             </div>
           )}
 
           {/* embedded: one quiet door to the full tool */}
           {this.props.embedded && (
-            <button onClick={(e) => { e.stopPropagation(); if (window.openOverlay) window.openOverlay('relmap'); }}
+            <button onClick={(e) => { e.stopPropagation(); NAV.openOverlay('relmap'); }}
               style={{ position: 'absolute', top: 12, right: 14, zIndex: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.card, boxShadow: P.shadow, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 700, color: P.ink2, whiteSpace: 'nowrap' }}>
               Full map <span style={{ fontSize: 13, lineHeight: 1 }}>↗</span></button>
           )}
@@ -762,7 +772,7 @@ import { useDialog } from './primitives.jsx';
                       style={{ border: 'none', cursor: 'pointer', fontFamily: SANS, fontSize: 11, fontWeight: 600, padding: '7px 2px', borderRadius: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: st.mode === k ? P.ink : 'transparent', color: st.mode === k ? P.canvas : P.ink3, transition: 'background 0.2s ease, color 0.2s ease' }}>{lab}</button>
                   ))}
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: true }); }} aria-label="Search people"
+                <button className="tap44" onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: true }); }} aria-label="Search people"
                   style={{ flex: 'none', width: 38, borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', ...pillBg }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.ink2} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
                 </button>
@@ -808,9 +818,9 @@ import { useDialog } from './primitives.jsx';
 
           {/* zoom buttons */}
           {!this.props.embedded && !v.selected && !v.selectedHub && (
-            <div style={{ position: 'absolute', right: 16, bottom: 216, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
+            <div style={{ position: 'absolute', right: 16, bottom: 216, display: 'flex', flexDirection: 'column', gap: 10, zIndex: 5 }}>
               {[['+', 1.35], ['−', 1 / 1.35]].map(([lab, f]) => (
-                <button key={lab} onClick={(e) => { e.stopPropagation(); this.zoomStep(f); }} aria-label={lab === '+' ? 'Zoom in' : 'Zoom out'}
+                <button key={lab} className="tap44" onClick={(e) => { e.stopPropagation(); this.zoomStep(f); }} aria-label={lab === '+' ? 'Zoom in' : 'Zoom out'}
                   style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + P.rule, cursor: 'pointer', fontSize: 17, lineHeight: 1, color: P.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: P.card, boxShadow: P.shadow }}>{lab}</button>
               ))}
             </div>
@@ -842,7 +852,7 @@ import { useDialog } from './primitives.jsx';
                   <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
                 )}
                 {st.editing && gp.removable && st.groups.length > 1 && (
-                  <button onClick={(e) => { e.stopPropagation(); this.removeGroup(gp.key); }} title="Remove circle"
+                  <button className="tap44" onClick={(e) => { e.stopPropagation(); this.removeGroup(gp.key); }} title="Remove circle"
                     style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: P.faint, width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
                 )}
               </div>
@@ -889,6 +899,12 @@ import { useDialog } from './primitives.jsx';
     );
   }
 
-  Object.assign(window, { RelationshipMap, RelationshipMapOverlay });
+  RelationshipMapExport = RelationshipMap;
+  // The overlay stays on the bridge: app-shell.jsx mounts it by bare name
+  // and importing it there would drag this chunk back into the entry graph,
+  // which is the whole thing D200 just undid.
+  Object.assign(window, { RelationshipMapOverlay });
 })();
+
+export const RelationshipMap = RelationshipMapExport;
 

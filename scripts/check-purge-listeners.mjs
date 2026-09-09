@@ -23,6 +23,17 @@
 // exemption list is documentation, and a stale entry (file stops matching
 // the predicate) fails too, so the list cannot outlive its subjects.
 //
+// SECOND PREDICATE since D312: a file that OPENS IndexedDB itself
+// (`indexedDB.open`) is a store persisting app state in a box the
+// localStorage sweep cannot reach, so it owes the same listener. Today
+// that is data/cacheStore.ts, whose listener clears its stores — the
+// answers, aggregates and bank caches moved there precisely because the
+// quota-shared localStorage was the wrong box, and a purge that swept
+// only the old box would leave a sold device holding the account's whole
+// answer archive. (Firestore's own persistentLocalCache is not matched:
+// the SDK opens its database internally, and deleteAccount clears it
+// through clearIndexedDbPersistence — see live.ts.)
+//
 // WHAT THIS CANNOT SEE, stated so nobody over-trusts it: that the listener
 // actually drops the right state, or drops it without save()-ing the key
 // straight back. That half lives in src/v2/test/purge-wipe.test.ts, which
@@ -34,26 +45,35 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+// The event's one spelling in this gate. The listener rule below matches
+// it with a `(?![\w-])` guard so a superstring cannot pass; the
+// dispatcher rule uses the same name so the two halves cannot drift.
+const EVENT = "insight:local-purge";
 
 // Files that write insight.* keys and legitimately carry no listener.
 // Every entry is a claim a reviewer can check; a file listed here that no
 // longer matches the predicate fails as stale.
 const EXEMPT = {
   "src/v2/data/live.ts":
-    "the dispatcher itself — its caches are uid-scoped (answers cache "
-    + "stores the uid) or public content (bank, aggregates), and "
-    + "uidChanged() rebuilds its state before the purge runs",
+    "the dispatcher itself — the fat caches moved to data/cacheStore.ts "
+    + "(D312), which listens; what still writes localStorage here is "
+    + "uid-scoped (the profile cache stamps its owner) or public/mirror "
+    + "state that uidChanged() rebuilds before the purge runs",
   "src/v2/data/deviceBind.ts":
     "the bind memo carries the uid and activationPlan compares it before "
     + "any use — a stale memo for another uid is inert",
   "src/v2/data/push.ts":
     "the token memo carries the uid and is compared before use; a new uid "
     + "re-registers and overwrites",
-  "src/lib/sentry.ts":
-    "the telemetry opt-in flag is read from storage on every check — no "
-    + "in-memory copy exists to go stale",
+  // src/lib/sentry.ts was exempt here ("the flag is read from storage on
+  // every check") until D211 removed the panel's toggle and with it
+  // setTelemetryEnabled — the file's last insight.* WRITE. telemetryEnabled
+  // still reads the key, but the predicate is about writers, so the entry
+  // would be stale (and this gate fails stale entries by design).
   "src/v2/data/logic-score.ts":
     "stateless helpers (D53): the result loads per mount and every save "
     + "writes a whole fresh attempt — no module-scope copy exists to go "
@@ -62,24 +82,35 @@ const EXEMPT = {
     "component state whose persist effect also runs on mount, so any "
     + "post-purge mount writes defaults; only an editor already open "
     + "across the uid change is exposed, and it heals on close",
-  "src/v2/ui/LiveDuelPanel.tsx":
-    "a single name string, read per call and written only on explicit "
-    + "save of the new value",
-  "src/v2/ui/LivePrivacyPanel.tsx":
-    "component state seeded per mount and written only on explicit save "
-    + "of the new value",
-  "src/v2/data/cityAnchor.ts":
-    "stateless write helper: reads the profile blob fresh from storage at "
-    + "each call and touches one leaf — no module-scope copy exists to go "
-    + "stale, and a post-purge call starts from the purged (absent) blob; "
-    + "the blob's own store is profile-general.jsx, exempt above",
+  // LiveDuelPanel.tsx and LivePrivacyPanel.tsx were exempt here until
+  // D190, each for the same single string: `insight.displayName.v1`, the
+  // device's copy of your own name. They had a writer apiece and a third
+  // was about to join them, so the key moved to its owner — the store that
+  // writes the name (data/live.ts, `saveLocalName`), exempt above and the
+  // purge dispatcher itself. Neither panel touches localStorage now, which
+  // is why their entries are gone rather than reworded.
+  // `src/v2/data/cityAnchor.ts` stood here until D205 and its entry is
+  // GONE rather than reworded, for the same reason the two panels above
+  // lost theirs: the key moved to its owner. `insight.profileGeneral.v2`
+  // is now named by `data/cityConfirm.ts` — a module with no imports, so
+  // `data/live.ts` can read the city confirmation at vote time without
+  // closing a cycle back through cityAnchor. cityAnchor still writes the
+  // blob through `mergeProfileVitals` and still needs no listener, for the
+  // reason its entry used to give: it reads storage fresh at each call and
+  // holds no module-scope copy to go stale. What changed is that it no
+  // longer NAMES an insight key, so this gate no longer asks it to explain
+  // itself. The blob's own store is profile-general.jsx, exempt above.
 };
 
 const dirs = ["src/v2/spec", "src/v2/ui", "src/v2/data", "src/lib"];
 const files = [];
 for (const d of dirs) {
   const abs = join(root, d);
-  for (const f of readdirSync(abs)) {
+  // Recursive, and the `isFile` test below already handles what that
+  // newly returns. Without it a store filed one directory down persists
+  // `insight.*` state that no listener rule ever reads — the gate's whole
+  // subject, invisible to it.
+  for (const f of readdirSync(abs, { recursive: true })) {
     const p = join(abs, f);
     if (!statSync(p).isFile()) continue;
     if (!/\.(jsx?|tsx?)$/.test(f) || /\.test\.[jt]sx?$/.test(f)) continue;
@@ -88,11 +119,6 @@ for (const d of dirs) {
 }
 
 // Comments do not count — a key or listener mentioned in prose is neither.
-function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
-}
 
 let failed = false;
 const matched = new Set();
@@ -102,9 +128,18 @@ for (const file of files) {
   const src = stripComments(readFileSync(file, "utf8"));
   const writes = /localStorage\s*\.\s*setItem/.test(src);
   const insightKey = /['"]insight\./.test(src);
-  if (!(writes && insightKey)) continue;
+  const opensIdb = /indexedDB\s*\.\s*open\s*\(/.test(src);
+  if (!(writes && insightKey) && !opensIdb) continue;
   matched.add(rel);
-  const listens = src.includes("insight:local-purge");
+  // THE WHOLE EVENT NAME, not a prefix of one. `includes` is satisfied by
+  // any SUPERSTRING, so renaming the event to `insight:local-purgeX`
+  // everywhere kept this gate green while nothing listened for the event
+  // the app actually dispatches — measured, and a rename to a different
+  // name failed correctly, so only the superstring slipped. The boundary
+  // is what a JS identifier or a quote can follow: the real call sites
+  // write it inside quotes, so the character after it is never a word
+  // character or a dash.
+  const listens = /insight:local-purge(?![\w-])/.test(src);
   if (listens || EXEMPT[rel]) continue;
   failed = true;
   console.error(
@@ -115,6 +150,43 @@ for (const file of files) {
     + "    or add an EXEMPT entry in scripts/check-purge-listeners.mjs\n"
     + "    with the reason it cannot resurrect old data.",
   );
+}
+
+// AND SOMEBODY HAS TO ANNOUNCE IT. Every rule above asks whether a store
+// LISTENS; none asked whether anything dispatches, because the one file
+// that does is exempt as "the dispatcher itself" and the listener test
+// only runs on non-exempt files. So this gate — named for the purge
+// contract, and whose header calls the announcement "the fix" — could not
+// see the announcement at all: delete the dispatch, or rename the event
+// in `live.ts` alone, and it printed OK either way.
+//
+// NOT A LIVE HOLE, and the commit that added this says so: `test:unit`
+// fails four cases under either mutation, measured both ways. What was
+// wrong is narrower and worth fixing anyway — the gate under-claimed. A
+// reader trusting `check:purge` to hold the contract its own header
+// describes was trusting it for something it did not check, which is the
+// same shape as every other finding this night turned up.
+//
+// One dispatcher, exactly. More than one would mean two paths could
+// diverge; none means the listeners below are wired to nothing.
+{
+  const dispatchers = [...matched, ...Object.keys(EXEMPT)]
+    .filter((rel, i, a) => a.indexOf(rel) === i)
+    .filter((rel) => {
+      try {
+        return new RegExp(`dispatchEvent\\(\\s*new Event\\(\\s*["']${EVENT}["']`)
+          .test(readFileSync(join(root, rel), "utf8"));
+      } catch { return false; }
+    });
+  if (dispatchers.length !== 1) {
+    failed = true;
+    console.error(
+      `✗ ${dispatchers.length} modules dispatch "${EVENT}" — expected exactly one. `
+      + "None means every listener below is wired to nothing and the purge is "
+      + "half a wipe again (D50/D51); more than one means two paths that can "
+      + `diverge. Found: ${dispatchers.join(", ") || "(none)"}`,
+    );
+  }
 }
 
 for (const rel of Object.keys(EXEMPT)) {

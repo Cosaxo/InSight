@@ -70,7 +70,7 @@ vi.mock("../../lib/sentry", () => ({
 }));
 
 vi.mock("./push", () => ({
-  registerPushForReveals: () => Promise.resolve(),
+  registerPush: () => Promise.resolve(),
 }));
 
 vi.mock("firebase/functions", () => ({
@@ -119,8 +119,16 @@ vi.mock("firebase/firestore", () => {
     setDoc: () => Promise.resolve(),
     updateDoc: () => Promise.resolve(),
     deleteDoc: () => Promise.resolve(),
+    // D331: setPoliticalConsent removes the published compass with the
+    // consent record, in one merge — a sentinel here, asserted in
+    // political-consent.test.ts rather than in these boot fixtures.
+    deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D357: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
@@ -161,8 +169,10 @@ function bank(): FakeSnapshotDoc[] {
 async function bootLive() {
   const mod = await import("./live");
   await mod.initLive(1);
+  // `attached` (D356): the poll these cases drive is started by the
+  // network phase, and `ready` can precede it on a cached device.
   await vi.waitFor(() => {
-    expect(mod.default.ready).toBe(true);
+    expect(mod.default.attached).toBe(true);
   });
   return mod;
 }

@@ -4,8 +4,9 @@
 // (the product of the branch shares you took). Walks persist per story.
 //
 // Ported from the standalone_23 prototype (design provenance: its
-// `paths-data.js`), with three deliberate differences, each of which the
-// tree's own rules asked for:
+// `paths-data.js` — the STORE; the stories it carried were retired at
+// D413, see STORIES below), with three deliberate differences, each of
+// which the tree's own rules asked for:
 //
 //   1. A NAMED EXPORT, not `window.PATHS`. Every cross-module reference in
 //      the spec layer is counted by check:globals rule 4 and the count may
@@ -13,14 +14,14 @@
 //      it would fail CI for adding two references. Its one consumer
 //      (paths-card.jsx) imports it.
 //
-//   2. NO `mapTree()`. The prototype files finished walks onto the Map as a
-//      `g-paths` over-category. That needs `map-tab.jsx` — which is EAGER —
-//      to read this store, and the eager graph has no room (check:bundle's
-//      MAX_EAGER_KB is at exactly its ceiling). Reading it off the bridge
-//      instead would buy the bytes back and spend the coupling ratchet, so
-//      both doors are shut until one of the two budgets moves. Omitted
-//      rather than kept unused: an exported function with no caller is the
-//      thing rule 4 exists to stop accumulating.
+//   2. NO `mapTree()` — SUPERSEDED at D207. This note recorded why the
+//      fold stayed unbuilt: map-tab was eager with no room, and reading
+//      this store off the bridge would spend the coupling ratchet. D207
+//      moved both budgets (the Map is lazy; imports cost the ratchet
+//      nothing), and the fold now lives in paths-card.jsx (pathsMapTree)
+//      rather than here, because it needs that card's live/demo source
+//      discipline. Kept rather than deleted for the shape it documents:
+//      a correct reason for an omission, and the entry that ended it.
 //
 //   3. The crowd shares here are AUTHORED. This store is the card's DEMO
 //      source only — live, a story is a bank question whose eight endings
@@ -31,53 +32,64 @@ const LS = 'insight.paths.v1';
 // The stories. Editorial content in the same sense the question bank is —
 // written, not sampled — so this is not the demo-persona data that stays in
 // sample-data.js. What IS invented here is every `p`: see `flowOf`.
+//
+// Two of the bank's stories, not the prototype's two. The prototype's pair
+// ("The Wallet", "The Wrong Text") lived here from the port until D413,
+// when the owner retired their bank twins (pt1, pt2 — "completely
+// uninteresting"); a demo pool that kept telling the two stories the live
+// app had just dropped would be the one place they survived, and the
+// store-screenshot lanes draw this build. So the demo carries the bank's
+// pt4 and pt7 by other ids — 'event' and 'bigq' are always-on channels in
+// the demo feed, which is what keeps a stub reachable with no scene
+// followed (world-feed-data.js). The prose is the bank's verbatim; only
+// the `p` shares are authored here, for the reason `flowOf` gives.
 const STORIES = [
   {
-    id: 'wallet', title: 'The Wallet', hue: 20,
-    intro: 'The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.',
+    id: 'blackout', title: 'The Blackout', hue: 45,
+    intro: '9:40 on a Friday night and the whole city goes dark at once — every window, every streetlight, the fridge’s hum. Your phone says 31%.',
     nodes: {
       // '_', not '' — Firestore refuses an empty map key, so the bank's
       // stories carry a sentinel and this store matches their shape (D136).
-      '_': { q: 'It sits there, heavier than it should be.', a: [{ t: 'Open it', p: 61 }, { t: 'Hand it to the driver, unopened', p: 39 }] },
-      'A': { q: 'A student ID. 4,000 in cash. A clinic appointment slip for Thursday.', a: [{ t: 'Track them down yourself', p: 57 }, { t: 'Keep the cash, mail the rest back', p: 43 }] },
-      'B': { q: 'The driver shrugs without looking. "Lost box is broken. Your call, friend."', a: [{ t: 'Take it back — handle it yourself', p: 72 }, { t: 'Leave it on the seat', p: 28 }] },
-      'AA': { q: 'You find them in an hour online. They answer, voice shaking with relief — and offer a reward.', a: [{ t: 'Refuse the reward', p: 64 }, { t: 'Take it — fair is fair', p: 36 }] },
-      'AB': { q: 'A week passes. The clinic slip keeps surfacing in your mind like a splinter.', a: [{ t: 'Mail the cash after all', p: 31 }, { t: 'Spend it', p: 69 }] },
-      'BA': { q: 'The ID shows an address two streets from yours. Thursday is tomorrow.', a: [{ t: 'The doorstep, in person', p: 58 }, { t: 'The police station drop-box', p: 42 }] },
-      'BB': { q: 'The doors hiss shut. Through the window you watch the wallet ride away.', a: [{ t: 'Chase the bus to the next stop', p: 22 }, { t: 'Walk home', p: 78 }] },
+      '_': { q: 'Out in the stairwell, neighbours’ voices you have never heard before.', a: [{ t: 'Go out and join them', p: 63 }, { t: 'Stay in, light a candle', p: 37 }] },
+      'A': { q: 'Somebody’s radio says "grid failure", then static. Two neighbours are heading for the hill to see how far it goes.', a: [{ t: 'Go and see how far it goes', p: 44 }, { t: 'Wait for the news to come to you', p: 56 }] },
+      'B': { q: 'Candlelight, and a quiet you have never heard in this flat. It could be an hour. It could be the night.', a: [{ t: 'Wait up for the lights', p: 58 }, { t: 'Sleep through it', p: 42 }] },
+      'AA': { q: 'From the hill: the dark runs to the horizon in every direction. The ridge above would show the next town.', a: [{ t: 'Push on up to the ridge', p: 35 }, { t: 'Head back while you know the way', p: 65 }] },
+      'AB': { q: 'The step fills up — a guitar, a bottle, no plan. A stranger asks what you actually do all day, and there is no screen to hide behind.', a: [{ t: 'Tell them, properly', p: 52 }, { t: 'Deflect — ask about them', p: 48 }] },
+      'BA': { q: '2 a.m. Still dark, and the sky over the roofs has stars this window has never shown.', a: [{ t: 'Climb up to the roof', p: 41 }, { t: 'Watch from the window', p: 59 }] },
+      'BB': { q: 'Morning. The power is back, and the group chat has 212 messages about a night you slept through.', a: [{ t: 'Read all 212', p: 67 }, { t: 'Mark as read', p: 33 }] },
     },
     endings: {
-      'AAA': { name: 'The Quiet Good', line: 'No reward, no witness. You did it for the version of you that was watching.' },
-      'AAB': { name: 'The Honest Trade', line: 'Everyone leaves whole. Virtue doesn’t have to be free.' },
-      'ABA': { name: 'The Long Way Round', line: 'The splinter won. Later than right, but right.' },
-      'ABB': { name: 'Finders, Keepers', line: 'The money spent easily. Thursday came and went somewhere else.' },
-      'BAA': { name: 'The Doorstep', line: 'A stranger’s face, changing as they understand. Worth the walk.' },
-      'BAB': { name: 'By the Book', line: 'Clean hands, proper channels. The story ends without your name in it.' },
-      'BBA': { name: 'The Second Chance', line: 'Lungs burning at the next stop. Some choices allow one revision.' },
-      'BBB': { name: 'Not My Story', line: 'You never found out. That was the choice, too.' },
+      'AAA': { name: 'The Ridge Walker', line: 'You saw the whole dark city from above. Nobody else on your street did.' },
+      'AAB': { name: 'The Scout', line: 'Far enough to know, close enough to get home. You came back with the news.' },
+      'ABA': { name: 'The Open Book', line: 'No screen, no small talk. You told a stranger the real answer.' },
+      'ABB': { name: 'The Listener', line: 'You learned every story on the step and gave away none of yours.' },
+      'BAA': { name: 'The Stargazer', line: 'The city went dark and you climbed towards the sky.' },
+      'BAB': { name: 'The Night Watch', line: 'You kept the candle going and saw the lights come back, one street at a time.' },
+      'BBA': { name: 'The Morning Reader', line: 'You missed the night, then lived it twice — in the chat, with coffee.' },
+      'BBB': { name: 'The Sleeper', line: 'The city had a night. You had a night’s sleep. Both are true.' },
     },
   },
   {
-    id: 'text', title: 'The Wrong Text', hue: 255,
-    intro: 'Your boss texts you at 23:40: "Offer the role to the other one. Don’t tell K yet." You are K.',
+    id: 'capsule', title: 'The Time Capsule', hue: 100,
+    intro: 'A padded envelope from your old school: a letter you wrote to yourself at fifteen, sealed for a project everyone forgot. The teacher’s note says: "Open alone."',
     nodes: {
-      '_': { q: 'The message glows in the dark. Typing dots appear, then vanish.', a: [{ t: '"I think this wasn’t meant for me."', p: 54 }, { t: 'Say nothing. Screenshot it.', p: 46 }] },
-      'A': { q: 'Your phone rings ten seconds later. A flustered voice offers "a proper chat tomorrow."', a: [{ t: 'Take the chat, ask it straight', p: 77 }, { t: 'Decline — start job-hunting tonight', p: 23 }] },
-      'B': { q: 'Next morning they greet you like nothing happened. The role posting closes Friday.', a: [{ t: 'Confront them before Friday', p: 49 }, { t: 'Quietly interview elsewhere', p: 51 }] },
-      'AA': { q: 'Across the desk they don’t deny it. "The decision wasn’t final," they say. It sounds final.', a: [{ t: 'Negotiate to stay — on new terms', p: 63 }, { t: 'Resign in the meeting', p: 37 }] },
-      'AB': { q: 'Three interviews in a week. One offer arrives — smaller title, better people.', a: [{ t: 'Tell your team why you’re going', p: 35 }, { t: 'Ghost gracefully', p: 65 }] },
-      'BA': { q: 'Thursday, empty meeting room. You have the screenshot. They have a story ready.', a: [{ t: 'Show the screenshot', p: 44 }, { t: 'Bluff — "I’ve heard rumours"', p: 56 }] },
-      'BB': { q: 'The rival offer lands Friday morning — same pay, a team that actually wanted you.', a: [{ t: 'Accept it', p: 58 }, { t: 'Stay anyway', p: 42 }] },
+      '_': { q: 'It is 8 a.m. on a working day, and the envelope is thick.', a: [{ t: 'Open it now, coffee going cold', p: 71 }, { t: 'Save it for the weekend', p: 29 }] },
+      'A': { q: 'Page one is everything fifteen-year-old you was sure of. Someone is in the kitchen, asking what came in the post.', a: [{ t: 'Read it aloud to them', p: 46 }, { t: 'Read it alone, as instructed', p: 54 }] },
+      'B': { q: 'Saturday. Page one is a list of predictions. Page two names your best friend then — someone you could look up before you read on.', a: [{ t: 'Search their name first', p: 57 }, { t: 'Read on without looking', p: 43 }] },
+      'AA': { q: 'They laugh at the predictions, then go quiet at the one that came true. The letter ends with a request: "Go back to the lake."', a: [{ t: 'Drive to the lake this month', p: 38 }, { t: 'Leave the lake where it is', p: 62 }] },
+      'AB': { q: 'Fifteen-year-old you names the person you were in love with. They are still in your contacts.', a: [{ t: 'Send them the page', p: 27 }, { t: 'Keep the page to yourself', p: 73 }] },
+      'BA': { q: 'Your old best friend: a nurse in another city now, two kids, a public page full of the lake you both swam in.', a: [{ t: 'Message them: "I found a letter"', p: 49 }, { t: 'Close the tab and read on', p: 51 }] },
+      'BB': { q: 'The last line: "If you are reading this with someone, tell them the lake thing." You are alone.', a: [{ t: 'Write the next one, to you at fifty', p: 44 }, { t: 'Fold it away', p: 56 }] },
     },
     endings: {
-      'AAA': { name: 'The Renegotiator', line: 'You stayed — but the terms are yours now, and everyone knows it.' },
-      'AAB': { name: 'The Clean Exit', line: 'Shortest resignation letter in company history. No regrets by Tuesday.' },
-      'ABA': { name: 'The Whistle', line: 'The team heard the truth. Some doors close loudly and that’s fine.' },
-      'ABB': { name: 'The Quiet Departure', line: 'No scene, no speech. Your absence said it.' },
-      'BAA': { name: 'Cards on the Table', line: 'The screenshot did the talking. Their face did the confessing.' },
-      'BAB': { name: 'The Poker Face', line: 'You never showed your hand. They folded anyway.' },
-      'BBA': { name: 'The Better Door', line: 'Monday, new desk. The old boss still doesn’t know you knew.' },
-      'BBB': { name: 'The Long Game', line: 'You stayed with the receipts. Leverage keeps better than anger.' },
+      'AAA': { name: 'The Lake Returner', line: 'You went back. It was smaller, and you were not.' },
+      'AAB': { name: 'The Kitchen Reader', line: 'Read aloud over cold coffee. The lake stays a line on a page.' },
+      'ABA': { name: 'The Sender', line: 'One photo, one old name. Whatever comes back, you started it.' },
+      'ABB': { name: 'The Keeper of Page Two', line: 'Some names stay in the envelope. You know which one.' },
+      'BAA': { name: 'The Finder', line: 'A letter, a search, a message: one afternoon. Twenty years, undone in an hour.' },
+      'BAB': { name: 'The Quiet Looker', line: 'You know exactly where they are now. They will never know you looked.' },
+      'BBA': { name: 'The Next Letter Writer', line: 'Sealed again, addressed to fifty. The project outlived the school.' },
+      'BBB': { name: 'The One-Time Reader', line: 'Read once, alone, as instructed. Filed with the things you don’t reread.' },
     },
   },
 ];

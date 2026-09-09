@@ -16,17 +16,31 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",
-    // Report-only, scoped to the two modules whose branches ARE the privacy
-    // guarantees: pure.ts holds the k-anon floor, complementary suppression
-    // and the publish cadence (D7, D8, D18), and deviceBind.ts holds the
-    // month rule (D29). An untested branch in either is where a number that
-    // should have been withheld gets published — and "87 tests pass" cannot
-    // tell you which branch that is, while a coverage report can.
+    // Report-only, scoped to two modules whose branches decide what a
+    // published number SAYS: pure.ts holds the breakdown cap and the canon
+    // fold, and deviceBind.ts holds D29's month rule. An untested branch in
+    // either is a wrong number published rather than a crash — and "539
+    // tests pass" cannot tell you which branch, while a coverage report can.
     //
-    // v2content.ts is excluded by omission: 6.1k lines of GENERATED question
-    // data (check:content proves it matches /content byte for byte), so its
-    // coverage number would measure how much of a data file the tests happen
-    // to read. No thresholds, for the reason in the root vite.config.ts.
+    // THE SCOPE'S OLD REASON IS GONE, and it is worth saying so rather than
+    // quietly editing it: this read "the two modules whose branches ARE the
+    // privacy guarantees: pure.ts holds the k-anon floor, complementary
+    // suppression and the publish cadence (D7, D8, D18)". D98 retired all
+    // three — pure.ts now says in its own words "NO SUPPRESSION OF ANY KIND
+    // (D98) … there is no floor and no cadence", and the fold "can no
+    // longer return null: there is nothing left that can suppress". So the
+    // argument that picked these two files and excluded everything else no
+    // longer holds, and whether money (paid.ts) or the moderation queue
+    // belongs in scope is an open question, not a settled one.
+    //
+    // v2content.ts is excluded by omission: a large GENERATED question bank
+    // (check:content proves it matches /content byte for byte), so its
+    // coverage number would measure how much of a data file the tests
+    // happen to read. The line count that used to sit here said "6.1k" for
+    // a file of ~14,000 — a hand-kept figure inside the argument it
+    // supports, which is this repo's most-repeated documentation error, so
+    // it is now stated without one. No thresholds, for the reason in the
+    // root vite.config.ts.
     coverage: {
       provider: "v8",
       include: ["src/pure.ts", "src/deviceBind.ts"],

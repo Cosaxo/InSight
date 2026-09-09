@@ -1,0 +1,201 @@
+--- recorded/world-feed.jsx
++++ 2026-09-06/world-feed.jsx
+@@ -523,7 +523,13 @@
+             }
+             if (Math.abs(dy) < 4) return;
+             this._lastY = y;
+-            const hide = dy > 0 && y > 60;
++            // opening the topics rail grows the sticky head; scroll anchoring then
++            // nudges scrollTop, which read as a scroll-down and hid the bar mid-use
++            if (Date.now() - (this._headHold || 0) < 500) {
++              this._lastY = y;
++              return;
++            }
++            const hide = dy > 0 && y > 60 && !this.state.topicsOpen;
+             if (hide !== this.state.headHide) this.setState({
+               headHide: hide
+             });
+@@ -6366,7 +6372,17 @@
+     // where borders and shadows used to, and the topic hue stays in the kicker.
+     if (this.opts.v2 && skin === 'bare') {
+       card.borderTop = WF_LINE;
+-      card.padding = '20px 1px 24px';
++      card.padding = '22px 1px 26px';
++    }
++    // rankings and other boxed types join the same ground: a rule and air, no box
++    if (this.opts.v2 && skin === 'card' && !paid && !collapsed && !focus) {
++      card.background = 'transparent';
++      card.backgroundImage = 'none';
++      card.border = 'none';
++      card.borderTop = WF_LINE;
++      card.borderRadius = 0;
++      card.boxShadow = 'none';
++      card.padding = '22px 1px 26px';
+     }
+     if (this.opts.v2 && skin === 'bleed') {
+       card.borderBottom = 'none';
+@@ -6688,7 +6704,7 @@
+       style: {
+         display: 'flex',
+         flexDirection: 'column',
+-        gap: 12,
++        gap: this.opts.v2 ? 6 : 12,
+         marginTop: 8
+       }
+     }, /*#__PURE__*/React.createElement("div", {
+@@ -6713,20 +6729,16 @@
+         position: 'relative',
+         display: 'flex',
+         alignItems: 'center',
+-        gap: 10
++        gap: 8
+       }
+-    }, /*#__PURE__*/React.createElement("div", {
+-      className: "h-scroll",
++    }, /*#__PURE__*/React.createElement("span", {
++      className: "kicker",
+       style: {
+-        display: 'flex',
+-        gap: 8,
+-        flexWrap: 'nowrap',
+-        overflowX: 'auto',
++        marginBottom: 0,
+         flex: 1,
+-        minWidth: 0,
+-        padding: '2px 0'
++        minWidth: 0
+       }
+-    }, /*#__PURE__*/React.createElement("button", {
++    }, "the feed"), /*#__PURE__*/React.createElement("button", {
+       key: "__sort",
+       className: "wf-chip",
+       onClick: () => this.setState({
+@@ -6750,9 +6762,70 @@
+         WebkitAppearance: 'none',
+         whiteSpace: 'nowrap'
+       }
+-    }, sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'), chips.map((t, ci) => {
++    }, sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'), (() => {
++      const off = chips.filter(t => cats[t.id] === false).length;
++      const lab = off === 0 ? 'all topics' : chips.length - off + ' of ' + chips.length + ' topics';
++      const open = !!this.state.topicsOpen;
++      return /*#__PURE__*/React.createElement("button", {
++        className: "wf-chip",
++        onClick: () => {
++          this._headHold = Date.now();
++          this.setState({
++            topicsOpen: !open,
++            headHide: false
++          });
++        },
++        "aria-expanded": open,
++        style: {
++          display: 'inline-flex',
++          alignItems: 'center',
++          gap: 6,
++          flexShrink: 0,
++          border: '0.5px solid ' + (open || off ? 'color-mix(in oklch, var(--ink) 22%, var(--rule))' : 'var(--rule)'),
++          background: open ? 'color-mix(in oklch, var(--ink) 9%, var(--surface-2))' : 'var(--surface-2)',
++          color: 'var(--ink)',
++          fontFamily: 'var(--sans)',
++          fontWeight: 700,
++          fontSize: 12,
++          padding: '5px 11px',
++          borderRadius: 999,
++          cursor: 'pointer',
++          WebkitAppearance: 'none',
++          whiteSpace: 'nowrap'
++        }
++      }, lab, /*#__PURE__*/React.createElement("span", {
++        "aria-hidden": "true",
++        style: {
++          width: 5,
++          height: 5,
++          borderRight: '1.5px solid currentColor',
++          borderBottom: '1.5px solid currentColor',
++          transform: open ? 'translateY(1px) rotate(-135deg)' : 'translateY(-1.5px) rotate(45deg)',
++          opacity: 0.7,
++          transition: 'transform .2s'
++        }
++      }));
++    })()), this.state.topicsOpen && /*#__PURE__*/React.createElement("div", {
++      style: {
++        position: 'relative',
++        display: 'flex',
++        alignItems: 'center',
++        gap: 10
++      }
++    }, /*#__PURE__*/React.createElement("div", {
++      className: "h-scroll",
++      style: {
++        display: 'flex',
++        gap: 8,
++        flexWrap: 'nowrap',
++        overflowX: 'auto',
++        flex: 1,
++        minWidth: 0,
++        padding: '2px 0'
++      }
++    }, chips.map((t, ci) => {
+       const on = cats[t.id] !== false;
+-      const col = t.color;
++      // one neutral chip for every topic — the per-topic colours read as clutter here
+       return /*#__PURE__*/React.createElement(React.Fragment, {
+         key: t.id
+       }, /*#__PURE__*/React.createElement("button", {
+@@ -6762,10 +6835,10 @@
+         style: {
+           display: 'inline-flex',
+           alignItems: 'center',
+-          gap: 6,
+-          border: '0.5px solid ' + (on ? col ? `color-mix(in oklch, ${col} 40%, var(--rule))` : 'color-mix(in oklch, var(--rule), var(--ink) 22%)' : 'var(--rule)'),
+-          background: on ? col ? `color-mix(in oklch, ${col} 10%, var(--surface-2))` : 'var(--surface-2)' : 'transparent',
+-          color: on ? 'var(--ink-2)' : 'var(--ink-3)',
++          gap: 5,
++          border: '0.5px solid ' + (on ? 'var(--ink)' : 'var(--rule)'),
++          background: on ? 'var(--ink)' : 'transparent',
++          color: on ? 'var(--surface)' : 'var(--ink-3)',
+           fontFamily: 'var(--sans)',
+           fontWeight: on ? 700 : 600,
+           fontSize: 12,
+@@ -6773,25 +6846,25 @@
+           borderRadius: 999,
+           cursor: 'pointer',
+           WebkitAppearance: 'none',
+-          whiteSpace: 'nowrap'
++          whiteSpace: 'nowrap',
++          transition: 'background .15s ease, color .15s ease, border-color .15s ease'
+         }
+-      }, col && on && /*#__PURE__*/React.createElement("span", {
++      }, on && /*#__PURE__*/React.createElement("svg", {
+         "aria-hidden": "true",
+-        style: t.know ? {
+-          width: 7,
+-          height: 7,
+-          borderRadius: '50%',
+-          background: 'transparent',
+-          boxShadow: `inset 0 0 0 2px ${col}`,
+-          flexShrink: 0
+-        } : {
+-          width: 6,
+-          height: 6,
+-          borderRadius: '50%',
+-          background: col,
++        width: "9",
++        height: "9",
++        viewBox: "0 0 10 10",
++        fill: "none",
++        stroke: "currentColor",
++        strokeWidth: "1.8",
++        strokeLinecap: "round",
++        strokeLinejoin: "round",
++        style: {
+           flexShrink: 0
+         }
+-      }), t.label.toLowerCase()));
++      }, /*#__PURE__*/React.createElement("path", {
++        d: "M1.5 5.2 4 7.6 8.6 2.4"
++      })), t.label.toLowerCase()));
+     })), /*#__PURE__*/React.createElement("span", {
+       "aria-hidden": "true",
+       style: {

@@ -35,13 +35,13 @@ import { getFirestoreApi } from "../../lib/firebase";
 import type { Firestore } from "firebase/firestore";
 // Pure arithmetic, no Firebase anywhere in it — safe to import statically
 // without re-opening the first-paint hole the comment above closes.
-import { CORE_TEST_KINDS, parseTestResults, type ParsedResults } from "./similarity";
+import { CORE_TEST_KINDS, parseLogicPct, parseTestResults, type ParsedResults } from "./similarity";
 
 // The surfaces a world answer can carry. Must match the array in
 // firestore.rules' collection-group grant exactly — a value here the rule
 // does not list makes the whole query fail closed, which is the safe
 // direction but an invisible one.
-export const WORLD_ANSWER_SURFACES = ["daily", "feed", "test", "learn", "pulse"] as const;
+export const WORLD_ANSWER_SURFACES = ["daily", "feed", "test", "learn", "pulse", "call"] as const;
 
 // Voters one fetch returns — the newest first, because the query already
 // orders by answeredAt desc (D102).
@@ -143,23 +143,55 @@ export function uidFromAnswerPath(path: string): string | null {
 // ── the reads ───────────────────────────────────────────────────────
 
 /**
- * Everyone who answered `qid`, with their frozen cohort and their name.
+ * Who answered `qid` and what they picked — the ONE query, before any
+ * profile is read.
  *
- * `names` is an inout session cache owned by the caller (live.ts), so two
- * questions answered by overlapping crowds pay for each profile once.
+ * Split out of `fetchVoters` because the name resolution beneath it is a
+ * second, larger read: up to VOTER_FETCH_CAP profile documents, chunked 30
+ * at a time. That is the `×2` the D98-surfaces column in docs/COSTS.md
+ * carries, and a caller that only wants the picks was paying it for a
+ * `names` map nothing ever read (data/patterns.ts's pair card).
+ *
+ * Same query, same caps, same catalog skip — factored, not re-issued, so
+ * the two paths cannot drift apart on which answers count as votes.
+ *
+ * `city` NARROWS THE QUERY rather than the result (D278). The unscoped
+ * form returns the newest VOTER_FETCH_CAP answers from anywhere, and the
+ * City constellation then filters them to one city on the device
+ * (`rankKindred`'s `city` option). At any real population that discards
+ * nearly everything it just paid for: with a city holding 2% of active
+ * users, ~4 of every 200 rows survive, and because the cap binds BEFORE
+ * the filter the number of reachable city-mates saturates around 50 no
+ * matter how large the city grows. The ring draws 12, so it fills either
+ * way — the failure has no symptom, which is what makes it worth a second
+ * query rather than a bigger cap. Same cap, same rows read, ~50× the
+ * usable rows: modelled at 100k users with a 2% city, reachable city-mates
+ * 51 → 1,387 and the chance the single closest person is a candidate at
+ * all 23% → 90%.
+ *
+ * THE ANCHOR, NOT THE PROFILE. `anchors.city` is the snapshot the answer
+ * froze at vote time (D8) — the same field the aggregate folds and the
+ * same one `kindredPeople` reads back — so this query and the ranking
+ * agree about who counts as living where. Filtering on the live profile
+ * would re-cohort history and disagree with both.
  */
-export async function fetchVoters(
+export async function fetchVoterPicks(
   db: Firestore,
   qid: string,
-  myUid: string | null,
-  names: Record<string, string>,
-  scores?: Record<string, ParsedResults | null>,
+  myUid: string | null = null,
+  city?: string,
 ): Promise<Voter[]> {
   const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
     collectionGroup(db, "answers"),
     where("qid", "==", qid),
     where("surface", "in", [...WORLD_ANSWER_SURFACES]),
+    // The surface clause above is not optional and this one does not
+    // replace it: firestore.rules grants this read as a VALUE test on
+    // `surface`, so a query missing that `where` is refused wholesale
+    // (D65). An EXTRA equality only narrows what the rule already allows,
+    // which rules.test.ts pins rather than assumes.
+    ...(city ? [where("anchors.city", "==", city)] : []),
     orderBy("answeredAt", "desc"),
     fsLimit(VOTER_FETCH_CAP),
   ));
@@ -176,8 +208,91 @@ export async function fetchVoters(
     const anchors = (d.get("anchors") || {}) as Record<string, string>;
     rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
   }
+  return rows;
+}
 
-  await resolveNames(db, rows.map((r) => r.uid), names, scores);
+/**
+ * The nightly voter SAMPLE for `qid` (D397) — the newest VOTER_FETCH_CAP
+ * voters as the fit published them last night at `v2_patterns/sample-{qid}`:
+ * one document read where `fetchVoterPicks` is up to two hundred. Same
+ * rows in the same shape — uid, option index, the answer's frozen chips
+ * (D8) — newest first, so every fold that only COUNTS (Kindred, the People
+ * lens, the pair card) reads it in place of the live query. The who-voted
+ * sheet, a live list of names on screen that must show the viewer's own
+ * answer the moment it lands, keeps the live query.
+ *
+ * Null when no sample exists yet — a question the nightly run has not
+ * touched since D397, or the tail — so the caller falls back to the live
+ * query rather than reading absence as an empty crowd.
+ *
+ * AND NULL FOR AN EXISTING DOCUMENT WITH NO USABLE ROWS, which is the
+ * same fact and used not to be the same answer. `[] ?? live` is `[]`, so
+ * both callers took the empty array and reported a crowd of nobody:
+ * `sayRows` (data/patterns.ts) cached it, and `loadVoterSample`
+ * (live.ts) took the else branch, resolved no names and never set its
+ * fallback flag. Reachable, not theoretical — `deleteAccount`'s scrub
+ * (index.ts § 1a') field-deletes one uid's row and leaves the document
+ * standing, so a sample whose only voter erases their account becomes
+ * `rows: {}` on disk.
+ *
+ * WHAT THIS DOES NOT FIX, named so it is not mistaken for fixed: the
+ * sample is the newest cap voters *the nightly has seen since D397*, not
+ * the newest cap voters. `mergeSample` is fed only by the ledger day the
+ * run reads and nothing seeds it from the answers already written, so a
+ * question answered two hundred times before the samples existed
+ * publishes a sample of however many people answered it since. Those are
+ * real rows and this reader cannot tell them from a complete sample —
+ * the floors downstream (`say()` and `tell()` want 12) then report
+ * `thin` about the crowd when the true subject is the deploy date.
+ */
+export async function fetchVoterSample(
+  db: Firestore,
+  qid: string,
+  myUid: string | null = null,
+): Promise<Voter[] | null> {
+  const { doc, getDoc } = await getFirestoreApi();
+  const snap = await getDoc(doc(db, "v2_patterns", `sample-${qid}`));
+  if (!snap.exists()) return null;
+  const rows = (snap.get("rows") as Record<string, { o?: unknown; a?: unknown; d?: unknown }> | undefined) ?? {};
+  const out: { v: Voter; d: string }[] = [];
+  for (const [uid, r] of Object.entries(rows)) {
+    if (!uid || typeof r?.o !== "number") continue;
+    out.push({
+      v: {
+        uid,
+        optionIdx: r.o,
+        anchors: (r.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
+        name: "",
+        isMe: uid === myUid,
+      },
+      d: typeof r.d === "string" ? r.d : "",
+    });
+  }
+  // newest first, then uid — the server's own total order
+  out.sort((a, b) => (a.d !== b.d ? (a.d < b.d ? 1 : -1) : a.v.uid < b.v.uid ? -1 : a.v.uid > b.v.uid ? 1 : 0));
+  // Empty reads as absent, per the docstring's own promise. Both callers
+  // key their fallback on null, and neither has any other way to tell a
+  // sample that holds nobody from one that was never written.
+  return out.length ? out.map((x) => x.v) : null;
+}
+
+/**
+ * Everyone who answered `qid`, with their frozen cohort and their name.
+ *
+ * `names` is an inout session cache owned by the caller (live.ts), so two
+ * questions answered by overlapping crowds pay for each profile once.
+ */
+export async function fetchVoters(
+  db: Firestore,
+  qid: string,
+  myUid: string | null,
+  names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
+  logic?: Record<string, number | null>,
+  city?: string,
+): Promise<Voter[]> {
+  const rows = await fetchVoterPicks(db, qid, myUid, city);
+  await resolveNames(db, rows.map((r) => r.uid), names, scores, undefined, logic);
   for (const r of rows) r.name = names[r.uid] || "";
   return rows;
 }
@@ -202,15 +317,48 @@ export async function resolveNames(
   names: Record<string, string>,
   scores?: Record<string, ParsedResults | null>,
   faces?: Record<string, string>,
+  logic?: Record<string, number | null>,
 ): Promise<void> {
-  const missing = uids.filter((u) => !(u in names)
+  // TWO MISSING SETS, not one union, and the difference is a read per
+  // person on five surfaces.
+  //
+  // Names and scores PERSIST across sessions (`insight.profileCache.v1`,
+  // D129); faces deliberately do not (D178 — a token cached past a remove
+  // verdict is a removed face still rendering). One union therefore put
+  // every uid whose name and score were already in hand back into the
+  // v2_users query, purely because its face was not — which is every uid,
+  // on every surface that asks for faces, on every open. D129's persisted
+  // cache was doing nothing there.
+  //
+  // It does not touch the -41% that decision reports: that is earned on the
+  // `fetchVoters` path, which passes no `faces`, and where the union and
+  // the split are the same set.
+  // The logic percentile (D227) is a third rider on the same document —
+  // parsed here for the same D112 reason scores are: the profile was on
+  // the wire regardless. Its own missing-check because a cache written
+  // before D227 holds names and scores but no logic entries, and skipping
+  // the read for those uids would show a whole sheet as "untested"; one
+  // refetch round fills them and the cache self-heals.
+  const needProfile = uids.filter((u) => !(u in names)
     || (scores ? !(u in scores) : false)
-    || (faces ? !(u in faces) : false));
-  if (!missing.length) return;
+    || (logic ? !(u in logic) : false));
+  const needFace = faces ? uids.filter((u) => !(u in faces)) : [];
+  if (!needProfile.length && !needFace.length) return;
   const {
     collection: fsCollection, documentId, getDocs, query, where,
   } = await getFirestoreApi();
-  for (const batch of chunkUids(missing)) {
+  // Chunked separately and walked in step: the round-trip count is the
+  // LONGER of the two lists, not their sum, so a surface wanting both still
+  // pays what it paid before. Sequential over rounds rather than firing
+  // every chunk at once — the same restraint loadKindred states, for the
+  // same reason (a burst at a boot-adjacent moment is what gets a client
+  // rate-limited).
+  const profileChunks = chunkUids(needProfile);
+  const faceChunks = chunkUids(needFace);
+  const rounds = Math.max(profileChunks.length, faceChunks.length);
+  for (let round = 0; round < rounds; round++) {
+    const profileBatch = profileChunks[round];
+    const faceBatch = faceChunks[round];
     // TWO QUERIES PER CHUNK SINCE D178, not one, and the second is the
     // price of the photo living in its own collection.
     //
@@ -224,15 +372,20 @@ export async function resolveNames(
     // Parallel rather than sequential: they are independent, and a room
     // of two dozen is one round trip either way only if they overlap.
     const [snap, avSnap] = await Promise.all([
-      getDocs(query(fsCollection(db, "v2_users"), where(documentId(), "in", batch))),
-      faces
-        ? getDocs(query(fsCollection(db, "v2_avatars"), where(documentId(), "in", batch)))
+      profileBatch
+        ? getDocs(query(fsCollection(db, "v2_users"), where(documentId(), "in", profileBatch)))
+        : Promise.resolve(null),
+      faces && faceBatch
+        ? getDocs(query(fsCollection(db, "v2_avatars"), where(documentId(), "in", faceBatch)))
         : Promise.resolve(null),
     ]);
-    for (const d of snap.docs) {
-      const n = d.get("displayName");
-      names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
-      if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+    if (snap) {
+      for (const d of snap.docs) {
+        const n = d.get("displayName");
+        names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
+        if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+        if (logic) logic[d.id] = parseLogicPct(d.get("testResults"));
+      }
     }
     if (faces && avSnap) {
       for (const d of avSnap.docs) {
@@ -247,11 +400,19 @@ export async function resolveNames(
       }
     }
     // Anything the query did not return does not exist — cache the
-    // absence so the next open does not re-ask for it.
-    for (const u of batch) {
+    // absence so the next open does not re-ask for it. Per SET now, since
+    // the two batches no longer hold the same uids: marking a face absent
+    // because the PROFILE query covered that uid would cache "no photo" for
+    // someone nobody asked about yet.
+    for (const u of profileBatch || []) {
       if (!(u in names)) names[u] = "";
       if (scores && !(u in scores)) scores[u] = null;
-      if (faces && !(u in faces)) faces[u] = "";
+      if (logic && !(u in logic)) logic[u] = null;
+    }
+    if (faces) {
+      for (const u of faceBatch || []) {
+        if (!(u in faces)) faces[u] = "";
+      }
     }
   }
 }

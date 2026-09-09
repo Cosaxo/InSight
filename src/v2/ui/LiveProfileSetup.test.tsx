@@ -21,20 +21,34 @@
 // profile-general.jsx, which is the file check:anchors reads.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
   ready: true,
   anchors: () => ({}) as Record<string, string>,
   saveAnchors: vi.fn((a: Record<string, string>) => { void a; }),
+  // Identity, asked here since D190. `displayName` doubles as the gate's
+  // other trigger — an account with anchors and no name is still asked.
+  displayName: "",
+  handle: "",
+  saveDisplayName: vi.fn(async (n: string) => { void n; }),
+  // D331 — the political consent pair. Defaults to NOT consented, which
+  // is the state a first-run screen is actually in.
+  politicalConsented: vi.fn(() => false),
+  // …and whether it was ANSWERED at all, which is the state a decline
+  // leaves behind and consent alone cannot express.
+  politicalAnswered: vi.fn(() => false),
+  setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
+  social: { claimHandle: vi.fn(async (h: string) => ({ handle: h })) },
   subscribe: () => () => {},
 }));
-vi.mock("../data/live", () => ({ default: LIVE }));
+vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 
 const { default: LiveProfileSetup } = await import("./LiveProfileSetup");
 const { PROFILE_SETUP_LS, profileSetupNeeded, mountProfileSetup } = await import("./profileSetup");
 const { PROFILE_GENERAL_LS } = await import("../data/cityAnchor");
+const { backLayerCount, closeTopBackLayer, resetBackLayers } = await import("../data/backLayers");
 
 const onDone = vi.fn();
 
@@ -43,7 +57,15 @@ beforeEach(() => {
   LIVE.enabled = true;
   LIVE.ready = true;
   LIVE.anchors = () => ({});
+  // A name on the account by default, so the anchor cases below decide the
+  // gate on their own subject rather than on D190's new trigger.
+  LIVE.displayName = "Tester";
   LIVE.saveAnchors.mockClear();
+  LIVE.saveDisplayName.mockClear();
+  LIVE.setPoliticalConsent.mockClear();
+  LIVE.politicalConsented.mockReturnValue(false);
+  LIVE.politicalAnswered.mockReturnValue(false);
+  LIVE.social.claimHandle.mockClear();
   onDone.mockClear();
 });
 afterEach(cleanup);
@@ -74,6 +96,39 @@ describe("what the answers reach", () => {
     expect(saved.gender).toBe("Woman");
     expect(saved.education).toBe("Master's");
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("does not swallow an anchor edited after a refused handle", async () => {
+    // A refused handle keeps this screen up ON PURPOSE, so the person can
+    // fix it — and anything else they fix on the way back is an EDIT. The
+    // guard that stops the second Save re-writing the first one's work was
+    // a boolean latched on the first press, while the NAME half beside it
+    // already keyed on content. So the two disagreed about what "already
+    // written" meant, and every anchor touched between the refusal and the
+    // retry was dropped without a word, on a screen that then closed as
+    // though it had saved.
+    LIVE.social.claimHandle.mockRejectedValueOnce(new Error("taken"));
+    render(<LiveProfileSetup onDone={onDone} />);
+    pick("Gender", "Woman");
+    // A handle is what makes the refusal reachable at all — the claim is
+    // the one thing on this screen that can fail visibly, and it is the
+    // reason the screen stays up for a second press.
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
+    await waitFor(() => expect(LIVE.saveAnchors).toHaveBeenCalledTimes(1));
+    expect(onDone, "the screen closed on a refused handle — there is no second press to test").not.toHaveBeenCalled();
+
+    // …the screen is still up, and they add the year they had skipped.
+    pick("Year", "1990");
+    fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(
+      LIVE.saveAnchors,
+      "the second Save wrote nothing — the edit made between the two presses was swallowed",
+    ).toHaveBeenCalledTimes(2));
+    const last = LIVE.saveAnchors.mock.calls[1][0];
+    expect(last.ageBand, "the year picked on the way back never reached the anchors").toBeTruthy();
+    expect(blob().vitals.born, "…nor the profile blob the next open reads from").toBe("1990");
   });
 
   it("writes the age and its band, never the birthday", () => {
@@ -150,6 +205,44 @@ describe("the ask is an ask, not a wall", () => {
     }
   });
 
+  // A DECLINE IS AN ANSWER. The comment above this screen's own seed says
+  // so: "someone who taps 'Not these' and then 'Skip for now' has decided,
+  // and losing that to a dismissed screen would re-ask them tomorrow —
+  // which is how a refusal quietly becomes a nag." The seed then read
+  // consent alone, so a decline came back identical to never having been
+  // asked and neither button was marked.
+  const marked = (label: string) => {
+    const b = screen.getByText(label).closest("button")!;
+    return b.style.border.includes("var(--ink)");
+  };
+
+  it("shows a recorded decline as the answer it was, not as a fresh ask", () => {
+    LIVE.politicalConsented.mockReturnValue(false);
+    LIVE.politicalAnswered.mockReturnValue(true);
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(marked("Not these"), "a declined account is asked again with "
+      + "neither button marked — their refusal is invisible to the screen "
+      + "built to honour it").toBe(true);
+    expect(marked("Yes, build it")).toBe(false);
+  });
+
+  it("shows consent as consent, and an unanswered ask as neither", () => {
+    // The two states that already worked, asserted here so the fix cannot
+    // have been made by marking something unconditionally.
+    LIVE.politicalConsented.mockReturnValue(true);
+    LIVE.politicalAnswered.mockReturnValue(true);
+    const { unmount } = render(<LiveProfileSetup onDone={onDone} />);
+    expect(marked("Yes, build it")).toBe(true);
+    expect(marked("Not these")).toBe(false);
+    unmount();
+
+    LIVE.politicalConsented.mockReturnValue(false);
+    LIVE.politicalAnswered.mockReturnValue(false);
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(marked("Not these")).toBe(false);
+    expect(marked("Yes, build it")).toBe(false);
+  });
+
   it("does not offer to save nothing", () => {
     render(<LiveProfileSetup onDone={onDone} />);
     const save = screen.getByRole("button", { name: /Answer one to continue/ });
@@ -167,6 +260,76 @@ describe("the ask is an ask, not a wall", () => {
   });
 });
 
+// ── identity, asked here and nowhere later (D190) ────────────────────
+//
+// The name was asked by the create-a-circle screen, in a field above the
+// circle's name, and reported from a device as the wrong screen for it.
+// The handle was only ever offered in the account panel, four taps deep,
+// with a Change button that freed the old one.
+//
+// Both are facts about the ACCOUNT, so they are asked once, here, and read
+// everywhere else. These are the two properties that makes true: what the
+// screen writes, and that a refused handle keeps the screen up rather than
+// closing over the failure.
+describe("the name and the handle", () => {
+  it("writes the name to the profile, not just to this screen", async () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "  Olaf  " } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    // Trimmed, and through the store — which is also what mirrors it onto
+    // this device for the create-a-circle screen to read.
+    expect(LIVE.saveDisplayName).toHaveBeenCalledWith("Olaf");
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it("claims the handle, folded the way the server folds it", async () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "@Olaf_T" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    // normalizeHandle is the same fold claimHandleV2 runs, so a handle this
+    // screen sends is one the server will accept or refuse on availability
+    // alone — never on a stray @ or a capital.
+    expect(LIVE.social.claimHandle).toHaveBeenCalledWith("olaf_t");
+  });
+
+  it("keeps the screen up when the handle is taken, and says which", async () => {
+    // The one failure on this screen a user has to see and can act on.
+    // Closing over it would hand them an account with no handle and no
+    // idea that the one they picked did not stick.
+    LIVE.social.claimHandle.mockRejectedValueOnce(new Error("already-exists: that handle is taken"));
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    expect(screen.getByText(/@olaf is taken/i)).toBeTruthy();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("saves the anchors before it touches the network", async () => {
+    // Ordering, and it is load-bearing: the anchor write is synchronous
+    // and the identity writes are round trips. Behind them, a screen
+    // dismissed mid-flight would lose the anchors — which are the ones
+    // that cannot be re-filed later (D8/D5).
+    LIVE.social.claimHandle.mockRejectedValueOnce(new Error("already-exists"));
+    render(<LiveProfileSetup onDone={onDone} />);
+    pick("Gender", "Woman");
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save 1 of 7$/ }));
+    // Synchronously, before any await settles.
+    expect(LIVE.saveAnchors).toHaveBeenCalledTimes(1);
+    await settle();
+  });
+
+  it("says a handle is picked once, before it is picked", () => {
+    // claimHandleV2 refuses a change (D190), so this is the only moment
+    // the choice can be informed.
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(screen.getByText(/picked once and can’t be changed/i)).toBeTruthy();
+  });
+});
+
 describe("who gets asked", () => {
   it("asks an account with no anchors at all", () => {
     expect(profileSetupNeeded()).toBe(true);
@@ -177,6 +340,15 @@ describe("who gets asked", () => {
     // existed. Re-asking them would be the app forgetting.
     LIVE.anchors = () => ({ gender: "Woman" });
     expect(profileSetupNeeded()).toBe(false);
+  });
+
+  it("asks an account with anchors but no name (D190)", () => {
+    // The account this screen now exists for as much as the empty one:
+    // it has been through the anchors and has nothing to be called, so
+    // every screen that needs a name would go on asking for one.
+    LIVE.anchors = () => ({ gender: "Woman" });
+    LIVE.displayName = "";
+    expect(profileSetupNeeded()).toBe(true);
   });
 
   it("does not ask before the store has hydrated", () => {
@@ -284,5 +456,66 @@ describe("an account deletion takes the screen with it", () => {
     expect(screen.getAllByText(/A few things about you/i)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: /Skip for now/ }));
     await settle();
+  });
+});
+
+// ── Android's back button ────────────────────────────────────────────
+//
+// The same gap the walkthrough had, on the screen directly behind it:
+// this is a full-screen `role="dialog"` overlay on its own root outside
+// `<App/>`, so the shell's handler (person → city → overlay → tab) finds
+// nothing to peel, returns false, and `back.ts` calls `App.exitApp()`.
+// The app quits with the seven questions still on screen — and since
+// `markProfileSetupSeen()` hangs off `onDone` alone, the quit records
+// nothing and the next launch asks them all again.
+//
+// Dismissing is a legitimate way out here for the same reason Skip is:
+// what the flag records is that the question was ASKED.
+describe("the hardware back button", () => {
+  beforeEach(() => { resetBackLayers(); });
+
+  it("registers a layer, so back does not fall through to exitApp", () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(backLayerCount(), "nothing would peel this screen").toBe(1);
+    expect(closeTopBackLayer(), "the back press was not consumed").toBe(true);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the stack empty on unmount", () => {
+    const { unmount } = render(<LiveProfileSetup onDone={onDone} />);
+    expect(backLayerCount()).toBe(1);
+    unmount();
+    expect(backLayerCount()).toBe(0);
+  });
+});
+
+// ── the sheet fits the phone (build 33) ────────────────────────────
+//
+// The owner's screenshot of build 33 showed every field running off the
+// right edge, the sentence about the handle cut mid-word. One property:
+// the column is `width: 100%` with 22px of padding a side, and
+// `src/v2/styles.css` has NO universal `* { box-sizing: border-box }` —
+// it is set per rule, which is exactly the arrangement that makes an
+// inline style like this one wrong by default rather than right by
+// default.
+//
+// jsdom computes no layout, so this cannot assert a rendered width. What
+// it CAN do is pin the property whose absence produced the overflow, on
+// the element that carries the padding — which is the fact that was
+// missing, not a proxy for it.
+describe("the column fits its phone", () => {
+  it("sizes the padded column as a border box", () => {
+    const { container } = render(<LiveProfileSetup onDone={onDone} />);
+    // The one element with horizontal padding and a percentage width.
+    const col = Array.from(container.querySelectorAll("div")).find((d) => {
+      const s = (d as HTMLElement).style;
+      return s.width === "100%" && /\d+px/.test(s.paddingLeft || "");
+    }) as HTMLElement | undefined;
+    expect(col, "the padded column is gone — re-point this test").toBeTruthy();
+    expect(
+      col!.style.boxSizing,
+      "width:100% plus horizontal padding overflows the viewport by twice "
+      + "the padding; styles.css has no universal border-box reset",
+    ).toBe("border-box");
   });
 });

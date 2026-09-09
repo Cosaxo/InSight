@@ -10,9 +10,9 @@
 // cells, so every property that keeps the two apart is pinned here.
 import { describe, expect, it } from "vitest";
 import { CORE_TEST_KINDS, parseTestResults } from "./similarity";
-import { typeNames, typeOfParsed } from "./typeMix";
+import { TYPE_SYSTEMS, typeNames, typeOfParsed } from "./typeMix";
 import {
-  TYPE_SPLIT_SMALL, TYPE_THIN, typeDivergence, typeSplitFor, uidsOfType,
+  SPLIT_TEST, TYPE_SPLIT_SMALL, TYPE_THIN, typeDivergence, typeSplitFor, uidsOfType,
   type ScoredVoter,
 } from "./typeSplit";
 
@@ -85,6 +85,54 @@ describe("typeSplitFor", () => {
     expect(split.absent).toContain(LOUD_TYPE);
     expect(split.absent).not.toContain(QUIET_TYPE);
     expect(split.absent.length).toBe(typeNames().length - 1);
+  });
+
+  it("does not call a type absent when somebody here carries it", () => {
+    // A typed voter whose answer landed in NO column — an out-of-range
+    // index, or a catalog answer. They are counted in `typedN` (the
+    // header's "N carry a Big Five"), and they contribute to no bar,
+    // because `n` has to equal what the bars add up to.
+    //
+    // `absent` used to be `n === 0`, so this person's type was named as
+    // one nobody here carries while the same fold counted them. Two
+    // comments in the source disagreed about which was intended; the code
+    // followed one and the name followed the other.
+    const split = typeSplitFor([
+      ...many(QUIET, 0, 10),
+      { uid: "loud-offgrid", optionIdx: 7, results: results(LOUD) },
+    ], 2);
+    expect(split.typedN, "the off-grid voter is counted in the header").toBe(11);
+    expect(
+      split.absent,
+      "a type somebody here carries was named as absent",
+    ).not.toContain(LOUD_TYPE);
+    // …and they are not silently dropped either: no columns means thin,
+    // so every type still lands in exactly one of the three lists.
+    expect(split.thin.map((r) => r.type)).toContain(LOUD_TYPE);
+    expect(split.thin.find((r) => r.type === LOUD_TYPE)!.n).toBe(0);
+    const all = [...split.ranked, ...split.thin].map((r) => r.type).concat(split.absent);
+    expect(new Set(all).size).toBe(typeNames().length);
+  });
+
+  it("…and DOES call a type absent when nobody carries it", () => {
+    // The control: without it, "never absent" passes, and `absent` — a
+    // finding in its own right (D141) — would quietly stop reporting.
+    const split = typeSplitFor(many(QUIET, 0, 10), 2);
+    expect(split.absent).toContain(LOUD_TYPE);
+  });
+
+  it("counts an answer into a column only when the option exists", () => {
+    // The bound is what makes the two lists above differ, and it was
+    // pinned by nothing: widening it to `<= optionCount` writes a phantom
+    // column past the question's options, and the whole client suite
+    // stayed green. `overall` is what the sheet's own bars are drawn
+    // from, so a phantom column is a bar for an option nobody was offered.
+    const split = typeSplitFor([
+      ...many(QUIET, 0, 3),
+      { uid: "past-the-end", optionIdx: 2, results: results(QUIET) },
+    ], 2);
+    expect(split.overall, "an answer past the last option was given a column").toEqual([3, 0]);
+    expect(split.overall.length).toBe(2);
   });
 
   it("withholds shares until the typed sample can carry them", () => {
@@ -227,3 +275,35 @@ describe("uidsOfType", () => {
     }
   });
 });
+
+// ── the scope that survived D202 ──────────────────────────────────────
+//
+// D202 widened the population MIX to every instrument and demoted
+// `typeMix.TYPE_TEST` from an enforcement point to a default. The promise
+// in web/privacy.html that did NOT move is this module's: answers are
+// grouped by the Big Five and by nothing else. That promise used to be
+// enforced by a constant in another file; this case is what enforces it
+// now, so a later widening of the mix cannot carry the split with it.
+describe("SPLIT_TEST — answers group by the Big Five only", () => {
+  it("is the Big Five, and that is a decision rather than a default", () => {
+    expect(SPLIT_TEST).toBe("big5");
+  });
+
+  it("names an instrument the archetype module actually defines", () => {
+    expect(TYPE_SYSTEMS.some((s) => s.kind === SPLIT_TEST)).toBe(true);
+  });
+
+  it("draws the Big Five's own type list, not whichever the mix is on", () => {
+    // typeNames() defaults to typeMix.TYPE_TEST. If someone later changes
+    // that default, this stays pinned to the Big Five's roster because the
+    // fold passes SPLIT_TEST explicitly at every call site.
+    expect(typeSplitRosterIsBigFive()).toBe(true);
+  });
+});
+
+/** The split's own row roster, compared against the Big Five's. */
+function typeSplitRosterIsBigFive(): boolean {
+  const big5 = typeNames("big5");
+  const split = typeSplitFor([], 2, null).absent;
+  return split.length === big5.length && split.every((t, i) => t === big5[i]);
+}

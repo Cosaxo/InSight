@@ -17,7 +17,7 @@
 // is dropped, boot-time, doc included. That is safe for these two fields
 // because neither string is enterable today: profession and education are
 // fixed <select> vocabularies (JOB_OPTS / EDU_OPTS) that do not contain
-// them — persona-residue.test.ts pins both facts, the equality to
+// them — personaResidue.test.ts pins both facts, the equality to
 // sample-data and the absence from the vocabularies. ageBand is NOT
 // distinctive (plenty of real people share the persona's band), so it
 // goes only when both signature strings matched — i.e. when the whole

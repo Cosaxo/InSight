@@ -3,8 +3,13 @@
 //
 // CONVERTED off the shared-global bridge (D39): the four names below are
 // plain named exports and this file publishes nothing to globalThis.
-// `window.LIVE` stays a global read — that one is data/live.ts's published
-// surface, which is the convention working as intended, not legacy.
+// `window.LIVE` stays a global read HERE, and here alone: D354 converted
+// every other reader to `import LIVE from '../data/live'`. This module
+// also loads under plain node — scripts/report-lib.mjs imports it, and
+// archetype-data.js imports IS_TEST_AVG — and data/live.ts cannot follow
+// it there: it publishes `window.LIVE` at module scope and binds the
+// Firebase SDK. So persistTestResult keeps its guarded window read until
+// the store's write half has a node-safe seam.
 //
 // It was listed in src/v2/README.md's "what NOT to start with" as half of a
 // `test-definitions.js ↔ daily-split.jsx` cycle. That cycle did not exist:
@@ -116,6 +121,17 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
+  // The role instruments (D204; the owner's 2026-09-09 design's dims since
+  // D437). Authored, like the four above, and for the same reason: which
+  // type you ARE must not drift with whoever the app happened to fetch
+  // this session. Both instruments are SHARES now — a 1v1's four dims are
+  // the share of cast rounds in which they said you are each of four
+  // things, a group's the share of your received votes per seat — so the
+  // neutral is a quarter each, and 25 is the line a type is extreme
+  // against (the tables in archetype-data.js sit at 76/8 and 42/42 around
+  // it; data/roles.ts is the fold).
+  duo:        { trust: 25, spark: 25, judgement: 25, constancy: 25 },
+  group:      { engine: 25, hands: 25, heart: 25, wild: 25 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──
@@ -139,10 +155,17 @@ try {
 // mirror object is what the profile surfaces render, and without the drop
 // it keeps showing the previous account's results until an app restart.
 // In place, not reassigned: consumers hold references to this object.
-window.addEventListener('insight:local-purge', () => {
-  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
-  Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
-});
+// Browser wiring only: since D253 this module also loads under plain
+// node (the report builder imports archetype-data.js, which imports
+// IS_TEST_AVG above), where there is no window and nothing to purge or
+// hydrate. An environment guard, not a load-order one — the D108 rule
+// is about the latter.
+if (typeof window !== 'undefined') {
+  window.addEventListener('insight:local-purge', () => {
+    Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+    Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
+  });
+}
 // Live hydration (data/live.ts publishTestResults). Fires only in live
 // mode — hydrate() and resetForNewUid() are the sole callers and neither
 // runs without a session — so the demo seed above survives untouched in
@@ -156,11 +179,13 @@ window.addEventListener('insight:local-purge', () => {
 //
 // In place, for the same reason the purge above is: the fifteen consumers
 // import this binding and hold the object.
-window.addEventListener('insight:test-results', (e) => {
-  const next = (e && e.detail) || {};
-  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
-  Object.keys(next).forEach((k) => { IS_TEST_RESULTS[k] = next[k]; });
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('insight:test-results', (e) => {
+    const next = (e && e.detail) || {};
+    Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+    Object.keys(next).forEach((k) => { IS_TEST_RESULTS[k] = next[k]; });
+  });
+}
 
 // Exported as `persistTestResult`; consumers used to reach it as
 // `window.IS_persistTestResult`, which is why the import in daily-split and

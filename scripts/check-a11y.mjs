@@ -1,13 +1,20 @@
 // Accessibility ratchet: the app may not get less keyboard-reachable.
 //
-// WHY A RATCHET RATHER THAN A CLEAN SWEEP. Every one of the findings below
-// is in `src/v2/spec/` — the ~19.8k lines ported verbatim from the frozen
-// prototype. The hand-written layer (`src/v2/ui/*.tsx`, `src/lib`) has
-// **zero**. Fixing 16 files of ported JSX blind means adding key handlers and
-// focus behaviour to components no test asserts the interaction of, which is
-// the same trade src/v2/README.md refuses for the deferred React Compiler
-// findings: "Changing effect re-run timing blind is a worse trade than
-// recording the debt."
+// WHY A RATCHET RATHER THAN A CLEAN SWEEP. Most of the findings are in
+// `src/v2/spec/` — the JSX ported verbatim from the frozen prototype —
+// and fixing ported JSX blind means adding key handlers and focus behaviour
+// to components no test asserts the interaction of, which is the same trade
+// src/v2/README.md refuses for the deferred React Compiler findings:
+// "Changing effect re-run timing blind is a worse trade than recording the
+// debt."
+//
+// HOW MANY, AND WHERE, is not written here on purpose. This header used to
+// say every finding was in the spec layer and the hand-written layer had
+// zero, and BASELINE twelve lines below listed two `src/v2/ui/*.tsx` files
+// and one in `src/dev/` — a header contradicted by its own file, in the
+// direction that flatters. The run prints the live split on every
+// invocation and BASELINE is the list itself; both are computed, and a
+// third copy in prose is the thing check-figures.mjs exists to prevent.
 //
 // What a ratchet buys that a blanket disable does not: new code cannot add
 // to it, and the number can only be lowered deliberately. That is the same
@@ -22,6 +29,7 @@
 // replacement literal, so lowering the baseline is a copy-paste and never a
 // guess. Deleting a file's entry entirely is correct once it reaches zero.
 
+import { sep } from "node:path";
 import { readdirSync, readFileSync } from "node:fs";
 import { ESLint } from "eslint";
 
@@ -32,17 +40,55 @@ import { ESLint } from "eslint";
 //   no-autofocus — the rule is right in general: focus moving without being
 //     asked is disorienting on a screen reader.
 //
-// All but two entries are in spec/, the ported layer, and are deferred for
-// the reason at the top of this file.
+// EVERY ONE OF THEM IS A DELIBERATE KEEP (D250), and the reason is
+// recorded here rather than silenced with an inline disable — `npm run
+// lint` runs --report-unused-disable-directives against a config that has
+// no jsx-a11y rules in it, so a disable comment naming one would itself
+// become a lint error.
 //
-// The two that are NOT are a deliberate keep, recorded here rather than
-// silenced with an inline disable — `npm run lint` runs
-// --report-unused-disable-directives against a config that has no jsx-a11y
-// rules in it, so a disable comment naming one would itself become a lint
-// error. Both are `autoFocus` on the search field of a picker overlay the
-// user has just opened by tapping it: they opened it to type, and the
-// alternative is an overlay that needs a second tap to be usable. Revisit
-// if either overlay ever opens without a direct user action.
+// This list used to justify two of them and file the other six as ported
+// debt "deferred for the reason at the top of this file". That was never
+// examined; when it was, the seven `no-autofocus` findings turned out to be
+// the SAME case the two pickers were already excused for. Each sits on a
+// control the reader has just asked for, and deleting the prop would make
+// the app worse — a search you must tap twice, a reply box that does not
+// take the cursor:
+//
+//   relmap.jsx        the people search, rendered only when `searchOpen`
+//   world-feed.jsx    the counter-reply box, rendered only when `replyTo`
+//                     names this take
+//   group-daily.jsx   the group-name field of a sheet the user opened
+//   CityPicker.tsx    the picker's own search field
+//   PickSearch.tsx    the same, for catalogue picks
+//
+// app-shell.jsx WAS on this list and is not any more, and it is the one
+// that turned out to be a real defect rather than a keep. Its `autoFocus`
+// sat on the update-required blocker — the one dialog here that is NOT
+// user-initiated — and moving focus into a modal is correct, so the prop
+// read as justified. What the prop could not do is KEEP focus there: the
+// blocker had role, aria-modal and a label written by hand but no focus
+// trap, so Tab walked straight out into the app behind it, which is still
+// in the DOM under an absolutely positioned overlay. Focus containment is
+// runtime, so no linter could see it and this gate reported the file as
+// one deliberate autoFocus. D250 routed it through `useDialog` (the hook
+// D24 gave the other eight overlays), which traps Tab, restores focus on
+// unmount, and focuses the button itself — so the prop went with it.
+//
+// suggestions.jsx was on the list too — the question field of the ask
+// overlay, the same keep as the two pickers — and left it by deletion
+// rather than by fix: D368 took the purchase funnel out of the binary, so
+// the file and its finding went together. Entry deleted, not zeroed, per
+// the rule at the top.
+//
+// TweaksPanel.jsx is the drag handle of the host-era debug panel. It is a
+// pointer affordance by nature, and `src/dev/` is behind a build-time flag
+// with no import in a production build (verified: nothing matching it is in
+// `dist/`), so it is not a user surface at all.
+//
+// So the honest reading of this baseline is "eight examined decisions",
+// not "eight open findings". A NEW autoFocus still fails this gate, which
+// is the point — the ratchet is what makes each one a decision rather than
+// a habit.
 // 2026-07-31: 69 → 47. Every remaining div+onClick that was genuinely a
 // button became one — the map/mindmap graph nodes, the group-mirror rows and
 // person chips, the test picker cards, the relmap preview tile. `.btn-bare`
@@ -94,13 +140,11 @@ import { ESLint } from "eslint";
 // component fails the rule, htmlFor+id passes.
 //
 // What is left, and why each is a different bug:
-//   - no-autofocus (8) and the rest: recorded above and in D21.
+//   - no-autofocus and the rest: recorded above and in D21.
 const BASELINE = {
-  "src/v2/spec/app-shell.jsx": 1,
+  "src/dev/TweaksPanel.jsx": 1,
   "src/v2/spec/group-daily.jsx": 1,
   "src/v2/spec/relmap.jsx": 1,
-  "src/v2/spec/suggestions.jsx": 1,
-  "src/v2/spec/tweaks-panel.jsx": 1,
   "src/v2/spec/world-feed.jsx": 1,
   "src/v2/ui/CityPicker.tsx": 1,
   "src/v2/ui/PickSearch.tsx": 1,
@@ -244,9 +288,12 @@ if (!baselineClaim) {
 // the same in a worktree, a CI checkout and an export.
 let suppressions = 0;
 let suppressionFiles = 0;
-for (const f of readdirSync("src/v2/spec")) {
+// Recursive: this produces a COUNT the tree is held to, so a file one
+// directory down would lower it silently — a suppression census that
+// under-reports reads as progress.
+for (const f of readdirSync("src/v2/spec", { recursive: true })) {
   if (!/\.jsx?$/.test(f)) continue;
-  const hits = readFileSync(`src/v2/spec/${f}`, "utf8")
+  const hits = readFileSync(`src/v2/spec/${String(f).split(sep).join("/")}`, "utf8")
     .split("\n")
     .filter((l) => l.includes("eslint-disable-next-line")).length;
   if (hits) { suppressions += hits; suppressionFiles += 1; }
@@ -283,8 +330,8 @@ if (docErrors.length) {
 
 console.log(
   `\ncheck:a11y OK — ${total} known findings, none new`
-  + ` (${specTotal} in the ported spec layer,`
-  + ` ${outsideSpec.length} deliberate elsewhere);`
+  + ` (all deliberate — ${specTotal} in the ported spec layer,`
+  + ` ${outsideSpec.length} elsewhere; see BASELINE for each);`
   + ` ${suppressions} deferred suppressions across ${suppressionFiles} files;`
   + ` ${README} agrees with both`,
 );

@@ -103,12 +103,39 @@ const EDITABLE = new Set([
   "METADATA_REJECTED", "INVALID_BINARY",
 ]);
 
+// --privacy-file so the attestation's source is nameable rather than
+// baked in: the tests point it at fixtures to exercise the guards, and a
+// second store's answers would be a second file rather than a fork.
+// Read ABOVE the credential gate because a privacy-only run never reaches
+// Apple — see the early exit below.
+const privacy = JSON.parse(readFileSync(
+  resolve(argOf("--privacy-file") || join(root, "design/store/app-privacy.json")), "utf8",
+));
+
 const KEY_ID = process.env.ASC_KEY_ID;
 const ISSUER_ID = process.env.ASC_ISSUER_ID;
 const KEY_FILE = argOf("--key-file");
 const PRIVATE_KEY = KEY_FILE
   ? readFileSync(resolve(KEY_FILE), "utf8")
   : process.env.ASC_PRIVATE_KEY;
+
+// Every other section talks to Apple; the privacy label does not, because
+// there is no App Privacy resource in the API to talk to (D73) — it is a
+// printout. Demanding a signing key for it is how the one launch step that
+// needs no account becomes a step nobody can run, which is the failure
+// SHIP-CHECKLIST §1 records twice for the seed: an instruction survived
+// review because running it needed something nobody had.
+const NEEDS_APPLE = TEXT || AGE_RATING || SCREENSHOTS;
+
+if (PRIVACY && !NEEDS_APPLE) {
+  printPrivacyForm();
+  // Same vocabulary as the tail, and deliberately NOT its "already matches
+  // the repo" clause: this run never asked Apple anything, so claiming
+  // agreement with it would be the one kind of sentence this file exists
+  // to keep out of a launch step.
+  console.log(`\nasc-push: nothing to write — this run never contacted App Store Connect. Still yours: ${stillYours()}.`);
+  process.exit(0);
+}
 
 if (!KEY_ID || !ISSUER_ID || !PRIVATE_KEY) {
   console.error(
@@ -121,12 +148,6 @@ if (!KEY_ID || !ISSUER_ID || !PRIVATE_KEY) {
 }
 
 const listing = JSON.parse(readFileSync(join(root, "design/store/listing.json"), "utf8"));
-// --privacy-file so the attestation's source is nameable rather than
-// baked in: the tests point it at fixtures to exercise the guards, and a
-// second store's answers would be a second file rather than a fork.
-const privacy = JSON.parse(readFileSync(
-  resolve(argOf("--privacy-file") || join(root, "design/store/app-privacy.json")), "utf8",
-));
 const BUNDLE_ID = listing.shared.bundleId;
 
 // ── auth ────────────────────────────────────────────────────────────
@@ -595,7 +616,11 @@ if (AGE_RATING) {
 // the order the web form asks turns ~40 clicks-from-memory into
 // transcription, which is the same argument this file's header makes for
 // the fields it CAN write.
-if (PRIVACY) {
+if (PRIVACY) printPrivacyForm();
+
+// A function so the privacy-only run can print it above the credential
+// gate. Declared here, where the section it prints has always lived.
+function printPrivacyForm() {
   // Apple's form labels, derived from the enum rather than tabulated. A
   // hand-kept id→label map is one more figure to go stale, and the ids are
   // unambiguous on their own; the entire cost of deriving is that
@@ -655,11 +680,16 @@ if (PRIVACY) {
   );
 }
 
-const still = [
-  PRIVACY && "the privacy label above — hand-entered, because Apple's API has no endpoint for it",
-  !SCREENSHOTS && "screenshots (--screenshots to see what is there)",
-  "submitting for review — deliberately manual, it is the irreversible one",
-].filter(Boolean).join("; ");
+// A function so the privacy-only early exit above can say the same thing.
+function stillYours() {
+  return [
+    PRIVACY && "the privacy label above — hand-entered, because Apple's API has no endpoint for it",
+    !SCREENSHOTS && "screenshots (--screenshots to see what is there)",
+    "submitting for review — deliberately manual, it is the irreversible one",
+  ].filter(Boolean).join("; ");
+}
+
+const still = stillYours();
 
 console.log(
   // `changes` counts what this script can WRITE. "Nothing to do" would be a

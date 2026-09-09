@@ -56,6 +56,8 @@
 // should be able to block an emergency rules fix.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { nearConsentMismatch } from "./near-consent-rule.mjs";
+import { stripXmlComments } from "./strip-comments.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -101,7 +103,22 @@ if (!existsSync(plistPath)) {
   console.error(`check:ios-location: ${PLIST} is missing.`);
   process.exit(1);
 }
-const plist = readFileSync(plistPath, "utf8");
+// COMMENTS OFF FIRST. `plistValue` scans for `<key>NAME</key>` with
+// `indexOf`, so a key inside `<!-- … -->` read exactly like a live one and
+// every rule below inherited it. Measured, each restored: wrapping the
+// WhenInUse purpose string in a comment left this gate printing "both
+// purpose strings present and identical" at exit 0, while DELETING the
+// same key failed correctly — on the gate whose absence returns ITMS-90683
+// by email one spent build number later. The same for rule 4, where a
+// commented-out benign `UIBackgroundModes` parked above a live one
+// declaring `location` printed "no background location mode".
+//
+// The reader's own header reasoned about comments and picked the wrong
+// half: it worries about one sitting BETWEEN a key and its value, not
+// about the key being inside one. `near-consent-rule.mjs` — the one rule
+// in this file that was fixed for this exact class on 2026-09-04 — is one
+// import away.
+const plist = stripXmlComments(readFileSync(plistPath, "utf8"));
 
 // 1 · Both purpose strings present and non-empty.
 const strings = {};
@@ -118,6 +135,73 @@ for (const key of [WHEN_IN_USE, ALWAYS]) {
     );
   } else {
     strings[key] = entry.value;
+  }
+}
+
+// 1b · …and the string describes EVERY location read the app makes.
+//
+// It said "Used once, on this device, to work out which city you are
+// nearest" while the Near presence loop re-read location every four
+// minutes for as long as Near was on and the app was open — a fresh read
+// each time, because locate.ts caps `maximumAge` at one minute precisely
+// so a stale fix cannot place you in a room you left. D175 turned
+// precision ON for that feature, and the string still described only the
+// city lookup. This is the prompt iOS shows a person before they decide,
+// so it is a promise in writing in the strongest sense the app has.
+//
+// Two-sided on purpose. Silent-while-the-loop-exists is the bug that
+// happened; still-claiming-it-after-the-loop-goes is the mirror, and a
+// purpose string that over-describes is its own kind of wrong.
+//
+// AND IT RUNS UNCONDITIONALLY. This was `if (existsSync(liveTs))` with no
+// else — alone in this gate family in failing open. Measured: move
+// src/v2/data/live.ts aside and the gate exits 0, printing the same OK
+// line, which lists what it checked and never mentions that the consent
+// rule was skipped. A file moving is not exotic; it is the ordinary end of
+// a refactor, and this is the one rule here that guards a promise made to
+// a person before they decide. Every sibling gate fails loudly on a
+// missing input and says so — check-ios-facebook's "pass vacuously ONLY
+// when there is no plugin to check", check-fn-runtime on a missing build,
+// check-catalogs on a missing catalogKeys.ts — which is the shape used
+// here.
+const liveTs = join(root, "src/v2/data/live.ts");
+if (!existsSync(liveTs)) {
+  problems.push(
+    `src/v2/data/live.ts is missing, so the Near-consent rule below could not run.\n` +
+      `    That rule is the two-sided check that ${PLIST}'s purpose string\n` +
+      `    mentions Near exactly when the PRESENCE_BEAT_MS location loop\n` +
+      `    exists. Fix this scan — point it at wherever the loop lives now —\n` +
+      `    rather than letting the one rule here that guards a consent prompt\n` +
+      `    pass because its input moved.`,
+  );
+} else {
+  const live = readFileSync(liveTs, "utf8");
+  // The rule itself lives in near-consent-rule.mjs, and the extraction is
+  // the fix rather than tidying: this file runs at import time and calls
+  // process.exit, so the one rule here that guards a consent prompt was the
+  // one nothing could execute in a test. It blanks comments before matching,
+  // because the match is over raw source and a COMMENTED-OUT timer read as a
+  // running one — measured on the real tree, deleting the line failed and
+  // commenting the same line out passed. See that module for the whole case.
+  const mismatch = nearConsentMismatch(live, strings[WHEN_IN_USE]);
+  if (mismatch === "under") {
+    problems.push(
+      `${PLIST}: the purpose string does not mention Near.\n` +
+        `    data/live.ts re-reads location on a PRESENCE_BEAT_MS timer while\n` +
+        `    Near is on, so "used once" is not what the app does — and this\n` +
+        `    string is the prompt shown before anyone can consent to it.\n` +
+        `    web/privacy.html already describes the ~200 m square; the plist\n` +
+        `    is the copy that lags.`,
+    );
+  }
+  if (mismatch === "over") {
+    problems.push(
+      `${PLIST}: the purpose string describes a Near loop that is gone.\n` +
+        `    No PRESENCE_BEAT_MS read remains in data/live.ts. A purpose\n` +
+        `    string that over-describes asks for more than the app needs,\n` +
+        `    which is the direction that loses a permission grant. Simplify\n` +
+        `    it — and the store label and privacy page move with it.`,
+    );
   }
 }
 
@@ -239,8 +323,9 @@ if (!requested.length) {
   for (const [file, type] of wrong) {
     problems.push(
       `${PLUGIN}/${file}: requests .${type} authorisation.\n` +
-        `    This app's Info.plist purpose string describes a single foreground\n` +
-        `    reading ("used once, on this device"). If the plugin now asks for\n` +
+        `    This app's Info.plist purpose string describes foreground reads\n` +
+        `    only — the city lookup, and Near's square while the app is open.\n` +
+        `    If the plugin now asks for\n` +
         `    .${type}, that string is shown in a prompt it does not describe, and\n` +
         `    the store label, D9's table and web/privacy.html all need revisiting\n` +
         `    before this check does.`,

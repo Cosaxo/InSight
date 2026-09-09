@@ -5,14 +5,14 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import { loadWorldFeed, loadOverlays } from './spec-index.js';
+import { loadWorldFeed, loadMirrorTab, loadMapTab, loadOverlays } from './spec-index.js';
+// The root, imported (D354's sweep) — spec-index above has already
+// evaluated app-shell by the time this binding is read, and the
+// `globalThis.App` publication stays for the mount suites.
+import { App } from './spec/app-shell.jsx';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
-// side effect: publishes globalThis.PLACES for the profile's city picker.
-// Import only — the ~269 KB catalogue itself is fetched lazily on first
-// open, so this costs nothing on a cold start.
-import './data/places';
 import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
 // The first-launch account wall, off unless VITE_REQUIRE_SIGNIN=true (D134).
@@ -35,7 +35,6 @@ initDeepLinks();
 // render so the daily deck opens on real questions; on timeout or any
 // boot failure the mock deck renders instead and live can attach later.
 initLive().finally(() => {
-  const App = globalThis.App;
   const root = createRoot(document.getElementById('root'));
   // Wrapped on every render below, not only the first: the root element
   // type has to stay identical or React remounts App and it loses its
@@ -62,6 +61,29 @@ initLive().finally(() => {
     (err) => reportError(err, { where: 'loadWorldFeed' }),
   );
 
+  // The Mirror (D355) — the second tab, one tap from first paint, so this
+  // is a prewarm on the feed's schedule rather than a defer-until-needed:
+  // started right behind the feed's fetch, and by the time a thumb reaches
+  // the tab bar the namespace is remembered on data/mirrorChunk and
+  // app-shell's MirrorSlot renders it in the tap's own tick. No re-render
+  // from here — the slot reads the handoff on mount — and loadOverlays
+  // below awaits this same promise before any overlay that reads a Mirror
+  // global can open. A failed chunk costs the Mirror its body until the
+  // next visit re-attempts, not the app.
+  loadMirrorTab().catch((err) => reportError(err, { where: 'loadMirrorTab' }));
+
+  // The Map (v28 §5) — the Mirror's landing stop, one tap away, so this is
+  // a prewarm rather than a defer-until-needed: by the time a thumb reaches
+  // the Mirror the chunk is in the module cache and mirror-tab's lazy body
+  // resolves without a visible wait. No re-render needed here — the lazy
+  // body holds the module in state and settles itself (unlike daily-split's
+  // window.WorldFeed read above). A failed chunk costs the You stop its Map
+  // until the next visit re-attempts, not the app — true of THIS loader
+  // through retryable(), and true of the stop itself only since MapSlot
+  // replaced a React.lazy, which cached its rejection and re-threw it on
+  // every later visit.
+  loadMapTab().catch((err) => reportError(err, { where: 'loadMapTab' }));
+
   // The six no-button overlays (~100 KB) follow, for the same reason and on
   // the same schedule: nothing on the first frame can reach any of them.
   //
@@ -72,33 +94,49 @@ initLive().finally(() => {
   // memoised promise before setting the state that mounts one — so the
   // await is the synchronisation and a re-render would buy nothing.
   //
-  // Started AFTER loadWorldFeed rather than alongside it: both are pure
-  // parse-and-eval off local disk in a native package, so they contend for
-  // the same main thread, and the feed is the one a user reaches first.
+  // Started AFTER loadWorldFeed rather than alongside it — and since D355
+  // after the Mirror and the Map too: all of these are pure parse-and-eval
+  // off local disk in a native package, so they contend for the same main
+  // thread, and the order is the order a thumb reaches them. The feed is
+  // under today's card, the Mirror and its Map are one tap away, every
+  // overlay is two or more.
   loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
 
-  // The account-creation questions (D151) — the anchors every answer
-  // snapshots (D8), asked once, at the top of a new account instead of
-  // sitting four taps deep in the profile where nothing pointed at them.
+  // The first-launch walkthrough (D393), then the account-creation
+  // questions (D151) — the anchors every answer snapshots (D8), asked
+  // once, at the top of a new account instead of sitting four taps deep
+  // in the profile where nothing pointed at them.
   //
-  // DYNAMIC, and it mounts its OWN root rather than wrapping <App />.
+  // IN THAT ORDER, and sequenced rather than raced: the walkthrough's
+  // third page is the sentence that makes the questions make sense — an
+  // answer is filed with your city, age and field — so it goes first,
+  // and mountWalkthrough() settles only once its screen is off the page.
+  // Each is a no-op for a device that has seen it.
+  //
+  // DYNAMIC, and each mounts its OWN root rather than wrapping <App />.
   // Both halves are the bundle gate's doing rather than taste: a gate
   // component would have to be imported here statically, and
   // `check:bundle` measured the decision alone at 1 KB over MAX_EAGER_KB —
   // the constant that keeps the Firestore SDK out of first paint, which
   // has no headroom and whose own note says a raise there is the thing to
-  // refuse. So the decision travels with the screen, and first paint does
-  // not move at all. mountProfileSetup() is a no-op for every account that
-  // has answered these or been asked.
+  // refuse. So each decision travels with its screen, and first paint
+  // does not move at all.
   //
-  // Last of the three deferrals, not first: the feed is what a user
-  // reaches for, and this screen is in front of it either way.
-  import('./ui/profileSetup')
+  // Last of the deferrals, not first: the feed is what a user reaches
+  // for, and these screens are in front of it either way. A walkthrough
+  // chunk that fails to load must not cost the questions, so its catch
+  // sits BEFORE the chain continues and the second import runs either way.
+  import('./ui/walkthrough')
+    .then((m) => m.mountWalkthrough())
+    .catch((err) => reportError(err, { where: 'mountWalkthrough' }))
+    .then(() => import('./ui/profileSetup'))
     .then((m) => m.mountProfileSetup())
     .catch((err) => reportError(err, { where: 'mountProfileSetup' }));
-  // Native: drop the splash only now that real content is painted —
-  // launchAutoHide is off so hydration happens behind the splash
-  // instead of a blank WebView (capacitor.config.ts).
+  // Native: drop the splash only now that real content is painted, so
+  // hydration happens behind it instead of in a blank WebView. This hide
+  // is the ordinary path and fires long before the launchShowDuration
+  // ceiling; the ceiling exists for the boot that throws before reaching
+  // here (capacitor.config.ts, which explains why autoHide is TRUE).
   import('@capacitor/core').then(({ Capacitor }) => {
     if (!Capacitor.isNativePlatform()) return;
     // WKWebView pans the document to keep a focused input above the

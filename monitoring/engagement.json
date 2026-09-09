@@ -1,0 +1,208 @@
+{
+  "fetchedOn": "2026-08-26",
+  "days": [
+    {
+      "bySurface": {},
+      "actives": 0,
+      "returned": {
+        "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "firstTime": 0,
+      "events": 0,
+      "streaksBroken": 0,
+      "foldedAt": null,
+      "day": "2026-08-18",
+      "votes": 0
+    },
+    {
+      "bySurface": {},
+      "foldedAt": null,
+      "actives": 0,
+      "streaksBroken": 0,
+      "firstTime": 0,
+      "events": 0,
+      "returned": {
+        "d1": {
+          "returned": 0,
+          "of": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        }
+      },
+      "votes": 0,
+      "day": "2026-08-19"
+    },
+    {
+      "streaksBroken": 0,
+      "actives": 6,
+      "returned": {
+        "d1": {
+          "returned": 0,
+          "of": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "events": 10,
+      "votes": 10,
+      "bySurface": {
+        "daily": 5,
+        "test": 2,
+        "feed": 3
+      },
+      "foldedAt": null,
+      "firstTime": 6,
+      "day": "2026-08-20"
+    },
+    {
+      "streaksBroken": 0,
+      "firstTime": 0,
+      "returned": {
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "returned": 0,
+          "of": 6
+        },
+        "d7": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "bySurface": {},
+      "events": 0,
+      "votes": 0,
+      "actives": 0,
+      "foldedAt": null,
+      "day": "2026-08-21"
+    },
+    {
+      "returned": {
+        "d1": {
+          "returned": 0,
+          "of": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "of": null,
+          "returned": 0
+        }
+      },
+      "votes": 4,
+      "bySurface": {
+        "feed": 2,
+        "test": 2
+      },
+      "foldedAt": null,
+      "events": 4,
+      "actives": 1,
+      "streaksBroken": 0,
+      "day": "2026-08-22",
+      "firstTime": 0
+    },
+    {
+      "day": "2026-08-23",
+      "foldedAt": null,
+      "streaksBroken": 0,
+      "votes": 0,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        }
+      },
+      "firstTime": 0,
+      "bySurface": {},
+      "events": 0,
+      "actives": 0
+    },
+    {
+      "day": "2026-08-24",
+      "events": 35,
+      "returned": {
+        "d7": {
+          "of": null,
+          "returned": 0
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "returned": 0,
+          "of": 0
+        }
+      },
+      "votes": 35,
+      "actives": 1,
+      "bySurface": {
+        "learn": 9,
+        "feed": 17,
+        "test": 9
+      },
+      "streaksBroken": 0,
+      "firstTime": 0,
+      "foldedAt": null
+    },
+    {
+      "day": "2026-08-25",
+      "streaksBroken": 0,
+      "returned": {
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
+        }
+      },
+      "actives": 0,
+      "firstTime": 0,
+      "votes": 0,
+      "events": 0,
+      "foldedAt": null,
+      "bySurface": {}
+    }
+  ]
+}

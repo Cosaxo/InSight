@@ -17,10 +17,11 @@
 //                   the canonical result to testResults.logic (a key the
 //                   rules refuse to let clients mutate — the fcmTokens
 //                   pattern), and folds the FIRST scored attempt per
-//                   account into a score histogram, published exactly and
-//                   on every attempt — the same discipline as the question
-//                   aggregates, which since D98 means no floor and no
-//                   cadence.
+//                   account — provided it took the time a sitting takes
+//                   (D402's effort floor) — into a score histogram,
+//                   published exactly and on every attempt — the same
+//                   discipline as the question aggregates, which since
+//                   D98 means no floor and no cadence.
 //
 // What this deliberately does NOT try to do: stop a solver from asking a
 // person or a model for help. Unproctored testing cannot prevent
@@ -36,11 +37,12 @@ import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { ENFORCE_APP_CHECK, LIGHT_CALLABLE } from "./ops";
+import { utcDayKeyOf } from "./pure";
+import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
 import { db as firestore } from "./db";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // ── administration constants ──
 // The per-item cap mirrors the overlay's ITEM_CAP (90s, D56); the server
@@ -67,6 +69,19 @@ export const LOGIC_MAX_STARTS_PER_DAY = 3;
 // way — the D32 "first attempt counts" rule, for the same reason: retakes
 // measure practice, not the population.)
 export const LOGIC_REVERIFY_DAYS = 30;
+// An attempt finished faster than this per item is scored but never
+// COUNTED (D402): twenty-five matrices cannot be read, let alone solved,
+// in under two seconds each, so such an attempt is a click-through — and
+// a click-through folded into the norms is a phantom low scorer lifting
+// every later percentile. The account's flag stays unset, so its next
+// verified attempt is still its first counted one.
+export const LOGIC_MIN_MS_PER_ITEM = 2_000;
+// The likely range round a score, in items: one standard error of
+// measurement. Spearman–Brown puts a 25-item form's reliability near 0.87,
+// which with the modelled raw-score spread is ≈ 1.8 items, rounded up. The
+// client (src/v2/data/logic-score.ts) carries the same constant and the
+// same arithmetic for practice results, pinned equal in both suites.
+export const LOGIC_SEM_ITEMS = 2;
 
 // The percentile curves, byte-for-byte the client's logicPctileFor
 // (src/v2/data/logic-score.ts) — one per form length, landmarks asserted
@@ -87,7 +102,6 @@ export const logicPctileFor = (frac: number, items: number): number => {
 };
 export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 
-export const utcDayKey = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 // ── the attempt doc (v2_logic_attempts/{uid} — one per account) ──
 export interface LogicAttempt {
@@ -119,7 +133,7 @@ export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVe
     ) {
       return { ok: false, code: "cooldown", msg: "verified recently — try again later" };
     }
-    if (prev.dayKey === utcDayKey(nowMs) && prev.startsToday >= LOGIC_MAX_STARTS_PER_DAY) {
+    if (prev.dayKey === utcDayKeyOf(nowMs) && prev.startsToday >= LOGIC_MAX_STARTS_PER_DAY) {
       return { ok: false, code: "rate-limited", msg: "too many starts today" };
     }
   }
@@ -127,7 +141,7 @@ export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVe
 }
 
 export function nextStartsToday(prev: LogicAttempt | null, nowMs: number): number {
-  return prev && prev.dayKey === utcDayKey(nowMs) ? prev.startsToday + 1 : 1;
+  return prev && prev.dayKey === utcDayKeyOf(nowMs) ? prev.startsToday + 1 : 1;
 }
 
 // Picks: one per item, -1 = expired/unanswered, else an option index.
@@ -170,9 +184,12 @@ export function clientItems(seed: number, gv: number): LogicClientItem[] {
 }
 
 // ── norms histogram fold (pure; the callable wraps it in a transaction) ──
-// Flat b0..b25 buckets + n + the form length it counts (`items` — a
-// histogram of 12-item scores must never mix with 25-item ones, so a
-// length change starts a fresh era, D61). The private doc is the working
+// Flat b0..b25 buckets + n + the era it counts: the form length (`items` —
+// a histogram of 12-item scores must never mix with 25-item ones, so a
+// length change starts a fresh era, D61) and, since D402, the generator
+// version (`gv` — v4's forms are 25 items like v3's but draw from a wider
+// vocabulary, so a score out of 25 means something different under each,
+// and a version change starts a fresh era too). The private doc is the working
 // copy; the public mirror is rewritten on every attempt with the same
 // exact numbers (D98 — the floor and the cadence that used to gate it
 // are gone, along with the step-attribution argument behind them).
@@ -271,7 +288,7 @@ export const logicStartV2 = onCall(
         status: "open",
         startedAtMs: now,
         deadlineMs: now + LOGIC_DEADLINE_MS,
-        dayKey: utcDayKey(now),
+        dayKey: utcDayKeyOf(now),
         startsToday: nextStartsToday(prev, now),
         normsCounted: prev?.normsCounted === true,
       };
@@ -286,6 +303,83 @@ export const logicStartV2 = onCall(
     };
   },
 );
+
+/**
+ * How one submitted score is RANKED and whether it FOLDS — the decisions
+ * that decide what every "sharper than X% of N verified players" sentence
+ * rests on, and the likely range printed beside it.
+ *
+ * PURE, and extracted because none of it ran: the callable it lived in is
+ * reached only through the emulator, and that leg starts an attempt and
+ * submits immediately. All four mutated green across the functions suite
+ * AND all three e2e suites — the era check widened so a 12-item histogram
+ * ranks a 25-item score, the curve pinned to 12 items for a 25-item form,
+ * the first-attempt gate dropped so every re-verification re-folds into
+ * the published norms, and the fold made unconditional.
+ *
+ * THE ERA STAMP IS THE LOAD-BEARING PART. A histogram from another era —
+ * another form length, or since D402 another generator version — ranks
+ * nothing and folds nothing — the first current-era submit starts the
+ * count fresh — because a score out of 25 has no meaning against a
+ * distribution of scores out of 12, and a v3 score out of 25 was earned
+ * on a narrower vocabulary than a v4 one. An attempt opened under the
+ * previous version and submitted after a deploy is scored against its own
+ * form and its own curve, and folds nowhere.
+ *
+ * D32's rule, one line down: a re-verification is measured but never
+ * counted, so no account can push the population toward itself by taking
+ * the test again. `alreadyCounted` is the attempt's own carry of that
+ * flag, and `logicStartV2` is what carries it forward across attempts.
+ * D402's effort floor sits beside it: a click-through is measured too,
+ * and counted never.
+ *
+ * The BAND is the score read at ±LOGIC_SEM_ITEMS through whatever ranked
+ * it — the count when the reading is measured, the curve when it is the
+ * model's — so the range and the number always rest on the same thing.
+ *
+ * `prevNorms` comes back out so the caller can fold the difficulty stats
+ * against the same era-checked population, in lockstep.
+ */
+export function rankAndFold(a: {
+  items: number;
+  /** the generator version the attempt's form was drawn under */
+  gv: number;
+  score: number;
+  /** the server-observed duration — the effort floor reads it */
+  durationMs: number;
+  stored: LogicNorms | null;
+  alreadyCounted: boolean;
+}): {
+  pctile: number;
+  /** the likely range: the score ± LOGIC_SEM_ITEMS, ranked the same way */
+  band: [number, number];
+  source: "measured" | "model";
+  countsNorms: boolean;
+  norms: LogicNorms | null;
+  /** How many verified players the measured reading rests on — null when
+   * the reading is the model's, which rests on nobody. The published
+   * sentence is "sharper than X% of N", so the N travels with the X. */
+  n: number | null;
+} {
+  const sameEra = a.stored != null && a.stored.items === LOGIC_ITEMS && a.stored.gv === GEN_VERSION;
+  const prevNorms = sameEra ? a.stored : null;
+  const isCurrentEra = a.items === LOGIC_ITEMS && a.gv === GEN_VERSION;
+  const measured = isCurrentEra ? measuredPctile(prevNorms, a.score) : null;
+  const effort = a.durationMs >= a.items * LOGIC_MIN_MS_PER_ITEM;
+  const countsNorms = !a.alreadyCounted && isCurrentEra && effort;
+  // measuredPctile depends on the score only through the buckets below
+  // it, so if it ranked the score it ranks every score on the same n
+  const rank = (score: number) =>
+    (measured ? measuredPctile(prevNorms, score)?.pctile : undefined) ?? logicPctileFor(score / a.items, a.items);
+  return {
+    pctile: rank(a.score),
+    band: [rank(Math.max(0, a.score - LOGIC_SEM_ITEMS)), rank(Math.min(a.items, a.score + LOGIC_SEM_ITEMS))],
+    source: measured ? "measured" : "model",
+    countsNorms,
+    norms: countsNorms ? { ...foldNorms(prevNorms, a.score), items: LOGIC_ITEMS, gv: GEN_VERSION } : null,
+    n: measured ? measured.n : null,
+  };
+}
 
 export const logicSubmitV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
@@ -325,18 +419,14 @@ export const logicSubmitV2 = onCall(
       const privRef = db.collection("v2_logic_norms_private").doc("global");
       const privSnap = await tx.get(privRef);
       const stored = privSnap.exists ? (privSnap.data() as LogicNorms) : null;
-      // A histogram from another form-length era ranks nothing and folds
-      // nothing — the first current-era submit starts the count fresh.
-      const sameEra = stored != null && stored.items === LOGIC_ITEMS;
-      const prevNorms = sameEra ? stored : null;
-      const isCurrentEra = items === LOGIC_ITEMS;
-      const measured = isCurrentEra ? measuredPctile(prevNorms, score) : null;
-      const pctile = measured ? measured.pctile : logicPctileFor(score / items, items);
-      const source = measured ? "measured" : "model";
-      const countsNorms = attempt.normsCounted !== true && isCurrentEra;
-      const norms: LogicNorms | null = countsNorms
-        ? { ...foldNorms(prevNorms, score), items: LOGIC_ITEMS }
-        : null;
+      const { pctile, band, source, countsNorms, norms, n: measuredN } = rankAndFold({
+        items,
+        gv: attempt.gv,
+        score,
+        durationMs,
+        stored,
+        alreadyCounted: attempt.normsCounted === true,
+      });
       // The difficulty stats advance in lockstep with the histogram (same
       // first-attempt gate, same era stamp) — reads still precede every
       // write, as transactions require.
@@ -345,14 +435,21 @@ export const logicSubmitV2 = onCall(
       if (countsNorms) {
         const famSnap = await tx.get(famRef);
         const famStored = famSnap.exists ? (famSnap.data() as LogicNorms) : null;
-        const famPrev = famStored != null && famStored.items === LOGIC_ITEMS ? famStored : null;
-        famStats = { ...foldDifficultyStats(famPrev, families, marks), items: LOGIC_ITEMS };
+        const famPrev =
+          famStored != null && famStored.items === LOGIC_ITEMS && famStored.gv === GEN_VERSION ? famStored : null;
+        famStats = { ...foldDifficultyStats(famPrev, families, marks), items: LOGIC_ITEMS, gv: GEN_VERSION };
       }
 
       tx.set(ref, {
         ...attempt,
         status: "scored",
-        normsCounted: true,
+        // Set only when this attempt actually fed the histogram: an attempt
+        // from a retired era or under the effort floor (D402) leaves the
+        // flag as it was, so the account's next verified attempt is still
+        // its first counted one. (Before D402 this read `true`
+        // unconditionally, which marked a straddling 12-item attempt as
+        // counted without ever folding it.)
+        normsCounted: attempt.normsCounted === true || countsNorms,
         scoredAtMs: now,
         score,
         durationMs,
@@ -374,9 +471,10 @@ export const logicSubmitV2 = onCall(
               gv: attempt.gv,
               marks,
               pctile,
+              band,
               durationMs,
               source,
-              ...(measured ? { n: measured.n } : {}),
+              ...(measuredN != null ? { n: measuredN } : {}),
               when: now,
             },
           },
@@ -400,9 +498,10 @@ export const logicSubmitV2 = onCall(
         marks,
         score,
         pctile,
+        band,
         durationMs,
         source,
-        ...(measured ? { n: measured.n } : {}),
+        ...(measuredN != null ? { n: measuredN } : {}),
         seed: attempt.seed,
         gv: attempt.gv,
       };

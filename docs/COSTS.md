@@ -8,8 +8,9 @@ first real invoice can be diffed against it rather than merely survived.
 Same discipline as D7: fix what breaks at any size, write down what breaks
 at scale with its arithmetic, and do not build for it yet.
 
-Reproduce with `node scripts/cost-model.mjs` (add `--regional` for the
-single-region price sheet). It prints every table below except the fixed
+Reproduce with `node scripts/cost-model.mjs` (add `--multi-region` for the
+counterfactual). Which price sheet is the default is **read from
+`functions/src/db.ts`** rather than assumed, since D200. It prints every table below except the fixed
 costs, including the read decomposition, the egress band and the crossover
 the walls section quotes — the arithmetic lives in
 `scripts/cost-arith.mjs`, which `scripts/pulse.test.mjs` holds to the tree.
@@ -45,21 +46,33 @@ Every constant below is sourced, not assumed:
 
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
-| One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer**, always | no cadence since D98 |
+| One world answer | 1 client write + 1 server write (`v2_agg_events`) | `onV2AnswerCreated`, functions/src/v2.ts |
+| …plus the published aggregate | +1 write **per answer**, always | no cadence since D98; it IS the fold's working document since the private mirror collapsed |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
-| One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
+| One duel answer | 1 client write + 1 server transaction on the group document (1 read, 1 write: who played, and the round's clock on its first answer) — and, on the answer that completes the round, the reveal below runs right there | v2.ts duel branch (ROUNDS-PLAN §3.1, D426). It was one blind `pendingDays` arrayUnion with no read |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+537 reads** — the whole question bank | `V2_QUESTIONS`, 537 docs / 134.0 KiB of JSON |
+| One cold boot | **+551 reads** — five whole surfaces plus the feed's core questions, not the whole bank. This row said **+913**, the bank's total, and the gate beside it kept rewriting that to the newest bank size every promotion cycle — so the row grew more wrong the more diligently it was maintained. The daily left the boot's fetch at D383 (a shape document and seven deck rows instead) and the feed's tail pages in after first paint; `check:figures` now computes what the boot reads rather than what the bank holds | `BANK_SURFACES` + `core == true`, src/v2/data/live.ts; D383. The whole bank is `V2_QUESTIONS`, 1342 docs / 382.4 KiB of JSON — still the right number for the install and cache budgets, and no longer the right one for a boot |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
-| One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
-| One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
+| A returning device's first paint | 0 reads before the deck draws — it paints off the D312 caches and the own-profile mirror, and the ~15 warm-boot reads above reconcile it behind the screen: the count is unchanged, the wait is not | `warmFromDisk()`, src/v2/data/live.ts (D356) |
+| One answer relaunched before its ack | ≤1 read, once the SDK reports its queue drained — and none when the boot's own answers delta already returned it | `settlePending`, src/v2/data/live.ts (D357). Only a boot with an unsettled answer pays it, and the `documentId() in` read covers up to 30 of them |
+| One world answer, again | +1 **rule** read (the question doc) + **3** **server** reads (ledger event, published agg, **the author's profile**) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts. The profile joined the batch at D410 — the fold checks the answer's cohort is the author's own, which the rules cannot: it rides the existing `tx.getAll`, so it is one billed read and not a second round trip, and the lock window on the qid document is unchanged. The row also said "private agg" long after D98 collapsed the private mirror into the published one |
+| One duel answer, again | +2 rule reads (group, question) — the reveal-exists `exists()` is gone, because the reveal and the round's advance are one commit, so the round bound off the group document already says it | `isDuelAnswer` (ROUNDS-PLAN §2.2). Was +3 under the day |
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
-| One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
+| The breakdown cap's tail (D400) | **Nothing until a question has answers from 25 cities or countries.** Then +1 shard read and +1 merge write per answer whose city or country the hot document cannot hold (the trigger reads a shard only where the cap acts, and the majority's cities are in the hot 24), and one shard read per such question when a viewer whose city is in the tail opens the City or Country stop, once per session | `v2_agg_overflow`, functions/src/v2.ts; `src/v2/data/overflow.ts`. `B.tailShare` in scripts/cost-arith.mjs carries the share of answers that pay it — 0 today, the number to move when the `agg_evict` alert first fires |
+| One LATE duel answer | the client write, +2 rule reads (group, question), and the trigger's 3 reads (group, the reveal, the member's profile for the name) + 1 update on the reveal — nothing on the group, nothing in any aggregate | v2.ts duel branch (ROUNDS-PLAN §4). Only an answer to a round that has already revealed takes this path |
+| One round revealed | `2 + 2m` reads for `m` members — 6 for a duo: one field-masked profile per member for the names, then the committing transaction over the reveal, the group and one answer per member. Was `4 + 3m` under the day: a standalone reveal-exists get and a pre-read of every answer, both made unnecessary by `played` on the group document | `revealRound`, functions/src/v2social.ts (ROUNDS-PLAN §3.1) |
+| One WORLD round revealed, per member | +1 read for the crowd's split (`v2_question_aggs/{qid}`), once per question per session, on the reveal — and in a 1v1, once per pair per session on the first world round the card draws, the partner's public answers: one capped query, ≤300 reads (`CIRCLE_ANSWER_CAP`) | `ensureWorldSplit`, `loadPartnerAnswers`, src/v2/data/live.ts (ROUNDS-PLAN §6.2, §0a). The plan priced the split at zero on the assumption that the feed's cache held every core aggregate; it holds the ANSWERED ones (the blind answer), and a duel answer is keyed `g_…`, so the top-up never asks. Every other round is a world round, so this is ~1 read per two rounds per member beside the reveal's `(2 + 2m)/m` |
+| One *your turn* or reveal push | +1 read of the push document per recipient per send, FCM free — at most one nudge per member per TURN (the stamp on the group document, ROUNDS-PLAN §7.4), and the reveal's send once per round | `notifyTurn`, `revealRound`, functions/src/v2social.ts through `sendPushToUids`. The stamps ride the transactions the trigger and the reveal already run on the group document, so deciding who is told costs no read of its own |
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
-| One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
-| One pulse open | 1 template + one 21-id documentId() in-query over the per-day aggs, once per UTC day per session (a same-day answer forces one refresh so the reveal's bins include you) | `DAYS`, src/v2/data/pulse.ts (D139). Your own series costs zero — it is derived from the hydrated vote mirror |
+| One Kindred first view | ≤12 **sample documents** (one per question — the nightly voter sample, D397) plus the profile reads for names, shared with the sheet cache; the live query only for a question no sample exists for yet | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99); `PATTERNS_SAMPLE_CAP`, functions/src/patternsSamples.ts. Was ≤12 sheets' worth — ≤2,400 answer reads — until D397 |
+| One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
+| One Roles tab open | **One ordered query of at most 30 reveal documents per room**, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here. It was 14 until D426's profiles follow-up (2026-09-08): fourteen reveals was a fortnight while a reveal was a day, and is two days of a pair playing eight rounds a day; thirty is a few days of an active pair or a month of a slow one, at roughly double the cold cost. The fortnight ROLES-PLAN describes would be 112 reveals per room, which is not a per-session read — its §3.3 ledger is the dependency (an owner row). Before ROUNDS-PLAN §7.1 this was a day-key `getDoc` per day, billing a read for every day that had NO reveal; the query reads only the documents that exist | `REVEAL_HIST_CAP`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ≤30 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
+| One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
+| The Patterns fit, nightly | The day's ledger entries as the vote log — read ONCE by the nightly pass (`functions/src/nightly.ts`, D399) for the engagement digest, this fit and the taste fold together; the velocity scan keeps its own read — one private state read+write per active answerer — the write now carrying the person's compacted answer map (D395) — **plus one state read per fitted person per night** for the candidate engine's re-solve (charged as one read per MAU), one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1; the candidate and its scan D395). Measured BEFORE the fold shipped — the dated notes under the scenario table have the movement |
+| The engagement digest, nightly | The day's ledger entries as the activity log — the nightly pass's one read (D399), shared with the fit and the taste fold — one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268), run by `functions/src/nightly.ts`. Separate from velocity's scan, deliberately — cursor window against calendar day; the header carries the argument. Measured before the deploy — dated note below |
+| One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
+| One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D272). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -83,16 +96,194 @@ concentrated in
 D7's 4-hour morning window, MAU = 3 × DAU, one
 reseed per week, and duels played in duos rather than larger groups — which
 is the *worse* case per user, because a reveal's fixed reads divide across
-the members it serves. Prices are Blaze, `nam5` multi-region; a
-single-region database is roughly half.
+the members it serves. Prices are Blaze at **`europe-west1`**, the single
+region production has been on since D165; a multi-region database is
+roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.6 K | 910 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 172 K | 9.1 K | 2.20 | 0.00 | **2.20** |
-| Real traction | 5,000 | 2.2 M | 91 K | 44 | 0.00 | **44** |
-| Scale | 50,000 | 21.7 M | 910 K | 470 | 2.20 | **472** |
-| Hit | 500,000 | 217 M | 9.1 M | 4,731 | 43 | **4,774** |
+| Launch / TestFlight | 50 | 9.4 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 144 K | 10.1 K | 0.84 | 0.00 | **0.84** |
+| Real traction | 5,000 | 1.9 M | 101 K | 20 | 0.00 | **20** |
+| Scale | 50,000 | 18.8 M | 1.0 M | 220 | 2.20 | **222** |
+| Hit | 500,000 | 188 M | 10.1 M | 2,220 | 43 | **2,263** |
+
+> **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
+> wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
+> and the published `v2_question_aggs/{qid}` — and since D98 removed the
+> floor, the private one held byte-for-byte what the public one did on the
+> vote, edit and rank paths. It is gone on those three; the published
+> document is the fold's working document now, which it can be because
+> `allow write: if false` leaves the trigger as its only writer. The
+> catalog path keeps its own, where the accumulator is the whole ~1k-entity
+> map behind a bounded top-N board.
+>
+> The write term in `scripts/cost-arith.mjs` goes `1 + 2 + pub` → `1 + 1 +
+> pub` per world answer: **writes/day −16.5% at every size** (121 K → 101 K
+> at 5 k DAU), **$262 → $257 at 50 k and $2,665 → $2,611 at 500 k**. Two
+> percent of the bill, and worth saying why it is only two: reads dominate
+> this model at every size, so a third of the trigger's writes is a small
+> slice of a small line. What it buys beyond the money is a shorter
+> transaction on the contended per-qid document — one less document under
+> D7's ceiling, though NOT a higher ceiling, since both docs were keyed by
+> the same qid and the transaction was already bounded by one of them.
+>
+> The model errs one write LOW on catalogue picks, which keep a second
+> document: `B.worldAnswers` does not resolve them separately. That is the
+> right direction to be wrong in on a slice this small, and it is stated
+> rather than corrected because inventing a split would be a softer number
+> than the one it replaced.
+
+> **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
+> The Patterns fit (v28 §2, trial D166 §1) joined the model:
+> `PATTERNS_READS_PER_LEDGER_ENTRY` and `PATTERNS_USER_STATE_OPS` in
+> `scripts/cost-arith.mjs`. The nightly sweep re-reads the day's ledger as
+> its vote log (the velocity scan's own shape, a second reader of the same
+> entries) and carries one private state doc per active answerer — server
+> reads 17 → 22 per user-day, one write per user-day, $247 → $251 at
+> 50 k and $2,517 → $2,555 at 500 k (re-derived after the merge with
+> D203, whose cost note keeps `worldAnswers` at 4). Deliberately NOT on the answer
+> trigger: a read and a write on the app's hottest path would move
+> `TRIGGER_READS.world` and D7's contention wall for vectors nobody needs
+> in real time — a map redraws nightly. The named lever if the ledger
+> re-read ever matters: flag eligible entries at write time and query the
+> flag, dropping the term by the ineligible share.
+
+> **Re-measured 2026-09-06 (D395): the candidate engine's scan.** The
+> nightly run now re-solves a second engine over every fitted person's
+> compacted answer map, which is one `patterns/state` read per person who
+> has ever answered a core item — charged here as one read per MAU per
+> night (`PATTERNS_SCAN_READS_PER_MAU` × `B.mauMultiple`). Server reads
+> 30 → 33 per user-day; **$257 → $258 at 50 k and $2,611 → $2,626 at
+> 500 k**, reads/day +0.7% at every size. The compaction itself costs
+> nothing new: it rides the state write the online fit already makes for
+> each active person, and reads the ledger day that fit already reads.
+> The named lever if the scan ever matters: the item step needs only
+> per-item sufficient statistics, so the sweep can stream people through
+> them in pages and hold none — a memory shape, not a read count, and the
+> read count is the bill.
+
+> **Re-measured 2026-09-06 (D397): the voter samples.** Kindred, the
+> People lens and the pair card read the nightly sample document — one
+> read per question — instead of the newest two hundred answer documents
+> each, so the `kindred` term goes `kindredQs × crowd × names` →
+> `kindredQs × (1 + crowd × (names − 1))`: the answers half of the ×2 is
+> one document now and the profile reads for names are unchanged.
+> **$258 → $223 at 50 k and $2,626 → $2,273 at 500 k; $1.17 → $0.85 at
+> 500 DAU** — reads/day −16% at every size the cap binds, which is the
+> D98-surfaces column this model has said dominates the bill since D102.
+> The who-voted sheet keeps the live query (its own row is unchanged), and
+> the samples themselves cost the nightly run one read and one write per
+> question the day's answers touched — hundreds a night, under any
+> rounding here.
+
+> **Re-measured 2026-09-06 (D399): one ledger read a night.** The
+> engagement digest, the Patterns fit and the taste fold run in one
+> invocation (`functions/src/nightly.ts`) over one memoised read of the
+> day's entries, so `PATTERNS_READS_PER_LEDGER_ENTRY` and
+> `ENGAGEMENT_READS_PER_LEDGER_ENTRY` became the single
+> `LEDGER_PASS_READS_PER_ENTRY`. **$223 → $221 at 50 k and
+> $2,273 → $2,253 at 500 k; $0.85 → $0.83 at 500 DAU** — server reads
+> 33 → 29 per user-day, reads/day −1.1%. The honest half of that number:
+> the taste fold's read of the same entries was never in this model, so
+> the real saving is two reads per entry and the modelled one is one.
+> The velocity scan keeps its own read (its cursor window is not a
+> calendar day), and the pass's memory and time budget are in
+> nightly.ts's header.
+
+> **Re-measured 2026-09-06 (D401): the page refill, priced for the first
+> time.** A boot's top-up fills a topic TO a page rather than BY a page,
+> so the paged documents a boot fetches are the paged cards answered
+> since the last boot — `B.pagedShare` (0.5) × `worldAnswers`, two reads
+> per user-day, in the `boot` column. **$221 → $222 at 50 k and
+> $2,253 → $2,263 at 500 k; $0.83 → $0.84 at 500 DAU**, and every row of
+> both tables moved by exactly those two reads. The honest half: those
+> reads were in this model nowhere before, when they were a fresh page
+> per topic per boot — `FEED_PAGE` × twelve topics ≈ 144 a boot, ~10 M a
+> day at 50 k DAU, about $90 a month unpriced — so this note records a
+> saving the table cannot show, because the table never carried the cost.
+> The tail (D400) is priced beside it at `B.tailShare`, zero until the
+> cap's alert first fires.
+
+> **The mount gate (D265, 2026-08-23) costs nothing on either side**, and
+> that is the reason it is shaped the way it is. The fit's nightly run
+> gains ONE merged write to `v2_meta/app` — one document per project per
+> night, on a doc nothing else writes hot, so D7's wall never hears about
+> it. The client gains no read at all: the count rides the `v2_meta/app`
+> fetch `hydrate()` already pays, and the viewer's half is a walk of two
+> banks the device is holding. The alternative — fetching the ~11 KB
+> loadings doc at every cold start to decide whether to draw a BUTTON —
+> is the read the bank cache exists to avoid, on every device including
+> the ones that never open the tab.
+
+> **Measured 2026-08-23, before the deploy.** The engagement digest
+> (R1/D268, `docs/ENGAGEMENT-PLAN.md` rung 0) joined the model:
+> `ENGAGEMENT_READS_PER_LEDGER_ENTRY` and `ENGAGEMENT_USER_STATE_OPS` in
+> `scripts/cost-arith.mjs`. A THIRD nightly reader of the same ledger
+> entries plus one bookkeeping state read+write per active answerer —
+> server reads 22 → 27 per user-day, one more write per user-day,
+> $251 → $255 at 50 k and $2,555 → $2,593 at 500 k. A separate scan
+> rather than a rider on the velocity pass, deliberately: velocity's
+> window is a cursor (lastScanAt → now, capped 72 h) and the digest's is
+> the calendar day, and coupling the two semantics to save one read per
+> entry per night is the wrong trade — the argument lives in
+> functions/src/engagement.ts's header, where a revisit would start.
+
+> **Measured 2026-08-23, same day, before the deploy.** Rung 1's
+> attention shards (R2/D270) joined the model: `ATTN_SAMPLE_RATE` in
+> `scripts/cost-arith.mjs`, read from the client's own
+> `SHARD_SAMPLE_RATE` so the model tracks the lever rather than a memory
+> of it. One anonymous shard write per sampled device-day, one fold read
+> and one fold delete the night after — at the launch rate of 1: server
+> reads 27 → 28 per user-day, one more write and one more delete per
+> user-day, **$255 → $257 at 50 k and $2,593 → $2,613 at 500 k**. This
+> is the term sampling exists to shrink: at 0.1 the whole addition is a
+> tenth of these lines, and the shard carries its rate so the fold's
+> estimates rescale with no server change.
+
+> **Measured 2026-08-24, before the deploy.** Rung 2's person rollups
+> (R3/D272) joined the model — `ENGAGEMENT_ROLLUP_CLIENT_WRITES` and the
+> two fold constants in `scripts/cost-arith.mjs`: one uid-keyed rollup
+> write per active device-day, the fold's two reads and two writes (the
+> rollup's mark and the `_state` fg window), and a TTL delete 90 days on.
+> Server reads 28 → 30 per user-day, three more writes and one more
+> delete per user-day, **$257 → $262 at 50 k and $2,613 → $2,665 at
+> 500 k**. This is deliberately the ladder's priciest rung per user —
+> the person channel is unsampled by design — and it is still under 2 %
+> of the bill at every size, because the bill is read-dominated and this
+> channel adds no client reads at all.
+
+> **The tab's client half (2026-08-19, same day)** adds reads too small
+> for the model's terms, stated so nobody hunts for them later: ONE
+> loadings-doc read per session (session-cached, absence cached too), and
+> the pair card's exact 2×2 at two bounded voter queries (≤ 200 docs
+> each) per FIRST tap on a pair — the strongest link only, session-cached
+> per pair, silent under 12 shared voters. The Oracle adds zero reads: it
+> folds the loadings doc and the viewer's own votes, both already on the
+> device, and its votes go through the ordinary answer path.
+
+> **Corrected 2026-08-18 (D200) — the region was already decided and this
+> page had not heard.** D165 moved production to `europe-west1` on
+> 2026-08-15. The model went on pricing `nam5` for three days, because the
+> region was a DEFAULT PARAMETER (`costModel({ regional = false })`) with a
+> comment beside it saying multi-region "is what prvfire33 is on" — so
+> every row above was roughly double, and the pulse console published the
+> doubled figure every morning. **$4,774 → $2,517 at 500 k, $472 → $247 at
+> 50 k, $44 → $22 at the traction this app is planning for.**
+>
+> Nothing about the app changed and no estimate was revised: this is one
+> input that had been true and stopped being, which is why it is worth more
+> than the money. `check:figures` could not see it — it compares quoted
+> figures against the tree, and a premise is not a quotation. The input now
+> comes from `FIRESTORE_LOCATION` in `functions/src/db.ts`, the same file
+> the backend takes the database from, and `scripts/pulse.test.mjs` pins
+> the link both ways.
+>
+> **Figures further down this page are NOT all re-derived.** The scenario
+> table, the walls and the levers move with the model on every run; prose
+> that quotes a dollar figure inline was written against `nam5` and is
+> marked where it matters. Halve an operation-priced figure and you have
+> the current answer; `npm run costs` prints the real one.
 
 > **D129 (2026-08-13) — the deck is polled, and this table changed shape
 > rather than size.** The seven `onSnapshot` listeners are gone; the client
@@ -203,11 +394,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 17 | 71 | 192 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 17 | 224 | 345 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | **354** | 435 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | 354 | 435 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | 354 | 435 |
+| 50 | 23 | 42 | 3 | 3 | 28 | 7 | 29 | 53 | 188 |
+| 500 | 23 | 42 | 3 | 3 | 28 | 7 | 29 | 152 | 287 |
+| 5,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | **282** | 377 |
+| 50,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 377 |
+| 500,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 377 |
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the
@@ -233,7 +424,7 @@ existed to prevent.
 billed read charged to the project, on top of the operation that triggered
 it. A world answer's create rule touches one document (`v2_questions/{aid}`,
 three times — repeats of the same document are free); a duel answer's
-touches three distinct ones. Reads pay nothing: `v2_questions` and
+touches two distinct ones. Reads pay nothing: `v2_questions` and
 `v2_question_aggs` are `allow read: if request.auth != null`, with no
 document access at all, so this term scales with *answers*, not opens.
 
@@ -245,11 +436,12 @@ document access at all, so this term scales with *answers*, not opens.
 > un-deduped the figure would be 14 rather than 6.
 
 **Server reads** (14). Three sources, none of them visible from the client:
-the aggregate transaction reads two documents per world answer (the ledger
-event for dedup, the private aggregate); the nightly velocity scan (D54)
+the aggregate transaction reads three documents per world answer (the
+ledger event for dedup, the published aggregate, and the author's profile
+— D410); the nightly velocity scan (D54)
 reads **every ledger entry written that day**, which is one per world
-answer; and the reveal pipeline reads `(4 + 3m)/m` per member per group-day,
-which is 5 for a duo. The velocity scan alone is the size of the top-up and
+answer; and the reveal pipeline reads `(2 + 2m)/m` per member per round,
+which is 3 for a duo. The velocity scan alone is the size of the top-up and
 the reseed delta put together, and it was invisible.
 
 **The D98 surfaces** (339 at maturity). Who-voted sheets, Kindred and
@@ -693,23 +885,53 @@ is that a fifth one exists and the model is not the thing that will catch
 it. What catches it is a control that fires on the *outcome* rather than on
 the forecast.
 
-There are four such controls, and **not one of them is observable from this
-repository**. No check, test or workflow can see any of them, which is
-D117's checkbox problem pointed at money rather than at deploys. So they
-are written down here, with the arithmetic that says why each one matters.
+There are four such controls, and when this section was written **not one
+of them was observable from this repository** — no check, test or workflow
+could see any of them, D117's checkbox problem pointed at money rather
+than at deploys. Two have since come into reach: the budget (1) answers to
+`budget:apply`'s dry run and the policies (4) to `npm run observe` (D303);
+enforcement (2) and the auth billing mode (3) remain console-only. All
+four stay written down here, with the arithmetic that says why each one
+matters.
 
-**1 · A Cloud Billing budget. This does not exist, and it is the cheapest
-thing on this page.** Every other control below is a judgement call; this
-one is five minutes and an email address, and without it the first notice
-of any of the failures this document imagines is an invoice up to thirty
-days later.
+**1 · A Cloud Billing budget — EXISTS, since 2026-08-27.** "InSight",
+**500 NOK/month** (the billing account bills in kroner; 500 NOK is this
+page's $50 at ~10 NOK/USD, the same threshold in the account's own
+money), thresholds at 50/90/100/150%, filtered to the resolved project
+number. Without it the first notice of any of the failures this document
+imagines was an invoice up to thirty days later. It sat undone for four
+weeks for the D303 reason: the documented path was the gcloud one-liner
+below, behind a login nobody had. `npm run budget:apply` (or the **Arm
+budget** workflow, dispatched from the Actions tab) creates or retunes it
+over the same REST credential every other operator script uses — dry-run
+by default, idempotent by name, reading its figure from
+`monitoring/rates.json`'s guard (`guard.budget` for the account-currency
+figure the budget holds, beside the USD tolerance the pulse reds on) so
+the budget and the pulse guard cannot drift apart. The one permission the
+script could not grant itself — `roles/billing.costsManager` on the
+**billing account** (a project role cannot satisfy it — budgets are a
+billing-account resource), granted to the deploy service account, whose
+email the refusal prints — was the five human minutes, spent 2026-08-27.
+The first live run also found and closed a precondition this page did not
+know: the Billing Budgets **API** was disabled on the project, a refusal
+the script's own credential can fix (its `Editor` covers the enable —
+done) and which the 403 branch now tells apart from the grant (D332 §3).
+The dry run is the standing check, and against production it says
+"exists and matches".
+
+The by-hand alternative, unchanged except for one correction: the filter
+takes the project **number**, not the id — `projects/prvfire33` matches
+nothing, and a budget filtered to nothing tracks $0 forever and never
+fires, which is this page's silent-checkbox failure on the control meant
+to be the backstop. (The script resolves the number itself; that latent
+miss is why it exists rather than a copy of this command.)
 
 ```
 gcloud billing budgets create \
   --billing-account=<ACCOUNT_ID> \
   --display-name="InSight" \
   --budget-amount=50USD \
-  --filter-projects=projects/prvfire33 \
+  --filter-projects=projects/<PROJECT_NUMBER> \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
   --threshold-rule=percent=1.0 \
@@ -719,14 +941,23 @@ gcloud billing budgets create \
 $50 is chosen against the table above, not by feel: the launch sizes model
 at $0–$2/month and 5,000 DAU at $46, so $50 is "traction arrived, or
 something is wrong", and the 150% rule still fires while the number is two
-figures. Raise it when a row of the table becomes real, not before.
+figures. Raise it when a row of the table becomes real, not before. (What
+the budget actually holds is the 500 NOK `guard.budget` records — the same
+threshold in the money the account bills, not a raise.)
 
 **A budget notifies; it does not cap.** There is no spend limit for
 Firestore — the only hard stop is a budget → Pub/Sub → function that
 detaches the billing account, which takes the app down with it. That is a
 real option and a deliberate one, not a default: for an app whose worst
 modelled month at launch size is $2, an outage is the more expensive
-failure. Recorded as available, not built (D7).
+failure. Recorded as available, not built (D7). Since D332 the same wire
+has a softer target worth building first: the budget's Pub/Sub
+notification flipping `budgetMode` (the read breaker below) instead of
+detaching billing — recorded there, an evening's work once the budget
+itself exists. And the repo side no longer waits for the invoice to ask
+the question: the pulse's usage-vs-revenue guard
+(`monitoring/rates.json`, the same $50) reds the daily run when the
+modelled bill at the *measured* actives outruns recorded revenue.
 
 **2 · App Check enforcement on the Firestore API.** SHIP-CHECKLIST's App
 Check step 4, not yet flipped. The callables enforce attestation in
@@ -744,13 +975,19 @@ rules-shaped fix and none should be attempted. `ledgerVelocityScan` (D54)
 is detection and says so in its own header: "nothing here denies, delays or
 down-weights a vote." Detection does not stop a bill.
 
-The arithmetic, at the nam5 read price of $0.06/100 k:
+The arithmetic, at the `europe-west1` read price of $0.03/100 k (D200 —
+this table read $0.06 and double every figure until the model was pointed
+at the region production is actually on):
 
 | sustained read rate | reads/day | $/day | $/month |
 | ---: | ---: | ---: | ---: |
-| 500/sec | 43 M | $26 | $778 |
-| 2,000/sec | 173 M | $104 | $3,110 |
-| 10,000/sec | 864 M | $518 | $15,552 |
+| 500/sec | 43 M | $13 | $389 |
+| 2,000/sec | 173 M | $52 | $1,555 |
+| 10,000/sec | 864 M | $259 | $7,776 |
+
+Halving the abuse ceiling is the one place this correction is worth
+reading twice and then ignoring: $7,776/month of stolen reads is not a
+better outcome than $15,552/month, and nothing about the defence changes.
 
 The corpus does not have to be large for this: the same documents can be
 re-read forever, and each read bills again. For scale, the modelled *peak*
@@ -763,13 +1000,15 @@ happens.
 still the largest single line that could be wrong without any code being
 wrong. Also console-only.
 
-**4 · A notification channel on the alert policies.** `monitoring/` has
-four policies and `check:monitoring` proves the chain from log line to
-condition — but `notificationChannels` is `[]` in every file, filled in by
-`npm run monitoring:apply --email`. A policy with no channel evaluates
-correctly and pages nobody, which is the same false comfort every other
-gate in this repo exists to prevent, and the same shape as the known limit
-already recorded against the absence alert.
+**4 · A notification channel on the alert policies.** `monitoring/` holds
+ten policies and `check:monitoring` proves the chain from log line to
+condition — but `notificationChannels` is `[]` in every file, filled in at
+POST time by the **Arm monitoring** workflow (`npm run monitoring:apply --
+--email` locally). A policy with no channel evaluates correctly and pages
+nobody, which is the same false comfort every other gate in this repo
+exists to prevent, and the same shape as the known limit already recorded
+against the absence alert. Not console-only any more, and not done either:
+on 2026-08-26 the project held none of them (D300, D303).
 
 **What was built here instead of a cap.**
 `monitoring/firestore-read-runaway.json` is the detection-latency half:
@@ -804,33 +1043,37 @@ work has to be done in advance for the lever to exist at all.
 That reframes App Check step 4. It is filed as hardening, and it is really
 the incident-response plan: it is simultaneously the thing that prevents
 the cheap version of the attack and the thing you reach for when something
-else goes wrong. Nothing else on this page can be pulled at 3am — a rules
-deploy takes minutes and still bills its own reads, `APPCHECK_ENFORCE` only
-governs callables (and only in the loosening direction), and detaching the
-billing account takes the app down.
+else goes wrong. One other lever on this page can now be pulled at 3am —
+the read breaker below, one command and no deploy, though it shears over
+hours rather than minutes because it propagates per boot. Nothing else can:
+a rules deploy takes minutes and still bills its own reads,
+`APPCHECK_ENFORCE` only governs callables (and only in the loosening
+direction), and detaching the billing account takes the app down.
 
-**The graded breaker, designed and deliberately not built.** The natural
-complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
-already reads once per boot, so it costs nothing to add — with the client
-skipping the discretionary reads when it is set: the D98 social surfaces
-(who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
-snapshot listeners at the next. That is 354 of 435 reads/user/day at 5,000
-DAU for the first level and most of the rest for the second, and unlike
-App Check it degrades the app for *everyone* rather than only for
-unattested callers.
-
-It is not built here because it is not really a cost question. Every level
-of it changes what a user sees, and this repo's rule is that a UI claim
-needs something making it true — a Mirror stop that silently renders "could
-not ask" because an operator flipped a flag is the same class of failure as
-a privacy label with no rule behind it. The honest version needs a decision
-about what a degraded app *says*, and that is the owner's call rather than
-a cost pass's. Recorded with its arithmetic so it can be built in an hour
-when that decision is made.
+**The graded breaker — BUILT at level 1 (D332, 2026-08-27).** The owner's
+ask arrived ("a lever so usage does not outrun revenue"), which was the
+decision this paragraph was waiting on. `budgetMode` on `v2_meta/app` — the
+document `hydrate()` already reads once per boot, so the lever costs no
+read of its own — set by `npm run budget:mode -- --level 1` and released
+with `--level 0`. Level 1 pauses the D98 social fetches (named who-voted,
+Kindred, Circle, takes): the `social` column, ~354 of ~440 reads/user/day
+at 5,000 DAU, with the answering loop, the aggregates and the Mirror's
+folds untouched. Every gated surface says it is paused
+(`src/v2/data/budgetMode.ts` holds the one sentence), because the honest
+version needed a decision about what a degraded app *says* — that was the
+owner's call this build waited for, and the paused copy is now pinned by
+the panel suites. Two deviations from the sketch this paragraph used to
+carry, with the arithmetic in D332: the similarity agg sweep stays on
+(~110 reads once per session against social's ~354 per day — gating it
+would blank three more lenses for a rounding error), and the second level
+is reserved rather than built (the sketch's "deck listeners" predate D129;
+what that level would govern today is 3 + 28 flat reads/user/day).
 
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier
-at **~177 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. (Read off
+at **~177 DAU**, writes leave the 20 k/day tier at **~1,687 DAU**
+(was ~1,408 before the private mirror collapsed — the crossing moves by
+exactly the write rate's ratio, 24.2 → 20.2 per user-day). (Read off
 the model's *immature* branch, which is how `SCENARIOS` classifies every
 size in that range; the mature branch would say ~149 and would be quoting
 a community that does not exist yet.) Below
@@ -852,11 +1095,18 @@ threshold rather than the first.
 > moved.
 
 1. **~14,400 DAU — D7's write-contention ceiling.** All of a day's daily
-   answers land on one `v2_aggs_private/{qid}` document inside a 4-hour
+   answers land on one `v2_question_aggs/{qid}` document inside a 4-hour
    window; Firestore sustains ~1 write/sec/document. `0.35 writes/sec` at
    5 k DAU, `1.00` at 14.4 k, `3.47` at 50 k. Past this, transactions
    retry and aggregation degrades. Already recorded, already costed, fix
    already named (shard the counter). **This binds first.**
+
+   The document named here was `v2_aggs_private/{qid}` until that copy
+   collapsed into the published one, and the DAU figure did **not** move
+   with it: the two were keyed by the same qid, written in the same
+   transaction, so the transaction was already bounded by one of them and
+   is now bounded by the survivor. The collapse removes a write from the
+   bill; sharding is still the only thing that removes this wall.
 2. **~14,145 DAU — the read fan-out overtakes every flat source
    combined.** Finding 2. Not a failure, just the point where the bill
    stops being about anything else. This row has now moved three times
@@ -999,16 +1249,21 @@ Three caveats worth carrying:
 - **MAU/DAU ratio.** Assumed 3. A worse retention curve raises the reseed
   delta and the auth bill together, because both are charged per *monthly*
   user — but post-D34 only the auth half of that is material.
-- **Region — and this one is not a knob.** A single-region database roughly
-  halves every Firestore line: $1.06 / $21 / $230 / $2,342 against $2.12 /
-  $41 / $440 / $4,448 at 500 / 5 k / 50 k / 500 k DAU
-  (`node scripts/cost-model.mjs --regional`). The project is on the
-  multi-region default, which is the safer and more expensive choice. It
-  belongs in this list least of all the entries here, because a Firestore
-  database's location is **fixed at creation** — every other line can be
-  revisited after launch and this one cannot, so it is a decision with a
-  deadline rather than an input to tune. Since D129 took the fan-out out of
-  the bill it is also the **largest single lever left**.
+- **Region — and this one was never a knob. It has been PULLED (D165).**
+  A single-region database roughly halves every Firestore line, and the
+  project has been on `europe-west1` since 2026-08-15, so this is a lever
+  in the list's history rather than in its inventory. It stayed written as
+  an open choice for three days after it was taken, which is the whole
+  subject of D200's note above the scenario table. The figures it used to
+  quote — $2.12 / $41 / $440 / $4,448 at 500 / 5 k / 50 k / 500 k DAU —
+  are now the COUNTERFACTUAL (`node scripts/cost-model.mjs
+  --multi-region`), and the halved column is what the tables print.
+  It belonged in this list least of all the entries here, because a
+  Firestore database's location is **fixed at creation** — every other line
+  can be revisited after launch and this one could not, so it was a
+  decision with a deadline rather than an input to tune. Since D129 took
+  the fan-out out of the bill it was also the largest single lever left,
+  which makes the **largest remaining** one somebody else's row now.
   [`docs/FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the procedure, the
   two ways it fails silently, and what happens to the data already in
   `(default)`. (The figures here were three model runs stale until
@@ -1034,6 +1289,15 @@ Three caveats worth carrying:
 Named, so the next correction starts from a list rather than from a
 surprise:
 
+- **The paid loop's off-Firebase bills (D313; ads D315).** The automated
+  review is one `claude-opus-5` call per booking — cents each, billed to
+  the Anthropic account, bounded by the 5/day/account booking budget —
+  and Stripe takes its processing fee out of each checkout and returns
+  nothing on the refunded remainder. Both ride other ledgers than the
+  Firebase bill this file models; the Firestore side of the loop (a
+  booking doc, a handful of status writes, one purchase, one question
+  or ad doc, the closer's daily bounded scan) is noise against the
+  read-dominated bill.
 - **Cloud Logging volume**, estimated in the fixed-cost table above but not
   derived from the actual log statements per invocation.
 - **The catalog trigger's third read**, above — deliberate, it is not live.

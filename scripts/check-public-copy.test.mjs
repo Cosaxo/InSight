@@ -14,7 +14,12 @@
 // punished them would push the next author into deleting the record
 // instead of dating it, which is the opposite of what this repo wants.
 import { describe, it, expect } from "vitest";
-import { scan, scanText, RETIRED } from "./check-public-copy.mjs";
+import { scan, scanText, scanVoice, RETIRED, VOICE, DUEL_SURFACES } from "./check-public-copy.mjs";
+import { readdirSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("the claims that were actually live", () => {
   // Verbatim, from git history at the commit this gate was added.
@@ -37,6 +42,27 @@ describe("the claims that were actually live", () => {
       "posted to the world it is published to everyone <em>with no name attached</em>, one per person per question."],
     ["privacy.html who-can-see-what, post-D106",
       "<strong>Your world takes:</strong> everyone, with no name attached."],
+
+    // ── D414's five, verbatim from the tree on 2026-09-07 ────────────
+    //
+    // Every one of these was live AFTER the account wall merged, and every
+    // one passed this gate as it then stood. The listing pair is the
+    // serious one: it was hours from going to App Store Connect beside a
+    // build that opens on a wall, which is the same failure this file's
+    // header records for "answers are owner-only" — same file, same
+    // consequence, thirteen months apart.
+    ["apple/play description, post-D414",
+      "• No sign-up wall. Open it and start: no email, no phone number. Linking a Google account later is optional and keeps everything you already have."],
+    ["join.html, post-D414",
+      "No account or email needed — the app works anonymously from the first tap."],
+    ["privacy.html Children, post-D414",
+      "There is little to collect: no account is required and no personal details are requested."],
+    // Not a page — an aria-label, which is copy a screen reader speaks and
+    // nothing else in the tree scans.
+    ["LiveDuelPanel invite button, post-D414",
+      "Copy invite link — no account needed"],
+    ["STORE-FORMS 4.8 reply, post-D414",
+      "the primary path is anonymous, no account is required to use the app, and Google is an optional upgrade rather than a login wall"],
   ];
 
   for (const [where, text] of WAS_LIVE) {
@@ -47,10 +73,14 @@ describe("the claims that were actually live", () => {
 
   it("names a reason for every finding, not just a match", () => {
     // The failure output is the whole value of the gate: whoever trips it
-    // is usually not the person who knows what D98 changed.
+    // is usually not the person who knows what changed. The reason must
+    // therefore cite the decision that retired the claim — and there are
+    // now TWO retired models in this list (D98's privacy vocabulary,
+    // D414's anonymous-first one), so the assertion is that a decision is
+    // named, not that it is the first one.
     for (const [, text] of WAS_LIVE) {
       for (const hit of scanText(text)) {
-        expect(hit.why).toMatch(/D98/);
+        expect(hit.why, `no decision cited for: ${text.slice(0, 40)}`).toMatch(/\bD\d+\b/);
         expect(hit.excerpt.length).toBeGreaterThan(0);
       }
     }
@@ -76,12 +106,60 @@ describe("history stays legal — the false positives that would matter", () => 
     // ("takes are anonymous") rather than on the word.
     expect(scanText("You're on an anonymous session — it lives only on this phone.")).toEqual([]);
     expect(scanText("anonymous crash and error reports (uid only, never your answers)")).toEqual([]);
+    // D414 retired the CLAIM that the app is usable without an account,
+    // not the word. The app still signs every session in anonymously (D3,
+    // untouched) and the attention tally is genuinely unlinkable, so both
+    // must keep being describable.
+    expect(scanText("The app signs you in anonymously at first launch, then the account attaches to that same session.")).toEqual([]);
+    expect(scanText("The tally carries no account, no name and no device id, so it cannot be linked back to you.")).toEqual([]);
+    expect(scanText("Until 2026-09-07 no account was required; that stopped being true when signing in became a requirement.")).toEqual([]);
   });
 
   it("allows the true post-D98 copy that replaced each claim", () => {
     expect(scanText("Your answers are public. Anyone using InSight can see what you answered.")).toEqual([]);
     expect(scanText("counts are exact from the very first answer, so in a small cohort a count of 1 is visibly one person's answer")).toEqual([]);
     expect(scanText("Takes are posted under your name — on world questions as well as inside a circle.")).toEqual([]);
+  });
+});
+
+describe("the duel surfaces' voice (D437)", () => {
+  // Verbatim from the tree on 2026-09-09, before step E of
+  // VISION-2026-09-09 — every one shipped green under every gate.
+  const WAS_LIVE = [
+    ["LiveGroupsMirrorBody, the head", "aligned with you · 3 of 4 days"],
+    ["LiveGroupsMirrorBody, the Answers tab", "Reading the days…"],
+    ["LiveGroupsMirrorBody, the cross-group line", "runs most like you — with it on 2 of the 3 days you played."],
+    ["LiveRolesPanel, the floor", "No 1v1 has 3 days you both guessed yet"],
+    ["LiveRolesPanel, the floor", "No group has 2 revealed days you played yet"],
+    ["the design's own removed list", "crowned by the majority"],
+    ["the design's own removed list", "the one in charge"],
+    ["LiveDuelPanel, pre-D437", "sealed until tomorrow"],
+    ["a template literal", "${n} days revealed"],
+  ];
+  for (const [where, text] of WAS_LIVE) {
+    it(`catches: ${text.slice(0, 52)} (${where})`, () => {
+      expect(scanVoice(text).length).toBeGreaterThan(0);
+    });
+  }
+
+  it("leaves a date, a round, an hour and an identifier alone", () => {
+    expect(scanVoice("3 days ago")).toEqual([]);
+    expect(scanVoice("Yesterday")).toEqual([]);
+    expect(scanVoice("round 4 · reveals in 47 hours")).toEqual([]);
+    expect(scanVoice("const majorityIdx = counts.indexOf(maxN); r.withMajority")).toEqual([]);
+    expect(scanVoice("The room named you 3 of 9 votes")).toEqual([]);
+    expect(scanVoice("Every fourth round asks what the other is to you")).toEqual([]);
+  });
+
+  it("names a decision for every finding", () => {
+    for (const { why } of VOICE) expect(why).toMatch(/\bD\d+\b/);
+  });
+
+  it("guards the files it names, and only those", () => {
+    const { surfaces } = scan();
+    for (const f of DUEL_SURFACES) expect(surfaces.some((s) => s.label === f), `${f} not collected`).toBe(true);
+    // the privacy page may say "days" — the voice is the duel surfaces'
+    expect(DUEL_SURFACES.some((f) => f.startsWith("web/"))).toBe(false);
   });
 });
 
@@ -93,7 +171,15 @@ describe("the live corpus", () => {
     // Guards the silent-success failure: a collect() that stopped finding
     // files would report OK on nothing at all.
     expect(surfaces.length).toBeGreaterThan(10);
-  });
+    // AN EXPLICIT BUDGET, because this case reads the tree from disk and
+    // vitest's default is 5 s. It came in at 5,423 ms once on a cold
+    // cache and failed — in `test:scripts`, which runs in CI's LINT job,
+    // where a timeout reads as a copy violation rather than as a slow
+    // disk. 60 s is the same budget check-figures.test.mjs gives its own
+    // tree copy, and it is a ceiling rather than an expectation: the run
+    // takes about a second warm, and a case that genuinely started taking
+    // a minute would be a finding of its own.
+  }, 60_000);
 
   it("reads the store listing and every enumerated page", () => {
     const labels = scan().surfaces.map((s) => s.label).join("\n");
@@ -103,6 +189,26 @@ describe("the live corpus", () => {
     expect(labels).toMatch(/web\/home\.html/);
     expect(labels).toMatch(/web\/terms\.html/);
     expect(labels).toMatch(/LivePrivacyPanel\.tsx/);
+  });
+
+  it("reads EVERY page in web/, not a hand-kept four", () => {
+    // The list was hand-kept, with a comment promising that adding a page
+    // means adding a line — and the note beside `join.html` claimed it
+    // "was the one page in web/ this list did not name" on a day when
+    // three others already existed. Two of those are where a buyer lands
+    // straight out of Stripe Checkout, carrying both classes this gate
+    // reads: a who-can-see-what claim and a contract claim.
+    //
+    // So the property is the DIRECTORY, not a number: whatever is served
+    // is scanned.
+    const onDisk = readdirSync(join(repoRoot, "web"))
+      .filter((f) => f.endsWith(".html"))
+      .sort();
+    expect(onDisk.length, "web/ has no pages — this case is measuring nothing").toBeGreaterThan(3);
+    const labels = scan().surfaces.map((s) => s.label).join("\n");
+    for (const f of onDisk) {
+      expect(labels, `web/${f} is served and this gate never reads it`).toContain(`web/${f}`);
+    }
   });
 
   it("skips the $-prefixed operator annotations in listing.json", () => {

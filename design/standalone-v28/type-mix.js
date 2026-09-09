@@ -126,7 +126,7 @@
   };
 
   const fromData = (l, sys) => (l || []).map((p) => ({
-    init: p.init, name: p.name, place: p.hood || p.place || p.dist || p.role || '',
+    init: p.init, name: p.name, place: p.hood || p.place || p.role || '',
     hue: p.hue || 38, match: p.match, type: typeOf(p.name, sys),
   }));
 

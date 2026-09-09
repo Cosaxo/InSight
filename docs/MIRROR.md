@@ -1,7 +1,9 @@
 # The Mirror — where the answers add up
 
 Described as "one blind question a day", InSight sounds like a poll with
-a streak. Open it and answering is the *smaller* half — a few taps, then
+a streak — which is why that description is retired (the owner,
+2026-09-07: *"some old focus"*). The daily card is what opens; the
+questions run to hundreds, and answering at all is the *smaller* half — a few taps, then
 a split — and everything else is the Mirror: one tab, one verb, seven
 stops from *you* to *the world*, every one of them reading the same
 numbers through a different cut. It is not the small tab either — the
@@ -62,10 +64,11 @@ one write — an answer — and the surfaces differ only in how they cut it.
                                     │                    │
                         the aggregate trigger            ├──────► the four core TESTS
                                     ↓                    │        and the lenses,
-                     v2_aggs_private/{qid}               │        filled passively
-                       the trigger's working state       │
-                       (no readers — a cache,            └──────► your PROFILE, and
-                        not a curtain)                            Compare's "you vs them"
+                     v2_question_aggs/{qid}              │        filled passively
+                       read and rewritten in one         │
+                       transaction — the fold's          └──────► your PROFILE, and
+                       working document IS the                    Compare's "you vs them"
+                       published one
                                     ↓
                        published on EVERY answer,
                        exact — no floor, no cadence
@@ -93,18 +96,31 @@ observed:
 **The anchors snapshot is the join.** Every answer carries a copy of the
 profile fields it was answered under — `BREAKDOWN_DIMS` in
 `functions/src/pure.ts`: age band, gender, city, country, education,
-relationship. A *copy*, taken at vote time, so editing your profile
-tomorrow cannot move yesterday's answer into a different cohort (D8).
-`profession` is deliberately not among them: it is free text, so every
-distinct spelling would mint a bucket key forever. That snapshot is the
+relationship, height band and job field. A *copy*, taken at vote time, so
+editing your profile tomorrow cannot move yesterday's answer into a
+different cohort (D8).
+
+This said SIX and named the first six, for long enough that two dims
+shipped without it: height band arrived 2026-08-14 and `jobField` at D328.
+`profession` is still deliberately not among them, but not for the reason
+this paragraph gave — it said "free text", which stopped being true when
+the profile became a `<select>`, and §5 of this same file says so four
+hundred lines down. The real reason is the one in `pure.ts`'s own comment:
+the pick is a list of 31 and growing, which is longer than
+`BREAKDOWN_MAX_BUCKETS`, so the dim is the derived FIELD of 20 instead —
+the pair `ageBand` makes with `age`, one anchor over. The anchors SNAPSHOT
+is wider than the breakdown dims and does carry `profession`;
+`SCHEMA-V2.md` lists all ten. That snapshot is the
 entire reason the Mirror can say "everyone in your city" without the
 server ever reading another user's document.
 
 **Nothing is withheld (D98).** Every cohort publishes, at every size,
 exactly, from its first answer — no `AGG_MIN_N` floor, no `PUBLISH_EVERY`
 cadence, no complementary suppression, no `tooSmall`. `v2_aggs_private`
-survives as the trigger's working state, holding the same numbers as the
-public document: a cache, not a curtain.
+used to survive alongside it holding the same numbers — a cache, not a
+curtain — and on the vote, edit and rank paths it is now not written at
+all: the published document is the accumulator. What is left there is the
+catalog fold's full entity map, of which the board publishes a top-N.
 
 An absent cell therefore means **zero**, and the whole
 absent-is-not-the-same-as-zero doctrine this file used to carry is gone
@@ -125,10 +141,10 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | --- | --- | --- | --- |
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
-| **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
+| **Groups** | your named circles, drawn as a cast | real reveal history — `groupCast.ts` (who the room named, how it rates itself), `groupPortrait.ts` (who casts the room like you), `roles.ts` (everyone's seat) | yes |
 | **Near** | who is around you right now — the radius counter (D84), an anonymous field (D150), and since D177 the room itself: Answers · People · Compare | `nearbyCountV2` for the count and the mix (D176); `nearbyRoomV2` for the roster and the room's answers, both gated on the caller having a live position of their own. The field draws the ROOM since D181 — the same people, placed by test-score likeness and still unnamed — where it drew the city's crowd from D150. The presence CELL stays one of D98's three denies; what D177 discloses is membership, not place | yes |
-| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
-| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
+| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]` — and, for a question whose hot map is at its 24-bucket cap without your city, your own shard of `v2_agg_overflow/{qid}-{s}` merged in (D400, `LIVE.loadOverflow`); kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
+| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`, with your country's tail shard merged in where the hot map is at its cap (D400); city profiles folded from `by.city` (D112) — the hot 24 only | yes |
 | **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
 
 **You — the Map.** The one stop that is not a population at all. Every
@@ -147,22 +163,71 @@ profile readable, so following conveys no access and needs no request,
 acceptance or notification. One-way, like a subscription; mutual follows
 are a reading the client derives, not a state the server keeps.
 
-The stop draws the accounts you follow ranked by likeness, and under them
-the questions your circle is most split on (`circleSplit`, which counts
-members only — the opposite of the Map's `typicality`, and §5 says why).
+The stop draws the accounts you follow ranked by likeness, and — since
+D190 — reads them through the same row every other stop carries:
+**Answers** is the questions your circle is most split on (`circleSplit`,
+which counts members only — the opposite of the Map's `typicality`, and
+§5 says why), **People** is the members themselves, and **Compare** puts
+your profile against the circle's — folded from the members' own answers
+to the bank's test items by the same `axisScores` a city's profile uses,
+at a floor of two rather than thirty, because a circle is not a sample of
+anything (D193). The row draws on an empty circle too, over the empty field: a stop
+whose tab bar arrives with its data reads as unfinished to exactly the
+account that has none.
+
 Follows start in exactly two places: a question's who-voted sheet, and
 the People lens's Kindred rows. Both are screens where a uid has already
 become a person with a reading attached.
 
-**Groups.** The alignment ring, the answer rows and the per-member
-likeness are all computed from `v2_groups/{gid}/reveals/{day}` documents
-the viewer can already read, over the last fortnight
-(`REVEAL_HIST_DAYS`) — every number is one the user could recompute from
-the reveals themselves. Duos are excluded on purpose: with two voters,
-"with the majority" is always true and the ring would read 100% forever.
-What the demo body showed and this one does not — trait axes, compare
-populations, "how they see you" crowns — is unbuilt rather than refused
-since D98: the members' answers and test results are all readable now.
+**Groups.** The room drawn as a cast (D437, the owner's 2026-09-09
+design). Everything is computed from `v2_groups/{gid}/reveals/r{n}`
+documents the viewer can already read, over the newest thirty of them
+(`REVEAL_HIST_CAP` — a fortnight while a reveal was a day, a few days of
+an active room under rounds; the ledger ROLES-PLAN §3.3 proposes is what
+outlives the window) — every number is one the user could recompute from
+the reveals themselves, and the stop reads only the open room's history. The head's ring is roles cast over all the roles in the packs;
+under the name, *Here, you are the one who gets things going · 5 of 15
+votes say so* once two votes have named you (`groupRole`, `MIN_GROUP`) —
+a seat is said as its LINE in play, its title being a result card's. The
+field is the role map (`ui/LgRoleMap.tsx` over `data/roleField.ts`,
+lazy): everyone on a ring, each role the room has voted somebody into a
+satellite in its pack's colour beside its holder, a shared or contested
+role on a dashed thread between the two; a tap opens who voted for whom,
+or how the room has cast a person. The row is **Votes** (who the room
+named, by pack, the latest vote per role, a row opening onto who voted
+for whom) · **People** (the constellation, placed by naming the same
+people on the same role votes; *Ada casts the room like you · same pick
+on 4 of 5 rounds* over `MIN_SHARED`; everyone's seat with its count, or
+*not named yet*) · **Scores** (how the group rates itself: one pole row
+per rating, the members' marks, the group's dot, yours in ink; open, the
+lean counts) · **Compare** (your profile against the members' mean, as
+below, and *How they see you*: the roles you hold as chips, hollow when
+shared or contested, and *the room named you N of M votes* — the one
+place that sentence appears). Who HOLDS a role is the card's rule
+(`revealTally`: every blind vote, a vote for yourself included), so the
+Votes lens and the reveal agree; the instrument underneath is stricter
+(`seatTally`: a vote for yourself is not the room naming you). Every
+vote is placed by its D224 snapshot, never by an index the roster
+remaps; a reveal older than the snapshot counts for nobody.
+
+A group is one of the two Mirror populations with no counts to fold — its
+history is its own reveals, never the test bank — so since D193 its side
+of the comparison is the MEAN of its members' completed `testResults`,
+public since D98 and cached beside the names the stop already resolves.
+Same as Circle: the row is there with no group at all, above the field
+and its Start-a-group door.
+
+What left with the call (D437): the alignment ring and *aligned with you
+· N of M days*, the Answers rows of what the group "landed on", the
+cross-group *runs most like you* line and its fan-out over every room's
+history. A room's votes are about its people, not about a side, so there
+is no side to have been on — and the words themselves are held out of
+the duel surfaces by `check:public-copy`'s voice list (rounds, never
+days; named, never crowned; no majority). Duos are excluded on purpose:
+a 1v1 has its own Mirror in the reveal, and a room of two names nobody
+the other did not. The demo body (`spec/group-mirror.jsx` over
+`spec/duels-data.js`, re-ported from the same record at D437) draws the
+same stop from the sample people, so a demo build shows what live shows.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
 are within a few hundred metres (the 3x3 of 0.002° cells, ~600 m across
@@ -237,9 +302,12 @@ average score per instrument axis, your own tick on every bar, and the
 answer count behind each number.
 
 **Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
-People · Compare · Scores`, plus **Explore at the World stop only**
-(D152 — see the lens list below for why it is the globe's), one open at a
-time, the prototype's nav v2. It used to be the constellation on top, the answer rows under it,
+People · Scores · Compare`, plus **Explore before Compare at the World
+stop only** (D152 — see the lens list below for why it is the globe's),
+one open at a time, the prototype's nav v2. Compare is last since D184,
+which is the prototype's own order and its reason: the first three
+describe the POPULATION and Compare is the only one that puts you against
+it, which is where a row running from "them" to "you and them" ends. It used to be the constellation on top, the answer rows under it,
 and a collapsed lens strip at the bottom — so Answers was the page and
 everything else was a drawer.
 
@@ -280,7 +348,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and fourteen, spread over three radii, so
+holds twenty-four in a hundred and thirty-eight, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships
@@ -310,9 +378,13 @@ these lenses its population can support:
   levers entirely**, so there is now nothing to read: the refusal outlived
   the thing it refused, which is the cheapest way for one to end.
 - **Compare** — you against them across every assessment, in the results
-  profile's own visual language: the petal is solid as far as you *both*
-  reach and pale for the distance between you, so agreement looks like a
-  whole shape.
+  profile's own visual language: your petal solid to your own score, their
+  value pinned on the same slice as a washed dot, and the span between you
+  washed faintly so distance reads as a shape. **Live since D193**, and
+  the one line in this section that described the design for ninety
+  decisions while the build did something else — the lens shipped as a
+  list of questions, which is the Answers tab re-sorted. D193's record has
+  the account and the two bases the live fold reads.
 - **Scores** — the place-rating scorecard: what this population gives the
   place it is standing in, facet by facet, best first, your own score
   ticked onto each bar. World stop only, at each of its three zooms.
@@ -360,10 +432,10 @@ a lens row again:
 | Lens | State | Source |
 | --- | --- | --- |
 | **Answers** | **live**, a peer tab since D119, the prototype's row since D120 | `ui/LiveAnswerRows.tsx` — headline + thin stack + your answer, expanding into labelled option bars (or a histogram for a `rating`) and a where-you-sit sentence. Readings from `cohort.headlineFor` / `cohort.standingIn`. Still no "newest": nothing the client holds dates an answer, so the row prints the answer count where the prototype prints a date |
-| **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
-| **Compare** | **live** | `pctFor` on your own option **within this stop's own cohort** (D170 — it read the globe under the stop's name until then), ranked least-typical first, no new read. "With the majority" means your pick is what this cohort picked MOST, not that it cleared 50%: a three-way leader can win on 40%, and a 50/50 tie is nobody's majority |
-| **Explore** | **live** | `divergence` across the six breakdown dims, against the GLOBE on every stop — its buckets are cuts of everyone and its sentence ends "same as everyone", so it reads `LensQuestion.all` rather than the stop's cohort (D170). The v18 test-pole axis is the one part with no source *here*, since test results are not a dim — but the reading itself is no longer dark: D146 draws it on the who-voted sheet as the **Type** cut, folded on the client from the cached voter lists plus public `testResults` rather than from a published cell (a bounded sample, stated as one, Big Five only). If Explore ever takes the axis it should read `data/typeSplit.ts` rather than grow a second way to type people. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `ui/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
-| **Scores** | **live since D100**, about the place since D187 | `meanScore` over the questions that RATE this stop (`LensQuestion.rates === scope`, D187) **as this stop answered them** (D170), labelled with the bank's `tag` rather than the prompt, your own score ticked onto each bar. The type filter (`rating` + `scale`) stays under the subject filter: `rates` says what a question is about, `ORDINAL_TYPES` says whether averaging it means anything |
+| **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102). The City stop adds a second pass narrowed to your frozen city anchor in the QUERY (D278) — same cap, same rows read, because the unscoped pass spends nearly all of them on people the city filter then discards |
+| **Compare** | **live**, and the drawing above since D193 | `data/compare.ts` folds both sides into axis maps and `ui/LiveCompareLens.tsx` lays them over each other — the prototype's `CBAssess` and `CBAlignGlyph`, imported rather than re-ported. Their side comes off **counts** at City / Country / World / Circle (`axisScores` over this stop's own cell — D170's rule, unchanged by the change of reading) and off **people** at Groups and Near, which hold no test-bank answers to fold and average their members' completed `testResults` instead. Yours is a completed test where you have one and your own feed answers where you have not, so the tab fills in from ordinary answering. Every card states its basis; a place's axis needs testNorms' floors (30 answers, 2 items) and a card needs three axes you SHARE. **What it was until D193** is worth keeping: `pctFor` on your own option, question by question, least-typical first — every number true, and the Answers tab re-sorted |
+| **Explore** | **live** | `divergence` across the eight breakdown dims (`COHORT_DIMS`, the client-side copy of `BREAKDOWN_DIMS` — the chip row is `COHORT_DIMS.map`, so it draws whatever that holds), against the GLOBE on every stop — its buckets are cuts of everyone and its sentence ends "same as everyone", so it reads `LensQuestion.all` rather than the stop's cohort (D170). The v18 test-pole axis is the one part with no source *here*, since test results are not a dim — but the reading itself is no longer dark: D146 draws it on the who-voted sheet as the **Type** cut, folded on the client from the cached voter lists plus public `testResults` rather than from a published cell (a bounded sample, stated as one, Big Five only). If Explore ever takes the axis it should read `data/typeSplit.ts` rather than grow a second way to type people. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `data/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
+| **Scores** | **live since D100**, about the place since D187 | `meanScore` over the questions that RATE this stop (`LensQuestion.rates === scope`, D187) **as this stop answered them** (D170), labelled with the bank's `tag` rather than the prompt, your own score ticked onto each bar. The type filter (`rating` + `scale`) stays under the subject filter: `rates` says what a question is about, `ORDINAL_TYPES` says whether averaging it means anything. **Since D205 the City stop's card also says who may score it**: a question that rates a city writes no city anchor when the device's own location fix has never agreed with it, so an unconfirmed reader's scores are absent from this number — and the card says so rather than letting them wonder. The gate is at the ANSWER because it cannot be here: this reads `agg.by.city[city]`, one pre-summed cell, and a client cannot filter people out of a total it never sees itemised |
 | **the field itself** | **live since D112**; a tab from D119, the stop's permanent head since D136 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World. Outside the tab conditional, so it never unmounts and row navigation costs nothing |
 
 The row is the stop's navigation (`ui/MirrorLensTabs`, the prototype's
@@ -376,11 +448,33 @@ opened. The bodies behind the row are lazy chunks; the row itself is
 not, because a suspense gap where the navigation should be is a stop
 that looks broken.
 
+**Every stop with a population has the row now (D190).** D188 measured its
+geometry on the five that had one and recorded the gap it did not close —
+"Circle and Groups have no row at all in live mode… a missing feature, not
+a misplaced one". They have one: `Answers · People · Compare`, the three
+`group-mirror.jsx` gives the demo twins, drawn under the same
+`marginTop: auto` frame so the row lands at the same height on all seven.
+Neither stop invents a source for it — each tab is a different cut of the
+fold that stop was already computing, and Compare is the shared lens in
+both (`CompareLens` at D190; `LiveCompareLens` since D193, over each
+stop's own basis). The two ends of the row are still the stop's own
+business: **Scores** and **Explore** need a published breakdown and a
+"everyone" baseline, and a circle of nine has neither.
+
+Where a row is refused, it is still refused for a reason: a **failed**
+circle read draws the retry sentence and no tabs (three empty readings of
+a circle nobody could load would bury it), and Near draws no row while the
+counter is off, because with no room there is nothing to have tabs about.
+
 ## 4 · The passive half: tests that fill themselves
 
 The four core instruments — Big Five, politics, values, social — and the
 minor lenses beside them (`IS_LENSES`) have no test flow to sit down for.
-Their items ship as ordinary feed cards (`surface: "test"`), so answering
+Their items ship as ordinary feed cards (`surface: "test"`) — since D416
+the Big Five's thirty facets and the compass's eighteen positions among
+them, as bank-only DEEP items the feed serves after each instrument's
+domain items (a fold for them is the plan's next step; today they fill
+nothing but their own aggregates) — so answering
 the feed fills them in the background, and because they are ordinary
 cards their option counts publish like any other question's. (True of
 the minor lenses only since D91 — under D50 their answers were
@@ -454,27 +548,44 @@ Two gaps are worth stating in prose because no badge covers them:
   MapStats through a null guard already, and its fallbacks put every dot
   at one radius with none marked a rare take.
 
-  **D99 took the two that had a counterpart.** `age` and `edu` are
-  breakdown dims, so `dist`/`mode` now compute from the published cells
-  (`data/cohort.ts` `typicality`), and `cohortN` says how many answers
-  the reading rests on so a 50% drawn from two people is not presented as
-  a finding.
+  **D99 took the two that had a counterpart, D328 took the third.** `age`,
+  `edu` and `job` are breakdown dims, so `dist`/`mode` now compute from
+  the published cells (`data/cohort.ts` `typicality`), and `cohortN` says
+  how many answers the reading rests on so a 50% drawn from two people is
+  not presented as a finding. `job` reaches them through the derived
+  `jobField`, the way `age` reaches them through `ageBand`: the
+  profession pick is a 31-option list and growing, which is longer than
+  `BREAKDOWN_MAX_BUCKETS`, so the dim is a closed field of 20 derived from
+  it. Its stated reason for refusing had been "profession is free text"
+  long after the profile became a `<select>`.
 
-  The other five still refuse, structurally: `job` is profession,
-  deliberately never a breakdown dim (D8), and the four test anchors are
-  RESULTS with no cohort aggregate anywhere. (Six and five until D103
-  retired the Thinking test — one fewer refusal, not one more answer.) `dimVal` refuses at every
+  The other four still refuse, structurally: the four test anchors are
+  RESULTS with no cohort aggregate anywhere. (Six, then five when D103
+  retired the Thinking test — one fewer refusal, not one more answer —
+  then four at D328, which IS one more answer.) `dimVal` refuses at every
   anchor for that same reason. The refusal keeps D72's mechanism — null
   at the source, not a gate at each call site — which is precisely what
   made this fix findable: the null marked which readings were invented
   rather than merely unbuilt.
-- **The Circle and its relationship map are prototype-only.** Not for
-  want of permission — D98 opened every answer — but because v2 has no
-  person-to-person graph at all to draw. `relmap`'s people are invented, and it is the largest module still loaded eagerly
-  — the one overlay excluded from the after-first-paint group, because
-  the Mirror reads `RelationshipMap` during a render nothing re-triggers
-  to decide whether Circle draws the embedded map or the generic field
-  (D38).
+- **The relationship MAP is prototype-only; the Circle stop is not, and
+  this bullet said otherwise for three months.** It read "v2 has no
+  person-to-person graph at all to draw", which D101 made false: the
+  follow graph is `v2_users/{uid}/following`, `data/circle.ts` folds it,
+  and `LiveCircleBody` is what a live build draws at that stop. What is
+  still invented is `relmap`'s cast — the 49 named people in
+  `relmap-core.js`, their categories and their closeness years — and
+  nothing live renders them.
+
+  **Which is why the map left the eager graph at D200.** It was the one
+  overlay excluded from the after-first-paint group, because the Mirror
+  read `RelationshipMap` during a render nothing re-triggers, to decide
+  whether Circle drew the embedded map or the generic field (D38). That
+  read is DEMO-ONLY once Circle has a live body, so the module was
+  costing every shipping build ~60 KB of first paint to answer a question
+  a live build never asks. `mirror-field-pops.jsx` imports it now and
+  re-renders when it lands, and `smoke-mirror.test.jsx` draws the demo
+  Circle stop — which nothing did before, so the swap this bullet
+  describes could have happened silently.
 
 ## 6 · Where the code is
 
@@ -490,16 +601,18 @@ Two gaps are worth stating in prose because no badge covers them:
 | Near's room tabs — Answers · People · Compare over a server fold (D177) | `src/v2/ui/LiveRoomTabs.tsx` + `ui/roomShape.ts` |
 | the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
-| Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
-| the group as a cast of roles | `src/v2/spec/group-role-map.jsx` |
-| Compare | `src/v2/spec/compare-breakdown.jsx` |
+| Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupCast.ts`, `data/groupPortrait.ts`, `data/roles.ts` |
+| the group as a cast of roles, live (D437) | `src/v2/ui/LgRoleMap.tsx` + `data/roleField.ts` |
+| the group as a cast of roles, demo | `src/v2/spec/group-role-map.jsx` |
+| Compare, live (D193) | `src/v2/ui/LiveCompareLens.tsx` + `data/compare.ts` |
+| Compare's drawing, shared with the demo | `src/v2/spec/compare-breakdown.jsx` (`CBAssess`, `CBAlignGlyph`) |
 | Explore | `src/v2/spec/segment-explorer.jsx` |
 | the cut list every breakdown reads | `src/v2/spec/vote-cuts.js` |
 | the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |
 | who may read any of it | `firestore.rules` |
 | the cross-user read, and the cuts built on it (D149) | `src/v2/data/voters.ts`, `src/v2/ui/LiveBreakdownPanel.tsx` (Friends), `src/v2/ui/LiveTakesPanel.tsx` (sides) |
 | a live card's who-voted sheet, cohort-first (D125) | `src/v2/ui/LiveBreakdownPanel.tsx` |
-| bucket key → the name a reader sees (D125) | `src/v2/ui/cohortLabels.ts` |
+| bucket key → the name a reader sees (D125) | `src/v2/data/cohortLabels.ts` |
 | the cohort folds (mix, slice, divergence, typicality, likeness) | `src/v2/data/cohort.ts` |
 | the live lens bodies | `src/v2/ui/LiveMirrorLenses.tsx` |
 | the live stop's tab row (D119) | `src/v2/ui/MirrorLensTabs.tsx` + `ui/lensTabs.ts` |
@@ -519,8 +632,8 @@ reason anything is ever hidden) · D3 (anonymous-first, groups by invite
 code) · D5 (create-only answers, owner-written; the option is editable
 since D86, the cohort snapshot is not) · D8 (per-anchor breakdowns and
 the snapshot they read) · D9 (the city as the unit — its Near-fold undone
-by D111) · D32 (Learn's first attempt only) · D38 (why relmap stays
-eager) · D57 (server-scored logic) · D72 (the Map's mock typicality,
+by D111) · D32 (Learn's first attempt only) · D38 (why relmap was eager,
+until D200 took it off that graph — see §5) · D57 (server-scored logic) · D72 (the Map's mock typicality,
 refused for being invented rather than private) · D111 (Near is
 presence, City is its own stop) · D112 (the similarity surfaces: place
 score profiles and kindred by scores, default-on).

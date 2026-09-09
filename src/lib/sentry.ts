@@ -17,11 +17,22 @@
 //     though they were in use, which is how 28 KB of unreferenced
 //     framework code rode along unnoticed.
 //
-//     @sentry/react stays in package.json on purpose: it satisfies
-//     @sentry/capacitor's framework peer alongside angular and vue, and
-//     dropping it trades 0 shipped bytes for an install warning. It is
-//     no longer imported, so rolldown leaves it out of the bundle —
-//     which is the whole win.
+//     @sentry/react is gone from package.json too. It stayed there after
+//     the swap on the reasoning that it satisfied @sentry/capacitor's
+//     framework peer and dropping it would trade 0 shipped bytes for an
+//     install warning — and that was wrong: the SDK marks all three
+//     framework peers OPTIONAL (`peerDependenciesMeta` in
+//     @sentry/capacitor's package.json, angular and vue alongside react),
+//     so npm never warned, and nothing in its build resolves the package.
+//     Measured, because the obvious claim would also be wrong: dropping the
+//     DECLARATION does not drop the INSTALL. npm installs optional peers,
+//     so the package is still in node_modules and still in the lockfile —
+//     now marked `"optional": true, "peer": true` and pinned by
+//     @sentry/capacitor's own exact range rather than by us. What the
+//     removal buys is that package.json stops declaring something this app
+//     does not use, and dependabot stops carrying an ignore rule for it.
+//     Nothing else. If the shipped bundle ever needs to change, it is
+//     rolldown that decides, and it already leaves the package out.
 //
 // The SDKs are imported DYNAMICALLY: the ~100 KB of Sentry JS stays
 // out of the main bundle and off the first-paint path, loading async
@@ -33,12 +44,33 @@
 // Configuration is via env vars — set VITE_SENTRY_DSN to enable.
 // Dev builds without the env var skip Sentry entirely.
 //
-// User choice: reporting is ON by default (D76), and the local
-// `insight.telemetry.v1` flag records an opt-out. The switch lives in
-// the account panel (LivePrivacyPanel); an explicit "false" is
-// honoured at every send site, not just at init.
+// Reporting is ON by default (D76) and the account panel's off switch
+// is gone (D211) — the owner's call: a release build has no toggle. The
+// local `insight.telemetry.v1` flag survives as a READ-ONLY record of
+// opt-outs recorded by older builds: nothing writes it any more, but an
+// explicit "false" is still honoured at every send site, not just at
+// init, because removing a switch must not flip anyone's recorded
+// choice.
 
-type SentryCapacitor = typeof import("@sentry/capacitor");
+// The THREE functions this file calls, not the whole namespace. Binding
+// the namespace is what made rolldown ship all of @sentry/browser and all
+// of @sentry/capacitor: a namespace object has to exist at runtime, so
+// every export is live and nothing can be shaken out. Replay, Feedback,
+// Spotlight and browserTracing were all in the shipping bundle, none of
+// them ever called. Measured across two full VITE_V2_LIVE builds: the
+// Sentry group 453 → 100 KB over the same 3 chunks, its largest chunk
+// 445,598 → 84,090 bytes, total JS 2426 → 2071 KB (−14.6%).
+//
+// It is package size and post-paint parse, not first paint — Sentry
+// appears in no modulepreload link, as check-bundle.mjs's own header
+// says. `tracesSampleRate` below stays inert either way: @sentry/browser's
+// init never registers browserTracingIntegration, which is exactly why the
+// tracing graph is droppable.
+type SentryCapacitorFull = typeof import("@sentry/capacitor");
+type SentryCapacitor = Pick<
+  SentryCapacitorFull,
+  "init" | "setUser" | "captureException"
+>;
 
 const TELEMETRY_KEY = "insight.telemetry.v1";
 
@@ -61,50 +93,28 @@ export function telemetryEnabled(): boolean {
   }
 }
 
-export function setTelemetryEnabled(on: boolean): void {
-  try {
-    localStorage.setItem(TELEMETRY_KEY, on ? "true" : "false");
-  } catch {
-    // Best-effort; private mode blocks localStorage.
-  }
-  if (on) {
-    sentryInit();
-  } else if (sdk) {
-    // Already-initialised Sentry cannot be cleanly torn down at runtime, so
-    // OFF is enforced at the two send sites (reportError, setSentryUser)
-    // rather than trusted to teardown — they gate on consent, not on `sdk`
-    // being non-null. Nulling the user and closing the client is the
-    // best-effort half; the gates are the half that holds.
-    //
-    // The panel used to say "Off — nothing is reported" while this ran, and
-    // that was false for the rest of the session: ~30 reportError sites, all
-    // unhandled exceptions, and 5% of traces kept transmitting, and
-    // setSentryUser (reached from wake()) re-attached the uid afterwards, so
-    // the residual was uid-linked.
-    try {
-      sdk.setUser(null);
-      sdk.getClient?.()?.close?.();
-    } catch {
-      // ignore
-    }
-  }
-}
+// `setTelemetryEnabled` stood here and left with the panel's switch
+// (D211). The OFF half of its job — send-site gating, because an
+// initialised SDK cannot be cleanly torn down — is unchanged below:
+// reportError and setSentryUser gate on telemetryEnabled(), not on `sdk`
+// being non-null, so a recorded opt-out still holds for the whole
+// session.
 
 export function sentryInit(): void {
   if (sdk || loading) return;
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
-  // Honour the recorded opt-out — the LivePrivacyPanel toggle calls
-  // sentryInit() again if the flag is flipped back on.
+  // Honour a recorded opt-out from an older build.
   if (!telemetryEnabled()) return;
   loading = true;
   void (async () => {
     try {
-      const [cap, react] = await Promise.all([
-        import("@sentry/capacitor"),
-        import("@sentry/browser"),
-      ]);
-      cap.init(
+      // Named imports, not namespaces — see the type above. Sequential
+      // rather than Promise.all for the same reason: an array of two
+      // namespace objects is the shape that defeats the analysis.
+      const { init: capInit, setUser, captureException } = await import("@sentry/capacitor");
+      const { init: browserInit } = await import("@sentry/browser");
+      capInit(
         {
           dsn,
           // Tag this build with its env + release so the dashboard can
@@ -123,14 +133,14 @@ export function sentryInit(): void {
         // The second argument is the JS init invoked from within the
         // Capacitor SDK; for web builds the Capacitor side no-ops and
         // only this React init runs.
-        react.init,
+        browserInit,
       );
-      sdk = cap;
+      sdk = { init: capInit, setUser, captureException };
       if (pendingUid !== undefined) {
-        cap.setUser(pendingUid ? { id: pendingUid } : null);
+        setUser(pendingUid ? { id: pendingUid } : null);
       }
       for (const [err, ctx] of queued.splice(0)) {
-        cap.captureException(err, { extra: ctx });
+        captureException(err, { extra: ctx });
       }
     } catch (err) {
       console.warn("[sentry] SDK load failed:", err);

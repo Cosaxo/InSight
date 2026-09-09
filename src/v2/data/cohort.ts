@@ -21,6 +21,7 @@
 // inversion that made "absent ≠ zero" a doctrine worth writing down.
 
 import type { AggDoc } from "./deck";
+import { sharePcts } from "./pct";
 
 /** dim → bucket → optionIdx → count, as published. */
 export type ByMap = Record<string, Record<string, Record<string, number>>>;
@@ -36,7 +37,7 @@ export interface Bucket {
 /** The dims a cohort can be cut by — BREAKDOWN_DIMS, client-side copy. */
 export const COHORT_DIMS = [
   "ageBand", "gender", "city", "country", "education", "relationship",
-  "heightBand",
+  "heightBand", "jobField",
 ] as const;
 export type CohortDim = (typeof COHORT_DIMS)[number];
 
@@ -49,15 +50,16 @@ export const DIM_LABEL: Record<string, string> = {
   education: "Education",
   relationship: "Relationship",
   heightBand: "Height",
+  // "Work", not "Profession": the bucket is the field somebody works in,
+  // and the profile's own card calls the question Work. The specific pick
+  // ("Design & creative") is `profession`, which no chip row cuts by.
+  jobField: "Work",
 };
 
-// The Map's anchor ring speaks its own ids. Two of them are breakdown
+// The Map's anchor ring speaks its own ids. Three of them are breakdown
 // dims and can therefore be answered with real numbers; the rest cannot,
 // and the absence is structural rather than pending:
 //
-//   job   is `profession`, deliberately NOT a breakdown dim (D8) — it is
-//         free text, so every distinct spelling would mint a bucket key
-//         forever.
 //   big5, political, values, attachment
 //         are test RESULTS. Nothing aggregates them per cohort, so
 //         "how did similar personalities answer" has no source at all.
@@ -68,6 +70,13 @@ export const DIM_LABEL: Record<string, string> = {
 export const MAP_ANCHOR_DIM: Record<string, CohortDim> = {
   age: "ageBand",
   edu: "education",
+  // D328. `job` reads the profession's derived FIELD, not the pick — the
+  // same indirection `age` takes through `ageBand`. Before D328 this
+  // anchor returned null, on a reason ("free text") that had stopped being
+  // true: the profile has offered a 31-option select for a long time, and
+  // what actually blocked the dim was that 31 is longer than
+  // BREAKDOWN_MAX_BUCKETS.
+  job: "jobField",
 };
 
 /** Dense per-option counts for one (dim, bucket), or null if the cell is absent. */
@@ -85,17 +94,17 @@ export function cellFor(
 /**
  * Integer percentages that sum to exactly 100.
  *
- * The largest share absorbs the rounding drift, which is the convention
- * every other split in this app uses — two surfaces rounding differently
- * on the same numbers is how a 51/49 becomes a 51/48 one screen over.
+ * The rule itself lives in data/pct.ts, shared with the feed's `wfPcts` —
+ * two surfaces rounding differently on the same numbers is how a 51/49
+ * becomes a 51/48 one screen over, and until that module existed the two
+ * agreed only by carrying the same four lines.
+ *
+ * It used to dump the whole rounding residue on the largest share, which
+ * could draw a smaller count LARGER than a bigger one and could move the
+ * top bar off the top count. pct.ts has the measurements.
  */
 export function pctFor(counts: readonly number[]): number[] {
-  const total = counts.reduce((a, b) => a + b, 0);
-  if (!total) return counts.map(() => 0);
-  const pct = counts.map((c) => Math.round((c / total) * 100));
-  const drift = 100 - pct.reduce((a, b) => a + b, 0);
-  if (drift) pct[pct.indexOf(Math.max(...pct))] += drift;
-  return pct;
+  return sharePcts(counts);
 }
 
 /**
@@ -121,6 +130,57 @@ export function mixFor(
     })
     .filter((b) => b.n > 0)
     .sort((a, b) => b.n - a.n || a.bucket.localeCompare(b.bucket));
+}
+
+/**
+ * Vocabulary entries that are opt-outs or catch-alls rather than places on
+ * the scale. They are real cohorts once somebody has picked them, but a
+ * permanent zero row for "Prefer not to say" reads as an ask, not a fact —
+ * so `vocabMix` includes them only with answers behind them.
+ */
+export const VOCAB_TAIL = new Set(["Prefer not to say", "Other"]);
+
+/**
+ * The full-vocabulary mix for a CLOSED dim — every canonical bucket in
+ * vocabulary order, zeros included (D304).
+ *
+ * `mixFor` answers "how is this crowd composed" and sorts by size, which
+ * is right for the People lens and wrong for a breakdown that should read
+ * as a scale: age bands arrived in popularity order, and bands nobody had
+ * answered from vanished entirely, so a thin population rendered as two
+ * chips in no order at all. Here the VOCABULARY is the frame and the data
+ * fills it in — a zero row is a fact (D98: absent is zero, never
+ * withheld), and the scale stays a scale at any population.
+ *
+ * Buckets the vocabulary does not know are appended after it, biggest
+ * first: a vocabulary edit must never hide answers that were folded under
+ * the old spelling.
+ */
+export function vocabMix(
+  by: ByMap | undefined,
+  dim: string,
+  optionCount: number,
+  vocab: readonly string[],
+): Bucket[] {
+  const have = new Map(mixFor(by, dim, optionCount).map((b) => [b.bucket, b]));
+  const out: Bucket[] = [];
+  for (const v of vocab) {
+    const b = have.get(v);
+    if (b) {
+      out.push(b);
+      have.delete(v);
+    } else if (!VOCAB_TAIL.has(v)) {
+      out.push({
+        bucket: v,
+        n: 0,
+        counts: Array.from({ length: Math.max(0, optionCount) }, () => 0),
+      });
+    }
+  }
+  // Map preserves insertion order, and the insertions came from mixFor —
+  // so the unknown tail is already largest-first.
+  for (const b of have.values()) out.push(b);
+  return out;
 }
 
 /** One slice's split, as percentages, or null when the slice has no answers. */
@@ -181,6 +241,55 @@ export function divergence(
       return { bucket: b.bucket, n: b.n, pct, gap, optionIdx };
     })
     .sort((a, b) => b.gap - a.gap || b.n - a.n);
+}
+
+/**
+ * One slice's divergence, without folding the other twenty-three.
+ *
+ * Exactly `divergence(by, dim, overall, optionCount, minN).find((d) => d.bucket === bucket)`,
+ * and cohort.test.ts pins it against that expression rather than against
+ * a re-derivation — the point of the helper is that the two can never
+ * drift, since the Mirror's Explore lens and the breakdown sheet both
+ * read it and must not disagree about which option a group is unusual on.
+ *
+ * WHY IT EXISTS. Both callers wanted one bucket and asked for all of
+ * them: `divergence` builds `mixFor` over every bucket of the dim (a
+ * dense cell array and a reduce each), takes `pctFor` of each, sorts the
+ * lot by gap — and then `.find` throws all but one away. Explore does
+ * that once PER QUESTION, over the whole core archive, on every render:
+ * every dim chip, every bucket chip, every notify. Buckets are bounded
+ * (BREAKDOWN_MAX_BUCKETS) but city and country routinely fill that bound,
+ * so the discarded work is ~24× the kept work, measured at ~4 ms of the
+ * lens's ~6 ms fold in node — which is not 4 ms on a phone.
+ *
+ * Null where `divergence(...).find(...)` is undefined: a bucket the
+ * dimension does not carry, or one whose cell is all zeros. That is the
+ * same condition `sliceSplit` returns null on (counts are non-negative,
+ * so "some cell above zero" and "sum above zero" are one test), which is
+ * why Explore can drop its separate `sliceSplit` call and read `pct` off
+ * this instead.
+ */
+export function divergenceFor(
+  by: ByMap | undefined,
+  dim: string,
+  bucket: string,
+  overall: readonly number[],
+  optionCount: number,
+  minN = 0,
+): Divergence | null {
+  const counts = cellFor(by, dim, bucket, optionCount);
+  if (!counts) return null;
+  const n = counts.reduce((a, b) => a + b, 0);
+  if (n <= 0 || n < minN) return null;
+  const base = pctFor(overall);
+  const pct = pctFor(counts);
+  let gap = 0;
+  let optionIdx = 0;
+  for (let i = 0; i < pct.length; i++) {
+    const d = Math.abs(pct[i] - (base[i] || 0));
+    if (d > gap) { gap = d; optionIdx = i; }
+  }
+  return { bucket, n, pct, gap, optionIdx };
 }
 
 /**
@@ -268,8 +377,19 @@ export function headlineFor(counts: readonly number[], type?: string): Headline 
     // The top TWO points of the scale, read off its end rather than at
     // fixed indices: a Likert is five long today and the bank does not
     // promise it always will be.
-    const agree = counts.slice(-2).reduce((a, b) => a + b, 0);
-    return { kind: "agree", pct: Math.round((agree / n) * 100) };
+    //
+    // Summed from pctFor's OUTPUT, not divided locally. This branch used to
+    // do `Math.round((agree / n) * 100)`, which is the exact mistake the
+    // categorical branch's "62, not 63" case below exists to prevent — and
+    // it is worse here, because the number sits directly above the two bars
+    // it claims to summarize. Brute-forced over every 5-option vector with
+    // counts 0..12: 95,368 of them printed a headline the bars contradict,
+    // e.g. [0,0,1,0,7] printing "88% agree" over bars of 13 and 87.
+    //
+    // pctFor's shares sum to exactly 100, so summing a suffix of them is
+    // the agree share by construction, drift included.
+    const pct = pctFor(counts);
+    return { kind: "agree", pct: pct.slice(-2).reduce((a, b) => a + b, 0) };
   }
   const pct = pctFor(counts);
   const top = counts.reduce((t, v, i) => (v > counts[t] ? i : t), 0);
@@ -297,15 +417,28 @@ export function standingIn(
 ): Standing | null {
   const n = counts.reduce((a, b) => a + b, 0);
   if (!n || mine < 0 || mine >= counts.length) return null;
-  const share = (c: number) => Math.round((c / n) * 100);
+  // Read off pctFor rather than divided here, which is the same correction
+  // headlineFor's scale branch carries above: this sentence is printed
+  // directly UNDER the row's bar, and the bar is pctFor. Dividing locally
+  // reproduces the exact drift that branch describes — `[1,7]` draws a bar
+  // of 87 and `Math.round(7/8*100)` says 88, one screen line apart.
+  //
+  // pctFor's shares sum to exactly 100, so a share, a prefix or a suffix
+  // of them is the right number by construction, largest-remainder
+  // rounding included.
+  const pct = pctFor(counts);
   if (type === "rating" || type === "scale") {
+    // WHICH SIDE is still decided on the raw counts. The shares can tie
+    // where the counts do not (and the reverse), and "the bigger of the
+    // two" is a claim about the room rather than about the bar.
     const below = counts.slice(0, mine).reduce((a, b) => a + b, 0);
     const above = counts.slice(mine + 1).reduce((a, b) => a + b, 0);
+    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
     return below >= above
-      ? { kind: "below", pct: share(below) }
-      : { kind: "above", pct: share(above) };
+      ? { kind: "below", pct: sum(pct.slice(0, mine)) }
+      : { kind: "above", pct: sum(pct.slice(mine + 1)) };
   }
-  return { kind: "with", pct: share(counts[mine]) };
+  return { kind: "with", pct: pct[mine] };
 }
 
 export interface Typicality {
@@ -366,6 +499,67 @@ export interface Agreement {
   same: number;
   /** same/shared as a percentage, 0 when nothing is shared. */
   pct: number;
+  /**
+   * SORT KEY ONLY, never printed — see `likenessRate` (D277 §2).
+   *
+   * `pct` stays the number a person is shown and the number D99 chose for
+   * being explainable in one sentence. This is the one that decides who
+   * goes first, because `pct` alone cannot: it says a stranger who
+   * matched 1 of 1 is a better match than one who matched 45 of 50.
+   */
+  rate: number;
+}
+
+/**
+ * The likeness SORT key: a Wilson score lower bound on same/shared.
+ *
+ * THE BUG THIS EXISTS FOR was written down before it was fixed, in
+ * circle.ts's own comment, which described it exactly and then claimed a
+ * secondary sort key prevented it: "a single shared question that happened
+ * to match scores 100% — and without the second key that person would head
+ * the list forever, above someone who matched on forty of fifty." The
+ * second key does not prevent it. `b.pct - a.pct || b.shared - a.shared`
+ * puts pct FIRST, so `shared` only ever breaks a tie between two people
+ * with the SAME percentage — 1/1 still outranks 45/50, exactly as the
+ * comment feared, at every one of the five sites that sorted this way.
+ *
+ * A lower confidence bound is the standard answer and it is the one that
+ * needs no new data: it asks "given this sample, how good is this match at
+ * worst?", so a thin sample is penalised in proportion to how thin it is
+ * rather than by a hand-picked minimum. At z = 1.2816 (a 90% one-sided
+ * bound), measured:
+ *
+ *     1/1   pct 100 → 0.378        8/12  pct  67 → 0.482
+ *     2/2   pct 100 → 0.549       40/50  pct  80 → 0.719
+ *     3/3   pct 100 → 0.646       45/50  pct  90 → 0.832
+ *    12/12  pct 100 → 0.880      95/100  pct  95 → 0.914
+ *
+ * — so 45/50 now outranks 2/2, 8/12 outranks 1/1, and a perfect twelve
+ * still beats a 90% of fifty, which is the ordering a reader would defend.
+ *
+ * WHY NOT A MINIMUM-SHARED GATE. Because `minShared` already exists at
+ * every call site and is not the same instrument: a gate decides who is
+ * eligible to be ranked at all, and this decides the order of the ones who
+ * are. Raising the gate to fix the order would silently delete people from
+ * a list whose whole point is that it is finite and small.
+ *
+ * NOT PRINTED, deliberately. D99 chose `pct` because the number on a
+ * screen that names someone has to survive being explained to them, and
+ * "one hundred minus the average gap" survives that where a Wilson bound
+ * does not. This changes which of two people goes first; it changes
+ * nothing a reader is shown.
+ */
+export function likenessRate(same: number, shared: number): number {
+  if (!shared || shared < 0) return 0;
+  // 90% one-sided. Chosen over the conventional 1.96 (95%) because this
+  // orders a ranked list rather than making a claim: at 1.96 the penalty
+  // on small samples is heavy enough to sort a 12-question match below a
+  // 50-question one that agrees materially less often.
+  const z = 1.2816;
+  const p = Math.max(0, Math.min(1, same / shared));
+  const z2 = z * z;
+  return (p + z2 / (2 * shared) - z * Math.sqrt((p * (1 - p)) / shared + z2 / (4 * shared * shared)))
+    / (1 + z2 / shared);
 }
 
 /**
@@ -381,6 +575,25 @@ export interface Agreement {
  * person it is about, which is the property that matters most on a screen
  * that names them.
  */
+/**
+ * An Agreement from the two counts alone.
+ *
+ * `agreement()` folds two answer maps; this is for the callers that
+ * already HAVE the counts and never had the maps — groupPortrait's own
+ * accumulator, and every fixture that states a likeness rather than
+ * deriving one. It exists so `rate` has exactly one definition: a literal
+ * built by hand is a literal that will disagree with the sort the day the
+ * key changes.
+ */
+export function agreementOf(same: number, shared: number): Agreement {
+  return {
+    shared,
+    same,
+    pct: shared ? Math.round((same / shared) * 100) : 0,
+    rate: likenessRate(same, shared),
+  };
+}
+
 export function agreement(
   mine: Readonly<Record<string, number>>,
   theirs: Readonly<Record<string, number>>,
@@ -392,7 +605,12 @@ export function agreement(
     shared++;
     if (mine[qid] === theirs[qid]) same++;
   }
-  return { shared, same, pct: shared ? Math.round((same / shared) * 100) : 0 };
+  return {
+    shared,
+    same,
+    pct: shared ? Math.round((same / shared) * 100) : 0,
+    rate: likenessRate(same, shared),
+  };
 }
 
 /** Convenience: the `by` map off an aggregate, or undefined. */

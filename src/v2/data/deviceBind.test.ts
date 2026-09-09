@@ -1,10 +1,14 @@
+// @vitest-environment jsdom
+//
 // The memo/plan logic that decides whether a boot attempts activation
-// (D29). Pure functions only — the orchestration around them is exercised
-// by the e2e (activation leg) and, for the native token paths, by the
-// staging probe in docs/DEVICE-BIND.md. The month arithmetic must agree
-// with the server's (functions/src/deviceBind.ts) — same UTC "YYYY-MM".
+// (D29). Pure functions, plus `forgetDeviceBind`, which touches
+// localStorage and is why this file needs a DOM at all — the orchestration
+// around them is exercised by the e2e (activation leg) and, for the native
+// token paths, by the staging probe in docs/DEVICE-BIND.md. The month
+// arithmetic must agree with the server's (functions/src/deviceBind.ts) —
+// same UTC "YYYY-MM".
 import { describe, expect, it } from "vitest";
-import { activationPlan, memoAfter, monthKey, parseBindMemo } from "./deviceBind";
+import { activationPlan, forgetDeviceBind, memoAfter, monthKey, parseBindMemo } from "./deviceBind";
 
 const at = (iso: string) => new Date(iso);
 
@@ -60,5 +64,35 @@ describe("monthKey agreement", () => {
   it("is UTC and zero-padded, matching the server's", () => {
     expect(monthKey(at("2026-08-01T00:00:00Z"))).toBe("2026-08");
     expect(monthKey(at("2027-01-01T00:00:01Z"))).toBe("2027-01");
+  });
+});
+
+// forgetDeviceBind — the client half of the level-2 fix.
+//
+// THE BUG IT CLOSES. Activation runs once, at boot, and memoizes: a settled
+// account's `activationPlan` answers "skip" forever after. Linking happens
+// later, from the account panel. So an account that linked after activating
+// kept the level it was graded at, and the identity rung was unreachable by
+// the only path the app offers — the server's re-grade on cooldown can only
+// help if something asks it to look again.
+describe("forgetDeviceBind", () => {
+  const KEY = "insight.deviceBind.v1";
+
+  it("makes the next boot re-attempt, where the memo had made it skip", () => {
+    const uid = "u_me";
+    const settled = JSON.stringify({ uid });
+    // Before: a settled memo skips, forever.
+    expect(activationPlan(parseBindMemo(settled), uid, new Date())).toBe("skip");
+    localStorage.setItem(KEY, settled);
+    forgetDeviceBind();
+    // After: nothing to read, so the plan is to attempt — and the server
+    // re-grades on the cooldown that attempt will receive.
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(activationPlan(parseBindMemo(localStorage.getItem(KEY)), uid, new Date())).toBe("attempt");
+  });
+
+  it("is safe to call when there is no memo", () => {
+    localStorage.removeItem(KEY);
+    expect(() => forgetDeviceBind()).not.toThrow();
   });
 });

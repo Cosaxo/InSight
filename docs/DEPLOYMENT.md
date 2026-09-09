@@ -65,7 +65,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     `submitModVerdict`
   - `deleteAccount` — the one v1-era function that carries forward, and
     it still wipes the v1 collections (D13)
-  - Hosting (`web/` — the legal pages), as the **last** step and
+  - `resultsPageV2` (D379) — an HTTPS function, not a callable: the
+    shareable results page of a sponsored question, which the hosting
+    rewrite `/q/**` in `firebase.json` points at. No App Check and no
+    sign-in by design (it serves the open web); the page sets its own
+    security headers and a five-minute cache. Deployed with the
+    functions, so the rewrite has a target before hosting goes out.
+  - Hosting (`web/` — the legal pages, and the `/q/**` rewrite above),
+    as the **last** step and
     `continue-on-error` for the same reason as storage
   - The apply is **two steps, and the split is load-bearing.** Rules and
     indexes go first with no `--force`; functions follow with it.
@@ -87,6 +94,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
 
 ### One-off cleanup still owed in production (D13)
 
+> **PAID 2026-08-27 (D333).** The command below ran as written, all nine
+> confirmed 2nd Gen as they went, and their four Cloud Scheduler jobs went
+> with them — `us-central1` now holds zero functions and zero scheduler
+> jobs, verified by `npm run observe`. The inert `aggregates_*` and
+> `taxonomies` documents they kept rewriting went the same day, with the
+> whole `(default)` database (FIRESTORE-REGION step 5). Kept below as the
+> record of what was owed and why the region in it was right.
+
 Dropping a function from the `--only` list stops **deploying** it; it does
 not **delete** the deployed copy. The nine v1 functions removed in D13 are
 still live in `prvfire33` until someone runs, once:
@@ -97,6 +112,20 @@ npx firebase functions:delete rebuildAreaAggregates scheduledAreaAggregates \
   scheduledCityAggregates sendInboundImpression seedTaxonomies \
   scheduledTaxonomies --project prvfire33 --region us-central1 --force
 ```
+
+**`us-central1` in that command is correct and must not be "fixed" to
+match D201.** Those nine functions were deployed before the move and are
+still sitting in the old region.
+
+Naming the new region **fails loudly**, which is better news than this
+paragraph gave it credit for until 2026-08-26: it said the wrong region
+"would delete nothing and report success", and in firebase-tools 15.24.0
+`functions:delete` throws `The specified filters do not match any existing
+functions in project prvfire33` and exits non-zero
+(`lib/commands/functions-delete.js:56`). Nothing is touched. Worth stating
+accurately, because "silently does nothing" and "hard error" send an
+operator to two different places. It is the one place in this repo where the old region
+is the right answer — everywhere else it is a stale copy.
 
 Until that runs, three schedules keep firing against empty collections —
 harmless and near-free, but it is billed work that produces nothing. The
@@ -136,13 +165,27 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Two jobs, and only two — verified rather
-than assumed, by grepping `environment:` across every workflow:
+**What the environment gates.** Seven jobs — verified rather than assumed,
+by grepping `environment: production` across every workflow. It said "two
+jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
+joined at D290 and `monitoring.yml` at D303, and neither author re-read a
+sentence in a different document that had counted them. (`budget.yml`
+joined at D332, and this sentence moved in the same commit because
+`check:figures` now holds the count — the gate that grew out of exactly
+this paragraph's history — and it caught the sixth, `appcheck.yml`, in
+the commit that added it, which is the first time this count moved without
+a person noticing it had. It caught the seventh, `auth-config.yml`, the
+same way and in the same commit.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
 | `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
+| `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
+| `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
+| `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
+| `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
+| `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -259,11 +302,35 @@ None are committed files:
 | --- | --- | --- |
 | `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. Set 2026-07-31 to the maintainer's uid (same account as `MOD_UIDS` — the roles are separate, the person currently is not). |
 | `MOD_UIDS` | `functions/src/moderation.ts` → `assertModerator()` | Comma-separated uids allowed to call the moderation callables (`buildModQueueNow`, `fetchModQueue`, `submitModVerdict`). **Deliberately separate** from `SEED_ADMIN_UIDS` — a moderator identity can moderate and do nothing else (docs/MODERATION.md, D22). Unset ⇒ both callables deny everyone, which is fail-safe. Set 2026-07-31 to the maintainer's uid. |
-| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
+| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. That last sentence is held by `check:appcheck`, which evaluates the constant against these environments rather than pinning its text — until 2026-09-06 the gate read the *name* at 28 call sites and nothing read the value, so flipping this to opt-in served all 20 attested callables unattested with every gate green. |
 | `DC_TEAM_ID`, `DC_KEY_ID` | `functions/src/deviceBind.ts` | Apple team id and DeviceCheck key id for `activateDeviceV2`'s iOS verifier (D29, docs/DEVICE-BIND.md). Unset ⇒ iOS activation fails `failed-precondition` — fail-safe while rules enforcement is soft. |
 | `DC_PRIVATE_KEY` *(secret, not a variable)* | `functions/src/deviceBind.ts` | The DeviceCheck `.p8` contents. Stored as a GitHub **secret**; the deploy step \n-escapes it into the dotenv, the function unescapes. |
 | `DC_ENV` | `functions/src/deviceBind.ts` | Set to `development` only when probing with development-signed builds — Apple routes dev-signed device tokens to the development endpoint. Unset ⇒ production endpoint. |
 | `PLAY_PACKAGE_NAME` | `functions/src/deviceBind.ts` | Android package for Play Integrity decode/recall. Unset ⇒ `com.cosaxo.insight`, which is correct; exists so a future flavor/id change is one variable. |
+| `STRIPE_SECRET_KEY` *(secret)* | `functions/src/paid.ts` | The Stripe API key (`sk_live_…`, or `sk_test_…` while rehearsing) for the self-serve paid-question loop (D313): checkout sessions and the closer's refunds. Unset ⇒ `createPaidCheckoutV2` answers `unavailable` and the closer records refund arithmetic without executing it — bookings and reviews still run. |
+| `STRIPE_WEBHOOK_SECRET` *(secret)* | `functions/src/paid.ts` | The signing secret (`whsec_…`) of the Stripe webhook endpoint pointed at `stripeWebhookV2` (see below). Unset ⇒ the webhook answers 503 and no payment can go live. |
+| `ANTHROPIC_API_KEY` *(secret)* | `functions/src/paid.ts` | The Claude API key the automated paid-question review calls (`claude-opus-5` against `REVIEW_GUIDELINES`). Unset ⇒ reviews decide on the deterministic gates alone, logged as `paid_review_gates_only` — fail-open ONLY past the gates, and the deploy warning names it. |
+
+**Stripe webhook, one-time setup (D313):** in the Stripe dashboard add a
+webhook endpoint for **three** events — `checkout.session.completed`,
+`checkout.session.async_payment_succeeded` and
+`checkout.session.async_payment_failed` — pointed at
+`stripeWebhookV2`'s HTTPS URL (printed by the deploy;
+`https://stripewebhookv2-<hash>-ew.a.run.app` shape, or
+`gcloud functions describe stripeWebhookV2 --gen2 --region europe-west1
+--format="value(serviceConfig.uri)"`), then store its signing secret as
+`STRIPE_WEBHOOK_SECRET` and re-run the deploy so the dotenv carries it.
+
+The last two matter because the checkout is created without
+`payment_method_types`, so Stripe's dynamic methods apply — and EUR's
+delayed ones (SEPA Direct Debit, bank transfer) deliver
+`checkout.session.completed` with `payment_status: "unpaid"` and settle
+hours or days later. The handler goes live only on a completion that says
+paid, so subscribing to `completed` alone would leave every delayed-method
+buyer stuck at approved, having paid.
+Deliberately the dotenv mechanism, not `defineSecret()` — a Secret
+Manager entry that does not exist makes `firebase deploy` refuse, and
+the paid loop must never be able to block an emergency rules fix.
 
 The deploy job writes these to `functions/.env.prvfire33`, which the CLI
 bakes into each function's runtime config. The filename is
@@ -332,6 +399,81 @@ single-holder too, and none of them is a comma-separated variable. Those are
 account-level delegation (Play has user management; Apple has App Store
 Connect roles), and they belong on the pre-launch list for the same reason.
 
+## Moving the functions to another region (D201)
+
+The code half is done: `FUNCTIONS_REGION` in
+`functions/src/ops.ts` and `src/lib/region.ts` both read `europe-west1`,
+every function compiles to it, and `check:fn-runtime` fails if the two
+sides ever disagree or if a call site starts spelling a region out again.
+**The deploy half is an operator action, and it is the one deploy in this
+repo that can corrupt data.** Read this section before running it.
+
+### Why it is not an ordinary deploy
+
+**A function's region is part of its identity.** Deploying the new region
+does not move anything — it CREATES `europe-west1/onV2AnswerCreated` and
+leaves `us-central1/onV2AnswerCreated` exactly where it is. While both
+exist, both are subscribed to the same document path, and **every answer
+folds twice**.
+
+**The event-ledger dedup does not save you, and it looks like it should.**
+`functions/src/v2.ts` opens each aggregate transaction with
+`const seen = await tx.get(eventRef); if (seen.exists) return;`, keyed on
+the CloudEvent id. That makes a RETRY of one trigger idempotent, which is
+what it was written for (`retry: true` on both triggers). Two independent
+Eventarc subscriptions deliver two events with two ids for the same write,
+so each writes its own ledger row and folds again. The counts end up
+double and nothing errors.
+
+The deploy step in `firebase-deploy.yml` passes `--force` with an
+id-only `--only functions:<name>` filter, which is the combination that
+lets firebase-tools plan the old-region function as a deletion rather than
+prompting. **Expected, not verified** — no region move has been run
+against this project — so step 3 below is a check rather than a formality.
+
+### The procedure
+
+1. **Pick a quiet moment and do not answer anything while it runs.** At
+   the current install base this is trivially satisfiable; it stops being
+   trivial the day there are users, which is most of why this is being
+   done before launch rather than after.
+2. **Merge to `main` and let *Deploy Firebase backend* run**, or dispatch
+   it. It deploys all 28 functions to `europe-west1`.
+3. **Verify nothing survives in the old region — this is the step that
+   matters:**
+   ```bash
+   gcloud functions list --project prvfire33 --regions us-central1
+   ```
+   Anything listed that is not one of D13's nine v1 leftovers is a live
+   duplicate. Delete it before the next answer is written:
+   ```bash
+   npx firebase functions:delete <name> --project prvfire33 \
+     --region us-central1 --force
+   ```
+   The two Firestore triggers are the urgent ones; a duplicated *callable*
+   is harmless (nothing routes to it) and still worth removing.
+4. **Confirm the fold still runs.** Answer one question and watch the
+   count move — `onV2AnswerCreated` is the only function whose silence
+   looks exactly like success. The `scheduledDuelReveals-silent` alert
+   covers the reveal scan, not this.
+5. **Ship a client build.** Every installed client calls the region its
+   own bundle names, so every build shipped before this deploy — 21 and
+   earlier — keeps calling `us-central1`
+   and get a 404 the app reports as `internal` on every callable —
+   account deletion, push registration, the logic test, circles and
+   duels, device activation, suggestions. The daily and the Mirror keep
+   working, because those read Firestore directly and never go through a
+   callable. Bump the build and release before anyone is on the old one.
+
+### If it goes wrong
+
+The rollback is the same operation in reverse — flip both constants back,
+deploy, delete the `europe-west1` copies — with the same double-fold
+window. Aggregates already double-counted are NOT self-healing: the
+ledger says the work was done. `## Correcting aggregates after a
+fake-account ring (D28)` below is the closest thing to a repair path, and
+it is a rebuild rather than an undo.
+
 ## Rolling back a bad deploy
 
 Rules, indexes and functions roll back by different mechanics — a rules
@@ -381,7 +523,9 @@ Fake-account prevention is deliberately partial — App Check prices
 accounts, and since D98 nothing hides a small distortion — D28
 records why no mechanism can make it complete. What the system guarantees
 instead is that the published numbers stay **correctable**: answers are
-immutable (D5), exact counts live server-side in `v2_aggs_private`, and
+immutable (D5), the exact counts are server-written and client-unwritable
+(`v2_question_aggs` is `allow write: if false`, so the trigger is its only
+writer and a correction cannot be raced), and
 every counted answer leaves a `v2_agg_events` entry `{ qid, uid, at }`
 for `LEDGER_RETENTION_DAYS` (90). This runbook is the procedure that
 cashes that guarantee in. Write nothing here during an incident that this
@@ -408,17 +552,42 @@ attribution, subtraction, republication, in that order.
    answer docs alone — an answer whose trigger never completed was never
    counted, and subtracting it would corrupt the tally in the other
    direction.
-3. **Subtract, in a transaction per qid.** In `v2_aggs_private/{qid}`:
-   decrement `counts[optionIdx]` (or `ent[entity]`) and `total` per
-   attributed answer, and the `by`/`entBy` cells for the anchors on that
-   answer doc — the snapshot-at-vote-time rule (D8) is what makes this
-   subtraction exact rather than approximate.
-4. **Republish through the same floors.** Rewrite
-   `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `{ counts, total, by }`, exact and whole — since D98
-   there is no floor, no `tooSmall` and no suppression to reproduce.
-   A hand-written public doc that
-   skips the floors is a worse incident than the one being corrected.
+3. **Subtract, in a transaction per qid — in the published document.**
+   Which document depends on the question's shape, and there are only two
+   cases:
+
+   **Vote, edit and rank questions — one document.** Correct
+   `v2_question_aggs/{qid}` directly: decrement `counts[optionIdx]` and
+   `total` per attributed answer, and the `by` cells for the anchors on
+   that answer doc — the snapshot-at-vote-time rule (D8) is what makes
+   this subtraction exact rather than approximate. If the uid's ledger
+   entries show more than one `optionIdx` for a qid, the extras are D86
+   edits: each consecutive pair (ordered by `at`) is one cell of the
+   `edits` matrix (D226) — decrement `edits[from][to]` per pair, so the
+   ring's second thoughts leave with its votes. For a rank question the
+   fields are `pos[]` and `total`: subtract the ring's positions per item.
+
+   There is no republication step for these, and that is the point: this
+   IS the published document, so the correction and the publication are
+   one write and cannot disagree. Step 4 below used to exist because they
+   were two documents.
+
+   **Catalogue questions (`type: "catalog"`) — two documents, in order.**
+   The accumulator is still `v2_aggs_private/{qid}`: decrement
+   `ent[entity]`, `total`, and the `entBy` cells for the answer's anchors.
+   Then recompute the board from the corrected accumulator exactly as the
+   trigger does — `canonTopN(ent, CANON_TOP_N)` for `top`/`rest`, and
+   `canonBreakdownFor(entBy, canon.top)` for `by` — and write that to
+   `v2_question_aggs/{qid}` in the same transaction. Do not hand-edit the
+   board: `top` and `rest` are a projection with an invariant (`rest` is
+   everything outside the top N), and editing one without the other leaves
+   a board whose numbers do not sum to its own total.
+4. **Publish nothing by hand that the trigger would compute.** Since D98
+   there is no floor, no `tooSmall` and no suppression to reproduce, so
+   for a vote, edit or rank question step 3 has already published. For a
+   catalogue, the only correct public doc is the one `canonTopN` produces
+   from the corrected accumulator. A hand-written public doc that
+   invents a projection is a worse incident than the one being corrected.
 5. **Then delete the accounts** (admin SDK), which removes their answer
    docs and — via the uid sweep — their ledger entries.
 
@@ -426,10 +595,35 @@ Bounds, so nobody discovers them mid-incident: entries older than 90 days
 have expired, so a ring dormant longer than the window is subtractable
 only for its last 90 days of activity. An account erased via
 `deleteAccount` took its attribution with it — right-to-erasure wins over
-forensics by design (D28 records the trade). No correction script ships
-in this repo: the first real incident should shape one against its actual
-form, not inherit an untested one; what must not be improvised is the
-order of operations above.
+forensics by design (D28 records the trade). 
+
+**Steps 3 and 4 now have a tool, and this paragraph used to say they did
+not** — it read "No correction script ships in this repo" until
+2026-08-25. D290 shipped one and never came back for the sentence, which
+is D183's failure repeating. `rebuildAggregateV2` rebuilds a question's
+aggregate from the answers that made it, and `--exclude` is exactly this
+runbook's subtraction: **Actions → Rebuild aggregate**, or
+`npm run rebuild:agg -- --qid <id> --exclude uidA,uidB` locally. It
+replays every arm — vote, rank and catalog, the last writing both
+documents in the order step 3 describes — so a rebuild cannot invent a
+projection the way a hand-written board can.
+
+Three things it does not change. **Attribution is still steps 1 and 2**,
+and still investigative: the tool takes a uid list, it does not find one.
+**The `edits` matrix (D226) is carried forward, not recomputed** — an
+answer records where it landed and never where it came from — so a ring's
+second thoughts still need the hand-subtraction step 3 describes. And it
+is **dry by default**: read the drift before passing `--apply`.
+
+Read `scanned` before you believe the drift. A scan that matched nothing
+agrees with an empty aggregate trivially, so the tool says `nothing to
+compare` rather than `drift: none` there, and refuses `--apply` outright
+if the aggregate is not empty (D295). A zero scan is more often a query
+that did not work — a composite index still building after a deploy, a
+qid that does not match the answers — than a question whose answers are
+gone.
+
+What must not be improvised is the order of operations above.
 
 ### Reading the velocity scan (D54)
 
@@ -481,7 +675,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (three alerts, deliberately)
+## Alerting (ten policies, eight log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -490,18 +684,30 @@ exactly the one that looks like nothing from the outside — the app keeps
 serving, the Mirror just stops moving while Eventarc piles up redeliveries
 for ~7 days.
 
-> **One command applies all of this**, idempotently and dry-run by default:
+> **One dispatch applies all of this**, idempotently and dry-run by
+> default: the **Arm monitoring** workflow (`.github/workflows/monitoring.yml`),
+> `apply` off to report and on to create. It runs behind the `production`
+> environment gate, on `FIREBASE_SERVICE_ACCOUNT` — no local tooling, no
+> login. Locally it is the same script:
 >
 > ```bash
 > npm run monitoring:apply -- --email you@example.com           # report
 > npm run monitoring:apply -- --email you@example.com --apply   # do it
 > ```
 >
-> It creates the channel, both log-based metrics and all three policies in
-> the order below, skipping whatever already exists. The manual steps stay
-> written out because the script is a convenience over them, not a
-> replacement for knowing what it did — and because the reason each object
-> exists is the useful part.
+> It creates the channel, then every log-based metric, then every policy —
+> in that order, skipping whatever already exists. Then confirm with the
+> instrument rather than by eye: `npm run observe` reads the project back
+> and `armed` is the answer.
+>
+> **It used to need `gcloud`, and that is why none of this existed.** The
+> script shelled out to an interactively-authenticated CLI nobody had logged
+> in with, so it never ran — and on 2026-08-26 the observer found zero
+> policies and zero metrics in the project, two days after the script was
+> written to create every one of them (D300, D303). The manual steps below
+> stay written out because the reason each object exists is the useful part,
+> but they are no longer the way to do it: `gcloud alpha monitoring` needs
+> the same login, and the same nobody has it.
 
 `monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
 that fires on any `severity>=ERROR` from that trigger. It is **not applied
@@ -602,35 +808,73 @@ policy's own runbook tells them to do — would reset the absence timer and
 silence the alert for the outage they are working on.
 
 **Why this one does not wait for "someone is actually reading the alerts",
-unlike the aggregators below.** A missed reveal does **not** self-heal.
-`runDuelReveals` computes `const yester = dayKey || utcDayKey(-1)`, and the
-schedule passes no `dayKey` — so every run handles *yesterday and only
-yesterday*. A three-day outage does not resolve into a catch-up run; it
-leaves two days permanently unrevealed, because no later scheduled run ever
-looks at them again. Recovering them needs a manual `revealDuelsNowV2` with
-an explicit `day`, which needs someone to know which days to name. The
-detection gap and the data loss are the same window.
+unlike the aggregators below.** Under the day, a missed reveal did **not**
+self-heal: every run handled yesterday and only yesterday, so a three-day
+outage left two days permanently unrevealed, and recovering them needed a
+manual `revealDuelsNowV2` naming each day. Under rounds (ROUNDS-PLAN,
+D426) the scan asks for every group whose open round is DUE —
+`roundDeadlineAt <= now` — and a due round stays due until it reveals, so
+the first run after an outage catches up everything the outage missed.
+What the alert still buys is the WAIT: while the scan is quiet, every group
+whose round did not complete sits face-down past its deadline (a 1v1 and a
+group everyone answered reveal in the trigger and are not affected), and a
+recovery is one `revealDuelsNowV2` call with no day to name.
 
 **Known limit, recorded rather than discovered later.** A metric-absence
 condition needs a time series that has existed at least once; against a
 metric with no points it does not fire. So this policy is blind to "the
 scheduled reveal never worked at all" and only ever proves "it worked and
 then stopped." Apply it, then confirm a first run actually landed —
-`npm run monitoring:apply` prints the `gcloud logging read` that checks —
-or it sits green meaning nothing.
+confirm a first run actually landed with `gcloud logging read
+'jsonPayload.metric="duel_reveal_run"' --limit 1 --project prvfire33`, or it
+sits green meaning nothing. **Not `npm run observe`** — the observer reads
+metric DEFINITIONS (`projects.metrics.list`), never log entries or a time
+series, so it lists `duel_reveal_run` from the moment arming creates it,
+whether or not a scan has ever run. This paragraph said `observe` for one
+commit, which is the paragraph's own warning happening to the paragraph.
 
-**Why only these three.** An alert nobody acts on trains people to ignore
+**Why these three came first.** An alert nobody acts on trains people to ignore
 the channel, and at zero users most signals are noise. These are the
 conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
-indistinguishable from health. The scheduled aggregators
-(`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
-next — they are 24h jobs whose failure delays a surface by a day and
-self-heals on the next run, so they can wait until someone is actually
-reading the alerts. That "self-heals" is doing real work in this paragraph:
+indistinguishable from health. The nightly jobs are the obvious next
+— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+`closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
+failure delays a surface by a day and self-heals on the next run, so
+they can wait until someone is actually reading the alerts.
+(`sweepPaidReviewsV2` is NOT one of them — it runs every 30 minutes, so
+its silence costs half an hour, not a day. `scheduledDuelReveals` is
+every 120 minutes and is already alerted.)
+
+(This named `scheduledWorldAggregates` and `scheduledCityAggregates` as
+those 24h jobs until 2026-09-08. Neither exists — they are in this same
+document's `functions:delete` list seven hundred lines up, under "PAID
+2026-08-27 (D333) … `us-central1` now holds zero functions and zero
+scheduler jobs" — and the architecture the sentence assumed went with
+them: aggregates are folded by `onV2AnswerCreated` on every answer, exact
+and with no cadence, so there is no 24h aggregate job left to alert on.) That "self-heals" is doing real work in this paragraph:
 it is exactly what is NOT true of the reveal scan, which is why that one
 did not wait.
+
+### The cap alert: cohort counts discarded at the breakdown cap (D398)
+
+`monitoring/onV2AnswerCreated-evictions.json` is the contention alert's
+shape pointed at the other thing the vote path does without an error:
+`BREAKDOWN_MAX_BUCKETS` bounds the breakdown document, and past 24 values
+of one anchor the fold either evicts a sub-floor bucket or refuses the
+newcomer — the answer folds, the transaction commits, and the cell goes to
+the question's tail (`v2_agg_overflow/{qid}-{shard}`, D400) rather than
+to the hot document. `evictForNewBucket` ran silently from the day it was
+written; the fold reports through a callback (D398) and the trigger logs
+`metric: "agg_evict"` once per act of the cap, after the commit (so a
+contended answer counts once, not once per attempt). The metric is
+`agg_evict`, `severity>=WARNING`, and the policy thresholds more than five
+in an hour. Since D400 nothing is lost when it fires; what the line means
+is that the tail is live for that question — a reader whose city is in it
+pays a shard read per such question at the City stop — and the runbook's
+first response is to move `B.tailShare` in the cost model from its honest
+zero, not to raise the threshold.
 
 ## Running a deploy manually
 

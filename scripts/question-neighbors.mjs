@@ -15,9 +15,11 @@
 // lowercase, diacritics folded, stopwords dropped, then each word folded to
 // a stem and mapped through a concept lexicon (D123 — see below). Word order
 // and phrasing furniture don't count; content words do. The deliberate
-// suggestion-board twins score 1.000 and 0.667 under this metric while the
-// closest legitimate in-domain pair scores 0.400 (measured 2026-08-13 across
-// all five domains), and the gate sits between them at GATE = 0.5. That gap
+// twin fixtures (born as suggestion-board seeds; literal strings in the
+// test since D288 §1 retired the board) score 1.000 and 0.667 under this
+// metric while the closest legitimate in-domain pair scores 0.400 (measured
+// 2026-08-13 across all five domains), and the gate sits between them at
+// GATE = 0.5. That gap
 // is narrower than D63's was, deliberately and with the arithmetic below.
 //
 // WHAT D123 ADDED, AND WHY. The metric shipped comparing surface words, so
@@ -67,10 +69,11 @@
 //   pick   — window.PICK_QS (src/v2/spec/pick-data.js)
 //   learn  — content/learn-questions.json, scored on prompt + the CORRECT
 //            answer only (D115). See below for why that one domain differs.
-// Deliberately NOT gated: suggestions.js seeds against the daily archive —
-// two seeds are byte-level twins of dailies BY DESIGN (the board depicts
-// the "picked → promoted" story), so gating them would red a green tree;
-// the lookup mode still reports them so a writer sees the collision.
+// The suggestions overlay (the board's SEED array, report-only on daily
+// lookups) retired with the community board itself (D288 §1): the seeds
+// are deleted from suggestions.js, and real asks live in Firestore where
+// a source parse cannot reach them. Its sentinel duty — proving the
+// detector sees byte-twins — lives on as literal strings in the test.
 //
 // LEARN, AND WHY IT SCORES DIFFERENTLY (D115, 2026-08-12). This header used
 // to end "Learn cards are also out (v1): two cards may legitimately share the
@@ -95,8 +98,8 @@
 //   (no args)                      scan every domain; exit 1 on any pair
 //                                  ≥ GATE not covered by ALLOW
 //   --candidate "prompt"           rank the candidate against a domain
-//     [--options "A|B|C"]          (default daily, plus the suggestion
-//     [--domain daily|feed|duel|pick|learn] [--top N]   seeds when daily)
+//     [--options "A|B|C"]          (default daily)
+//     [--domain daily|feed|duel|pick|learn] [--top N]
 //                                  For --domain learn, pass the correct
 //                                  answer alone as --options: the domain is
 //                                  scored on prompt + answer, and handing it
@@ -151,6 +154,21 @@ export const ALLOW = new Map([
   // a third member, that is the moment to ask whether the family is a
   // template rather than to add a third exemption.
   ["pk09~pk13", "different catalogues, shared question shape: `best`+`name` is the whole overlap"],
+  // gp5 "Who secretly runs this group?" (a role vote — a member is the
+  // answer) against gs7 "Our group chat runs on…" (a rating — Plans ↔
+  // Nonsense) scores exactly 0.500 on `runs` + `group`, and the two share
+  // neither an answer space nor a subject: one casts a person, the other
+  // rates the room. The rating is the owner's 2026-09-08 design, word for
+  // word (D434), so it is recorded here rather than reworded to dodge a
+  // lexical measure — the header's own rule.
+  ["gp5~gs7", "a role vote against a rating: `runs`+`group` is the whole overlap, and the answer spaces are a person and a scale"],
+  // The two cast rounds (D437) — 073 in the friends pool, 074 in the
+  // romantic pool — carry the same prompt by design, *Most days, {name}
+  // is…*, and differ in their four answers, which are the whole question. A
+  // pair only ever draws from one pool (`mode`), so the two are never
+  // neighbours in anyone's rotation; check:content keys its duplicate rule
+  // by pool for the same reason.
+  ["073~074", "the cast round, one per 1v1 pool: the same prompt over disjoint pools, the answers are the question"],
 ]);
 
 export const GATE = 0.5;
@@ -396,13 +414,12 @@ export function buildDomains() {
 
   const pickQ = extractArray(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
-    "window.PICK_QS = [",
+    // `PICK_QS = [`, not `window.PICK_QS = [`: the array is a named export
+    // now (the window mirror is assigned from it further down), and this
+    // marker matches either shape — which is the point, since a marker
+    // that names the bridge breaks the day the module crosses it.
+    "PICK_QS = [",
     "pick-data.js",
-  );
-  const sugg = extractArray(
-    readFileSync(join(root, "src", "v2", "spec", "suggestions.js"), "utf8"),
-    "const SEED = [",
-    "suggestions.js",
   );
   const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8")).questions;
   const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
@@ -415,7 +432,7 @@ export function buildDomains() {
   // if the entry ever promotes.
   const continuum = extractArray(
     readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8"),
-    "window.WORLD_FEED_QS = [",
+    "const WFD_DEMO_POOL = [",
     "world-feed-data.js",
   ).filter((q) => q.type === "dial" || q.type === "field");
 
@@ -425,11 +442,27 @@ export function buildDomains() {
   // texture. Same id = same question, not a dupe — only demo entries the
   // content bank does not know join the domain.
   const feedIds = new Set(feed.map((q) => q.id));
+  // A retired entry (`active: false`, D52's shape) leaves the domain. The
+  // gate exists so the feed never asks one question twice, and a retired
+  // question is not asked at all — while its REPLACEMENT carries the same
+  // prompt by design: the only way to change a shipped dial's range is to
+  // retire the id and append a new one (D114's freeze; D358 did it for
+  // fourteen), so scoring the pair would fail every legitimate
+  // replacement at 1.000 and push each into ALLOW as a non-exception.
+  // The retired entries stay in the bank file (the seed and the deck read
+  // the flag there), and stay in `feedIds`: a demo twin of a retired id is
+  // still that id, not a new dupe.
+  const live = feed.filter((q) => q.active !== false);
   return {
     daily: specQ.map((q, i) => entry(dailyIdOf(i, dqBase), q)),
-    feed: [...feed, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
+    feed: [...live, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
+    // …and the same exclusion for the duel pools since D434: five group
+    // questions retired when the owner's design re-asked them as ratings
+    // between two poles (`gs1` re-asks `gu3`, word for word), so the
+    // retired form would score its replacement at 1.000 for exactly the
+    // reason above.
     duel: [
-      ...duel.group.map((q) => entry(q.id, q)),
+      ...duel.group.filter((q) => q.active !== false).map((q) => entry(q.id, q)),
       ...duel.oneVsOne.map((q) => entry(q.id, q)),
       // The romantic 1v1 pool (D40 part 4) shares the duo id series and the
       // dedup domain: the pools are disjoint at serve time, but a pair can
@@ -440,9 +473,6 @@ export function buildDomains() {
     pick: pickQ.map((q) => entry(q.id, q)),
     // Prompt + the correct answer, never the distractors (header).
     learn: learn.map((c) => ({ id: c.id, prompt: c.q, tokens: tokensOf([c.q, c.a[c.c]].join(" ")) })),
-    // report-only overlay for the daily lookup, never a gated domain (the
-    // header says why)
-    suggestions: sugg.map((q) => entry(q.id, q)),
   };
 }
 
@@ -510,8 +540,7 @@ export function scanBatch(entries, domains, top = 3) {
   return entries.map((c, i) => {
     const corpus = domains[c.domain];
     if (!corpus) return { c, unknown: true, near: [], siblings: [], siblingHits: [] };
-    // Suggestions ride along on daily, report-only, as in --candidate.
-    const pool = c.domain === "daily" ? [...corpus, ...domains.suggestions] : corpus;
+    const pool = corpus;
     const siblings = entries
       // Cross-domain siblings are scored too: a run may write into more than
       // one lane, and two twins are still twins when they land on different
@@ -598,9 +627,7 @@ if (invokedDirectly) {
     }
     const options = (flag("--options") || "").split("|").filter(Boolean);
     const cTokens = tokensOf([candidate, ...options].join(" "));
-    // Suggestions ride along on daily lookups: the farm's dedup rule names
-    // them, they are just never gated (deliberate twins, header).
-    const pool = domainName === "daily" ? [...domain, ...domains.suggestions] : domain;
+    const pool = domain;
     console.log(`neighbors of ${JSON.stringify(candidate)} in ${domainName}:`);
     for (const { s, e } of rankAgainst(cTokens, pool, top)) {
       const mark = s >= GATE ? "  ← ≥ GATE: would fail the scan once appended" : "";

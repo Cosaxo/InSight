@@ -1,23 +1,36 @@
 // Invite links — the intake half. A share produces
 // https://prvfire33.web.app/join/<CODE>; this module turns that URL back
-// into a prefilled join code when the app is opened by it.
+// into a pending join when the app is opened by it.
 //
-// Until the store fingerprints land (assetlinks.json / AASA — see
-// SHIP-CHECKLIST), tapping a link opens the hosted fallback page
-// (web/join.html), which shows the code and points at the app. Nothing
-// here breaks in that world — the deep-link path is an upgrade, not a
-// dependency.
+// THREE SHAPES REACH HERE, and since D238 all three end in one button
+// rather than a filled-in text field (LdJoinPending):
+//
+//   · https://…/join/CODE      — the shared link. Opens the app directly
+//                                only once assetlinks.json carries the
+//                                real Play signing SHA-256; until then
+//                                Android lands on the page below.
+//   · https://…/join.html?c=…  — that page's own query form.
+//   · insight://join/CODE      — the custom scheme, registered on BOTH
+//                                platforms since D238 and the reason the
+//                                fingerprint is no longer what stands
+//                                between a tapped invite and the app.
+//                                web/join.html's one button navigates
+//                                here. A scheme cannot be verified, so
+//                                what travels it is an invite token and
+//                                never a credential.
 //
 // The pending code is a session note, not durable state: it survives the
 // tab/app-shell handoff and dies with the session, so a stale invite
 // never resurfaces days later.
 import { reportError } from "../../lib/sentry";
+import NAV from "./nav";
 
-// One origin for every outward link (privacy page, invites). If a real
-// domain ever replaces the .web.app default, this is the single edit —
-// D3's "no code change beyond LP_SITE" promise widened to two consumers
-// by making both read the same constant.
-export const SITE_ORIGIN = "https://prvfire33.web.app";
+// One origin for every outward link (privacy page, invites). Since D421
+// it lives in siteOrigin.ts — the pick tiles' pictures need the origin
+// and nothing else from here — and is re-exported so the two consumers
+// that read it from this module still do. Still the single edit.
+import { SITE_ORIGIN } from "./siteOrigin";
+export { SITE_ORIGIN };
 
 const PENDING_KEY = "insight.pendingJoin";
 
@@ -29,6 +42,12 @@ const CODE_RE = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6,12}$/;
 
 export function inviteLinkFor(code: string): string {
   return `${SITE_ORIGIN}/join/${code}`;
+}
+
+/** The shareable results page of a sponsored question (D379): the
+ * hosting rewrite /q/{qid}, served by functions/src/share.ts. */
+export function resultsLinkFor(qid: string): string {
+  return `${SITE_ORIGIN}/q/${encodeURIComponent(qid)}`;
 }
 
 // Accepts the shapes a join URL can arrive in: the canonical /join/CODE
@@ -45,12 +64,51 @@ export function parseJoinCode(url: string): string | null {
   // and the code alone is the path — so match on host+path, not path alone.
   const fromPath = /(?:^|\/)join\/([^/?#]+)/.exec(u.hostname + u.pathname);
   const raw = (fromPath && fromPath[1]) || u.searchParams.get("c") || "";
-  const code = decodeURIComponent(raw).trim().toUpperCase();
+  // The decode is load-bearing — `/join/%41%42%43%44%45%46` is a real code
+  // once decoded — and it THROWS on a malformed escape rather than
+  // returning anything: `/join/ABCDEF%`, `insight://join/AB%ZZ` and
+  // `/join.html?c=AB%ZZ` all raise URIError, which is neither the code nor
+  // the null this function's contract promises two lines above. The `new
+  // URL` guard above catches the other half of the same class and this was
+  // simply outside it. `apply()` in initDeepLinks calls straight into here,
+  // so on the native `appUrlOpen` path the throw escapes into Capacitor's
+  // listener with no invite delivered and nothing said.
+  let code: string;
+  try {
+    code = decodeURIComponent(raw).trim().toUpperCase();
+  } catch {
+    return null;
+  }
   return CODE_RE.test(code) ? code : null;
+}
+
+// Who to tell when a code arrives.
+//
+// THE PANEL READS THE STASH ONCE, in a `useState` initializer — which is
+// correct for the ordinary case (the deep link opens the app, the panel
+// mounts after) and silently wrong for the other one. An invite tapped
+// while the Circle screen is ALREADY OPEN stashes a code nothing will ever
+// read: `NAV.goTab("track")` is already where the user is, the panel does
+// not remount, and the code sits in `insight.pendingJoin` until something
+// else happens to remount it. Reproduced end to end before this existed.
+//
+// A set of listeners rather than a DOM event: both ends are typed modules
+// in the same graph, and an event would be a name with no type behind it.
+const joinSubs = new Set<() => void>();
+
+/** Fires when a code lands. The listener reads it with consumeJoinCode. */
+export function subscribeJoinCode(f: () => void): () => void {
+  joinSubs.add(f);
+  return () => joinSubs.delete(f);
 }
 
 export function stashJoinCode(code: string): void {
   try { sessionStorage.setItem(PENDING_KEY, code); } catch { /* best-effort */ }
+  // AFTER the write, so a listener that reads on the callback finds it —
+  // and outside the try, because a sessionStorage failure is best-effort
+  // for the stash and must not swallow the notification for a listener
+  // that could still act on it.
+  joinSubs.forEach((f) => f());
 }
 
 // Read-and-clear: the code prefills one join form once. Leaving it would
@@ -75,8 +133,8 @@ export function initDeepLinks(): void {
     const code = parseJoinCode(url);
     if (!code) return;
     stashJoinCode(code);
-    const w = window as unknown as { goTab?: (t: string) => void };
-    if (w.goTab) w.goTab("track");
+    // The registry since D248 — was a `window as unknown as {…}` cast.
+    NAV.goTab("track");
     window.dispatchEvent(new Event("insight-live-update"));
   };
   try {

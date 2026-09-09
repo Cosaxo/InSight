@@ -35,6 +35,7 @@
 // the People lens's loadKindred.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import PLACES from "../data/places";
 import {
   angleHash,
@@ -107,23 +108,54 @@ function hueOf(id: string): number {
   return Math.round(angleHash(id + "#hue") * 360);
 }
 
+const TAU = Math.PI * 2;
+/** The spacing the de-overlap pass wants between two adjacent nodes. */
+const MIN_ANGLE_GAP = 0.42;
+
 /**
  * Angle + radius per node. Angle is a pure hash of the id (stable across
  * re-ranks); radius is the likeness. One deterministic de-overlap pass
  * nudges near-coincident angles apart so two 90% matches do not stack —
  * a layout fix, not data, which is why it must not depend on rank order.
+ *
+ * THE PASS IS CIRCULAR, and it was not. It only ever pushed FORWARD, with
+ * no notion that the ring closes, so a crowded field ran the tail straight
+ * past a full turn and back onto the head — the exact stacking it exists
+ * to prevent, and worst on the nodes that had been spaced correctly. It
+ * failed at all three caps the app actually uses, and the failure is
+ * data-dependent (it turns on where the hash happens to drop the ids),
+ * which is why it could sit here looking right. Measured, on the World
+ * stop's own country codes, as the closest pair anywhere on the ring:
+ *
+ *   cap 12 (City)   0.2212 rad → 0.5236     wanted 0.42
+ *   cap 14 (Near)   0.0366 rad → 0.4488     wanted 0.42
+ *   cap 24 (places) 0.0168 rad → 0.2618     wanted 0.262 (an even share)
+ *
+ * Two things fix it. The step is the smaller of the design gap and an even
+ * share, because a ring of 24 has 0.262 rad per node to give and asking
+ * for 0.42 is asking for more circle than exists. And the wrap is then
+ * CHECKED: if the run no longer clears the first node a turn later, the
+ * nodes spread evenly instead. That trade is deliberate and it is the
+ * honest one — on a crowded ring the hash keeps the ORDER, which is all
+ * the forward pass was leaving intact anyway, and an even ring cannot
+ * stack at any N.
  */
 function layout(nodes: readonly FieldNode[]): Array<FieldNode & { x: number; y: number }> {
   const R_MIN = 44;
   const R_MAX = 138;
   const placed = [...nodes]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((n) => ({ n, angle: angleHash(n.id) * Math.PI * 2 }))
+    .map((n) => ({ n, angle: angleHash(n.id) * TAU }))
     .sort((a, b) => a.angle - b.angle);
+  const gap = Math.min(MIN_ANGLE_GAP, TAU / (placed.length || 1));
   for (let i = 1; i < placed.length; i++) {
-    if (placed[i].angle - placed[i - 1].angle < 0.42) {
-      placed[i].angle = placed[i - 1].angle + 0.42;
+    if (placed[i].angle - placed[i - 1].angle < gap) {
+      placed[i].angle = placed[i - 1].angle + gap;
     }
+  }
+  const start = placed.length ? placed[0].angle : 0;
+  if (placed.length > 1 && start + TAU - placed[placed.length - 1].angle < gap) {
+    placed.forEach((p, i) => { p.angle = start + (i * TAU) / placed.length; });
   }
   return placed.map(({ n, angle }) => {
     const clamped = Math.max(0, Math.min(100, n.match));
@@ -164,8 +196,25 @@ function SimilarityCanvas({ nodes, picked, onPick, kind }: {
 }) {
   const pts = layout(nodes);
   const anon = kind === "anon";
+  // AN EMPTY RING NAMES NOTHING (D244). With no nodes this group's label
+  // promised "closer to the centre is more like you" over a canvas with
+  // nobody on it — a comparison announced to a screen reader and then not
+  // made. Every empty arm goes through here (`SfEmptyField` hands it
+  // `nodes={[]}`), so that was the FIRST thing a new account heard from
+  // this tab, on every stop.
+  //
+  // `EmptyField` — the forty-line copy of this drawing that Circle and
+  // Groups use — already resolved it the other way: `aria-hidden` on the
+  // svg, the real sentence in the caption underneath. Two drawings of one
+  // picture cannot disagree about that, and the copy was right: the rings
+  // and the "you" disc are the scale a radius will be read on, not a
+  // reading. There is nothing here to announce until somebody is placed.
+  const empty = !pts.length;
   return (
-    <svg viewBox="-170 -170 340 340" role="group" aria-label="Similarity field — closer to the centre is more like you"
+    <svg viewBox="-170 -170 340 340"
+      role={empty ? undefined : "group"}
+      aria-label={empty ? undefined : "Similarity field — closer to the centre is more like you"}
+      aria-hidden={empty ? "true" : undefined}
       style={{ width: "100%", maxHeight: 350, display: "block", touchAction: "pan-y" }}>
       {/* guide rings — the scale the radius reads on */}
       {[64, 101, 138].map((r, i) => (
@@ -382,18 +431,44 @@ function CityField({ myParsed }: {
   const cityName = place ? place.name : city;
   // minShared 2 matches kindred()'s default: one shared question is a
   // coin flip, not an overlap.
-  const people = rankKindred(LIVE.kindredPeople(), myParsed, { city, minShared: 2 });
+  //
+  // Ranked once per pool (D398). `kindredPeople()` is perRev — the same
+  // array until the store notifies — and `myParsed` is the section's, so
+  // the ranking over up to KINDRED_QUESTIONS × VOTER_FETCH_CAP people
+  // re-runs when any of the three moves and not on the tap that opens a
+  // card, which used to re-rank the whole pool to change one highlight.
+  const pool = LIVE.kindredPeople();
+  const people = React.useMemo(
+    () => rankKindred(pool, myParsed, { city, minShared: 2 }),
+    [pool, myParsed, city],
+  );
   const loading = LIVE.similarityLoading() || LIVE.kindredLoading();
   const shown = people.slice(0, CITY_FIELD_CAP);
   const scoredN = shown.filter((p) => p.score).length;
   const pickedP = shown.find((p) => p.uid === picked) || null;
 
   if (!shown.length) {
+    // Paused before empty (D332): with the breaker on, the kindred pool
+    // was never fetched, and "Nobody from {city} yet" would be a claim
+    // about a crowd nothing looked at.
+    // …AND FAILED BEFORE EMPTY, for the same reason paused comes before
+    // empty. `loading` is false again the moment the kindred run RETURNS,
+    // including when every one of its twelve queries threw — loadVoters
+    // swallows each failure and leaves the list absent — so this said
+    // "Nobody from {city} yet" about a crowd nothing managed to look at.
+    // The Country and World fields had the same shape and were fixed one
+    // fold over; this arm reads PEOPLE rather than published cells, so it
+    // takes the people twin of that reader rather than stretching it.
+    const people$ = LIVE.kindredState();
     return (
       <SfEmptyField caption={<>{cityName}</>}>
-        {loading
+        {loading || people$ === "loading"
           ? <>Matching…</>
-          : <>Nobody from {cityName} yet — fills in as the city answers.</>}
+          : LIVE.budgetPaused
+            ? <>{BUDGET_PAUSED_BODY}</>
+            : people$ === "failed"
+              ? <>Couldn’t read the crowd here. Close and reopen to try again.</>
+              : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }
@@ -414,6 +489,15 @@ function CityField({ myParsed }: {
         {cityName} · closer = more like you
         {scoredN < shown.length ? " · dashed = answers only" : ""}
       </SfCaption>
+      {/* Said rather than dropped, the same rule PlacesField already
+          follows below: a cap that silently eats rows reads as "that is
+          all of them". These are real people the ranking placed further
+          out, not people it could not read. */}
+      {people.length > shown.length && (
+        <SfEmpty>
+          {people.length - shown.length} more from {cityName} ranked below these.
+        </SfEmpty>
+      )}
       {!myParsed && (
         <SfEmpty>Finish a test to rank by scores.</SfEmpty>
       )}
@@ -527,8 +611,32 @@ export function NearField() {
   // so arriving at Near costs a presence sample rather than a document per
   // person per question. The tabs ask again with the deck when one is
   // opened, and the per-cell cache means the roster is already there.
-  React.useEffect(() => { void LIVE.near.loadRoom([]); }, []);
-  React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  //
+  // KEYED ON THE BEAT, for the reason the tabs' own effect gives: the room
+  // is per cell, `loadRoom` is the only writer of it, and nothing in the
+  // store re-folds when the cell changes. Mounted once with an empty dep
+  // list, this field drew the roster of the block you walked out of under a
+  // headcount that moved with every beat — and it is the surface that
+  // matters more, because the tab bodies below only exist once a tab is
+  // tapped, while this is what the stop opens on. Free on a beat that did
+  // not move: the store returns at once when the cell it holds is the
+  // current one, and with no qids the question test is vacuous.
+  const beat = LIVE.near.updatedAt();
+  React.useEffect(() => { void LIVE.near.loadRoom([]); }, [beat]);
+  // NO loadSimilarity HERE. It was correct until D181, when this field
+  // drew the city's crowd and read `kindredPeople()`; that rewrite
+  // replaced the body with the presence roster and deleted the comment
+  // justifying the loader, but left the loader. Nothing this component
+  // renders reads what it fetches — the scores under each glyph come from
+  // `loadNames(roster)` below, through the shared profile cache.
+  //
+  // What it cost: ~110 test aggregates in four batched queries, plus
+  // loadKindred's twelve collection-group reads of up to 200 answers each
+  // and their name resolution — a few thousand billed reads — charged to
+  // a viewer who opened Near and may never open City or World. The stops
+  // that DO read it ask on arrival and the fold is session-cached, so
+  // nothing is lost by not pre-warming here: loadSimilarity's own comment
+  // names the moment it is spent for, and Near is not in that list.
 
   const on = LIVE.near.on();
   const room = LIVE.near.room();
@@ -537,8 +645,31 @@ export function NearField() {
   // back fresh on every notify — an effect keyed on the array itself would
   // re-fire on every beat and re-ask for names it already holds.
   const rosterKey = roster.map((p) => p.uid).join(",");
+  // READING IS NOT EMPTY — the same flag LiveCompareLens took for the same
+  // reason, on the surface where it matters more. `scoresFor` answers null
+  // for "fetched, has none" and "never fetched" alike (its own docstring
+  // says so), the fetch below runs AFTER first paint, and there is no
+  // loading flag for name resolution in the store. So without this the
+  // first frame reads every roster member as untested and the empty arm
+  // says "Nobody here has taken the test — N in the room" about a room
+  // where everybody may have. Compare is behind a tab; Near OPENS on this.
+  //
+  // `roomLoading()` does not cover it: that is the ROSTER's flag, and the
+  // roster has already arrived by the time this matters.
+  //
+  // A no-op on a warm open: the fetch resolves without a round trip when
+  // the cache already holds the roster, so the flag never becomes visible.
+  const [reading, setReading] = React.useState(false);
   React.useEffect(() => {
-    void LIVE.loadNames(rosterKey ? rosterKey.split(",") : []);
+    // Clearing on the way OUT matters as much as setting on the way in:
+    // the cleanup drops `live`, so a fetch in flight when the key empties
+    // never runs its setReading(false), and this arm would return without
+    // clearing it either — leaving the flag up for the life of the mount.
+    if (!rosterKey) { setReading(false); void LIVE.loadNames([]); return; }
+    let live = true;
+    setReading(true);
+    void LIVE.loadNames(rosterKey.split(",")).finally(() => { if (live) setReading(false); });
+    return () => { live = false; };
   }, [rosterKey]);
   // AFTER the hooks, never before: an early return above them changes the
   // hook order between renders (react-hooks/rules-of-hooks), and this
@@ -554,16 +685,66 @@ export function NearField() {
   // NOT drawn rather than parked at a default radius: a node at an invented
   // distance is a claim about a person, and the caption below says how many
   // are missing instead.
-  const placed = Object.keys(myFlat).length
+  const placeable = Object.keys(myFlat).length
     ? roster
       .map((p) => {
         const theirs = LIVE.scoresFor(p.uid);
-        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), 3) : null };
+        // MIN_PLACE_AXES, not a literal 3. The sentence one screen down
+        // PRINTS this constant ("needs {MIN_PLACE_AXES}"), and last night
+        // it started printing it on the Near stop too — so a second copy
+        // of the floor at the call site is a number the app can state and
+        // not enforce. They agree today; this is what keeps them agreeing.
+        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), MIN_PLACE_AXES) : null };
       })
       .filter((p): p is { uid: string; m: NonNullable<ReturnType<typeof scoreMatch>> } => !!p.m)
-      .sort((a, b) => b.m.match - a.m.match)
-      .slice(0, NEAR_FIELD_CAP)
+      // RAW, not the drawn number. This is the one place `raw` exists for
+      // — "deciding which people the field draws at all", in its own
+      // docstring — and Near was the site D277 §2 missed: `similarity.ts`
+      // converted both of its rankers and this one kept sorting on `match`.
+      //
+      // Two things follow from ranking on the printed figure. It carries
+      // the width bias `raw` folds AXIS_PRIOR in to remove, so a stranger
+      // matched on three axes can outrank one matched on twenty. And it is
+      // rounded onto ~20 integers, so a large tied block is resolved by
+      // whatever order the roster arrived in. The server hands back more
+      // people than the field draws (ROOM_PEOPLE_CAP against
+      // NEAR_FIELD_CAP), so the slice below is a real choice and both
+      // failures decide who is dropped.
+      .sort((a, b) => b.m.raw - a.m.raw || b.m.axes - a.m.axes || a.uid.localeCompare(b.uid))
     : [];
+  // THE TWO REASONS SOMEBODY IS NOT DRAWN, kept apart, because the caption
+  // used to give one of them for both. Everyone here whose scores this
+  // device can read is `placeable`; the field draws the closest
+  // NEAR_FIELD_CAP of them. So a room of twenty people who have ALL taken
+  // the test drew fourteen and told the reader the other six had not —
+  // about six people standing next to them. The sort comment above already
+  // says the slice is "a real choice"; the caption contradicted it.
+  const placed = placeable.slice(0, NEAR_FIELD_CAP);
+  // Nobody is "untested" while their profile is still in flight — the same
+  // conflation the empty arm below guards against, in the caption instead.
+  // The `!placed.length` arm below returns FIRST, so this number is only
+  // ever read in a PARTIALLY read room: some members' scores already in
+  // the profile cache, the rest still on the wire. Those in flight would
+  // be counted as people who have not taken it.
+  const untested = reading ? 0 : roster.length - placeable.length;
+  const capped = placeable.length > placed.length;
+  // THE THIRD REASON, and it is the one both sentences below were missing.
+  // `scoreMatch(…, MIN_PLACE_AXES)` returns null on FEWER THAN THREE SHARED
+  // axes, and `flattenAxes` keys an axis `${kind}:${dim}` — so the four
+  // instruments share no axis id at all. A viewer who has taken only
+  // Politics shares zero axes with everyone who has taken only Big Five,
+  // and every one of them drops out of `placeable` having taken a test.
+  //
+  // So "nobody here has taken the test" was said to rooms where everybody
+  // had. `scored` is the honest split: who has readable scores at all,
+  // regardless of whether they overlap with yours. The sibling field one
+  // function down already draws this distinction and says the true
+  // sentence ("None of these shares enough axes with yours yet"); this one
+  // is being brought level with it.
+  const scored = roster.filter((p) => {
+    const theirs = LIVE.scoresFor(p.uid);
+    return !!theirs && Object.keys(flattenAxes(theirs)).length > 0;
+  }).length;
 
   if (!on) {
     return (
@@ -575,12 +756,42 @@ export function NearField() {
   if (!placed.length) {
     return (
       <SfEmptyField>
+        {/* FOUR STATES, and the last two are the split this arm was missing.
+            With no scores of your own there is nothing to measure anybody
+            against, so nobody is placeable however many people here have
+            finished a test — and the room got the blame: "Nobody here has
+            taken the test", said to a room where everybody had, in the
+            state every account is in before its first instrument.
+            The sibling below (PlacesField) already splits these two.
+
+            The room's own two states stay in front of it: a room still
+            being read says so, and an EMPTY room is about the room whatever
+            the reader has taken (D160's ring case and the loading/empty
+            separation both rest on that order). Telling someone to finish a
+            test is only useful once there is somebody here to be drawn
+            against. */}
         {LIVE.near.roomLoading()
           ? <>Matching…</>
-          : roster.length
-            ? <>Nobody here has taken the test — {roster.length} in the room,
-              {" "}<strong>People</strong> lists them.</>
-            : <>Nobody else has Near on right now.</>}
+          : !roster.length
+            ? <>Nobody else has Near on right now.</>
+            : !Object.keys(myFlat).length
+              ? <>Finish a test and the room draws in around you.</>
+              : reading
+                /* FIFTH state, and it goes BELOW the viewer's-own-state arm
+                   above deliberately: "finish a test" is true whatever the
+                   room's profiles are doing, and it is the one thing the
+                   reader can act on. Only the claim ABOUT THE ROOM has to
+                   wait for the room to be read. */
+                ? <>Matching…</>
+                : scored
+                  /* They have scores; they just do not overlap with yours.
+                     Naming the instrument gap is the only version a reader
+                     can act on — take the one they took. */
+                  ? <>Nobody here shares enough axes with your tests yet
+                    {" "}(needs {MIN_PLACE_AXES}) — {roster.length} in the room,
+                    {" "}<strong>People</strong> lists them.</>
+                  : <>Nobody here has taken a test yet — {roster.length} in the
+                    room, <strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }
@@ -612,7 +823,8 @@ export function NearField() {
       </SfCaption>
       <SfEmpty>
         Nobody is named here; <strong>People</strong> names them. Placed by
-        test scores{placed.length < roster.length ? " — the rest have not taken it" : ""}.
+        test scores{capped ? ` — the closest ${placed.length} of ${placeable.length} who have` : ""}
+        {untested > 0 ? `${capped ? "; the rest" : " — the rest"} have not taken one, or share too few axes with yours` : ""}.
       </SfEmpty>
     </div>
   );
@@ -663,28 +875,73 @@ function PlacesField({ scope, myFlat }: {
   const myCity = LIVE.myCity;
   const myCountry = myCity ? (PLACES.parse(myCity)?.country || "") : "";
   const dim = scope === "country" ? "city" as const : "country" as const;
-  const items = testItemMeta(LIVE.testFeedItems(), DEFS);
-  const profiles = placeProfiles(
+  // Folded once per bank and per viewer (D398). `testFeedItems()` is
+  // perRev, so `bank` is a new array exactly when the store has notified
+  // — the aggregates `placeProfiles` reads through `aggFor` can only have
+  // moved then — and `myFlat` is the section's own. The render this saves
+  // is the pick below: a tapped place used to re-profile every place.
+  const bank = LIVE.testFeedItems();
+  const items = React.useMemo(() => testItemMeta(bank, DEFS), [bank]);
+  const profiles = React.useMemo(() => placeProfiles(
     items, DEFS, (qid) => LIVE.aggFor(qid), dim, myFlat,
     scope === "country" ? (key) => key.endsWith(`, ${myCountry}`) : undefined,
-  );
+  ), [items, dim, myFlat, scope, myCountry]);
   const labelOf = (key: string) =>
     dim === "city" ? (PLACES.parse(key)?.name || key) : PLACES.countryName(key);
   const homeOf = (key: string) => (dim === "city" ? key === myCity : key === myCountry);
 
-  const positioned = profiles.filter((p) => p.score).slice(0, PLACE_FIELD_CAP);
-  const thin = profiles.length - positioned.length;
+  // THREE groups, not two. `positioned` used to be subtracted straight
+  // from `profiles`, which folded the cap's overflow into the count the
+  // sentence below calls "too few shared axes" — false about every place
+  // in it, since a place only reaches `scored` by clearing
+  // MIN_PLACE_AXES. profiles sorts scored-first by descending match, so
+  // the overflow is the LEAST alike rather than an arbitrary 24.
+  const scored = profiles.filter((p) => p.score);
+  const positioned = scored.slice(0, PLACE_FIELD_CAP);
+  const thin = profiles.length - scored.length;
+  const capped = scored.length - positioned.length;
+  // The chip fallback's own cap, and its own overflow — see the note
+  // beside the row it feeds.
+  const chips = profiles.slice(0, PLACE_FIELD_CAP);
+  const chipsHidden = profiles.length - chips.length;
   const loading = LIVE.similarityLoading();
   const pickedP = profiles.find((p) => p.key === picked) || null;
   const what = dim === "city" ? "city" : "country";
+  const plural = (n: number) =>
+    (n === 1 ? what : what === "city" ? "cities" : "countries");
 
   if (!profiles.length) {
+    // THREE EMPTINESSES, NOT TWO. This branched on `similarityLoading()`
+    // alone, and that flag is false again the moment `loadSimilarity()`
+    // RETURNS — including when it threw. So a failed read drew "No
+    // country has answered a score question yet" as a finding about the
+    // whole world, and kept drawing it for the life of the mount, since
+    // the throw leaves `testAggsLoaded` false with nothing to retry it.
+    // The largest population claim the app makes, made out of an error.
+    //
+    // `testAggsState()` is the reader written for exactly this (it says so
+    // in its docstring), and these profiles are folded from `agg.by`
+    // cells, which is the scope that docstring names — so it applies here.
+    //
+    // THIS SAID THE CityField ARM ABOVE "was already covered", AND IT IS
+    // NOT. That arm calls neither this reader nor anything like it; its
+    // `loading` is `similarityLoading() || kindredLoading()`, and it folds
+    // PEOPLE rather than cells, so it is a different shape with the same
+    // hole one fold over: a failed kindred read leaves both flags false
+    // and the list empty, and it prints "Nobody from {city} yet" about a
+    // read that did not happen. Left alone deliberately — `testAggsState`
+    // does not scope to a people fetch, so closing it wants its own
+    // reader rather than this one stretched — and written down here
+    // rather than left as the false reassurance it was.
+    const cells = LIVE.testAggsState();
     return (
       <SfEmptyField
         caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
-        {loading
+        {loading || cells === "loading"
           ? <>Reading profiles…</>
-          : <>No {what} has answered a score question yet.</>}
+          : cells === "failed"
+            ? <>Couldn’t read the scores here. Close and reopen to try again.</>
+            : <>No {what} has answered a score question yet.</>}
       </SfEmptyField>
     );
   }
@@ -714,7 +971,7 @@ function PlacesField({ scope, myFlat }: {
               : <>Finish a test and these take their places around you.</>}
           </SfEmpty>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "2px 0 6px" }}>
-            {profiles.slice(0, PLACE_FIELD_CAP).map((p) => (
+            {chips.map((p) => (
               <button key={p.key} onClick={() => setPicked(picked === p.key ? null : p.key)}
                 aria-pressed={picked === p.key}
                 style={{ border: SF_LINE, borderRadius: 999, padding: "5px 12px", cursor: "pointer",
@@ -725,12 +982,33 @@ function PlacesField({ scope, myFlat }: {
               </button>
             ))}
           </div>
+          {/* AND THIS BRANCH SAYS IT TOO, which it did not. Both
+              disclosure lines below are gated off here — `thin`'s on
+              `positioned.length > 0`, and `capped` is 0 by construction,
+              since reaching this branch means nothing was placeable. So
+              thirty countries answered, twenty-four chips were drawn, and
+              the list read as all of them. That is exactly what the
+              comment under `capped` forbids, two lines from where it
+              happened — and this is the branch every account is in before
+              its first test result. */}
+          {chipsHidden > 0 && (
+            <SfEmpty>
+              {chipsHidden} more {plural(chipsHidden)} answered, not shown here.
+            </SfEmpty>
+          )}
         </>
       )}
       {thin > 0 && positioned.length > 0 && (
         <SfEmpty>
-          {thin} more {thin === 1 ? what : what === "city" ? "cities" : "countries"} answered,
-          too few shared axes to place.
+          {thin} more {plural(thin)} answered, too few shared axes to place.
+        </SfEmpty>
+      )}
+      {/* Said rather than dropped: a cap that silently eats rows reads as
+          "that is all of them". These CAN be placed — they are simply the
+          least alike of the ones that can. */}
+      {capped > 0 && (
+        <SfEmpty>
+          {capped} more {plural(capped)} placed further out than this field draws.
         </SfEmpty>
       )}
       {pickedP && <PlaceCard p={pickedP} label={labelOf(pickedP.key)} myFlat={myFlat} />}
@@ -750,6 +1028,25 @@ function SimilaritySection({ scope }: {
   // the stop — no tab to open first, nothing to opt into. The loader is
   // bounded and session-cached; see live.ts loadSimilarity.
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  // The person card this field opens carries a follow button, and the
+  // stop that loads the circle is a different one — so the set that
+  // answers "already following?" is asked for here. One query,
+  // session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
+  // The city half of the pool, for the one stop that filters by city
+  // (D278). Scoped to this effect rather than folded into loadSimilarity
+  // because Country and World never filter on it — they read place
+  // aggregates, not voter rows — so paying a second fan-out there would
+  // buy nothing. Session-cached and keyed on the anchor; a viewer with no
+  // city returns immediately.
+  React.useEffect(() => {
+    if (scope !== "city") return;
+    // Both halves of the pool, and both only here. `loadSimilarity` used
+    // to await the general fan-out for every scope, so Country and World
+    // paid a few thousand reads for rows they never draw.
+    void LIVE.loadKindred();
+    void LIVE.loadCityKindred();
+  }, [scope]);
   if (!LIVE.enabled) return null;
 
   const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);

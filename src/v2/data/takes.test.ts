@@ -39,6 +39,10 @@ const h = vi.hoisted(() => ({
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   deleteCalls: [] as string[],
   takeDocs: [] as FakeSnapshotDoc[],
+  // v2_meta/app fields for hydrate's one meta read. Default null keeps
+  // every existing case on the "document does not exist" answer; the D332
+  // breaker case sets budgetMode through it.
+  metaDoc: null as null | Record<string, unknown>,
   // Boot needs a daily bank or LIVE.ready never flips — the takes surface
   // hangs off a booted store, so this is setup, not subject.
   bankDocs: [] as FakeSnapshotDoc[],
@@ -73,7 +77,7 @@ vi.mock("../../lib/sentry", () => ({
 }));
 
 vi.mock("./push", () => ({
-  registerPushForReveals: () => Promise.resolve(),
+  registerPush: () => Promise.resolve(),
 }));
 
 vi.mock("firebase/functions", () => ({
@@ -121,7 +125,9 @@ vi.mock("firebase/firestore", () => {
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
     getDoc: () =>
-      Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
+      Promise.resolve(h.metaDoc
+        ? { exists: () => true, get: (k: string) => h.metaDoc?.[k], data: () => h.metaDoc ?? {} }
+        : { exists: () => false, get: () => undefined, data: () => ({}) }),
     getDocs: (q: { path?: string }) => {
       if (q?.path === "v2_takes") return Promise.resolve(snapOf(h.takeDocs));
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
@@ -132,6 +138,10 @@ vi.mock("firebase/firestore", () => {
       h.setDocCalls.push({ path: target.path, data });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
+    // D331 — the fsApi surface is destructured whole at boot, so a member
+    // missing here fails every test in the file at getDb rather than at
+    // the call. Sentinel: nothing in takes writes one.
+    deleteField: () => "__delete__",
     deleteDoc: (target: { path: string }) => {
       h.deleteCalls.push(target.path);
       return Promise.resolve();
@@ -139,6 +149,10 @@ vi.mock("firebase/firestore", () => {
     updateDoc: () => Promise.resolve(),
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D357: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
@@ -187,8 +201,9 @@ async function bootLive() {
   const mod = await import("./live");
   const LIVE = mod.default;
   await mod.initLive(1);
+  // `attached` (D356): boot complete, not merely a deck on screen.
   await vi.waitFor(() => {
-    expect(LIVE.ready).toBe(true);
+    expect(LIVE.attached).toBe(true);
   });
   return LIVE;
 }
@@ -204,6 +219,7 @@ beforeEach(() => {
   h.deleteCalls.length = 0;
   h.queries.length = 0;
   h.takeDocs.length = 0;
+  h.metaDoc = null;
   h.authCb = null;
   h.autoId = 0;
   h.bankDocs = [
@@ -244,6 +260,18 @@ afterEach(() => {
 // ── the query shape the read rule holds the client to ────────────────
 
 describe("loadTakes query shape (D65)", () => {
+  it("never builds the query under the read breaker (D332)", async () => {
+    // The lever's takes half: with budgetMode >= 1 on v2_meta/app, the
+    // load refuses before the query exists — zero reads, and the key
+    // stays absent so a later release retries rather than serving a
+    // frozen "no takes".
+    h.metaDoc = { budgetMode: 1 };
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes(GID);
+    expect(takesQuery()).toBeUndefined();
+    expect(LIVE.social.takes(GID)).toEqual([]);
+  });
+
   it("carries where(hidden == false) — without it the rule denies the LIST", async () => {
     const LIVE = await bootLive();
     await LIVE.social.loadTakes(GID);
@@ -553,6 +581,29 @@ describe("resetForNewUid", () => {
     // design, so the stale mark would simply persist for the session.
     expect(LIVE.social.takes(GID)).toEqual([]);
     expect(LIVE.social.flagged("t1")).toBe(false);
+  });
+
+  it("carries no previous account's follow list past a uid change", async () => {
+    // The follow cache is the outgoing account's answer to "who are my
+    // friends", and it is what puts the Friends chip on a who-voted sheet.
+    // loadFollows() early-returns on a non-null cache — `if (state.follows)
+    // return` — so a survivor is not corrected by the next load; it stands
+    // for the rest of the session, marking strangers as the new account's
+    // friends.
+    //
+    // The null/[] distinction is the assertion, not the contents: null is
+    // "not asked or failed", [] is "you follow nobody", and only the reset
+    // can put it back to the first. An empty list from the mock is enough
+    // to tell the two apart.
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).not.toBeNull();
+
+    h.authCb?.({ uid: "uid_follows_other" });
+    await vi.waitFor(() => { expect(LIVE.uid).toBe("uid_follows_other"); });
+
+    expect(LIVE.follows()).toBeNull();
+    expect(LIVE.followsLoading()).toBe(false);
   });
 });
 

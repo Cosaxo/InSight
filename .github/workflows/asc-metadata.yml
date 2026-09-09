@@ -71,12 +71,24 @@ jobs:
       # The same gates that guard a PR, run again here against what is
       # actually about to be pushed. check:store-listing holds every field
       # inside its store limit; check:store-forms holds the privacy JSON
-      # equal to the prose a human reviewed. Failing here costs seconds;
-      # failing after the PATCH means a live listing is already wrong.
+      # equal to the prose a human reviewed; check:public-copy refuses the
+      # retired pre-D98 privacy model in copy a user reads. Failing here
+      # costs seconds; failing after the PATCH means a live listing is
+      # already wrong.
+      #
+      # public-copy is on this step because of THIS push. Its own header
+      # records the episode: listing.json had already been sent to App
+      # Store Connect carrying "Your answers are owner-only. The database
+      # rules enforce it." The gate that exists because of that lived only
+      # on ci.yml, and this workflow is workflow_dispatch — it pushes
+      # whatever ref it is dispatched on. Measured: with that sentence back
+      # in the description, store-listing and store-forms both pass and
+      # public-copy is the only thing that fails.
       - name: Gate the content before pushing it
         run: |
           npm run check:store-listing
           npm run check:store-forms
+          npm run check:public-copy
 
       - name: Push to App Store Connect
         env:

@@ -57,6 +57,20 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
+  // D236 · the page must NAME the notifications, not just count them.
+  // check:figures holds the count against v2social.ts's own call sites;
+  // this holds the list, because a fifth kind added as "and others" would
+  // satisfy a count and tell the reader nothing. The sentence said "the
+  // one notification this app sends" for the nine days after D236 shipped
+  // three more — the exact shape this file's header names: not a promise
+  // thinned on purpose, a promise left behind by a change three commits
+  // away.
+  // D426 (ROUNDS-PLAN §7.4) added the fifth — "your turn" — between the
+  // reveal and the invitation, and the pattern names it: a page that
+  // dropped it would still count five kinds somewhere and match nothing
+  // here.
+  ["D236 · the token is used for the reveal, the turn (D426), AND the three group notices",
+    /revealed,\s*it is your\s+turn[\s\S]{0,160}?someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either
@@ -70,16 +84,98 @@ export const CLAIMS = [
     /hides the\s+name, not the answers/i],
   ["D146 · answers can be grouped by the Big Five type, retroactively",
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
-  ["D146 · politics/values/social results are NOT used to group answers",
-    /political, values and social results are never used to group/i],
+  // The D146 row beside this one — "politics/values/social results are
+  // NOT used to group answers" — retired at D252: the owner removed the
+  // promise (the D225 posture — an unneeded promise is a standing
+  // liability). The page now DESCRIBES what groups answers today, with
+  // no pledge about tomorrow; the app's current Big-Five-plus-logic
+  // scope is a product choice held by `data/typeSplit.SPLIT_TEST`'s own
+  // test, not by this gate.
+  ["D202 · people are counted by type on all four tests, not just the Big Five",
+    /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
+  ["D202 · and that count is people, not a grouping of answers",
+    /count of <em>people<\/em>, not a grouping of anyone/i],
+  ["D322 · the interest profile is counted from feed answers, and the page says the arithmetic",
+    /count which topics your feed answers fall into/i],
+  ["D322 · the profile is owner-only and never an ad input",
+    /interest profile[\s\S]{0,600}?never used for advertising/i],
+  // The phase-2 tripwire (D317): folding behaviour in is a FUTURE
+  // decision, and this sentence is the promise that it has not happened
+  // yet. Building phase 2 must retire this row in the same commit, with
+  // the record that licenses it — exactly the visit this gate exists to
+  // force.
+  ["D317 · behaviour stays on the device — the profile is answers only",
+    /scrolled past or skipped stays on your device and is not\s+collected/i],
+  ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
+    /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
+  // D378 · the one way off-app: after the answer, and counted by nobody.
+  // Two tokens, because the two halves are separate promises — WHEN the
+  // link shows (the question is answered as a question) and WHAT we do
+  // with a tap (nothing) — and a page that kept one and lost the other
+  // would be the half-corrected promise this file exists to notice.
+  ["D378 · a bought question's link shows only after you have answered",
+    /buyer&rsquo;s own link[\s\S]{0,120}?only after you have answered/i],
+  ["D378 · and a tap on it is counted by nobody",
+    /opens their site in your browser[\s\S]{0,80}?we count\s+nothing/i],
+  // D379 · the results page is a PUBLIC surface, and the page says what
+  // it carries and what it never does — the counts, never a name.
+  ["D379 · a bought question's numbers are a public web page, and it never names who answered",
+    /served as a web page\s+anyone can open[\s\S]{0,240}?never who\s+answered/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
+  // The row above pins the SEAL and says nothing about who reads the
+  // reveal once it opens, which is how the page went on promising "the
+  // people in that group" for a year after D98 removed the membership
+  // arm from `match /reveals/{revealId}` (it is `request.auth != null`, and
+  // rules.test.ts asserts a stranger, a late joiner and someone who left
+  // all read a day). Two rows, because the page states the audience
+  // twice and a half-corrected promise is the same failure.
+  ["D98 · a revealed duel day is readable by anyone holding the circle's id",
+    /anyone signed in who has that circle&rsquo;s id can see them/i],
+  ["D98 · the audience summary says the same thing",
+    /reveal, then anyone signed in who has that circle&rsquo;s id/i],
+  ["D98 · the retired circle-scoped reveal audience is gone",
+    (src) => !/(picks to the people in that group|then the members of that group)/i.test(src)],
+  ["D98 · group takes are world-readable too, not circle-scoped",
+    (src) => !/group takes: that group/i.test(src)],
+  // THE SAME PROMISE, ONE PARAGRAPH UP, and the row above could not see
+  // it: that row forbids one literal string ("group takes: that group")
+  // from the audience SUMMARY, while the what-we-collect bullet said the
+  // narrowing in different words — "to a group's members when posted
+  // there". `match /v2_takes/{id}` has no membership arm at all (D98
+  // collapsed it), so any signed-in stranger reads a circle take, and the
+  // suite pins exactly that. Which is the half-corrected promise this
+  // script's own header warns about, caught by nothing for as long as the
+  // two sentences disagreed.
+  //
+  // The bullet also carried "one per person per question" across BOTH
+  // kinds. Only the world branch enforces that; the rules' circle branch
+  // says in its own comment that a circle take is many-per-person and
+  // there is no one-take bound to enforce.
+  ["D98 · a circle take is readable by any signed-in user, said where it is collected",
+    /Anyone signed in can read it,\s+wherever you posted it/i],
+  ["D98 · …and the retired member-scoped wording is gone",
+    (src) => !/to a group&rsquo;s members when posted there/i.test(src)],
+  ["D98 · the one-per-question bound is the WORLD feed's, not the circle's",
+    /One per question in the\s+world feed;\s+as many as you like in a circle/i],
   ["D9 · coordinates are never transmitted or stored",
     /coordinates are not sent to us, not stored/i],
   ["D175 · the presence square's SIZE tracks the grid (~200 m, not km)",
     /~200-metre grid square/i],
   ["D175 · the retired kilometre claim is gone",
     (src) => !/kilometre-sized/i.test(src)],
+  // D175's other half, and the one this file's own header warned about: a
+  // promise left behind by a change three commits away. D175 made the app
+  // request a PRECISE fix, and the page went on saying it asked for "an
+  // approximate location" — for a year, through the very sweep that was
+  // opened because three of these claims were stale. The page now says who
+  // decides the precision, and the second row is the promise the refusal in
+  // locate.ts makes true: an approximate grant does not become a guessed
+  // square.
+  ["D175 · the page does not claim the app asks only for an approximate fix",
+    (src) => !/ask your device for an approximate location/i.test(src)],
+  ["D175 · a fix too coarse for the square is refused, not guessed",
+    /says it cannot place you rather than guessing a square/i],
   ["D84 · no user can read your presence square",
     /No other user can ever read your square/i],
   ["D177 · the people in your square see your name, type and answers",
@@ -90,14 +186,125 @@ export const CLAIMS = [
     /carries your display name/i],
   ["D178 · the profile photo is optional and its metadata is stripped",
     /metadata is\s+stripped on your device/i],
-  ["D3 · no ads, no third-party analytics",
-    /no third-party analytics or tracking/i],
+  // The D3 row here — "no third-party analytics or tracking of any
+  // kind" — retired at D314 (2026-08-26): the owner removed the promise
+  // on the D225 posture (an unneeded promise is a standing liability),
+  // over the recorded recommendation to keep it. The page now DESCRIBES
+  // today's practice — no ad identifiers, no third-party analytics SDK,
+  // no data sold to advertisers, with "if that changes, this page
+  // changes first" — and pledges nothing about tomorrow. The store
+  // nutrition labels keep saying tracking-off because that stays a fact
+  // about the shipped app until an SDK actually ships; the day one
+  // does, the store forms and this page move together, as a product
+  // decision rather than a broken promise.
+  // D331 — four rows, one per promise, because each is separately
+  // breakable and a single regex over the passage would go green while
+  // three of them rotted. The compass is the app's only special-category
+  // inference, so the page carrying these sentences IS the disclosure the
+  // consent rests on.
+  ["D331 · the political compass is off until turned on",
+    /political compass is off until you turn it on/i],
+  ["D331 · nothing political is computed or stored while it is off",
+    /nothing political is[\s\S]{0,20}?computed about you and nothing political is[\s\S]{0,20}?stored/i],
+  ["D331 · turning it off deletes the compass at once",
+    /Turn it off later and the compass is deleted[\s\S]{0,80}?at once/i],
+  ["D331 · and the honest limit on what deletion can reach",
+    /cannot reach is a copy someone[\s\S]{0,60}?Nothing can/i],
+  ["D314 · the tracking passage describes today and stays ahead of change",
+    /no third-party analytics SDK[\s\S]{0,200}?this\s+page changes first/i],
+  ["D226 · a changed answer is counted publicly as a move between options",
+    /moves from one option to another/i],
+  ["D227 · the verified logic score also groups answers, in broad bands",
+    /verified logic score, in\s+four broad\s+bands/i],
+  ["D251 · sold reports are packaged public numbers, never a private read",
+    /report never contains\s+anything a signed-in user could not read/i],
+  // D313 is one disclosure in two halves, the D268 pair's shape: one row
+  // pins the automated review (a submitted ask is read by an AI reviewer
+  // — that is a processor a buyer should learn from the page, not from a
+  // decline), the other pins the payment boundary (Stripe holds the
+  // payment details; we keep the booking and the refund arithmetic).
+  // Deleting either half leaves a page describing a different pipeline
+  // than the one that runs.
+  ["D313 · paid submissions are reviewed automatically, by rules and an AI reviewer",
+    /checked automatically[\s\S]{0,200}?AI reviewer/i],
+  ["D313 · payment runs on Stripe and the payment details never reach us",
+    /Stripe receives your payment details and we never see\s+them/i],
+  ["D253 · sold reports group answers by all four tests' types and axes",
+    /matched type and axis\s+bands/i],
+  // D268 is one disclosure in two halves, pinned separately for the D202
+  // reason: one row says what the daily summary is (counts, no identity),
+  // the other admits the uid-keyed bookkeeping behind it and its erasure.
+  // Deleting either half leaves a page that reads as more, or less,
+  // private than the digest actually is.
+  ["D268 · the daily usage summary is counts, computed without identity",
+    /counts,\s+computed without your identity/i],
+  ["D268 · the digest's per-account date pair is unreadable and erased with the account",
+    /first and most recent day you answered[\s\S]{0,200}?deleted with your\s+account/i],
+  // D270 is one disclosure in two halves, the D268 pair's shape: one row
+  // pins what the tally cannot do (be linked to a person, or a phone
+  // across days), the other pins the lifecycle promise (fold, then
+  // delete). Either half vanishing leaves the page describing a
+  // different collection than the one shipping.
+  ["D270 · the usage tally is unlinkable — to you, and to the same phone across days",
+    /cannot be linked back to\s+you[\s\S]{0,80}?across two\s+days/i],
+  ["D270 · the raw tallies are deleted after the nightly fold",
+    /deleted after\s+(that|the) nightly\s+fold/i],
+  // D271 and D272 are the ladder's last two disclosures, each pinned on
+  // its load-bearing distinction: the per-question counts are about the
+  // QUESTION (the two-channel rule as a promise), and the account-linked
+  // note is unreadable, question-free and self-expiring.
+  ["D271 · per-question tallies are counts about a question, never a reading list",
+    /counts about a question, never a list of what you\s+looked at/i],
+  ["D272 · the per-account usage note carries no question and no user can read it",
+    /never\s+contains a question[\s\S]{0,120}?no user can read\s+it, you included/i],
+  ["D272 · each note deletes itself 90 days on, and the account's erasure takes it all",
+    /deletes itself 90 days after its day/i],
+  // D413/D414/D419 · THE ACCOUNT WALL. Sixty-six lines of new disclosure
+  // landed on this page on 2026-09-07 and not one claim row came with
+  // them, so the whole section could be deleted — measured, 2023 bytes,
+  // gate still exit 0 — or inverted sentence by sentence. That is exactly
+  // the drift this file exists to catch, and it is the third time: D174,
+  // D175 and D177 each updated the app and not the policy, which is what
+  // D183 opened the page to fix.
+  //
+  // Two of these rows are here because the sentence they hold was FALSE
+  // when it was written. The page said a mistyped address "does not end
+  // up with an InSight account behind it" while `emailCreate` makes the
+  // account before anything looks at the address (live.ts's own
+  // `abandonSignIn` note: "Nothing is deleted — the abandoned account
+  // still exists"), and it said the app warns before signing in to an
+  // existing account, which Apple and Google do and the email door does
+  // not.
+  ["D414 · the three doors are named, so the wall cannot quietly grow a fourth",
+    /Sign in with Apple[\s\S]{0,400}?Continue with Google[\s\S]{0,400}?Email and password/i],
+  ["D414 · the password is hashed by Firebase and this app never sees it",
+    /stores\s+it hashed; this app never sees it and never stores it/i],
+  ["D414 · a password account exists BEFORE the address is confirmed, and is abandoned rather than deleted",
+    /exists from the moment the password is accepted, before[\s\S]{0,200}?signing out abandons that account rather\s+than deleting it/i],
+  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
+    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */
 export function missingClaims(src) {
+  // COMMENTS ARE NOT THE PAGE. These patterns ran over the raw bytes, so a
+  // disclosure wrapped in `<!-- … -->` still counted as present — while a
+  // reader is owed it and does not get it. Since D183 this page is the one
+  // place these promises live, so that is a promise deleted from the
+  // product with the gate that exists to notice staying green.
+  //
+  // The sibling gates here all strip first (check-appcheck,
+  // check-purge-listeners, check-data-inventory, check-spec-globals rule
+  // 2), each after being bitten by the same shape: a thing present in the
+  // source and absent in the artifact.
+  //
+  // Correct for BOTH claim shapes. A regex claim must match rendered text.
+  // A predicate claim asserts an ABSENCE — and retired wording that only
+  // survives inside a comment is not on the page either, so ignoring it is
+  // the same reading, not a loosening.
+  const visible = src.replace(/<!--[\s\S]*?-->/g, "");
   return CLAIMS
-    .filter(([, test]) => (typeof test === "function" ? !test(src) : !test.test(src)))
+    .filter(([, test]) => (typeof test === "function" ? !test(visible) : !test.test(visible)))
     .map(([label]) => label);
 }
 

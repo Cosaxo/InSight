@@ -22,7 +22,8 @@
         "Values",
         "What you admire"
       ]
-    ]
+    ],
+    "bg": "Lionel Messi and Cristiano Ronaldo defined two decades of football between them: eight and five Ballons d'Or, over 800 career goals each, a World Cup for Messi in 2022 and five Champions League titles for Ronaldo."
   },
   {
     "id": "001",
@@ -47,7 +48,8 @@
         "Interests",
         "Cinema"
       ]
-    ]
+    ],
+    "bg": "Quentin Tarantino writes talk-heavy, violent genre films — Pulp Fiction, Kill Bill, Once Upon a Time in Hollywood. Wes Anderson builds symmetrical pastel worlds with deadpan ensembles — The Grand Budapest Hotel, Moonrise Kingdom."
   },
   {
     "id": "002",
@@ -72,7 +74,8 @@
         "Values",
         "Openness"
       ]
-    ]
+    ],
+    "bg": "Hawaiian pizza — ham and pineapple — was invented in 1962 by Sam Panopoulos, a Greek-born cook in Chatham, Ontario, Canada, and named after the brand of canned pineapple he used."
   },
   {
     "id": "003",
@@ -389,7 +392,8 @@
         "Story",
         "The future"
       ]
-    ]
+    ],
+    "bg": "Artificial intelligence covers systems that learn patterns from data rather than following hand-written rules — the approach behind today's chatbots, translators and image generators."
   },
   {
     "id": "016",
@@ -416,7 +420,8 @@
         "Values",
         "Progress"
       ]
-    ]
+    ],
+    "bg": "Writing first appeared in Mesopotamia around 5,000 years ago. Vaccination, anaesthesia and antibiotics each cut death rates within a generation. The internet connected most of humanity inside thirty years."
   },
   {
     "id": "017",
@@ -1866,7 +1871,8 @@
         "Travel",
         "Nordic things"
       ]
-    ]
+    ],
+    "bg": "Sauna heat and cold-water immersion both trigger short, sharp stress responses the body adapts to. Finland counts about three million saunas for 5.6 million people; ice swimming is its winter twin."
   },
   {
     "id": "075",
@@ -2792,6 +2798,611 @@
       [
         "Story",
         "This era"
+      ]
+    ]
+  },
+  {
+    "id": "114",
+    "type": "binary",
+    "prompt": "Win ugly, or lose beautifully?",
+    "tag": "Ugly win",
+    "options": [
+      "Win ugly",
+      "Lose beautifully"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Sport",
+      "Style"
+    ],
+    "alts": [
+      [
+        "Values",
+        "What you admire"
+      ],
+      [
+        "Story",
+        "Narratives"
+      ]
+    ]
+  },
+  {
+    "id": "115",
+    "type": "binary",
+    "prompt": "Black and white films: timeless, or homework?",
+    "tag": "Black and white",
+    "options": [
+      "Timeless",
+      "Homework"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "The classics"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Cinema"
+      ],
+      [
+        "Story",
+        "History"
+      ]
+    ],
+    "bg": "The first films were black and white by necessity — colour arrived commercially in the 1930s and became standard only in the 1960s. Directors still choose monochrome deliberately, from Schindler's List to Roma."
+  },
+  {
+    "id": "116",
+    "type": "scale",
+    "prompt": "A skill isn't yours until you've taught it to someone.",
+    "tag": "Teach it",
+    "axis": "teaching-minded",
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Mastery"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Understanding"
+      ],
+      [
+        "Goals",
+        "Craft"
+      ]
+    ]
+  },
+  {
+    "id": "117",
+    "type": "choice",
+    "prompt": "What pulls you down a rabbit hole at 1 a.m.?",
+    "tag": "Rabbit holes",
+    "options": [
+      "History",
+      "How things work",
+      "Other people's lives",
+      "Maps"
+    ],
+    "tone": "light",
+    "cat": [
+      "Interests",
+      "Rabbit holes"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Curiosity"
+      ],
+      [
+        "Story",
+        "History"
+      ]
+    ]
+  },
+  {
+    "id": "118",
+    "type": "binary",
+    "prompt": "The last slice: take it, or offer it?",
+    "tag": "Last slice",
+    "options": [
+      "Take it",
+      "Offer it"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Table manners"
+    ],
+    "alts": [
+      [
+        "Morals",
+        "Small courtesies"
+      ],
+      [
+        "Values",
+        "Generosity"
+      ]
+    ]
+  },
+  {
+    "id": "119",
+    "type": "binary",
+    "prompt": "Window seat or aisle?",
+    "tag": "The seat",
+    "options": [
+      "Window",
+      "Aisle"
+    ],
+    "tone": "light",
+    "cat": [
+      "Travel",
+      "In transit"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Comfort"
+      ],
+      [
+        "Mind",
+        "The view"
+      ]
+    ]
+  },
+  {
+    "id": "120",
+    "type": "choice",
+    "prompt": "Where does music hit you hardest?",
+    "tag": "Where it hits",
+    "options": [
+      "Alone in headphones",
+      "Live in a crowd",
+      "In the car",
+      "On the dance floor"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Music",
+      "Where it hits"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Presence"
+      ],
+      [
+        "Mind",
+        "Feeling"
+      ]
+    ]
+  },
+  {
+    "id": "121",
+    "type": "scale",
+    "prompt": "Your body runs your mood more than your mind does.",
+    "tag": "Body first",
+    "axis": "body-led",
+    "tone": "deep",
+    "cat": [
+      "Body",
+      "Mind and body"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Mood"
+      ],
+      [
+        "Values",
+        "Self-knowledge"
+      ]
+    ]
+  },
+  {
+    "id": "122",
+    "type": "binary",
+    "prompt": "The team you support: inherited, or chosen?",
+    "tag": "How you got them",
+    "options": [
+      "Inherited",
+      "Chosen"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Sport",
+      "Rooting"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Memory"
+      ],
+      [
+        "Values",
+        "Loyalty"
+      ]
+    ]
+  },
+  {
+    "id": "123",
+    "type": "binary",
+    "prompt": "Rewatch a favourite, or risk something new?",
+    "tag": "Rewatch or risk",
+    "options": [
+      "Rewatch",
+      "Risk it"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "How you watch"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Taste"
+      ],
+      [
+        "Values",
+        "Openness"
+      ]
+    ]
+  },
+  {
+    "id": "124",
+    "type": "choice",
+    "prompt": "Which could you do perfectly, starting right now?",
+    "tag": "The instant skill",
+    "options": [
+      "Play an instrument",
+      "Speak a language",
+      "Draw anything",
+      "Fix anything"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Wishlist"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Curiosity"
+      ],
+      [
+        "Story",
+        "Self"
+      ]
+    ]
+  },
+  {
+    "id": "125",
+    "type": "choice",
+    "prompt": "Your life so far reads most like…",
+    "tag": "The shape of it",
+    "options": [
+      "A straight line",
+      "A few sharp turns",
+      "A slow drift",
+      "Still chapter one"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Story",
+      "Chapters"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Outlook"
+      ],
+      [
+        "Goals",
+        "The long game"
+      ]
+    ]
+  },
+  {
+    "id": "126",
+    "type": "scale",
+    "prompt": "The best hobbies have nothing to show for them.",
+    "tag": "Nothing to show",
+    "axis": "unproductive",
+    "tone": "deep",
+    "cat": [
+      "Interests",
+      "The point"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Rest"
+      ],
+      [
+        "Morals",
+        "The good life"
+      ]
+    ]
+  },
+  {
+    "id": "127",
+    "type": "binary",
+    "prompt": "Respected at work, or free to walk away from it?",
+    "tag": "Respect or freedom",
+    "options": [
+      "Respected",
+      "Free to walk"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Goals",
+      "Work and life"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Meaning"
+      ],
+      [
+        "Morals",
+        "The good life"
+      ]
+    ]
+  },
+  {
+    "id": "128",
+    "type": "choice",
+    "prompt": "First thing you want in the morning?",
+    "tag": "First thing",
+    "options": [
+      "Quiet",
+      "Coffee",
+      "Movement",
+      "Ten more minutes"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Mornings"
+    ],
+    "alts": [
+      [
+        "Home",
+        "Rituals"
+      ],
+      [
+        "Mind",
+        "Rest"
+      ]
+    ]
+  },
+  {
+    "id": "129",
+    "type": "binary",
+    "prompt": "At a concert: front row, or back with space?",
+    "tag": "Where you stand",
+    "options": [
+      "Front row",
+      "Back with space"
+    ],
+    "tone": "light",
+    "cat": [
+      "Music",
+      "Going out"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Nightlife"
+      ],
+      [
+        "Body",
+        "Comfort"
+      ]
+    ]
+  },
+  {
+    "id": "130",
+    "type": "binary",
+    "prompt": "The book or the film first?",
+    "tag": "Which first",
+    "options": [
+      "Book first",
+      "Film first"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Adaptations"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Reading"
+      ],
+      [
+        "Film",
+        "How you watch"
+      ]
+    ]
+  },
+  {
+    "id": "131",
+    "type": "choice",
+    "prompt": "What makes a villain great?",
+    "tag": "Villains",
+    "options": [
+      "Menace",
+      "Charm",
+      "Being half right",
+      "Mystery"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Villains"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Characters"
+      ],
+      [
+        "Morals",
+        "Grey areas"
+      ]
+    ]
+  },
+  {
+    "id": "132",
+    "type": "binary",
+    "prompt": "Practise in private, or learn in public?",
+    "tag": "Learning out loud",
+    "options": [
+      "In private",
+      "In public"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Skills",
+      "How you learn"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Confidence"
+      ],
+      [
+        "Story",
+        "Sharing"
+      ]
+    ]
+  },
+  {
+    "id": "133",
+    "type": "scale",
+    "prompt": "Talent is mostly patience.",
+    "tag": "Talent",
+    "axis": "patience",
+    "tone": "deep",
+    "cat": [
+      "Skills",
+      "Mastery"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Effort"
+      ],
+      [
+        "Goals",
+        "The long game"
+      ]
+    ]
+  },
+  {
+    "id": "134",
+    "type": "binary",
+    "prompt": "Keep score, or just play?",
+    "tag": "Keeping score",
+    "options": [
+      "Keep score",
+      "Just play"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "How you play"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Competition"
+      ],
+      [
+        "Interests",
+        "Games"
+      ]
+    ]
+  },
+  {
+    "id": "135",
+    "type": "choice",
+    "prompt": "What makes a great rivalry?",
+    "tag": "Rivalries",
+    "options": [
+      "History",
+      "Respect",
+      "High stakes",
+      "Closeness"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "Rivalries"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Drama"
+      ],
+      [
+        "Values",
+        "What you admire"
+      ]
+    ]
+  },
+  {
+    "id": "136",
+    "type": "binary",
+    "prompt": "Dessert: every day, or a special occasion?",
+    "tag": "Dessert",
+    "options": [
+      "Every day",
+      "Special occasion"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Habits"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Balance"
+      ],
+      [
+        "Values",
+        "Treats"
+      ]
+    ]
+  },
+  {
+    "id": "137",
+    "type": "choice",
+    "prompt": "What do you follow most closely?",
+    "tag": "Following",
+    "options": [
+      "A sport",
+      "A show",
+      "An artist",
+      "A subject"
+    ],
+    "tone": "light",
+    "cat": [
+      "Interests",
+      "Following"
+    ],
+    "alts": [
+      [
+        "Sport",
+        "Fandom"
+      ],
+      [
+        "Music",
+        "Fandom"
       ]
     ]
   }

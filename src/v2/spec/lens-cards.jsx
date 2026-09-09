@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
+import { LENSES } from './lens-defs.js';
 
 // lens-cards.jsx — the profile's Lenses tab. Chrome-free: no card boxes, no
 // per-lens buttons. Each lens is a hairline-separated reading in the idiom its
@@ -18,6 +19,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 // fall back on (lens-defs.js says why). Every viz below therefore has to draw
 // "no reading yet" as its own state. Drawing null as 0 would be worse than
 // the prior it replaced — "you score 0 on Care" is a claim, and a false one.
+const EXPORTS = {};
 (function () {
   const { useState, useEffect } = React;
   const col = (h) => `oklch(0.56 0.13 ${h})`;
@@ -33,12 +35,27 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
   // an unanswered dimension has no value at all — not a zero. `has` is the
   // guard every viz below reads before drawing anything positional.
   const has = (v, id) => typeof v[id] === 'number';
+  // …and the same question about the OTHER mark on every scale. `d.demo` is
+  // an authored number from the prototype's population, and live mode
+  // measures no such thing, so on a real account the tick, the legend chip
+  // reading "most people" and the sentence "Care runs above typical" were
+  // all claims with nothing behind them. The header above records that the
+  // prior was removed from score() for precisely this reason; it was
+  // removed from your score and left in as what your score is drawn
+  // against. Not hidden as a privacy floor and not replaced by an invented
+  // number — there is simply no second mark until something measures one.
+  const typKnown = () => LENSES.typicalKnown();
   const NOREAD = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', opacity: 0.75 };
 
   // the value in words — the axis furthest from typical, which is the only
   // thing a 0–100 score actually means. Replaces the static tagline.
   // Unread dimensions are skipped: they have no gap to speak of.
   function reading(lens, v) {
+    // No typical, no gap to speak of — the lens's own line, which is
+    // already this function's "nothing stands out yet" answer. Deliberately
+    // not new copy: a sentence invented for live mode would be one more
+    // thing to keep true.
+    if (!typKnown()) return lens.lead;
     let best = null;
     lens.dims.forEach((d) => { if (!has(v, d.id)) return; const g = v[d.id] - d.demo; if (!best || Math.abs(g) > Math.abs(best.g)) best = { d, g }; });
     if (!best || Math.abs(best.g) <= 6) return lens.lead;   // nothing stands out yet — the lens's own line
@@ -62,7 +79,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
                 <span style={{ width: '100%', height: 8, borderRadius: 99, background: track(hue), overflow: 'hidden' }}>
                   {read && <span style={{ display: 'block', height: '100%', width: `${v[d.id]}%`, background: fill, borderRadius: 99 }}></span>}
                 </span>
-                {read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: `${d.demo}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 2, height: 14, borderRadius: 2, background: typ }}></span> : null}
+                {typKnown() && read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: `${d.demo}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 2, height: 14, borderRadius: 2, background: typ }}></span> : null}
               </span>
               {!read && <span style={{ ...NOREAD, width: 12, flexShrink: 0 }}>—</span>}
             </div>
@@ -84,7 +101,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
                 {read
                   ? <span style={{ display: 'block', width: '100%', height: `${Math.max(3, v[d.id])}%`, background: fill, borderRadius: '6px 6px 0 0' }}></span>
                   : <span style={{ ...NOREAD, alignSelf: 'center' }}>—</span>}
-                {read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: `${d.demo}%`, height: 2, background: typ }}></span> : null}
+                {typKnown() && read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: `${d.demo}%`, height: 2, background: typ }}></span> : null}
               </span>
               <span style={{ ...tiny, whiteSpace: 'nowrap', opacity: read ? 1 : 0.6 }}>{d.label}</span>
             </div>
@@ -112,7 +129,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
               <div style={{ position: 'relative', flex: 1, height: 12 }}>
                 <span style={{ position: 'absolute', top: '50%', left: '2%', right: '2%', height: 2, marginTop: -1, borderRadius: 999, background: track(hue) }}></span>
                 {read && <span style={{ position: 'absolute', top: '50%', marginTop: -1.5, height: 3, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, background: fill }}></span>}
-                {read && Math.abs(x - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', top: '50%', left: `${pos(d.demo)}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: `1.4px solid ${typ}` }}></span> : null}
+                {typKnown() && read && Math.abs(x - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', top: '50%', left: `${pos(d.demo)}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: `1.4px solid ${typ}` }}></span> : null}
                 {read
                   ? <span style={{ position: 'absolute', top: '50%', left: `${p}%`, transform: 'translate(-50%,-50%)', width: 11, height: 11, borderRadius: '50%', background: fill, border: '2px solid var(--surface)' }}></span>
                   : <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 10, height: 10, borderRadius: '50%', border: `1.5px dashed color-mix(in oklch, ${col(hue)} 55%, var(--rule))`, background: 'var(--surface)', boxSizing: 'border-box' }}></span>}
@@ -136,8 +153,13 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
     };
     const line = (p) => p.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ');
     // no reading yet → draw only the typical curve; a "your" line at some
-    // default horizon would be a claim about you that nothing supports
+    // default horizon would be a claim about you that nothing supports.
+    // …and on a live build there is no typical curve either — `pts(50)` is
+    // the prototype's population horizon, so drawing it dashed and calling
+    // it "typical person" is the same false claim one shape over. With
+    // neither, the panel is its axis and its caption says so.
     const readYou = has(v, dims[0].id);
+    const readTyp = typKnown();
     const yp = readYou ? pts(v[dims[0].id]) : null, end = yp ? yp[yp.length - 1] : null;
     const gid = 'lensfill-' + hue;
     return (
@@ -146,13 +168,13 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
           <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={fill} stopOpacity="0.18"></stop><stop offset="100%" stopColor={fill} stopOpacity="0"></stop></linearGradient></defs>
           <line x1="0" y1={H - 3} x2={W} y2={H - 3} stroke="var(--rule)" strokeWidth="1"></line>
           {yp && <path d={`${line(yp)} L ${W} ${H - 3} L 0 ${H - 3} Z`} fill={`url(#${gid})`} stroke="none"></path>}
-          <path d={line(pts(50))} fill="none" stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.45"></path>
+          {readTyp && <path d={line(pts(50))} fill="none" stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.45"></path>}
           {yp && <path d={line(yp)} fill="none" stroke={fill} strokeWidth="2.4" strokeLinecap="round"></path>}
           {end && <circle cx={end[0]} cy={end[1]} r="3.6" fill={fill} stroke="var(--surface)" strokeWidth="1.6"></circle>}
         </svg>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
           <span style={tiny}>today</span>
-          {!readYou && <span style={NOREAD}>typical person — yours fills in</span>}
+          {!readYou && <span style={NOREAD}>{readTyp ? 'typical person — yours fills in' : 'no reading yet'}</span>}
           <span style={tiny}>ten years out</span>
         </div>
         <div style={{ marginTop: 15 }}><Spine dims={dims.slice(1)} v={v} hue={hue} fill={fill} compact /></div>
@@ -169,7 +191,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
   // ── the asker — five steps, two words of scale, nothing else ──
   const DOTS = [7, 9, 11, 13, 15];
   function Asker({ lens, onDone }) {
-    const L = window.LENSES;
+    const L = LENSES;
     const i = L.nextIdx(lens.id);
     if (i < 0) return null;
     const q = lens.questions[i];
@@ -208,7 +230,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 
   // ── one reading — title, optional lead, chart. No box. ──
   function LensRow({ lens, first, onTick, onExplain }) {
-    const L = window.LENSES;
+    const L = LENSES;
     const [asking, setAsking] = useState(false);
     const pct = L.pct(lens.id), full = L.complete(lens.id);
     const v = L.score(lens.id);
@@ -245,37 +267,10 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
     );
   }
 
-  // ── boxed variant, kept behind a tweak for comparison ──
-  function LensCard({ lens, onTick }) {
-    const L = window.LENSES;
-    const [asking, setAsking] = useState(false);
-    const pct = L.pct(lens.id), full = L.complete(lens.id);
-    const Viz = VIZ[lens.viz] || Mini;
-    const t2 = lens.tier === 2;
-    const fill = pct < 60 ? prov(lens.hue) : col(lens.hue);
-    return (
-      <div className="card" style={{ marginBottom: 12, padding: t2 ? '14px 16px' : '16px 18px', background: `linear-gradient(180deg, color-mix(in oklch, ${col(lens.hue)} 5%, var(--surface-2)), var(--surface-2) 110px)`, borderColor: `color-mix(in oklch, ${col(lens.hue)} 13%, var(--rule))` }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: t2 ? 12 : 15 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--sans)', fontSize: t2 ? 14.5 : 16, fontWeight: 700, letterSpacing: '-0.01em' }}>{lens.title}</div>
-            <div style={{ ...tiny, marginTop: 2, fontWeight: 500 }}>{lens.lead}</div>
-          </div>
-          {!full && <Ring pct={pct} hue={lens.hue} />}
-        </div>
-        <Viz dims={lens.dims} v={L.score(lens.id)} hue={lens.hue} fill={fill} />
-        {!full && (asking
-          ? <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}><Asker lens={lens} onDone={() => { onTick(); if (L.complete(lens.id)) setAsking(false); }} /></div>
-          : <button onClick={() => setAsking(true)} style={{
-              marginTop: 14, width: '100%', padding: '10px', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-              background: `color-mix(in oklch, ${col(lens.hue)} 4%, transparent)`, border: `0.5px solid color-mix(in oklch, ${col(lens.hue)} 24%, var(--rule))`, borderRadius: 12, color: deep(lens.hue),
-              fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600,
-            }}>Sharpen it — {L.needed(lens.id) - L.done(lens.id)} left</button>)}
-      </div>
-    );
-  }
-
-  function LensesPanel({ boxed }) {
-    const L = window.LENSES;
+  // The boxed card-per-lens variant sat here behind a tweak for comparison;
+  // the tiered flat panel won (v28 §10) and the boxed LensCard went with it.
+  function LensesPanel() {
+    const L = LENSES;
     const [tick, setTick] = useState(0);
     const [explain, setExplain] = useState(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
@@ -285,19 +280,14 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
       <ExplainSheet title={explain.title} kicker="lens" dimKey={explain.id} dims={explain.dims}
         keyRows={[
           [EX_GLYPH.bar(col(explain.hue)), 'The filled bar — or the dot on the line — is you.'],
-          [EX_GLYPH.tick(), 'The tick marks where most people sit.'],
+          // The tick is not drawn on a live build, so its key row is not
+          // either: a legend for a mark that is not on the screen sends the
+          // reader looking for it.
+          ...(typKnown() ? [[EX_GLYPH.tick(), 'The tick marks where most people sit.']] : []),
           [EX_GLYPH.pale(col(explain.hue)), 'Pale means the reading is still an estimate.'],
         ]}
         onClose={() => setExplain(null)} />
     ) : null;
-    if (boxed) return (
-      <div style={{ paddingBottom: 8 }}>
-        <div style={{ ...tiny, fontSize: 13.5, lineHeight: 1.5, margin: '14px 2px 16px', fontWeight: 500, textWrap: 'pretty' }}>
-          Smaller readings than the four tests, filling in from the feed.
-        </div>
-        {L.all.map(l => <LensCard key={l.id} lens={l} onTick={bump} />)}
-      </div>
-    );
     const t1 = L.all.filter(l => l.tier === 1), t2 = L.all.filter(l => l.tier === 2);
     const groupHead = (label, sub, first) => (
       <div style={{ margin: first ? '18px 2px 0' : '26px 2px 0' }}>
@@ -309,7 +299,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
       <div style={{ paddingBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 14px', margin: '14px 2px 0' }}>
           <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 15, height: 7, borderRadius: 99, background: 'var(--ink-2)' }}></span>you</span>
-          <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 2, height: 12, borderRadius: 2, background: typ }}></span>most people</span>
+          {typKnown() && <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 2, height: 12, borderRadius: 2, background: typ }}></span>most people</span>}
           <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 15, height: 7, borderRadius: 99, background: prov(30) }}></span>still an estimate</span>
         </div>
         {groupHead('Core lenses', 'why you hold what you hold', true)}
@@ -325,5 +315,6 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
     );
   }
 
-  Object.assign(window, { LensesPanel });
+  Object.assign(EXPORTS, { LensesPanel });
 })();
+export const { LensesPanel } = EXPORTS;

@@ -8,10 +8,10 @@
 // bodies are typed TSX, where D39's ratchet says new code belongs.
 //
 // The CSS is NOT duplicated. `.mm-lensrow` / `.mm-lensbtn` /
-// `.mm-lensthumb` are already in styles.css with their three
-// `data-lens-style` variants (segmented · underline · chips, chosen by the
-// tweak on `.app`), so the live row inherits the demo row's look and every
-// future change to it, exactly once.
+// `.mm-lensthumb` are already in styles.css under the underline
+// `data-lens-style` (the v28 teardown settled the three variants, §10), so
+// the live row inherits the demo row's look and every future change to it,
+// exactly once.
 //
 // AND IT IS THE BOTTOM VARIANT, `.mm-lensrow` (D188). This file shipped
 // with `.mm-lensrow-top` from D119, which is the class the prototype uses
@@ -34,6 +34,14 @@ import React from "react";
 // Shape and labels next door, so this file exports only its component —
 // see lensTabs.ts for why that split is load-bearing and not cosmetic.
 import type { LensTab } from "./lensTabs";
+// R2/D270: the tap that opens a lens is exactly the cost gate D136 built
+// — a body exists only while its tab is open — so it is also the honest
+// count of "does anyone open People". A no-op until initLive arms it.
+import { note, type SKey } from "../data/engagement";
+
+const LENS_NOTE: Partial<Record<string, SKey>> = {
+  people: "lensPeople", compare: "lensCompare", explore: "lensExplore", scores: "lensScores",
+};
 
 function MirrorLensTabs({ tabs, open, onOpen }: {
   tabs: LensTab[];
@@ -76,7 +84,11 @@ function MirrorLensTabs({ tabs, open, onOpen }: {
         <button key={t.id} data-lens={t.id} role="tab" aria-selected={open === t.id}
           className={"mm-lensbtn" + (open === t.id ? " is-on" : "")}
           style={{ fontSize: fs, padding: "10px 3px" }}
-          onClick={() => onOpen(t.id)}>{t.label}</button>
+          onClick={() => {
+            const k = LENS_NOTE[t.id];
+            if (k) note(k); // Answers is the landing tab, not a tap worth counting
+            onOpen(t.id);
+          }}>{t.label}</button>
       ))}
     </div>
   );

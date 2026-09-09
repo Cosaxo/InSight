@@ -29,12 +29,14 @@ export type LocateResult =
   | { ok: true; key: string; km: number }
   | { ok: false; reason: LocateFail };
 
-// PRECISE SINCE D175, and the flag does two jobs. It is the accuracy of
-// the fix, and on Android 12+ it is also what @capacitor/geolocation asks
-// the OS for: `false` requested COARSE alone, `true` requests the
-// [COARSE, FINE] alias (GeolocationPlugin.kt, getAlias). Both halves of
-// this decision are therefore this one boolean plus the manifest cap that
-// came off beside it.
+// PRECISE SINCE D175, and the flag does two jobs — but NOT, as this said
+// until tonight, "both halves of this decision". There is a third: the
+// alias `requestPermissions` is called with, below. This flag is what
+// `getCurrentPosition` asks the OS for; the permission call asked for
+// something else entirely, and the mismatch was a second system dialog
+// per tap and a fix nobody had agreed to the accuracy of. Three halves,
+// and they have to agree: this boolean, the requested alias, and the
+// manifest cap that came off beside them.
 //
 // This was `false` — the coarse request that made the
 // old ~1 km grid the honest ceiling. A venue-scale Near needs a fix that
@@ -90,18 +92,32 @@ function classify(err: unknown): LocateFail {
   return "unavailable";
 }
 
-async function getCoords(): Promise<{ lat: number; lon: number }> {
+async function getCoords(): Promise<{ lat: number; lon: number; accuracy: number }> {
   if (Capacitor.isNativePlatform()) {
     const { Geolocation } = await import("@capacitor/geolocation");
     // requestPermissions first rather than letting getCurrentPosition
     // trigger it: this is invoked from an explicit "Use my location" tap,
     // and a prompt that appears without one is the thing users report as
     // creepy even when the data handling is fine.
-    const perm = await Geolocation.requestPermissions({ permissions: ["coarseLocation"] });
-    const state = perm.coarseLocation || perm.location;
+    //
+    // ASK FOR THE ALIAS THAT MATCHES WHAT WE THEN REQUEST. This asked for
+    // `coarseLocation` and immediately called getCurrentPosition with
+    // enableHighAccuracy true — whose own getAlias then asks for
+    // [COARSE, FINE], from inside the plugin, with no tap behind it. Two
+    // dialogs for one tap, the second one the exact unprompted prompt the
+    // paragraph above exists to prevent. Not confined to Android 12+
+    // either: on API 24-30 getAlias always returns the location alias, so
+    // the second request went out there too.
+    const perm = await Geolocation.requestPermissions({ permissions: ["location"] });
+    // A user may grant "Approximate only" on Android 12+. That is a real
+    // grant and the city path is exactly what it is good for; what it must
+    // not do is silently feed a ~1 km reading into a 200 m grid, so the
+    // accuracy travels with the fix and locateCell refuses below.
+    const precise = perm.location === "granted";
+    const state = precise ? "granted" : (perm.coarseLocation || perm.location);
     if (state !== "granted") throw new Error("permission denied");
-    const pos = await Geolocation.getCurrentPosition(OPTS);
-    return { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    const pos = await Geolocation.getCurrentPosition({ ...OPTS, enableHighAccuracy: precise });
+    return { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
   }
   // Web. navigator.geolocation is absent in insecure contexts and in some
   // embedded webviews, which is a different failure from a refusal.
@@ -110,7 +126,7 @@ async function getCoords(): Promise<{ lat: number; lon: number }> {
   }
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }),
       reject,
       OPTS,
     );
@@ -124,7 +140,11 @@ async function getCoords(): Promise<{ lat: number; lon: number }> {
  * user's position through this module even by accident.
  */
 export async function locateCity(): Promise<LocateResult> {
-  let coords: { lat: number; lon: number };
+  // Accuracy is read and DELIBERATELY IGNORED here: matching a reading to
+  // the nearest city in a shipped list is exactly what an approximate fix
+  // is good for, and refusing one would turn a legitimate "Approximate
+  // only" grant into a broken button.
+  let coords: { lat: number; lon: number; accuracy: number };
   try {
     coords = await withDeadline(getCoords(), DEADLINE_MS);
   } catch (err) {
@@ -152,6 +172,16 @@ export function locateSupported(): boolean {
   return typeof navigator !== "undefined" && !!navigator.geolocation;
 }
 
+/**
+ * The presence cell's own size, in metres, as the ceiling a fix has to beat.
+ *
+ * PRESENCE_CELL_DEG is 0.002° (functions/src/pure.ts). One degree of
+ * latitude is ~111 km everywhere, so the cell is ~222 m tall; it is
+ * narrower in longitude the further from the equator, so the tall side is
+ * the generous reading and the one to compare against.
+ */
+const CELL_M = 222;
+
 export type LocateCellResult =
   | { ok: true; cell: string }
   | { ok: false; reason: LocateFail };
@@ -167,13 +197,27 @@ export type LocateCellResult =
  * vocabulary, so the UI reuses the CityPicker's failure copy.
  */
 export async function locateCell(): Promise<LocateCellResult> {
-  let coords: { lat: number; lon: number };
+  let coords: { lat: number; lon: number; accuracy: number };
   try {
     coords = await withDeadline(getCoords(), DEADLINE_MS);
   } catch (err) {
     const msg = String((err as Error)?.message || "");
     if (msg === "unsupported") return { ok: false, reason: "unsupported" };
     return { ok: false, reason: classify(err) };
+  }
+  // A FIX COARSER THAN THE CELL IS NOT A CELL. An "Approximate only" grant
+  // on Android 12+ returns a grid-quantised reading of roughly a kilometre
+  // or three; folding that into a 0.002° square publishes a room the user
+  // is not standing in, and nobody can tell from the outside. That is
+  // D175's own "invented precision", pointed at Near instead of at the
+  // grid size. `nearState.lastError` already renders "unavailable" as a
+  // stall row, so this needs no UI.
+  //
+  // A platform that does not report accuracy at all keeps today's
+  // behaviour rather than losing Near: the refusal is for a fix MEASURED
+  // coarse, not for one whose accuracy is unknown.
+  if (Number.isFinite(coords.accuracy) && coords.accuracy > CELL_M) {
+    return { ok: false, reason: "unavailable" };
   }
   const cell = presenceCell(coords.lat, coords.lon);
   if (!cell) return { ok: false, reason: "unavailable" };

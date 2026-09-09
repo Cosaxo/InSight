@@ -4,25 +4,47 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import NAV from '../data/nav';
+import LIVE from '../data/live';
+// D354's sweep: the lens store, the saved logic result, the demo Scenes
+// field and the city picker as imports. This panel rides loadOverlays(),
+// which awaits the Mirror's chunk first, so mirror-field-pops is landed
+// before this can render; logic-test.jsx is pulled into this chunk by the
+// import, ahead of the group's own line for it — harmless, it reads no
+// global while evaluating.
+import { LOGIC } from './logic-test.jsx';
+import { MirrorFieldBody } from './mirror-field-pops.jsx';
+import { LENSES } from './lens-defs.js';
+import CityPicker from '../ui/CityPicker';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
-import { PASSIVE } from './passive-progress.js';
+// Where each instrument currently stands, as a colour and a two-tone split
+// (D230) — the reading the feed's rings and the profiles sheet already wear.
+import { passiveCount, passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
-// An import, not the window.PLACES read this file used to carry — the
-// typed module is importable from spec (logic-test precedent), so the D39
-// coupling meter moves DOWN with this change.
-import PLACES from '../data/places';
+import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
+// `PLACES` stood here as an import (D39 converted it from a window.PLACES
+// read, which is what moved the coupling meter down). The import outlived
+// its last reader and is gone; the typed module is still importable from
+// spec if a reader comes back.
 import { SCENES } from './scenes.js';
 // The rings-and-you drawing every empty surface shows now (D172).
 import EmptyField from '../ui/EmptyField.tsx';
+// "Open the topic list" — the ask this card's one button makes (D190).
+import { requestTopicSheet } from '../data/topicSheet.ts';
+// "What moves together" (v28 §13) — the cross-test threads, drawn from
+// the viewer's own results only. Lazy because this panel is eager (the
+// profile is one tap from first paint) and the card is reachable only
+// once the overlay opens — the LiveDuelPanel pattern.
+const TraitWebCardLazy = React.lazy(() => import('../ui/TraitWebCard.tsx'));
 // The vitals vocabulary and the anchor mapping, in their own module since
 // D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
 // check:anchors reads that file for the client half of its comparison.
 import {
-  AGE_BANDS, DAYS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS,
-  REL_OPTS, YEARS, ageBandOf, anchorsFrom, calcAge,
+  DAYS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS,
+  REL_OPTS, YEARS, anchorsFrom, calcAge,
 } from './profile-vitals.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -39,6 +61,7 @@ import {
 // overwrite whatever a user saved under an older build. They
 // round-trip inertly instead — cheap, and lossless if a card returns.
 // ─────────────────────────────────────────────────────────────
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useRef, useId } = React;
 
@@ -51,7 +74,7 @@ import {
   // — see loadGen and migrateV1 below.
   const GKEY_V1 = 'insight.profileGeneral.v1';
 
-  // ── seed from data.js, then overlay any saved edits ──
+  // ── seed from sample-data.js, then overlay any saved edits ──
   function seedFromData() {
     const me = IS_DATA.me || {};
     const s = me.stats || {};
@@ -87,9 +110,42 @@ import {
   // answerAnchors() stamped it onto every answer after that. Answers are
   // create-only (D5), so the ones already written have no correction path —
   // which is why the guard has to hold on every mount, not the first.
+  //
+  // …and the empty map the live branch used to return was the OTHER half
+  // of the same bug, pointed at a second device. `{ vitals: {} }` is not
+  // "no opinion", it is a complete profile whose every field is blank, and
+  // the persist effect below writes the anchors derived from it wholesale
+  // — so opening the profile on a phone that had never seen the panel
+  // erased the anchors the laptop wrote, and every answer after that was
+  // stamped anchorless. Seed from the account instead: the anchors ARE the
+  // account's own last word on these fields, and `anchorsFrom` recovers all
+  // ten keys from this seed unchanged (calcAge returns '' with no `born`, so
+  // `exact` falls through to `v.age`; country and jobField re-derive from
+  // city and job). `loadGen`'s merge order keeps the local blob authoritative
+  // where it has a value, so the residue repair above is untouched.
+  //
+  // Bare `LIVE`, the import at the head of the file — not `window.LIVE`,
+  // which would add a counted reference under D39 rule 4. (This sentence
+  // said "a file already carrying three" beside that citation, and three
+  // is the number of `window.LIVE` SITES, not the file's rule-4 count,
+  // which is 13 — read it off `check:globals`, never from here.) `|| {}`
+  // is a data guard, not a load-order one: an imported binding cannot be
+  // unset, but a store with no profile yet can answer {}.
   function baseFor(live) {
     if (!live) return seedFromData();
-    return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+    const a = LIVE.anchors() || {};
+    return {
+      vitals: {
+        age: a.age || '',
+        gender: a.gender || '',
+        city: a.city || '',
+        education: a.education || '',
+        job: a.profession || '',
+        relationship: a.relationship || '',
+        heightBand: a.heightBand || '',
+      },
+      interests: [], likes: [], dislikes: [], heroes: [],
+    };
   }
 
   // One-time carry-over from GKEY_V1, which on a device that ran the build
@@ -128,7 +184,7 @@ import {
   }
 
   function loadGen() {
-    const live = !!(window.LIVE && window.LIVE.enabled);
+    const live = LIVE.enabled;
     const base = baseFor(live);
     try {
       const saved = JSON.parse(localStorage.getItem(GKEY) || 'null') || migrateV1(live);
@@ -196,7 +252,7 @@ import {
   }
   function EditBtn({ on, onClick }) {
     return (
-      <button onClick={onClick} aria-label={on ? 'Done editing' : 'Edit'} style={{
+      <button className="tap44" onClick={onClick} aria-label={on ? 'Done editing' : 'Edit'} style={{
         flexShrink: 0, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
         display: 'inline-flex', alignItems: 'center', gap: 6,
         height: 30, padding: on ? '0 13px' : '0 9px', borderRadius: 999,
@@ -246,6 +302,14 @@ import {
     const uid = useId();
     const v = data.vitals;
     const upd = (k, val) => set(d => ({ ...d, vitals: { ...d.vitals, [k]: val } }));
+    // The city and its confirmation move as ONE write (D205). Two `upd`
+    // calls would be two renders over the same object and the second could
+    // read a stale `d`; more to the point, a city that landed without its
+    // confirmation being cleared would leave the previous city's `cityOk`
+    // standing beside a new city.
+    const updCity = (next, ok) => set(d => ({
+      ...d, vitals: { ...d.vitals, city: next, [CITY_OK_LEAF]: ok ? next : '' },
+    }));
     const setPart = (k, val) => set(d => {
       const nv = { ...d.vitals, [k]: val };
       nv.age = calcAge(nv.born, nv.bornM, nv.bornD);
@@ -288,7 +352,8 @@ import {
                 aria-label added to work around this exact wrapper. The
                 caption is visual; the control names itself. */}
             <span style={fieldLabel}>City
-              <CityPicker value={v.city || ''} onChange={next => upd('city', next)} />
+              <CityPicker value={v.city || ''}
+                onChange={(next, ok) => updCity(next, ok)} />
             </span>
             {/* Every field here is optional and skippable. The note says what
                 it buys, because "why does a privacy app want my age?" is the
@@ -319,7 +384,7 @@ import {
     const anchors = anchorList();
     if (!anchors.length) return null;
     return (
-      <button className="card press" onClick={() => window.goTab && window.goTab('you')} style={{
+      <button className="card press" onClick={() => NAV.goTab('you')} style={{
         width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
         WebkitAppearance: 'none', appearance: 'none', display: 'flex', alignItems: 'center', gap: 15,
         border: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', color: 'var(--ink)',
@@ -360,7 +425,7 @@ import {
   // read. A shortcut to the Lenses sub-tab, which is otherwise only reachable
   // by knowing it is there; the sibling of TestArcsCard above it.
   function LensesRowCard({ onGo }) {
-    const L = window.LENSES;
+    const L = LENSES;
     if (!L) return null;
     const n = L.KEYS.length, m = L.mapped();
     return (
@@ -397,7 +462,29 @@ import {
           {ARC_TESTS.map(({ k, sub, name }) => {
             const res = R[k];
             const top = res ? [...res.dims].sort((a, b) => b.value - a.value)[0] : null;
-            const pct = PASSIVE.pct(k);
+            // THE ARC'S LENGTH FROM THE SAME PLACE AS ITS COLOUR, which
+            // it was not. `PASSIVE.pct` counts a localStorage tally
+            // written at the moment of the tap, so on a reinstall or a
+            // second device it reads ZERO for a profile whose own
+            // per-instrument tab draws "30 of 30 answered" from the fold —
+            // four grey rings at zero for four complete instruments, one
+            // tap apart. `passiveCount` is the fix passive-meter.jsx
+            // already made for its own ring, sheet row and card tag, and
+            // its header names this split in as many words: "the colour
+            // came from the fold and the number came from the device".
+            // This was the last `PASSIVE.pct` reader outside that file and
+            // was not switched with the rest — while the comment below,
+            // written in the same commit, claimed it had been.
+            const pct = passiveCount(k).pct;
+            // The arc used to need `res` — a STORED result — for both its
+            // colour and its permission to draw, so in a live build (where
+            // nothing writes one, D121) this card was four grey rings that
+            // never moved however much of the feed you answered. It reads
+            // the same standing the rest of the app does now: the stored
+            // result where there is one, the fold over your own answers
+            // where there is not, and the arc draws on progress alone.
+            const { col, sp } = passiveStanding(k);
+            const arc = (C * pct) / 100;
             return (
               <button key={k} className="press" onClick={() => onGo && onGo(sub)} style={{
                 cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', background: 'none', border: 'none',
@@ -406,11 +493,20 @@ import {
               }}>
                 <svg viewBox="0 0 56 56" width="54" height="54" style={{ width: '100%', maxWidth: 54, height: 'auto' }} aria-hidden="true">
                   <circle cx="28" cy="28" r="23" fill="none" stroke="var(--surface-3)" strokeWidth="6"></circle>
-                  {pct > 0 && res && <circle cx="28" cy="28" r="23" fill="none" stroke={res.accent} strokeWidth="6" strokeLinecap="round"
-                    strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 28 28)"></circle>}
+                  {/* Two tones, laid rather than segmented: the runner-up's
+                      lighter hue takes the whole sweep, the dominant axis'
+                      deeper one covers its first `ratio` on top. Layering
+                      keeps the arc's own rounded end and turns the boundary
+                      into the same soft split the type mark draws — a
+                      butt-capped second arc would put a hard edge mid-ring
+                      and a flat start where the cap used to round. */}
+                  {pct > 0 && <circle cx="28" cy="28" r="23" fill="none" stroke={sp ? sp.lift : col} strokeWidth="6" strokeLinecap="round"
+                    strokeDasharray={`${arc} ${C}`} transform="rotate(-90 28 28)"></circle>}
+                  {pct > 0 && sp && <circle cx="28" cy="28" r="23" fill="none" stroke={sp.deep} strokeWidth="6" strokeLinecap="round"
+                    strokeDasharray={`${arc * sp.ratio} ${C}`} transform="rotate(-90 28 28)"></circle>}
                 </svg>
                 <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '-0.01em', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{top ? top.label : name}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -4 }}>{name}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -4 }}>{name}</span>
               </button>
             );
           })}
@@ -420,12 +516,19 @@ import {
   }
 
   // ── Logic gets its own card — a timed skill test, not a personality profile ──
+  // The buyer's shelf ("You asked") stood here until D368 took the
+  // purchase funnel out of the binary. What the account can still see
+  // of its own purchases lives in ui/AskedByYouOverlay.tsx, which is
+  // untouched: it reads this account's own purchase docs and the same
+  // public aggregates everyone reads — already the reader shape, which
+  // is why shape A was cheap.
+
   function LogicCard() {
-    const lg = window.LOGIC ? window.LOGIC.load() : null;
+    const lg = LOGIC.load();
     const C = 2 * Math.PI * 23;
-    const col = window.LOGIC ? window.LOGIC.color : 'var(--ink)';
+    const col = LOGIC.color;
     return (
-      <button className="card press" onClick={() => window.openLogicTest && window.openLogicTest()} style={{
+      <button className="card press" onClick={() => NAV.openLogicTest()} style={{
         width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
         WebkitAppearance: 'none', appearance: 'none', display: 'flex', alignItems: 'center', gap: 15,
         border: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', color: 'var(--ink)',
@@ -468,8 +571,26 @@ import {
       // labelled. Same shape the empty Circle and Groups stops take now:
       // draw the thing, say one line, offer the one action that cannot
       // happen by itself.
+      //
+      // AND THE DOOR OPENS ONTO THE LIST, not onto the room it is in
+      // (D190). It used to jump to the daily feed and stop there, which is
+      // one search short of what the label promises \u2014 reported from a
+      // device as exactly that. `requestTopicSheet` is the ask; the feed
+      // owns the list and answers it, mounted or not.
+      //
+      // AND IT NO LONGER MOVES YOU WHEN IT DOES NOT HAVE TO (D282). D190
+      // fixed where the jump LANDED and left the jump itself, which is
+      // what came back a second time: the reader asked for a list and was
+      // put on another screen to get it. `requestTopicSheet` now answers
+      // whether a mounted feed took the request, and one behind this
+      // panel can \u2014 the sheet portals to the app frame at z-index 40
+      // and this overlay sits at 20, so the list opens on top of the
+      // profile and closes back onto it. The jump survives as the case it
+      // was always the answer to: the profile opened over the Mirror,
+      // where there is no feed mounted to answer, and `prime` returning
+      // false lets EmptyField navigate exactly as before.
       return (
-        <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world' }}>
+        <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world', prime: requestTopicSheet }}>
           Every topic runs in your feed until you narrow it.
         </EmptyField>
       );
@@ -480,7 +601,7 @@ import {
           <span key={g.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '0.5px solid var(--rule)', borderRadius: 999, padding: '5px 7px 5px 12px', background: 'var(--surface-2)' }}>
             <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: SCENES.colorOf(g.id) }}></span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{g.name}</span>
-            <button className="press" aria-label={'Unfollow ' + g.name} onClick={() => SCENES.unfollow(g.id)}
+            <button className="press tap44" aria-label={'Unfollow ' + g.name} onClick={() => SCENES.unfollow(g.id)}
               style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 17, height: 17, borderRadius: 999, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
           </span>
         ))}
@@ -495,9 +616,8 @@ import {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
     // One liveness read for the panel: the anchors mirror below and the
-    // demo-section gate at the foot both branch on it, and consolidating
-    // here keeps the file's shared-global reference count flat (D39 rule 4).
-    const LIVE_ON = !!(window.LIVE && window.LIVE.enabled);
+    // demo-section gate at the foot both branch on it.
+    const LIVE_ON = LIVE.enabled;
     // Mirror the anchor subset onto the owner-only profile doc (D8), so
     // later answers can snapshot it. Only in live mode — in mock mode the
     // vitals are demo data and there is no server to write to.
@@ -516,9 +636,35 @@ import {
     // device stops stamping the sample persona onto new answers. Suppressing
     // the mount write to save a Firestore write would leave the fabricated
     // anchors exactly where they are.
+    //
+    // …and the seed in `baseFor` does not close it on its own, because
+    // `useState(loadGen)` runs exactly once: a panel that mounts before
+    // `v2_users/{uid}` has hydrated seeds from an empty map however good the
+    // seeding rule is, and this wholesale write then erases the account.
+    // Refuse that one write. An all-empty derived map is always accidental
+    // here — every Basics select opens on a `disabled` placeholder and offers
+    // no path back to it, and the city control is a picker — so a user cannot
+    // blank all ten by hand. Clearing ONE field still writes, because the
+    // rest of the map is not empty.
+    //
+    // Not `saveAnchors({ ...LIVE.anchors(), ...anchorsFrom(v) })`, the shape
+    // that suggests itself: `anchorsFrom` returns all ten keys always, empty
+    // strings included, so the spread overwrites the account with blanks and
+    // the merge is a no-op.
+    //
+    // Residual, deliberately not chased: on that race the Basics card also
+    // DISPLAYS empty, because loadGen has already run. The account's anchors
+    // are safe and the next edit writes correctly; re-seeding state after
+    // hydration needs a subscription that could clobber a field typed in the
+    // meantime, which is the worse trade.
     useEffect(() => {
       if (anchorsJson == null) return;
-      try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
+      try {
+        const next = JSON.parse(anchorsJson);
+        const blank = Object.values(next).every((v) => !v);
+        if (blank && Object.values(LIVE.anchors() || {}).some((v) => v)) return;
+        LIVE.saveAnchors(next);
+      } catch (e) { /* best-effort */ }
     }, [anchorsJson]);
 
     return (
@@ -527,8 +673,19 @@ import {
         <BasicsCard data={data} set={set} />
         <MapThumbCard />
         <TestArcsCard onGo={onGo} />
+        {/* the v28 patch seats the web here, between the arcs it reads
+            and the lens row; null fallback — the card renders nothing
+            under four resolvable pairs anyway, so a spinner would promise
+            content the data may not hold */}
+        <React.Suspense fallback={null}>
+          <TraitWebCardLazy />
+        </React.Suspense>
         <LensesRowCard onGo={onGo} />
         <LogicCard />
+        {/* the buyer's shelf (PAID-PLAN §9.3, D288 — the 2026-08-24
+            design's seat for it, after the instruments). Live only, and
+            only when a purchase exists: an empty "You asked" chapter on
+            the account that never bought anything is furniture. */}
         {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,
             and every number on it is invented: "5.6k people", the
             closer-means-more-like-you distances, "Who's in your circles ·
@@ -537,10 +694,10 @@ import {
             section scale. Live mode drops the section whole; follows are
             managed from the feed's chip row and search until a live scenes
             surface exists with real numbers behind it (D1). */}
-        {!LIVE_ON && typeof window.MirrorFieldBody === 'function' && (
+        {!LIVE_ON && (
           <div>
             <Chapter>Scenes you follow</Chapter>
-            <window.MirrorFieldBody pop="groups" worldZoom="world" />
+            <MirrorFieldBody pop="groups" worldZoom="world" />
           </div>
         )}
         {LIVE_ON && (
@@ -553,6 +710,7 @@ import {
     );
   }
 
-  window.GeneralPanel = GeneralPanel;
+  EXPORTS.GeneralPanel = GeneralPanel;
 })();
+export const { GeneralPanel } = EXPORTS;
 

@@ -12,6 +12,13 @@ named at the bottom.
 > rule, the signal table, and the shown-and-editable requirement are the
 > parts SCALE-PLAN builds on.
 
+> **Generalized by [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md)
+> (2026-08-23).** The owner's wider ask — measure how the app is used,
+> not only feed attention — is planned there. Tier 3's shape (the
+> anonymous daily rollup, per-day random ids, fold-and-delete, bucketed
+> counts) carries forward as that plan's rung 1; tiers 1–2 here, and the
+> records they became (D128, D163), are untouched by it.
+
 Two asks, and they look like one feature but are not:
 
 - **A · Does anyone like Foresight?** Do people play it or scroll past?
@@ -31,7 +38,7 @@ This is refused today, deliberately and recently. `docs/MONITORING.md`
 | Refused | Record |
 | --- | --- |
 | Per-user funnels, session analytics, engagement scoring | data-inventory.md |
-| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
+| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" — narrowed at D271 (skip/pass, aggregate-only) and D329 (hesitation, same terms) |
 | Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |
 
 And `docs/data-inventory.md` — **the audited list the App Store and Play

@@ -1,21 +1,73 @@
-// Push registration (Phase 5) — native platforms only, and only the one
-// notification the product earns: "your reveal is out" (sent by
-// revealGroupDay in functions/src/v2social.ts). On web this module is a
-// no-op. Requires the platform Firebase config files
+// Push registration (Phase 5) — native platforms only. On web this module
+// is a no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
+//
+// THREE CLASSES since ROUNDS-PLAN §7.4 (D426), each on its own Android
+// channel, all sent by functions/src/v2social.ts through one fan-out
+// (sendPushToUids):
+//
+//   · "the round is revealed" — revealRound,      channel "reveals"
+//   · "your turn"              — notifyTurn,       channel "turns"    (§7.4)
+//   · "someone invited you"    — inviteToGroupV2,  channel "invites"
+//   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D240)
+//   · "you're in"              — approveJoinV2,    channel "invites"  (D240)
+//
+// It was one class for a long time and this comment said so. The second is
+// what turned D122's invitation — consent, an inbox, a handle registry —
+// from a note left in an empty room into something that reaches the person
+// it is addressed to. The third is the volley's other half: a round is a
+// game where somebody has to know it is their move.
+//
+// THE FOREGROUND PRESENTS NOTHING, by config rather than by listener —
+// capacitor.config.ts sets `presentationOptions` to the badge alone. The
+// plan said "suppress when the room is on screen", and the plugin cannot:
+// iOS returns the static config from willPresent for every remote push,
+// and Android posts a foreground notification whenever that config holds
+// an alert (both read in the plugin's source, 8.1.2). At eight rounds a
+// day a banner and a sound over the card you are answering is the app
+// buzzing about what you are looking at, so the foreground is the app's
+// own surface: groups and reveals are subscribed (data/live.ts), the card
+// moves on its own, and the listener below hands the arrival to the store
+// so an invitation — fetched, not subscribed — refreshes too.
 import { Capacitor } from "@capacitor/core";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
+import { FUNCTIONS_REGION } from "../../lib/region";
+import NAV from "./nav";
+import { note } from "./engagement";
 
-export async function registerPushForReveals(uid: string): Promise<void> {
+/**
+ * Register this device for reveal notifications.
+ *
+ * `ask` decides whether the OS PROMPT may be shown, and the split is the
+ * whole point of the parameter.
+ *
+ * WHY. This used to prompt from `initLive`, during boot, before first
+ * render — so the first thing a new install did was ask for notification
+ * permission, for a notification class ("your reveal is out") that cannot
+ * fire until the user has joined a circle or started a 1v1. On iOS the
+ * decline is PERMANENT: there is no second prompt, and the shipped reveal
+ * push then dies for everyone who tapped Not Now at a moment when nothing
+ * had earned it. Contrast locate.ts, which is gated behind an explicit tap
+ * with an Info.plist string saying what happens.
+ *
+ * So boot calls this with `ask: false` — which registers a device that has
+ * ALREADY granted permission (the returning user, every launch) and is
+ * otherwise a no-op — and the moments that make a reveal possible call it
+ * with `ask: true`.
+ */
+export async function registerPush(
+  uid: string,
+  { ask = false }: { ask?: boolean } = {},
+): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     let perm = await PushNotifications.checkPermissions();
     // Android 13+ reports "prompt-with-rationale" after a first
     // dismissal — still promptable, so ask in both states.
-    if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") {
+    if (ask && (perm.receive === "prompt" || perm.receive === "prompt-with-rationale")) {
       perm = await PushNotifications.requestPermissions();
     }
     if (perm.receive !== "granted") return;
@@ -25,19 +77,67 @@ export async function registerPushForReveals(uid: string): Promise<void> {
     // and the failure only shows when the app is BACKGROUNDED, since a
     // foregrounded app renders the payload itself.
     // Creating an existing channel is a no-op, so this is safe every boot.
+    //
+    // TWO CHANNELS SINCE D236, and the split is not decoration. A channel
+    // carries a name and a description into Android's own settings, and
+    // it is what a person switches off when they want less. Posting an
+    // invitation to "reveals" would put it under a description that says
+    // "When a group or duo day is revealed" — a false label on the one
+    // screen the OS gives the user to control this — and would make
+    // muting invitations cost them the reveal they actually opened the
+    // app for. The server names the channel explicitly on every send
+    // (sendPushToUids), so neither class rides the manifest default.
     if (Capacitor.getPlatform() === "android") {
-      try {
-        await PushNotifications.createChannel({
+      for (const ch of [
+        {
           id: "reveals",
           name: "Reveals",
-          description: "When a group or duo day is revealed.",
-          importance: 4, // heads-up: the reveal is the thing you opened the app for
-          visibility: 1, // public — the text names no answers, only that a day is out
+          description: "When a round in a group or 1v1 is revealed.",
+          // `as const` on both: an inline object infers the literal, but
+          // these live in an array now and would widen to `number`,
+          // which is not the plugin's Importance/Visibility union.
+          importance: 4 as const, // heads-up: the reveal is what you opened the app for
+          visibility: 1 as const, // public — names no answers, only that a day is out
           vibration: true,
-        });
-      } catch (err) {
-        // A missing channel degrades delivery; it must not stop registration.
-        reportError(err, { where: "push.createChannel" });
+        },
+        {
+          id: "invites",
+          name: "Invitations",
+          // Covers BOTH directions since D240: an invitation to you,
+          // and somebody asking to join a circle you are in. One
+          // channel because they are one concern — who is joining
+          // what — and a person muting one would mean to mute both.
+          description: "When someone invites you, or asks to join your group.",
+          // 4, same as reveals: an invitation is a person waiting on an
+          // answer from you, and one that arrives silently is the thing
+          // D236 exists to fix.
+          importance: 4 as const,
+          // Public, and it costs nothing to say so: the text carries a
+          // display name and a circle's name, both of which D98 already
+          // publishes to any signed-in account.
+          visibility: 1 as const,
+          vibration: true,
+        },
+        {
+          // ROUNDS-PLAN §7.4: a nudge, not a result. A person who mutes
+          // nudges should keep results, and the channel is the one
+          // control Android gives them — so it is its own, at DEFAULT
+          // importance rather than heads-up: "your turn" should not pop
+          // over what you are doing, while the reveal keeps its 4.
+          id: "turns",
+          name: "Your turn",
+          description: "When it's your turn in a 1v1 or group.",
+          importance: 3 as const,
+          visibility: 1 as const, // names a person and a room, both public (D98)
+          vibration: true,
+        },
+      ]) {
+        try {
+          await PushNotifications.createChannel(ch);
+        } catch (err) {
+          // A missing channel degrades delivery; it must not stop registration.
+          reportError(err, { where: "push.createChannel" });
+        }
       }
     }
     await PushNotifications.addListener("registration", (token) => {
@@ -63,7 +163,7 @@ export async function registerPushForReveals(uid: string): Promise<void> {
           // and a client-writable one could carry a stolen token. The
           // callable also drops the rotated predecessor in the same step.
           const db = await getDb();
-          const fns = getFunctions(db.app, "us-central1");
+          const fns = getFunctions(db.app, FUNCTIONS_REGION);
           await httpsCallable(fns, "registerPushToken")({
             token: token.value,
             prev: staleToken,
@@ -80,17 +180,69 @@ export async function registerPushForReveals(uid: string): Promise<void> {
     });
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const data = (action.notification && action.notification.data) || {};
-      if (data.kind === "reveal" && data.gid) {
+      // land on the daily tab; DailySplit consumes whatever was stashed.
+      // The registry since D248, not a `window as unknown as {…}` cast:
+      // NAV.goTab owns the not-yet-mounted case, so the `if (w.goTab)`
+      // this replaced has no caller-side remnant.
+      const land = () => {
+        // R2/D270: the sent→opened half of the notification funnel —
+        // delivery counts were always server-side, the tap never was.
+        note("notifOpen");
+        NAV.goTab("track");
+        window.dispatchEvent(new Event("insight-live-update"));
+      };
+      // A reveal, or "your turn" (ROUNDS-PLAN §7.4): both land on a room
+      // this account is in, so the same stash routes both — DailySplit
+      // resolves the gid to the room's mode and opens it.
+      if ((data.kind === "reveal" || data.kind === "turn") && data.gid) {
         try {
           sessionStorage.setItem("insight.pendingReveal", String(data.gid));
         } catch {
           /* best-effort */
         }
-        // land on the daily tab; DailySplit consumes the pending gid
-        const w = window as unknown as { goTab?: (t: string) => void };
-        if (w.goTab) w.goTab("track");
-        window.dispatchEvent(new Event("insight-live-update"));
+        land();
+        return;
       }
+      // A join request, or an approval of yours (D240). BOTH name a
+      // circle this account is in — you are a member of the one somebody
+      // is asking to join, and you have just become a member of the one
+      // that let you in — so the gid resolves and the tap can land on
+      // that circle's own mode.
+      if ((data.kind === "join-request" || data.kind === "join-approved") && data.gid) {
+        try {
+          sessionStorage.setItem("insight.pendingCircle", String(data.gid));
+        } catch {
+          /* best-effort */
+        }
+        land();
+        return;
+      }
+      // An invitation (D236). The gid is deliberately NOT stashed the way a
+      // reveal's is: a reveal lands on a circle you are already in, and
+      // DailySplit resolves it through LIVE.social.groups(). An invitee is
+      // by definition not a member yet, so that lookup finds nothing and
+      // the tap would go nowhere at all. The MODE is what routes — Circle
+      // or 1v1, where LdInvites already draws the row waiting for them.
+      if (data.kind === "invite") {
+        try {
+          sessionStorage.setItem("insight.pendingInvite", data.mode === "duo" ? "duo" : "group");
+        } catch {
+          /* best-effort */
+        }
+        land();
+      }
+    });
+    // A push arriving while the app is OPEN. Presented by nothing (see the
+    // header); handed to the store as an event so what it announces is on
+    // screen: a room's round moves on its own subscription, an invitation
+    // is re-fetched (live.ts listens). Not a `live.ts` import — that file
+    // imports this one.
+    await PushNotifications.addListener("pushNotificationReceived", (n) => {
+      const data = (n && n.data) || {};
+      window.dispatchEvent(new CustomEvent("insight-push-received", {
+        detail: { kind: String(data.kind || ""), gid: data.gid ? String(data.gid) : null },
+      }));
+      window.dispatchEvent(new Event("insight-live-update"));
     });
     await PushNotifications.register();
   } catch (err) {

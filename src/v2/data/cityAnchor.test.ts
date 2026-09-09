@@ -59,10 +59,10 @@ describe("setCityAnchor · the profile-blob half", () => {
   it("writes vitals.city into a blob that did not exist yet", () => {
     setCityAnchor("Bergen, NO");
     const blob = JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null");
-    expect(blob).toEqual({ vitals: { city: "Bergen, NO" } });
+    expect(blob).toEqual({ vitals: { city: "Bergen, NO", cityOk: "" } });
   });
 
-  it("touches exactly one leaf of an existing blob", () => {
+  it("touches exactly the two city leaves of an existing blob", () => {
     // loadGen round-trips interests/likes/heroes it no longer renders,
     // precisely so an edit cannot lose an older build's data — this write
     // has to honour the same contract.
@@ -74,17 +74,36 @@ describe("setCityAnchor · the profile-blob half", () => {
     setCityAnchor("Bergen, NO");
     const blob = JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null");
     expect(blob).toEqual({
-      vitals: { born: "1994", job: "Nurse", city: "Bergen, NO" },
+      vitals: { born: "1994", job: "Nurse", city: "Bergen, NO", cityOk: "" },
       interests: ["chess"],
       heroes: [{ name: "X" }],
     });
+  });
+
+  // D205: the confirmation is stored as the KEY, so it can only ever be
+  // true of the city standing beside it. These two cases are the reason
+  // that shape was chosen over a boolean.
+  it("records the key when the device's own fix produced it", () => {
+    setCityAnchor("Bergen, NO", true);
+    const blob = JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null");
+    expect(blob.vitals).toEqual({ city: "Bergen, NO", cityOk: "Bergen, NO" });
+  });
+
+  it("clears a previous city's confirmation when the city is re-picked", () => {
+    // The staleness a boolean would have allowed: confirmed in Bergen,
+    // then manually pick Oslo. A flag left standing would have Oslo
+    // inheriting Bergen's evidence.
+    setCityAnchor("Bergen, NO", true);
+    setCityAnchor("Oslo, NO");
+    const blob = JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null");
+    expect(blob.vitals).toEqual({ city: "Oslo, NO", cityOk: "" });
   });
 
   it("recovers from a corrupt blob instead of losing the anchor write", () => {
     localStorage.setItem(PROFILE_GENERAL_LS, "{not json");
     setCityAnchor("Bergen, NO");
     const blob = JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null");
-    expect(blob).toEqual({ vitals: { city: "Bergen, NO" } });
+    expect(blob).toEqual({ vitals: { city: "Bergen, NO", cityOk: "" } });
     expect(LIVE.saveAnchors).toHaveBeenCalled();
   });
 });

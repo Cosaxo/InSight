@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // compare-pop.js — plausible population averages per scale, for the Compare
 // breakdown. Every assessment is on the same 0..100-per-dimension scale as the
@@ -13,7 +12,7 @@ import React from 'react';
 //         · groups (an interest circle). Tuned, not random: your close ties
 // resemble you most, the world least. Big-Five / econ-social numbers stay in
 // step with IS_DATA.aggregates so the rest of the app agrees.
-window.IS_COMPARE_POP = {
+export const IS_COMPARE_POP = {
   around: {
     label: 'near you', n: 312,
     big5:       { O: 70, C: 60, E: 50, A: 68, N: 40 },

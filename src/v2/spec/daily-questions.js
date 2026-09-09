@@ -3,7 +3,14 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
+import { sharePcts } from '../data/pct';
+// The store (D354). Read at CALL time only — `myAnswer` and `liveSync`
+// below — never while this module evaluates. That is what makes the
+// import safe this early in spec-index.js: data/live.ts imports
+// test-definitions.js, and neither of the three reads another's bindings
+// during evaluation, so the order they settle in cannot matter.
+import LIVE from '../data/live';
+import { CAT_META, catMeta, EMERGENT_CATS } from './daily-cats.js';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
 // A new question each day (type varies). Each question carries a plausible,
@@ -38,7 +45,7 @@ export let DAILYQ;
     return floor;
   }
 
-  // The five audiences, in tab order.
+  // The six audiences, in tab order.
   const AUDIENCES = [
     { id: 'around', label: 'people near you', short: 'near you', hue: 40 },
     { id: 'city', label: 'Oslo', short: 'Oslo', hue: 150 },
@@ -58,15 +65,11 @@ export let DAILYQ;
   // A question's path (e.g. ['Sport','Football']) is its tag AND where its
   // answer lands on your map. topWord → placement: a seedId reuses an existing
   // self-branch; the rest are topical branches that emerge as you answer.
-  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
   function pathKey(p) { return (p || []).join(' / '); }
-  const CAT_META = {
-    Body: { seedId: 'health', hue: 150 }, Skills: { seedId: 'craft', hue: 40 }, Interests: { seedId: 'interests', hue: 78 },
-    Home: { seedId: 'home', hue: 110 }, Story: { seedId: 'story', hue: 320 }, Goals: { seedId: 'goals', hue: 240 }, Values: { seedId: 'values', hue: 356 },
-    Sport: { hue: 18 }, Film: { hue: 265 }, Food: { hue: 35 }, Travel: { hue: 200 }, Mind: { hue: 255 }, Morals: { hue: 305 }, Music: { hue: 130 },
-  };
-  function catMeta(top) { const m = CAT_META[top] || { hue: 250 }; return { top, hue: m.hue, seedId: m.seedId || null, catId: m.seedId || ('top-' + slug(top)) }; }
-  const EMERGENT_CATS = Object.keys(CAT_META).filter((k) => !CAT_META[k].seedId).map((k) => ({ id: 'top-' + slug(k), label: k, hue: CAT_META[k].hue }));
+  // slug / CAT_META / catMeta / EMERGENT_CATS now live in daily-cats.js —
+  // map-branches.js needs the taxonomy and nothing else, and importing it
+  // from here dragged this file's archive into first paint. Re-exported
+  // below so every existing DAILYQ consumer is unchanged.
   // candidate branch paths per question: authored default (clearly top-voted) + a couple of alternates
   function buildCandidates(id, def, alts) {
     const r = rng(id + '|cat');
@@ -339,6 +342,133 @@ export let DAILYQ;
       cat: ['Morals', 'Fairness'], alts: [['Values', 'Fairness'], ['Mind', 'Outlook']] },
     { type: 'rating', prompt: 'How well is the world being led?', tag: 'Leadership', axis: 'leader-trusting', tone: 'deep', rates: 'world', political: true,
       cat: ['Values', 'Leadership'], alts: [['Morals', 'Power'], ['Story', 'This era']] },
+    // ── question farm 2026-08-19 (docs/QUESTION-FARM.md): the pen was empty
+    // (0 of 56) with zero scorecard signal, so lane-3 thin-first — one each
+    // into the eight thinnest topics (Sport, Film, Skills, Interests, Food,
+    // Travel, Music, Body). AI-proposed, human-reviewed via PR.
+    { type: 'binary', prompt: 'Win ugly, or lose beautifully?', tag: 'Ugly win', options: ['Win ugly', 'Lose beautifully'], tone: 'blend',
+      cat: ['Sport', 'Style'], alts: [['Values', 'What you admire'], ['Story', 'Narratives']] },
+    { type: 'binary', prompt: 'Black and white films: timeless, or homework?', tag: 'Black and white', options: ['Timeless', 'Homework'], tone: 'light',
+      cat: ['Film', 'The classics'], alts: [['Interests', 'Cinema'], ['Story', 'History']] },
+    { type: 'scale', prompt: "A skill isn't yours until you've taught it to someone.", tag: 'Teach it', axis: 'teaching-minded', tone: 'blend',
+      cat: ['Skills', 'Mastery'], alts: [['Mind', 'Understanding'], ['Goals', 'Craft']] },
+    { type: 'choice', prompt: 'What pulls you down a rabbit hole at 1 a.m.?', tag: 'Rabbit holes', options: ['History', 'How things work', "Other people's lives", 'Maps'], tone: 'light',
+      cat: ['Interests', 'Rabbit holes'], alts: [['Mind', 'Curiosity'], ['Story', 'History']] },
+    { type: 'binary', prompt: 'The last slice: take it, or offer it?', tag: 'Last slice', options: ['Take it', 'Offer it'], tone: 'light',
+      cat: ['Food', 'Table manners'], alts: [['Morals', 'Small courtesies'], ['Values', 'Generosity']] },
+    { type: 'binary', prompt: 'Window seat or aisle?', tag: 'The seat', options: ['Window', 'Aisle'], tone: 'light',
+      cat: ['Travel', 'In transit'], alts: [['Body', 'Comfort'], ['Mind', 'The view']] },
+    { type: 'choice', prompt: 'Where does music hit you hardest?', tag: 'Where it hits', options: ['Alone in headphones', 'Live in a crowd', 'In the car', 'On the dance floor'], tone: 'blend',
+      cat: ['Music', 'Where it hits'], alts: [['Body', 'Presence'], ['Mind', 'Feeling']] },
+    { type: 'scale', prompt: 'Your body runs your mood more than your mind does.', tag: 'Body first', axis: 'body-led', tone: 'deep',
+      cat: ['Body', 'Mind and body'], alts: [['Mind', 'Mood'], ['Values', 'Self-knowledge']] },
+    // ── question farm 2026-08-19 (docs/QUESTION-FARM.md): the pen was empty
+    // (0 of 56) after #232 promoted the previous batch, so lane-3 thin-first —
+    // one each into the eight thinnest tops (Sport, Film, Skills, Story,
+    // Interests, Goals, Body, Music). AI-proposed, human-reviewed via PR.
+    { type: 'binary', prompt: 'The team you support: inherited, or chosen?', tag: 'How you got them', options: ['Inherited', 'Chosen'], tone: 'blend',
+      cat: ['Sport', 'Rooting'], alts: [['Story', 'Memory'], ['Values', 'Loyalty']] },
+    { type: 'binary', prompt: 'Rewatch a favourite, or risk something new?', tag: 'Rewatch or risk', options: ['Rewatch', 'Risk it'], tone: 'light',
+      cat: ['Film', 'How you watch'], alts: [['Interests', 'Taste'], ['Values', 'Openness']] },
+    { type: 'choice', prompt: 'Which could you do perfectly, starting right now?', tag: 'The instant skill', options: ['Play an instrument', 'Speak a language', 'Draw anything', 'Fix anything'], tone: 'blend',
+      cat: ['Skills', 'Wishlist'], alts: [['Interests', 'Curiosity'], ['Story', 'Self']] },
+    { type: 'choice', prompt: 'Your life so far reads most like…', tag: 'The shape of it', options: ['A straight line', 'A few sharp turns', 'A slow drift', 'Still chapter one'], tone: 'deep',
+      cat: ['Story', 'Chapters'], alts: [['Mind', 'Outlook'], ['Goals', 'The long game']] },
+    { type: 'scale', prompt: 'The best hobbies have nothing to show for them.', tag: 'Nothing to show', axis: 'unproductive', tone: 'deep',
+      cat: ['Interests', 'The point'], alts: [['Values', 'Rest'], ['Morals', 'The good life']] },
+    { type: 'binary', prompt: 'Respected at work, or free to walk away from it?', tag: 'Respect or freedom', options: ['Respected', 'Free to walk'], tone: 'deep',
+      cat: ['Goals', 'Work and life'], alts: [['Values', 'Meaning'], ['Morals', 'The good life']] },
+    { type: 'choice', prompt: 'First thing you want in the morning?', tag: 'First thing', options: ['Quiet', 'Coffee', 'Movement', 'Ten more minutes'], tone: 'light',
+      cat: ['Body', 'Mornings'], alts: [['Home', 'Rituals'], ['Mind', 'Rest']] },
+    { type: 'binary', prompt: 'At a concert: front row, or back with space?', tag: 'Where you stand', options: ['Front row', 'Back with space'], tone: 'light',
+      cat: ['Music', 'Going out'], alts: [['Interests', 'Nightlife'], ['Body', 'Comfort']] },
+    // farm 2026-09-03 — the pen-refill batch (D350: a granted budget is
+    // always work). Floor to 8/top: Film, Skills, Sport; levelling: Food,
+    // Interests.
+    { type: 'binary', prompt: 'The book or the film first?', tag: 'Which first', options: ['Book first', 'Film first'], tone: 'light',
+      cat: ['Film', 'Adaptations'], alts: [['Interests', 'Reading'], ['Film', 'How you watch']] },
+    { type: 'choice', prompt: 'What makes a villain great?', tag: 'Villains', options: ['Menace', 'Charm', 'Being half right', 'Mystery'], tone: 'light',
+      cat: ['Film', 'Villains'], alts: [['Story', 'Characters'], ['Morals', 'Grey areas']] },
+    { type: 'binary', prompt: 'Practise in private, or learn in public?', tag: 'Learning out loud', options: ['In private', 'In public'], tone: 'deep',
+      cat: ['Skills', 'How you learn'], alts: [['Mind', 'Confidence'], ['Story', 'Sharing']] },
+    { type: 'scale', prompt: 'Talent is mostly patience.', tag: 'Talent', axis: 'patience', tone: 'deep',
+      cat: ['Skills', 'Mastery'], alts: [['Values', 'Effort'], ['Goals', 'The long game']] },
+    { type: 'binary', prompt: 'Keep score, or just play?', tag: 'Keeping score', options: ['Keep score', 'Just play'], tone: 'light',
+      cat: ['Sport', 'How you play'], alts: [['Values', 'Competition'], ['Interests', 'Games']] },
+    { type: 'choice', prompt: 'What makes a great rivalry?', tag: 'Rivalries', options: ['History', 'Respect', 'High stakes', 'Closeness'], tone: 'light',
+      cat: ['Sport', 'Rivalries'], alts: [['Story', 'Drama'], ['Values', 'What you admire']] },
+    { type: 'binary', prompt: 'Dessert: every day, or a special occasion?', tag: 'Dessert', options: ['Every day', 'Special occasion'], tone: 'light',
+      cat: ['Food', 'Habits'], alts: [['Body', 'Balance'], ['Values', 'Treats']] },
+    { type: 'choice', prompt: 'What do you follow most closely?', tag: 'Following', options: ['A sport', 'A show', 'An artist', 'A subject'], tone: 'light',
+      cat: ['Interests', 'Following'], alts: [['Sport', 'Fandom'], ['Music', 'Fandom']] },
+    // farm 2026-09-04 — levelling above the floor (D350 tier 3), one per
+    // thinnest top: Story, Travel, Body, Film, Food, Goals, Interests, Music.
+    { type: 'choice', prompt: 'The advice you\u2019d give your younger self is mostly about\u2026', tag: 'Dear younger me', options: ['Courage', 'Patience', 'People', 'Money'], tone: 'deep',
+      cat: ['Story', 'Then and now'], alts: [['Mind', 'Self-knowledge'], ['Goals', 'Lessons']] },
+    { type: 'binary', prompt: 'Getting lost somewhere new: part of the fun, or the thing to avoid?', tag: 'Getting lost', options: ['Part of the fun', 'The thing to avoid'], tone: 'light',
+      cat: ['Travel', 'How you roam'], alts: [['Mind', 'Control'], ['Interests', 'Adventure']] },
+    { type: 'binary', prompt: 'Naps: a superpower, or a trap?', tag: 'Naps', options: ['A superpower', 'A trap'], tone: 'light',
+      cat: ['Body', 'Sleep'], alts: [['Mind', 'Rest'], ['Home', 'Afternoons']] },
+    { type: 'binary', prompt: 'Showing someone your favourite film: the joy, or the pressure?', tag: 'The screening', options: ['The joy', 'The pressure'], tone: 'light',
+      cat: ['Film', 'Sharing'], alts: [['Story', 'Sharing'], ['Mind', 'Stakes']] },
+    { type: 'binary', prompt: 'A dish you loved as a kid: still delicious, or best left in memory?', tag: 'Kid food', options: ['Still delicious', 'Leave it in memory'], tone: 'light',
+      cat: ['Food', 'Memory'], alts: [['Story', 'Then and now'], ['Home', 'Comfort']] },
+    { type: 'scale', prompt: 'Small steps beat big leaps.', tag: 'How you move', axis: 'small steps', tone: 'deep',
+      cat: ['Goals', 'Method'], alts: [['Skills', 'How you learn'], ['Mind', 'Patience']] },
+    { type: 'choice', prompt: 'A free evening class in anything. Which door?', tag: 'Evening class', options: ['Art', 'A language', 'Carpentry', 'Coding'], tone: 'light',
+      cat: ['Interests', 'Learning'], alts: [['Skills', 'Wishlist'], ['Goals', 'This year']] },
+    { type: 'binary', prompt: 'Digging backwards through the decades, or riding the new releases?', tag: 'Which way', options: ['Digging backwards', 'Riding the new'], tone: 'light',
+      cat: ['Music', 'Discovery'], alts: [['Interests', 'Curiosity'], ['Story', 'Eras']] },
+    // farm 2026-09-06 — the Sunday roll-up (the branch waited out the
+    // D365 ceiling): eight more levelled into the same thinnest tops.
+    { type: 'choice', prompt: 'The story your family retells about you is\u2026', tag: 'The retelling', options: ['Embarrassing', 'Heroic', 'Invented', 'Accurate'], tone: 'light',
+      cat: ['Story', 'Retellings'], alts: [['Home', 'Family'], ['Mind', 'Reputation']] },
+    { type: 'binary', prompt: 'Pack light and buy there, or pack for every weather?', tag: 'The suitcase', options: ['Pack light', 'Pack everything'], tone: 'light',
+      cat: ['Travel', 'In transit'], alts: [['Mind', 'Control'], ['Home', 'Stuff']] },
+    { type: 'binary', prompt: 'Barefoot at home: always, or never?', tag: 'Barefoot', options: ['Always', 'Never'], tone: 'light',
+      cat: ['Body', 'At home'], alts: [['Home', 'Comfort'], ['Body', 'Signals']] },
+    { type: 'choice', prompt: 'The film you claim to love but never finished is\u2026', tag: 'The unfinished', options: ['The long epic', 'The arthouse one', 'The classic', 'I finish everything'], tone: 'light',
+      cat: ['Film', 'Confessions'], alts: [['Story', 'Honesty'], ['Mind', 'Image']] },
+    { type: 'binary', prompt: 'Crusts on sandwiches: keep, or cut?', tag: 'Crusts', options: ['Keep', 'Cut'], tone: 'light',
+      cat: ['Food', 'Habits'], alts: [['Home', 'Kitchen rules'], ['Story', 'Then and now']] },
+    { type: 'binary', prompt: 'Fresh starts: January the first, or any random Tuesday?', tag: 'Fresh starts', options: ['January the first', 'Any random Tuesday'], tone: 'deep',
+      cat: ['Goals', 'Beginnings'], alts: [['Mind', 'Momentum'], ['Values', 'Rituals']] },
+    { type: 'scale', prompt: 'A hobby stops being fun once you\u2019re good at it.', tag: 'The curse of skill', axis: 'joy fades', tone: 'deep',
+      cat: ['Interests', 'Why we bother'], alts: [['Skills', 'Mastery'], ['Mind', 'Play']] },
+    { type: 'choice', prompt: 'Where does new music actually find you?', tag: 'The way in', options: ['Friends', 'Playlists', 'Radio', 'It just arrives'], tone: 'light',
+      cat: ['Music', 'Discovery'], alts: [['Interests', 'Curiosity'], ['Story', 'Eras']] },
+    { type: 'binary', prompt: 'Learning something new: show me a video, or show me in person?', tag: 'How it clicks', options: ['A video', 'In person'], tone: 'light',
+      cat: ['Skills', 'How you learn'], alts: [['Mind', 'Patience'], ['Interests', 'Learning']] },
+    { type: 'binary', prompt: 'Extra time: dread it, or live for it?', tag: 'Extra time', options: ['Dread it', 'Live for it'], tone: 'light',
+      cat: ['Sport', 'Drama'], alts: [['Mind', 'Nerves'], ['Story', 'Tension']] },
+    { type: 'choice', prompt: 'The record of your life so far lives mostly in…', tag: 'The record', options: ['Photos', 'Messages', 'A diary', 'Memory alone'], tone: 'blend',
+      cat: ['Story', 'The record'], alts: [['Mind', 'Memory'], ['Home', 'Keepsakes']] },
+    { type: 'binary', prompt: 'The souvenir: something for the shelf, or photos only?', tag: 'The souvenir', options: ['Something for the shelf', 'Photos only'], tone: 'light',
+      cat: ['Travel', 'What comes home'], alts: [['Home', 'Keepsakes'], ['Story', 'Mementos']] },
+    { type: 'binary', prompt: 'Cold water: dive straight in, or inch your way in?', tag: 'The dive', options: ['Dive straight in', 'Inch in'], tone: 'light',
+      cat: ['Body', 'Thresholds'], alts: [['Mind', 'Commitment'], ['Values', 'Caution']] },
+    { type: 'binary', prompt: 'When the credits roll: sit through them, or straight out?', tag: 'The credits', options: ['Sit through them', 'Straight out'], tone: 'light',
+      cat: ['Film', 'Rituals'], alts: [['Mind', 'Endings'], ['Values', 'Respect']] },
+    { type: 'binary', prompt: 'Recipes: follow them to the letter, or read once and improvise?', tag: 'The recipe', options: ['To the letter', 'Improvise'], tone: 'light',
+      cat: ['Food', 'How you cook'], alts: [['Skills', 'Method'], ['Mind', 'Rules']] },
+    { type: 'scale', prompt: 'A goal kept secret is a goal kept safe.', tag: 'The reveal', axis: 'keep it quiet', tone: 'deep',
+      cat: ['Goals', 'Telling people'], alts: [['Mind', 'Motivation'], ['Values', 'Privacy']] },
+    { type: 'binary', prompt: 'Fixing things yourself: first instinct, or last resort?', tag: 'The fixer', options: ['First instinct', 'Last resort'], tone: 'light',
+      cat: ['Skills', 'Handiness'], alts: [['Mind', 'Confidence'], ['Home', 'Upkeep']] },
+    { type: 'binary', prompt: 'Watching a sport you’ve played yourself: richer, or ruined?', tag: 'The insider', options: ['Richer', 'Ruined'], tone: 'blend',
+      cat: ['Sport', 'The inside view'], alts: [['Skills', 'Knowing how'], ['Mind', 'Attention']] },
+    { type: 'binary', prompt: 'Puzzles: bliss, or busywork?', tag: 'The puzzle', options: ['Bliss', 'Busywork'], tone: 'light',
+      cat: ['Interests', 'Quiet hobbies'], alts: [['Mind', 'Patience'], ['Home', 'Rainy days']] },
+    { type: 'binary', prompt: 'Your inner voice: more coach, or more critic?', tag: 'The voice', options: ['Coach', 'Critic'], tone: 'deep',
+      cat: ['Mind', 'Self-talk'], alts: [['Goals', 'Drive'], ['Story', 'How you narrate']] },
+    { type: 'scale', prompt: 'Small rules exist to be bent.', tag: 'The bend', axis: 'bend them', tone: 'blend',
+      cat: ['Morals', 'Rules'], alts: [['Values', 'Order'], ['Mind', 'Mischief']] },
+    { type: 'binary', prompt: 'The music of your parents’ generation: theirs, or yours too?', tag: 'Inherited songs', options: ['Theirs', 'Mine too'], tone: 'blend',
+      cat: ['Music', 'Inheritance'], alts: [['Story', 'Then and now'], ['Home', 'Family']] },
+    { type: 'binary', prompt: 'Do you ever read the last page first?', tag: 'The last page', options: ['Guilty', 'Never'], tone: 'light',
+      cat: ['Story', 'How you read'], alts: [['Mind', 'Suspense'], ['Values', 'Patience']] },
+    { type: 'binary', prompt: 'Airports: part of the adventure, or the price of it?', tag: 'The airport', options: ['Part of the adventure', 'The price of it'], tone: 'light',
+      cat: ['Travel', 'The journey'], alts: [['Mind', 'Thresholds'], ['Story', 'Departures']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
@@ -452,7 +582,7 @@ export let DAILYQ;
     if (q.id in saved) return saved[q.id];
     // live mode: the demo's baked history is Mira's, not the user's —
     // only genuinely-answered questions may reach the map
-    if (window.LIVE && window.LIVE.enabled) return null;
+    if (LIVE.enabled) return null;
     return q.bakedMine;            // baked past answer, or null
   }
 
@@ -494,6 +624,31 @@ export let DAILYQ;
       let top = 0; for (let i = 1; i < d.length; i++) if (d[i] > d[top]) top = i;
       return { big: d[top] + '%', unit: '', sub: q.options[top] };
     },
+    /**
+     * The date to print beside an answer — and NULL once the answers are
+     * real ones.
+     *
+     * `dateLabel` and `idx` come off this module's own demo calendar,
+     * whose clock is the constant `TODAY` above: a fixed morning in May
+     * 2026, with each question dated one day earlier than the last.
+     * `liveSync` below fills in the user's REAL Firestore votes by prompt
+     * match and touches neither field, so on a live build the Map's
+     * answer card was captioning a vote cast this morning "Values · 27
+     * May", and every date on the map sat in May 2026 or earlier.
+     *
+     * A synthetic date presented as the day you answered is the shape D1
+     * refuses; absence is the honest reading until an answer carries its
+     * own timestamp (the answers cache stores `[qid, value]` and no
+     * `answeredAt`, so that is a cache-shape change, not a caption fix).
+     * The kicker drops the separator with it.
+     */
+    dateOf(q) { return liveHydrated ? null : q.dateLabel; },
+    /**
+     * Whether `idx` still means "days ago". False once live, for the same
+     * reason: in a live build it is the demo bank's fixed position, which
+     * is not the order this account answered in.
+     */
+    datesAreReal() { return !liveHydrated; },
     // "you vs them" line; returns null if user hasn't answered
     youVsThem(q, audId) {
       const mine = myAnswer(q);
@@ -521,10 +676,18 @@ export let DAILYQ;
   // WORLD distribution is replaced with the real k-floored aggregate.
   // Other audiences keep their synthetic dists until they have real
   // data sources; `liveWorld` marks the swapped ones.
+  // Set the first time live hydration actually runs. What it says is
+  // narrow and exact: the answers on this store are now the account's own,
+  // so the demo calendar's `dateLabel`/`idx` no longer describe them. Read
+  // through `dateOf`/`datesAreReal` above rather than by a second
+  // liveness read.
+  let liveHydrated = false;
+
   function liveSync() {
-    const L = window.LIVE;
-    if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
-    const votes = (L.confirmedVotes ? L.confirmedVotes() : (L.myVotes && L.myVotes())) || {};
+    const L = LIVE;
+    if (!L.enabled || !L.ready) return;
+    liveHydrated = true;
+    const votes = L.confirmedVotes() || {};
     const byPrompt = {};
     const demoPrompts = new Set(QUESTIONS.map((q) => q.prompt));
     L.dailyBank().forEach((b) => {
@@ -540,18 +703,48 @@ export let DAILYQ;
     QUESTIONS.forEach((q) => {
       const b = byPrompt[q.prompt];
       if (!b) return;
+      // THE BANK ID, carried onto the question. Everything downstream that
+      // asks the live store about this question has to use it: `q.id` is
+      // this file's own demo id ("dq25"), and `LIVE.aggFor` is keyed by the
+      // seeded bank's ("daily-005"). The two spaces are disjoint, so a
+      // reader that passes `q.id` gets null for every question, forever —
+      // which is what the Map did, and it drew "isn't measured yet" over
+      // an aggregate already on the device.
+      q.liveId = b.id;
       const v = votes[b.id];
-      if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
-      const agg = L.aggFor && L.aggFor(b.id);
+      // RECONCILE, don't first-write-wins. This was `!(q.id in saved)`, so
+      // the first sync landed and every later one was ignored — and a D86
+      // edit is exactly a later one. The daily card then showed the new
+      // answer while the Map node kept the old: filed under the old
+      // option's typicality, listed under "where you differ", and
+      // permanent on that device, because nothing else ever writes this.
+      // The feed reconciles on every store notify (world-feed.jsx); this
+      // was the odd one out, not the convention.
+      //
+      // SAFE BECAUSE `saved` HOLDS NOTHING BUT CONFIRMED VALUES on a live
+      // build, which is the check this needed rather than the reasoning:
+      // its other writer is `DAILYQ.answer()`, whose only caller is
+      // `syncToMap`, gated on DAILYSPLIT_DQ_SYNC — one entry, the demo id
+      // `s1`. So there is no optimistic local value here for a stale
+      // confirmed one to overwrite. `votes` is `confirmedVotes()`.
+      if (v != null && saved[q.id] !== Number(v)) { saved[q.id] = Number(v); changed = true; }
+      const agg = L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
       if (agg && agg.counts && size) {
         const counts = []; let total = 0;
         for (let i = 0; i < size; i++) { const n = agg.counts[String(i)] || 0; counts.push(n); total += n; }
         if (total > 0) {
-          const pcts = counts.map((n) => Math.floor((n / total) * 100));
-          let rem = 100 - pcts.reduce((a, c) => a + c, 0);
-          for (let i = 0; rem > 0; i = (i + 1) % pcts.length, rem--) pcts[i]++;
-          q.dist.world = pcts; q.liveWorld = true; changed = true;
+          // `sharePcts` (data/pct.ts), the one rounding rule. This was
+          // floor-then-hand-the-leftovers-out-from-index-0, which gives
+          // the points to whoever sorts first rather than to whoever has
+          // the largest remainder — so the Mirror's World stop could name
+          // an option FEWER people picked as the leader (its headline
+          // reads d[top] straight off this array). Measured over 200k
+          // random count vectors at four options, the expression this
+          // replaces drew a smaller count at a larger percentage 2174
+          // times and put the leader below the top percentage 979 times;
+          // at five options, 5600 and 1842. sharePcts: 0 and 0.
+          q.dist.world = sharePcts(counts); q.liveWorld = true; changed = true;
         }
       }
     });

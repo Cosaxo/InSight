@@ -11,8 +11,8 @@
      { id: 'g-know',   label: 'Knowledge', hue: 78,  cats: [] },   // every lrn-* subject, matched by prefix
      { id: 'g-world',  label: 'World',     hue: 240, cats: ['top-tech', 'top-work', 'top-money', 'top-politics', 'top-society', 'top-events'] },
      { id: 'g-people', label: 'People',    hue: 320, cats: ['top-people', 'top-family', 'top-friends', 'top-love'] },
-+    // aims, not answers: the subjects you call and the groups you read
-+    { id: 'g-fore',   label: 'Foresight', hue: 282, cats: [] },  // every fore-* branch, matched by prefix
++    // aims, not answers: how well you read groups of people
++    { id: 'g-fore',   label: 'Intuition', hue: 282, cats: [] },  // every fore-* branch, matched by prefix
 +    // roads walked, not answers: the Crossroads stories and where they ended
 +    // (200 petrol — the 100–140 arc reads olive on the warm ground, so no)
 +    { id: 'g-paths',  label: 'Crossroads', hue: 200, cats: [] }, // every path-* branch, matched by prefix

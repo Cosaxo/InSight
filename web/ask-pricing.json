@@ -1,0 +1,100 @@
+{
+ "source": "content/pricing.json",
+ "committed": "2026-09-05",
+ "perAnswerBaseEur": 0.02,
+ "floorIndex": 1,
+ "crowdStep": 0.5,
+ "crowdFree": 3,
+ "minEur": 5,
+ "capEur": 50,
+ "budgets": [
+  5,
+  10,
+  25,
+  50
+ ],
+ "menu": {
+  "city": 10,
+  "country": 25,
+  "world": 50
+ },
+ "refundDays": 29,
+ "paidEvery": 6,
+ "cohorts": [
+  {
+   "key": "city",
+   "label": "Your city",
+   "index": 1,
+   "crowd": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "country",
+   "label": "Your country",
+   "index": 1,
+   "crowd": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "world",
+   "label": "Everyone",
+   "index": 1,
+   "crowd": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "fx": {
+  "EUR": {
+   "sym": "€",
+   "rate": 1,
+   "pre": true
+  },
+  "NOK": {
+   "sym": "kr",
+   "rate": 11.6,
+   "pre": false
+  }
+ }
+}

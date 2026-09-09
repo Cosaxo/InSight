@@ -2,17 +2,26 @@
 
 **Answer things. See what they add up to.**
 
-InSight is a two-tab app — **daily · mirror**. One tab is where you
-answer; the other is where the answering turns into a picture of you
-against every population you belong to. Answering is the smaller half.
+InSight is a two-tab app — **daily · mirror** — that becomes a three-tab
+one when it has the data for it: **patterns** puts itself in front of the
+other two once the nightly fit has published enough to draw and you have
+answered enough to be drawn in it (D265; still on trial, D166 §1). The
+daily tab is where you answer; the others are where the answering turns
+into pictures: how your answers tie to everyone else's, and you against
+every population you belong to. Answering is the smaller half.
+
+*Working on it rather than reading about it?*
+[`docs/ORIENTATION.md`](./docs/ORIENTATION.md) is the map — every
+document, gate and directory, one line each — and `CLAUDE.md` is the
+conventions you have to know before the first edit.
 
 ## Answering — three ways in, all blind until you've played
 
 - **The daily.** One blind vote a day, *then* how the world split, with
-  exact counts — plus a finite question feed underneath to
+  exact counts — plus a question feed underneath to
   snack on.
-- **Duels.** Groups and 1v1s with your real people: one question a day,
-  everyone's answers **sealed until tomorrow**, then revealed with names.
+- **Duels.** Groups and 1v1s with your real people: the same question for
+  everyone, all picks **sealed until the reveal**, then shown with names.
   Duos add a guess — did you call what they'd pick? — and a shared streak.
 - **Tests with no test to sit.** Big Five, politics, values and social
   fill themselves from marked cards in that same feed, alongside a row of
@@ -28,17 +37,28 @@ fully extended:
 you · circle · groups · near · city · country · world
 ```
 
-Six of them in live mode: **Near** *is* your city there, so a City stop
-would be the same cohort offered twice (decision D9).
+All seven in live mode since decision **D111**, which split the two
+questions D9 had folded into one stop: **Near** is who is around you
+*right now* — a presence radius and a count, never a list — and **City**
+is how the people who live there answered.
 
 **You** is the Map: every answer you've given becomes a dot, filed under
 its question's branch and sitting further from the centre the more
 unusual it was — mastered Learn facts land on the same canvas. **Groups**
 is your named circles, their alignment computed from real reveal history.
-**Near**, **Country** and **World** are the same question at three radii.
+**City**, **Country** and **World** are the same question at three radii.
 **Circle** is the accounts you follow, ranked by how alike your answers
 are (decision D101) — a follow is a bookmark, not a permission grant, so
 there is no request to send and nothing to accept.
+
+A live stop is not one reading. City, Country and World carry a tab row —
+**Answers · People · Scores · Compare**, plus **Explore at the World stop
+only** (D152) — under a similarity
+field that draws above it always: your city's people ranked by test-score
+match, and cities and countries placed by their real average-score
+profiles (decisions D112, D136). Circle and Groups carry the three of
+those a circle of nine can answer (D190). Every one of them is a fold
+over aggregates that were publishing anyway.
 
 The slicing is the whole trick, and it costs one write. An answer is
 stored once, readable by anyone, carrying a snapshot of the profile
@@ -87,9 +107,16 @@ enforces is the opposite of what it used to (decision **D98**):
   logic answer key (anti-cheat), who flagged a comment
   (anti-retaliation), and the ~200 m presence cell (physical safety: the
   app publishes what you answered, not where you are standing).
-- **Anonymous-first.** The app works instantly with no sign-in; Google is
-  an *upgrade* via account linking that keeps your uid and history
-  (decision D3). Deletion wipes everything, cross-references included.
+- **Anonymous underneath, an account at the door.** The app signs a
+  session in anonymously at boot and every door but one LINKS that
+  session rather than replacing it, so your uid and history survive
+  signing in (D3's mechanism, untouched). What changed is the posture:
+  D414 put the wall back up on 2026-09-07, so a shipping build asks for
+  an account before the app — both release workflows default
+  `VITE_REQUIRE_SIGNIN` to `true` and the iOS one refuses to upload
+  without it. Three doors, not one: Google, Sign in with Apple, and
+  email + password with address verification. Deletion wipes everything,
+  cross-references included.
 
 ## Running it
 
@@ -129,7 +156,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups/reveals) — 106 emulator tests
+                   member-only groups, sealed duels) — 214 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -139,23 +166,28 @@ monitoring/        Cloud Monitoring policies, put live by
                    (`npm run pulse` — MONITORING.md, D47)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
-docs/              DECISIONS · MIRROR (what the app shows, and how one
-                   answer reaches every surface) · COPY (the rule the
-                   app's words follow, and what it does not license) ·
-                   SCHEMA-V2 · DEPLOYMENT ·
-                   LOCAL-TESTING · SHIP-CHECKLIST · LAUNCH-RUNBOOK ·
-                   data-inventory · DEVICE-BIND · MONETIZATION · COSTS ·
-                   MONITORING
+docs/              ORIENTATION is the index — every document, every gate,
+                   every directory, one line each, and which docs describe
+                   the app versus which describe a proposal. This line used
+                   to be a hand-picked subset of it, which is why it is a
+                   pointer now: `check:docs` holds that page to the tree and
+                   held nothing here. DECISIONS-INDEX is the same treatment
+                   for the decision records
 ```
 
 ## Testing & CI
+
+The gates below are the ones worth the reasoning. For the *complete* list —
+all of them, with where each one runs — see
+[`docs/ORIENTATION.md`](./docs/ORIENTATION.md) §5, which `check:docs` holds
+equal to `package.json` and the workflows.
 
 Local:
 
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 106 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 214 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.
@@ -164,11 +196,14 @@ Local:
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone).
 - `npm run test:coverage` (and `--prefix functions`) — **report only, never a
-  gate.** Scoped to the typed layers where an untested branch is where a
-  wrong number reaches a screen: `src/v2/data` on the client, `pure.ts` +
-  `deviceBind.ts` on the backend. `spec/` is excluded on purpose — its only
-  tests are mount smoke tests, so a coverage number there would be both
-  meaningless and an invitation to raise it without asserting anything.
+  gate.** Runs the whole suite and REPORTS on the typed layers where an
+  untested branch is where a wrong number reaches a screen: `src/v2/data` on
+  the client, `pure.ts` + `deviceBind.ts` on the backend. `spec/` is excluded
+  on purpose — its only tests are mount smoke tests, so a coverage number
+  there would be both meaningless and an invitation to raise it without
+  asserting anything. It ran only the data tests until 2026-08-24, which
+  scored a module by what its OWN tests reached and so read 11 of 45 modules
+  5+ points low — `mutes.ts` at 0% against a real 81.5%.
   What it says today: `pure.ts` 98% statements / 96% branches and `deck.ts`
   / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
   covered — against `deviceBind.ts`'s Apple/Google verification at 27%,
@@ -188,7 +223,7 @@ Local:
   exported function appearing in the deploy list.
 - `npm run check:appcheck` — every callable either demands App Check
   attestation or is named with the reason it cannot (decision D36). The
-  five that cannot are the operator and moderator instruments, gated on
+  eight that cannot are the operator and moderator instruments, gated on
   uid allowlists instead; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.
 - `npm run check:monitoring` — the alert chain, from the log line a

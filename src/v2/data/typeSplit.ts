@@ -48,9 +48,25 @@
 // BIG FIVE ONLY, and that is not a stub. The politics result is Art. 9
 // data (`docs/data-inventory.md`) and slicing every answer by political
 // type is the exposure D44 was about; D98 reversed D44 on the ITEMS'
-// counts, not on cross-tabbing by result. `typeMix.TYPE_TEST` already
-// picked the Big Five as the app's least charged system for exactly this
-// reason, and this module inherits the choice rather than re-taking it.
+// counts, not on cross-tabbing by result. `typeMix.TYPE_TEST` picked the
+// Big Five as the app's least charged system for exactly this reason.
+//
+// **THIS MODULE NOW OWNS THAT SCOPE RATHER THAN INHERITING IT (D202).**
+// Until D202, `typeMix.TYPE_TEST` was an enforcement point and this file
+// could lean on it. D202 demoted that constant to a default so a reader
+// could switch the population MIX between instruments, so `SPLIT_TEST`
+// below is explicit, passed at every call site, and pinned by a test.
+// Since D252 the scope it holds is the app's CURRENT CHOICE, not a
+// promise: the "never used to group" sentence left `web/privacy.html`
+// with its claims pin (the owner's unwind-the-promises posture, D225's
+// shape), and the page now describes what groups answers today.
+// Widening this constant is therefore a product decision with a page
+// edit beside it — no pledge stands in the way, and nothing widens by
+// accident while this test-pinned constant is the single switch.
+// (Since D227 the verified logic score — not an instrument, no dims,
+// server-written — also groups answers, as its own disclosed fold in
+// logicSplit.ts; nothing about that widening touches SPLIT_TEST's
+// scope over the four.)
 //
 // Pure — no Firebase, no window, no LIVE. The caller joins voters to
 // scores (both already in the store) and hands the rows in, the way
@@ -59,6 +75,17 @@ import { TYPE_TEST, TYPE_THIN, typeNames, typeOfParsed } from "./typeMix";
 import type { ParsedResults } from "./similarity";
 
 export { TYPE_TEST, TYPE_THIN };
+
+/**
+ * The instrument answers may be grouped by — the app's current scope,
+ * in one constant (a product choice since D252, not a promise).
+ *
+ * It is `TYPE_TEST` today and must be passed explicitly rather than left to
+ * default: the point is that widening `typeMix`'s default can no longer
+ * widen this. `web/privacy.html` describes the scope to users; this
+ * constant and its test are what keep it from moving by accident.
+ */
+export const SPLIT_TEST = TYPE_TEST;
 
 /**
  * Below this many typed voters, the split has no shares at all.
@@ -143,20 +170,32 @@ export function typeSplitFor(
   mine: string | null = null,
 ): TypeSplit {
   const counts = new Map<string, number[]>();
+  /** Types somebody here actually carries, whether or not their answer
+   *  landed in a column — the basis for `absent`. */
+  const carriers = new Map<string, number>();
   const overall = dense(optionCount);
   let typedN = 0;
 
   for (const v of voters) {
-    const type = typeOfParsed(v.results);
+    const type = typeOfParsed(v.results, SPLIT_TEST);
     // No readable result is not a type — it thins the basis and is
     // reported as the gap between sampleN and typedN, never bucketed as
     // an "unknown" type that would then rank against the real ones.
     if (!type) continue;
     typedN += 1;
-    // A catalog answer or an out-of-range index counts toward the type's
-    // n (they are a typed person who answered) but lands in no column.
-    // Dropping them from n instead would make the columns sum to a
-    // number the header does not show.
+    // CARRIERS, kept apart from columns, because the two questions have
+    // different answers for the same person. A catalog answer or an
+    // out-of-range index is a typed person who answered — they carry the
+    // type — but their answer lands in no column, so they add nothing to
+    // any bar.
+    //
+    // The comment that stood here said such a person "counts toward the
+    // type's n", and the one below the rows said the opposite ("invisible
+    // here. That is deliberate"). The code did the second. Both cannot be
+    // right, and each is right about a different number: `n` must be the
+    // column sum or the row lies about its own bars, and `absent` must
+    // mean nobody carries the type or the word is wrong.
+    carriers.set(type, (carriers.get(type) ?? 0) + 1);
     let row = counts.get(type);
     if (!row) {
       row = dense(optionCount);
@@ -171,19 +210,22 @@ export function typeSplitFor(
   // Every type the system defines gets considered, not just the ones
   // present — `absent` is a finding (D141's rule, kept), and it can only
   // be stated by starting from the full list.
-  const rows: TypeSplitRow[] = typeNames().map((type) => ({
+  const rows: TypeSplitRow[] = typeNames(SPLIT_TEST).map((type) => ({
     type,
     n: counts.has(type) ? sum(counts.get(type)!) : 0,
     counts: counts.get(type) || dense(optionCount),
   }));
-  // `n` is the column sum, so a typed voter whose answer landed in no
-  // column is invisible here. That is deliberate: n has to equal what the
-  // bars add up to, or the row lies about its own picture.
+  // `n` stays the column sum: it has to equal what the bars add up to, or
+  // the row lies about its own picture. So a carrier whose answer landed
+  // in no column is invisible in `n` — and is NOT therefore absent.
+  // `absent` asks the other question (does anybody here carry this type),
+  // and `thin` takes the gap between them, so every type still lands in
+  // exactly one of the three lists.
 
   return {
     ranked: rows.filter((r) => r.n >= TYPE_THIN).sort((a, b) => b.n - a.n || a.type.localeCompare(b.type)),
-    thin: rows.filter((r) => r.n > 0 && r.n < TYPE_THIN).sort((a, b) => b.n - a.n || a.type.localeCompare(b.type)),
-    absent: rows.filter((r) => r.n === 0).map((r) => r.type),
+    thin: rows.filter((r) => r.n < TYPE_THIN && carriers.has(r.type)).sort((a, b) => b.n - a.n || a.type.localeCompare(b.type)),
+    absent: rows.filter((r) => !carriers.has(r.type)).map((r) => r.type),
     sampleN: voters.length,
     typedN,
     overall,
@@ -204,7 +246,7 @@ export function uidsOfType<T extends { uid: string; results: ParsedResults | nul
   type: string,
 ): Set<string> {
   const out = new Set<string>();
-  for (const v of voters) if (typeOfParsed(v.results) === type) out.add(v.uid);
+  for (const v of voters) if (typeOfParsed(v.results, SPLIT_TEST) === type) out.add(v.uid);
   return out;
 }
 
