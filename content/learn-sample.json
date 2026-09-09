@@ -86,6 +86,11 @@
       "id": "confused",
       "subject": "words",
       "label": "Commonly confused"
+    },
+    {
+      "id": "flag",
+      "subject": "geo",
+      "label": "Flags of the world"
     }
   ],
   "cards": [
@@ -994,6 +999,86 @@
       "t": 1,
       "p": 52,
       "k": "Principal vs principle"
+    },
+    {
+      "id": "flag1",
+      "f": "flag",
+      "q": "The only national flag with more than four sides belongs to…",
+      "a": [
+        "Switzerland",
+        "Nepal",
+        "Bhutan",
+        "Vatican City"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "Nepal’s flag has five sides",
+      "w": "Switzerland and Vatican City are the square ones — still four sides. Nepal’s two stacked pennants make five."
+    },
+    {
+      "id": "flag2",
+      "f": "flag",
+      "q": "The national flag with a rifle on it belongs to…",
+      "a": [
+        "Angola",
+        "Cuba",
+        "Mozambique",
+        "Vietnam"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 45,
+      "k": "Mozambique’s flag bears a rifle",
+      "w": "Angola is the near-miss — machete and cog-wheel. Mozambique’s carries an AK-47, crossed with a hoe over a book."
+    },
+    {
+      "id": "flag3",
+      "f": "flag",
+      "q": "Indonesia’s flag is almost identical to…",
+      "a": [
+        "Poland’s",
+        "Monaco’s",
+        "Singapore’s",
+        "Austria’s"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 50,
+      "k": "Indonesia matches Monaco",
+      "w": "Poland is the flip — white over red. Monaco’s red-over-white differs from Indonesia’s only in proportions."
+    },
+    {
+      "id": "flag4",
+      "f": "flag",
+      "q": "How many stars are on the flag of China?",
+      "a": [
+        "One",
+        "Four",
+        "Five",
+        "Ten"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 70,
+      "k": "China’s flag has five stars",
+      "w": "One large star and four small — the big one is what memory keeps, and the trap."
+    },
+    {
+      "id": "flag5",
+      "f": "flag",
+      "q": "The Union Jack combines the crosses of…",
+      "a": [
+        "England, Scotland and Wales",
+        "England, Scotland and Ireland",
+        "England and Scotland only",
+        "All four home nations"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 48,
+      "k": "No Wales in the Union Jack",
+      "w": "St George, St Andrew and St Patrick — the Welsh dragon never made it in."
     }
   ]
 }

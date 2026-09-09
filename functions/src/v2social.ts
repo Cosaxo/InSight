@@ -810,7 +810,22 @@ export async function revealRound(
 
   const pageDeadline = tsMs(group.get("roundDeadlineAt"));
   const pageDue = pageDeadline != null && pageDeadline <= nowMs;
-  if (!roundReveals(playedIn(group.get("played"), key).length, members.length, pageDue, force)) {
+  // A DUE ROUND ALWAYS OPENS THE TRANSACTION, even when the page snapshot
+  // shows nobody in it. `roundReveals` is `played >= 1 && …`, so a round
+  // whose only player left or was erased is false here whatever `force`
+  // says — and the branch that clears a stuck clock lives INSIDE the
+  // transaction this gate was returning before. So the group kept its
+  // `roundDeadlineAt`, the deadline scan orders by that field ascending,
+  // and a never-moving deadline sorts permanently at the head: at
+  // GROUP_SCAN_CAP the run breaks with an error before reaching any live
+  // due round, and reveals stop for everybody. Not even
+  // revealDuelsNowV2 {force:true} could unstick it.
+  //
+  // Letting a due round through costs one transaction (and one profile
+  // fetch) per stuck group, ONCE — the clock is cleared inside it and the
+  // group leaves the scan. A page snapshot that is merely stale is better
+  // off in there too: the transaction re-reads.
+  if (!pageDue && !roundReveals(playedIn(group.get("played"), key).length, members.length, pageDue, force)) {
     return false;
   }
 
@@ -821,7 +836,9 @@ export async function revealRound(
   // The names, past the gate — only a round that is about to reveal puts
   // profiles in flight. ONE FIELD, and the fieldMask is load-bearing
   // rather than tidy: a profile is client-writable and firestore.rules
-  // bounds only some of it (`testResults` by key count, the stamps not at
+  // bounds only some of it (`testResults` by key VOCABULARY since
+  // 2026-09-09, which caps the count structurally but not the size of a
+  // legitimate kind; the stamps not at
   // all), so a member can legitimately hold a document approaching
   // Firestore's 1 MiB, and LANES × GROUP_CAP of them in flight on the
   // 512 MiB instance is the exposure the mask bounds regardless of what
