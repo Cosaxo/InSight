@@ -72,7 +72,14 @@ import {
   regenerateCatalogArtIndex, toThumb,
 } from "./catalog-art-lib.mjs";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// `--root` so the takedown can be driven against a throwaway tree in a
+// test — `check-catalog-art.mjs` already carries the same seam, and
+// without it the only way to exercise `--remove` was on the real 3,676
+// pictures, which is why it had no test at all.
+const rootFlag = process.argv.indexOf("--root");
+const root = rootFlag === -1
+  ? resolve(dirname(fileURLToPath(import.meta.url)), "..")
+  : resolve(process.argv[rootFlag + 1]);
 const SELF = fileURLToPath(import.meta.url);
 const UA = "InSight-catalog-art/1.0 (https://github.com/Cosaxo/InSight)";
 const SPARQL = "https://query.wikidata.org/sparql";
@@ -115,7 +122,32 @@ const flag = (name, dflt) => {
   return i === -1 ? dflt : argv[i + 1];
 };
 const has = (name) => argv.includes(name);
-const domain = argv.find((a) => !a.startsWith("--") && argv[argv.indexOf(a) - 1] !== "--source" && argv[argv.indexOf(a) - 1] !== "--limit" && argv[argv.indexOf(a) - 1] !== "--remove");
+
+/**
+ * Positionals, walked BY INDEX. The old finder asked
+ * `argv[argv.indexOf(a) - 1]`, which answers about the FIRST occurrence
+ * of a token — so a repeated value put the wrong argument in the wrong
+ * place — and, worse, it silently ignored every positional after the
+ * first. `--remove 28 29 30` therefore removed 28 and left 29 and 30 on
+ * hosting while printing the success line and exiting 0. On a takedown
+ * that is the whole posture D421/D422 rests on, answered wrongly with a
+ * green exit.
+ */
+const VALUE_FLAGS = new Set(["--source", "--limit", "--remove", "--root"]);
+const positionals = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i].startsWith("--")) {
+    if (VALUE_FLAGS.has(argv[i]) && argv[i + 1] && !argv[i + 1].startsWith("--")) i += 1;
+    continue;
+  }
+  positionals.push(argv[i]);
+}
+const domain = positionals[0];
+if (positionals.length > 1 && !has("--all")) {
+  console.error(`build-catalog-art: unexpected argument(s) ${positionals.slice(1).map((a) => JSON.stringify(a)).join(", ")}`
+    + " — keys are comma-separated with no spaces: --remove 28,29,30");
+  process.exit(2);
+}
 
 // ── --all: every routed domain in turn, each in its own process so one
 // failure (a missing key, a host the policy blocks) does not take the
@@ -148,7 +180,26 @@ const limit = Number(flag("--limit", 0)) || 0;
 
 // ── the takedown ──────────────────────────────────────────────────────
 if (has("--remove")) {
-  const keys = String(flag("--remove", "")).split(",").map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n > 0);
+  // STRICT, AND LOUD. This was `.map(Number).filter(Number.isInteger …)`,
+  // which threw away anything it could not read and then printed the
+  // success line anyway: `--remove pikachu` and `--remove 0` both exited
+  // 0 having deleted nothing, on a command whose entire job is answering
+  // a takedown complaint. A key it cannot read is an operator typo, and
+  // the only safe answer to a typo here is to refuse.
+  //
+  // The bare `--remove` (no value, or the next token another flag) keeps
+  // its documented meaning: regenerate the index, remove nothing.
+  const spec = flag("--remove", "");
+  const parts = (spec === undefined || String(spec).startsWith("--") ? "" : String(spec))
+    .split(",").map((x) => x.trim()).filter((x) => x !== "");
+  const unreadable = parts.filter((x) => !/^\d+$/.test(x) || Number(x) <= 0);
+  if (unreadable.length) {
+    console.error(`build-catalog-art: --remove ${unreadable.map((x) => JSON.stringify(x)).join(", ")} `
+      + "is not a catalogue key — keys are positive integers, comma-separated with no spaces. "
+      + "Nothing was removed.");
+    process.exit(2);
+  }
+  const keys = parts.map(Number);
   const { rows } = readCredits(root, domain);
   const gone = [];
   const kept = rows.filter((r) => {
@@ -167,6 +218,17 @@ if (has("--remove")) {
   const missing = keys.filter((k) => !rows.some((r) => r.key === k));
   for (const m of missing) console.log(`build-catalog-art: ${domain} had no picture for key ${m} — nothing to remove`);
   console.log(`build-catalog-art: ${domain} now carries ${kept.length} picture(s). Commit and merge; hosting deploys from web/** (D421).`);
+  // A takedown that took nothing down does not report success. Narrow on
+  // purpose: keys that were asked for and NONE of them matched. A partial
+  // re-run after a half-committed takedown is a real flow and keeps its
+  // per-key notes above plus exit 0; a complaint answered with "no such
+  // picture" is not, and the operator has to see that before they reply.
+  if (keys.length && !gone.length) {
+    console.error(`build-catalog-art: nothing was removed — ${domain} carries no picture for `
+      + `${keys.length === 1 ? "that key" : "any of those keys"}. Check the key against `
+      + `${ART_DIR}/${domain}/${CREDITS_FILE} before answering the complaint.`);
+    process.exit(1);
+  }
   process.exit(0);
 }
 

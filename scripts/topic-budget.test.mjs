@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import {
   leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
   loadTops, loadLeaves, loadLedger, loadRing, isPlaced, feedPageCost, parentDeficitOf,
-  retireVerdict, demandReading, coverageAllocation,
+  retireVerdict, demandReading, coverageAllocation, settlingStock,
   EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, LEAF_BIRTH, FIELD_BIRTH, LEAF_TARGET, FIELD_TARGET, BREADTH_SHARE,
   RETIRE_SHARE, TOPS, LEAVES, SURFACES,
 } from "./topic-budget.mjs";
@@ -238,6 +238,38 @@ describe("the tree it actually runs on", () => {
     expect(parentDeficitOf("feed", "nowhere", t, l)).toBeNull();
     expect(parentDeficitOf("learn", "biology", t, l)).toBeGreaterThanOrEqual(0);
     expect(parentDeficitOf("daily", "Sport", t, l)).toBeNull();
+  });
+
+  it("settling holds the door on a live prior top, and says nothing about a retired one", () => {
+    // The room the settling blocker is ABOUT has to exist. A top that was
+    // created and later folded keeps its `created` row on purpose —
+    // check:taxonomy rule 4 accepts it precisely when a matching `retired`
+    // row is there — so reading a missing taxonomy row as stock 0 held
+    // every future proposal on that surface with "the last feed topic
+    // created is at 0 of 24", forever, about a room that is gone.
+    const rows = [{ id: "gaming", stock: 30 }];
+    const created = [{ id: "gaming", level: "top", surface: "feed", createdAt: "2026-08-01", pr: 1 }];
+    expect(settlingStock({ created, retired: [] }, "feed", rows)).toBe(30);
+    expect(settlingStock({ created, retired: [{ id: "gaming", surface: "feed" }] }, "feed", [])).toBeNull();
+    // a retirement on ANOTHER surface is not this surface's
+    expect(settlingStock({ created, retired: [{ id: "gaming", surface: "daily" }] }, "feed", rows)).toBe(30);
+    // …and the door still closes on the newest top STILL STANDING when a
+    // later one was folded back — skipping the retired row is not the
+    // same as giving up on the question
+    const two = [
+      { id: "gaming", level: "top", surface: "feed", createdAt: "2026-08-01", pr: 1 },
+      { id: "dilemma", level: "top", surface: "feed", createdAt: "2026-08-20", pr: 2 },
+    ];
+    expect(settlingStock({ created: two, retired: [{ id: "dilemma", surface: "feed" }] }, "feed", rows)).toBe(30);
+    expect(settlingStock({ created: [], retired: [] }, "feed", rows)).toBeNull();
+    // created, not retired, and no row: a broken ledger, which is
+    // check:taxonomy's to report — null rather than a false 0
+    expect(settlingStock({ created: [{ id: "ghost", level: "top", surface: "feed" }], retired: [] }, "feed", rows))
+      .toBeNull();
+    // and the two readings differ where it matters: 0 blocks, null does not
+    const base = { surface: "feed", parked: EVIDENCE_MIN, days: RUNS_MIN, budget: FEED_CAP, placed: true };
+    expect(topVerdict({ ...base, settling: 0 }).blockers.some((b) => /one room at a time/.test(b))).toBe(true);
+    expect(topVerdict({ ...base, settling: null }).blockers.some((b) => /one room at a time/.test(b))).toBe(false);
   });
 
   it("ships an empty ledger with both arrays present", () => {

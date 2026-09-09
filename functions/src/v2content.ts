@@ -2902,6 +2902,44 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-136",
+  "surface": "daily",
+  "seq": 136,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Dessert: every day, or a special occasion?",
+  "options": [
+   "Every day",
+   "Special occasion"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Habits",
+  "tag": "Dessert",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-137",
+  "surface": "daily",
+  "seq": 137,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What do you follow most closely?",
+  "options": [
+   "A sport",
+   "A show",
+   "An artist",
+   "A subject"
+  ],
+  "topic": "light",
+  "branch": "Interests",
+  "sub": "Following",
+  "tag": "Following",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3965,7 +4003,9 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s07",
   "surface": "feed",
@@ -3997,9 +4037,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s09",
   "surface": "feed",
@@ -8192,7 +8230,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 12,
   "hi": 24,
   "unit": "h"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl41",
   "surface": "feed",
@@ -8248,9 +8288,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "min"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl43",
   "surface": "feed",
@@ -12153,7 +12191,9 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "heat",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-014",
   "surface": "duo",
@@ -12184,9 +12224,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-015",
   "surface": "duo",
@@ -15736,7 +15774,9 @@ const BANK_3: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "anxiety",
   "invert": true
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-big5-28",
   "surface": "test",
@@ -15775,9 +15815,7 @@ const BANK_3: V2SeedQuestion[] = [
   "axis": "N",
   "test": "big5",
   "facet": "anger"
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-30",
   "surface": "test",
@@ -19716,7 +19754,9 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 66,
   "k": "Universe: 13.8 billion years"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "learn-str8",
   "surface": "learn",
@@ -19759,9 +19799,7 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 48,
   "k": "Great Pyramid: Khufu"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-anc2",
   "surface": "learn",

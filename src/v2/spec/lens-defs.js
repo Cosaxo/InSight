@@ -221,8 +221,11 @@ window.IS_LENSES = [
 // which mirror their result onto the owner-only profile doc via
 // LIVE.saveTestResult so they survive a reinstall.
 //
-// Lenses could do the same, and the plan was to: raise firestore.rules'
-// `testResults.keys().size() <= 8` cap and mirror each completed lens. What
+// Lenses could do the same, and the plan was to: widen firestore.rules'
+// `testResults` key vocabulary — the five names it now admits, which
+// replaced a bare `keys().size() <= 8` on 2026-09-09 because a count
+// bounded how MANY entries a profile carried and nothing bounded how big
+// one was — and mirror each completed lens. What
 // stopped it is that score() derives from your raw answers, so a mirrored
 // score cannot feed it back — restoring on a new device needs a second source
 // of truth inside this module, and until that exists the write would be data
