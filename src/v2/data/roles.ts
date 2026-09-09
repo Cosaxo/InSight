@@ -33,6 +33,21 @@
 // in. A reveal whose question the bank cannot name — a device that has
 // not re-read the bank, or a question since retired — counts for nothing
 // here rather than for something guessed.
+//
+// THE LEDGER ONCE IT CLEARS THE FLOOR, THE REVEALS UNTIL THEN (D445;
+// ROLES-PLAN §3.3, ROUNDS-PLAN §7.2). The server keeps these same counts
+// as each round reveals — `ledger.{uid}` on the group document, which
+// every member already holds (functions/src/pure.ts, foldRoleLedger) —
+// so the reading outlives the thirty reveals a device can page: under
+// rounds a fortnight can hold hundreds of reveals, and the device cannot
+// fold what it cannot fetch. Each fold below takes the room's ledger
+// beside the history and reads the ledger's row for the member when it
+// clears the instrument's floor; below the floor — and on a room from
+// before the ledger existed, whose row starts at zero on its next reveal
+// (the plan's own catch-up: forward-only, no backfill) — it reads the
+// reveals it has, as before. The two substrates count by one set of
+// rules, so a reading never changes on the day the ledger takes over;
+// only how far back it reaches does.
 import { castText } from "./deck";
 import { type RevealDocLike } from "./duelRuns";
 import { voteQid, type PortraitReveal } from "./groupPortrait";
@@ -41,6 +56,44 @@ import { voteQid, type PortraitReveal } from "./groupPortrait";
 export const MIN_DUO = 3;
 /** Votes received below this and a group seats nobody. */
 export const MIN_GROUP = 2;
+
+/** One member's row of the room's role ledger — what the server has
+ * counted for them so far (functions/src/pure.ts, `RoleLedgerRow`). Every
+ * field optional: a group row carries the votes half, a 1v1 row the casts
+ * half, and a room from before D445 has no row at all. */
+export interface LedgerRow {
+  casts?: number;
+  axes?: Partial<Record<string, number>>;
+  saw?: { right?: number; total?: number };
+  castQid?: string;
+  votes?: number;
+  seats?: Partial<Record<string, number>>;
+}
+export type Ledger = Record<string, LedgerRow>;
+
+const num = (v: unknown): number =>
+  (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+
+/** The ledger's row for a member, or null — a map that is not a map, a
+ * uid with no row, and no uid at all read as "no ledger", never as zeros:
+ * zeros would be a claim that the server counted and found nothing. */
+export function ledgerRow(ledger: unknown, uid: string | null | undefined): LedgerRow | null {
+  if (!uid || !ledger || typeof ledger !== "object" || Array.isArray(ledger)) return null;
+  const row = (ledger as Record<string, unknown>)[uid];
+  return row && typeof row === "object" && !Array.isArray(row) ? (row as LedgerRow) : null;
+}
+
+/** Whether the ledger alone draws this member's reading in this room —
+ * what lets the Roles tab skip a room's history read (COSTS.md's row). */
+export function ledgerClearsFloor(
+  ledger: unknown,
+  uid: string | null | undefined,
+  mode: string | null | undefined,
+): boolean {
+  const L = ledgerRow(ledger, uid);
+  if (!L) return false;
+  return (mode || "group") === "duo" ? num(L.casts) >= MIN_DUO : num(L.votes) >= MIN_GROUP;
+}
 
 /** The four axes a cast round's answers sit on, in the bank's order —
  * `check:content` holds a cast entry's `dims` to exactly this. */
@@ -216,14 +269,18 @@ export function castOf(
   };
 }
 
-/** How many cast rounds a pair has run — the thin row's "1 of 3". */
+/** How many cast rounds a pair has run — the thin row's "1 of 3". The
+ * count the fold reads: the ledger's once it clears the floor, otherwise
+ * the reveals in hand (see the header). */
 export function duoCastCount(
   history: readonly RevealDocLike[],
   me: string,
   them: string,
   lookup?: BankLookup,
+  ledger?: unknown,
 ): number {
-  return castOf(history, me, them, lookup).n;
+  const casts = num(ledgerRow(ledger, me)?.casts);
+  return casts >= MIN_DUO ? casts : castOf(history, me, them, lookup).n;
 }
 
 export interface DuoRoleResult extends RoleResult {
@@ -245,21 +302,35 @@ export function duoRole(
   lookup?: BankLookup,
   themName?: string | null,
   romantic = false,
+  ledger?: unknown,
 ): DuoRoleResult | null {
   const C = castOf(history, me, them, lookup);
-  if (C.n < MIN_DUO) return null;
+  // The ledger's row once it clears the floor (the header): its counts
+  // are keyed by axis id, and its them forms come off the bank by the cast
+  // question it names — so a room this device has never paged still
+  // draws its receipts in full. Below the floor, the reveals in hand.
+  const L = ledgerRow(ledger, me);
+  const fromLedger = !!L && num(L.casts) >= MIN_DUO;
+  const n = fromLedger ? num(L?.casts) : C.n;
+  if (n < MIN_DUO) return null;
+  const named = fromLedger && L?.castQid && lookup ? lookup(L.castQid)?.them : null;
+  const forms: readonly string[] = named && named.length ? named : C.them;
   // An axis is where the bank puts it: a cast entry's `dims` names the
   // axis of each answer, and the bank's order is AXES' order (held by
-  // check:content), so index i is axis i either way.
+  // check:content), so index i is axis i either way — which is also why
+  // the ledger's `axes[id]` and the window's `theirs[i]` are one count.
   const dims: RoleDim[] = AXES.map((ax, i) => {
-    const count = C.theirs[i] || 0;
-    const said = C.them[i] ? castText(C.them[i], themName, romantic) : ax.label.toLowerCase();
+    const count = fromLedger ? num(L?.axes?.[ax.id]) : (C.theirs[i] || 0);
+    const said = forms[i] ? castText(forms[i], themName, romantic) : ax.label.toLowerCase();
     return {
-      id: ax.id, label: ax.label, value: clamp((count / C.n) * 100),
-      note: `they said you are ${said} in ${count} of ${C.n} rounds`,
+      id: ax.id, label: ax.label, value: clamp((count / n) * 100),
+      note: `they said you are ${said} in ${count} of ${n} rounds`,
     };
   });
-  return { n: C.n, dims, sawIt: C.sawIt, youAre: C.youAre, theyAre: C.theyAre };
+  const sawIt = fromLedger ? { right: num(L?.saw?.right), total: num(L?.saw?.total) } : C.sawIt;
+  // `youAre`/`theyAre` need the ORDER of the rounds (the latest wins a
+  // tie), which a ledger of counts cannot give: they stay the window's.
+  return { n, dims, sawIt, youAre: C.youAre, theyAre: C.theyAre };
 }
 
 // ── groups: the seats ───────────────────────────────────────────────────
@@ -307,13 +378,33 @@ export function seatTally(
   return { shares, total };
 }
 
+/** The tally the fold reads: the ledger's row once it clears the floor,
+ * the reveals in hand until then — see the header. A seat the ledger names
+ * and this build does not know (none today) counts in `total` and in no
+ * share, which is the same honesty an out-of-range option gets. */
+function seatSource(
+  reveals: readonly PortraitReveal[],
+  uid: string | null,
+  lookup?: BankLookup,
+  ledger?: unknown,
+): SeatTally {
+  const L = ledgerRow(ledger, uid);
+  if (L && num(L.votes) >= MIN_GROUP) {
+    const shares: Record<SeatId, number> = { engine: 0, hands: 0, heart: 0, wild: 0 };
+    for (const s of SEATS) shares[s.id] = num(L.seats?.[s.id]);
+    return { shares, total: num(L.votes) };
+  }
+  return seatTally(reveals, uid, lookup);
+}
+
 /** How many votes a member has received — the thin row's "1 of 2". */
 export function groupVoteCount(
   reveals: readonly PortraitReveal[],
   uid: string | null,
   lookup?: BankLookup,
+  ledger?: unknown,
 ): number {
-  return seatTally(reveals, uid, lookup).total;
+  return seatSource(reveals, uid, lookup, ledger).total;
 }
 
 export interface GroupRoleResult extends RoleResult {
@@ -331,8 +422,9 @@ export function groupRole(
   reveals: readonly PortraitReveal[],
   myUid: string | null,
   lookup?: BankLookup,
+  ledger?: unknown,
 ): GroupRoleResult | null {
-  const T = seatTally(reveals, myUid, lookup);
+  const T = seatSource(reveals, myUid, lookup, ledger);
   if (myUid == null || T.total < MIN_GROUP) return null;
   const dims: RoleDim[] = SEATS.map((s) => ({
     id: s.id, label: s.label.replace(/^the /, ""),
@@ -349,8 +441,9 @@ export function seatFor(
   reveals: readonly PortraitReveal[],
   uid: string,
   lookup?: BankLookup,
+  ledger?: unknown,
 ): { seat: Seat; n: number; shares: Record<SeatId, number> } | null {
-  const T = seatTally(reveals, uid, lookup);
+  const T = seatSource(reveals, uid, lookup, ledger);
   if (T.total < MIN_GROUP) return null;
   const seat = [...SEATS].sort((a, b) => T.shares[b.id] - T.shares[a.id])[0];
   return { seat, n: T.total, shares: T.shares };

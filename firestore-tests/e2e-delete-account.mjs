@@ -242,6 +242,14 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 // creator deleting their account is the ordinary case, not the exotic one.
 await adb.doc(`v2_groups/${SHARED}`).set({
   name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
+  // The role ledger (D445): what the room has made each member, kept by
+  // the reveal pipeline on a document every remaining member reads. The
+  // doomed account's row must go; the survivor's must stay — an erasure
+  // that emptied the whole map would take the survivor's record with it.
+  ledger: {
+    [uid]: { votes: 4, seats: { engine: 3, heart: 1 } },
+    [OTHER]: { votes: 2, seats: { hands: 2 } },
+  },
 });
 // A circle this account ASKED to join and was never let into (D240).
 // Invisible to the membership sweep by definition — that phase matches on
@@ -274,6 +282,13 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
 await adb.doc(`v2_groups/${LEFT}`).set({
   name: "Left", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER],
   memberNames: { [uid]: "Doomed", [OTHER]: "Survivor" }, streak: 5,
+  // Leaving takes the leaver's ledger row with them (D445) — every
+  // per-member map on this document goes on both paths — and leaves
+  // the survivor's where it is.
+  ledger: {
+    [uid]: { votes: 3, seats: { wild: 3 } },
+    [OTHER]: { votes: 1, seats: { heart: 1 } },
+  },
 });
 await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
@@ -601,6 +616,9 @@ const leftGroup = await adb.doc(`v2_groups/${LEFT}`).get();
 if (!leftGroup.exists) fail("leaveGroupV2 deleted a group that still had another member");
 if ((leftGroup.get("memberUids") || []).includes(uid)) fail("leaveGroupV2 did not remove the membership");
 if ((leftGroup.get("memberNames") || {})[uid]) fail("leaveGroupV2 left the display name in memberNames");
+// The leaver's role-ledger row goes with them (D445); the survivor's stays.
+if ((leftGroup.get("ledger") || {})[uid]) fail("leaveGroupV2 left the leaver's row in the role ledger");
+if (!(leftGroup.get("ledger") || {})[OTHER]) fail("leaveGroupV2 took the surviving member's role-ledger row too");
 // The other half of the contract, asserted so a future change that starts
 // scrubbing reveals on leave has to come here and argue with it: leaving is
 // not an erasure request, and a reveal is several people's record of a day
@@ -894,6 +912,15 @@ if (!members.includes(OTHER)) fail("the surviving member was removed from the sh
 // so a leftover ownerUid publishes the deleted account's raw uid to the
 // circle forever.
 if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+// The role ledger (D445): the deleted account's row is gone from a map
+// every remaining member reads, and the survivor's row — their own
+// record of what this room made them — is exactly as seeded.
+const ledger = shared.get("ledger") || {};
+if (ledger[uid]) fail("the deleted user's row survives in the shared group's role ledger");
+const kept = ledger[OTHER] || {};
+if (kept.votes !== 2 || (kept.seats || {}).hands !== 2 || Object.keys(kept.seats || {}).length !== 1) {
+  fail(`the surviving member's role-ledger row was disturbed by the erasure: ${JSON.stringify(kept)}`);
+}
 
 // …and the same field on a circle they created and LEFT, which the
 // membership query above never visits. The assertion above passes on the

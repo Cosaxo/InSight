@@ -600,6 +600,36 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
                                    member's next answer. One push per turn,
                                    not per answer. Server-written; dropped
                                    on leave and erasure with `played`)
+  ledger{ uid: { casts, axes{axisId: n}, saw{right,total}, castQid } }?   (a 1v1)
+  ledger{ uid: { votes, seats{seatId: n} } }?                             (a group)
+                                   (THE ROLE LEDGER — D445, ROLES-PLAN
+                                   §3.3, ROUNDS-PLAN §7.2: what the room
+                                   has made each member, kept by the
+                                   reveal as every round reveals, so the
+                                   roles reading outlives the thirty
+                                   reveals a device pages. A 1v1 row: cast
+                                   rounds both answered blind, the times
+                                   the OTHER said this member is each axis
+                                   — keyed by the bank's `dims` id for the
+                                   option — this member's guesses at what
+                                   the other said of them, and the cast
+                                   question the receipts read their them
+                                   forms from. A group row: votes received
+                                   from OTHER members on role votes, by the
+                                   seat of the role, off the D224 snapshots.
+                                   Written WHOLE in the settle update that
+                                   advances the round, from the reveal
+                                   transaction's own read, and only when
+                                   the round moved it; rows for current
+                                   members only. Absent on every group from
+                                   before D445 and filled forward from the
+                                   next reveal — no backfill; the device
+                                   fold pages reveals until a row clears
+                                   the instrument's floor. A late answer
+                                   moves nothing here. Server-written;
+                                   dropped on leave and erasure with
+                                   `played`, and asserted in the erasure
+                                   e2e)
   duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
   serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc as a denormalization: it used to be
@@ -847,7 +877,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 214 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 215 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

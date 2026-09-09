@@ -475,13 +475,16 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       .not.toMatch(/\.aggregate\(/);
   });
 
-  it("the reveal pipeline's per-member read count still has its two parts", () => {
-    // revealReadsPerMember(m) = (2 + 2m)/m — getAll(profiles, fieldMask) and
-    // the committing tx.getAll(revealRef, group, ...answers). ROUNDS-PLAN /
-    // D426 took the day's other two out: the standalone revealRef.get()
-    // (redundant, because the reveal and the round's advance are one commit)
-    // and the pre-read of every answer (the verdict comes off `played` on
-    // the group document the page already holds).
+  it("the reveal pipeline's per-member read count still has its three parts", () => {
+    // revealReadsPerMember(m) = (3 + 2m)/m — getAll(profiles, fieldMask),
+    // the committing tx.getAll(revealRef, group, ...answers), and ONE
+    // tx.get of the round's question for the role ledger (D445): a cast
+    // or a seated role vote is a fact about the question, which the
+    // answers cannot say. ROUNDS-PLAN / D426 took the day's other two out:
+    // the standalone revealRef.get() (redundant, because the reveal and
+    // the round's advance are one commit) and the pre-read of every answer
+    // (the verdict comes off `played` on the group document the page
+    // already holds).
     //
     // EXACT, not a floor, and that is the difference between a tripwire and
     // a decoration: ADDING a document access fails here with a pointer to
@@ -489,14 +492,19 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // the function carries prose that names getAll, and a tripwire over
     // billed reads that counts prose is wrong twice.
     //
-    // The two getAll sites are the whole per-round read; a new site here
-    // means a new billed read on some path: recount cost-arith's block
-    // before moving this number.
+    // The two getAll sites and the one tx.get are the whole per-round read;
+    // a new site of EITHER shape means a new billed read on some path:
+    // recount cost-arith's block before moving these numbers. Both shapes
+    // are counted because D275's branch had a tripwire that counted only
+    // `tx.get(` after the code had moved to `tx.getAll(` — it counted zero
+    // and called it a regression — and the ledger's read is the other way
+    // round: a `tx.get(` that a getAll-only count could not see.
     const s = read("functions/src/v2social.ts");
     const fn = s.match(/async function revealRound[\s\S]*?\n\}/)[0]
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     expect((fn.match(/getAll\(/g) || []).length).toBe(2);
+    expect((fn.match(/\btx\.get\(/g) || []).length).toBe(1);
     expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(0);
   });
 

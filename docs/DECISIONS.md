@@ -48139,3 +48139,193 @@ own rule.
 **Measured before the push:** `test:scripts`, `lint`, `test:unit`,
 `build`, `check:globals`, `check:docs`, `check:figures` — the counts are
 in the PR body.
+
+## D445 · The role ledger: the reveal keeps what the room has made each member, and the roles reading outlives the page
+
+**Date:** 2026-09-09 · **Status:** binding, built. The owner's yes, the
+same day, on the last open item of `OWNER-LIST.md`'s 1v1-and-group
+profile row — the LEDGER of [`ROLES-PLAN.md`](ROLES-PLAN.md) §3.3, the
+one thing on that row D437 left standing. Written as D445 with D440–D444
+unclaimed on `main` at the time (the index prints them as holes, which
+since D408 is a note and not a failure); the numbers belong to the
+branches open beside this one.
+
+### Why the ledger stopped being optional
+
+ROLES-PLAN's argument for it was about TIME — a fortnight cannot hold a
+name (§2.1). Rounds changed the argument to VOLUME (ROUNDS-PLAN §7.2): a
+fortnight can hold hundreds of reveals, the device reads the newest
+thirty (`REVEAL_HIST_CAP`, a stopgap since D426's profiles amendment),
+and the device cannot fold what it cannot fetch. So the roles reading
+silently narrowed to whatever the last page held — a pair at eight
+rounds a day was read over four days, and every cast round older than
+that was a fact the instrument could no longer see. Under rounds the
+ledger is the substrate, not an improvement to one: what the reveal
+already knows at the moment it publishes, kept where the fold can read
+it without paging.
+
+### The schema, as built
+
+On the group document — the plan's location — one map, one row per
+current member:
+
+    v2_groups/{gid}.ledger.{uid} = {
+      casts, axes{ trust, spark, judgement, constancy }, saw{ right, total }, castQid,   // a 1v1
+      votes, seats{ engine, hands, heart, wild },                                          // a group
+    }
+
+The counts are D437's instrument, not the plan's sketch (which was
+written for D204's two, since replaced). A 1v1 row: the cast rounds both
+members answered blind on the same cast question; the times the OTHER
+said this member is each axis, keyed by the bank's `dims` id for the
+option they chose (never a vocabulary the server would have to copy
+from the client); this member's guesses at what the other said of them,
+made and landed — the receipt the roles panel prints under the average;
+and `castQid`, the cast question the latest fold read, so the device can
+draw the receipts' them forms off the bank without paging a reveal. A
+group row: the votes received from OTHER members on role votes, off the
+D224 snapshots, per the seat the bank gives the role — never a vote for
+yourself, never by an option index the roster remaps. `castQid` and
+`saw` are the two fields the plan's schema did not name; both are the
+smallest shape that lets the ledger draw the panel's existing card
+whole — a reading with no history in hand still prints *they said you
+are the one Liv tells first in 3 of 5 rounds* and *you guessed what
+they'd say you are 4 of 5 times* — and the record says so rather than
+smuggling them.
+
+### Who writes it, who reads it
+
+**The reveal writes it** — `revealRound`, inside the transaction that
+creates the reveal and advances the round, as more fields on the settle
+update the transaction already makes (`foldRoleLedger`,
+`functions/src/pure.ts`). Written WHOLE from the transaction's own read
+of the group plus the round's blind votes, rather than as per-field
+increments: the write is exactly "what the document held plus this
+round", a member leaving in between contends on the same document and
+retries the reveal, and the fake-Firestore harness can assert the map
+rather than a sentinel. A round that moved nothing — a rating, an own
+round, a plain pick with no seat, a question the operator has since
+deleted — leaves the field untouched, so the common write is the one it
+was. **Idempotent by the create guard**: the reveal is `tx.create`d in
+the same commit, so a re-run that finds it standing writes nothing and
+the ledger can never count a round twice (`reveal-day.test.ts` pins the
+contended shape and the plain re-run). **A late answer moves nothing**
+(ROUNDS-PLAN §4): the trigger appends it to the reveal after the create
+and never opens the ledger (`late-answer.test.ts`).
+
+**The device reads it** — `data/roles.ts`, the same fold, one rule: a
+member's row is the reading once it clears the instrument's floor
+(`MIN_DUO` 3 casts, `MIN_GROUP` 2 votes); below the floor the reveals in
+hand are the reading, as before. The two substrates count by one set of
+rules — the server's fold is the device's fold, and `pure.test.ts`'s
+cases are `roles.test.ts`'s refusals — so a reading never changes on
+the day the ledger takes over; only how far back it reaches does. The
+Roles tab (`LiveRolesPanel`) and the Groups stop's seats
+(`LiveGroupsMirrorBody`, `useGroupFolds` and the People card) pass the
+room's ledger in; the Votes lens stays per round over the reveals,
+because who holds a role is the card's rule. **A room the ledger draws
+pays no history read on the Roles tab** (`ledgerClearsFloor`): the
+document is already in hand, which is ROLES-PLAN §3.3's "zero reads"
+delivered rather than described, and `LiveRolesPanel.test.tsx` holds
+that such a room is never paged.
+
+**The rules** need no clause and get none, on purpose: the group
+document's read rule serves the ledger to exactly the members who read
+the rest of it, and the `affectedKeys().hasOnly(["duoMode"])` pin is
+what refuses a client writing it — alone, riding the legal duoMode flip,
+on a duo or a group, as a stranger, or as a removal. Labelled at its
+path in `firestore.rules`; `rules.test.ts` holds both halves (a member
+reads both rows, a stranger reads none; six write shapes refused, the
+legal flip still landing beside an untouched ledger), through
+`refused()` so a refusal by budget cannot pass as a rule. A fold of
+reveals any signed-in user may already read (D98), stored where fewer
+people can — strictly less exposure than its inputs, which is why this
+is a build and not a D334 ask. The rules-coverage baseline and the
+expression budget are unmoved: no predicate changed.
+
+### The catch-up for a room from before it
+
+The plan's own answer, and no other: **forward-only, from zero, on the
+next reveal**. A group revealed before this deploys has no `ledger`
+field; its first reveal afterwards writes the rows the round moved and
+nothing older; until a row clears the floor the fold reads the reveals
+it has. No backfill — a server pass over every reveal of every group
+would be a second fold with a second chance to disagree, and the plan
+did not name one. The cost of the honest shape, stated: for a room with
+reveals from before the deploy, the reading is the ledger's from its
+floor on, so its count reaches back to the deploy and not before, until
+the ledger outgrows the page. Cheap today: nothing live has a cast
+round yet (the cast reaches the live bank on the owner's reseed click,
+D437), and the seats read `role.seat` off that same reseed — so the
+ledger and the instrument it serves arrive on the live bank together.
+
+### Erasure
+
+`deleteAccount` phase 1c drops `ledger.{uid}` in the same update that
+drops `memberNames`, `memberJoinedAt`, `played` and `pushAt`
+(`ledgerRemoval`, `v2social.ts`); the erasure e2e seeds rows for the
+doomed account and a survivor on the shared group and asserts the one
+is gone and the other exactly as seeded. **Leaving drops the row too** —
+the plan is silent on leaving, and this is the smallest shape consistent
+with the document: every other per-member map on it goes on both paths,
+a departed uid's row would outlive them on a document every remaining
+member reads (D55 §8's shape), and a rejoin starts the record fresh the
+way `memberJoinedAt` starts the roster's clock fresh. The e2e asserts
+that on the group the account leaves, beside the assertion that leaving
+does NOT rewrite a reveal — a ledger row is one member's record, a
+reveal is everybody's.
+
+### What it costs
+
+One extra **read** per reveal, and no extra write. The reveal now reads
+the round's question inside its transaction — whether the round was a
+cast or a seated role vote, and which axis or seat each option names, is
+a fact about the question the answers cannot say — so
+`revealReadsPerMember` is `(3 + 2m)/m`, 3.5 for a duo where it was 3,
+moved in `scripts/cost-arith.mjs`, `COSTS.md`'s row and its prose, and
+held by the tripwire in `scripts/pulse.test.mjs`, which now counts the
+`tx.get(` site as well as the two `getAll(` sites — D275's lesson
+pointed the other way, since a getAll-only count could not have seen
+this read. The ledger itself rides the settle update: ≤32 rows of a
+dozen small ints, on a document every member already reads. And the
+Roles tab's cold cost goes DOWN for every room the ledger draws: from
+≤30 reads per room per session to none.
+
+### What it does not do
+
+It does not change what anyone can see: the same members read the same
+document. It does not replace the reveal history — the runs at the
+card's foot, the Votes lens, `youAre`/`theyAre` (the latest wins a tie,
+which needs the rounds' ORDER a ledger of counts cannot give) and the
+person page's Together section still read the reveals. It does not
+backfill, and it does not touch the demo build, which imports only
+`roles.ts`'s constants and folds nothing live. It does not raise
+`REVEAL_HIST_CAP`, which stays the window for a room under the floor.
+And it does not tick the owner's row: every item on it is built now,
+and the tick is the owner's (D352).
+
+### Measured
+
+On this head, before the push: `test:unit` 3 025 (207 files — the new
+ledger cases in `roles.test.ts`, `LiveRolesPanel.test.tsx` and
+`LiveGroupsMirrorBody.test.tsx`, every smoke suite unmoved, so the demo
+plays with no ledger); `test --prefix functions` 850 (39 files — the
+fold's seven cases in `pure.test.ts`, the reveal's five in
+`reveal-day.test.ts`, the late answer's one); `test:scripts` 1 286 (74
+files, the recounted tripwire among them); `test:rules` 215 with the
+coverage ratchet at its baseline (8 of 375 never-false, unmoved — no
+predicate changed) and the budget gate at 15 probes on their pins;
+`test:e2e:all` on one emulator boot, 193 checks green, the erasure leg
+asserting the row gone on leave and on delete with the survivor's row
+intact; `lint`, `tsc -b`, `build --prefix functions`; `check:globals`
+28 (baseline 28, unmoved); `check:figures` 106 figures, four of them
+moved by the one new rules case (214 → 215, corrected where quoted);
+`check:docs` 440 records, D440–D444 printed as holes; `check:data-
+inventory` 40 collections, 34 rows held; `check:answer-shape`,
+`check:appcheck` (29 callables), `check:deploy-targets` (42),
+`check:fn-runtime` (42), `check:public-copy` (273 strings),
+`check:policy-claims` (55). The emulator suites ran once the sibling
+session sharing this machine's ports had finished its own: a
+`pgrep -f` on the runner's own command line self-matches, which cost
+this session twenty minutes of waiting on a process that was its own
+poll — the ports, not the process list, are the signal.

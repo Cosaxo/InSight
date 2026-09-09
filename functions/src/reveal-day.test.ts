@@ -100,7 +100,7 @@ const fakeDb = {
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 vi.mock("firebase-admin/messaging", () => ({ getMessaging: () => { throw new Error("no push in this harness"); } }));
 
-const { revealRound } = await import("./v2social");
+const { revealRound, ledgerRemoval } = await import("./v2social");
 
 const GID = "grp1";
 const ROUND = 3;
@@ -422,5 +422,109 @@ describe("the reveal names only the people its members array carries", () => {
     const reveal = store.get(`v2_groups/${GID}/reveals/${KEY}`)!;
     expect(Object.keys(reveal.names as Doc).sort(), "a late joiner who answered was left out of their own reveal").toEqual(["u1", "u2", "u3"]);
     expect(JSON.stringify(reveal.names)).toContain("Cai");
+  });
+});
+
+// ── THE ROLE LEDGER (D445, ROLES-PLAN §3.3) ─────────────────────────
+//
+// The reveal reads the round's question inside its transaction and, when
+// the round was a cast or a seated role vote, writes each member's running
+// counts onto the group document in the same settle update that advances
+// the round. The arithmetic is pure.test.ts's (foldRoleLedger); what is
+// pinned here is that the reveal WIRES it — which question it reads, that
+// the map rides the settle, that a re-run cannot count a round twice, and
+// that a round which moved nothing leaves the field exactly as it was.
+describe("the role ledger rides the reveal", () => {
+  const CAST = { topic: "cast", options: ["a", "b", "c", "d"], dims: ["trust", "spark", "judgement", "constancy"] };
+  const ROLE = { topic: "pick", options: [], role: { id: "mind", label: "the mastermind", seat: "engine" } };
+
+  it("a 1v1's cast round writes both rows — what the other said, and each one's guess", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"] }, streak: 0, ...DUE,
+    });
+    store.set("v2_questions/qC", CAST);
+    // u1 says u2 is spark and guesses u2 will say trust; u2 says u1 is
+    // trust and guesses judgement.
+    store.set(...answer("u1", "qC", 1, { guessIdx: 0 }));
+    store.set(...answer("u2", "qC", 0, { guessIdx: 2 }));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.ledger).toEqual({
+      u1: { casts: 1, axes: { trust: 1 }, saw: { right: 1, total: 1 }, castQid: "qC" },
+      u2: { casts: 1, axes: { spark: 1 }, saw: { right: 0, total: 1 }, castQid: "qC" },
+    });
+    // …in the SAME update as the advance: one write, not a second.
+    expect(g.round).toBe(ROUND + 1);
+    // The reveal itself carries no ledger — it is the group document's.
+    expect(store.get(`v2_groups/${GID}/reveals/${KEY}`)!.ledger).toBeUndefined();
+  });
+
+  it("a group's role vote writes a row for whom the snapshot names, accumulating onto what stood", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], round: ROUND,
+      played: { [KEY]: ["u1", "u2", "u3"] }, streak: 0, ...DUE,
+      ledger: { u2: { votes: 1, seats: { hands: 1 } } },
+    });
+    store.set("v2_questions/qR", ROLE);
+    store.set(...answer("u1", "qR", 1, { pickUid: "u2" }));
+    store.set(...answer("u2", "qR", 1, { pickUid: "u2" }));   // a vote for yourself
+    store.set(...answer("u3", "qR", 0, { pickUid: "u1" }));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    expect(store.get(`v2_groups/${GID}`)!.ledger).toEqual({
+      u2: { votes: 2, seats: { hands: 1, engine: 1 } },
+      u1: { votes: 1, seats: { engine: 1 } },
+    });
+  });
+
+  it("a re-run that finds the reveal standing counts nothing twice — the create guard is the ledger's too", async () => {
+    const before = { u1: { casts: 3, axes: { trust: 3 }, saw: { right: 1, total: 2 }, castQid: "qC" } };
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"] }, streak: 0, ...DUE, ledger: before,
+    });
+    store.set("v2_questions/qC", CAST);
+    store.set(...answer("u1", "qC", 1, { guessIdx: 0 }));
+    store.set(...answer("u2", "qC", 0, { guessIdx: 2 }));
+    // The contended shape: attempt 1 folds and is thrown away, the winner's
+    // reveal lands, attempt 2 finds it and writes nothing.
+    contendWith = { path: `v2_groups/${GID}/reveals/${KEY}`, doc: { round: ROUND, qid: "qC" } };
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(false);
+    expect(attempts).toBe(2);
+    expect(store.get(`v2_groups/${GID}`)!.ledger, "a lost attempt's fold reached the document").toEqual(before);
+    // …and a plain re-run against the standing reveal, the same.
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(false);
+    expect(store.get(`v2_groups/${GID}`)!.ledger).toEqual(before);
+  });
+
+  it("a rating round, an own round and a question the operator deleted leave the field untouched", async () => {
+    const before = { u1: { votes: 3, seats: { engine: 3 } } };
+    const stage = (qid: string, q: Doc | null) => {
+      store.set(`v2_groups/${GID}`, {
+        mode: "group", memberUids: ["u1", "u2"], round: ROUND,
+        played: { [KEY]: ["u1", "u2"] }, streak: 0, ...DUE, ledger: before,
+      });
+      store.delete(`v2_groups/${GID}/reveals/${KEY}`);
+      if (q) store.set(`v2_questions/${qid}`, q); else store.delete(`v2_questions/${qid}`);
+      store.set(...answer("u1", qid, 1, { pickUid: "u2" }));
+      store.set(...answer("u2", qid, 0, { pickUid: "u1" }));
+    };
+    stage("qS", { topic: "rate", options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"] });
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    expect(store.get(`v2_groups/${GID}`)!.ledger).toBe(before);   // the very object: never rewritten
+    stage("qO", { topic: "classic", options: ["a", "b"] });
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    expect(store.get(`v2_groups/${GID}`)!.ledger).toBe(before);
+    stage("qGone", null);
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    expect(store.get(`v2_groups/${GID}`)!.ledger).toBe(before);
+  });
+
+  it("a member's row leaves with them — the update entry leave and erasure both spread", () => {
+    expect(Object.keys(ledgerRemoval({ u1: { casts: 2 }, u2: { casts: 2 } }, "u1"))).toEqual(["ledger.u1"]);
+    expect((ledgerRemoval({ u1: { casts: 2 } }, "u1")["ledger.u1"] as object).constructor.name).toBe("DeleteTransform");
+    expect(ledgerRemoval({ u2: { casts: 2 } }, "u1")).toEqual({});
+    expect(ledgerRemoval(undefined, "u1")).toEqual({});
+    expect(ledgerRemoval("nonsense", "u1")).toEqual({});
   });
 });

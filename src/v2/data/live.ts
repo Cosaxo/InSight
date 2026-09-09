@@ -727,7 +727,11 @@ function utcDayKey(offsetDays = 0): string {
 // (COSTS.md's row). The fortnight ROLES-PLAN described would be 112
 // reveals per room at eight a day, which is not a per-session read; its
 // §3.3 ledger — server-written running totals that outlive any window —
-// is the dependency, and an owner row.
+// is built since D445: `ledger.{uid}` on the group document, which the
+// store already holds, is what the roles fold reads once a member's row
+// clears the instrument's floor, and this window is what it reads until
+// then (data/roles.ts). The Roles tab pays this query only for a room
+// the ledger cannot yet draw.
 const REVEAL_HIST_CAP = 30;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold

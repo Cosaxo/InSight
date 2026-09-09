@@ -38,6 +38,7 @@ import {
   fcmBatches,
   fcmFanout,
   foldDuelAgg,
+  foldRoleLedger,
   inviteCodeFromBytes,
   normalizeHandle,
   isPlausibleFcmToken,
@@ -488,6 +489,9 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
       // uid left behind here is the shape D55 §8 records ownerUid having.
       ...playedRemovals(snap.get("played"), uid),
       ...stampRemoval(snap.get("pushAt"), uid),
+      // …and their role-ledger row (D445): the record of what this room
+      // made them, on a document every remaining member reads.
+      ...ledgerRemoval(snap.get("ledger"), uid),
     });
     return "left" as const;
   });
@@ -748,6 +752,22 @@ export function stampRemoval(pushAt: unknown, uid: string): Record<string, Field
   return isStamped(pushAt, uid) ? { [`pushAt.${uid}`]: FieldValue.delete() } : {};
 }
 
+/**
+ * The role-ledger row of a member who is leaving or being erased (D445,
+ * ROLES-PLAN §3.3's erasure clause) — playedRemovals' shape, for its
+ * reason. The row is what the room made THIS member, on a document every
+ * remaining member reads; a departed uid's row would outlive them there
+ * exactly as a stale `memberNames` entry would. On leave as well as on
+ * erasure, because every other per-member map on this document goes on
+ * both paths, and a rejoin starts the record fresh the way
+ * `memberJoinedAt` starts the roster's clock fresh.
+ */
+export function ledgerRemoval(ledger: unknown, uid: string): Record<string, FieldValue> {
+  const has = !!ledger && typeof ledger === "object"
+    && Object.prototype.hasOwnProperty.call(ledger as Record<string, unknown>, uid);
+  return has ? { [`ledger.${uid}`]: FieldValue.delete() } : {};
+}
+
 export interface RevealOpts {
   /** Reveal the open round on any answer at all, deadline or not — the
    *  operator's lever and the e2e. Never the schedule. */
@@ -769,12 +789,24 @@ export interface RevealOpts {
  * WHAT IS READ, and the cost model counts it (revealReadsPerMember,
  * scripts/cost-arith.mjs): one field-masked profile per member for the
  * names, then the committing transaction's getAll — the reveal, the
- * group, and one answer per member. 2 + 2m for m members. The day's
- * pipeline read 4 + 3m: a standalone reveal-exists get and a pre-read of
- * every answer, both of which `played` on the group document makes
- * unnecessary — and the reveal-exists check is redundant anyway, because
- * the reveal and the round advance in one commit, so "the round is still
- * the open one" IS "no reveal exists for it".
+ * group, and one answer per member — and then the round's question, for
+ * the role ledger (D445): whether the round was a cast or a seated role
+ * vote is a fact about the question, and the answers cannot say it.
+ * 3 + 2m for m members. The day's pipeline read 4 + 3m: a standalone
+ * reveal-exists get and a pre-read of every answer, both of which
+ * `played` on the group document makes unnecessary — and the
+ * reveal-exists check is redundant anyway, because the reveal and the
+ * round advance in one commit, so "the round is still the open one" IS
+ * "no reveal exists for it".
+ *
+ * THE ROLE LEDGER rides the settle update (ROLES-PLAN §3.3): `ledger`
+ * on the group document, one row per current member, written whole from
+ * this transaction's own read of the group plus the blind votes above
+ * (foldRoleLedger, pure.ts). No extra write — the same update that
+ * advances the round — and, because the reveal is create-guarded in the
+ * same commit, a re-run that finds the reveal standing writes nothing,
+ * so the ledger can never count a round twice. A round that moved
+ * nothing (a rating, an own round) leaves the field untouched.
  *
  * The transaction re-reads the answers for the reason it always did: a
  * duel answer stays legal until the round advances, so an answer that
@@ -946,6 +978,29 @@ export async function revealRound(
     // question they were not answers to.
     aggVotes = votesMatchingQid(freshEntries, aggQid);
 
+    // The round's question — the one billed read the role ledger adds
+    // (D445), and a TRANSACTIONAL read placed before the first write, as
+    // Firestore requires. What it answers is whether this round was a
+    // cast or a seated role vote and, if so, which axis each option names
+    // and which seat the role sits in; the answers carry none of that. A
+    // question deleted by an operator since the answers were written
+    // folds nothing here, as it folds nothing into the signal below.
+    const qSnap = freshQid ? await tx.get(db.collection("v2_questions").doc(freshQid)) : null;
+    // Rows for the roster the TRANSACTION read, not the page's: a member
+    // who left between the two would otherwise get a row written for a
+    // uid no longer on the document — the shape leaveGroupV2 just removed.
+    const freshRoster: string[] = Array.isArray(gsnap.get("memberUids")) ? gsnap.get("memberUids") : members;
+    const nextLedger = foldRoleLedger(
+      gsnap.get("ledger"),
+      mode,
+      qSnap && qSnap.exists
+        ? { topic: qSnap.get("topic"), role: qSnap.get("role"), dims: qSnap.get("dims") }
+        : null,
+      freshQid,
+      freshVotes,
+      freshRoster,
+    );
+
     tx.create(revealRef, {
       round,
       // The calendar day the reveal landed — what the card labels a
@@ -967,6 +1022,12 @@ export async function revealRound(
     const next = round + 1;
     const nextPlayed = prunePlayed(gsnap.get("played"), next);
     const settle: Record<string, unknown> = { round: next, played: nextPlayed };
+    // The role ledger, whole, only when this round moved it — see the
+    // header. Whole rather than per-field increments: the map was read in
+    // this transaction, so the write is exactly "what the group document
+    // held plus this round", and a member leaving in between contends on
+    // the same document and retries us.
+    if (nextLedger) settle.ledger = nextLedger;
     // THE REVEAL IS THE CARRIER (ROUNDS-PLAN §7.4): opening the next round
     // is this same commit, so the push that says the round is out can say
     // "and round 8 is waiting for you" to whoever has not sealed it — and

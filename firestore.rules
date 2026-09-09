@@ -1524,6 +1524,16 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["duoMode"])
         && request.resource.data.duoMode in ["friends", "romantic"];
       allow create, delete: if false;
+      // THE ROLE LEDGER (D445, ROLES-PLAN §3.3) lives on this document too:
+      // `ledger.{uid}` — what the room has made each member, counted by
+      // the reveal pipeline as every round reveals. It needs no clause of
+      // its own and gets none, on purpose: the read rule above serves it
+      // to exactly the members who read the rest of the document, and the
+      // `affectedKeys` pin on the one member-writable field is what
+      // refuses a client writing it — alone, or riding a duoMode flip, on
+      // a duo or a group. A fold of reveals any signed-in user may read
+      // (D98), stored where fewer people can; rules.test.ts pins both
+      // halves so the pin cannot widen without this paragraph going red.
 
       // Materialized reveals: written only by the reveal pipeline, and
       // since D98 readable by any signed-in user.
