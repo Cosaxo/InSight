@@ -381,6 +381,26 @@ describe("LiveDuelPanel · the group as a cast (D432)", () => {
     expect(screen.queryByText(/And the room lands on/)).toBeNull();
   });
 
+  it("names one holder when a leave has moved the ballot under the votes — by the snapshots, as the Mirror does", () => {
+    LIVE.social.bankQ = () => ROLE;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    // The roster was [me, Ada, Bo, Cy] when u_me voted index 3 (Cy); Bo
+    // left; Ada voted index 2, which is Cy now. Two indexes, one person:
+    // the second review of #456 read "Cy and Cy share the mastermind" here
+    // while the Votes lens said Cy held it 2–0.
+    LIVE.social.revealFor = () => ({
+      round: 1, day: "2026-09-08", qid: "group-gr0", members: ["u_me", "u_ada", "u_cy"],
+      votes: { u_me: { optionIdx: 3, pickUid: "u_cy" }, u_ada: { optionIdx: 2, pickUid: "u_cy" } },
+      names: { u_ada: "Ada", u_cy: "Cy" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(reveal.textContent).toMatch(/Cy is the mastermind/);
+    expect(reveal.textContent).not.toMatch(/share/);
+    // one held row, not two rows for one person
+    expect(reveal.querySelectorAll("[data-held]")).toHaveLength(1);
+  });
+
   it("a role vote's reveal crowns who the room named, off the snapshots, in the pack's words", () => {
     LIVE.social.bankQ = () => ROLE;
     LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });

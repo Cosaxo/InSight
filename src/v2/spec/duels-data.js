@@ -365,7 +365,17 @@ export let DUELS;
       out.second = sec != null && counts[sec] > 0 ? q.targets[sec] : null;
       out.contested = out.second != null && counts[sec] >= 2 && counts[win] - counts[sec] <= 1;
       out.votes = {};
-      q.targets.forEach((id, i) => { out.votes[id] = counts[i]; });
+      // …and the votes RECEIVED: the same counts less a vote for yourself,
+      // which is not the room naming you — the live instrument's rule
+      // (`seatTally`, D435). The card keeps every vote; the seat reads these.
+      out.received = {};
+      q.targets.forEach((id, i) => {
+        out.votes[id] = counts[i];
+        const self = id === 'me'
+          ? (mine === i && !my.late)
+          : (played.some((p) => p.id === id) && memberAnswer(gid, r, id) === i);
+        out.received[id] = counts[i] - (self ? 1 : 0);
+      });
       out.people = q.targets.map((id) => (id === 'me' ? { id: 'me', me: true } : act.find((p) => p.id === id)));
     } else {
       out.mean = total ? counts.reduce((s, c, i) => s + c * i, 0) / total : 2;
@@ -424,7 +434,7 @@ export let DUELS;
       const g = groupPicksRound(gid, r);
       if (!g.total) continue;
       const order = g.q.targets.slice().sort((a, b) => g.votes[b] - g.votes[a]);
-      byKey.set(g.q.role.key, { ...g.q.role, r, votes: g.votes, order, winner: g.winner, second: g.second, contested: g.contested });
+      byKey.set(g.q.role.key, { ...g.q.role, r, votes: g.votes, received: g.received, order, winner: g.winner, second: g.second, contested: g.contested });
     }
     return { scenarios: SCENARIOS, roles: [...byKey.values()], targets };
   }
@@ -435,7 +445,9 @@ export let DUELS;
     const won = { engine: [], hands: [], heart: [], wild: [] };
     let total = 0;
     rv.roles.forEach((role) => {
-      const v = role.votes[id] || 0;
+      // votes received — never your own (the second review of #456 could
+      // earn a seat on the demo by naming itself twice)
+      const v = (role.received || role.votes)[id] || 0;
       if (shares[role.seat] == null) return;
       shares[role.seat] += v; total += v;
       if (role.winner === id || (role.contested && role.second === id)) won[role.seat].push(role);

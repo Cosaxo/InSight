@@ -3762,6 +3762,13 @@ function roundQById(qid: string) {
   return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "classic" } : null;
 }
 
+/** `revealHistory`'s last answer per room, keyed by the references it was
+ *  built from — see the member for why identity matters. */
+const revealHistCache: Record<string, {
+  hist: unknown; latest: unknown; key: unknown;
+  out: Array<Record<string, unknown> & { day: string }>;
+}> = {};
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3906,6 +3913,18 @@ const SOCIAL = {
   },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     type Row = Record<string, unknown> & { day: string; id: string };
+    // The SAME array while nothing changed. Every input below is replaced
+    // whole when it changes (the loader assigns the map, the listener the
+    // doc, the key its string), so three reference checks say whether the
+    // last answer still holds — and the Mirror's Groups stop memoizes its
+    // folds and the role map's layout on this array's identity, which a
+    // fresh array per store notify defeated (the second review of #456
+    // found that memo never hit).
+    const hist = state.revealHist[gid];
+    const latest = state.reveals[gid];
+    const latestKey = state.revealKeys[gid];
+    const cached = revealHistCache[gid];
+    if (cached && cached.hist === hist && cached.latest === latest && cached.key === latestKey) return cached.out;
     // Keyed by DOCUMENT ID, because the query and yesterday's live listener
     // both return yesterday: the fan-out skipped -1 to avoid the double,
     // and a query has no day to skip. The live copy wins — it is fresher.
@@ -3916,8 +3935,6 @@ const SOCIAL = {
     for (const [id, docData] of Object.entries(state.revealHist[gid] || {})) {
       if (docData) byId[id] = { day: id, ...docData, id } as Row;
     }
-    const latest = state.reveals[gid];
-    const latestKey = state.revealKeys[gid];
     if (latest && latestKey) byId[latestKey] = { day: latestKey, ...latest, id: latestKey } as Row;
     const out = Object.values(byId);
     // Newest first by day, then by round — two reveals on one day keep the
@@ -3925,6 +3942,7 @@ const SOCIAL = {
     // has no `round` and sorts by its day alone, as it always did.
     const rnd = (r: Row): number => (typeof r.round === "number" ? r.round : 0);
     out.sort((a, b) => (a.day === b.day ? rnd(b) - rnd(a) : (a.day < b.day ? 1 : -1)));
+    revealHistCache[gid] = { hist, latest, key: latestKey, out };
     return out;
   },
   async createGroup(name: string, mode: string, displayName?: string) {

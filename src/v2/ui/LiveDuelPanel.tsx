@@ -56,7 +56,7 @@ import { atHandle } from "../data/handles";
 import { usePeopleFinder } from "./peopleSearch";
 import PersonRow from "./PersonRow";
 import { inviteLine, type Invite } from "../data/invites";
-import { revealTally, type RevealDocLike } from "../data/duelRuns";
+import { revealTally, roleTally, type RevealDocLike, type RoleTallyRow } from "../data/duelRuns";
 import { castText } from "../data/deck";
 import { DuelAv, GroupMark, YouChip } from "./duelMarks";
 import { firstName, markHue } from "./marks";
@@ -1016,22 +1016,24 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   // of one is you, so it needs two. Nothing is read against a call any
   // more: nothing in a group is called (D435), and D386's *you called it*
   // went with the tap that made it.
-  const tally = revealTally(reveal, opts.length);
+  // A role vote tallies by WHO was named (`roleTally`), so the card and
+  // the Mirror's Votes lens agree on the holder after a leave has moved
+  // the ballot's indexes under the votes; every other question tallies by
+  // option, which is what its bars are.
+  const tally: Array<{ optionIdx: number; uids: string[]; uid?: string | null }> = roleVote
+    ? roleTally(reveal, roster) : revealTally(reveal, opts.length);
   const counted = tally.reduce((a, r) => a + r.uids.length, 0);
   const top = tally.length ? Math.max(...tally.map((r) => r.uids.length)) : 0;
   const winners = tally.filter((r) => r.uids.length === top).map((r) => r.optionIdx);
-  // WHO a crowned option names, on a role vote: the D224 snapshots the
-  // counted votes carry, when they agree — never the index, which the
-  // roster remaps (the hazard D204 priced). A snapshot-less option falls
-  // back to the roster's name for that index, which is all a reveal from
-  // before D224 can say.
-  const crownUid = (i: number): string | null => {
-    const snaps = Object.keys(votes)
-      .filter((u) => onQ(u) && !votes[u].late && votes[u].optionIdx === i && typeof votes[u].pickUid === "string" && votes[u].pickUid)
-      .map((u) => votes[u].pickUid as string);
-    return snaps.length && snaps.every((x) => x === snaps[0]) ? snaps[0] : null;
+  // WHO an option names, on a role vote: the row's member (`namedBy` — the
+  // D224 snapshot, else the reveal's own roster at that index), and the
+  // reveal's roster for an index no counted vote sits on (a late answer's
+  // row). Never the live roster, which a leave remaps — the hazard D204
+  // priced, and the fallback the second review of #456 caught here.
+  const castUid = (i: number): string | null => {
+    const row = tally.find((r) => r.optionIdx === i);
+    return (row && row.uid) || (roster[i] ?? null);
   };
-  const castUid = (i: number): string | null => crownUid(i) || ((g.memberUids || [])[i] ?? null);
   const castName = (i: number): string => {
     const u = castUid(i);
     return u ? (u === uid ? "You" : (firstName(names[u]) || "Someone")) : labelIn(opts, i);
@@ -1091,7 +1093,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
         <LdRateReveal reveal={reveal} opts={opts} poles={cq.poles} names={names} uid={uid} tint={tint} />
       ) : duo ? duoTable() : (
         <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint}
-          cast={roleVote ? { ink, held: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead } : undefined} />
+          cast={roleVote ? { ink, rows: tally as RoleTallyRow[], held: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead } : undefined} />
       )}
       {openSeats.length > 0 && seats()}
       {line()}
@@ -1324,7 +1326,7 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
    *  contested runner-up, and each option's member as its lead. The rows
    *  are then ordered by count — the design's `VoteReveal` — because a
    *  cast's rows are people, and the crown reads from the top. */
-  cast?: { ink: string; held: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode };
+  cast?: { ink: string; rows: RoleTallyRow[]; held: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode };
 }) {
   // R2/D270: a reveal on screen is the duel loop's payoff being
   // collected — the one signal rung 0 could never see (the reveal doc is
@@ -1334,7 +1336,9 @@ function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
   React.useEffect(() => { note("revealSeen"); }, []);
   const votes = (reveal.votes || {}) as Record<string, RevealVote>;
   const rowQid = reveal.qid || "";
-  const rows = revealTally(reveal, opts.length);
+  // A cast's rows are people (`roleTally`, folded by who was named), so two
+  // ballot indexes that name one member are one row here too.
+  const rows: Array<{ optionIdx: number; uids: string[] }> = cast ? cast.rows : revealTally(reveal, opts.length);
   const late = Object.keys(votes).filter((u) => votes[u].late
     && (typeof votes[u].qid !== "string" || !votes[u].qid || votes[u].qid === rowQid));
   const byOpt = new Map<number, { uids: string[]; late: string[] }>();
@@ -1667,7 +1671,11 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
       }
     } else if (qOf(v) === rowQid) {
       const bq = rowQid ? (S.bankQ(rowQid) as CastQ | null) : null;
-      const tally = revealTally(r, bq && Array.isArray(bq.options) ? bq.options.length : 0);
+      // the reveal's own roster, for a vote with no snapshot to place it
+      const was: string[] = Array.isArray(r.members) && r.members.length ? (r.members as string[]) : (g.memberUids || []);
+      const tally: Array<{ optionIdx: number; uids: string[]; uid?: string | null }> = isRoleVote(bq)
+        ? roleTally(r, was)
+        : revealTally(r, bq && Array.isArray(bq.options) ? bq.options.length : 0);
       const counted = tally.reduce((a, x) => a + x.uids.length, 0);
       const top = tally.length ? Math.max(...tally.map((x) => x.uids.length)) : 0;
       const crowns = tally.filter((x) => x.uids.length === top);
@@ -1680,13 +1688,13 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
         // brief): a dot in the pack's ink for every vote you played, whoever
         // the room named — the caption says who. D432's filled-or-ring
         // encoding (named you / named someone else) went with the brief.
-        // Who an option names: the D224 snapshots the counted votes carry,
-        // the roster's index when there are none.
+        // Who a row names: `roleTally`'s member — the one definition the
+        // reveal card uses — and the reveal's own roster for an index no
+        // snapshot placed.
         me = 1;
         color = bq.scen ? scenInk(bq.scen) : undefined;
-        const holder = (x: { optionIdx: number; uids: string[] }): string => {
-          const snaps = x.uids.map((u) => votes[u].pickUid).filter((p): p is string => typeof p === "string" && !!p);
-          const u = snaps.length && snaps.every((p) => p === snaps[0]) ? snaps[0] : (g.memberUids || [])[x.optionIdx];
+        const holder = (x: { optionIdx: number; uids: string[]; uid?: string | null }): string => {
+          const u = x.uid || was[x.optionIdx];
           return u ? (u === uid ? "You" : (firstName(names[u]) || "Someone")) : `Option ${x.optionIdx + 1}`;
         };
         const pack = bq.scen ? `${bq.scen.label} · ` : "";

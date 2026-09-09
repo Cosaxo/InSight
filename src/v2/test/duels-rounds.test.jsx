@@ -105,6 +105,35 @@ describe('the demo store plays rounds', () => {
     expect(DUELS.callGroup).toBeUndefined();
   });
 
+  it('a seat is earned from the votes you received, never a vote for yourself — the live seatTally rule', () => {
+    // Name yourself on every open role vote of every room, then read the
+    // seat: the card counts the vote (the card's rule keeps every vote),
+    // the instrument does not. The second review of #456 could earn a seat
+    // line on the demo by naming itself twice.
+    let selfNamed = 0;
+    for (const G of DUELS.groups()) {
+      // up to the lead: a room the others are ahead in reveals on your tap
+      for (let step = 0; step < 4; step++) {
+        const r = DUELS.groupOpen(G.id);
+        if (!r) break;
+        const q = DUELS.groupQ(G.id, r);
+        if (q.kind !== 'vote') { act(() => { DUELS.answerGroup(G.id, 2, r); }); continue; }
+        act(() => { DUELS.answerGroup(G.id, q.targets.indexOf('me'), r); });
+        const round = DUELS.groupPicksRound(G.id, r);
+        if (!round.revealed) break; // the others have not played it; the demo's timers do that later
+        if (round.late) continue;   // a closed room: the answer is late and counts for nothing
+        selfNamed += 1;
+        expect(round.votes.me).toBeGreaterThanOrEqual(1);
+        expect(round.received.me).toBe(round.votes.me - 1);
+        for (const p of DUELS.groupMembers(G.id)) expect(round.received[p.id]).toBeLessThanOrEqual(round.votes[p.id]);
+      }
+      // the seat's total is the votes received over the latest vote per role — never your own
+      const A = DUELS.archetypeOf(G.id, 'me');
+      expect(A.total).toBe(DUELS.roleVotes(G.id).roles.reduce((s, role) => s + (role.received.me || 0), 0));
+    }
+    expect(selfNamed, 'no room revealed a self-named round — the case tested nothing').toBeGreaterThan(0);
+  });
+
   it('plays a 1v1 in rounds: three own, then the cast, with the guess at what they said you are', () => {
     // f1 has 24 revealed rounds — six casts
     const co = DUELS.castOf('f1');

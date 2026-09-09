@@ -67,6 +67,32 @@ describe("the demo Mirror's Groups stop", () => {
     expect(document.body.textContent, "the Compare lens opened nothing").toMatch(/six axes/);
     expectNoBoundary("mirror · groups");
   });
+
+  it("draws no People card for an emptied room, rather than a swarm of NaN", async () => {
+    // group-daily's manage sheet has a Remove button per member, so a room
+    // can be emptied. GroupPeopleCard spreads the members into Math.min and
+    // Math.max, which on nothing are ±Infinity — every dot at NaN and the
+    // band at -Infinity, an SVG that renders and fails no boundary. The
+    // base guarded it; the D435 re-port dropped the guard (the second
+    // review of #456), and this is the case that would have caught it.
+    const expectNoBoundary = mountApp();
+    await toStop("Groups");
+    try {
+      await act(async () => {
+        for (const G of DUELS.groups()) for (const m of DUELS.groupMembers(G.id)) DUELS.removeGroupMember(G.id, m.id);
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      for (const G of DUELS.groups()) expect(DUELS.groupMembers(G.id), `${G.id} did not empty`).toHaveLength(0);
+      await toLens("People");
+      expect(document.body.innerHTML, "a NaN reached the DOM").not.toMatch(/NaN|Infinity/);
+      expectNoBoundary("mirror · groups · people, emptied");
+    } finally {
+      // The demo store keeps its state in memory across cases, and the
+      // purge event is the one door that resets it — without this the
+      // next suite's seeded group has no members and no record.
+      await act(async () => { window.dispatchEvent(new Event("insight:local-purge")); });
+    }
+  });
 });
 
 describe("the demo Mirror's place lenses", () => {

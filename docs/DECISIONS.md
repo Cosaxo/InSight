@@ -47687,3 +47687,51 @@ of what it measured. The rounds rename of `main`'s #444 (`rounds` /
 `roundsPlayed`, `REVEAL_HIST_CAP` 30, a late answer of mine out of
 `minePlayed`, the stored `qid` on a late write) is in whole; the
 alignment ring it renamed is not drawn, per the brief.
+
+### The second review of #456 (2026-09-09, the evening) — what it found, what moved, what is the owner's
+
+The owner's account reviewed fc10068 line by line against the merge base
+and the merge against a clean automatic merge of its parents, and found
+nothing that stops the merge; the small commit after it takes every
+finding that is code's to take.
+
+- **The group rotation repeated a question when the bank had role votes
+  and no ratings.** `before` — the rating rounds the vote walk skips —
+  was counted whether or not a rating was dealt, so with picks and no
+  `rate` docs rounds 4 and 5 walked to the same index (an 8-pick bank
+  served `p5 p6 p7 p0 p0 …`). That is the live bank's shape until the
+  owner's reseed lands `gs*`, and every device that has not re-read the
+  bank after it — exactly the case the branch's comment claimed to handle.
+  One line — no skip when there is nothing to take — which the reviewing
+  session pushed itself (9f6ef6d) with the rotation test holding
+  consecutive rounds to consecutive picks on a picks-only bank; the
+  commit after it takes the rest of the list.
+- **The card and the Votes lens could name different holders after a
+  leave mid-round.** The card tallied by option index (`revealTally`) and
+  the stop by snapshot (`groupCast.roleVotes`); a leave remaps the
+  indexes, so two indexes could name one member and the card read *D and
+  D share the mastermind* while the Mirror said D held it 2–0. "Who does
+  this option name" lived in three places with three fallbacks. It lives
+  in one now — `namedBy` (the D224 snapshot, else the reveal's OWN roster
+  at that index, never the live one) and `roleTally`, the role vote's
+  tally by who was named — and the reveal card, its bars and the run all
+  read it. The reveal's roster fallback also replaces the live roster the
+  card and the run fell back to for a snapshot-less vote.
+- **Smaller:** a role's key on the Groups stop is its pack's
+  (`pack/role`) and `check:content` holds an id to one role within a
+  pack, so a second *leader* in another pack is a second row and not a
+  merge; the demo's People card has its empty-group guard back (the
+  re-port dropped it, and an emptied room drew NaN); the demo's seat
+  reads votes RECEIVED, never a vote for yourself (the live rule); the
+  roles panel passes no name rather than the row label *1v1* into the
+  cast text; `revealHistory` keeps its array's identity while nothing
+  changed, and the Groups stop folds once per history in a hook of its
+  own, so the role map's memo is real. The three-way tie in the field
+  (a third holder gets no thread) is noted and left.
+- **The owner's:** the rollout. The rules refuse a group guess from the
+  moment `main` deploys them, and every installed build since D386 sends
+  one on every ordinary group round, so those devices are refused on
+  group votes until they update. Two ways through are on
+  `OWNER-LIST.md` — ship the next build promptly, or accept the field
+  for one release — and the choice is the owner's, because it is an
+  ordering of releases and not a defect in either.

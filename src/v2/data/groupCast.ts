@@ -124,8 +124,12 @@ export function roleVotes(
     // The latest vote on a role replaces the one before it — a role is
     // held by whoever the room named LAST, and the run marks carry the
     // history.
-    byRole.set(q.role.id, {
-      key: q.role.id, qid, round: roundOf(r), day: String(r.day || ""),
+    // A role is its pack's: ids repeat across packs (a *leader* in two
+    // scenarios is two roles — two rows, two satellites), so the key is the
+    // pair, and `check:content` holds an id to one role within a pack.
+    const key = `${pack ? pack.id : ""}/${q.role.id}`;
+    byRole.set(key, {
+      key, qid, round: roundOf(r), day: String(r.day || ""),
       label: q.role.label, prompt: String(q.prompt || ""),
       pack, seat: seatOf(q.role.seat)?.id ?? null,
       votes, by, total, holders,

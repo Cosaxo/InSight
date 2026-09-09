@@ -555,6 +555,15 @@ for (const q of entries) {
       const n = roles.filter((q) => q.role.seat === seat).length;
       if (n !== 1) errors.push(`pack ${pack}: ${n} active roles in the ${seat} seat, want exactly one`);
     }
+    // …and an id names ONE role within its pack: the Groups stop keys a
+    // role by (pack, id) — `groupCast.ts` — so a repeated id would fold two
+    // roles into one row and one satellite. Across packs an id may repeat.
+    const seen = new Map();
+    for (const q of roles) {
+      const prev = seen.get(q.role.id);
+      if (prev) errors.push(`pack ${pack}: role id ${JSON.stringify(q.role.id)} on ${prev} and ${q.id} — one role per id within a pack`);
+      else seen.set(q.role.id, q.id);
+    }
   }
 }
 

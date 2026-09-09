@@ -40,7 +40,7 @@ describe("roleVotes — who the room named", () => {
       vote("2026-09-01", 1, "r1", { [ME]: "a", a: ME, b: "a" }),
       vote("2026-09-03", 4, "r1", { [ME]: "b", a: "b", b: "b" }),   // the mastermind again: b takes it
     ], lookup, ME);
-    expect(rv.roles.map((r) => r.key)).toEqual(["inside", "mouth"]);
+    expect(rv.roles.map((r) => r.key)).toEqual(["heist/inside", "heist/mouth"]);
     const inside = rv.roles[0];
     expect(inside.holders).toEqual(["b"]);
     expect(inside.votes).toEqual({ b: 3 });
@@ -89,13 +89,30 @@ describe("roleVotes — who the room named", () => {
     expect(rv.roles[0].total).toBe(2);
   });
 
+  it("keys a role by its pack, so one id in two packs is two roles and not one row", () => {
+    // The lane may add packs, and `check:content` holds an id to one role
+    // WITHIN a pack only: a second *leader* elsewhere is a second role, a
+    // second row and a second satellite — not a merge with duplicate keys.
+    const twoPacks: Record<string, BankEntryLike> = {
+      h: { kind: "pick", prompt: "Who leads it?", role: { id: "leader", label: "the mastermind", seat: "engine" }, scen: HEIST },
+      i: { kind: "pick", prompt: "Who leads us?", role: { id: "leader", label: "the fire-keeper", seat: "engine" }, scen: ISLAND },
+    };
+    const rv = roleVotes([
+      vote("2026-09-01", 1, "h", { [ME]: "a", a: "a" }),
+      vote("2026-09-02", 2, "i", { [ME]: "b", a: "b" }),
+    ], (qid) => twoPacks[qid] || null, ME);
+    expect(rv.roles.map((r) => r.key)).toEqual(["island/leader", "heist/leader"]);
+    expect(rv.roles.map((r) => r.holders)).toEqual([["b"], ["a"]]);
+    expect(rv.packs.map((p) => p.id)).toEqual(["island", "heist"]);
+  });
+
   it("ignores a question the bank cannot name as a role vote, and reads nothing without a bank", () => {
     const hist = [
       vote("2026-09-01", 1, "old", { [ME]: "a", a: "b" }),   // a pick with no role: no row
       vote("2026-09-02", 2, "nope", { [ME]: "a", a: "b" }),  // not in the bank
       vote("2026-09-03", 3, "r3", { [ME]: "a", a: "b" }),
     ];
-    expect(roleVotes(hist, lookup, ME).roles.map((r) => r.key)).toEqual(["water"]);
+    expect(roleVotes(hist, lookup, ME).roles.map((r) => r.key)).toEqual(["island/water"]);
     expect(roleVotes(hist, undefined, ME).roles).toEqual([]);
   });
 

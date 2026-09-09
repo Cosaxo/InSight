@@ -438,6 +438,37 @@ function LgSeenCard({ rv, reveals, lookup }: { rv: RoleVotes; reveals: PortraitR
   );
 }
 
+// Stable empties for the memo above the early return: a fresh `[]` or `{}`
+// per render would be a new dependency every time.
+const NO_REVEALS: PortraitReveal[] = [];
+const NO_NAMES: Record<string, string> = {};
+const NO_UIDS: readonly string[] = [];
+
+/** The stop's folds over one room's history, once per history: the room's
+ *  votes, scores, your seat and the members the role map places. A hook of
+ *  its own so the memo's inputs are the primitives and store references
+ *  passed in, and nothing after it in the component can be read as
+ *  modifying them. */
+function useGroupFolds(
+  gid: string | null,
+  memberUids: readonly string[],
+  names: Record<string, string>,
+  reveals: PortraitReveal[],
+  lookup: BankLookup,
+  me: string | null,
+) {
+  return React.useMemo(() => {
+    const rv = roleVotes(reveals, lookup, me);
+    const scores = groupScores(reveals, lookup, me);
+    const mine = gid ? groupRole(reveals, me, lookup) : null;
+    const members: FieldMember[] = gid ? memberUids.map((uid) => ({
+      id: uid, name: uid === me ? "You" : names[uid] || "", me: uid === me,
+      seatLine: (uid === me ? mine && { seat: mine.seat } : seatFor(reveals, uid, lookup))?.seat.line ?? null,
+    })) : [];
+    return { rv, scores, mine, members };
+  }, [gid, memberUids, names, reveals, lookup, me]);
+}
+
 function LiveGroupsMirrorBody() {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
@@ -456,23 +487,25 @@ function LiveGroupsMirrorBody() {
   const rowRef = React.useRef<HTMLDivElement | null>(null);
   useLensRowScroll(tab, rowRef);
 
+  // The folds, ONCE per history: `revealHistory` hands back the same array
+  // while nothing changed, so the room's votes, scores, seats and the
+  // role map's layout (memoized on `rv`/`members` in LgRoleMap) are not
+  // re-folded on every store notify — the second review of #456 found the
+  // map's memo never hit because these were rebuilt each render.
+  const lookup = React.useCallback<BankLookup>((qid) => S.bankQ(qid) as BankEntryLike | null, [S]);
+  const me = LIVE.uid;
+  const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : NO_REVEALS;
+  const names: Record<string, string> = (g && g.memberNames) || NO_NAMES;
+  const memberUids: readonly string[] = (g && g.memberUids) || NO_UIDS;
+  const { rv, scores, mine, members } = useGroupFolds(g ? g.id : null, memberUids, names, reveals, lookup, me);
+
   if (!LIVE.enabled) return null;
 
-  const lookup: BankLookup = (qid) => S.bankQ(qid) as BankEntryLike | null;
-  const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : [];
   const reading = !!g && S.revealHistoryLoading(g.id);
-  const names = (g && g.memberNames) || {};
-  const rv = roleVotes(reveals, lookup, LIVE.uid);
-  const scores = groupScores(reveals, lookup, LIVE.uid);
   const bank = S.groupBankCounts();
   // Roles cast over all the roles in the packs. A role since retired from
   // the bank still counts as cast — it was — so the share is capped.
   const castPct = bank.roles ? Math.min(100, Math.round((rv.roles.length / bank.roles) * 100)) : 0;
-  const mine = g ? groupRole(reveals, LIVE.uid, lookup) : null;
-  const members: FieldMember[] = g ? (g.memberUids || []).map((uid) => ({
-    id: uid, name: uid === LIVE.uid ? "You" : names[uid] || "", me: uid === LIVE.uid,
-    seatLine: (uid === LIVE.uid ? mine && { seat: mine.seat } : seatFor(reveals, uid, lookup))?.seat.line ?? null,
-  })) : [];
   const nCast = rv.roles.length, nScores = scores.length;
 
   return (

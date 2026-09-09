@@ -138,10 +138,14 @@ export default function LiveRolesPanel(): React.ReactElement {
     if ((r.mode || "group") === "duo") {
       const them = (r.memberUids || []).find((m) => m !== uid) || "";
       // The name the duel panel itself uses: the room's own snapshot,
-      // topped up by whatever the newest reveal carried.
+      // topped up by whatever the newest reveal carried — and NULL for the
+      // cast text when neither knows one, so `castText` falls back to *your
+      // friend* rather than to the row's label (the second review of #456
+      // read "the one 1v1 tells first").
       const revealNames = (hist[0]?.names as Record<string, string> | undefined) || {};
-      const label = firstName(revealNames[them] || (r.memberNames || {})[them] || r.name || "1v1");
-      const res = them ? duoRole(hist as never[], uid, them, lookup, label, r.duoMode === "romantic") : null;
+      const known = firstName(revealNames[them] || (r.memberNames || {})[them] || "") || null;
+      const label = known || firstName(r.name || "") || "1v1";
+      const res = them ? duoRole(hist as never[], uid, them, lookup, known, r.duoMode === "romantic") : null;
       if (res) duos.push({ key: r.id, label, res });
       else {
         const casts = them ? duoCastCount(hist as never[], uid, them, lookup) : 0;
