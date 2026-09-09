@@ -206,7 +206,11 @@ describe("the live corpus", () => {
     expect(
       `${worst.name} ${worst.a.id}~${worst.b.id} @ ${worst.s.toFixed(3)}`,
       "the closest legitimate pair moved — re-read it, then re-pin this",
-    ).toBe("feed dl23~dl32 @ 0.400");
+    // Re-pinned 2026-09-09: dl9 "Trailers before the film — how many
+    // minutes is right?" vs dl70 "Minutes before you abandon a bad
+    // film?" — token overlap (minutes/film/before), canons plainly
+    // different (trailer tolerance vs walkout threshold). Read in full.
+    ).toBe("feed dl9~dl70 @ 0.429");
     expect(worst.s).toBeLessThan(GATE);
   });
 

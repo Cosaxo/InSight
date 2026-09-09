@@ -286,6 +286,10 @@ describe("7 · retirement is complete, and nothing is orphaned", () => {
   it("accepts a leaf retired at every site — and its created row keeps its history", () => {
     const e = errs((s) => {
       s.subtopics = s.subtopics.filter((l) => l.id !== "sub_tennis");
+      // "Every site" includes the bank rows tagged into the leaf — real
+      // since 2026-09-09, when the feed lane's first births tagged
+      // questions with `sub` (the fixture predates any tagged row).
+      for (const q of s.feedQuestions) if (q.sub === "sub_tennis") delete q.sub;
       s.ledger.created.push({ id: "sub_tennis", level: "leaf", surface: "feed", parent: "sport", label: "Tennis" });
       s.ledger.retired.push(retired());
     });
@@ -297,7 +301,12 @@ describe("7 · retirement is complete, and nothing is orphaned", () => {
       s.palette = s.palette.filter((t) => t.id !== "culture");
       s.wire = s.wire.filter((t) => t.id !== "culture");
       delete s.ripples.culture;
-      for (const q of s.feedQuestions) { if (q.cat === "culture") q.cat = "people"; if (Array.isArray(q.also)) q.also = q.also.filter((a) => a !== "culture"); }
+      // A top's fold carries its leaves with it (culture parents
+      // sub_etiquette since 2026-09-09) — remove the leaf and its tags
+      // too, or the checker rightly reports the fold stopped part way.
+      const leaves = new Set(s.subtopics.filter((l) => l.parent === "culture").map((l) => l.id));
+      s.subtopics = s.subtopics.filter((l) => l.parent !== "culture");
+      for (const q of s.feedQuestions) { if (q.cat === "culture") q.cat = "people"; if (leaves.has(q.sub)) delete q.sub; if (Array.isArray(q.also)) q.also = q.also.filter((a) => a !== "culture"); }
     };
     fires((s) => s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })), /still at WORLD_TOPICS/);
     fires((s) => { gone(s); s.ripples.culture = "Values"; s.ledger.retired.push(retired({ id: "culture", level: "top", into: "people" })); }, /still at WF_BRANCH/);
