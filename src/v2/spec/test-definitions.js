@@ -122,7 +122,7 @@ export const IS_TEST_AVG = {
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
   // The role instruments (D204; the owner's 2026-09-09 design's dims since
-  // D432). Authored, like the four above, and for the same reason: which
+  // D435). Authored, like the four above, and for the same reason: which
   // type you ARE must not drift with whoever the app happened to fetch
   // this session. Both instruments are SHARES now — a 1v1's four dims are
   // the share of cast rounds in which they said you are each of four

@@ -46599,7 +46599,7 @@ is the run log.
 prompt, so the canonical block in § Scheduled runs is the live text, not
 a copy of what was sent.
 
-## D429 · The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them
+## D432 · The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them
 
 **Date:** 2026-09-08 · **Status:** binding, step 1 built. The owner's
 `InSight_12` upload, delivered with a ruling: *"yeah this is
@@ -46714,10 +46714,10 @@ hung at the first file rather than failing. The search is bounded now
 and says so. `test:e2e:all` is left to CI, as D426's third amendment
 records: this sandbox answers 403 to `firebase-public.firebaseio.com`.
 
-## D430 · The duel bank leaves the JavaScript: learn's treatment, one bank over
+## D433 · The duel bank leaves the JavaScript: learn's treatment, one bank over
 
 **Date:** 2026-09-09 · **Status:** binding, built. The owner's *"yeah do
-that"*, after the D429 build reported that the bank file was compiled
+that"*, after the D432 build reported that the bank file was compiled
 into the demo under a 24 KiB cap, stood at 22.8, and the daily burst
 would cross it on its next run — and after two questions that are worth
 keeping beside the record: *"is it so important that the demo is
@@ -46738,7 +46738,7 @@ question it was not compiled with. That is the whole reason a bank was in
 the JavaScript, and it is the reason D284 gave when it moved learn and
 left this one: *a weekly lane at 14.6 KiB has years of slack.*
 
-The slack went in a week. D426 ran the lane daily at 25 a run; D429 put
+The slack went in a week. D426 ran the lane daily at 25 a run; D432 put
 thirty cast questions in the file and folded the packs to get it back
 under the cap at 22.8 KiB. `BUNDLED_CONTENT`'s own instruction for
 crossing was *learn's treatment, not a higher number*, and the arithmetic
@@ -46804,13 +46804,13 @@ unchanged at four named debts, none of them this. `check:content`
 `check:taxonomy`, `check:public-copy`, `check:policy-claims`,
 `check:a11y` (6, unmoved), `check:tap-targets`, `test:scripts` (1 205,
 six new), `test --prefix functions` (817), `tsc -b`, `lint` — green.
-`test:e2e:all` is left to CI, as D429 records: this sandbox answers 403
+`test:e2e:all` is left to CI, as D432 records: this sandbox answers 403
 to `firebase-public.firebaseio.com`.
 
 ### What it does not change
 
 The bank, the seed and the live path: `gen-v2content.mjs` still reads
-`duel-questions.json` whole, the rotation and the card are D429's, and
+`duel-questions.json` whole, the rotation and the card are D432's, and
 every scripts-side reader (the regulator, the scorecard, the neighbors
 gate, the pulse collector) reads the bank, not the sample. The lane's
 contract (QUESTION-FARM § The duel lane) loses its cap bullet and gains
@@ -46819,7 +46819,7 @@ when the gate says so. `BANK-DELIVERY.md` § Ceiling 1 now reads as the
 record of both moves. Steps 2–4 of `VISION-2026-09-08.md` stand where
 they were; §4.3 is marked built.
 
-## D431 · The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built
+## D434 · The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built
 
 **Date:** 2026-09-09 · **Status:** binding as a record; every ruling it
 touches stands until the owner answers. The owner's `InSight_15` upload
@@ -46856,9 +46856,9 @@ shape), not a silent reversal and not a silent refusal:
 - **The World round in a 1v1** — retired 2026-09-08 by the owner at the
   first reveal (D426's third amendment); the brief lists it as current.
 - **The room's call on a role vote** — D386's, owner-approved, an owner
-  row since D429; the brief's principle removes it.
+  row since D432; the brief's principle removes it.
 - **The instrument** — D204's two, rescored at D386, Standing as an
-  aside at D429, ROLES-PLAN's proposed tables on an owner row; the
+  aside at D432, ROLES-PLAN's proposed tables on an owner row; the
   design replaces all of it with the seats and the axes.
 - **The clock** — the owner's own rule of 2026-09-08 (a 1v1 closes at
   the deadline for one player too; 24 hours from the first answer);
@@ -46873,7 +46873,7 @@ retirements and two new entries, never an edit.
 
 ### What is recorded rather than built, and why
 
-The last upload (D429) was built the same day, step 1 of four, because
+The last upload (D432) was built the same day, step 1 of four, because
 its mechanism was already in the tree and its content was not. This one
 changes what a 1v1 round IS (the cast), what the instrument measures,
 and three things the owner ruled on within the last two days — and the
@@ -46890,7 +46890,7 @@ README (searched by its section title across every decoded resource).
 The brief's paragraphs are the prose, the code is the design, and the
 record says so rather than paraphrasing a document nobody here has read.
 
-## D432 · How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers
+## D435 · How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers
 
 **Date:** 2026-09-09 · **Status:** binding. Builds the whole of
 [`VISION-2026-09-09.md`](VISION-2026-09-09.md) §7 (steps 1–6; step 7
@@ -46942,7 +46942,7 @@ privacy matter, so neither waited (D334 is about privacy asks).
   snapshots, never a vote for yourself. Ten and eleven types
   (`archetype-data.js`: pure seats at 76/8/8/8, blends at 42/42, one
   neutral), baseline 25 a dim. D204's two instruments, D386's scoring
-  against luck and D429's Standing aside are retired; ROLES-PLAN
+  against luck and D432's Standing aside are retired; ROLES-PLAN
   §3.4–§3.5's tables are answered rather than adopted, its §3.6 name
   rule stands over the new dims, its §3.3 ledger is still open.
 - **Q7 · the plurality rule stays.** A live answer is create-only
@@ -46962,7 +46962,7 @@ privacy matter, so neither waited (D334 is about privacy asks).
    pack; the cast's shape; duplicates keyed by pool), `check:quality`
    (a cast's four answers are sentences, exempt from the option
    length), `check:neighbors` (the two casts are one question in two
-   pools). The demo sample regenerated (D430's lane).
+   pools). The demo sample regenerated (D433's lane).
 2. **The rotation and the rules** — `duelQFor`: a group's rating on
    the fourth by a **phase per group** (`groupPhase = hash mod 3`, never
    round 1), a 1v1's cast every fourth with the own rounds walking the
@@ -47004,7 +47004,7 @@ privacy matter, so neither waited (D334 is about privacy asks).
 6. **The demo plays rounds** — `spec/duels-data.js` and the family
    (`group-daily`, `duo-daily`, `group-mirror`, `group-role-map`, the
    person page's Together section, `map-people`) re-ported from
-   `design/standalone-2026-09-09/`, on the D430 sample, so a demo build
+   `design/standalone-2026-09-09/`, on the D433 sample, so a demo build
    plays what live plays; `insight.duels.v2`. The person page keeps its
    one-scroll shape: the Together TAB shell is the 09-07 record's, not
    this brief's, and is not ported — Together is a section of the page

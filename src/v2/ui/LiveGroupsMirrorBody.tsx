@@ -1,8 +1,8 @@
 // LiveGroupsMirrorBody — the Mirror's Groups stop, computed from REAL
-// reveal history: the room drawn as a cast (D432, the owner's 2026-09-09
+// reveal history: the room drawn as a cast (D435, the owner's 2026-09-09
 // design, `design/standalone-2026-09-09/group-mirror.jsx`).
 //
-// What a group is, since D429, is three role votes in four and a rating
+// What a group is, since D432, is three role votes in four and a rating
 // every fourth, nothing predicted and nothing called — so what this stop
 // reads is who the room has named, and how it rates itself:
 //
@@ -25,7 +25,7 @@
 // `data/groupPortrait.ts` and `data/roles.ts`, all pure and all pinned.
 // Zero reads of its own beyond the open room's history.
 //
-// What left with the majority (D432): the alignment ring and *aligned with
+// What left with the majority (D435): the alignment ring and *aligned with
 // you · N of M days*, the Answers rows of what the group "landed on", the
 // cross-group *runs most like you* line (D287's groups half) and its
 // fan-out over every room's history. A room's votes are about its people,
@@ -62,7 +62,7 @@ import { firstName } from "./marks";
 const LgField = React.lazy(() =>
   import("./LiveSimilarityField").then((m) => ({ default: m.PeopleField })),
 );
-// The role map (D432) — the field this stop stands on. Lazy for the same
+// The role map (D435) — the field this stop stands on. Lazy for the same
 // reason: a canvas with its own animation and two cards, and this file is
 // a static import of the Mirror chunk.
 const LgRoleMap = React.lazy(() => import("./LgRoleMap"));

@@ -514,7 +514,7 @@ that lets a buyer read them.
 
 ## Designed
 
-_(none — 5 and 6 were built at D432 and moved below)_
+_(none — 5 and 6 were built at D435 and moved below)_
 
 ## Built
 
@@ -533,7 +533,7 @@ pair's card as this request wants it drawn; the plan's owner call still
 gates what the doors say. **Noted 2026-09-08**: the owner's `InSight_12`
 upload draws the group half — the role votes in packs, the ratings, the
 cast, and a group instrument with Standing back and nine types
-(`design/standalone-2026-09-08/role-data.js`, `roles-panel.jsx`); D429
+(`design/standalone-2026-09-08/role-data.js`, `roles-panel.jsx`); D432
 built the rounds and Standing as an aside, and the tables are step 2 of
 `VISION-2026-09-08.md`.
 
@@ -595,7 +595,7 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   first paragraph — a join nothing draws is unfinished, and the
   pair's reading and the group's cast fold from data already on the
   phone.
-- **status** — `designed` (2026-09-09, D431): the owner's `InSight_15`
+- **status** — `designed` (2026-09-09, D434): the owner's `InSight_15`
   upload draws all three surfaces — `design/standalone-2026-09-09/roles-panel.jsx`
   (*In 1v1s* and *In groups*, the average card, one row per setting
   with its casts or votes, thin rows *asked at round 4* / *not named
@@ -606,7 +606,7 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   and answers the plan's owner call with a third shape, neither
   `ROLES-PLAN.md`'s three nor D204's two. The build is step 4 of
   `VISION-2026-09-09.md`, gated on its Q5 (the floor) and Q6.
-  **Built 2026-09-09 (D432):** `ui/LiveRolesPanel.tsx` (*In 1v1s* and
+  **Built 2026-09-09 (D435):** `ui/LiveRolesPanel.tsx` (*In 1v1s* and
   *In groups*, one row per setting, a thin row in the floor's own
   unit — *2 of 3 cast rounds*, *1 of 2 votes*), `data/roles.ts` (the
   two settings: casts per axis, votes per seat; `MIN_DUO` 3 on the
@@ -663,11 +663,11 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   (the members on a ring, each earned role a satellite on its holder,
   a contested role dashed between two, a tap opening the vote or the
   person's sheet) and `group-mirror.jsx` (*Who the room named* by pack,
-  *How the group rates itself*, the crowns as chips) — and D429 built
+  *How the group rates itself*, the crowns as chips) — and D432 built
   the rounds that feed it: three in four a role vote in a scenario
   pack. The build is step 3 of `VISION-2026-09-08.md`; the data it
   draws is the D224 snapshots on role votes and the ratings' steps.
-  **Redrawn 2026-09-09** (D431, `design/standalone-2026-09-09/group-mirror.jsx`
+  **Redrawn 2026-09-09** (D434, `design/standalone-2026-09-09/group-mirror.jsx`
   and `group-role-map.jsx`): the stop is Overview (the seat line — *Here,
   you are the one who gets things going · 5 of 15 votes say so* — over
   the role map, each person's seat under their name) · Votes (by pack,
@@ -676,7 +676,7 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   ticks, you over the group) · Compare (the crowns as chips, and *the
   room named you N of M* — the one place it appears). The build is step
   5 of `VISION-2026-09-09.md`.
-  **Built 2026-09-09 (D432):** `ui/LiveGroupsMirrorBody.tsx` — the ring
+  **Built 2026-09-09 (D435):** `ui/LiveGroupsMirrorBody.tsx` — the ring
   is roles cast over all the roles in the packs; the seat line over
   the role map (`ui/LgRoleMap.tsx` on `data/roleField.ts`, lazy, every
   node a keyboard control); Votes · People · Scores · Compare folded by
@@ -782,7 +782,7 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   give `tie-2`'s second-person measurement enough shared items per pair
   to decompose at all. The screen is what makes the pace legible.
 - **status** — `built` 2026-09-08 (D426's second amendment); **redrawn
-  2026-09-09 (D432)** to the owner's `InSight_15` brief: the group's
+  2026-09-09 (D435)** to the owner's `InSight_15` brief: the group's
   ballot is a 2-across grid of faces, its run a record with a caption on
   tap, no call on a role vote, a rating on the fourth by a phase per
   room, the reveal at everyone-played or 48 hours; the 1v1 gains the
@@ -798,7 +798,7 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   and the *N to play* count are gone). Built as `ui/LiveDuelPanel.tsx`'s
   card, rail, run and first run the same day; `ROUNDS-PLAN.md` §0a has
   the same departures beside the model's own. **Refined 2026-09-09**
-  (D431, `design/standalone-2026-09-09/group-daily.jsx` and
+  (D434, `design/standalone-2026-09-09/group-daily.jsx` and
   `duo-daily.jsx`): the group's ballot is a 2-across grid of faces, the
   run at the foot is a record with a caption on tap rather than a score,
   no call on a role vote, the reveal says *closed at the deadline*, and

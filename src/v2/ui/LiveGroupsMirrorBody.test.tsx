@@ -12,7 +12,7 @@
 // is pinned here is the component: which claims it is willing to print,
 // in which tab, and which states it refuses to print anything for.
 //
-// The stop since D432 (the owner's 2026-09-09 design): the seat line and
+// The stop since D435 (the owner's 2026-09-09 design): the seat line and
 // the role map above the row, and Votes · People · Scores · Compare in
 // it. What left with the majority — the alignment ring, the Answers rows,
 // the cross-group "runs most like you" line — is asserted absent, because

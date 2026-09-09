@@ -994,7 +994,7 @@ button.card:active,
 .wf-sheet-body::-webkit-scrollbar { display: none; }
 @keyframes wfScrimIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* The Groups stop's role map (D432, ui/LgRoleMap.tsx): a satellite fades in
+/* The Groups stop's role map (D435, ui/LgRoleMap.tsx): a satellite fades in
    and drifts on a seeded path; a picked shared role's dashed thread flows.
    Declared once here rather than in a <style> the component would re-mount. */
 @keyframes lgIn { from { opacity: 0; } to { opacity: 1; } }

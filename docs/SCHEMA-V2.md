@@ -48,11 +48,11 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                        topic is the feed's topic id, a group question's kind
                        us|pick|classic|rate, and since D386 a 1v1 question's
                        domain day|heat|mirror|ahead — the roles fold reads it)
-  scen?, role?        a group pick that casts a ROLE (D429): the scenario
+  scen?, role?        a group pick that casts a ROLE (D432): the scenario
                        pack { id, label, hue } it belongs to and the role
                        { id, label } it casts — the card's kicker, crown
                        and verdict read them. Both or neither
-  poles?              a group `rate` question's two ends (D429); its
+  poles?              a group `rate` question's two ends (D432); its
                        `options` are the five step labels between them,
                        derived at seed time, so the answer stays an index
   active: bool
@@ -653,7 +653,7 @@ answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
-D426) with extra fields gid/round/guessIdx — the guess a 1v1's only: a group answer carries none, and the rules refuse one there (D432) — (plus pickUid on a "pick"
+D426) with extra fields gid/round/guessIdx — the guess a 1v1's only: a group answer carries none, and the rules refuse one there (D435) — (plus pickUid on a "pick"
 round, D224 — a current member's uid, rules-validated; plus `late: true`
 on an answer to a round that has already revealed, which then carries no
 guess — §4 of the plan) — and they are

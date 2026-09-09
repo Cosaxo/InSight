@@ -933,9 +933,9 @@ for a duel run:
   the next `NNN` suffix, shared across `oneVsOne` and `romantic` — they
   are one `duo-NNN` id namespace). **The cast round is not the lane's**:
   each 1v1 pool holds exactly one `"kind": "cast"` entry (`056`, `057` —
-  *Most days, {name} is…*, D432), dealt every fourth round; never write
+  *Most days, {name} is…*, D435), dealt every fourth round; never write
   another, and never give an ordinary 1v1 entry `them` or `dims`.
-- **The group is a CAST (D429, the owner's 2026-09-08 design —
+- **The group is a CAST (D432, the owner's 2026-09-08 design —
   `docs/VISION-2026-09-08.md`).** A group question is one of two kinds
   now. A **role vote** is a `pick` (no options — the members are the
   options) tagged with the scenario pack it belongs to (`"scen":
@@ -944,7 +944,7 @@ for a duel run:
   the role it casts (`"role": { "id", "label", "seat" }` — *the
   mastermind*, said of a person in front of their group, so `COPY.md`
   §3 applies word by word; the **seat** is `engine` · `hands` · `heart`
-  · `wild`, what a member's received votes cluster into — D432). A new
+  · `wild`, what a member's received votes cluster into — D435). A new
   pack is **four roles, one a seat**, and a hue, added to `scenarios`
   first; `check:content` refuses a pack with two roles in one seat or a
   seat empty. A **rating** is `"kind": "rate"` with two
@@ -955,7 +955,7 @@ for a duel run:
   us/classic questions are in the bank and out of the rotation, so
   **do not write more of them**. `check:content` holds the kinds and
   their shapes.
-- **The bank is not compiled into the app (D430).** The demo build
+- **The bank is not compiled into the app (D433).** The demo build
   carries `content/duel-sample.json` — a generated slice (the first few
   served questions of each group kind and each 1v1 domain, in bank
   order, plus the packs those votes name), written by

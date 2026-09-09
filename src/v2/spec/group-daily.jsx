@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/group-daily.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all), and
-// re-ported at D432 from design/standalone-2026-09-09/group-daily.jsx: the
+// re-ported at D435 from design/standalone-2026-09-09/group-daily.jsx: the
 // owner's "how 1v1s and Groups work now", the group card played in ROUNDS.
 // Cross-module references are real imports (D354's sweep); nothing here
 // publishes to window.
@@ -28,7 +28,7 @@ import NAV from '../data/nav';
 // answer up to LEAD rounds ahead and the card lists what is sealed. The
 // foot run is a RECORD — a dot in the pack's colour for a vote, a square
 // for a rating, dotted where you were late — with a caption on tap, never
-// a score: nothing in a group is predicted or called (D432).
+// a score: nothing in a group is predicted or called (D435).
 //
 // The names other modules read leave the IIFE as named exports (D354's
 // sweep): the group body and the marks for the Mirror (group-mirror,

@@ -1530,7 +1530,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
     // The guess half of this test — `guessIdx` taking the same widened
     // bound, so members 21–32 were guessable on a pick day — is gone with
-    // the call (D432): a group answer may not carry guessIdx at all, in or
+    // the call (D435): a group answer may not carry guessIdx at all, in or
     // out of bounds, and the case after this one pins that. So the one
     // index bound on a group answer is optionIdx's; absent stays legal.
     await assertFails(setDoc(
@@ -1539,7 +1539,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
   });
 
-  it("a group answer carries no guess — nothing in a group is called (D432); a 1v1's still does", async () => {
+  it("a group answer carries no guess — nothing in a group is called (D435); a 1v1's still does", async () => {
     // The owner's 2026-09-09 brief: "The room casts roles and rates itself;
     // that's all." D386's call on where the room lands was admitted here
     // for a week; a group answer that carries one is refused now, so the

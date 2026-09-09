@@ -48,7 +48,7 @@ import './spec/map-anchors.js';
 import './spec/map-group-stats.js';
 // duels-data.js is NOT here any more — the last edge holding the DUEL
 // LANE's bank (content/duel-questions.json, which a scheduled Routine
-// appends to) in first paint. (Since D430 it imports the bank's generated
+// appends to) in first paint. (Since D433 it imports the bank's generated
 // sample, content/duel-sample.json, whose size the lane cannot move — but
 // it is the DEMO store, which a live build never reads, so it stays out
 // of first paint for that reason now.) It publishes no global: its nine consumers

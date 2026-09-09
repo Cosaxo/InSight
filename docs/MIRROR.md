@@ -179,7 +179,7 @@ Follows start in exactly two places: a question's who-voted sheet, and
 the People lens's Kindred rows. Both are screens where a uid has already
 become a person with a reading attached.
 
-**Groups.** The room drawn as a cast (D432, the owner's 2026-09-09
+**Groups.** The room drawn as a cast (D435, the owner's 2026-09-09
 design). Everything is computed from `v2_groups/{gid}/reveals/r{n}`
 documents the viewer can already read, over the newest
 `REVEAL_HIST_DAYS` of them — every number is one the user could recompute
@@ -216,7 +216,7 @@ public since D98 and cached beside the names the stop already resolves.
 Same as Circle: the row is there with no group at all, above the field
 and its Start-a-group door.
 
-What left with the call (D432): the alignment ring and *aligned with you
+What left with the call (D435): the alignment ring and *aligned with you
 · N of M days*, the Answers rows of what the group "landed on", the
 cross-group *runs most like you* line and its fan-out over every room's
 history. A room's votes are about its people, not about a side, so there
@@ -225,7 +225,7 @@ the duel surfaces by `check:public-copy`'s voice list (rounds, never
 days; named, never crowned; no majority). Duos are excluded on purpose:
 a 1v1 has its own Mirror in the reveal, and a room of two names nobody
 the other did not. The demo body (`spec/group-mirror.jsx` over
-`spec/duels-data.js`, re-ported from the same record at D432) draws the
+`spec/duels-data.js`, re-ported from the same record at D435) draws the
 same stop from the sample people, so a demo build shows what live shows.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
@@ -601,7 +601,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupCast.ts`, `data/groupPortrait.ts`, `data/roles.ts` |
-| the group as a cast of roles, live (D432) | `src/v2/ui/LgRoleMap.tsx` + `data/roleField.ts` |
+| the group as a cast of roles, live (D435) | `src/v2/ui/LgRoleMap.tsx` + `data/roleField.ts` |
 | the group as a cast of roles, demo | `src/v2/spec/group-role-map.jsx` |
 | Compare, live (D193) | `src/v2/ui/LiveCompareLens.tsx` + `data/compare.ts` |
 | Compare's drawing, shared with the demo | `src/v2/spec/compare-breakdown.jsx` (`CBAssess`, `CBAlignGlyph`) |

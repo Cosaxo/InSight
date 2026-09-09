@@ -441,7 +441,7 @@ export function buildEntries(content = loadContent()) {
   // rotation order. Never sort it. `pick` questions have no options (the
   // group's members are the options, filled in client-side).
   //
-  // The group is a CAST since the owner's 2026-09-08 design (D429,
+  // The group is a CAST since the owner's 2026-09-08 design (D432,
   // docs/VISION-2026-09-08.md): a `pick` may carry the scenario PACK it
   // belongs to (`scen` — Bank Heist, Desert Island…) and the ROLE it casts
   // (`role` — "the mastermind"), and a `rate` question asks the group
@@ -480,7 +480,7 @@ export function buildEntries(content = loadContent()) {
       axis: null,
       test: null,
       ...(pack ? { scen: { id: String(pack.id), label: String(pack.label), hue: Number(pack.hue) } } : {}),
-      // The role's SEAT (D432, the owner's 2026-09-09 design): engine ·
+      // The role's SEAT (D435, the owner's 2026-09-09 design): engine ·
       // hands · heart · wild — what a member's received votes cluster into.
       // Every role vote carries one; check:content holds each pack to one
       // role per seat.
@@ -500,7 +500,7 @@ export function buildEntries(content = loadContent()) {
   // same word about each other as likeness. `check:content` holds the set
   // closed like the group kinds; `duelQFor` carries it to the card as
   // `kind`, which only ever asked "pick".
-  // THE CAST ROUND (D432, the owner's 2026-09-09 design): one entry per
+  // THE CAST ROUND (D435, the owner's 2026-09-09 design): one entry per
   // pool with `kind: "cast"` and domain `cast` — *Most days, {name} is…*,
   // four plain answers each carrying an axis (`dims`) and a *them* form
   // (`them`: *the one {name} tells first*) for whenever the fact is said

@@ -21,7 +21,7 @@ the tree had built that afternoon: *"yeah this is functonality that
 should not have been added they should be more like this"* — *this*
 being the 1v1 and group of this upload, and *"its worst for group as
 that should mostly be about what role you have in the group."* D426's
-third amendment took the world rounds out; D429 is what this upload
+third amendment took the world rounds out; D432 is what this upload
 puts in their place.
 
 ## What the design does, in one paragraph
@@ -58,12 +58,12 @@ here and built nowhere.
 
 | File | What it is | Where it lands |
 | --- | --- | --- |
-| `duels-data.js` | the model: `LEAD = 5`, a 48-hour `DEADLINE`, the five `SCENARIOS`, the ten `RATE_QS`, `stepLabel`, `isRatingRound = (r + phase) % 4 === 0`, `groupQ` (a role vote or a rating), `groupPicksRound` (the crown, the runner-up, `contested`, a rating's `mean`/`score`), `roleVotes` (the cast), `groupScores` (the ratings by dim), `groupPortrait`, the 1v1's `DUO_QS`/`DUO_QS_ROMANTIC` with domains, `isWorldRound`/`worldQ` (retired) | `content/duel-questions.json` (the packs and the ratings — D429), `data/deck.ts` (`duelQFor`, `isRatingRound`), `data/roles.ts`, the Mirror's folds in the plan's step 3 |
-| `group-daily.jsx` | the group card: `RoundKicker` with its `tag`, `OptBtn` with a member `lead`, `PoleBallot`, `VoteReveal`, `RateReveal`, `GroupRevealBlock` and its verdicts, `SealedList` subs (*Bank Heist · you named Leo*), the run's marks (`sq` for a rating, the pack's ink for a vote), the *New group* sheet (*a role a round, revealed with names*) | `ui/LiveDuelPanel.tsx` (built at D429: the kicker's tag, the option leads, `LdPoleBallot`, the crown on `LdRevealBars`, `LdRateReveal`, the verdicts, the run) |
+| `duels-data.js` | the model: `LEAD = 5`, a 48-hour `DEADLINE`, the five `SCENARIOS`, the ten `RATE_QS`, `stepLabel`, `isRatingRound = (r + phase) % 4 === 0`, `groupQ` (a role vote or a rating), `groupPicksRound` (the crown, the runner-up, `contested`, a rating's `mean`/`score`), `roleVotes` (the cast), `groupScores` (the ratings by dim), `groupPortrait`, the 1v1's `DUO_QS`/`DUO_QS_ROMANTIC` with domains, `isWorldRound`/`worldQ` (retired) | `content/duel-questions.json` (the packs and the ratings — D432), `data/deck.ts` (`duelQFor`, `isRatingRound`), `data/roles.ts`, the Mirror's folds in the plan's step 3 |
+| `group-daily.jsx` | the group card: `RoundKicker` with its `tag`, `OptBtn` with a member `lead`, `PoleBallot`, `VoteReveal`, `RateReveal`, `GroupRevealBlock` and its verdicts, `SealedList` subs (*Bank Heist · you named Leo*), the run's marks (`sq` for a rating, the pack's ink for a vote), the *New group* sheet (*a role a round, revealed with names*) | `ui/LiveDuelPanel.tsx` (built at D432: the kicker's tag, the option leads, `LdPoleBallot`, the crown on `LdRevealBars`, `LdRateReveal`, the verdicts, the run) |
 | `duo-daily.jsx` | the 1v1 card on rounds: `DuoRail`, `DuoRevealBlock` (SAID · CALLED, or `WorldCols`), `DuoCard` (ask · guess · wait · sealed list · the two runs), `DuoDomains` (per-domain read rows), the *Question set* toggle, *End this 1v1* | `ui/LiveDuelPanel.tsx` — already there for everything but the world rounds, which are retired |
 | `group-mirror.jsx` | the Groups stop: `GMIdentity` (the ring is the share of votes that named you), `GroupVotesCard` (*Who the room named*, by pack, each row opening the vote), `GroupScoresCard` (*How the group rates itself*), `GroupPeopleCard` (*Who's who*), `GroupCompareCard` (the crowns as chips, *How they see you*) | `ui/LiveGroupsMirrorBody.tsx` — the plan's step 3 (request 6) |
 | `group-role-map.jsx` | the cast drawn: `buildField` (people on a ring, satellites for earned roles, contested roles between two, a relaxation pass), `RoleVoteCard`, `RoleSheetCard` (*how The Crew cast you*) | the plan's step 3 (request 6) |
-| `role-data.js` | the two instruments with `MIN_DUO = 3`, `MIN_GROUP = 2`, the group's four dims (`own` · `pull` · `cast` · `settle`) with `cast` from `roleVotes`, the nine group types, the blend | `data/roles.ts` — Standing as an aside at D429; the tables are the plan's step 2 |
+| `role-data.js` | the two instruments with `MIN_DUO = 3`, `MIN_GROUP = 2`, the group's four dims (`own` · `pull` · `cast` · `settle`) with `cast` from `roleVotes`, the nine group types, the blend | `data/roles.ts` — Standing as an aside at D432; the tables are the plan's step 2 |
 | `roles-panel.jsx` | the profile's Roles tab: the average card, then one row per 1v1 and per group, a thin row under the floor | `ui/LiveRolesPanel.tsx` — unchanged in shape |
 | `first-day.jsx` | the first run of Circle and 1v1 (D416's port), kicker size 10.5 → 12 (the 09-06 floor) | `ui/LiveDuelPanel.tsx`'s `LdFirstRun` — unchanged |
 | `order.json` · `hashes.json` | the bundle's own load order and per-module hashes, **for the next extraction to diff by** (see below) | — |
@@ -141,7 +141,7 @@ the same list with the arithmetic.
 ## Status
 
 `designed` 2026-09-08 (the owner's upload), and step 1 of the plan
-`built` the same day (D429): the content model, the rotation, the card
+`built` the same day (D432): the content model, the rotation, the card
 and the fold. Steps 2–4 (the tables, the Mirror's cast and scores, the
 lane's prompt) are in `docs/WORKLIST.md` and the two owner calls in
 `docs/OWNER-LIST.md`.

@@ -1,6 +1,6 @@
 // YOUR ROLE, as a test result — one idea in two settings: WHAT THE PEOPLE
-// AROUND YOU MAKE YOU (D432, the owner's 2026-09-09 design; D204 built the
-// first shape, D386 rescored it, D429 put Standing beside it, and this
+// AROUND YOU MAKE YOU (D435, the owner's 2026-09-09 design; D204 built the
+// first shape, D386 rescored it, D432 put Standing beside it, and this
 // replaces all three).
 //
 //  · In a 1v1, every fourth round is a CAST — *Most days, Liv is…* — four
@@ -73,23 +73,23 @@ export interface BankEntryLike {
   prompt?: string | null;
   options?: readonly string[] | null;
   kind?: string | null;
-  /** A role vote's scenario pack (D429) — the Groups stop's ink per row. */
+  /** A role vote's scenario pack (D432) — the Groups stop's ink per row. */
   scen?: { id: string; label: string; hue: number } | null;
   role?: { id: string; label: string; seat?: string | null } | null;
-  /** A rating's two poles (D429). */
+  /** A rating's two poles (D432). */
   poles?: readonly string[] | null;
   them?: readonly string[] | null;
   dims?: readonly string[] | null;
 }
 export type BankLookup = (qid: string) => BankEntryLike | null | undefined;
 
-/** A rating round (D429): the reveal's question is the bank's `rate` kind.
+/** A rating round (D432): the reveal's question is the bank's `rate` kind.
  * Exported so the Mirror's portrait and this fold read the same rule. */
 export function isRatingReveal(r: { qid?: string | null }, lookup?: BankLookup): boolean {
   const q = lookup && r.qid ? lookup(r.qid) : null;
   return !!q && q.kind === "rate";
 }
-/** A cast round (D432): the reveal's question is the bank's `cast` kind. */
+/** A cast round (D435): the reveal's question is the bank's `cast` kind. */
 export function isCastReveal(r: { qid?: string | null }, lookup?: BankLookup): boolean {
   const q = lookup && r.qid ? lookup(r.qid) : null;
   return !!q && q.kind === "cast";

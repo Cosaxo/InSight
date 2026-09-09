@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/group-mirror.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all), and
-// re-ported at D432 from design/standalone-2026-09-09/group-mirror.jsx: the
+// re-ported at D435 from design/standalone-2026-09-09/group-mirror.jsx: the
 // room read as a cast — the seat line and the role map above the row, and
 // Votes · People · Scores · Compare in it. The live twin is
 // ui/LiveGroupsMirrorBody.tsx; the two draw the same stop from different
@@ -389,7 +389,7 @@ const EXPORTS = {};
         </div>
         <GroupPicker gs={gs} cur={g.id} onPick={setGid}></GroupPicker>
         {/* the seat line — said only once two votes have named you, and as
-            the seat's LINE, never its label (D432) */}
+            the seat's LINE, never its label (D435) */}
         {A && A.total >= 2 && A.seat && (
           <div style={{ margin: '12px 2px 0', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, letterSpacing: '-0.015em', color: 'var(--ink)' }}>Here, you are <span style={{ color: 'var(--accent)' }}>{A.seat.line}</span></span>

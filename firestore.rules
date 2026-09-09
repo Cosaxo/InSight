@@ -932,7 +932,7 @@ service cloud.firestore {
             && request.resource.data.gid is string
             && request.resource.data.round is int
             && request.resource.data.round >= 1
-            // NOTHING IN A GROUP IS CALLED (D432 — the owner's 2026-09-09
+            // NOTHING IN A GROUP IS CALLED (D435 — the owner's 2026-09-09
             // brief: "The room casts roles and rates itself; that's all").
             // A guess is a 1v1's, at what the other person said; a group
             // answer carrying one is refused HERE rather than ignored

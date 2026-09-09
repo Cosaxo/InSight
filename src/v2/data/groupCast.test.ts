@@ -1,4 +1,4 @@
-// groupCast — the Groups stop's folds (D432). Pure arithmetic over reveal
+// groupCast — the Groups stop's folds (D435). Pure arithmetic over reveal
 // documents, so every claim the stop prints about a person can be checked
 // here against the reveal it came from.
 import { describe, expect, it } from "vitest";

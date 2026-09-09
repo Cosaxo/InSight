@@ -109,7 +109,7 @@ Against the 09-08 duel family, the substantive changes are:
   (`gr13`) is *the medic — Who patches everyone up?* (heart), and Road
   Trip's *the snack captain* (`gr19`) is *the hourly stop — Who needs to
   pull over every hour?* (wild); The Sitcom's roles are the same four
-  in a different order. The tree's bank is the 09-08 packs (D429).
+  in a different order. The tree's bank is the 09-08 packs (D432).
 - **No call.** `callGroup`, `needsCall` and `callDue` are gone, with the
   brief's principle *nothing in a group is predicted or called*. The
   tree keeps D386's *And the room lands on…?* — an owner row since 09-08.

@@ -62,7 +62,7 @@ function dq(onReady) {
 // content/duel-questions.json, the DUEL LANE's bank, and a static import
 // here put that file in first paint so writing a duel question cost every
 // phone start-up bytes. Same shape as `dq()` above, and the same reason.
-// (Since D430 it carries the bank's fixed sample instead — the weight no
+// (Since D433 it carries the bank's fixed sample instead — the weight no
 // longer tracks the lane — but it is the DEMO store, and a live build
 // never needs it, so on demand is still right.)
 //
@@ -106,7 +106,7 @@ import LIVE from '../data/live';
 // is (LiveDuelPanel, below): it is the DEMO Circle body, and the note at its
 // render site says live mode never mounts it. Statically it pulled
 // duels-data.js and with it content/duel-questions.json — the DUEL LANE's
-// bank (its fixed sample since D430) — into first paint, so a scheduled
+// bank (its fixed sample since D433) — into first paint, so a scheduled
 // Routine writing a duel question was adding start-up bytes to every phone,
 // including the live builds that
 // can never render this body at all. The `duo` body beside it was already
@@ -268,7 +268,7 @@ export class DailySplit extends React.Component {
     // This call was unconditional, so the gate held on one of the two
     // call sites and a LIVE build fetched `duels-data.js` — and with it
     // content/duel-questions.json, then the duel lane's whole bank (its
-    // fixed sample since D430) — on every
+    // fixed sample since D433) — on every
     // daily mount, for a store the block's own comment says "on live this
     // module is never needed at all". Measured with a live fixture and a
     // full mount: DUELS.subscribe was reached once, which happens only if

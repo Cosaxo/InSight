@@ -3,7 +3,7 @@
 **Status: plan notes — §5's steps 1 and 2 were built (D386, 2026-09-06,
 the owner's *"yes build the first two steps"*); the instrument question
 was then answered by the owner's 2026-09-09 design rather than by this
-plan (D432): one idea in two settings — a 1v1's dims the share of cast
+plan (D435): one idea in two settings — a 1v1's dims the share of cast
 rounds that named you each axis, a group's the share of your received
 votes per seat — ten and eleven types, `MIN_DUO` 3 casts and `MIN_GROUP`
 2 votes. §3.4–§3.5's tables are answered, not adopted; §3.6's name rule
@@ -371,7 +371,7 @@ row on the reveal, the reading as a receipt row (`asides` in
 against the option the room landed on); it becomes a matched dim with
 the table in step 4.
 
-**The owner's 2026-09-08 design supplies the pick days** (D429,
+**The owner's 2026-09-08 design supplies the pick days** (D432,
 `docs/VISION-2026-09-08.md`): twenty role votes in five scenario packs
 and a rating of the group every fourth round, so Standing is folded from
 three rounds in four rather than from the eight picks the bank had. It

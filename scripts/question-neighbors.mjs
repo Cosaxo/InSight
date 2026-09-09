@@ -159,10 +159,10 @@ export const ALLOW = new Map([
   // Nonsense) scores exactly 0.500 on `runs` + `group`, and the two share
   // neither an answer space nor a subject: one casts a person, the other
   // rates the room. The rating is the owner's 2026-09-08 design, word for
-  // word (D429), so it is recorded here rather than reworded to dodge a
+  // word (D432), so it is recorded here rather than reworded to dodge a
   // lexical measure — the header's own rule.
   ["gp5~gs7", "a role vote against a rating: `runs`+`group` is the whole overlap, and the answer spaces are a person and a scale"],
-  // The two cast rounds (D432) — 056 in the friends pool, 057 in the
+  // The two cast rounds (D435) — 056 in the friends pool, 057 in the
   // romantic pool — carry the same prompt by design, *Most days, {name}
   // is…*, and differ in their four answers, which are the whole question. A
   // pair only ever draws from one pool (`mode`), so the two are never
@@ -456,7 +456,7 @@ export function buildDomains() {
   return {
     daily: specQ.map((q, i) => entry(dailyIdOf(i, dqBase), q)),
     feed: [...live, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
-    // …and the same exclusion for the duel pools since D429: five group
+    // …and the same exclusion for the duel pools since D432: five group
     // questions retired when the owner's design re-asked them as ratings
     // between two poles (`gs1` re-asks `gu3`, word for word), so the
     // retired form would score its replacement at 1.000 for exactly the

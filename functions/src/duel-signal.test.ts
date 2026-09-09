@@ -102,7 +102,7 @@ describe("the cross-group duel aggregate", () => {
     expect(agg!.counts).toEqual({ "0": 1, "1": 2 });
   });
 
-  it("publishes the guess-match rate for a 1v1 — and none for a group, where nothing is called (D432)", async () => {
+  it("publishes the guess-match rate for a 1v1 — and none for a group, where nothing is called (D435)", async () => {
     // Positional pairing: each partner's guess is checked against the
     // OTHER's actual pick. One right, one wrong.
     await fold("duo", QID, [

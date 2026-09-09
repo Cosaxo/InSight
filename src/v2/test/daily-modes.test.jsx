@@ -60,7 +60,7 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     // card's own heading.
     expect(screen.getAllByText("The Crew").length, "the group rail drew no groups").toBeGreaterThan(0);
     // …and the card body past it. The last reveal is what a played round
-    // resolves to (D432: who the room named, or where it lands between
+    // resolves to (D435: who the room named, or where it lands between
     // two poles), so it only exists if the card rendered its reveal arm
     // rather than a shell.
     expect(
@@ -79,7 +79,7 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     await switchTo("1v1");
     expect(screen.getAllByText("Henrik").length, "the partner rail drew no partners").toBeGreaterThan(0);
     // The 1v1 card's whole point is the pair of readings, and they are
-    // drawn as two runs on one axis (D432) — asserting on one would pass
+    // drawn as two runs on one axis (D435) — asserting on one would pass
     // on a card that lost the other.
     expect(screen.getAllByLabelText(/How well you read Henrik, one mark per round/).length,
       "the 1v1 card is missing your reading of them").toBeGreaterThan(0);

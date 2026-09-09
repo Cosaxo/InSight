@@ -199,7 +199,7 @@ export const ROUND_LEAD = 5;
 
 /** How long an open round with at least one answer stays open before it
  *  reveals for whoever played. The day's replacement (see above) — and
- *  two days rather than one since D432: the owner's 2026-09-09 design says
+ *  two days rather than one since D435: the owner's 2026-09-09 design says
  *  48 hours, and a 1v1 keeps closing at it for the one who played (the
  *  owner's rule of the 8th; the design's "no clock" was the shape that
  *  let a partner who stopped hold the other's answer forever). */
@@ -530,7 +530,7 @@ export function duelAggDelta(
       if (guess === votes[1 - i].optionIdx) guessMatches++;
     }
   }
-  // A GROUP'S VOTES CARRY NO GUESS (D432 — the owner's 2026-09-09 brief:
+  // A GROUP'S VOTES CARRY NO GUESS (D435 — the owner's 2026-09-09 brief:
   // "Nothing in a group is predicted or called"). For one week (D386) an
   // arm here scored a member's call on where the room landed, against the
   // tally with their own vote taken out; the rules refuse the field on the
@@ -1852,13 +1852,13 @@ export const SEEDED_FIELDS = [
   // would ever have got one. Held here now by `check:seed-fields`, which
   // compares this list against what gen-v2content actually emits.
   "bg", "c", "t", "p", "k", "w",
-  // The group as a cast (D429, the owner's 2026-09-08 design): a pick's
+  // The group as a cast (D432, the owner's 2026-09-08 design): a pick's
   // scenario pack and the role it casts, and a rate question's two poles.
   // `scen` and `role` are objects and ride the structural arm; `poles` is
   // an array and rides the element-wise compare. Compared, because the
   // card draws all three: a repacked role has to reach the standing doc.
   "scen", "role", "poles",
-  // The cast round (D432): the four them forms and the four axes.
+  // The cast round (D435): the four them forms and the four axes.
   "them", "dims",
   // The instruments' deep items (D416): the facet or position an item
   // scores and its keying, on the document so the device joins by id.

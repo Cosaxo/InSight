@@ -1,5 +1,5 @@
 // The profile's Roles tab (D204) — what the people around you make you,
-// read as an instrument in two settings (D432, the owner's 2026-09-09
+// read as an instrument in two settings (D435, the owner's 2026-09-09
 // design): what you are to each person in a 1v1, and your seat in each
 // room.
 //

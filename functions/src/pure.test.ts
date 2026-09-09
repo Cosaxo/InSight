@@ -163,7 +163,7 @@ describe("rounds (ROUNDS-PLAN, D426)", () => {
     // ONE constant each. firestore.rules carries the lead as a literal and
     // rules.test.ts pins the two equal; the deadline is the day's
     // replacement and is two days long — the owner's 2026-09-09 design
-    // (D432), over the day it had been.
+    // (D435), over the day it had been.
     expect(ROUND_LEAD).toBe(5);
     expect(ROUND_DEADLINE_MS).toBe(48 * 60 * 60 * 1000);
   });
@@ -1413,7 +1413,7 @@ describe("the duel question-level signal (D40 part 3)", () => {
     }
   });
 
-  it("scores nothing for a group — nothing in a group is called (D432)", () => {
+  it("scores nothing for a group — nothing in a group is called (D435)", () => {
     // Four votes, three on option 0, three of them carrying a guess the
     // rules no longer admit (an older client's). D386 scored these against
     // the room; the owner's 2026-09-09 brief removed the call, and a stray

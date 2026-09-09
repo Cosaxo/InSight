@@ -122,7 +122,7 @@ describe("history stays legal — the false positives that would matter", () => 
   });
 });
 
-describe("the duel surfaces' voice (D432)", () => {
+describe("the duel surfaces' voice (D435)", () => {
   // Verbatim from the tree on 2026-09-09, before step E of
   // VISION-2026-09-09 — every one shipped green under every gate.
   const WAS_LIVE = [
@@ -133,7 +133,7 @@ describe("the duel surfaces' voice (D432)", () => {
     ["LiveRolesPanel, the floor", "No group has 2 revealed days you played yet"],
     ["the design's own removed list", "crowned by the majority"],
     ["the design's own removed list", "the one in charge"],
-    ["LiveDuelPanel, pre-D432", "sealed until tomorrow"],
+    ["LiveDuelPanel, pre-D435", "sealed until tomorrow"],
     ["a template literal", "${n} days revealed"],
   ];
   for (const [where, text] of WAS_LIVE) {

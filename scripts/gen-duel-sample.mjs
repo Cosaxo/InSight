@@ -1,12 +1,12 @@
 // Regenerates content/duel-sample.json — the FIXED slice of the duel bank
-// that the JavaScript bundle carries (D430: learn's treatment, D284, one
+// that the JavaScript bundle carries (D433: learn's treatment, D284, one
 // bank over).
 //
 // WHY THIS EXISTS. `spec/duels-data.js` imported the whole of
 // `content/duel-questions.json`, so every duel question was compiled into
 // the app under `check:content`'s 24 KiB cap. D284 left it there on
 // purpose — a weekly lane at 14.6 KiB had years of slack — and the slack
-// went in a week: the cast (D429) took the file to 22.8 KiB, and the burst
+// went in a week: the cast (D432) took the file to 22.8 KiB, and the burst
 // (D426) runs the lane daily at 25 questions a run, so its next run would
 // have crossed the cap. The cap's own instruction was this file, not a
 // higher number.
@@ -43,7 +43,7 @@ const SRC = join(root, "content", "duel-questions.json");
 const OUT = join(root, "content", "duel-sample.json");
 
 // Group questions per kind. The kinds are `check:content`'s closed set with
-// one split: a `pick` that names a scenario pack is a ROLE VOTE (D429) and
+// one split: a `pick` that names a scenario pack is a ROLE VOTE (D432) and
 // is counted apart from the plain member picks, because the demo's four
 // seeded groups each walk the pool from their own offset (`gBase`, three
 // apart) for a week, and the cast is what a group round is now — a sample
@@ -165,7 +165,7 @@ if (invokedDirectly) {
         + "content/duel-questions.json generates.\n\n"
         + "  Run `npm run build:duel-sample` and commit the result.\n\n"
         + "  The sample is the slice of the duel bank the JS bundle carries,\n"
-        + "  and it is DERIVED (D430, D284's shape). Editing it by hand makes\n"
+        + "  and it is DERIVED (D433, D284's shape). Editing it by hand makes\n"
         + "  the demo build serve questions the bank does not have — which no\n"
         + "  other gate can see, because the demo build is the one with no\n"
         + "  backend to disagree with it. A retirement in the bank moves it\n"

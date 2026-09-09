@@ -283,7 +283,7 @@ export const RETIRED = [
   },
 ];
 
-// ── the duel surfaces' voice (D432, the owner's 2026-09-09 brief) ──
+// ── the duel surfaces' voice (D435, the owner's 2026-09-09 brief) ──
 //
 // A THIRD list, narrower in scope than the two above: it reads only the
 // screens where a 1v1 or a group is played or read back, and it holds a
@@ -293,7 +293,7 @@ export const RETIRED = [
 // reason is the same as D98's: a sentence that says "days" describes a
 // cadence the app no longer has (a round is a round, ROUNDS-PLAN / D426),
 // and one that says "majority" or "crowned" describes a call the group
-// no longer makes (D432: nothing in a group is predicted or called). Both
+// no longer makes (D435: nothing in a group is predicted or called). Both
 // read as true to a user who cannot see the code.
 //
 // The same lesson as the two lists above, one step earlier: the days
@@ -318,7 +318,7 @@ export const DUEL_SURFACES = [
   "src/v2/data/roles.ts",
   "src/v2/data/groupCast.ts",
   // …and the demo's family, since the port that made it play rounds
-  // (D432 step 6): the store's copy, the two cards, the Groups stop, the
+  // (D435 step 6): the store's copy, the two cards, the Groups stop, the
   // role map, and the Map's People branch that reads the store.
   "src/v2/spec/duels-data.js",
   "src/v2/spec/group-daily.jsx",
@@ -346,19 +346,19 @@ export const VOICE = [
   },
   {
     re: /\b(?:tomorrow|the morning after|until tomorrow)\b/i,
-    why: "a reveal is at everyone-played or the deadline, not a morning (D432) — say until the reveal",
+    why: "a reveal is at everyone-played or the deadline, not a morning (D435) — say until the reveal",
   },
   {
     re: /\bmajority\b/i,
-    why: "nothing in a group is called since D432 — a room names people, it has no majority",
+    why: "nothing in a group is called since D435 — a room names people, it has no majority",
   },
   {
     re: /\bcrowned?\b(?!-)/i,
-    why: "nothing in a group is called since D432 — say who the room named, never crowned",
+    why: "nothing in a group is called since D435 — say who the room named, never crowned",
   },
   {
     re: /\bin charge\b/i,
-    why: "a seat is said as its line (D432) — never 'in charge'",
+    why: "a seat is said as its line (D435) — never 'in charge'",
   },
 ];
 

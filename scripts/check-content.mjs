@@ -458,7 +458,7 @@ const promptsBySurface = new Map();
 for (const q of entries) {
   if (q.active === false) continue;
   // A cast round exists once per 1v1 POOL with the same prompt by design
-  // (D432): the friends and romantic pools are disjoint (`mode`), and a
+  // (D435): the friends and romantic pools are disjoint (`mode`), and a
   // pair only ever draws from one of them — so the key carries the mode.
   const key = `${q.surface}\u0000${q.topic === "cast" ? `${q.mode ?? ""}\u0000` : ""}${q.prompt}`;
   if (promptsBySurface.has(key)) {
@@ -490,14 +490,14 @@ for (const q of entries) {
   }
 }
 
-// The seats a role is cast in and the axes a cast round names (D432) — the
+// The seats a role is cast in and the axes a cast round names (D435) — the
 // two instruments' dims, closed here so a bank entry cannot invent one the
 // fold does not know (data/roles.ts reads both literally).
 const SEATS = ["engine", "hands", "heart", "wild"];
 const AXES = ["trust", "spark", "judgement", "constancy"];
 
 // ---- group kinds are a closed set (the reveal renders each differently).
-// `rate` joined at D429 (the owner's 2026-09-08 design): a five-step scale
+// `rate` joined at D432 (the owner's 2026-09-08 design): a five-step scale
 // between two poles, asked of the group about itself every fourth round.
 // Its shape is held here because the card and the fold both read it
 // literally — five options, two poles, or the ballot has no ends to draw.
@@ -531,14 +531,14 @@ for (const q of entries) {
   if (q.role && (typeof q.role.id !== "string" || typeof q.role.label !== "string")) {
     errors.push(`${q.id}: role needs id and label`);
   }
-  // The SEAT (D432): what a member's received votes cluster into, so a
+  // The SEAT (D435): what a member's received votes cluster into, so a
   // role without one is a vote the instrument cannot count.
   if (q.role && !SEATS.includes(q.role.seat)) {
     errors.push(`${q.id}: role seat ${JSON.stringify(q.role.seat)} not ${SEATS.join("/")}`);
   }
 }
 
-// ---- every pack is ONE role per seat (D432): the seats are what the group
+// ---- every pack is ONE role per seat (D435): the seats are what the group
 // instrument measures, and a pack with two hands and no heart would cast
 // its members into a seat nobody can earn there — which is exactly the
 // dead-axis shape D204 spent a release refusing. Over ACTIVE role votes:
@@ -563,7 +563,7 @@ for (const q of entries) {
 // and is held apart from likeness and insight — so a 1v1 question with no
 // domain, or a new word nobody taught the fold, would be scored as
 // something it is not. Both pools, since they share the surface.
-// `cast` joined at D432 (the owner's 2026-09-09 design): the round that asks
+// `cast` joined at D435 (the owner's 2026-09-09 design): the round that asks
 // what the other person is to you, one entry per pool, dealt every fourth
 // round. Its shape is held here because the card, the fold and the roles
 // instrument all read it literally — four answers, four *them* forms, four
@@ -709,7 +709,7 @@ const NOT_SEEDED = {
     + "check:learn-sample. It is emphatically not a second bank to edit",
   "duel-sample.json":
     "generated OUTPUT, not an input — the fixed slice of duel-questions.json "
-    + "the JS bundle carries (D430: the whole bank used to be compiled in "
+    + "the JS bundle carries (D433: the whole bank used to be compiled in "
     + "under the 24 KiB cap below, and the daily burst was one run from "
     + "crossing it). Written by scripts/gen-duel-sample.mjs, imported by "
     + "src/v2/spec/duels-data.js so the demo build has duel questions, and "
@@ -735,7 +735,7 @@ const NOT_SEEDED = {
 // its subjects.
 //
 // What is NOT here is the whole point: daily, feed, test, pick, pulse,
-// call, lens and — since D430 — duel content reach the client only through
+// call, lens and — since D433 — duel content reach the client only through
 // Firestore, and must keep doing so. Adding a line here is the decision,
 // not the paperwork.
 const BUNDLED_CONTENT = {
@@ -762,7 +762,7 @@ const BUNDLED_CONTENT = {
   "duel-sample.json": {
     maxKiB: 16,
     why:
-      "the fixed slice of the duel bank the demo build needs (D430) — "
+      "the fixed slice of the duel bank the demo build needs (D433) — "
       + "generated at PER_KIND questions a group kind and PER_DOMAIN a 1v1 "
       + "domain plus the packs those votes name, so it grows with the number "
       + "of KINDS and DOMAINS and never with the bank. Crossing this means a "

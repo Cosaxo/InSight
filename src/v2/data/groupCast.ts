@@ -1,5 +1,5 @@
 // groupCast — what the Mirror's Groups stop draws, folded from the room's
-// own reveals (D432, the owner's 2026-09-09 design). Pure: no store, no
+// own reveals (D435, the owner's 2026-09-09 design). Pure: no store, no
 // window, no I/O — the caller hands in the reveal history it already
 // fetched for the duel panel and the bank lookup (`bankQ`) that says what
 // kind of round each reveal was.
@@ -31,7 +31,7 @@
 import { voteQid, type PortraitReveal, type PortraitVote } from "./groupPortrait";
 import { seatOf, type BankLookup, type SeatId } from "./roles";
 
-/** A scenario pack, as the seeded question carries it (D429). */
+/** A scenario pack, as the seeded question carries it (D432). */
 export interface Pack { id: string; label: string; hue: number }
 
 export interface RoleVoteRow {
@@ -88,7 +88,7 @@ function counted(r: PortraitReveal): Array<[string, PortraitVote]> {
  * Who the room named, role by role.
  *
  * A reveal is a role vote when the bank says its question is a `pick`
- * carrying a role (D429). A question the bank cannot name — a device that
+ * carrying a role (D432). A question the bank cannot name — a device that
  * has not re-read the bank, a question since retired — is no row here
  * rather than a row with a guessed role.
  */

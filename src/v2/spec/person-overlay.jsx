@@ -97,7 +97,7 @@ function derivePerson(p, me) {
   return { big5, political, morals, chronotype, sleepAvg, closest };
 }
 
-// ─── The instruments turned toward one person (2026-08-26, D432) ───
+// ─── The instruments turned toward one person (2026-08-26, D435) ───
 // The same role math the Roles panel runs on YOU, read for THEM off the
 // shared record: what YOU said they are, over the cast rounds (the share
 // of casts per axis — trust · spark · judgement · constancy), and their
@@ -553,7 +553,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           );
         })()}
 
-        {/* ─── Together (D432, the person page's Together tab of the owner's
+        {/* ─── Together (D435, the person page's Together tab of the owner's
             2026-09-09 design, drawn as a section of this page): the doors —
             a 1v1 with them, the groups you share, each leading with their
             nearest named type read off the shared record alone

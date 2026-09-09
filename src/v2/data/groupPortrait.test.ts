@@ -278,10 +278,10 @@ describe("the pick-day snapshot (D224)", () => {
 // given to something else. Nothing that compares two optionIdx values may
 // look across that line: option 2 of one prompt has nothing to do with
 // option 2 of another.
-describe("who casts the room like you — the snapshot, not the index (D432)", () => {
+describe("who casts the room like you — the snapshot, not the index (D435)", () => {
   // Two clients can hold the roster in different orders, so on a pick day
   // the same index need not be the same person and the same person need
-  // not be the same index. The pairwise fold compared indexes until D432,
+  // not be the same index. The pairwise fold compared indexes until D435,
   // which put "casts the room like you" beside somebody who had named a
   // DIFFERENT person at the same index.
   const pick = (n: number, votes: Record<string, { o: number; p?: string; late?: boolean }>) => ({

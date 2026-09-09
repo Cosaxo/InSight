@@ -50,7 +50,7 @@ const LIVE = vi.hoisted(() => {
       ? { open: 1, next: null as number | null, sealed: [1], lead: 5 }
       : { open: 1, next: 1 as number | null, sealed: [] as number[], lead: 5 }),
     roundQ: (gid: string, round: number) => { void gid; void round; return Q0 as Record<string, unknown> | null; },
-    // The first run's group preview (D432): the bank's first role vote, or
+    // The first run's group preview (D435): the bank's first role vote, or
     // null before the cast has reached the device.
     roleVotePreview: () => null as { prompt: string; scen: { id: string; label: string; hue: number }; role: { id: string; label: string } } | null,
     revealFor: () => null as Record<string, unknown> | null,
@@ -331,7 +331,7 @@ describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
   });
 });
 
-describe("LiveDuelPanel · the group as a cast (D429)", () => {
+describe("LiveDuelPanel · the group as a cast (D432)", () => {
   const CREW = { ...DUO, id: "g2", name: "The Crew", mode: "group", memberUids: ["u_me", "u_ada", "u_bo"], memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" } };
   const ROLE = {
     id: "group-gr0", prompt: "Who plans the whole thing?", options: ["Me", "Ada", "Bo"], kind: "pick",
@@ -354,7 +354,7 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     expect(screen.getByRole("button", { name: "Bo" })).toBeTruthy();
     // your own option is your pill and the word, so its name reads "you You"
     expect(screen.getByRole("button", { name: "you You" })).toBeTruthy();
-    // nothing in a group is called (D432): the tap IS the vote, no guess
+    // nothing in a group is called (D435): the tap IS the vote, no guess
     fireEvent.click(screen.getByRole("button", { name: "Ada" }));
     // Ada is the second member (memberUids order), so index 1 — and no guess
     await waitFor(() => expect(calls).toEqual([[1, undefined]]));
@@ -394,7 +394,7 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     // the verdict names the cast, not "the room landed on"
     expect(reveal.textContent).toMatch(/Ada is the mastermind/);
     expect(reveal.textContent).not.toMatch(/The room landed on/);
-    // …and nothing in a group is called (D432)
+    // …and nothing in a group is called (D435)
     expect(reveal.textContent).not.toMatch(/you called/);
     // the held row is first and marked
     const held = reveal.querySelector("[data-held]");
@@ -421,7 +421,7 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     expect(reveal.textContent).not.toMatch(/called/);
   });
 
-  it("the run is a record: a dot per vote in the pack's ink whose caption names who, a square per rating (D432)", () => {
+  it("the run is a record: a dot per vote in the pack's ink whose caption names who, a square per rating (D435)", () => {
     const bank: Record<string, unknown> = { "group-gr0": ROLE, "group-gs0": RATE };
     LIVE.social.bankQ = (qid: string) => (bank[qid] as Record<string, unknown>) || null;
     LIVE.social.roundInfo = () => ({ open: 3, next: 3, sealed: [], lead: 5 });
@@ -452,7 +452,7 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
   });
 });
 
-describe("LiveDuelPanel · the cast round (D432)", () => {
+describe("LiveDuelPanel · the cast round (D435)", () => {
   const CAST = {
     id: "duo-056", kind: "cast", prompt: "Most days, {name} is…",
     options: ["the one you tell first", "the one who gets you out the door", "the one you ask what to do", "the one who is just always there"],
@@ -499,7 +499,7 @@ describe("LiveDuelPanel · the cast round (D432)", () => {
   });
 });
 
-describe("LiveDuelPanel · the first run draws a real role vote (D432)", () => {
+describe("LiveDuelPanel · the first run draws a real role vote (D435)", () => {
   it("previews the bank's first role vote when the bank has one", () => {
     LIVE.social.groups = () => [];
     LIVE.social.roleVotePreview = () => ({
@@ -580,7 +580,7 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("a group seals on the one tap — nothing in a group is called (D432)", async () => {
+  it("a group seals on the one tap — nothing in a group is called (D435)", async () => {
     // For one week (D386) a group's second tap was a call on where the
     // room would land. The owner's 2026-09-09 brief removed it, and the
     // rules refuse a guess on the group surface, so the tap IS the vote:
@@ -1187,7 +1187,7 @@ describe("LiveDuelPanel · the pair's read-runs", () => {
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     LIVE.social.revealHistory = () => [hist("2026-08-12", 1, 0)];
     render(<LiveDuelPanel mode="group" />);
-    // The group's one run is the cast's record since D432: a dot per vote
+    // The group's one run is the cast's record since D435: a dot per vote
     // in the pack's ink, a square per rating — never the pair's two runs.
     expect(screen.getByLabelText(/The cast so far/)).toBeTruthy();
     expect(screen.queryByLabelText(/How well/)).toBeNull();
