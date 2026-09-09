@@ -16,6 +16,7 @@ import {
   delta,
   evalCounts,
   UPDATE_TAIL,
+  withCalibrateBlock,
   withFillers,
 } from "./rules-budget.mjs";
 
@@ -89,6 +90,40 @@ describe("withFillers", () => {
   it("REFUSES when the anchor is doubled", () => {
     const doubled = `${RULE}\n${CREATE_TAIL}`;
     expect(() => withFillers(doubled, 1)).toThrow(/found 2 times/);
+  });
+});
+
+describe("withCalibrateBlock", () => {
+  const DOCS = [
+    "rules_version = '2';",
+    "service cloud.firestore {",
+    "  match /databases/{database}/documents {",
+    "    match /x/{id} { allow read: if true; }",
+    "  }",
+    "}",
+  ].join("\n");
+
+  it("inserts ONE block at the top of the documents match, with n heavy fillers of `weight` compares each", () => {
+    const out = withCalibrateBlock(DOCS, 2, 3);
+    expect(out.split("match /zz_calibrate/{id}").length - 1).toBe(1);
+    expect(out.indexOf("match /zz_calibrate/{id}")).toBeLessThan(out.indexOf("match /x/{id}"));
+    // 2 fillers × 3 compares, every literal distinct so none can fold.
+    expect(new Set(out.match(/zzcal\d+_\d+/g)).size).toBe(6);
+    expect(out).toMatch(/allow create: if request\.auth != null\n\s+&& \(request\.resource\.data\.surface != "zzcal0_0" && request\.resource\.data\.surface != "zzcal0_1" && request\.resource\.data\.surface != "zzcal0_2"\)\n\s+&& \(/);
+    // The rest of the file is untouched.
+    expect(out).toContain("    match /x/{id} { allow read: if true; }");
+  });
+
+  it("n = 0 is the bare block — the cost the bracket allows for", () => {
+    expect(withCalibrateBlock(DOCS, 0, 5)).toContain("allow create: if request.auth != null;");
+  });
+
+  // The same refusal as withFillers, for the same reason: a block that
+  // landed nowhere would bisect an unmodified file and call the compile
+  // ceiling a unit.
+  it("refuses when the documents match is absent or doubled", () => {
+    expect(() => withCalibrateBlock("service x {}", 1, 5)).toThrow(/found 0 times, expected 1/);
+    expect(() => withCalibrateBlock(`${DOCS}\n${DOCS}`, 1, 5)).toThrow(/found 2 times/);
   });
 });
 

@@ -12,7 +12,7 @@
 // any of them is moved. The plan's rule is that nothing is restructured on
 // an estimate.
 //
-// TWO MEASUREMENTS, checked against each other.
+// TWO MEASUREMENTS, checked against each other — and a UNIT for the second.
 //
 //   cost      The emulator's rule-coverage report (the one rules-coverage.mjs
 //             already reads) records how many times every expression in the
@@ -27,6 +27,13 @@
 //             filler number wins and the disagreement is reported, because
 //             the report's units and Firestore's budget units are not
 //             documented to be the same thing.
+//   unit      What one filler costs in BUDGET units, measured rather than
+//             assumed: a bare rule (`request.auth != null`) in a match
+//             block of its own, tipped over the 1,000 by fillers of known
+//             weight, so the N at the flip brackets the unit. D429 and the
+//             first version of this script called a filler "~3
+//             expressions" and printed headroom in that currency; the
+//             block is what replaced the guess with a number (D432).
 //
 // AND A VERDICT that can tell the two kinds of no apart. The emulator's
 // reason text — "maximum of 1000 expressions to evaluate has been reached"
@@ -41,12 +48,12 @@
 //
 // Options:
 //   --write-baseline          write scripts/rules-budget-baseline.json
-//   --ablate NAME=true|false  replace helper NAME's body with `return X;`
+//   --ablate NAME=EXPR        replace helper NAME's body with `return EXPR;`
 //                             and measure that variant instead (repeatable)
 //   --fillers-on update       put the fillers on the UPDATE arm instead of
 //                             create — answers whether the budget is per
 //                             allow statement or per request
-//   --max-fillers N           bisection upper bound (default 400)
+//   --max-fillers N           bisection upper bound (default 200)
 //   --lines N                 how many top lines to print per probe (12)
 //
 // The pure parts — the rule transforms, the verdict classifier, the
@@ -80,9 +87,11 @@ export const CREATE_TAIL = "&& createArm();";
 export const UPDATE_TAIL = "|| request.time > resource.data.editedAt + duration.value(60, 's'));";
 
 /**
- * One filler conjunct. ~3 expressions (a field read, a compare, the `&&`),
- * which is what D429 calibrated against. `surface` is chosen because every
- * answer carries it, so the filler is evaluated and never short-circuits.
+ * One filler conjunct — a field read, a compare, the `&&`. What that costs
+ * in budget units is `calibrate`'s to say, not this comment's: D429 put it
+ * at ~3 and the calibration block found otherwise. `surface` is chosen
+ * because every answer carries it, so the filler is evaluated and never
+ * short-circuits.
  */
 export const filler = (i) => `\n          && request.resource.data.surface != "zzfill${i}"`;
 
@@ -115,6 +124,36 @@ export function withFillers(rules, n, where = "create") {
   let fill = "";
   for (let i = 0; i < n; i += 1) fill += filler(i);
   return head + block.replace(tail, `${body}${fill};`);
+}
+
+/** The top of the file's one documents match — where the calibration block goes. */
+export const DOCUMENTS_OPEN = "match /databases/{database}/documents {";
+/** The calibration block's collection; nothing in the tree writes there. */
+export const CALIBRATE_PATH = "zz_calibrate";
+
+/**
+ * The calibration block: a rule whose own cost is a handful of units, so
+ * that the N at which fillers tip it over the 1,000 is the cost of a
+ * filler and almost nothing else. Inserted at the top of the documents
+ * match so no other rule is in its path. Its fillers are HEAVY — `weight`
+ * compares in one parenthesised conjunct, exactly `weight` plain fillers'
+ * worth — because a plain filler costs too little to reach the budget
+ * before the compile ceiling stops the file loading (D432: ~95
+ * conjuncts), and a heavy one reaches it in a third of the depth.
+ */
+export function withCalibrateBlock(rules, n, weight) {
+  const count = rules.split(DOCUMENTS_OPEN).length - 1;
+  if (count !== 1) {
+    throw new Error(`rules-budget: \`${DOCUMENTS_OPEN}\` found ${count} times, expected 1`);
+  }
+  let fill = "";
+  for (let i = 0; i < n; i += 1) {
+    const terms = [];
+    for (let j = 0; j < weight; j += 1) terms.push(`request.resource.data.surface != "zzcal${i}_${j}"`);
+    fill += `\n        && (${terms.join(" && ")})`;
+  }
+  const block = `\n    match /${CALIBRATE_PATH}/{id} {\n      allow create: if request.auth != null${fill};\n    }`;
+  return rules.replace(DOCUMENTS_OPEN, `${DOCUMENTS_OPEN}${block}`);
 }
 
 /**
@@ -422,6 +461,57 @@ async function measureHeadroom(rules, label, where, maxFillers) {
   return out;
 }
 
+/**
+ * Budget units per plain filler, from the calibration block. At the flip N
+ * the write is allowed (cost ≤ 1,000) and at N+1 it is refused BY BUDGET,
+ * so N brackets the unit; the block's own cost — `request.auth != null`
+ * and the match — is taken as at most 10 units, which is most of the
+ * bracket's width. Two weights are run so the reading checks against
+ * itself: their brackets must overlap, and the unit is the middle of the
+ * overlap. A flip whose N+1 did not load, or was refused for a reason, is
+ * a number about something other than the budget and is reported as
+ * exactly that rather than folded in.
+ */
+async function calibrate(rules, label, maxFillers, weights = [5, 10]) {
+  const { doc, setDoc } = await import("firebase/firestore");
+  const out = [];
+  for (const w of weights) {
+    const verdicts = new Map();
+    const ok = async (n) => {
+      if (!verdicts.has(n)) {
+        let verdict;
+        try {
+          const { env } = await boot(withCalibrateBlock(rules, n, w), `${label}-cal${w}-${n}`);
+          try {
+            await setDoc(doc(env.authenticatedContext("cal").firestore(), CALIBRATE_PATH, `n${n}`), { surface: "cal" });
+            verdict = "allowed";
+          } catch (e) {
+            verdict = classify(e);
+          } finally {
+            await env.cleanup();
+          }
+        } catch (e) {
+          if (!/too complex to evaluate safely|Error compiling rules/i.test(String(e?.message || e))) throw e;
+          verdict = "compile";
+        }
+        verdicts.set(n, verdict);
+      }
+      return verdicts.get(n) === "allowed";
+    };
+    const n = await bisect(ok, 0, maxFillers);
+    const next = verdicts.get(n + 1) ?? "none";
+    const clean = n >= 1 && next === "budget";
+    const lo = clean ? Math.round((990 / (w * (n + 1))) * 100) / 100 : null;
+    const hi = clean ? Math.round((1000 / (w * n)) * 100) / 100 : null;
+    out.push({ weight: w, n, next, clean, lo, hi });
+  }
+  const clean = out.filter((c) => c.clean);
+  const lo = Math.max(...clean.map((c) => c.lo));
+  const hi = Math.min(...clean.map((c) => c.hi));
+  const unit = clean.length && lo <= hi ? Math.round(((lo + hi) / 2) * 10) / 10 : null;
+  return { weights: out, unit };
+}
+
 // ── CLI ─────────────────────────────────────────────────────────────
 
 function arg(name, dflt) {
@@ -455,7 +545,18 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   // The compile ceiling first: it bounds the headroom bisection, and it is
   // a number the plan's gate wants on its own.
   const ceiling = await measureCompileCeiling(rules, label, where, maxFillers);
-  console.log(`compile ceiling: the ruleset still loads with ${ceiling} fillers (≈${ceiling * 3} expressions) on the ${where} arm`);
+  console.log(`compile ceiling: the ruleset still loads with ${ceiling} fillers on the ${where} arm`);
+
+  // THE UNIT, before anything is printed in it.
+  const cal = await calibrate(rules, label, maxFillers);
+  for (const c of cal.weights) {
+    console.log(`calibration · weight ${String(c.weight).padStart(2)}: allowed at N=${c.n}, ${c.next} at N+1`
+      + (c.clean ? ` → one plain filler ∈ (${c.lo}, ${c.hi}] budget units` : " → not a budget flip; discarded"));
+  }
+  const unit = cal.unit;
+  console.log(unit == null
+    ? "calibration: no clean, agreeing flip — headroom is printed in fillers only"
+    : `calibration: one plain filler ≈ ${unit} budget units`);
 
   // COSTS FIRST, AND PRINTED FIRST. The headroom pass boots the emulator
   // ~10 times per probe and is where a transform will refuse; the cost
@@ -478,20 +579,30 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
   const headroom = await measureHeadroom(rules, label, where, Math.max(0, ceiling));
   console.log("\nprobe                                        fillers  ≈exprs");
+  const bounded = (h) => h != null && h >= ceiling;
   for (const c of costs) {
     const h = headroom.get(c.name);
     // -1 is bisect's "even zero fillers fails": the write is already past
-    // the line today, which for a refusal means refused BY BUDGET.
-    const hs = h == null ? "     —" : h < 0 ? "  over" : String(h).padStart(6);
-    const es = h == null || h < 0 ? "     —" : String(h * 3).padStart(6);
+    // the line today, which for a refusal means refused BY BUDGET. A probe
+    // still unchanged AT the compile ceiling never flipped at all — its
+    // headroom is at least that, and the file cannot be made longer to
+    // find out how much more.
+    const ge = bounded(h) ? "≥" : "";
+    const hs = h == null ? "     —" : h < 0 ? "  over" : `${ge}${h}`.padStart(6);
+    const es = h == null || h < 0 || unit == null ? "     —" : `${ge}${Math.round(h * unit)}`.padStart(6);
     console.log(`${c.name.padEnd(44)} ${hs}  ${es}`);
   }
-  // Calibration: does the coverage sum agree with the filler headroom?
-  console.log("\n— calibration (cost + 3·fillers should be ≈ 1000 on an allowed probe) —");
-  for (const c of costs) {
-    const h = headroom.get(c.name);
-    if (h == null || h < 0 || c.expect !== "allowed") continue;
-    console.log(`  ${c.name.padEnd(44)} ${String(c.cost + h * 3).padStart(5)}`);
+  // Coverage against budget: if the report counted budget units, an
+  // allowed probe's cost plus its headroom would land at ≈1,000. D432 has
+  // the answer — it does not, and not by a constant factor either — and
+  // the check stays so a tree on which it starts to hold is noticed.
+  if (unit != null) {
+    console.log(`\n— coverage cost + ${unit}·fillers (≈ 1000 only if the report counted budget units) —`);
+    for (const c of costs) {
+      const h = headroom.get(c.name);
+      if (h == null || h < 0 || bounded(h) || c.expect !== "allowed") continue;
+      console.log(`  ${c.name.padEnd(44)} ${String(Math.round(c.cost + h * unit)).padStart(5)}`);
+    }
   }
 
   const wrong = costs.filter((c) => c.verdict !== c.expect);
@@ -503,7 +614,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const snapshot = {
       measured: new Date().toISOString().slice(0, 10),
       variant: label,
-      probes: costs.map((c) => ({ name: c.name, expect: c.expect, verdict: c.verdict, cost: c.cost, fillers: headroom.get(c.name) })),
+      fillersOn: where,
+      compileCeiling: ceiling,
+      unit,
+      calibration: cal.weights,
+      probes: costs.map((c) => ({
+        name: c.name,
+        expect: c.expect,
+        verdict: c.verdict,
+        cost: c.cost,
+        fillers: headroom.get(c.name),
+        // true: never flipped below the compile ceiling — `fillers` is a floor.
+        bounded: bounded(headroom.get(c.name)),
+      })),
     };
     writeFileSync(BASELINE, `${JSON.stringify(snapshot, null, 2)}\n`);
     console.log(`\nrules-budget: baseline written — ${BASELINE}`);
