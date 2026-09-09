@@ -48139,3 +48139,105 @@ own rule.
 **Measured before the push:** `test:scripts`, `lint`, `test:unit`,
 `build`, `check:globals`, `check:docs`, `check:figures` — the counts are
 in the PR body.
+
+## D441 · The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again
+
+**Date:** 2026-09-09 · **Status:** Adopted — the owner's answer, 2026-09-09,
+to the `OWNER-LIST.md` § Decisions row *"Should the email door ask too?"*:
+**add it.** Amends
+[D414](#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why)
+§3, whose sentence — *signing in to an account that already exists … is
+a second, named tap with the consequence written on it, never what the
+first tap does* — was true of two doors and not of the third.
+
+### 1 · What was measured (night shift B, 2026-09-07)
+
+`fly("apple" | "google")` catches `auth/credential-already-in-use` and
+shows the in-use screen — *"That account already has an InSight history.
+Signing in to it leaves this phone's answers behind — they are not
+merged"* — with a labelled second tap and a way back. The email door
+never reached it: `emailSignIn` called `signInWithEmailAndPassword`
+directly, the auth observer saw a new uid, and `resetForNewUid` purged
+the session. No screen, no second tap, nothing to go back to. And the
+gate STEERED people there: a create that failed with
+`email-already-in-use` rendered *"Sign in instead"* as the way on, so the
+one door with no warning was the one the app pointed at.
+
+The night shift did the half it could do alone. `web/privacy.html` had
+promised the warning for all three doors, which was false, so the page
+was made to state the difference and four `check:policy-claims` rows
+went under the section (before that night the whole account section
+could be deleted at exit 0). The other half — a confirmation step on the
+primary sign-in path of the wall — is a product change, and it went to
+the owner as the row.
+
+### 2 · What ships
+
+**The condition, not an error.** Apple and Google learn that an account
+exists from Firebase refusing the link. A password sign-in has no link
+to refuse — the call *is* the replacement — so the email door asks on
+the condition instead: in sign-in mode, while the session is anonymous
+and unlinked (`!LIVE.linked` at the gate, where `SignInGate` mounts the
+screen only for an unlinked session and `initLive()` has already signed
+it in), the first tap opens the existing in-use screen and makes no
+call. The second tap — the same *"Sign in and leave this phone's
+answers"* button the other two doors use — runs `emailSignIn`. *"Use a
+different account"* goes back to the form, still filled.
+
+**A failed second tap comes back to the form.** A wrong password or an
+unknown address answers on the door, through the same `FAILURES` table
+as before, because the way out those name — *Forgot password?*, a
+retyped address — is a control the form has and the in-use screen does
+not. The next *Sign in* asks again: a wrong password does not spend the
+acknowledgement, and the cost of that is one tap on a retry.
+
+**The page promises the warning again, and the gate holds it.**
+`web/privacy.html` § The account says the app says so on the screen
+before it happens whichever of the three doors you use, and that it
+takes a second tap. The fourth `check:policy-claims` row of the section
+now pins that sentence, relabelled to this record, and a fifth — an
+absence row — forbids the retired caveat, *"With an email address it
+does not"*, from coming back. Page and gate move in the same commit as
+the code, which is the D183 order.
+
+**Pinned.** `LiveSignInGate.test.tsx`: an anonymous session tapping
+*Sign in* — reached the way the row named, create → *taken* → *Sign in
+instead* — sees the warning with no call made and a way back onto the
+filled form; a linked session is not asked (the one case that renders
+the screen without its wrapper, because the wrapper never mounts it for
+a linked session, so that arm is observable nowhere else); the second
+tap makes the call with the typed credentials; a failed second tap lands
+on the form with *Forgot password?*. Run against the tree before this
+record, four of the suite's twenty-six cases fail — the one that expects
+the ask, the two whose sign-in is the second tap, and the failure case
+that expects the form — and the linked-session case is green on both
+trees, which is what it is for.
+
+### 3 · What it deliberately does not do
+
+- **No acknowledgement memo.** A flag remembering the second tap across
+  a retry would save one tap on a wrong password and be one more piece
+  of state on the wall's worst screen. Asking again is one rule for
+  every attempt.
+- **`firebaseImpl.ts` § emailSignIn is untouched.** The row named it as
+  a possible seam; it is not one. The function is the SDK call and
+  nothing else, and the gate is its only caller — verified, one site. A
+  condition there would need a bypass for the second tap, which is a
+  second way to sign in.
+- **No new store member.** The condition reads `LIVE.linked`, which
+  exists and is pinned by `vote.test.ts`; nothing joins the
+  `window.LIVE` surface.
+- **The copy is the existing screen's, unchanged.** *"That account
+  already has an InSight history"* is what signing in means; at the
+  email door it is read before the password is checked, and a wrong
+  password answers on the form.
+
+### 4 · The arithmetic
+
+One tap more on one path — a password sign-in from an anonymous session
+— and none on create, Apple or Google. Zero reads: nothing is fetched
+before the second tap that was not fetched before. The screen is a lazy
+chunk (`SignInGate`'s header), so the eager graph does not move.
+
+**Measured before the push:** the gates and their counts are in the PR
+body.
