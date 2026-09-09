@@ -689,7 +689,12 @@ export function NearField() {
     ? roster
       .map((p) => {
         const theirs = LIVE.scoresFor(p.uid);
-        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), 3) : null };
+        // MIN_PLACE_AXES, not a literal 3. The sentence one screen down
+        // PRINTS this constant ("needs {MIN_PLACE_AXES}"), and last night
+        // it started printing it on the Near stop too — so a second copy
+        // of the floor at the call site is a number the app can state and
+        // not enforce. They agree today; this is what keeps them agreeing.
+        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), MIN_PLACE_AXES) : null };
       })
       .filter((p): p is { uid: string; m: NonNullable<ReturnType<typeof scoreMatch>> } => !!p.m)
       // RAW, not the drawn number. This is the one place `raw` exists for
