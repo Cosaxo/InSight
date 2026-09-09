@@ -1,7 +1,7 @@
 # The data structure, priced per user once there are users
 
 **Status: measured 2026-09-08 — §§1–4 read the tree as it stood that
-morning; §5 is the build order, approved by the owner the same day (D421)
+morning; §5 is the build order, approved by the owner the same day (D429)
 and carried as steps in
 [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md). Phases 1, 2
 and 3 were built the same day (the runbook has what moved; the owner's
@@ -131,8 +131,8 @@ Kindred and the city pass at one document each, and Circle's 0.5; the
 velocity row at Phase 4. The candidate row stayed and grew: the
 streaming half of 2.7 is built and reads the fitted people once per
 sweep, so what the changed-since half (runbook 4.3b) would now save is
-11 reads per user-day where it was 2. The whole: 357 → 134 at
-maturity):
+11 reads per user-day where it was 2. The whole: 357 → 132 at
+maturity, two of the reads D426's rounds, merged the same day):
 
 ```
 reshape                                                                          saved/user-day  writes+   $/mo saved  5k · 50k · 500k DAU
@@ -142,16 +142,16 @@ Candidate-engine scan re-solves only people who answered since the last fit (run
 
 all reshapes together — reads and writes per month, straight off the sheet
 scenario                 DAU   reads/user-day        $/mo before → after
-Launch / TestFlight        50       142 → 119             $0.10 → $0.09   (−9%)
-Friends-of-friends        500       174 → 150             $1.17 → $1.07   (−8%)
-Real traction            5000       138 → 114               $10 → $9.42   (−9%)
-Scale                   50000       134 → 110                 $96 → $87   (−10%)
-Hit                    500000       133 → 109               $945 → $853   (−10%)
+Launch / TestFlight        50       140 → 117             $0.10 → $0.09   (−9%)
+Friends-of-friends        500       172 → 148             $1.16 → $1.07   (−8%)
+Real traction            5000       136 → 112               $10 → $9.33   (−9%)
+Scale                   50000       132 → 108                 $95 → $86   (−10%)
+Hit                    500000       131 → 107               $936 → $844   (−10%)
 ```
 
 ### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day · **BUILT 2026-09-08 (runbook 3.1–3.7), live**
 
-> The owner chose *live* (D421 amendment); the trigger writes the entry in
+> The owner chose *live* (D429 amendment); the trigger writes the entry in
 > the aggregate's own transaction, the heal fills only what is absent, and
 > the device keeps the answer query as a fallback for a member with no
 > map until the backfill has run — the click on `OWNER-LIST.md`. The

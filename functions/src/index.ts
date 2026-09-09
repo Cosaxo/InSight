@@ -27,6 +27,7 @@ import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
+import { playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -581,7 +582,7 @@ export const deleteAccount = onCall(
     // member's entry reads `votes.{them}.pickUid = {uid}`. Deleting
     // `votes.{uid}`, `names.{uid}` and the `members` entry leaves that
     // one standing — and reveals are `allow read: if request.auth != null`
-    // (firestore.rules, the /reveals/{day} match), so it is a pseudonymous
+    // (firestore.rules, the /reveals/{revealId} match), so it is a pseudonymous
     // identifier of a deleted account in a document any signed-in user can
     // read. That is exactly the survivor the `members` comment below
     // refuses, one field over.
@@ -619,9 +620,15 @@ export const deleteAccount = onCall(
           await g.ref.update({
             memberUids: FieldValue.arrayRemove(uid),
             [`memberNames.${uid}`]: FieldValue.delete(),
-            // The join-time map revealGroupDay scopes reveals by. A uid here
+            // The join-time map revealRound scopes reveals by. A uid here
             // is the same erasure leak as the two fields around it.
             [`memberJoinedAt.${uid}`]: FieldValue.delete(),
+            // …and the rounds they have sealed but not yet seen revealed
+            // (`played`, ROUNDS-PLAN §2.1): the reveal counts these against
+            // the roster, and an erased uid must not stand in a document
+            // every remaining member reads.
+            ...playedRemovals(g.get("played"), uid),
+            ...stampRemoval(g.get("pushAt"), uid),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is
@@ -715,7 +722,7 @@ export const deleteAccount = onCall(
               // left a pseudonymous identifier — and the group-day history
               // it implies — surviving an erasure request, in a document
               // `allow read: if request.auth != null` hands to any signed-in
-              // user (firestore.rules, the /reveals/{day} match). That is
+              // user (firestore.rules, the /reveals/{revealId} match). That is
               // the same survivor pickUidScrub refuses one field over.
               //
               // This called `members` "the membership snapshot the reveal

@@ -175,9 +175,9 @@ describe("channels", () => {
   // Android 8+ DROPS a notification posted to a channel that does not
   // exist, and only while the app is backgrounded — which is exactly when
   // both of these matter. Nothing reports it.
-  it("creates both, so neither class can be dropped", async () => {
+  it("creates all three, so no class can be dropped", async () => {
     await grant();
-    expect(h.channels.map((c) => c.id)).toEqual(["reveals", "invites"]);
+    expect(h.channels.map((c) => c.id)).toEqual(["reveals", "invites", "turns"]);
   });
 
   // The description is a CLAIM, on the one screen the OS gives a person to
@@ -187,11 +187,17 @@ describe("channels", () => {
   it("describes each for what it actually sends", async () => {
     await grant();
     const byId = Object.fromEntries(h.channels.map((c) => [c.id, c]));
-    expect(byId.reveals.description).toBe("When a group or duo day is revealed.");
+    expect(byId.reveals.description).toBe("When a round in a group or 1v1 is revealed.");
     // Both directions since D240 — an invitation to you, and somebody
-    // asking to join a circle you are in. One channel, because a
+    // asking to join a group you are in. One channel, because a
     // person muting one would mean to mute both.
-    expect(byId.invites.description).toBe("When someone invites you, or asks to join your circle.");
+    expect(byId.invites.description).toBe("When someone invites you, or asks to join your group.");
+    // ROUNDS-PLAN §7.4: a nudge on its own channel, at default importance
+    // — muting it keeps the reveal, and it never pops over what you are
+    // doing the way the reveal (4) does.
+    expect(byId.turns.description).toBe("When it's your turn in a 1v1 or group.");
+    expect(byId.turns.importance).toBe(3);
+    expect(byId.reveals.importance).toBe(4);
   });
 
   it("creates none on iOS, which has no channels", async () => {
@@ -219,6 +225,41 @@ describe("a tapped notification lands somewhere", () => {
     const goTab = await tap({ kind: "reveal", gid: "g1" });
     expect(sessionStorage.getItem("insight.pendingReveal")).toBe("g1");
     expect(goTab).toHaveBeenCalledWith("track");
+  });
+
+  // "Your turn" (ROUNDS-PLAN §7.4) lands on the same room the same way —
+  // the person is a member, so the gid resolves.
+  it("routes a turn by gid, like a reveal", async () => {
+    const goTab = await tap({ kind: "turn", gid: "g1" });
+    expect(sessionStorage.getItem("insight.pendingReveal")).toBe("g1");
+    expect(goTab).toHaveBeenCalledWith("track");
+  });
+
+  // A push while the app is OPEN presents nothing (the config's job, see
+  // push.ts's header) and is handed to the store as an event, so what it
+  // announces is on screen rather than over it.
+  it("hands a foreground arrival to the store, and presents nothing itself", async () => {
+    h.platform = "ios";
+    h.permission = "granted";
+    const seen: Array<Record<string, unknown>> = [];
+    const on = (e: Event) => { seen.push((e as CustomEvent).detail); };
+    window.addEventListener("insight-push-received", on);
+    let repaints = 0;
+    const onLive = () => { repaints += 1; };
+    window.addEventListener("insight-live-update", onLive);
+    try {
+      const { registerPush } = await import("./push");
+      await registerPush("u1");
+      expect(h.listeners).toContain("pushNotificationReceived");
+      h.handlers.pushNotificationReceived({ data: { kind: "turn", gid: "g1" } });
+      expect(seen).toEqual([{ kind: "turn", gid: "g1" }]);
+      expect(repaints).toBe(1);
+      // Nothing was stashed and nothing navigated: an arrival is not a tap.
+      expect(sessionStorage.getItem("insight.pendingReveal")).toBeNull();
+    } finally {
+      window.removeEventListener("insight-push-received", on);
+      window.removeEventListener("insight-live-update", onLive);
+    }
   });
 
   // THE ASYMMETRY, pinned. An invitee is not a member yet, so the gid

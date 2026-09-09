@@ -331,10 +331,19 @@ describe("the lists on this tree", () => {
     // (item 10), whose column overflowed every phone by 44px and which
     // the owner also wants to REQUIRE some answers before it can be
     // skipped — a reversal of that file's own "it does not block", so a
-    // request rather than a fix.
+    // request rather than a fix. Built is 3 since D421 filed the pictures
+    // on the pick tiles (item 11) straight under Built on 2026-09-07 —
+    // item 7's shape again: built on the owner's direct ask without the
+    // drafted step, and recorded there rather than skipped silently.
+    // 11 requested for one day, 2026-09-08: ROUNDS-PLAN filed the 1v1 and
+    // group card when a round is the unit — the card's whole grammar was
+    // a clock, and a 1v1 that reveals when the other person plays has
+    // none — and the owner's canvas came back the same day, so it sits
+    // under Built as item 12 (its number moved off the pictures' 11 at
+    // the merge): requested 10 again, built 4.
     expect(v.requested.length).toBe(10);
     expect(v.designed).toEqual([]);
-    expect(v.built.length).toBe(2);
+    expect(v.built.length).toBe(4);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

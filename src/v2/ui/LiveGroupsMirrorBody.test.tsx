@@ -63,9 +63,11 @@ const GROUP = {
   memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
 };
 
-// One revealed day. `mine`/`ada`/`bo` are option indexes.
-const day = (d: string, me: number, ada: number, bo: number) => ({
+// One revealed round. `mine`/`ada`/`bo` are option indexes; `round` is
+// the reveal's own (D426) — absent for a reveal from before rounds.
+const day = (d: string, me: number, ada: number, bo: number, round?: number) => ({
   day: d,
+  ...(round != null ? { round } : {}),
   qid: "group-gu0",
   votes: { u_me: { optionIdx: me }, u_ada: { optionIdx: ada }, u_bo: { optionIdx: bo } },
 });
@@ -94,7 +96,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("LiveGroupsMirrorBody · thin history makes no claims about people", () => {
-  it(`names nobody "most like you" on fewer than ${MIN_SHARED} shared days`, () => {
+  it(`names nobody "most like you" on fewer than ${MIN_SHARED} shared rounds`, () => {
     // One shared day, and on it Ada agreed with me perfectly. 100% — and
     // meaningless, because it is one coin flip. The panel must not print it.
     LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
@@ -105,7 +107,7 @@ describe("LiveGroupsMirrorBody · thin history makes no claims about people", ()
     expect(text).not.toMatch(/100%/);
   });
 
-  it(`names someone once there ARE ${MIN_SHARED} shared days`, () => {
+  it(`names someone once there ARE ${MIN_SHARED} shared rounds`, () => {
     // The control. Without it the assertion above passes for a panel that
     // never names anyone at all, which would be a different bug wearing the
     // same green tick.
@@ -121,7 +123,7 @@ describe("LiveGroupsMirrorBody · thin history makes no claims about people", ()
 });
 
 describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
-  it("says how many revealed days the Answers card is NOT showing", () => {
+  it("says how many revealed rounds the Answers card is NOT showing", () => {
     // The card draws at most seven rows and the header counts every
     // revealed day the store holds — up to fourteen. With nothing between
     // them, "10 days revealed" over seven rows reads as a list of ten that
@@ -133,8 +135,8 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     render(<LiveGroupsMirrorBody />);
     openTab("Answers");
     const text = document.body.textContent || "";
-    expect(text, "the header stopped counting every revealed day").toMatch(/10 days revealed/);
-    expect(text, "the card ate three rows without saying so").toMatch(/3 older days not shown/);
+    expect(text, "the header stopped counting every revealed round").toMatch(/10 rounds revealed/);
+    expect(text, "the card ate three rows without saying so").toMatch(/3 older rounds not shown/);
   });
 
   it("…and says nothing about a cap it did not reach", () => {
@@ -248,7 +250,7 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
     openTab("Answers");
     expect(screen.queryByText(/Nothing revealed yet/),
       "an unread history was called an empty one").toBeNull();
-    expect(screen.getByText(/Reading the days/)).toBeTruthy();
+    expect(screen.getByText(/Reading the rounds/)).toBeTruthy();
   });
 
   it("labels the majority option from the bank, not the option index", () => {
@@ -298,13 +300,13 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
     expect(screen.getByText(/you picked Ada/)).toBeTruthy();
   });
 
-  it("reports alignment over days the viewer actually played", () => {
+  it("reports alignment over rounds the viewer actually played", () => {
     // I played both days and was with the majority on both.
     render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/2 of 2 days/i)).toBeTruthy();
+    expect(screen.getByText(/2 of 2 rounds/i)).toBeTruthy();
   });
 
-  it("does not count days the viewer sat out as days they lost", () => {
+  it("does not count rounds the viewer sat out as rounds they lost", () => {
     // No vote from u_me on the 28th. The denominator is days played, not
     // days revealed — counting a skipped day as a miss would make the ring
     // punish absence and read as disagreement.
@@ -313,7 +315,7 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
       { day: "2026-07-28", qid: "group-gu0", votes: { u_ada: { optionIdx: 1 }, u_bo: { optionIdx: 0 } } },
     ];
     render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/1 of 1 days/i)).toBeTruthy();
+    expect(screen.getByText(/1 of 1 rounds/i)).toBeTruthy();
   });
 });
 
@@ -482,7 +484,7 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
     render(<LiveGroupsMirrorBody />);
     const line = screen.getByText(/runs most like you/);
     expect(line.textContent).toContain("The Crew");
-    expect(line.textContent).toContain("3 of the 3 days you played");
+    expect(line.textContent).toContain("3 of the 3 rounds you played");
   });
 
   it("crowns the deep record over the thin one — the printed pct cannot decide it", () => {
@@ -501,7 +503,7 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
     render(<LiveGroupsMirrorBody />);
     const line = screen.getByText(/runs most like you/);
     expect(line.textContent).toContain("Book Club");
-    expect(line.textContent).toContain("12 of the 15 days you played");
+    expect(line.textContent).toContain("12 of the 15 rounds you played");
   });
 
   it("says nothing when the field is flat — a name tiebreak is not a finding", () => {
@@ -532,7 +534,7 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
   // A CROWN HANDED TO THE WRONG CIRCLE IS WORSE THAN A BEAT OF NOTHING.
   // `revealHistory()` answers `[]` for "never fetched", "in flight" and
   // "genuinely nothing revealed" alike, so a circle with fifteen days
-  // reads as `daysPlayed: 0` and is dropped by the floor while it is on
+  // reads as `roundsPlayed: 0` and is dropped by the floor while it is on
   // the wire — and the loader is a sequential fan-out over every group,
   // so that is what the first visit looks like. The reader saw a
   // superlative that changed its mind one round trip later.
@@ -573,7 +575,7 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
     render(<LiveGroupsMirrorBody />);
     const line = screen.getByText(/runs most like you/);
     expect(line.textContent).toContain("Old Friends");
-    expect(line.textContent).toContain("15 of the 15 days you played");
+    expect(line.textContent).toContain("15 of the 15 rounds you played");
   });
 
   it("the People tab says it is reading, not that places await a first reveal", () => {
@@ -587,7 +589,38 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
     render(<LiveGroupsMirrorBody />);
     openTab("People");
     const text = document.body.textContent || "";
-    expect(text).toMatch(/Reading the days/);
+    expect(text).toMatch(/Reading the rounds/);
     expect(text).not.toMatch(/Places are taken from the first shared reveal/);
+  });
+});
+
+// ── rounds (D426): two reveals in one day are two rows ───────────────
+describe("LiveGroupsMirrorBody · two rounds revealed on one day are two rows", () => {
+  it("keys and labels each row by its round, and opens them one at a time", () => {
+    LIVE.social.revealHistory = () => [
+      day("2026-09-08", 0, 0, 1, 8),
+      day("2026-09-08", 1, 0, 0, 7),
+    ];
+    render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
+    expect(screen.getByText(/2 rounds revealed/)).toBeTruthy();
+    const rows = screen.getAllByRole("button", { expanded: false });
+    const labels = rows.map((r) => r.textContent || "");
+    expect(labels.some((t) => /Round 8 · 09-08/.test(t)), "round 8 lost its label").toBe(true);
+    expect(labels.some((t) => /Round 7 · 09-08/.test(t)), "round 7 lost its label").toBe(true);
+    // Keyed by date, one tap opened both — the defect this case pins shut.
+    const first = rows.find((r) => /Round 8/.test(r.textContent || ""))!;
+    fireEvent.click(first);
+    expect(first.getAttribute("aria-expanded")).toBe("true");
+    const second = screen.getAllByRole("button").find((r) => /Round 7 · 09-08/.test(r.textContent || ""))!;
+    expect(second.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("a reveal from before rounds keeps its date as the row", () => {
+    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+    render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
+    expect(screen.getByText("07-29")).toBeTruthy();
+    expect(screen.queryByText(/Round /)).toBeNull();
   });
 });

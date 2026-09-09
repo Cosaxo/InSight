@@ -16,8 +16,8 @@
 //
 // ── the scale (D386, ROLES-PLAN §3.2) ──────────────────────────────────
 //
-// Every rate here is scored AGAINST LUCK, per day, and then averaged: a
-// hit counts 1, a miss counts −1/(k−1) for a day with k options, and the
+// Every rate here is scored AGAINST LUCK, per round, and then averaged: a
+// hit counts 1, a miss counts −1/(k−1) for a round with k options, and the
 // mean lands on 0–100 as 50 + 50·mean. So 50 is guessing at random and
 // 100 is right every day — on a two-option day and an eight-option pick
 // day alike. The raw hit rate was not that: thirteen of the friends
@@ -92,7 +92,7 @@ import { type RevealDocLike } from "./duelRuns";
 import { groupPortrait, portraitRow, voteQid, type PortraitReveal, type PortraitRow } from "./groupPortrait";
 
 /** Days below this and a run says nothing about a person — in the floor's
- * own unit (see duoRoleDays / groupRoleDays). */
+ * own unit (see duoRoleRounds / groupRoleRounds). */
 export const MIN_DUO = 3;
 export const MIN_GROUP = 2;
 
@@ -100,7 +100,7 @@ export const MIN_GROUP = 2;
  * the other person rather than what they would do. */
 export const MIRROR = "mirror";
 
-/** What the fold asks the bank about a day's question: how many options
+/** What the fold asks the bank about a round's question: how many options
  * it had, and what kind of day it was. The store's `bankQ` has this shape
  * (`kind` is the seeded `topic`: a group's us/pick/classic, a 1v1's
  * day/heat/mirror/ahead since D386). */
@@ -120,7 +120,7 @@ interface RevealLike extends RevealDocLike {
 const clamp = (v: number): number => Math.max(0, Math.min(100, Math.round(v)));
 
 /**
- * How many options a day had — the chance denominator. The bank entry
+ * How many options a round had — the chance denominator. The bank entry
  * first; a pick day's roster second (its bank options are empty because
  * the members ARE the options); and when neither can say, the highest
  * index the reveal's own votes reach, which is a floor on the truth and
@@ -147,7 +147,7 @@ export function optionsOn(reveal: RevealLike, qid: string, lookup?: BankLookup):
 export interface Tally {
   /** the chance-scaled credit so far: +1 a hit, −1/(k−1) a miss */
   sum: number;
-  /** days counted */
+  /** rounds counted */
   n: number;
   /** plain hits — the receipt */
   hits: number;
@@ -171,11 +171,11 @@ export interface RoleDim {
 /** A reading the tables do not carry yet — drawn as a receipt row, blended
  * like a dim, never matched (see the header). */
 export interface RoleAside extends RoleDim {
-  /** days behind it, and the weight a blend gives it */
+  /** rounds behind it, and the weight a blend gives it */
   n: number;
 }
 export interface RoleResult {
-  /** Days behind this reading, in the unit the floor counts — both guessed for a 1v1, played for a group. NOT revealed days — the weight a blend gives it. */
+  /** Rounds behind this reading, in the unit the floor counts — both guessed for a 1v1, played for a group. NOT revealed rounds — the weight a blend gives it. */
   n: number;
   dims: RoleDim[];
   asides?: RoleAside[];
@@ -200,24 +200,28 @@ const flipsOf = (arr: readonly boolean[]): number => {
   return f;
 };
 
-const byDay = <T extends { day?: string }>(list: readonly T[]): T[] =>
-  [...list].sort((a, b) => String(a.day || "").localeCompare(String(b.day || "")));
+// Oldest first by day, then by round — a room can reveal more than one
+// round in a day (ROUNDS-PLAN, D426), and a run of dots is time.
+const byDay = <T extends { day?: string; round?: number | null }>(list: readonly T[]): T[] =>
+  [...list].sort((a, b) =>
+    String(a.day || "").localeCompare(String(b.day || ""))
+    || (typeof a.round === "number" ? a.round : 0) - (typeof b.round === "number" ? b.round : 0));
 
 // ── 1v1 ─────────────────────────────────────────────────────────────────
 interface DuoFold {
   read: Tally; seen: Tally; like: Tally; project: Tally;
   mirror: Tally; mirrorBy: Tally;
-  /** oldest first — did YOU call THEIR answer, one entry per scored ordinary day */
+  /** oldest first — did YOU call THEIR answer, one entry per scored ordinary round */
   readRun: boolean[];
 }
 
 /**
- * One pass over the pair's history. Two kinds of day are dropped rather
- * than scored, as `duoRuns` drops them (D156 §3): a day the pair were
- * asked DIFFERENT questions, and — for the guess readings — a day either
- * side has no guess. Likeness is about the ANSWERS, so a day nobody
+ * One pass over the pair's history. Two kinds of round are dropped rather
+ * than scored, as `duoRuns` drops them (D156 §3): a round the pair were
+ * asked DIFFERENT questions, and — for the guess readings — a round either
+ * side has no guess. Likeness is about the ANSWERS, so a round nobody
  * guessed still counts for it; that is why it is tallied before the guess
- * check rather than off the same array. A mirror day counts for nothing
+ * check rather than off the same array. A mirror round counts for nothing
  * but its own two rows.
  */
 function duoFold(history: readonly RevealDocLike[], me: string, them: string, lookup?: BankLookup): DuoFold {
@@ -227,10 +231,11 @@ function duoFold(history: readonly RevealDocLike[], me: string, them: string, lo
     const votes = rev.votes || {};
     const mine = votes[me], theirs = votes[them];
     if (!mine || !theirs) continue;
+    if (mine.late || theirs.late) continue; // not blind — no reading in it (ROUNDS-PLAN §4)
     const rowQid = rev.qid || "";
     const qa = typeof mine.qid === "string" && mine.qid ? mine.qid : rowQid;
     const qb = typeof theirs.qid === "string" && theirs.qid ? theirs.qid : rowQid;
-    if (qa !== qb) continue; // the same day, two different questions
+    if (qa !== qb) continue; // the same round, two different questions
     if (typeof mine.optionIdx !== "number" || typeof theirs.optionIdx !== "number") continue;
     const k = optionsOn(rev, qa, lookup);
     const q = lookup && qa ? lookup(qa) : null;
@@ -256,13 +261,14 @@ function duoFold(history: readonly RevealDocLike[], me: string, them: string, lo
 /**
  * How far a setting still under its floor has got — the thin row's
  * "1 of 3". Deliberately the SAME unit the floor checks, which is not
- * "revealed days": a 1v1 counts ordinary days both guessed on the same
- * question (a mirror day is not one of them), a group counts days YOU
- * played. A pair can reveal five days and guess on two, and telling them
- * "no 1v1 has run 3 revealed days" would be false — the copy bug this
- * exists to keep out of the panel.
+ * "revealed rounds": a 1v1 counts ordinary rounds both guessed on the same
+ * question (a mirror round is not one of them), a group counts rounds YOU
+ * played. A pair can reveal five rounds and guess on two, and telling them
+ * "no 1v1 has run 3 revealed rounds" would be false — the copy bug this
+ * exists to keep out of the panel. (Named for the unit since D426's
+ * profiles follow-up; they counted reveals all along.)
  */
-export function duoRoleDays(
+export function duoRoleRounds(
   history: readonly RevealDocLike[],
   me: string,
   them: string,
@@ -270,18 +276,18 @@ export function duoRoleDays(
 ): number {
   return duoFold(history, me, them, lookup).read.n;
 }
-export function groupRoleDays(
+export function groupRoleRounds(
   reveals: readonly PortraitReveal[],
   myUid: string | null,
 ): number {
-  return groupPortrait(reveals as PortraitReveal[], myUid).daysPlayed;
+  return groupPortrait(reveals as PortraitReveal[], myUid).roundsPlayed;
 }
 
 /**
  * Your role in one 1v1, from the pair's reveal history.
  *
- * `read`/`seen`/`steady` come off the ordinary days both guessed; `like`
- * off every ordinary day both answered. The asides are the readings the
+ * `read`/`seen`/`steady` come off the ordinary rounds both guessed; `like`
+ * off every ordinary round both answered. The asides are the readings the
  * `duo` table does not carry: projection (your guess was your own
  * answer — the lane's knowledge-against-projection, tie-3) and the mirror
  * days, each side.
@@ -298,9 +304,9 @@ export function duoRole(
   if (F.project.n) asides.push({ id: "project", label: "Projection", value: chanceValue(F.project), n: F.project.n,
     note: `guessed your own answer ${F.project.hits} of ${F.project.n} times` });
   if (F.mirror.n) asides.push({ id: "mirror", label: "How they see you", value: chanceValue(F.mirror), n: F.mirror.n,
-    note: `you called how they see you on ${F.mirror.hits} of ${F.mirror.n} days` });
+    note: `you called how they see you on ${F.mirror.hits} of ${F.mirror.n} rounds` });
   if (F.mirrorBy.n) asides.push({ id: "mirrorBy", label: "How you see them", value: chanceValue(F.mirrorBy), n: F.mirrorBy.n,
-    note: `they called how you see them on ${F.mirrorBy.hits} of ${F.mirrorBy.n} days` });
+    note: `they called how you see them on ${F.mirrorBy.hits} of ${F.mirrorBy.n} rounds` });
   return {
     n: F.read.n,
     dims: [
@@ -309,9 +315,9 @@ export function duoRole(
       { id: "seen", label: "Legibility", value: chanceValue(F.seen),
         note: `they're right on ${F.seen.hits} of their ${F.seen.n}` },
       { id: "like", label: "Likeness", value: chanceValue(F.like),
-        note: `the same answer on ${F.like.hits} of ${F.like.n} days` },
+        note: `the same answer on ${F.like.hits} of ${F.like.n} rounds` },
       { id: "steady", label: "Steadiness", value: steadiness(F.readRun),
-        note: `your read flipped ${flipsOf(F.readRun)} times in ${F.readRun.length} days` },
+        note: `your read flipped ${flipsOf(F.readRun)} times in ${F.readRun.length} rounds` },
     ],
     asides,
   };
@@ -326,7 +332,7 @@ export function duoRole(
  * option count in hand, because the portrait's numbers are raw and these
  * are scored against luck.
  *
- * `own` divides by days I PLAYED rather than by days revealed, which is a
+ * `own` divides by rounds I PLAYED rather than by rounds revealed, which is a
  * deliberate difference from the prototype (it divides by all revealed
  * days). Dividing by revealed days makes not turning up look like
  * independence, and "away from the majority" has to mean something you
@@ -334,7 +340,7 @@ export function duoRole(
  * member present for two days does not count as much as one present for
  * twenty. `room` (an aside until the table carries it, ROLES-PLAN §3.5)
  * is your guess at where the room would land — a hit when it named an
- * option that tied for the top — and only on a day two or more answered
+ * option that tied for the top — and only on a round two or more answered
  * the row's question, because a room of one is you.
  */
 export function groupRole(
@@ -343,7 +349,7 @@ export function groupRole(
   lookup?: BankLookup,
 ): RoleResult | null {
   const P = groupPortrait(reveals as PortraitReveal[], myUid);
-  if (P.daysPlayed < MIN_GROUP || myUid == null) return null;
+  if (P.roundsPlayed < MIN_GROUP || myUid == null) return null;
 
   const own = tally(), pull = tally(), room = tally();
   const majRun: boolean[] = [];
@@ -352,15 +358,15 @@ export function groupRole(
     if (!row || row.mine == null) continue;
     const votes = r.votes || {};
     const mine = votes[myUid];
-    if (!mine) continue;
+    if (!mine || mine.late) continue; // a late answer of yours reads nothing (ROUNDS-PLAN §4)
     const k = optionsOn(r as RevealLike, row.qid || "", lookup);
     count(own, row.withMajority, k);
     majRun.push(row.withMajority);
     const rowQid = r.qid ?? null;
     const myQid = voteQid(mine, rowQid);
     for (const [uid, v] of Object.entries(votes)) {
-      if (uid === myUid || !v || typeof v.optionIdx !== "number") continue;
-      // A day we answered DIFFERENT questions is not a shared day —
+      if (uid === myUid || !v || typeof v.optionIdx !== "number" || v.late) continue;
+      // A round we answered DIFFERENT questions is not a shared round —
       // groupPortrait's own rule, kept here for the same reason.
       if (voteQid(v, rowQid) !== myQid) continue;
       count(pull, v.optionIdx === mine.optionIdx, k);
@@ -375,10 +381,10 @@ export function groupRole(
     note: `called where the room landed ${room.hits} of ${room.n} times` });
 
   return {
-    n: P.daysPlayed,
+    n: P.roundsPlayed,
     dims: [
       { id: "own", label: "Independence", value: clamp(100 - chanceValue(own)),
-        note: `away from the majority on ${own.n - own.hits} of ${own.n} days` },
+        note: `away from the majority on ${own.n - own.hits} of ${own.n} rounds` },
       { id: "pull", label: "Centrality", value: chanceValue(pull),
         note: `others landed with you ${pull.hits} of ${pull.n} times` },
       { id: "settle", label: "Steadiness", value: steadiness(majRun),
@@ -390,9 +396,9 @@ export function groupRole(
 
 // ── the average across settings ─────────────────────────────────────────
 /**
- * Blend several settings into one portrait, weighted by those days.
+ * Blend several settings into one portrait, weighted by those rounds.
  *
- * A three-day duel must not swing the portrait as hard as a twenty-four
+ * A three-round duel must not swing the portrait as hard as a twenty-four
  * day one. The blended dims carry NO `note`: a receipt belongs to one
  * setting, and "right on 7 of 11" is false of an average. Asides blend
  * the same way, each on its own days.

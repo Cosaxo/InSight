@@ -8,7 +8,7 @@
 // the same archetype matcher and the same nearby-type language every
 // other result card uses; nothing new is invented for it. A setting
 // still under its floor is listed too, as a thin row with its count
-// ("1 of 3 days both guessed") — the prototype's shape, restored after
+// ("1 of 3 rounds both guessed") — the prototype's shape, restored after
 // this panel first shipped without it and a below-floor duel was simply
 // invisible while the average silently excluded it.
 //
@@ -20,13 +20,14 @@
 // for a tab most opens never reach.
 //
 // THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM. Each room's reveal
-// history is up to 14 direct day-key gets (`REVEAL_HIST_DAYS`), cached by
-// the store, and the duel panel already pays it for whichever room you
-// open. This tab is the first surface that wants ALL of them, so it loads
+// history is ONE ordered query of at most `REVEAL_HIST_CAP` reveal
+// documents (ROUNDS-PLAN §7.1 — it was a getDoc per day key, and round ids
+// are not guessable), cached by the store, and the duel panel already pays
+// it for whichever room you open. This tab is the first surface that wants ALL of them, so it loads
 // them on mount and only on mount — see docs/COSTS.md.
 import React from "react";
 import LIVE from "../data/live";
-import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, MIN_DUO, MIN_GROUP, type BankLookup, type RoleResult } from "../data/roles";
+import { blendRoles, duoRole, duoRoleRounds, groupRole, groupRoleRounds, MIN_DUO, MIN_GROUP, type BankLookup, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { matchArchetype } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
@@ -176,15 +177,15 @@ export default function LiveRolesPanel(): React.ReactElement {
       else duosThin.push({
         key: r.id, label,
         // The floor's own unit, which is not "revealed days" (see
-        // duoRoleDays): a pair can reveal five days and guess on two.
+        // duoRoleRounds): a pair can reveal five rounds and guess on two.
         // Four states, and two of them are not claims about the room.
         // The loader walks rooms one at a time, so a later room sits on
         // its note for a while — and it said "nothing revealed yet" the
         // whole time. The Groups stop one screen over keeps the same
-        // distinction, in the same words ("Reading the days…").
+        // distinction, in the same words ("Reading the rounds…").
         note: roomNote(r.id) || (!them || !hist.length
           ? "nothing revealed yet"
-          : `${duoRoleDays(hist as never[], uid, them, lookup)} of ${MIN_DUO} days both guessed`),
+          : `${duoRoleRounds(hist as never[], uid, them, lookup)} of ${MIN_DUO} rounds both guessed`),
       });
     } else {
       const res = groupRole(hist as never[], uid, lookup);
@@ -193,7 +194,7 @@ export default function LiveRolesPanel(): React.ReactElement {
         key: r.id, label: r.name || "Group",
         note: roomNote(r.id) || (!hist.length
           ? "nothing revealed yet"
-          : `${groupRoleDays(hist as never[], uid)} of ${MIN_GROUP} days played`),
+          : `${groupRoleRounds(hist as never[], uid)} of ${MIN_GROUP} rounds played`),
       });
     }
   }
@@ -210,7 +211,7 @@ export default function LiveRolesPanel(): React.ReactElement {
     const t = avg ? typeOf(kind, avg.dims) : null;
     // The unit `RoleResult.n` is actually counted in, in the panel's own
     // words — the same two phrases the empty state and the thin rows use.
-    const dayUnit = kind === "duo" ? "you both guessed" : "you played";
+    const unit = kind === "duo" ? "you both guessed" : "you played";
     // The list draws whenever there is more than one thing to put in it —
     // a second reading, or a setting still on its way. With one reading
     // and nothing else, a row would only repeat the card above it.
@@ -244,21 +245,21 @@ export default function LiveRolesPanel(): React.ReactElement {
                     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 3, lineHeight: 1.4, textWrap: "pretty" }}>{t.line}</div>
                   </>
                 )}
-                {/* NOT "revealed days" — that is the one thing this number is
-                    not. `RoleResult.n` is the same unit the floor checks:
-                    days BOTH of you guessed for a 1v1 (duoRuns drops the
-                    rest), days YOU played for a group. A pair can reveal
-                    eight days and guess on three, so "3 revealed days" was
-                    false about a pair that revealed eight — the exact copy
-                    bug roles.ts says it exists to keep out of this panel,
-                    in the only line that had not been fixed for it. The
-                    empty state and the thin rows already say "days you both
-                    guessed" and "revealed days you played"; this now says
-                    the same thing in the same words. */}
+                {/* NOT "revealed rounds" — that is the one thing this number
+                    is not. `RoleResult.n` is the same unit the floor checks:
+                    rounds BOTH of you guessed for a 1v1 (duoRuns drops the
+                    rest), rounds YOU played for a group. A pair can reveal
+                    eight rounds and guess on three, so "3 revealed rounds"
+                    would be false about a pair that revealed eight — the
+                    exact copy bug roles.ts says it exists to keep out of
+                    this panel. The empty state and the thin rows say "rounds
+                    you both guessed" and "revealed rounds you played"; this
+                    says the same thing in the same words. (Rounds, not
+                    days, since D426: the count was always of reveals.) */}
                 <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)", marginTop: 4 }}>
                   {settings.length === 1
-                    ? `${avg.n} ${avg.n === 1 ? "day" : "days"} ${dayUnit}`
-                    : `across ${settings.length} · ${avg.n} days ${dayUnit}`}
+                    ? `${avg.n} ${avg.n === 1 ? "round" : "rounds"} ${unit}`
+                    : `across ${settings.length} · ${avg.n} rounds ${unit}`}
                 </div>
               </div>
             </div>
@@ -276,7 +277,7 @@ export default function LiveRolesPanel(): React.ReactElement {
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: "block", fontFamily: "var(--sans)", fontWeight: 750, fontSize: 13.5, letterSpacing: "-0.015em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
                       <span style={{ display: "block", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
-                        {st ? st.name : "—"} · {s.res.n} {s.res.n === 1 ? "day" : "days"}
+                        {st ? st.name : "—"} · {s.res.n} {s.res.n === 1 ? "round" : "rounds"}
                       </span>
                     </span>
                     <span aria-hidden="true" style={{ color: "var(--ink-3)", fontSize: 13, fontWeight: 800 }}>{isOpen ? "↑" : "↓"}</span>
@@ -285,7 +286,7 @@ export default function LiveRolesPanel(): React.ReactElement {
                     // The receipts: the plain count each score is made of.
                     <div style={{ padding: "0 0 12px", display: "flex", flexDirection: "column", gap: 5 }}>
                       {/* The dims, then the asides — readings the tables do
-                          not carry yet (projection, the mirror days, reading
+                          not carry yet (projection, the mirror rounds, reading
                           the room — D386), drawn as receipts in the same
                           shape so the row says everything the record does. */}
                       {[...s.res.dims, ...(s.res.asides || [])].map((d) => (
@@ -302,7 +303,7 @@ export default function LiveRolesPanel(): React.ReactElement {
             {/* The settings still under the floor — a dashed ring where the
                 rose will be, and how far along the count is. Omitting them
                 (as this panel first shipped) made the average silently
-                partial: a 4-day duel drew a card while a 2-day one simply
+                partial: a 4-round duel drew a card while a 2-round one simply
                 did not exist on screen. */}
             {showRows && thin.map((s) => (
               <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: "0.5px solid color-mix(in oklch, var(--rule), transparent 35%)" }}>
@@ -319,13 +320,13 @@ export default function LiveRolesPanel(): React.ReactElement {
 
   return (
     <div data-screen-label="Roles">
-      {/* The sentences name the floor's real unit. "Revealed days" was
-          false for a 1v1: the gate counts days BOTH of you guessed, and a
-          pair can reveal five days and guess on two. */}
+      {/* The sentences name the floor's real unit. "Revealed rounds" would
+          be false for a 1v1: the gate counts rounds BOTH of you guessed, and
+          a pair can reveal five rounds and guess on two. */}
       {section("duo", "In 1v1s", duos, duosThin, MIN_DUO,
-        "No 1v1 has {n} days you both guessed yet — the role appears once one has.")}
+        "No 1v1 has {n} rounds you both guessed yet — the role appears once one has.")}
       {section("group", "In groups", groups, groupsThin, MIN_GROUP,
-        "No group has {n} revealed days you played yet — the role appears once one has.")}
+        "No group has {n} revealed rounds you played yet — the role appears once one has.")}
       {explain && (() => {
         const src = explain === "duo" ? duos : groups;
         const avg = blendRoles(src.map((s) => s.res));

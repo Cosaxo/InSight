@@ -1,7 +1,7 @@
 // LiveGroupsMirrorBody — the Mirror's Groups stop, computed from REAL
 // reveal history. Replaces the demo GroupsMirrorBody (sample people) when
 // LIVE is enabled: the alignment ring, the answer rows and the per-member
-// likeness all derive from v2_groups/{gid}/reveals/{day} docs this user
+// likeness all derive from v2_groups/{gid}/reveals/r{n} docs this user
 // can already read, so every number on screen is one the user could
 // recompute from the reveals themselves (groupPortrait.ts holds the
 // arithmetic; groupPortrait.test.ts pins it).
@@ -155,15 +155,23 @@ function LgEmpty({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Answers: what the group landed on, one row per revealed day ──
+// ── Answers: what the group landed on, one row per revealed round ──
 function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   const [open, setOpen] = React.useState<string | null>(null);
   const ROW_CAP = 7;
   const rows = P.rows.slice(0, ROW_CAP);
-  // A CAP THAT SAYS SO. The header one line down prints `P.days` — up to
-  // REVEAL_HIST_DAYS (14) — over at most seven rows, with nothing between
-  // them saying where the rest went, so "14 days revealed" read as a list
-  // of fourteen that stopped after seven. Every sibling states its own
+  // A ROW IS A ROUND, NOT A DATE. These rows were keyed and labelled by
+  // `day` while a reveal was a day; under rounds (D426) a room can reveal
+  // several in one day, and keying by the date gave two rows one key —
+  // one tap opened both, and both wore the same date. The round is the
+  // identity now, with the date beside it; a reveal from before rounds
+  // carries none and keeps its date as the key.
+  const rowKey = (r: GroupPortrait["rows"][number]) => (r.round != null ? `r${r.round}` : r.day);
+  const rowLabel = (r: GroupPortrait["rows"][number]) => (r.round != null ? `Round ${r.round} · ${r.day.slice(5)}` : r.day.slice(5));
+  // A CAP THAT SAYS SO. The header one line down prints `P.rounds` — up to
+  // REVEAL_HIST_CAP (30) — over at most seven rows, with nothing between
+  // them saying where the rest went, so "30 rounds revealed" read as a list
+  // of thirty that stopped after seven. Every sibling states its own
   // cap out loud: LiveAnswerRows offers "Show N more", and the places
   // field says "N more … placed further out than this field draws" with
   // the comment "a cap that silently eats rows reads as 'that is all of
@@ -178,14 +186,14 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
     // still arriving as much as for a group that has never played, and
     // this stop opens on that fetch.
     return LIVE.social.revealHistoryLoading(g.id)
-      ? <LgEmpty>Reading the days…</LgEmpty>
+      ? <LgEmpty>Reading the rounds…</LgEmpty>
       : <LgEmpty>Nothing revealed yet — answers stay sealed until the reveal.</LgEmpty>;
   }
   return (
     <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <LgKicker>What the group landed on</LgKicker>
-        <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{P.days} {P.days === 1 ? "day" : "days"} revealed</span>
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{P.rounds} {P.rounds === 1 ? "round" : "rounds"} revealed</span>
       </div>
       <div style={{ marginTop: 6, display: "flex", flexDirection: "column" }}>
         {rows.map((r, ri) => {
@@ -198,10 +206,10 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
             // style block is the usual button reset — the row looks
             // identical, it just also takes focus and fires on Enter/Space.
             <button
-              key={r.day}
+              key={rowKey(r)}
               type="button"
-              aria-expanded={open === r.day}
-              onClick={() => setOpen(open === r.day ? null : r.day)}
+              aria-expanded={open === rowKey(r)}
+              onClick={() => setOpen(open === rowKey(r) ? null : rowKey(r))}
               style={{
                 display: "block", width: "100%", textAlign: "left",
                 background: "none", border: "none", font: "inherit", color: "inherit",
@@ -211,7 +219,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                 <span style={{ fontFamily: "var(--sans)", fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{lgOptionLabel(g, r.qid, r.majorityIdx, r.majorityPickUid)}</span>
-                <span style={{ flexShrink: 0, fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)" }}>{r.day.slice(5)}</span>
+                <span style={{ flexShrink: 0, fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)" }}>{rowLabel(r)}</span>
               </div>
               {/* one dot per voter: filled = majority bloc, dark = you */}
               <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
@@ -224,7 +232,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
                     boxShadow: isYou ? "0 0 0 0.5px var(--rule)" : "none" }}></span>;
                 })}
               </div>
-              {open === r.day && (
+              {open === rowKey(r) && (
                 <div style={{ marginTop: 7, fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", textWrap: "pretty" }}>
                   {prompt || "—"}{r.mine == null ? " — you sat this one out" : mineLabel ? ` — you picked ${mineLabel}` : ""}
                 </div>
@@ -235,14 +243,14 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
       </div>
       {hidden > 0 && (
         <div style={{ paddingTop: 9, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
-          {hidden} older {hidden === 1 ? "day" : "days"} not shown.
+          {hidden} older {hidden === 1 ? "round" : "rounds"} not shown.
         </div>
       )}
     </div>
   );
 }
 
-// ── People: how close each member runs to you, from shared days ──
+// ── People: how close each member runs to you, from shared rounds ──
 function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   const names = g.memberNames || {};
   if (!P.people.length) {
@@ -250,8 +258,8 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
     // empty — and this explained that emptiness as a fact about the
     // circle ("places are taken from the first shared reveal") while the
     // reveals were still arriving. The Answers tab beside it already says
-    // "Reading the days…" on the identical state; this one did not ask.
-    if (LIVE.social.revealHistoryLoading(g.id)) return <LgEmpty>Reading the days…</LgEmpty>;
+    // "Reading the rounds…" on the identical state; this one did not ask.
+    if (LIVE.social.revealHistoryLoading(g.id)) return <LgEmpty>Reading the rounds…</LgEmpty>;
     return (
       <LgEmpty>
         {(g.memberUids || []).length > 1
@@ -264,12 +272,12 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
     <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <LgKicker>Who runs closest to you</LgKicker>
-        <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>same pick, same day</span>
+        <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>same pick, same round</span>
       </div>
       {/* The cast, arranged (D152) — the Mirror's one grammar, which this
           stop had in the prototype and shipped live as bars alone. Only
-          members with a shared day are placed: a radius for someone you
-          have never played the same day as would be a position invented
+          members with a shared round are placed: a radius for someone you
+          have never played the same round as would be a position invented
           out of nothing, and the rows below carry them regardless. */}
       <React.Suspense fallback={null}>
         <LgField
@@ -301,7 +309,7 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
               </div>
               <span style={{ flexShrink: 0, textAlign: "right", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 800, color: "var(--ink-2)" }}>
                 {p.agree}/{p.shared}
-                <div style={{ fontSize: 9.5, fontWeight: 600, color: "var(--ink-3)" }}>{p.shared === 1 ? "shared day" : "shared days"}</div>
+                <div style={{ fontSize: 9.5, fontWeight: 600, color: "var(--ink-3)" }}>{p.shared === 1 ? "shared round" : "shared rounds"}</div>
               </span>
             </div>
           );
@@ -309,7 +317,7 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
       </div>
       {P.people.some((p) => p.shared < MIN_SHARED) && (
         <div style={{ marginTop: 11, paddingTop: 10, borderTop: LG_LINE, fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.02em" }}>
-          Faint bars have under {MIN_SHARED} shared days — too few to mean much yet.
+          Faint bars have under {MIN_SHARED} shared rounds — too few to mean much yet.
         </div>
       )}
     </div>
@@ -323,8 +331,9 @@ function LiveGroupsMirrorBody() {
   const groups = (LIVE.enabled ? S.groups("group") : []) as LiveGroup[];
   const [gid, setGid] = React.useState<string | null>(null);
   const g = groups.find((x) => x.id === gid) || groups[0] || null;
-  // the history fetch is on-demand and idempotent — ≤13 doc reads per
-  // group per session, only once this stop is actually open
+  // the history fetch is on-demand and idempotent — one ordered query of
+  // ≤REVEAL_HIST_CAP documents per group per session, only once this
+  // stop is actually open
   React.useEffect(() => {
     if (g) void S.loadRevealHistory(g.id);
   }, [g && g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton
@@ -364,13 +373,13 @@ function LiveGroupsMirrorBody() {
     // NOT WHILE A CIRCLE IS STILL BEING READ. `revealHistory()` answers
     // `[]` for "never fetched", "in flight" and "genuinely nothing
     // revealed" alike — its own docstring says so — so a circle with
-    // fifteen days of history reads as `daysPlayed: 0` and is dropped by
+    // fifteen rounds of history reads as `roundsPlayed: 0` and is dropped by
     // the MIN_GROUP filter below while it is on the wire. The loader is a
     // sequential fan-out over every group, so that is not an edge case:
     // it is what the first visit looks like.
     //
     // What the reader saw was a superlative that changed its mind. "The
-    // Crew runs most like you — with it on 2 of the 3 days you played",
+    // Crew runs most like you — with it on 2 of the 3 rounds you played",
     // then a different circle a round trip later, once the one with
     // fifteen days landed. A crown handed to the wrong circle is worse
     // than a beat of nothing, so the sentence waits for the field.
@@ -380,28 +389,28 @@ function LiveGroupsMirrorBody() {
     if (groups.some((x) => LIVE.social.revealHistoryLoading(x.id))) return null;
     const scored = groups
       .map((x) => ({ x, p: groupPortrait(S.revealHistory(x.id) as unknown as PortraitReveal[], LIVE.uid) }))
-      .filter((r) => r.p.daysPlayed >= MIN_GROUP);
+      .filter((r) => r.p.roundsPlayed >= MIN_GROUP);
     if (scored.length < 2) return null;
     // `likenessRate`, not the printed percentage — D277 §2's rule, and
     // this was the site that had not converted when bfb5e9f6 said every
     // sibling had. Sorting on alignPct puts a circle played twice, both
     // days with the majority, above one at 45 of 50: "Book Club runs most
-    // like you — with it on 2 of the 2 days you played" is a sentence
+    // like you — with it on 2 of the 2 rounds you played" is a sentence
     // about a coin landing twice. Its own data module already ranks people
     // this way (groupPortrait), for exactly this reason.
     scored.sort((a, b) =>
-      likenessRate(b.p.meWithMaj, b.p.daysPlayed) - likenessRate(a.p.meWithMaj, a.p.daysPlayed)
-      || b.p.daysPlayed - a.p.daysPlayed
+      likenessRate(b.p.meWithMaj, b.p.roundsPlayed) - likenessRate(a.p.meWithMaj, a.p.roundsPlayed)
+      || b.p.roundsPlayed - a.p.roundsPlayed
       || (a.x.name || "").localeCompare(b.x.name || ""));
     // …and nobody is crowned on identical figures. The final clause is a
     // NAME tiebreak that never returns 0, so a flat field named whichever
     // circle sorted first alphabetically and presented it as a finding.
     // groupPortrait's own twin/breaks-ranks labels carry the same guard
     // and record the case it was reproduced on.
-    const flat = likenessRate(scored[0].p.meWithMaj, scored[0].p.daysPlayed)
+    const flat = likenessRate(scored[0].p.meWithMaj, scored[0].p.roundsPlayed)
       === likenessRate(
         scored[scored.length - 1].p.meWithMaj,
-        scored[scored.length - 1].p.daysPlayed,
+        scored[scored.length - 1].p.roundsPlayed,
       );
     return flat ? null : scored[0];
   })();
@@ -422,7 +431,7 @@ function LiveGroupsMirrorBody() {
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: "var(--sans)", fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.name}</div>
               <div style={{ marginTop: 2, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
-                {P.daysPlayed ? `aligned with you · ${P.meWithMaj} of ${P.daysPlayed} days` : "aligned with you"}
+                {P.roundsPlayed ? `aligned with you · ${P.meWithMaj} of ${P.roundsPlayed} rounds` : "aligned with you"}
               </div>
             </div>
           </div>
@@ -445,13 +454,13 @@ function LiveGroupsMirrorBody() {
           )}
           {soWhat && (
             <div style={{ padding: "9px 2px 0", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5, textWrap: "balance" }}>
-              <b style={{ fontWeight: 800, color: "var(--ink)" }}>{soWhat.x.name}</b> runs most like you — with it on {soWhat.p.meWithMaj} of the {soWhat.p.daysPlayed} days you played.
+              <b style={{ fontWeight: 800, color: "var(--ink)" }}>{soWhat.x.name}</b> runs most like you — with it on {soWhat.p.meWithMaj} of the {soWhat.p.roundsPlayed} rounds you played.
             </div>
           )}
           {/* The stop's own state, above the row rather than inside a tab:
               "nothing has been revealed yet" is true of the whole group,
               not of one reading of it. */}
-          {P.days === 0 && !LIVE.social.revealHistoryLoading(g.id) && (
+          {P.rounds === 0 && !LIVE.social.revealHistoryLoading(g.id) && (
             <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
               <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
                 Nothing revealed yet — answers stay sealed until the reveal.

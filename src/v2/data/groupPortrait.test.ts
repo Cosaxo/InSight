@@ -59,8 +59,8 @@ describe("groupPortrait", () => {
       ],
       "me",
     );
-    expect(p.days).toBe(3);
-    expect(p.daysPlayed).toBe(2);
+    expect(p.rounds).toBe(3);
+    expect(p.roundsPlayed).toBe(2);
     expect(p.meWithMaj).toBe(1);
     expect(p.alignPct).toBe(50);
   });
@@ -109,14 +109,14 @@ describe("groupPortrait", () => {
 
   it("an empty history yields an empty portrait, not NaN", () => {
     const p = groupPortrait([], "me");
-    expect(p).toMatchObject({ days: 0, daysPlayed: 0, meWithMaj: 0, alignPct: 0, twin: null });
+    expect(p).toMatchObject({ rounds: 0, roundsPlayed: 0, meWithMaj: 0, alignPct: 0, twin: null });
     expect(p.rows).toEqual([]);
     expect(p.people).toEqual([]);
   });
 
   it("a null uid (signed-out edge) produces rows but no people", () => {
     const p = groupPortrait([rev(1, { a: 0, b: 1 })], null);
-    expect(p.days).toBe(1);
+    expect(p.rounds).toBe(1);
     expect(p.people).toEqual([]);
   });
 });
@@ -306,7 +306,7 @@ describe("votes answered against a different question", () => {
     // …so it cannot count toward alignment either
     expect(r.withMajority).toBe(false);
     const p = groupPortrait([split(1, { me: 2, a: 0, b: 0 }, { me: "q-other" })], "me");
-    expect(p.daysPlayed).toBe(0);
+    expect(p.roundsPlayed).toBe(0);
     expect(p.alignPct).toBe(0);
   });
 
@@ -337,5 +337,45 @@ describe("votes answered against a different question", () => {
     expect(r.offQuestion).toBe(0);
     expect(r.mineOffQuestion).toBe(false);
     expect(r.total).toBe(3);
+  });
+});
+
+// ── rounds (D426): a room can reveal several in one day ────────────
+describe("rounds — the row's identity is the round, not the date", () => {
+  const round = (n: number, votes: Record<string, number | { optionIdx: number; late?: true }>) => ({
+    day: "2026-09-08", round: n, qid: "q" + n,
+    votes: Object.fromEntries(Object.entries(votes).map(([u, o]) =>
+      [u, typeof o === "number" ? { optionIdx: o } : o])),
+  });
+
+  it("keeps two reveals from one day as two rows, each carrying its round", () => {
+    const P = groupPortrait([round(8, { me: 0, ada: 0, bo: 1 }), round(7, { me: 1, ada: 0, bo: 0 })], "me");
+    expect(P.rows.map((r) => r.round)).toEqual([8, 7]);
+    expect(P.rows.map((r) => r.day)).toEqual(["2026-09-08", "2026-09-08"]);
+    expect(P.rounds).toBe(2);
+    expect(P.roundsPlayed).toBe(2);
+    // …and both count: with the majority in round 8, against it in round 7.
+    expect(P.meWithMaj).toBe(1);
+    expect(P.alignPct).toBe(50);
+  });
+
+  it("a reveal from before rounds carries no round, and the date is its identity", () => {
+    const row = portraitRow(rev(3, { me: 0, ada: 1 }), "me");
+    expect(row!.round).toBeNull();
+    expect(row!.day).toBe(day(3));
+  });
+
+  it("a late answer is shown on the card and counted in no row (ROUNDS-PLAN §4)", () => {
+    // Ada answered after the reveal: not blind, so not in the counts, the
+    // total, or anyone's shared rounds — and a late answer of MINE does not
+    // make it a round I played.
+    const P = groupPortrait([round(9, { me: 0, ada: { optionIdx: 0, late: true }, bo: 1 })], "me");
+    expect(P.rows[0].total).toBe(2);
+    expect(P.rows[0].counts).toEqual([1, 1]);
+    // …and Ada is not in the people list at all: nobody shared a round with her.
+    expect(P.people.find((p) => p.uid === "ada")?.shared ?? 0).toBe(0);
+    const mineLate = groupPortrait([round(10, { me: { optionIdx: 1, late: true }, ada: 0, bo: 1 })], "me");
+    expect(mineLate.rows[0].mine).toBeNull();
+    expect(mineLate.roundsPlayed).toBe(0);
   });
 });

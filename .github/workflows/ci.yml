@@ -216,6 +216,15 @@ jobs:
       # headroom tripwires. Content QUALITY again — same placement rule as
       # check:neighbors above, deliberately off the deploy path.
       - run: npm run check:quality
+      # A category is written at EVERY site or not at all (D424). The lanes
+      # create categories now, which made half-creation reachable on a
+      # schedule: a feed topic lives in world-feed-topics.js AND
+      # content/feed-questions.json, the daily's hues in CAT_META AND
+      # map-branches.js, and nothing compared either pair — the failure is
+      # silent in both directions (a chip that matches nothing, or a
+      # question no chip can reach). Client + content only, so the same
+      # placement rule as check:quality above.
+      - run: npm run check:taxonomy
       # The city catalogue is parsed at runtime and its names become
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
@@ -236,6 +245,14 @@ jobs:
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
+      # The pictures on the pick tiles (D420): every image under
+      # web/catalog-art/ has its credits row and vice versa, every key is in
+      # its catalogue, every licence is one the policy admits, the generated
+      # index agrees with the directories, and firebase.json serves the path
+      # with CORS and an hour's cache — the takedown's other half. Reads
+      # web/, src/ and firebase.json, so it belongs here and not on
+      # backend-checks.yml: nothing it says bears on a rules fix.
+      - run: npm run check:catalog-art
       # The logic generator ships in two byte-identical copies (client +
       # functions, D57) — drift means the server scores forms the client
       # never rendered. backend-checks.yml runs it on the deploy path too.

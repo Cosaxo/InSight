@@ -1,7 +1,7 @@
 # Data-efficiency runbook — the ordered build list
 
 > **Reasoning lives in [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md)**, which
-> is canonical, and the decision is D421 — the owner's approval of every
+> is canonical, and the decision is D429 — the owner's approval of every
 > change that keeps the picture identical, 2026-09-08. This file is the
 > same work as an ordered to-do list: open steps only, dependency order,
 > what "done" means, and which gate proves it. If the two disagree,
@@ -14,10 +14,10 @@ they are estimates. **Every step names the gate that proves it.** Every
 figure is `npm run costs:structure`'s or `npm run costs`'s; none is
 typed. **One assumption runs through Phase 3**: the answer map is kept
 *live* by the trigger with a nightly heal — the owner's stated lean,
-priced at about 6 % of what the map saves — and D421 records that the
+priced at about 6 % of what the map saves — and D429 records that the
 word confirming it is still the owner's to give.
 
-**What no step here may do** (D421 §3): show fewer people, questions or
+**What no step here may do** (D429 §3): show fewer people, questions or
 answers than today; change a number a user sees except where the step
 says so; loosen a rule; touch the three labelled denies; skip a test.
 
@@ -25,7 +25,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
 
 ## Phase 0 — record and measure · **DONE with this pull request**
 
-- [x] **0.1 The decision.** D421 in `DECISIONS.md`: what is approved, the
+- [x] **0.1 The decision.** D429 in `DECISIONS.md`: what is approved, the
       one open word (live), the one thing that waits (§2.8's history
       document, a privacy-shaped ask).
 - [x] **0.2 The measurement.** `scripts/cost-structure.mjs` prices every
@@ -98,7 +98,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       new `REATTACH_DOCS` from source and its pin moves. **What a user
       sees:** a card from three days ago shows the count as of the last
       cold start rather than the last app switch; today's card is
-      unchanged. The one cadence item in this file — D421 names it, and
+      unchanged. The one cadence item in this file — D429 names it, and
       the owner may strike it. · **Gate:** `idle-detach.test.ts` gains
       the case (a wake issues one id; a boot issues seven);
       `pulse.test.mjs`; `check:figures` after `npm run costs`.
@@ -139,7 +139,7 @@ and the city samples' bound.
       did not answer again — for most rows, never — which is a visible
       reduction against today's seven-day cache, and "live is best when
       the cost difference isn't huge" is the owner's word on exactly this
-      (D421 §2). The trigger reads nothing unless the stamp changed, then
+      (D429 §2). The trigger reads nothing unless the stamp changed, then
       reads the account's own answers, the samples they name, and
       rewrites the three fields under `rows.{uid}` where a row exists —
       bounded by the account's answers, a handful of times per account
@@ -214,7 +214,7 @@ sentence on `OWNER-LIST.md`.
 ## Phase 3 — the answer map, live with a nightly heal · **M, one pull request** · **DONE 2026-09-08, one click and one step after it left**
 
 The owner's word on *live* landed the same day (*"start phase 3 and use
-live for the answer map"* — the D421 amendment). Two things moved against
+live for the answer map"* — the D429 amendment). Two things moved against
 the plan as written, each on its step: the write is INSIDE the aggregate
 transaction rather than after it, and the device keeps the answer query
 as a fallback until the backfill has run.
@@ -376,8 +376,10 @@ reads until its second half is built, and says so.
 **met where a cap exists**: 25,000 rollups against a page of 10,000,
 100,000 devices against a shard cap of 20,000, 200,000 people against
 the 150,000 that used to fail. `npm run costs`: server reads 40 → 44 per
-user-day at maturity (velocity −3.6, the streamed scan +9 until 4.3b,
-the sampled shard fold −0.7), the whole 129 → 134.
+user-day at maturity for this phase (velocity −3.6, the streamed scan
++9 until 4.3b, the sampled shard fold −0.7), the whole 129 → 134; the
+head prints 43 and 132, because D426's rounds landed from `main` in the
+same merge and took one read off a reveal and one off the rules.
 
 ## Phase 5 — the write path at scale · **L**
 
@@ -427,7 +429,7 @@ and `npm run costs` prints boot ≈ 15.
 
 ## Waiting on the owner, not on this file
 
-- **The word "live"** for Phase 3 — given 2026-09-08 (the D421
+- **The word "live"** for Phase 3 — given 2026-09-08 (the D429
   amendment records it). What stays the owner's from that phase is the
   backfill's click, dry then `apply` (`OWNER-LIST.md`).
 - **The `functions:delete`** of the three retired nightly functions —

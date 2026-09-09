@@ -27,7 +27,7 @@
 //
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D98).
 
-import { FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
@@ -65,7 +65,17 @@ import {
   type CanonCounts,
   type CatalogSpec,
   type SeedOptionConflict,
+  openRound,
+  playedIn,
+  roundComplete,
+  mergePlayed,
+  turnRecipients,
+  isStamped,
+  type TurnRecipient,
+  roundKey,
+  ROUND_DEADLINE_MS,
 } from "./pure";
+import { notifyTurn, revealDueRounds } from "./v2social";
 import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
@@ -822,51 +832,135 @@ export const onV2AnswerCreated = onDocumentCreated(
     // Group/duo answers are sealed duel material — they surface through
     // materialized reveals (v2social), never through world aggregates.
     //
-    // What this write is for: it flags the group's day as owing a reveal, so
-    // the scheduled scan can ask an INDEXED question ("which groups played
-    // yesterday?") instead of reading every group document to find the few
-    // that did. See prunePendingDays in pure.ts for the field's contract.
+    // What this write is for (ROUNDS-PLAN §2, §3.1; D426): it records that
+    // this member has answered this ROUND — `played.r{n}`, an arrayUnion
+    // on the group document — and, if this is the open round's first
+    // answer, starts the round's clock. Then, if the answer completed the
+    // open round (a 1v1: both; a group: every member), it reveals the
+    // round right here rather than leaving it for the scan: the reveal is
+    // the moment the whole idea is for, and a 1v1 waiting two hours on a
+    // schedule for an answer that already landed is the day wearing a
+    // different clock.
     //
-    // It also replaces the `lastCheckedDay` skip-marker this branch used to
-    // compensate for. That was a read, a value comparison and a conditional
-    // delete whose correctness rested on a specific commit ordering between
-    // this trigger and the scan. arrayUnion needs none of it: a late answer
-    // re-adds its day unconditionally, so the day re-opens whatever order
-    // the two writers land in, and the scan's own transaction settles it.
-    // One blind write, no read, and one less race to reason about.
+    // ONE READ, where the day's branch had none. The day's arrayUnion was
+    // blind because nothing about it depended on the document; the clock
+    // and the completeness verdict do. The read is charged in the cost
+    // model (TRIGGER_READS.duel, scripts/cost-arith.mjs) and it buys the
+    // scan's per-day fixed reads back many times over, since a completed
+    // round is never the scan's to find.
+    //
+    // A transaction rather than a blind update for the same reason the
+    // reveal is one: the reveal contends with this on the group document,
+    // and Firestore's retry is what makes "the answer that completed the
+    // round" a fact rather than a race.
     const surface = snap.get("surface");
     if (surface === "group" || surface === "duo") {
       const gid = snap.get("gid");
-      const day = snap.get("day");
-      if (typeof gid === "string" && typeof day === "string") {
+      const round = snap.get("round");
+      const uid = event.params.uid;
+      if (typeof gid === "string" && typeof round === "number" && Number.isInteger(round)) {
+        const gref = firestore().collection("v2_groups").doc(gid);
+        const key = roundKey(round);
+        let completed = false;
+        // Who this answer tells "your turn" (ROUNDS-PLAN §7.4), and the
+        // words the push needs — decided inside the transaction, sent
+        // after it. Reset per attempt, like the reveal's own locals.
+        let nudge: TurnRecipient[] = [];
+        let room: { name: string; mode: "duo" | "group"; who: string } = { name: "", mode: "group", who: "" };
         try {
-          const gref = firestore().collection("v2_groups").doc(gid);
-          // update(), not set(merge): a group deleted between the answer and
-          // this trigger must stay deleted, and set() would resurrect it as a
-          // doc holding nothing but pendingDays. NOT_FOUND is the expected
-          // outcome there, not an error worth logging loudly.
-          await gref.update({ pendingDays: FieldValue.arrayUnion(day) });
+          completed = await firestore().runTransaction(async (tx) => {
+            nudge = [];
+            const g = await tx.get(gref);
+            // A group deleted between the answer and this trigger must stay
+            // deleted: update() on a missing document throws, and set()
+            // would resurrect it as a document holding nothing but `played`.
+            if (!g.exists) return false;
+            const open = openRound(g.get("round"));
+            // A LATE answer (ROUNDS-PLAN §4): the round has revealed, and
+            // the rules admitted this only with `late: true` and no guess.
+            // It joins the reveal — marked — so the room sees it; it marks
+            // no `played`, starts no clock, completes nothing, and folds
+            // into no aggregate. Three reads (group, reveal, profile) and
+            // one write, only on this path.
+            if (round < open) {
+              const revealRef = gref.collection("reveals").doc(key);
+              const [r, prof] = await tx.getAll(revealRef, firestore().doc(`v2_users/${uid}`));
+              // No reveal to join (a round behind the open one always has
+              // one; a retry after an erasure may not), or already in it —
+              // a blind vote is never overwritten by a late one.
+              if (!r.exists) return false;
+              const votes = (r.get("votes") || {}) as Record<string, unknown>;
+              if (Object.prototype.hasOwnProperty.call(votes, uid)) return false;
+              const vote: Record<string, unknown> = { optionIdx: snap.get("optionIdx"), late: true };
+              const pickUid = snap.get("pickUid");
+              if (typeof pickUid === "string" && pickUid) vote.pickUid = pickUid;
+              // D71's shape: the question this member answered, stamped
+              // only when it is not the one the round was published under.
+              const qid = snap.get("qid");
+              if (typeof qid === "string" && qid !== r.get("qid")) vote.qid = qid;
+              const upd: Record<string, unknown> = {
+                [`votes.${uid}`]: vote,
+                // The reveal names only who it records as there (the
+                // erasure sweep walks `members`), so both move together.
+                members: FieldValue.arrayUnion(uid),
+                [`names.${uid}`]: (prof.exists && prof.get("displayName")) || "",
+              };
+              if (typeof vote.pickUid === "string") upd.pickedUids = FieldValue.arrayUnion(vote.pickUid);
+              tx.update(revealRef, upd);
+              return false;
+            }
+            const upd: Record<string, unknown> = { [`played.${key}`]: FieldValue.arrayUnion(uid) };
+            // The open round's clock starts at its FIRST answer — never on
+            // an answer sealed ahead of it: that round's clock starts when
+            // it opens, in the reveal that opens it.
+            if (round === open && !g.get("roundDeadlineAt")) {
+              upd.roundOpenedAt = FieldValue.serverTimestamp();
+              upd.roundDeadlineAt = Timestamp.fromMillis(Date.now() + ROUND_DEADLINE_MS);
+            }
+            const members: unknown = g.get("memberUids");
+            const roster = Array.isArray(members) ? (members as string[]) : [];
+            // WHO IS TOLD "your turn" (ROUNDS-PLAN §7.4), decided here and
+            // STAMPED in the same commit as the mark, so two answers landing
+            // together cannot both nudge one member; the send waits for the
+            // commit. The answerer's own stamp is cleared — they have
+            // played, so the next round waiting for them is a new fact —
+            // and a late answer (above) nudges nobody: it is nobody's turn.
+            const stamps = g.get("pushAt");
+            nudge = turnRecipients(mergePlayed(g.get("played"), key, uid), open, roster, stamps, uid);
+            for (const r of nudge) upd[`pushAt.${r.uid}`] = FieldValue.serverTimestamp();
+            if (isStamped(stamps, uid)) upd[`pushAt.${uid}`] = FieldValue.delete();
+            room = {
+              name: String(g.get("name") || ""),
+              mode: g.get("mode") === "duo" ? "duo" : "group",
+              who: String(((g.get("memberNames") || {}) as Record<string, unknown>)[uid] || ""),
+            };
+            tx.update(gref, upd);
+            const already = playedIn(g.get("played"), key);
+            return round === open
+              && roundComplete(new Set([...already, uid]).size, roster.length);
+          });
         } catch (err) {
-          const code = (err as { code?: number | string }).code;
-          if (code === 5 || code === "not-found") return;
-          // RETHROWN, so `retry: true` above actually means something on this
-          // branch. It used to warn and return normally, which made the retry
-          // policy dead here: the mark is the ONLY thing that puts this day
-          // in front of the scheduled scan, so losing it loses the reveal —
-          // for a group-day where the single answerer has already played,
-          // silently and permanently.
-          //
-          // D19's stated safety net does not cover it. "The answer never
-          // folded into any aggregate — a louder problem, already logged" is
-          // true of the vote path; this branch returns before any aggregate
-          // work. And the monitoring filter is severity>=ERROR while this
-          // logged WARNING, so nothing was watching either.
-          //
-          // Safe to retry: arrayUnion is idempotent, and the NOT_FOUND case
-          // above still returns cleanly rather than retrying against a group
-          // that is deliberately gone.
-          logger.error(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
+          // RETHROWN, so `retry: true` above means something on this
+          // branch: the mark is what puts this round in front of the scan
+          // and what completes it, so losing it loses the reveal — for a
+          // 1v1 whose partner has already played, silently. Safe to retry:
+          // arrayUnion is idempotent, the clock is set only if absent, and
+          // the reveal below is create-guarded.
+          logger.error(`[v2] round mark failed for ${gid}/${key}:`, err);
           throw err;
+        }
+        // After the commit, never before it: a nudge about a mark that did
+        // not land would be a lie. notifyTurn never throws.
+        if (nudge.length) await notifyTurn(firestore(), gid, room, nudge);
+        if (completed) {
+          try {
+            await revealDueRounds(gref);
+          } catch (err) {
+            // The scan is the safety net: a completed round this reveal
+            // failed to publish is due at its deadline, and the indexed
+            // query finds it then. Loud, never fatal to the mark above.
+            logger.error(`[v2] reveal on completion failed for ${gid}/${key}:`, err);
+          }
         }
       }
       return;

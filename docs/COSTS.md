@@ -49,7 +49,7 @@ Every constant below is sourced, not assumed:
 | One world answer | 1 client write + 1 server write (`v2_agg_events`) | `onV2AnswerCreated`, functions/src/v2.ts |
 | …plus the published aggregate | +1 write **per answer**, always | no cadence since D98; it IS the fold's working document since the private mirror collapsed |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
-| One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
+| One duel answer | 1 client write + 1 server transaction on the group document (1 read, 1 write: who played, and the round's clock on its first answer) — and, on the answer that completes the round, the reveal below runs right there | v2.ts duel branch (ROUNDS-PLAN §3.1, D426). It was one blind `pendingDays` arrayUnion with no read |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
 | One cold boot | **+492 reads** — five whole surfaces plus the feed's core questions, not the whole bank. This row said **+913**, the bank's total, and the gate beside it kept rewriting that to the newest bank size every promotion cycle — so the row grew more wrong the more diligently it was maintained. The daily left the boot's fetch at D383 (a shape document and seven deck rows instead) and the feed's tail pages in after first paint; `check:figures` now computes what the boot reads rather than what the bank holds | `BANK_SURFACES` + `core == true`, src/v2/data/live.ts; D383. The whole bank is `V2_QUESTIONS`, 1145 docs / 336.5 KiB of JSON — still the right number for the install and cache budgets, and no longer the right one for a boot |
@@ -57,14 +57,17 @@ Every constant below is sourced, not assumed:
 | A returning device's first paint | 0 reads before the deck draws — it paints off the D312 caches and the own-profile mirror, and the ~15 warm-boot reads above reconcile it behind the screen: the count is unchanged, the wait is not | `warmFromDisk()`, src/v2/data/live.ts (D356) |
 | One answer relaunched before its ack | ≤1 read, once the SDK reports its queue drained — and none when the boot's own answers delta already returned it | `settlePending`, src/v2/data/live.ts (D357). Only a boot with an unsettled answer pays it, and the `documentId() in` read covers up to 30 of them |
 | One world answer, again | +1 **rule** read (the question doc) + **3** **server** reads (ledger event, published agg, **the author's profile**) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts. The profile joined the batch at D410 — the fold checks the answer's cohort is the author's own, which the rules cannot: it rides the existing `tx.getAll`, so it is one billed read and not a second round trip, and the lock window on the qid document is unchanged. The row also said "private agg" long after D98 collapsed the private mirror into the published one |
-| One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
+| One duel answer, again | +2 rule reads (group, question) — the reveal-exists `exists()` is gone, because the reveal and the round's advance are one commit, so the round bound off the group document already says it | `isDuelAnswer` (ROUNDS-PLAN §2.2). Was +3 under the day |
 | One ledger entry | +0.1 read the night it is scanned — the velocity scan's own read is the partial day since midnight (143 of 1,440 minutes at 02:23 UTC); the whole days of its window come off the nightly pass's one read, charged on the fit's and the digest's rows below | `VELOCITY_READS_PER_LEDGER_ENTRY`, scripts/cost-arith.mjs; functions/src/velocity.ts run by functions/src/nightly.ts (D54; DATA-EFFICIENCY-RUNBOOK 4.4 — `ledgerVelocityScan` and its full read of every entry until then) |
 | The breakdown cap's tail (D400) | **Nothing until a question has answers from 25 cities or countries.** Then +1 shard read and +1 merge write per answer whose city or country the hot document cannot hold (the trigger reads a shard only where the cap acts, and the majority's cities are in the hot 24), and one shard read per such question when a viewer whose city is in the tail opens the City or Country stop, once per session | `v2_agg_overflow`, functions/src/v2.ts; `src/v2/data/overflow.ts`. `B.tailShare` in scripts/cost-arith.mjs carries the share of answers that pay it — 0 today, the number to move when the `agg_evict` alert first fires |
-| One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
+| One LATE duel answer | the client write, +2 rule reads (group, question), and the trigger's 3 reads (group, the reveal, the member's profile for the name) + 1 update on the reveal — nothing on the group, nothing in any aggregate | v2.ts duel branch (ROUNDS-PLAN §4). Only an answer to a round that has already revealed takes this path |
+| One round revealed | `2 + 2m` reads for `m` members — 6 for a duo: one field-masked profile per member for the names, then the committing transaction over the reveal, the group and one answer per member. Was `4 + 3m` under the day: a standalone reveal-exists get and a pre-read of every answer, both made unnecessary by `played` on the group document | `revealRound`, functions/src/v2social.ts (ROUNDS-PLAN §3.1) |
+| One WORLD round revealed, per member | +1 read for the crowd's split (`v2_question_aggs/{qid}`), once per question per session, on the reveal — and in a 1v1, once per pair per session on the first world round the card draws, the partner's public answers: one capped query, ≤300 reads (`CIRCLE_ANSWER_CAP`) | `ensureWorldSplit`, `loadPartnerAnswers`, src/v2/data/live.ts (ROUNDS-PLAN §6.2, §0a). The plan priced the split at zero on the assumption that the feed's cache held every core aggregate; it holds the ANSWERED ones (the blind answer), and a duel answer is keyed `g_…`, so the top-up never asks. Every other round is a world round, so this is ~1 read per two rounds per member beside the reveal's `(2 + 2m)/m` |
+| One *your turn* or reveal push | +1 read of the push document per recipient per send, FCM free — at most one nudge per member per TURN (the stamp on the group document, ROUNDS-PLAN §7.4), and the reveal's send once per round | `notifyTurn`, `revealRound`, functions/src/v2social.ts through `sendPushToUids`. The stamps ride the transactions the trigger and the reveal already run on the group document, so deciding who is told costs no read of its own |
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
 | One Kindred first view | ≤12 **sample documents** (one per question — the nightly voter sample, D397) plus the profile reads for names, shared with the sheet cache; the live query only for a question no sample exists for yet | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99); `PATTERNS_SAMPLE_CAP`, functions/src/patternsSamples.ts. Was ≤12 sheets' worth — ≤2,400 answer reads — until D397 |
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
-| One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
+| One Roles tab open | **One ordered query of at most 30 reveal documents per room**, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here. It was 14 until D426's profiles follow-up (2026-09-08): fourteen reveals was a fortnight while a reveal was a day, and is two days of a pair playing eight rounds a day; thirty is a few days of an active pair or a month of a slow one, at roughly double the cold cost. The fortnight ROLES-PLAN describes would be 112 reveals per room, which is not a per-session read — its §3.3 ledger is the dependency (an owner row). Before ROUNDS-PLAN §7.1 this was a day-key `getDoc` per day, billing a read for every day that had NO reveal; the query reads only the documents that exist | `REVEAL_HIST_CAP`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ≤30 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
 | The Patterns fit, nightly | The day's ledger entries as the vote log — read ONCE by the nightly pass (`functions/src/nightly.ts`, D399) for the engagement digest, this fit, the taste fold, the answer-map heal and (since DATA-EFFICIENCY-RUNBOOK 4.4) the velocity scan together — one private state read+write per active answerer — the write now carrying the person's compacted answer map (D395) — **plus 1 + `ALS_SWEEPS` = 4 state reads per fitted person per night** for the candidate engine's re-solve (charged per MAU) — one scan for the item statistics and one per sweep, since runbook 4.3 streams the people instead of holding them; runbook 4.3b is what brings it to one read per person who CHANGED, one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1; the candidate and its scan D395). Measured BEFORE the fold shipped — the dated notes under the scenario table have the movement |
 | The engagement digest, nightly | The day's ledger entries as the activity log — the nightly pass's one read (D399), shared with the fit and the taste fold — one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268), run by `functions/src/nightly.ts`. The velocity scan runs inside the same pass since DATA-EFFICIENCY-RUNBOOK 4.4, its whole days off this read and its cursor honoured on the partial-day tail — the cursor-against-calendar-day argument the header carries is met by the shared reader rather than by a second read. Measured before the deploy — dated note below |
@@ -99,18 +102,22 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 7.1 K | 1.4 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 86.8 K | 14.3 K | 0.33 | 0.00 | **0.33** |
-| Real traction | 5,000 | 688 K | 153 K | 10 | 0.00 | **10** |
-| Scale | 50,000 | 6.7 M | 1.3 M | 114 | 2.20 | **117** |
-| Hit | 500,000 | 66.4 M | 12.9 M | 1,149 | 43 | **1,192** |
+| Launch / TestFlight | 50 | 7.0 K | 1.4 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 85.8 K | 14.3 K | 0.32 | 0.00 | **0.32** |
+| Real traction | 5,000 | 678 K | 153 K | 9.97 | 0.00 | **9.97** |
+| Scale | 50,000 | 6.6 M | 1.3 M | 113 | 2.20 | **116** |
+| Hit | 500,000 | 65.4 M | 12.9 M | 1,139 | 43 | **1,182** |
 
-> **Re-printed 2026-09-09 (DATA-EFFICIENCY-RUNBOOK Phases 2–4).** The
-> table had stood at Phase 1's figures while the notes under it recorded
-> Phases 2 and 3 in reads alone: reads/day 17.8 M → 6.7 M at 50,000 DAU
-> (357 → 134 per user-day), **$218 → $117 at 50,000 and $2,221 → $1,192
-> at 500,000**; writes/day 1.0 M → 1.3 M at 50,000 for the answer map's
-> write per world answer (Phase 3) and the per-city samples (Phase 2).
+> **Re-printed 2026-09-09 (DATA-EFFICIENCY-RUNBOOK Phases 2–4, with
+> D426's rounds in the same tree).** The table had stood at Phase 1's
+> figures while the notes under it recorded Phases 2 and 3 in reads
+> alone: reads/day 17.8 M → 6.6 M at 50,000 DAU (357 → 132 per
+> user-day), **$218 → $116 at 50,000 and $2,221 → $1,182 at 500,000**;
+> writes/day 1.0 M → 1.3 M at 50,000 for the answer map's write per
+> world answer (Phase 3) and the per-city samples (Phase 2). Two of the
+> reads are the rounds' (D426, merged from `main` the same day): the
+> reveal-exists rule read is gone, 7 → 6, and a round reveals at
+> `2 + 2m` where the day did at `4 + 3m`.
 > Phase 4 on its own is +5 reads per user-day at maturity — the streamed
 > candidate scan's +9 (runbook 4.3, until 4.3b) against velocity's −3.6
 > (4.4) and the self-sampling shard fold's −0.7 (4.2) — about $4 a month
@@ -417,11 +424,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 23 | 42 | 3 | 3 | 4 | 7 | 44 | 16 | 142 |
-| 500 | 23 | 42 | 3 | 3 | 4 | 7 | 44 | 48 | 174 |
-| 5,000 | 23 | 2 | 3 | 3 | 4 | 7 | 48 | **48** | 138 |
-| 50,000 | 23 | 2 | 3 | 3 | 4 | 7 | 44 | 48 | 134 |
-| 500,000 | 23 | 2 | 3 | 3 | 4 | 7 | 43 | 48 | 133 |
+| 50 | 23 | 42 | 3 | 3 | 4 | 6 | 43 | 16 | 140 |
+| 500 | 23 | 42 | 3 | 3 | 4 | 6 | 43 | 48 | 172 |
+| 5,000 | 23 | 2 | 3 | 3 | 4 | 6 | 47 | **48** | 136 |
+| 50,000 | 23 | 2 | 3 | 3 | 4 | 6 | 43 | 48 | 132 |
+| 500,000 | 23 | 2 | 3 | 3 | 4 | 6 | 42 | 48 | 131 |
 
 > Re-printed 2026-09-08 from `npm run costs`, twice that day. First
 > `re-attach` 28 → 4 (DATA-EFFICIENCY-RUNBOOK 1.4), and the server
@@ -445,16 +452,19 @@ Per active user per day:
 > the map.
 >
 > Re-printed 2026-09-09 from `npm run costs`, after Phase 4 of the same
-> runbook. The server column 40 → 44 at maturity, two terms pulling
-> against each other: the velocity scan reads the pass's day (4.4) —
+> runbook. The server column 40 → 44 at maturity for the phase alone —
+> printed at 43, and the rules column at 6, because D426's rounds
+> arrived from `main` in the same merge (one read off a reveal, and the
+> reveal-exists rule read gone) — two terms pulling against each other: the velocity scan reads the pass's day (4.4) —
 > its own read is the partial-day tail, 0.1 of an entry where it was 1,
 > −3.6 per user-day — and the candidate scan streams (4.3) — 1 +
 > `ALS_SWEEPS` = 4 state reads per fitted person a night where it was
 > 1, +9 per user-day at three MAU per DAU, until 4.3b reads only the
 > people who changed. The attention term now falls with size (4.2: the
 > fold publishes the rate that lands 80 % of its cap), which is the
-> 48 → 44 → 43 down the column. Nothing on the client's side moved;
-> the whole is 134 at maturity.
+> 47 → 43 → 42 down the column. Nothing on the client's side moved;
+> the whole is 132 at maturity (134 for the phase alone, before the
+> rounds' two).
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the

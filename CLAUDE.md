@@ -369,7 +369,13 @@ the table are `check:figures`'s now, off package.json — D279 has what it
 does and does not decide is a runner.
 
 Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
-(question form + provenance, D97), `check:public-copy` (the retired
+(question form + provenance, D97), `check:taxonomy` (a category is
+written at every site or not at all — the feed's palette against its
+wire list, `CAT_META` against `map-branches.js`, the leaf lists, the
+You map's ring, and the proposal ledger the lanes grow the tree from:
+the ring's hubs stay as they are, every new topic on any surface
+lands in one, and a retired room is at no site — folded, never
+deleted, D424–D427), `check:public-copy` (the retired
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —
@@ -388,7 +394,9 @@ to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
 catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
 and `check:catalogs` — the last three also run on the deploy path,
 because the aggregate trigger validates answer keys against the committed
-catalogues (D14–D17; docs/CATALOG-QUESTIONS.md).
+catalogues (D14–D17; docs/CATALOG-QUESTIONS.md) — and `check:catalog-art`
+for the pictures on the pick tiles (D421), `ci` only, because the trigger
+never reads an image.
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the

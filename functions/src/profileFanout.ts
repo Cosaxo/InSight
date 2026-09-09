@@ -10,7 +10,7 @@
 // answered until it answered that question again, which for most rows is
 // never. The old path was no better in kind (a 7-day profile cache, D129)
 // but it was bounded, and "as long as the cost difference isn't huge, live
-// is best" is the owner's standing word on exactly this trade (D421).
+// is best" is the owner's standing word on exactly this trade (D429).
 //
 // WHAT IT COSTS, which is why it is affordable. It fires on every write to
 // a profile document and does nothing — no read — unless the stamp

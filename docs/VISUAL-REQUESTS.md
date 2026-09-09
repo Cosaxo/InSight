@@ -633,6 +633,114 @@ gates what the doors say.
 
 ## Built
 
+### 11 · The pictures on the pick tiles — the catalogue's own faces
+
+- **title · asked by** — *Catalogue pictures* · the owner, 2026-09-07,
+  directly to a session, on being told what copyright allowed:
+  *"i feel if letterbox can do it so can we i think we can atemt it and
+  if we recive a complain we take it down."* **Built the same day on the
+  direct ask, without the drafted step** — recorded here rather than
+  skipped silently, for item 7's reason. D421 is the record.
+- **surface** — the pick card's browse row (`ui/PickTiles.tsx`, D308's
+  faces) and the reveal's "your pick" / "the crowd" faces
+  (`world-feed.jsx` `renderPick`), plus one *Image credits* door under
+  each (`ui/PickCredits.tsx`). The search's rows and the demo store's
+  invented catalogues draw none.
+- **data and basis** — `web/catalog-art/<domain>/<key>.<ext>`, a
+  committed thumbnail on our own hosting per catalogue key, and its
+  `credits.tsv` row (author, licence, source), written by an operator
+  running `scripts/build-catalog-art.mjs` against Wikidata + Commons
+  (P18, P41) or TMDB. Nothing at runtime but the file. The generated
+  index `src/v2/data/catalogArtIndex.ts` says which keys have one.
+- **states** — no picture for the key: the generated face, unchanged;
+  a picture: the face, then the picture fading in once decoded; a failed
+  load (a takedown, an outage): the face again; a domain with no
+  pictures: no door. Credits: a door, then loading, then the list, or
+  one sentence when hosting cannot be reached.
+- **interaction** — none new on the tiles (a tap is still the pick).
+  The credits door toggles the list; each row's *source* is a link out.
+- **vocabulary** — `.wf-tileimg`, the duel tile's one treatment (fade
+  on decode, the same saturation), shared rather than copied; D308's
+  pattern faces as the ground; `.tap44` on the small door.
+- **constraints** — zero eager bytes, measured (544 KB before and
+  after, against 552; +3 KB in the deferred feed chunk); no hotlink,
+  ever; `check:catalog-art` on the directories, `check:tap-targets`
+  and `check:a11y` unchanged; the picture is decorative to assistive
+  tech because the tile already carries the name.
+- **why** — a browse row of patterned rectangles under "the greatest
+  athlete who ever lived" was the design's placeholder for portraits,
+  and the owner asked why the portraits were not there.
+- **status** — `built` 2026-09-07 (D421). **What a canvas would still
+  improve:** the reveal's box is 92 px landscape and a poster is
+  portrait, so a film reveal crops to the poster's middle third; and
+  the credits list is a plain list. Optional, and on `OWNER-LIST.md` §
+  Designs as such.
+
+### 12 · The 1v1 and group card, when a round is the unit
+
+- **title · asked by** — *Your turn · their turn* · the owner, 2026-09-08,
+  directing `ROUNDS-PLAN.md` (*"lets go with this path"*), and answering
+  the screen question in the same message with *"yes"*.
+- **surface** — the daily tab's 1v1 and group modes:
+  `ui/LiveDuelPanel.tsx`'s `LdCard` and the rail above it, plus the
+  first-run branch that `VISION-2026-09-07.md` §3 redraws as *the first
+  day*. The card fills the view and snaps, one room per screen (D156).
+- **what changes, and why the existing drawing cannot be patched** — the
+  card's whole grammar is a clock. Today it draws *answered · reveals in
+  04:12* and the first-day screen draws three beats: *Today · sealed*,
+  *Tonight* (the reveal clock), *Tomorrow · revealed*. Under rounds a
+  **1v1 has no clock at all** — it reveals the moment the other person
+  answers — and a group's clock stops being midnight and becomes its
+  round deadline. A countdown to a moment that is not what the reveal
+  waits on is worse than no countdown.
+- **the states to draw** — `your turn` (the round is open and you have
+  not answered) · `their turn` (you have answered, they have not; the
+  1v1 says *waiting on Ada*, drawn from `roundPlayers`, which is who has
+  answered and never what) · `revealed, and the next round is open`
+  (the reveal and a fresh question on one card, because that IS the
+  loop) · `N rounds waiting for you` (a partner ran ahead; up to the lead
+  cap) · `at the lead` (you have run as far ahead as you may — say what
+  is waiting, not what is forbidden) · `closed at the deadline` (a group
+  round that revealed without everyone) · `late` (you answer a round
+  whose table is already published — the answer shows, marked, and
+  scores nothing; the screen must say that plainly and without scolding).
+- **data and basis** — all of it is on documents the card already holds:
+  `round` · `roundPlayers` · `roundDeadlineAt` on the group document the
+  client subscribes to, and the reveal. No new read. Nothing on this
+  screen may invent a person (D1): an empty seat is a seat, not a name.
+- **interaction** — the reveal and the next round on one card means the
+  run of rounds is what the day dots used to browse; the dots become a
+  run of rounds rather than days. One handler behind the rail's `New`
+  tile and any *start another* row (D392 §3.1's finding).
+- **vocabulary** — the standalone family in `design/`,
+  `src/v2/styles.css`, D302's two palettes, the 12px floor (D391),
+  `check:tap-targets`' 44px. **And the word:** these are **groups** and
+  **1v1s**. `ROUNDS-PLAN.md` §9 has the collision — Circle is the
+  Mirror's follow-graph stop (D101) and the duel panel has been calling a
+  group a circle — and this design should not add to it.
+- **copy** — D182, and D419 §3: no sentence may name a cadence. *"Until
+  the reveal"* is true at any pace; *"until tomorrow"* goes false the day
+  this ships. The two halves of the promise stay — unreadable until the
+  reveal, then named.
+- **constraints** — the panel is lazy behind `daily-split.jsx`'s
+  `React.lazy` (D156 §5), so it costs no first paint; `check:bundle`,
+  `check:a11y`'s ratchet, and no new window global.
+- **why** — the ties axiom (`AXIOMS.md`, operational): rounds are what
+  give `tie-2`'s second-person measurement enough shared items per pair
+  to decompose at all. The screen is what makes the pace legible.
+- **status** — `built` 2026-09-08 (D426's second amendment). The owner's
+  canvas of 2026-09-08 — nine states for a 1v1 and a group, light and
+  dark — is extracted to
+  [`design/rounds-card-2026-09-08/`](../design/rounds-card-2026-09-08/),
+  whose README is the readable half of the bundle: every string it
+  settled, the behaviours a static reading loses, and where the tree
+  departs from the canvas (a 1v1 can still close at its deadline and then
+  wears the group's shapes; the next round's ask sits under what you
+  sealed; only the open round carries a deadline; the header's run line
+  and the *N to play* count are gone). Built as `ui/LiveDuelPanel.tsx`'s
+  card, rail, run and first run the same day; `ROUNDS-PLAN.md` §0a has
+  the same departures beside the model's own.
+
 ### 7 · The first-launch walkthrough — how the app works, before the questions
 
 - **title · asked by** — *How InSight works* · the owner, 2026-09-06,
