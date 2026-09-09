@@ -48387,3 +48387,97 @@ Firestore ledger stays what the folds read until phase D. **Two clicks
 are the owner's** (`OWNER-LIST.md`): the dataset and the two IAM roles,
 and the backfill with the deploy's day as its cutoff. The privacy page
 and the inventory moved first (D183).
+
+## D442 · The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on
+
+**Date:** 2026-09-09 · **Status:** Adopted for what is built; three asks
+to the owner, each with its arithmetic on `OWNER-LIST.md`. The owner's
+ask stands unchanged (*"do a in depth analyses of cost and what could be
+improved i dont want a unexpected firebase bill that i cant pay"*), and
+`docs/COST-EXPOSURE.md` §8 is the record; this is the decision under it.
+
+**What was found.** The page had measured production on the morning of
+2026-09-08 and then the same branch built DATA-EFFICIENCY-RUNBOOK phases
+1–4 and phase A of the log-first structure (D441) — code the page had
+not read. Read the way §3 read the old code, four of its surfaces could
+bill in the shape the owner asked to prevent:
+
+1. **The answer log's erasure** ran one `DELETE` per deleted account, and
+   BigQuery bills a DELETE for every column of every partition it
+   touches — an account's answers span the year, so a statement is a pass
+   over the whole table at $6.25 a TiB whatever it names: the 10 MB
+   minimum today, $27 a statement at a million people answering a hundred
+   times a day, the largest line on the bill at ten million. `npm run
+   costs:target` carries it now ($37 a month at 50,000 × 100/day, $747 at
+   a million).
+2. **The append** ships on the streaming API, which bills a 120-byte row
+   as a kilobyte with no free allowance — $143 a month at a million users
+   against $0 on the Storage Write API. The morning's `COSTS.md` note had
+   priced the bytes and not the minimum.
+3. **The profile fan-out** (runbook 2.1) turned one client write into a
+   few thousand operations, and a profile document takes a write a second:
+   on the order of $300–500 a day from one attested account, ~$1,400 a day
+   across accounts at the trigger's instance cap — a device driving the
+   app's own write, which App Check enforcement does not bound.
+4. **Phase B's Redis** is billed by the instance from the hour it exists —
+   $196 a month at the size the model picks, ~$36 at the smallest — and
+   the runbook ordered it "before the wall" with nothing under it.
+
+And one premise, already on the page's §2: the model netted the Firestore
+free quota, which belongs to `(default)`; production is the named
+database `insight` (D165). The launch row printed $0.00 against an
+invoiced dollar.
+
+**What is decided and built.**
+
+- The night erases every pending account in ONE statement (pages of 500),
+  and `deleteAccount` runs the immediate statement only while the table
+  is under a gibibyte (`LOG_ERASE_NOW_MAX_BYTES`, off the table's
+  metadata). The table is clustered by person then question, chosen
+  while it is still free to choose. The privacy page's "within a day" is
+  unchanged.
+- The fan-out is budgeted at three an hour per account
+  (`v2_ratelimits/fanout_{uid}`, the sliding window every other budget
+  here uses, erased with the account); past that a `pending` marker the
+  nightly pass heals from the profile as it stands — a ninth runner.
+- The target model prices the ingest line as built, with the Storage
+  Write API beside it (runbook A.8), and the erasure line (A.9).
+- The model reads the database id off `db.ts` and nets nothing on a named
+  database; the scheduler floor is counted off the tree ($0.40). The
+  launch row is $0.54, and the sentences "genuinely $0 below ~177 DAU"
+  and `COST-COMPARISON.md`'s A+ row are retired (§6 C1).
+- **The budget acts** (§6 C4, D332's recorded next joint):
+  `functions/src/budget.ts` sets the read breaker at 100 % from the
+  budget's Pub/Sub notification, in the fields `budget-mode.mjs` reads,
+  and releases only what it set when the next month arrives under the
+  line. Two clicks after the deploy are the owner's. It does not detach
+  billing.
+- **The review's ceiling** (§6 C3): fifty model calls a day project-wide,
+  a refused slot holding the booking without an attempt; `max_tokens`
+  1,024, the verdict's size, where it was the model's maximum.
+
+**What waits on the owner, each a way through and not a stop (D334,
+D352).** *When phase B starts* — a condition (the contention alert, or
+~5,000 measured actives, on the smallest instance) written into
+`LOG-FIRST-RUNBOOK.md` for the owner to move either way. *A.9* — whether
+an erased account's rows may outlive it in the log by up to a month,
+joined out of every fold meanwhile, for a thirtieth of the erasure line;
+the privacy page moves first (D183). *The hard stop* — whether the
+budget's function may detach billing at a threshold the owner names;
+built as one more branch when they do.
+
+**Not verified from the sandbox, said so on the page:** Google's DML
+pricing wording and whether a DELETE prunes by cluster (the docs host is
+blocked; the batch bounds the cost either way); that the deploy creates
+the Pub/Sub topic (the applier prints the create command if the API
+refuses one); the budget service agent's address (the console's own
+*Connect a Pub/Sub topic* makes the grant if it is wrong).
+
+**Measured before the push:** `test:scripts` (the model's new pins),
+`test --prefix functions` (the batch, the ceiling, the budget's decision
+table, the fan-out's window and heal, the hold without an attempt),
+`check:fn-runtime` (45 functions; a Pub/Sub trigger read by its event
+type), `check:deploy-targets`, `check:appcheck`, `check:docs`,
+`check:figures`, `check:policy-claims`, `check:data-inventory`; the
+counts are in the pull request.
+
