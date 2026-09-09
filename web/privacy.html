@@ -565,8 +565,11 @@
 
   <h3>Firebase (Google Cloud)</h3>
   <p>
-    Hosting, sign-in, database and notifications. Your data is stored on
-    Google Cloud infrastructure under Google's terms as our processor.
+    Hosting, sign-in, database and notifications — and, since the answer
+    log, a copy of every answer in an analytics table (BigQuery) in the
+    same Google Cloud project and region, which is what our nightly
+    computations read. Your data is stored on Google Cloud infrastructure
+    under Google's terms as our processor.
   </p>
 
   <h3>Sentry — crash reports</h3>
@@ -588,8 +591,10 @@
     written, your follows — including the ones other people hold of you —
     your group memberships, your picks and name inside past group reveals,
     your presence square, your notification tokens, and your sign-in
-    itself. It also clears the app's data on the device you ran it from.
-    There is no undo and no grace period.
+    itself. The copy of your answers in the analytics table goes with
+    them — at once, or within a day where the database is still settling
+    its newest rows. It also clears the app's data on the device you ran
+    it from. There is no undo and no grace period.
   </p>
 
   <p>

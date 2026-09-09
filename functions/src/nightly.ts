@@ -79,6 +79,7 @@ import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
 import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 import { runVelocityScan, firestoreVelocityStore } from "./velocity";
+import { runLogReconcile, firestoreLogStore } from "./log";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -97,6 +98,11 @@ export interface NightlyRunners {
    *  the same reader and the partial day its own read. It logs its own
    *  flags and heartbeat (`velocity_scan`). */
   velocity: () => ReturnType<typeof runVelocityScan>;
+  /** The answer log's reconcile (log.ts, D433 phase A) — the eighth, off
+   *  the same ledger read: yesterday's entries the BigQuery table lacks,
+   *  and the erasures the day deferred. Skips itself where there is no
+   *  BigQuery (the emulator), and says so. */
+  log: () => ReturnType<typeof runLogReconcile>;
 }
 
 /** The three log levels the pass speaks — `logger`'s, injectable. */
@@ -144,6 +150,10 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   // healed count is the thing worth seeing — it means a live write was
   // missed, and monitoring should notice a night with many.
   const heal = await attempt("answerMaps", r.answerMaps);
+  // The log's reconcile speaks for itself too (`log_reconcile`), and runs
+  // after the heal so a night that dies in the folds still mirrors the
+  // day — the ledger keeps it for ninety days either way.
+  await attempt("log", r.log);
   if (heal && heal.healed > 0) {
     log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });
   }
@@ -218,6 +228,7 @@ export const digestEngagementV2 = onSchedule(
       taste: () => runTasteFold(firestoreTasteStore(db, ledgerDay), now),
       velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
       answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
+      log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
       rollup: () => runRollupFold(firestoreRollupStore(db)),
     });

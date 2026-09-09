@@ -101,6 +101,15 @@ const EXEMPT = {
       + "app can run a repair, and a control that fails when it is most "
       + "needed is not a control; gated on SEED_ADMIN_UIDS",
   },
+  backfillLogV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the one-time load of every existing answer into "
+      + "the BigQuery answer log (SCALE-ARCHITECTURE.md phase A, D433), "
+      + "driven by scripts/backfill-log.mjs from the Backfill answer log "
+      + "workflow — no attested app runs a migration; gated on "
+      + "SEED_ADMIN_UIDS",
+  },
   backfillAnswerMapsV2: {
     gate: "assertOperator",
     reason:

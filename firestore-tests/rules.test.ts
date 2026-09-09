@@ -374,6 +374,18 @@ describe("v2 questions + aggregates", () => {
     await assertFails(setDoc(doc(asUser(OWNER), "v2_velocity", "state"), { lastScanAt: 0 }));
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_velocity", "state")));
   });
+
+  it("deferred answer-log erasure markers (D433 phase A) are opaque to clients", async () => {
+    // A marker names an erased account, and a writable one would let a
+    // client queue the deletion of somebody else's rows — or clear the
+    // marker that keeps the promise on their own.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_log_erasures", OWNER), { at: 1 });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_log_erasures", "someone-else"), { at: 0 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+  });
 });
 
 describe("v2 profile", () => {

@@ -1,0 +1,128 @@
+# Load every existing answer into the BigQuery answer log
+# (SCALE-ARCHITECTURE.md phase A, D433) — once, after the deploy that
+# carried the trigger's own append, with that deploy's day as the cutoff.
+#
+# WHY THIS EXISTS. `backfillLogV2` is an operator callable, and an operator
+# callable with no way to run it is a step that does not get performed
+# (rebuild-aggregate.yml's header has the argument in full). This is
+# backfill-answer-maps.yml's shape, pointed at the log: the same
+# credentials, the same environment protection (D87), the same
+# dry-by-default rule.
+#
+# WHAT IT DOES. Reads every answer document once (a read per answer) and
+# appends a row per answer written BEFORE the cutoff day — the answers from
+# that day on have the trigger's rows already, or the nightly reconcile's.
+# Idempotent (a backfilled row's id is bf:{uid}:{qid}) and resumable — a
+# run that stops is continued with the cursor its summary prints, never
+# restarted. Nothing a user sees depends on it: the log is what the night
+# will compute from, and until phase D the Firestore ledger still is.
+#
+# NEVER AUTOMATIC. `workflow_dispatch` only, `apply` off unless asked.
+
+name: Backfill answer log
+
+on:
+  workflow_dispatch:
+    inputs:
+      before:
+        description: "The cutoff: the UTC day (YYYY-MM-DD) the deploy carrying the log's trigger went out. Answers from that day on are not loaded — the trigger rowed them."
+        type: string
+        required: true
+      apply:
+        description: "APPEND the rows. Off = count what would be appended and change nothing."
+        type: boolean
+        default: false
+      after:
+        description: "Resume after this answer document path (from a stopped run's summary). Empty = from the start."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Two backfills at once would append the same ids — BigQuery's insertId
+# dedup is best-effort, so that is a possible duplicate row, and a wasted
+# read of the whole collection besides. Refuse the second rather than let
+# it start.
+concurrency:
+  group: backfill-log
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    # The scan is a read per existing answer, paged by a callable that hands
+    # its cursor back near its own deadline; the loop here runs until the
+    # end. Generous, and a stopped run resumes from its cursor.
+    timeout-minutes: 120
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Backfill
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          FIREBASE_PROJECT_ID: prvfire33
+          AFTER: ${{ inputs.after }}
+          BEFORE: ${{ inputs.before }}
+        run: |
+          # pipefail and the environment for the free-text inputs, for the
+          # reasons rebuild-aggregate.yml records at this same step.
+          set -o pipefail
+          ARGS="--before $BEFORE"
+          [ -n "$AFTER" ] && ARGS="$ARGS --after $AFTER"
+          [ "${{ inputs.apply }}" = "true" ] && ARGS="$ARGS --apply"
+          node scripts/backfill-log.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/backfill.log"
+
+      - name: Why it failed — the function's own log
+        if: failure()
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          node scripts/fn-log.mjs --fn backfillLogV2 --minutes 180 --limit 40 --all-severities \
+            2>&1 | tee "$RUNNER_TEMP/fnlog.txt"
+
+      - name: Summary
+        if: always()
+        env:
+          # Free text through the environment, never through expression
+          # syntax in a run body — scripts/workflow-pipefail.test.mjs holds it.
+          BEFORE: ${{ inputs.before }}
+        run: |
+          {
+            echo "### Backfill answer log"
+            echo ""
+            if [ "${{ inputs.apply }}" = "true" ]; then
+              echo "**APPLIED.** Every answer before $BEFORE is a row in the answer log."
+            else
+              echo "**Dry run.** Nothing was written."
+            fi
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/backfill.log" 2>/dev/null || echo "(failed before the backfill ran — see the step log)"
+            echo '```'
+            if [ -s "$RUNNER_TEMP/fnlog.txt" ]; then
+              echo ""
+              echo "#### backfillLogV2's own log"
+              echo ""
+              echo '```'
+              cat "$RUNNER_TEMP/fnlog.txt"
+              echo '```'
+            fi
+            echo ""
+            echo "#### Reading it"
+            echo ""
+            echo "\`rows\` is the answers dated before the cutoff — catalogue picks included,"
+            echo "duel answers and undated documents not; \`scanned\` is every answer document."
+            echo "A run that stopped prints the cursor to resume after — pass it as \`after\`,"
+            echo "never start over."
+          } >> "$GITHUB_STEP_SUMMARY"

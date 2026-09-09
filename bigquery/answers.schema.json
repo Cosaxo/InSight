@@ -1,0 +1,11 @@
+[
+  { "name": "id", "type": "STRING", "mode": "REQUIRED", "description": "The ledger entry's document id (the trigger's event id), or bf:{uid}:{qid} for a backfilled answer — the streaming insertId and the reconcile's key" },
+  { "name": "uid", "type": "STRING", "mode": "REQUIRED", "description": "The answering account" },
+  { "name": "qid", "type": "STRING", "mode": "REQUIRED", "description": "The question" },
+  { "name": "surface", "type": "STRING", "mode": "NULLABLE", "description": "daily · feed · test · learn · pulse · call — null on a row the reconcile appended from a ledger entry, which carries none" },
+  { "name": "option_idx", "type": "INT64", "mode": "NULLABLE", "description": "The chosen option; null for a catalogue pick or a rank answer" },
+  { "name": "from_idx", "type": "INT64", "mode": "NULLABLE", "description": "Present only on a D86 edit: the option the answer moved away from" },
+  { "name": "answered_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "When the row was appended (the trigger's clock) or the ledger's own `at` on a reconciled row; the answer document's answeredAt on a backfilled row" },
+  { "name": "day", "type": "DATE", "mode": "REQUIRED", "description": "answered_at's UTC date — the partition" },
+  { "name": "anchors", "type": "JSON", "mode": "NULLABLE", "description": "The frozen cohort chips the fold used (D8, D410's honest set) — null where the ledger carried none" }
+]

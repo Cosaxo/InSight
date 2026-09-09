@@ -390,7 +390,9 @@ same merge and took one read off a reveal and one off the rules.
 > with a cheaper counter store and no shard documents to fold. If the
 > owner adopts it (`OWNER-LIST.md` § Decisions), this phase is superseded
 > by phase B and the steps below are not built as written; until that
-> word they stand.
+> word they stand. **The word came the same evening (D433's amendment):
+> superseded — the steps below are not built as written; the work is
+> `LOG-FIRST-RUNBOOK.md` phase B.**
 
 - [ ] **5.1 The increment fold.** `counts`, `total`, the `by` cells and
       `edits` become `FieldValue.increment` under `merge: true` — the
@@ -438,9 +440,10 @@ and `npm run costs` prints boot ≈ 15.
 
 ## Waiting on the owner, not on this file
 
-- **The log-first direction** (D433, `SCALE-ARCHITECTURE.md`): whether
+- ~~**The log-first direction** (D433, `SCALE-ARCHITECTURE.md`): whether
   Phase 5 becomes its phase B, one sentence of D98 for the compactor's
-  cadence, and the batch window — all on `OWNER-LIST.md` § Decisions.
+  cadence, and the batch window~~ — answered 2026-09-09, all three
+  (D433's amendment); the clicks that remain are `LOG-FIRST-RUNBOOK.md`'s.
 - **The word "live"** for Phase 3 — given 2026-09-08 (the D432
   amendment records it). What stays the owner's from that phase is the
   backfill's click, dry then `apply` (`OWNER-LIST.md`).

@@ -1435,6 +1435,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ─── deferred answer-log erasures (log.ts, D433 phase A) ────────
+    // One marker per account whose BigQuery rows the streaming buffer
+    // refused to delete at once; the nightly reconcile retries and removes
+    // it. Server-only: it names an erased account, and a client that could
+    // write one could queue a deletion of somebody else's rows.
+    match /v2_log_erasures/{uid} {
+      allow read, write: if false;
+    }
+
     // ─── verified logic attempts (D57) ─────────────────────────────
     // The attempt doc holds the seed — the answer key, until scored. Not
     // even the owner may read it: the whole design is that the client

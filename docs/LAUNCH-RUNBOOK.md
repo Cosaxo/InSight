@@ -2187,6 +2187,15 @@ That is a tester-count problem, not a workflow problem.
       it agrees with D165's residency argument. Nothing in the app changes;
       no rules change; no read path moves.
 
+      **Superseded 2026-09-09 (D433 phase A, `LOG-FIRST-RUNBOOK.md`):** the
+      answer trigger appends the row itself (`functions/src/log.ts`) — one
+      code path and one bill, the nightly reconcile catching what an
+      append missed — so the extension is not installed. The timing
+      argument below still holds and is met differently: the clicks are
+      the dataset (`apply-bigquery.yml`) and the backfill
+      (`backfill-log.yml` with the deploy's day), on `OWNER-LIST.md`, and
+      the backfill loads what the extension's late import would have.
+
       **Why the timing is the whole step.** The extension streams from the
       moment it is installed. Install it late and you are running
       `fs-bq-import-collection` to catch up, and rows belonging to accounts

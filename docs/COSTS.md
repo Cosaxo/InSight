@@ -131,6 +131,12 @@ roughly double on the three operation lines.
 > [`SCALE-ARCHITECTURE.md`](SCALE-ARCHITECTURE.md) is that finding and
 > the design that answers it, and `npm run costs:target` prints both
 > structures at those loads.
+>
+> **2026-09-09, phase A of that structure (D433).** Every ledger entry is
+> also a row in BigQuery — about 160 bytes on the streaming API at
+> $0.05 a GiB, so 4 answers × 500,000 DAU is under 10 GiB a month: under
+> a dollar at every size in this table, plus one query a night over the
+> day's ids. Not a model line until phase D moves the folds onto it.
 
 > **Re-measured 2026-09-08 (DATA-EFFICIENCY-RUNBOOK 1.4 and 1.5).** A
 > return to the foreground re-reads today's aggregate rather than the

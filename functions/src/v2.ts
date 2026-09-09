@@ -34,6 +34,7 @@ import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { profileStamp, type ProfileStamp } from "./profileStamp";
 import { answerMapMerge, answerMapRef } from "./answerMaps";
+import { appendLog, logRow, type LogRow } from "./log";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
@@ -983,8 +984,15 @@ export const onV2AnswerCreated = onDocumentCreated(
       // The cap's discards from the attempt that commits — reset per
       // attempt, logged once the transaction returns (logBucketCaps).
       const capped: BucketCapEvent[] = [];
+      // THE ANSWER LOG (log.ts, D433 phase A): the row this commit will
+      // have earned, built where the ledger entry is and appended after
+      // the transaction returns — never inside it, and never on the
+      // redelivery that returns above without writing the ledger. Same
+      // shape at every ledger site below.
+      let logged: LogRow | null = null;
       await runAggTransaction(db, qid, async (tx) => {
         capped.length = 0;
+        logged = null;
         // Batched for the same reason as the vote path below: three
         // sequential round trips inside the transaction is three times the
         // lock window on the contended per-qid document.
@@ -1029,6 +1037,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // outside the top N", which is what a reader assumed it was.
         const canon = canonTopN(ent, CANON_TOP_N);
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
@@ -1050,6 +1059,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         );
       });
       logBucketCaps(qid, capped);
+      if (logged) await appendLog([logged]);
       return;
     }
     // Rank answers carry `order`, never `optionIdx` (D233) — the item
@@ -1066,7 +1076,9 @@ export const onV2AnswerCreated = onDocumentCreated(
       const eventRef = db.collection("v2_agg_events").doc(event.id);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      let logged: LogRow | null = null;
       await runAggTransaction(db, qid, async (tx) => {
+        logged = null;
         // One aggregate document, the published one — same as the vote path
         // below, and for the same reason: `{ pos, total }` and
         // `{ total, pos }` were the same two fields written twice.
@@ -1096,10 +1108,12 @@ export const onV2AnswerCreated = onDocumentCreated(
         foldRankOrder(pos, order);
         const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Published whole, every answer (D98): the sums and the total ARE
         // the reveal — the client derives the crowd order by mean position.
         tx.set(pubRef, { total, pos }, { merge: false });
       });
+      if (logged) await appendLog([logged]);
       return;
     }
     const optionIdx = snap.get("optionIdx");
@@ -1114,8 +1128,10 @@ export const onV2AnswerCreated = onDocumentCreated(
     // The cap's discards from the attempt that commits — reset per attempt,
     // logged once the transaction returns (logBucketCaps).
     const capped: BucketCapEvent[] = [];
+    let logged: LogRow | null = null;
     await runAggTransaction(db, qid, async (tx) => {
       capped.length = 0;
+      logged = null;
       // ONE aggregate document, and it is the published one. See "the
       // private mirror is gone" in the header: since D98 the private doc
       // held byte-identical bytes to this one on this path, so the write
@@ -1212,6 +1228,8 @@ export const onV2AnswerCreated = onDocumentCreated(
         event.params.uid, qid, optionIdx, undefined, anchors,
         profileStamp(prof.exists ? { displayName: prof.get("displayName"), testResults: prof.get("testResults") } : undefined),
       ));
+      // The log's row takes the honest anchors, as the ledger does.
+      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface"), optionIdx, anchors });
       // THE ANSWER MAP (DATA-EFFICIENCY-RUNBOOK 3.2, live on the owner's
       // word): the entry Circle folds, merged onto the person's own map in
       // THIS transaction — atomic with the ledger mark, so a redelivered
@@ -1248,6 +1266,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       }
     });
     logBucketCaps(qid, capped);
+    if (logged) await appendLog([logged]);
   },
 );
 
@@ -1284,7 +1303,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    let logged: LogRow | null = null;
     await runAggTransaction(db, qid, async (tx) => {
+      logged = null;
       // One document, batched — same as the create path above.
       const [seen, agg] = await tx.getAll(eventRef, pubRef);
       if (seen.exists) return;
@@ -1328,6 +1349,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
       tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
+      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors: after.get("anchors") });
       // …and the map moves with the edit (runbook 3.2), after the retry
       // guard above, so a deferred edit moves it once, on the delivery
       // that actually moves the count.
@@ -1343,5 +1365,6 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
       }
     });
+    if (logged) await appendLog([logged]);
   },
 );

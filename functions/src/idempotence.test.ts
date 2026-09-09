@@ -78,6 +78,16 @@ const fakeDb = {
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
 const { onV2AnswerCreated, onV2AnswerUpdated } = await import("./v2");
+const { setLogWriterForTest } = await import("./log");
+type LogRowT = import("./log").LogRow;
+
+/** The answer log's writer, injected: one row per COMMITTED ledger entry,
+ *  none on the redelivery the ledger mark turns away (log.ts, D433). */
+function fakeLog() {
+  const rows: LogRowT[] = [];
+  setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUser() { return "done" as const; } } as never);
+  return rows;
+}
 
 const QID = "daily-2026-08-24";
 const AGG = `v2_question_aggs/${QID}`;
@@ -433,5 +443,36 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       "a withheld city was overwritten from the profile").toBe(false);
     const by = store.get(AGG)?.by as Record<string, Record<string, unknown>>;
     expect(by.city, "a blanked city still folded into a city cell").toBeUndefined();
+  });
+});
+
+
+describe("the answer log mirrors the ledger, once per commit (D433 phase A)", () => {
+  it("a vote, redelivered, is one row; its edit is a second row that says what it moved from", async () => {
+    const rows = fakeLog();
+    try {
+      await deliver("evt-a", vote);
+      await deliver("evt-a", vote);
+      expect(rows.map((r) => r.id)).toEqual(["evt-a"]);
+      expect(rows[0]).toMatchObject({ uid: "u1", qid: QID, surface: "daily", option_idx: 1, from_idx: null, anchors: JSON.stringify({ ageBand: "25-34", country: "NO" }) });
+      await deliverEdit("edit-1", 1, 0, vote.anchors);
+      await deliverEdit("edit-1", 1, 0, vote.anchors);
+      expect(rows.map((r) => r.id)).toEqual(["evt-a", "edit-1"]);
+      expect(rows[1]).toMatchObject({ option_idx: 0, from_idx: 1 });
+    } finally {
+      setLogWriterForTest(null);
+    }
+  });
+
+  it("the rank and catalog arms row too, without an option", async () => {
+    const rows = fakeLog();
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"], domain: "pokemon" });
+    try {
+      await deliver("evt-r", rank);
+      await deliver("evt-p", pick);
+      expect(rows.map((r) => [r.id, r.option_idx])).toEqual([["evt-r", null], ["evt-p", null]]);
+    } finally {
+      setLogWriterForTest(null);
+    }
   });
 });

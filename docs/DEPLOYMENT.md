@@ -168,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Eight jobs — verified rather than assumed,
+**What the environment gates.** Ten jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -178,7 +178,8 @@ joined at D332, and this sentence moved in the same commit because
 this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
-same way and in the same commit.)
+same way and in the same commit — and the ninth and tenth,
+`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -628,6 +629,42 @@ qid that does not match the answers — than a question whose answers are
 gone.
 
 What must not be improvised is the order of operations above.
+
+### The answer log (BigQuery, D433 phase A)
+
+Since `LOG-FIRST-RUNBOOK.md` phase A the answer trigger appends one row
+per ledger entry to BigQuery — dataset `insight`, table `answers`, in
+`europe-west1` — after the aggregate transaction commits
+(`functions/src/log.ts`). Nothing a user reads comes from it yet; it is
+the truth the night will compute from at phase D. Three things to know
+operationally:
+
+- **Creating it is a click, once:** the *Apply BigQuery* workflow
+  (`apply-bigquery.yml`, dry by default, `scripts/apply-bigquery.mjs`),
+  then the two IAM bindings its summary prints — the functions' runtime
+  service account needs `roles/bigquery.dataEditor` (rows) and
+  `roles/bigquery.jobUser` (the erasure DELETE). A project whose default
+  service account still holds Editor has both. Until the table exists,
+  every append logs `log_append_failed` and the count is untouched; the
+  nightly reconcile appends the day once the table is there — for the
+  days the ledger still holds (90).
+- **Reading it:** `log_append_failed` (an error per failed append, with
+  its count), `log_reconcile` (the nightly heartbeat inside
+  `digestEngagementV2`: `entries`, `missing`, `appended`, `erasures`,
+  `erased` — a warning when `missing` is not zero, because a reconciled
+  row is a live append that failed), `log_erasure_deferred` (an account
+  whose rows the streaming buffer refused; the marker in
+  `v2_log_erasures` is retried the next night). The same `gcloud logging
+  read` shapes as the velocity scan below, on
+  `service_name="onv2answercreated"` and `"digestengagementv2"`.
+- **Switching it off** is `LOG_DATASET=off` in the functions' env
+  (`functions/.env.prvfire33`, written by the deploy from the
+  environment) — the writer becomes a no-op that says so once; the
+  emulator and the unit suites are off by construction.
+
+The backfill (`backfill-log.yml`, `backfillLogV2`) loads the answers
+written before the deploy's day; its cutoff is that day, so no row is
+appended twice. Both clicks are on `OWNER-LIST.md`.
 
 ### Reading the velocity scan (D54)
 

@@ -27,6 +27,7 @@ import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
+import { eraseUserLog, firestoreLogErasure } from "./log";
 import { playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
@@ -189,6 +190,12 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
+      // The answer log's rows (log.ts, D433 phase A, phase 1a″): 1 when the
+      // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
+      // buffer refused it and the nightly reconcile carries the marker —
+      // gone within a day either way, which is the privacy page's word.
+      log: 0,
+      logDeferred: 0,
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
@@ -294,6 +301,24 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
       failed.push("aggEvents");
+    }
+
+    // 1a″. THE ANSWER LOG (log.ts, D433 phase A) — the ledger's mirror in
+    //     BigQuery, which keeps rows past the ledger's TTL and so holds the
+    //     attribution longest. One DML statement now; where BigQuery
+    //     refuses because the rows are still in its streaming buffer, a
+    //     server-only marker (`v2_log_erasures`) that the nightly
+    //     reconcile retries — the marker written is the promise kept, and
+    //     only a marker that cannot be written fails the phase. Where there
+    //     is no BigQuery — every emulator run — there are no rows either,
+    //     and the writer answers "done" for the same reason an empty
+    //     collection sweep does.
+    try {
+      const outcome = await eraseUserLog(firestoreLogErasure(db), uid, Date.now());
+      if (outcome === "done") counts.log = 1; else counts.logDeferred = 1;
+    } catch (err) {
+      logger.error("[deleteAccount] answer-log erasure could not even be deferred:", err);
+      failed.push("log");
     }
 
     // 1a′. THE VOTER SAMPLES (D397) — the one derived, world-readable
@@ -1435,6 +1460,7 @@ export { rebuildAggregateV2 } from "./replay";
 // into the per-person answer maps the Circle stop reads, resumable from a
 // cursor, driven by scripts/backfill-answer-maps.mjs from its workflow.
 export { backfillAnswerMapsV2 } from "./answerMaps";
+export { backfillLogV2 } from "./log";
 // D379: the shareable results page — a public web page per sponsored
 // question at the hosting rewrite /q/{qid}, rendered here on the admin
 // SDK off the two public documents. onRequest, and no App Check, because

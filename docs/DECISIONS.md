@@ -9248,6 +9248,25 @@ need read paths no client module has yet: a collection-group query on
 `answers` (the rule and the composite index ship here; the query does
 not) and batched uid→name resolution. Sequenced as follow-on work.
 
+## D98 amendment (2026-09-09) · Exact, and never more than a poll behind
+
+**Date:** 2026-09-09 · **Status:** Adopted, on the owner's word. D98's
+*no publish cadence* was written against the cadence it retired — the
+privacy one: hours and days, floors and suppression. The log-first
+structure (D433) publishes a question's document through a compactor
+once a minute for the questions that changed, which is the interval the
+card already re-reads at (D129), so nothing a user sees moves and a
+person's own vote still confirms at once. The owner was asked in plain
+words — *"Allow counts to be published once a minute instead of on every
+answer. One old decision says 'no publish cadence', and only you can
+change its wording"* — and answered *"that sound like a good direction
+lets do that."* The sentence is now: **counts are exact from the first
+answer, and never more than a poll behind.** Everything else in D98
+stands as written — answers public, exact counts, no floor, no
+suppression, no special-category carve-out. Built at
+`LOG-FIRST-RUNBOOK.md` phase B; until then the document is rewritten on
+every answer as it is today.
+
 ## D99 · The Mirror's lens row comes back, on data that was already there
 
 **Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
@@ -47253,8 +47272,8 @@ moved, and nothing a device reads changed size.
 
 ## D433 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
 
-**Date:** 2026-09-09 · **Status:** PROPOSED — the owner's word makes it
-the direction. The owner, the same day, after `npm run costs` had been
+**Date:** 2026-09-09 · **Status:** ADOPTED the same evening — see the
+amendment below. The owner, that afternoon, after `npm run costs` had been
 run at a hundred and three hundred answers a day: *"i think we should
 from the start look on how we can design a system that scales to
 hundreds of answers a day and millions of users remember we can use
@@ -47300,8 +47319,37 @@ poll behind* on the owner's word and not before; and the batch window
 owner's to decide and done page-first: the privacy page's and the
 inventory's rows for the log (D183).
 
-**Recorded as proposed rather than adopted** because D7's rule stands:
-nothing here is built before the owner's word, and phase A — the log to
-BigQuery, which costs bytes and precedes everything — is
-`LAUNCH-RUNBOOK.md` 5.11 done as one code path rather than as an
-extension streaming every document change through a trigger of its own.
+**Recorded as proposed at first** because D7's rule stands — nothing
+here is built before the owner's word — and adopted three hours later on
+it (the amendment below). Phase A, the log to BigQuery, costs bytes and
+precedes everything, and it is `LAUNCH-RUNBOOK.md` 5.11 done as one code
+path rather than as an extension streaming every document change through
+a trigger of its own.
+
+## D433 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
+
+**Date:** 2026-09-09 · **Status:** Adopted. The three asks were put in
+plain words — the direction; *"allow counts to be published once a
+minute instead of on every answer. One old decision says 'no publish
+cadence', and only you can change its wording"*; and the batch window,
+five minutes recommended — and the owner answered all three at once:
+*"that sound like a good direction lets do that."* So: the log-first
+structure is the direction past the efficiency runbook's Phase 4 (that
+runbook's Phase 5 is superseded by phase B here); D98's sentence moves
+(its amendment of the same date); the batch window is five minutes
+while answering plus a flush when the app leaves the foreground.
+
+**Phase A was built the same night** — `LOG-FIRST-RUNBOOK.md` has the
+steps. The ledger's mirror in BigQuery: `functions/src/log.ts` appends a
+row per ledger entry after the aggregate transaction commits, at every
+ledger site of the answer trigger, best-effort and off wherever there is
+no BigQuery (the emulator, the unit suites); the nightly pass's eighth
+runner reconciles yesterday off the read it already shares and retries
+the erasures the day deferred; `backfillLogV2` loads the existing
+answers before a cutoff day; `deleteAccount` runs the DELETE at once and
+leaves a server-only marker where BigQuery's streaming buffer refuses.
+Nothing a user sees changed, and nothing the night computes moved — the
+Firestore ledger stays what the folds read until phase D. **Two clicks
+are the owner's** (`OWNER-LIST.md`): the dataset and the two IAM roles,
+and the backfill with the deploy's day as its cutoff. The privacy page
+and the inventory moved first (D183).

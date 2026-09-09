@@ -26,6 +26,10 @@
 import type { Firestore } from "firebase-admin/firestore";
 
 export interface LedgerDayEntry {
+  /** The entry's document id — the trigger's event id, and the answer
+   *  log's row id (log.ts): what the nightly reconcile diffs on. Not a
+   *  field of the document, so not in the projection below. */
+  id: string;
   uid: string;
   qid: string;
   optionIdx?: number;
@@ -143,6 +147,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     for (const d of snap.docs) {
       const rawAt = d.get("at") as { toMillis?: () => number } | Date | undefined;
       out.push({
+        id: d.id,
         uid: String(d.get("uid") ?? ""),
         qid: String(d.get("qid") ?? ""),
         optionIdx: d.get("optionIdx") as number | undefined,

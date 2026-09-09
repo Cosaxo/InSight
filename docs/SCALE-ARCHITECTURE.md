@@ -1,6 +1,6 @@
 # The log-first structure: hundreds of answers a day, millions of users
 
-**Status: design only — proposed 2026-09-09 (D433) on the owner's word the same day —
+**Status: design only — ADOPTED 2026-09-09 (D433's amendment; *"that sound like a good direction lets do that"*, the same evening), phase A built that night (`LOG-FIRST-RUNBOOK.md`). Proposed that afternoon on the owner's word —
 *"i think we should from the start look on how we can design a system
 that scales to hundreds of answers a day and millions of users remember
 we can use other systems like bigquery."*** Every figure below is
@@ -345,7 +345,7 @@ Each phase ships alone, on what Phases 1–4 of the efficiency runbook
 built, and nothing a user sees changes in any of them. Sizes as in that
 runbook: S an afternoon, M a few days, L a week or more.
 
-- **A · The log** (M). The answer trigger appends each ledger entry to
+- **A · The log** (M) — **BUILT 2026-09-09, `LOG-FIRST-RUNBOOK.md`**. The answer trigger appends each ledger entry to
   BigQuery as well as writing it; a backfill loads the existing answers
   (the shape `backfillAnswerMapsV2` already has); erasure gains its
   statement; `docs/data-inventory.md` and `web/privacy.html` gain their
@@ -384,7 +384,12 @@ efficiency runbook's Phase 5 folds into B and its Phase 6 into A.
 
 ## 7 · The asks
 
-On `OWNER-LIST.md` § Decisions, each with its arithmetic:
+**Answered 2026-09-09, all in one word** (*"that sound like a good direction
+lets do that"*, to the three put in plain words): the direction, D98's
+sentence (its amendment of that date), the five-minute window; the
+fourth needed no ruling and moved first. Kept as written, for the
+record of what was asked. On `OWNER-LIST.md` § Decisions, each with its
+arithmetic:
 
 1. **Adopt the log-first target as the direction for everything after
    the efficiency runbook's Phase 4.** Phase 5 becomes B above.
