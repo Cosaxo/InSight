@@ -210,7 +210,8 @@ describe("apply-budget", () => {
   });
 
   it("a budget with no topic — the one armed before the wire existed — is retuned to publish", async () => {
-    const { notificationsRule: _dropped, ...noTopic } = listedBudget();
+    const noTopic = listedBudget();
+    delete noTopic.notificationsRule;
     reply[key("GET", BUDGETS)] = { status: 200, body: { budgets: [noTopic] } };
     const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
     reply[key("PATCH", patchUrl)] = { status: 200, body: listedBudget() };
