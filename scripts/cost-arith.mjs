@@ -762,6 +762,12 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
  * 1 is "names are already known", and the truth is in between because crowds
  * overlap and the session cache already exists.
  */
+/** The who-voted sheet's first read: `fetchSampleDoc`, one document, paid
+ * on every open before the sheet knows which shape it is — a miss is
+ * billed like a hit. Pinned against `loadVoters`' own body in
+ * scripts/cost-whovoted.test.mjs. */
+export const SHEET_SAMPLE_READ = 1;
+
 export function socialTerms(dau, mature, o = {}) {
   const voterCap = o.voterCap ?? VOTER_FETCH_CAP;
   const kindredQs = o.kindredQuestions ?? KINDRED_QUESTIONS;
@@ -770,14 +776,22 @@ export function socialTerms(dau, mature, o = {}) {
   // globally shared, so a question's crowd is roughly everyone active that
   // day until the cap binds.
   const crowd = Math.min(voterCap, dau);
-  // A hot sheet is the live list it always was — `crowd` answer documents
-  // and their profiles; a cold one (DATA-EFFICIENCY-RUNBOOK 2.4) is the
-  // sample document, the tail, and a profile per tail row. The tail is
-  // charged at its cap — under it the union is exact and cheaper, and
-  // the cap is the bound the code states rather than a guess.
+  // EVERY sheet pays the sample read, and a hot one pays the tail before
+  // it gives up (DATA-EFFICIENCY-RUNBOOK 2.4). `loadVoters` reads the
+  // sample document, and if it exists reads the tail; only when the tail
+  // comes back FULL — the definition of hot — does it fall through to the
+  // live list of `crowd` answer documents and their profiles. So a hot
+  // sheet is the live list PLUS the two reads that failed to avoid it,
+  // and the model booked the saving on both branches: it charged the hot
+  // sheet `crowd × names` flat, as if the sample and the tail were only
+  // read on the cold path. A cold sheet is the sample, the tail, and a
+  // profile per tail row — unchanged, and the tail is charged at its cap,
+  // which is the bound the code states rather than a guess.
   const hot = B.sheetOpensHot;
   return {
-    whoVoted: B.sheetOpens * (hot * crowd * names + (1 - hot) * (1 + VOTER_TAIL_CAP * names)),
+    whoVoted: B.sheetOpens * (SHEET_SAMPLE_READ
+      + hot * (VOTER_TAIL_CAP + crowd * names)
+      + (1 - hot) * (VOTER_TAIL_CAP * names)),
     // Kindred reads the nightly voter SAMPLE (D397): one document per
     // question in place of `crowd` answer documents — and since runbook
     // 2.2/2.3 the rows carry names and scores, so the profile read per row
