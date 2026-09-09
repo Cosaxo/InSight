@@ -22,7 +22,7 @@ it is moving toward.
 - **The plan built on it:** `VISION-2026-09-09.md` — every item measured,
   and the confusions put to the owner as eight questions (§6) before the
   build: whether World rounds return to the 1v1, the clock, the call,
-  two role changes, the floor for a name. D434 records the arrival.
+  two role changes, the floor for a name. D436 records the arrival.
 - **What it changed over the 2026-09-08 standalone:** the 1v1 has kinds
   of round, and every fourth is a **cast** — *Most days, Liv is…*, four
   plain answers per mode with a dim and a *them* form, the guess at what
@@ -36,7 +36,7 @@ it is moving toward.
   types; how well you read each other moves to the person page's new
   Together tab.
 - **Built from it:** the whole of `VISION-2026-09-09.md` §7 steps 1–6,
-  on the owner's eight answers of the same day (D435): the seats and the
+  on the owner's eight answers of the same day (D437): the seats and the
   cast in the bank, the rotation with a phase per room, the rules'
   refusal of a call, the card (the face grid, the run as a record, the
   cast round), the instrument in two settings, the Groups stop with the
@@ -56,7 +56,7 @@ it is moving toward.
   hashes, what the extraction did not diff, and where the tree departs).
 - **The plan built on it:** `VISION-2026-09-08.md` — the mechanism was
   already in the tree (a `pick` with D224's snapshot) and the content was
-  not; step 1 built the same day (D432).
+  not; step 1 built the same day (D434).
 - **What it changed over the 2026-09-08 canvas:** the group's rounds.
   A round is a role vote in a scenario pack — *Bank Heist · Who plans
   the whole thing?* — with the members as the options and the pack's hue
@@ -71,7 +71,7 @@ it is moving toward.
   upload carries on the 1v1 are retired, not drawn (D426's third
   amendment).
 - **Built from it:** step 1 — the bank, the rotation, the card, the fold
-  (D432) — `content/duel-questions.json`, `data/deck.ts`,
+  (D434) — `content/duel-questions.json`, `data/deck.ts`,
   `ui/LiveDuelPanel.tsx`, `data/roles.ts`.
 - **Requests it closed:** 6 moves to `designed`; 5's group half is drawn
   in it.
@@ -160,8 +160,8 @@ it is moving toward.
 | 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
 | 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
 | 2026-09-08 | `design/rounds-card-2026-09-08/` | the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
-| 2026-09-08 | `design/standalone-2026-09-08/` | the group as a cast: role votes in packs, a rating every fourth round, the crown and the contested pair | `VISION-2026-09-08.md`, D432 |
-| **2026-09-09** | `design/standalone-2026-09-09/` | **the current vision** — how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab | `VISION-2026-09-09.md`, D434 |
+| 2026-09-08 | `design/standalone-2026-09-08/` | the group as a cast: role votes in packs, a rating every fourth round, the crown and the contested pair | `VISION-2026-09-08.md`, D434 |
+| **2026-09-09** | `design/standalone-2026-09-09/` | **the current vision** — how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab | `VISION-2026-09-09.md`, D436 |
 
 ## How the next one arrives
 

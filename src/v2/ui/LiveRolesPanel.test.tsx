@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Roles tab (D204; the owner's 2026-09-09 instruments since D435) —
+// The Roles tab (D204; the owner's 2026-09-09 instruments since D437) —
 // the panel half. `data/roles.test.ts` holds the arithmetic. What matters
 // here is what the screen does with it, and the properties are refusals:
 //
@@ -35,7 +35,7 @@ vi.mock("../data/live", () => ({
         ? Promise.reject(new Error("permission-denied"))
         : Promise.resolve()),
       revealHistoryLoading: (gid: string) => LOADING.has(gid),
-      // The bank the fold asks what each round was (D435): a cast round
+      // The bank the fold asks what each round was (D437): a cast round
       // and its them forms, a role vote and its seat.
       bankQ: (qid: string) => BANK[qid] || null,
     },

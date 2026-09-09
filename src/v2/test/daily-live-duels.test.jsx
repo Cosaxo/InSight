@@ -5,7 +5,7 @@
 // componentDidMount asked for it on every daily mount.
 //
 // `duels-data.js` pulled `content/duel-questions.json`, the duel lane's
-// whole bank (16.7 KB then; since D433 it carries the bank's fixed sample,
+// whole bank (16.7 KB then; since D435 it carries the bank's fixed sample,
 // `content/duel-sample.json`), which is exactly why it is loaded on demand
 // instead of imported. The pending-count read far below is gated
 // (`liveDuels ? null : duels(…)`); the subscribe in componentDidMount was

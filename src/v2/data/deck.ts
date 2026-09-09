@@ -97,7 +97,7 @@ export interface QuestionDoc {
   // every other surface.
   facet?: string;
   invert?: boolean;
-  // The group as a CAST (D432, the owner's 2026-09-08 design): a `pick`
+  // The group as a CAST (D434, the owner's 2026-09-08 design): a `pick`
   // may name the scenario pack it belongs to and the role it casts, and a
   // `rate` question (topic "rate") asks the group about itself on a
   // five-step scale whose two ends are `poles` — its `options` are the
@@ -105,13 +105,13 @@ export interface QuestionDoc {
   // and the fold. Absent on every other surface and on the older group
   // kinds.
   scen?: { id: string; label: string; hue: number };
-  // …the role's SEAT since D435 (engine · hands · heart · wild): what a
+  // …the role's SEAT since D437 (engine · hands · heart · wild): what a
   // member's received votes cluster into. Optional on the type because a
   // device may hold a bank seeded before the seats; absent, the instrument
   // counts nothing for that vote rather than inventing a seat.
   role?: { id: string; label: string; seat?: string };
   poles?: string[];
-  // THE CAST ROUND (D435, the owner's 2026-09-09 design): a 1v1 question
+  // THE CAST ROUND (D437, the owner's 2026-09-09 design): a 1v1 question
   // of topic "cast" — *Most days, {name} is…* — whose four options each
   // carry an axis (`dims`: trust · spark · judgement · constancy) and a
   // *them* form (`them`: *the one {name} tells first*) for when the fact
@@ -719,7 +719,7 @@ export interface DuelRoundQ {
   dims?: string[];
 }
 
-/** A group's PHASE (D435): which of its rounds are the ratings. The
+/** A group's PHASE (D437): which of its rounds are the ratings. The
  * owner's 2026-09-09 design staggers the rating round per group, so two
  * rooms you are in do not both rate on the same numbers; the tree reads it
  * off the group id, so it is a fact about the room and never a field to
@@ -729,19 +729,19 @@ export interface DuelRoundQ {
 export const groupPhase = (gid: string): number => gHash(gid) % 3;
 
 /** Every fourth round of a group is a rating of the group itself, counted
- * from its phase; the other three are role votes (D432, the owner's
- * 2026-09-08 design; the phase at D435). Exported so the card and the
+ * from its phase; the other three are role votes (D434, the owner's
+ * 2026-09-08 design; the phase at D437). Exported so the card and the
  * tests say it once. */
 export const isRatingRound = (round: number, phase = 0): boolean => (round + phase) % 4 === 0;
 
-/** A 1v1's rounds by number (D435): every fourth asks what the other
+/** A 1v1's rounds by number (D437): every fourth asks what the other
  * person is to you — the CAST — and the rest walk the pool. There is no
  * World round: the owner retired those on the 8th (D426's third
  * amendment) and confirmed it against the 09-09 design's own list. */
 export const duoKind = (round: number): "cast" | "own" => (round % 4 === 0 ? "cast" : "own");
 
 /** A cast round's copy carries `{name}` — the other person's first name,
- * which the bank cannot know (D435). Every renderer of a cast prompt or a
+ * which the bank cannot know (D437). Every renderer of a cast prompt or a
  * them form goes through here. Without a name the fallback is a noun the
  * sentence still works around — *your friend* or *your partner* by pool —
  * never the placeholder and never a pronoun the verb disagrees with. */
@@ -771,12 +771,12 @@ export function duelQFor(
   let bank = surfaceBank;
   let walk = round;
   if (mode === "group") {
-    // THE GROUP PLAYS A CAST (D432, the owner's 2026-09-08 design —
+    // THE GROUP PLAYS A CAST (D434, the owner's 2026-09-08 design —
     // *"group … should mostly be about what role you have in the group"*).
     // Three rounds in four are role votes: `pick` questions, whose options
     // are the members, tagged with the scenario pack they belong to and
     // the role they cast. Every fourth round — counted from the group's
-    // phase (D435) — is a `rate` question, the group asked about itself
+    // phase (D437) — is a `rate` question, the group asked about itself
     // between two poles. The older `us`/`classic` group questions leave
     // the rotation and stay in the bank, so the reveals that name them
     // still draw their prompt (`bankQ`); what happens to them is the
@@ -808,7 +808,7 @@ export function duelQFor(
       walk = round - before;
     }
   } else {
-    // THE 1v1 HAS KINDS OF ROUND (D435, the owner's 2026-09-09 design):
+    // THE 1v1 HAS KINDS OF ROUND (D437, the owner's 2026-09-09 design):
     // every fourth is the CAST — *Most days, Liv is…*, the pool's one
     // `cast` entry — and the rest walk the pool by the same skip the
     // group's votes use, so consecutive own rounds are consecutive

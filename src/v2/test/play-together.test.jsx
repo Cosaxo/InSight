@@ -51,7 +51,7 @@ describe('Play together', () => {
     openFor(p);
     expect(screen.getByText('Together')).toBeTruthy();
     // the type name is real: one of the duo registry's own names — read
-    // off the cast rounds (D435), so the partner needs three of them
+    // off the cast rounds (D437), so the partner needs three of them
     const names = IS_ARCHETYPES.duo.list.map((t) => t.name);
     const typed = names.some((n) => screen.queryByText(n));
     expect(typed, 'the 1v1 tile should carry a registry type name').toBe(true);

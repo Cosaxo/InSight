@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/duels-data.js (the historical prototype — no sync
 // script survives; THIS file is the live source of the BEHAVIOR, hand-edits
-// and all), and re-ported at D435 from design/standalone-2026-09-09/
+// and all), and re-ported at D437 from design/standalone-2026-09-09/
 // duels-data.js — the owner's "how 1v1s and Groups work now" — so the demo
 // build plays what live plays: ROUNDS, not days.
 //
@@ -13,7 +13,7 @@
 // OFF THE GLOBAL BRIDGE (D108): `DUELS` is a named export, not a
 // `window.DUELS`, so its consumers hold it as a module binding that load
 // order cannot leave unset. Nothing here publishes to global scope.
-// The DEMO SAMPLE, not the bank (D433 — D284's shape one bank over). This
+// The DEMO SAMPLE, not the bank (D435 — D284's shape one bank over). This
 // import used to be `duel-questions.json` whole, under `check:content`'s
 // 24 KiB cap, and the daily burst (D426) was one run from crossing it. The
 // sample is the first few served questions of each group kind and each
@@ -27,14 +27,14 @@
 import DUEL_CONTENT from '../../../content/duel-sample.json';
 import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';
-// The four seats, with their lines (D435) — the same list the live
+// The four seats, with their lines (D437) — the same list the live
 // instrument reads, so the demo's "Here, you are the one who gets things
 // going" is the live app's sentence. `castText` is the live deck's {name}
 // substitution for a cast round. Both are pure typed modules.
 import { SEATS } from '../data/roles';
 import { castText } from '../data/deck';
 
-// duels-data.js — the "know each other" layer, as ROUNDS (D426, D435).
+// duels-data.js — the "know each other" layer, as ROUNDS (D426, D437).
 //  · GROUP: a room plays a role vote three rounds in four and a rating on
 //    the fourth (a phase per room staggers which). Everyone answers blind;
 //    a round reveals WITH NAMES when everyone has played or at its 48-hour
@@ -165,8 +165,8 @@ export let DUELS;
   }
   if (hasPend()) ensureTimer();
 
-  // ── THE BANK: the D433 sample of content/duel-questions.json ───────────────
-  // The group as a CAST (D432/D435): a role vote is a `pick` naming its
+  // ── THE BANK: the D435 sample of content/duel-questions.json ───────────────
+  // The group as a CAST (D434/D437): a role vote is a `pick` naming its
   // scenario pack (the packs are written once in `scenarios`) and the ROLE
   // it casts, with the role's SEAT; a `rate` question carries two poles and
   // the five step labels are derived the way the seed derives them. The
@@ -367,7 +367,7 @@ export let DUELS;
       out.votes = {};
       // …and the votes RECEIVED: the same counts less a vote for yourself,
       // which is not the room naming you — the live instrument's rule
-      // (`seatTally`, D435). The card keeps every vote; the seat reads these.
+      // (`seatTally`, D437). The card keeps every vote; the seat reads these.
       out.received = {};
       q.targets.forEach((id, i) => {
         out.votes[id] = counts[i];
@@ -438,7 +438,7 @@ export let DUELS;
     }
     return { scenarios: SCENARIOS, roles: [...byKey.values()], targets };
   }
-  // a member's seat: the share of the votes they received per seat (D435)
+  // a member's seat: the share of the votes they received per seat (D437)
   function archetypeOf(gid, id) {
     const rv = roleVotes(gid);
     const shares = { engine: 0, hands: 0, heart: 0, wild: 0 };
@@ -537,16 +537,16 @@ export let DUELS;
   // Situational reads with observable tells — guessable if you truly know
   // them. Mixed option counts (2–4): more options = a right guess means more.
   // Ordered light → deep in content/duel-questions.json, sampled per domain
-  // for the demo (D433) — the sample takes the light end of each domain, so
+  // for the demo (D435) — the sample takes the light end of each domain, so
   // the ladder is shorter here and duoQ's wrap does the rest. The CAST entry
-  // of each pool (D435) is the fourth round's question, not part of the
+  // of each pool (D437) is the fourth round's question, not part of the
   // ladder.
   const DUO_QS = DUEL_CONTENT.oneVsOne.filter((q) => q.kind !== 'cast');
   // The same game, aimed at a person you share a life with rather than a
   // friend: the tells are domestic, and the deep end is about what happens
   // next. Same shape — light → deep, 2–4 options — so the ladder is identical.
   const DUO_QS_ROMANTIC = DUEL_CONTENT.romantic.filter((q) => q.kind !== 'cast');
-  // The cast sets (D435): one entry per pool — "Most days, {name} is…" with
+  // The cast sets (D437): one entry per pool — "Most days, {name} is…" with
   // four plain answers, each carrying an axis (`dims`) and a *them* form
   // (`them`) for when the fact is said about the other side.
   const CAST_SETS = {
@@ -628,7 +628,7 @@ export let DUELS;
   const skillFor = (base, pid, side, dom) => Math.max(0.05, Math.min(0.97, (base || 0.5) * bias(pid, side, dom)));
   const dHist = (pid) => PLAYED[pid] || 0;
 
-  // ── the cast round (D435) ───────────────────────────────────────────────────
+  // ── the cast round (D437) ───────────────────────────────────────────────────
   // Every fourth round asks what the other is to you: four plain sentences,
   // each an axis. Nothing here is a call; the guess is at what THEY said
   // you are, in the *them* form.

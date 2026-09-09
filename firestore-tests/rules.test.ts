@@ -1368,7 +1368,7 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 // Measured with two clauses in the file that left it the same day: the
 // world-content arm (D426's third amendment — a round is its own bank's
 // question again, and the equality is the whole test) and the group's
-// guess (D435 — nothing in a group is called, so a group answer carrying
+// guess (D437 — nothing in a group is called, so a group answer carrying
 // `guessIdx` is refused at the door). The table above is the record of
 // that measurement; the cases below are the heaviest writes that are
 // LEGAL now — the group cases send no guess, and the 1v1 case carries
@@ -1435,7 +1435,7 @@ describe("the heaviest LEGAL create still fits the expression budget", () => {
       name: "Room", mode: "group", memberUids: MEMBERS, round: 2,
     });
     // …and a pair on the duo pool's own bank, for the one arm that still
-    // carries a guess (D435: a guess is a 1v1's).
+    // carries a guess (D437: a guess is a 1v1's).
     await setDoc(doc(db, "v2_questions", "duo-b0"), {
       surface: "duo", seq: 5, type: "classic", prompt: "?",
       options: ["a", "b"], active: true,
@@ -1469,7 +1469,7 @@ describe("the heaviest LEGAL create still fits the expression budget", () => {
 
   it("a 1v1 answer with its guess — the arm that still carries the guess clauses", async () => {
     // The world-content case stood here while D426 §6.2's arm did; the
-    // guess is what a 1v1 answer adds over a group's now (D435), and the
+    // guess is what a 1v1 answer adds over a group's now (D437), and the
     // rules compare it against the same index space as the vote.
     await seedAll();
     await assertSucceeds(setDoc(at(FRIEND, "g_d_budget_r2"), {
@@ -1776,7 +1776,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
     // The guess half of this test — `guessIdx` taking the same widened
     // bound, so members 21–32 were guessable on a pick day — is gone with
-    // the call (D435): a group answer may not carry guessIdx at all, in or
+    // the call (D437): a group answer may not carry guessIdx at all, in or
     // out of bounds, and the case after this one pins that. So the one
     // index bound on a group answer is optionIdx's; absent stays legal.
     await assertFails(setDoc(
@@ -1785,7 +1785,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
   });
 
-  it("a group answer carries no guess — nothing in a group is called (D435); a 1v1's still does", async () => {
+  it("a group answer carries no guess — nothing in a group is called (D437); a 1v1's still does", async () => {
     // The owner's 2026-09-09 brief: "The room casts roles and rates itself;
     // that's all." D386's call on where the room lands was admitted here
     // for a week; a group answer that carries one is refused now, so the

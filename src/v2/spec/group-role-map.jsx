@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/group-role-map.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all), and
-// re-ported at D435 from design/standalone-2026-09-09/group-role-map.jsx:
+// re-ported at D437 from design/standalone-2026-09-09/group-role-map.jsx:
 // every person's SEAT under their name, read off the votes they received.
 import React from 'react';
 import { DUELS } from './duels-data.js';
@@ -68,7 +68,7 @@ const EXPORTS = {};
         role.sy = p.y + Math.sin(a) * orbit;
         role.holderIds = [p.id];
       });
-      // the seat (D435): the share of the votes they received, two before
+      // the seat (D437): the share of the votes they received, two before
       // it is said — in play as its LINE, never its label
       const A = DUELS.archetypeOf(gid, p.id);
       p.seat = A && A.total >= 2 ? A.seat : null;

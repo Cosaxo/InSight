@@ -115,12 +115,12 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     // mirrored for the same reason as everything above: this function IS
     // what the seed writes, so a field the payload carries and this does
     // not reports every doc holding it as a phantom rewrite.
-    // The group as a cast (D432): a role vote's pack and role, a rating's
+    // The group as a cast (D434): a role vote's pack and role, a rating's
     // poles — mirrored for the same reason, and in SEEDED_FIELDS.
     ...(q.scen ? { scen: q.scen } : {}),
     ...(q.role ? { role: q.role } : {}),
     ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
-    // The cast round (D435): them and dims, in SEEDED_FIELDS too.
+    // The cast round (D437): them and dims, in SEEDED_FIELDS too.
     ...(Array.isArray(q.them) ? { them: q.them } : {}),
     ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
     ...(typeof q.bg === "string" ? { bg: q.bg } : {}),

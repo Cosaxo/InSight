@@ -170,14 +170,14 @@ interface LiveGroup {
 interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string; late?: boolean; pickUid?: string | null }
 /** A round's question as the store hands it over (`todayQ`, `roundQ`,
  * `bankQ` — data/deck.ts's DuelRoundQ): the kind is the seeded topic, and
- * since D432 a role vote carries the scenario pack it belongs to and the
+ * since D434 a role vote carries the scenario pack it belongs to and the
  * role it casts, a rating its two poles. */
 interface CastQ {
   id: string; prompt: string; options: string[]; kind?: string;
   scen?: { id: string; label: string; hue: number };
   role?: { id: string; label: string; seat?: string };
   poles?: string[];
-  // The cast round (D435): the four *them* forms and the four axes.
+  // The cast round (D437): the four *them* forms and the four axes.
   them?: string[];
   dims?: string[];
 }
@@ -260,7 +260,7 @@ function LdOption({ label, onClick, tint, lead, disabled }: {
   );
 }
 
-// ── a rating's ballot (D432) ─────────────────────────────────────
+// ── a rating's ballot (D434) ─────────────────────────────────────
 //
 // The design's `PoleBallot`: the two poles as words, five equal buttons
 // between them whose dot grows toward either end and hollows at the
@@ -824,7 +824,7 @@ const serif = (size: number): React.CSSProperties => ({
   letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "balance",
 });
 const NUMWORD = ["", "One", "Two", "Three", "Four", "Five"];
-// THE GROUP AS A CAST (D432, the owner's 2026-09-08 design). A role vote's
+// THE GROUP AS A CAST (D434, the owner's 2026-09-08 design). A role vote's
 // pack — Bank Heist, Desert Island… — wears its own ink, the design's
 // `scenInk`: one hue per pack, drawn on the kicker, the crown and the
 // run's mark, so a run of rounds reads as packs. A rating between two
@@ -842,7 +842,7 @@ const isRateQ = (q: CastQ | null | undefined): q is CastQ & { poles: string[] } 
   !!q && q.kind === "rate" && Array.isArray(q.poles) && q.poles.length === 2;
 const isRoleVote = (q: CastQ | null | undefined): q is CastQ & { role: { id: string; label: string } } =>
   !!q && q.kind === "pick" && !!q.role;
-/** A 1v1's cast round (D435): *Most days, {name} is…*, whose answers are
+/** A 1v1's cast round (D437): *Most days, {name} is…*, whose answers are
  *  the four sentences and whose guess is over their *them* forms. */
 const isCastQ = (q: CastQ | null | undefined): q is CastQ & { them: string[] } =>
   !!q && q.kind === "cast" && Array.isArray(q.them) && q.them.length === q.options.length;
@@ -898,7 +898,7 @@ function useLeft(until: number | null): string | null {
 // (a reveal from before rounds; and the rounds of 2026-09-08 that drew a
 // world question with no guess, before the owner retired those — D426's
 // third amendment).
-// …and, since D432, `r` — a rating round, drawn as a SQUARE in the room's
+// …and, since D434, `r` — a rating round, drawn as a SQUARE in the room's
 // accent: the group rated itself, so there is nothing to call and nobody
 // crowned. On a group's role vote the two scored kinds change meaning
 // with the design: filled in the pack's ink where the room named YOU, a
@@ -920,7 +920,7 @@ function dotStyle(k: DotKind, color: string, acc: string): React.CSSProperties {
   else s.border = "1.5px solid color-mix(in oklch, var(--ink-3) 55%, transparent)";
   return s;
 }
-interface RunDot { k: DotKind; aria: string; at?: number; /** a pack's ink on a role vote (D432) */ color?: string }
+interface RunDot { k: DotKind; aria: string; at?: number; /** a pack's ink on a role vote (D434) */ color?: string }
 interface RunRow { label: string; aria: string; color: string; dots: RunDot[] }
 function LdRun({ rows, acc, onPick }: { rows: RunRow[]; acc: string; onPick: (at: number) => void }) {
   if (!rows.length || !rows[0].dots.length) return null;
@@ -962,7 +962,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   const bankQ = reveal.qid ? LIVE.social.bankQ(reveal.qid) : null;
   const duo = g.mode === "duo";
   const tint = duo ? ACC_DUO : ACC_GROUP;
-  // The cast (D432): a role vote is read for its crown and said in its
+  // The cast (D434): a role vote is read for its crown and said in its
   // pack's ink; a rating is read for where the group landed between its
   // poles. The older kinds read as they did.
   const cq = bankQ as CastQ | null;
@@ -984,7 +984,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   const mine = votes[uid];
   const themUid = duo ? ((g.memberUids || []).find((m) => m !== uid) || "") : "";
   const theirs = themUid ? votes[themUid] : undefined;
-  // A cast round (D435): the prompt and the *them* forms carry the other
+  // A cast round (D437): the prompt and the *them* forms carry the other
   // person's name, and each side's SAID is a different sentence — mine is
   // what I said they are (the answer as written), theirs is what they said
   // I am (its *them* form) — so the table reads as two facts about two
@@ -1014,7 +1014,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
 
   // The room's verdict: the option(s) most of the room landed on — a room
   // of one is you, so it needs two. Nothing is read against a call any
-  // more: nothing in a group is called (D435), and D386's *you called it*
+  // more: nothing in a group is called (D437), and D386's *you called it*
   // went with the tap that made it.
   // A role vote tallies by WHO was named (`roleTally`), so the card and
   // the Mirror's Votes lens agree on the holder after a leave has moved
@@ -1271,7 +1271,7 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
 // sit on the right, and your own row wears the accent border. A late
 // answer sits on its option too — marked, since it was not blind — and
 // stays out of the tally the verdict is read against (revealTally).
-// ── a rating's reveal (D432) ──────────────────────────────────────
+// ── a rating's reveal (D434) ──────────────────────────────────────
 //
 // The two poles, the marks of who stood where on the five steps, and the
 // group's own dot on the track between them — the design's `RateReveal`.
@@ -1328,7 +1328,7 @@ function LdRateReveal({ reveal, opts, poles, names, uid, tint }: {
 
 function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
   reveal: LiveReveal; opts: string[]; names: Record<string, string>; uid: string; tint: string;
-  /** A role vote (D432): the pack's ink, the crowned option(s), the
+  /** A role vote (D434): the pack's ink, the crowned option(s), the
    *  contested runner-up, and each option's member as its lead. The rows
    *  are then ordered by count — the design's `VoteReveal` — because a
    *  cast's rows are people, and the crown reads from the top. */
@@ -1581,7 +1581,7 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
   // rounds it has sealed that have not revealed. A card is asked for the
   // next round the moment the last one is sealed: that is the volley.
   const q = S.todayQ(g.id) as CastQ | null;
-  // The cast (D432): the next round's tag for the kicker, and whether it
+  // The cast (D434): the next round's tag for the kicker, and whether it
   // is a rating — which seals on the one tap, with no call to make.
   const qTag = duo ? null : tagOf(q);
   const rate = !duo && isRateQ(q);
@@ -1596,7 +1596,7 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
   const themUid = duo ? (members.find((m) => m !== uid) || "") : "";
   const themName = firstName(names[themUid]) || "them";
   const romantic = g.duoMode === "romantic";
-  // The cast round's copy (D435): the prompt carries the other person's
+  // The cast round's copy (D437): the prompt carries the other person's
   // name and the guess is over the *them* forms. Both go through castText,
   // which puts the name where the bank could not and never leaves the
   // placeholder.
@@ -1696,9 +1696,9 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
         me = "r";
         title = "rated the group";
       } else if (isRoleVote(bq)) {
-        // THE RUN IS A RECORD, NOT A SCORE (D435, the owner's 2026-09-09
+        // THE RUN IS A RECORD, NOT A SCORE (D437, the owner's 2026-09-09
         // brief): a dot in the pack's ink for every vote you played, whoever
-        // the room named — the caption says who. D432's filled-or-ring
+        // the room named — the caption says who. D434's filled-or-ring
         // encoding (named you / named someone else) went with the brief.
         // Who a row names: `roleTally`'s member — the one definition the
         // reveal card uses — and the reveal's own roster for an index no
@@ -1875,11 +1875,11 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
       <div style={serif(27)}>{promptOf(q)}</div>
       {rate && q ? (
         // A rating seals on the one tap: the group is asked about itself,
-        // and there is no room to read (D432).
+        // and there is no room to read (D434).
         <LdPoleBallot poles={q.poles} steps={q.options} tint={tint} disabled={busy} onPick={(i) => void seal(i)} />
       ) : !duo && q.kind === "pick" ? (
         // A role vote's ballot is the members and You as a 2-across grid of
-        // faces (D435, the design's `GroupCard`): the options ARE people, so
+        // faces (D437, the design's `GroupCard`): the options ARE people, so
         // each is a mark and a first name, and the tap is the vote.
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }} role="group" aria-label="Who?">
           {q.options.map((o: string, i: number) => {
@@ -1900,7 +1900,7 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
             // A 1v1 answers, then guesses (the morph below); a GROUP round
-            // seals on the one tap — nothing in a group is called (D435,
+            // seals on the one tap — nothing in a group is called (D437,
             // the owner's 2026-09-09 brief), and the rules refuse a guess
             // on the group surface, so a second tap here would be a write
             // the table throws back.
@@ -2041,7 +2041,7 @@ function LdRail({ items, cur, onPick, onNew, duo }: {
 // ── the first run (request 12, state 9) ──────────────────────────
 //
 // One round of the game drawn with nothing invented: for a group the
-// bank's first role vote (D435), for a 1v1 a World question standing in
+// bank's first role vote (D437), for a 1v1 a World question standing in
 // for the one a pair would draw — SEALED on a ballot, then REVEALED —
 // your mark on a row and a dashed seat per person who is not here yet —
 // and the one tap that starts a room. An invitation, when one is waiting,
@@ -2060,7 +2060,7 @@ function LdFirstRun({ mode, pendingCode, onCodeDone }: { mode?: string; pendingC
   const deck = (typeof (LIVE as { deck?: () => unknown[] }).deck === "function" ? (LIVE as { deck: () => unknown[] }).deck() : []) as Array<{ prompt?: string; options?: string[] }>;
   const standIn = deck.find((x) => typeof x.prompt === "string" && Array.isArray(x.options) && x.options.length >= 2 && x.options.length <= 4) || null;
   const seats = duo ? 1 : 2;
-  // A group's preview is a real role vote off the bank (D435), or null
+  // A group's preview is a real role vote off the bank (D437), or null
   // before the cast has reached this device — then the World stand-in.
   const rv = duo ? null : LIVE.social.roleVotePreview();
   const startLabel = duo ? "Start a 1v1" : "Start a group";
@@ -2069,7 +2069,7 @@ function LdFirstRun({ mode, pendingCode, onCodeDone }: { mode?: string; pendingC
       {pendingCode && <LdJoinPending code={pendingCode} onDone={onCodeDone} />}
       <LdInvites mode={mode} />
       {rv ? (
-        // A GROUP ROUND DRAWN AS THE BANK DRAWS IT (D435): the first role
+        // A GROUP ROUND DRAWN AS THE BANK DRAWS IT (D437): the first role
         // vote, SEALED on a 2×2 of You and open seats, then REVEALED — the
         // role on your row, a seat you name on the other. Nothing invented:
         // the prompt, the pack and the role are the seeded bank's own, and

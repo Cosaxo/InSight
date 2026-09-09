@@ -384,7 +384,7 @@ describe("computeDeckIds (deck rotation)", () => {
 });
 
 describe("duelQFor (duel question rotation)", () => {
-  // A group's bank as the cast seeds it (D432): role votes are picks, most
+  // A group's bank as the cast seeds it (D434): role votes are picks, most
   // of them tagged with a scenario pack and a role; every fourth round is
   // a rating between two poles; the older us/classic questions are in the
   // bank and out of the rotation.
@@ -401,7 +401,7 @@ describe("duelQFor (duel question rotation)", () => {
     qd("d0", { surface: "duo" }),
     qd("d1", { surface: "duo" }),
   ];
-  // …and the 1v1's cast round (D435), the pool's one `cast` entry
+  // …and the 1v1's cast round (D437), the pool's one `cast` entry
   const CAST = qd("073", {
     surface: "duo", topic: "cast", prompt: "Most days, {name} is…",
     options: ["the one you tell first", "the one who gets you out the door", "the one you ask what to do", "the one who is just always there"],
@@ -411,7 +411,7 @@ describe("duelQFor (duel question rotation)", () => {
   const picks = bank.filter((q) => q.surface === "group" && q.topic === "pick");
   const rates = bank.filter((q) => q.surface === "group" && q.topic === "rate");
   const group = { id: "grp_abc", mode: "group", memberUids: ["u1", "u2", "u3"], memberNames: { u1: "Ada", u2: "Bo", u3: "Cy" } };
-  // The group's PHASE (D435) is read off its id; the cases below compute
+  // The group's PHASE (D437) is read off its id; the cases below compute
   // it rather than assume zero, so they hold for any id the hash lands on.
   const phase = groupPhase(group.id);
   const ratingsBefore = (r: number) => Math.floor((r - 1 + phase) / 4);
@@ -505,7 +505,7 @@ describe("duelQFor (duel question rotation)", () => {
     served.forEach((q, i) => expect(q.id, `round ${i + 1}`).toBe(picks[(start + i) % picks.length].id));
   });
 
-  it("every fourth 1v1 round is the cast, and the own rounds walk the pool skipping it (D435)", () => {
+  it("every fourth 1v1 round is the cast, and the own rounds walk the pool skipping it (D437)", () => {
     const withCast = [...bank, CAST];
     const own = withCast.filter((q) => q.surface === "duo" && q.topic !== "cast");
     const duo = { id: "duo_1", mode: "duo" };

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The demo plays ROUNDS (D435, VISION-2026-09-09 §7 step 6): the demo
+// The demo plays ROUNDS (D437, VISION-2026-09-09 §7 step 6): the demo
 // store re-ported from the owner's 2026-09-09 design, and the two cards
 // on the shared shell. What is pinned is what the live app does the same
 // way — a role vote three rounds in four and a rating on the fourth, a

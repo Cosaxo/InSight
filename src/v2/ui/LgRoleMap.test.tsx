@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// LgRoleMap — the room drawn as a cast (D435). The geometry is pinned in
+// LgRoleMap — the room drawn as a cast (D437). The geometry is pinned in
 // data/roleField.test.ts; what is pinned here is what a tap opens, that
 // every node is reachable without a mouse, and that a person's card says
 // no more than the reveals do.

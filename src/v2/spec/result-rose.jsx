@@ -77,7 +77,7 @@ export const RP_TESTS = {
   // (`--c-people` rose for a 1v1, `--c-groups` gold for a group), which
   // means a role card is already the colour of the thing it describes and
   // no label has to say which one you are looking at.
-  // The dims are the owner's 2026-09-09 design's (D435): a 1v1's four
+  // The dims are the owner's 2026-09-09 design's (D437): a 1v1's four
   // axes a cast round names, a group's four seats.
   duo: {
     banner: 'oklch(0.47 0.11 8)',

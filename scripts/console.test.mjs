@@ -341,14 +341,14 @@ describe("the lists on this tree", () => {
     // none — and the owner's canvas came back the same day, so it sits
     // under Built as item 12 (its number moved off the pictures' 11 at
     // the merge): requested 10 again, built 4. Requested 9 and Designed 1
-    // since 2026-09-08 (D432): the owner's InSight_12 upload drew the
+    // since 2026-09-08 (D434): the owner's InSight_12 upload drew the
     // group's cast — item 6 — so it moved under Designed, the section
     // being the status; its build is step 3 of VISION-2026-09-08.md.
-    // Requested 8 and Designed 2 since 2026-09-09 (D434): the owner's
+    // Requested 8 and Designed 2 since 2026-09-09 (D436): the owner's
     // InSight_15 upload drew the roles panel, the person page's pair card
     // and the instrument in two settings — item 5's three surfaces — so
     // it moved under Designed beside 6, which the same upload redrew.
-    // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D435): both
+    // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D437): both
     // were built the same day, on the owner's answers to that plan's
     // questions, and moved under Built with their status lines saying so.
     expect(v.requested.length).toBe(8);

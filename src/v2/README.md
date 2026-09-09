@@ -1054,7 +1054,7 @@ added. Twenty-three providers, forty-seven files, 128 sites:
 
 | Provider | Names | Where it went |
 | --- | --- | --- |
-| `group-daily.jsx` | `GDAv`, `GroupDailyBody` (and, since D435, the whole rounds shell — `RoundStack`, `CardFrame`, the sheets, the run, the ballots) | duo-daily, group-mirror, group-role-map, daily-split |
+| `group-daily.jsx` | `GDAv`, `GroupDailyBody` (and, since D437, the whole rounds shell — `RoundStack`, `CardFrame`, the sheets, the run, the ballots) | duo-daily, group-mirror, group-role-map, daily-split |
 | `passive-meter.jsx` | `PassiveTag`, `PassiveMeter` | daily-split, world-feed, app-shell |
 | `mirror-field.jsx` | the `MF*` family, `MirrorLenses` | mirror-field-pops, group-mirror |
 | `map-bottom-card.jsx` · `map-people.jsx` · `map-learn-card.jsx` | the `MT*` cards | map-tab, mirror-field-pops |

@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/duo-daily.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all), and
-// re-ported at D435 from design/standalone-2026-09-09/duo-daily.jsx: the 1v1
+// re-ported at D437 from design/standalone-2026-09-09/duo-daily.jsx: the 1v1
 // card played in ROUNDS, three own rounds then a cast, on the shell
 // group-daily.jsx exports.
 import React from 'react';
@@ -18,7 +18,7 @@ import {
 // when a round seals you just swipe down — the next person is waiting. The
 // sticky rail on top shows who is waiting on you; tap a face to jump.
 //
-// Every fourth round is the CAST (D435) — "Most days, Liv is…" — four
+// Every fourth round is the CAST (D437) — "Most days, Liv is…" — four
 // plain answers each carrying an axis; your guess is at what THEY said you
 // are, in the *them* form, and the reveal leads with the two sentences:
 // "You are the one Liv tells first. Liv is the one you ask what to do."

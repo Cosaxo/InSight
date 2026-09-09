@@ -1696,7 +1696,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // for the chunk rather than for a render.
     await screen.findByText(/Every fourth round of a 1v1 asks what the other is to you/);
     // The fixture has no rooms at all, so both instruments refuse — each
-    // in the unit its own floor is counted in since D435 (cast rounds in
+    // in the unit its own floor is counted in since D437 (cast rounds in
     // a 1v1, votes received in a group), not with an empty rose.
     expect(screen.getByText(/Every fourth round of a 1v1 asks what the other is to you/)).not.toBeNull();
     expect(screen.getByText(/No room has voted you into a role yet/)).not.toBeNull();

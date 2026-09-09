@@ -47,7 +47,7 @@ describe("the demo Mirror's Groups stop", () => {
     const expectNoBoundary = mountApp();
     await toStop("Groups");
     // GroupsMirrorBody's own line, under the group's name: roles cast and
-    // scores, the two things a room has since D435.
+    // scores, the two things a room has since D437.
     expect(document.body.textContent, "the Groups stop never opened").toMatch(/roles cast · \d+ scores?/);
     // The role field is GroupRoleMap's, and this is how you tell the two
     // apart: it mints a `grWash-<gid>` gradient per group, and no other
@@ -62,7 +62,7 @@ describe("the demo Mirror's Groups stop", () => {
     expect(placed, "the role field drew nobody").toContain("Henrik");
     expect(placed, "the role field left you out of your own group").toContain("you");
     // The stop's own lens row (Votes · People · Scores · Compare since
-    // D435 — no Explore, per D190). Compare is the widest of the bodies.
+    // D437 — no Explore, per D190). Compare is the widest of the bodies.
     await toLens("Compare");
     expect(document.body.textContent, "the Compare lens opened nothing").toMatch(/six axes/);
     expectNoBoundary("mirror · groups");
@@ -73,7 +73,7 @@ describe("the demo Mirror's Groups stop", () => {
     // can be emptied. GroupPeopleCard spreads the members into Math.min and
     // Math.max, which on nothing are ±Infinity — every dot at NaN and the
     // band at -Infinity, an SVG that renders and fails no boundary. The
-    // base guarded it; the D435 re-port dropped the guard (the second
+    // base guarded it; the D437 re-port dropped the guard (the second
     // review of #456), and this is the case that would have caught it.
     const expectNoBoundary = mountApp();
     await toStop("Groups");

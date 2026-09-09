@@ -1,4 +1,4 @@
-// gen-duel-sample.test.mjs — pins the properties of the duel sample (D433,
+// gen-duel-sample.test.mjs — pins the properties of the duel sample (D435,
 // D284's shape one bank over).
 //
 // The property under test is the one the cap could not give: that the
@@ -26,7 +26,7 @@ const bank = JSON.parse(
 const ids = (list) => list.map((q) => q.id);
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
-describe("the duel sample (D433)", () => {
+describe("the duel sample (D435)", () => {
   it("takes the first PER_KIND served questions of each group kind, in bank order", () => {
     const s = buildSample(bank);
     const served = bank.group.filter((q) => q.active !== false);
@@ -53,7 +53,7 @@ describe("the duel sample (D433)", () => {
         expect(ids(s[pool].filter((q) => q.d === d)), `${pool} · ${d}`).toEqual(want);
       }
       // …and a domain the bank holds fewer of than PER_DOMAIN — the cast
-      // round, one a pool (D435) — is taken whole, never padded.
+      // round, one a pool (D437) — is taken whole, never padded.
       expect(s[pool].length).toBe(
         domains.reduce((n, d) => n + Math.min(PER_DOMAIN, bank[pool].filter((q) => q.d === d).length), 0),
       );

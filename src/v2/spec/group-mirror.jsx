@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/group-mirror.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all), and
-// re-ported at D435 from design/standalone-2026-09-09/group-mirror.jsx: the
+// re-ported at D437 from design/standalone-2026-09-09/group-mirror.jsx: the
 // room read as a cast — the seat line and the role map above the row, and
 // Votes · People · Scores · Compare in it. The live twin is
 // ui/LiveGroupsMirrorBody.tsx; the two draw the same stop from different
@@ -241,7 +241,7 @@ const EXPORTS = {};
     // for every dot, and Math.max(...[]) makes the band height -Infinity.
     // The card draws an SVG with NaN coordinates rather than failing, which
     // is the shape that survives a smoke test. Nothing below this line is
-    // meaningful without members. (The base had this guard; the D435
+    // meaningful without members. (The base had this guard; the D437
     // re-port dropped it, and the second review of #456 put it back.)
     if (!ms.length) return null;
     const LV = 58;
@@ -398,7 +398,7 @@ const EXPORTS = {};
         </div>
         <GroupPicker gs={gs} cur={g.id} onPick={setGid}></GroupPicker>
         {/* the seat line — said only once two votes have named you, and as
-            the seat's LINE, never its label (D435) */}
+            the seat's LINE, never its label (D437) */}
         {A && A.total >= 2 && A.seat && (
           <div style={{ margin: '12px 2px 0', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, letterSpacing: '-0.015em', color: 'var(--ink)' }}>Here, you are <span style={{ color: 'var(--accent)' }}>{A.seat.line}</span></span>

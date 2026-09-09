@@ -1,4 +1,4 @@
-// roleField — where the role map puts everyone (D435, the owner's
+// roleField — where the role map puts everyone (D437, the owner's
 // 2026-09-09 `group-role-map.jsx`, its `buildField` typed and taken off
 // the demo store). Pure geometry over `roleVotes`: the members on a ring,
 // each role a satellite beside whoever holds it, a shared or contested

@@ -235,7 +235,7 @@ export const LIVE_SOCIAL_MEMBERS = [
   // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
   "roundInfo", "roundQ", "voteLate",
-  // The first run's preview of a group round (D435): the bank's first role
+  // The first run's preview of a group round (D437): the bank's first role
   // vote, so the screen draws a real one rather than a World stand-in.
   "roleVotePreview",
   "groupBankCounts",

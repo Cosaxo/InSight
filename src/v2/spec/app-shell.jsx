@@ -10,7 +10,7 @@ import { IS_DATA } from './sample-data.js';
 // content/duel-questions.json — the DUEL LANE's bank, a file a scheduled
 // Routine appends to — so a static import here made writing a duel question
 // a start-up cost for every phone. (It carries the bank's fixed sample
-// since D433, but it is the DEMO store, and a live build has no use for
+// since D435, but it is the DEMO store, and a live build has no use for
 // it at any size.) Its one use below is a DevTweaks
 // callback: a developer resetting today's duel, already behind a Suspense
 // boundary and a build-time guard, and about as far from first paint as a

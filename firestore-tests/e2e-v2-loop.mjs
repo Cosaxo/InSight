@@ -937,10 +937,10 @@ await expectDenied("the revealed round is refused", () =>
   const mkGid = mkGroup.data.gid;
   await httpsCallable(pFns, "requestJoinV2")({ code: mkGroup.data.inviteCode });
   await httpsCallable(fns, "approveJoinV2")({ gid: mkGid, uid: partner.user.uid });
-  // …and nothing in a group is called (D435): a group answer carries no
+  // …and nothing in a group is called (D437): a group answer carries no
   // `guessIdx` — the rules refuse one — and the reveal below publishes the
   // vote alone.
-  await expectDenied("a group answer with a call on the room is refused (D435)", () =>
+  await expectDenied("a group answer with a call on the room is refused (D437)", () =>
     setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_r1`), {
       qid: "group-gu0", surface: "group", optionIdx: 1, guessIdx: 1,
       gid: mkGid, round: 1, answeredAt: serverTimestamp(), anchors: {},
@@ -971,7 +971,7 @@ await expectDenied("the revealed round is refused", () =>
   if (mkVotes[uid]?.optionIdx !== 1 || mkVotes[uid]?.guessIdx !== undefined)
     fail("the group reveal's vote is wrong, or carries a call nobody may make: " + JSON.stringify(mkVotes[uid]));
   if (mkVotes[partner.user.uid]) fail("a member who did not play has a vote in the reveal");
-  ok("a group reveal carries the member's vote and no call (D435), for whoever played");
+  ok("a group reveal carries the member's vote and no call (D437), for whoever played");
 
   const after = await getDoc(doc(db, "v2_groups", mkGid));
   if (after.get("round") !== 2) fail("the forced reveal did not open round 2");

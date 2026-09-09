@@ -98,8 +98,8 @@ build failure to whoever meets it.
 `duels-data.js`. That lane was weekly and much smaller, so it was the same
 mechanism with years of slack — worth fixing in the same pass, not worth
 a pass of its own. *The slack went in a week once the lane ran daily
-(D426) and the cast landed (D432): 22.8 KiB, one run from the cap. It got
-the same treatment on 2026-09-09 — D433, `content/duel-sample.json`,
+(D426) and the cast landed (D434): 22.8 KiB, one run from the cap. It got
+the same treatment on 2026-09-09 — D435, `content/duel-sample.json`,
 `check:duel-sample`.*
 
 **Every other bank is already clean.** Daily, feed and test questions
@@ -174,7 +174,7 @@ unlisted import, and a listing nothing imports any more.
 Two content entries today, both samples. `learn-sample.json` at 32 KiB —
 it grows with the number of FIELDS and never with the bank, so crossing
 it means the taxonomy roughly doubled and `PER_FIELD` wants re-deriving
-rather than the cap raising. `duel-sample.json` at 16 KiB (D433) — it
+rather than the cap raising. `duel-sample.json` at 16 KiB (D435) — it
 grows with the number of group KINDS and 1v1 DOMAINS and never with the
 bank, on the same argument. The entry it replaced, `duel-questions.json`
 at 24 KiB, was the last bank compiled in whole: written down as having

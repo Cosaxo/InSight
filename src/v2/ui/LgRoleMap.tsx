@@ -1,4 +1,4 @@
-// LgRoleMap — the Groups stop's field: the room drawn as a cast (D435,
+// LgRoleMap — the Groups stop's field: the room drawn as a cast (D437,
 // the owner's 2026-09-09 `group-role-map.jsx`, ported onto real reveals).
 //
 // Everyone in the room on a ring; each role the room has voted somebody

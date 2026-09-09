@@ -3738,14 +3738,14 @@ function roundsOf(g: Record<string, unknown> & { id: string }) {
 function roundQById(qid: string) {
   const q = state.duelBank.find((x) => x.id === qid);
   if (q) {
-    // The cast's fields ride along (D432): the reveal card draws a role
+    // The cast's fields ride along (D434): the reveal card draws a role
     // vote's pack and role and a rating's poles off this same door.
     return {
       id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic",
       ...(q.scen ? { scen: q.scen } : {}),
       ...(q.role ? { role: q.role } : {}),
       ...(q.poles ? { poles: q.poles } : {}),
-      // …and a cast round's them forms and axes (D435).
+      // …and a cast round's them forms and axes (D437).
       ...(q.them ? { them: q.them } : {}),
       ...(q.dims ? { dims: q.dims } : {}),
     };
@@ -3802,7 +3802,7 @@ const SOCIAL = {
     return g ? duelQFor(g, round) : null;
   },
   /** The bank's first role vote — what the first run's preview draws a
-   *  group round AS (D435), with nothing invented: a real prompt, pack and
+   *  group round AS (D437), with nothing invented: a real prompt, pack and
    *  role off the seeded bank. Null before the cast has reached this
    *  device's bank, and the preview falls back to a World question
    *  standing in, as it did before the cast. */
@@ -3812,7 +3812,7 @@ const SOCIAL = {
   },
   /** How many roles the packs hold and how many ratings the bank asks —
    *  the denominators the Groups stop prints its progress against
-   *  (D435: the identity ring is roles cast over all roles; the Scores
+   *  (D437: the identity ring is roles cast over all roles; the Scores
    *  lens says "2 of 10 rated"). Active entries in this device's bank. */
   groupBankCounts(): { roles: number; ratings: number } {
     let roles = 0, ratings = 0;

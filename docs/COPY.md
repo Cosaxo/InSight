@@ -123,7 +123,7 @@ copies, and a second copy of a promise is not twice the promise — it is
 the shape that let the takes line claim namelessness while the takes panel
 printed every author's name (D106).
 
-**The duel surfaces have a voice (D435).** The owner's 2026-09-09 brief
+**The duel surfaces have a voice (D437).** The owner's 2026-09-09 brief
 ends with the words to use and the words never to use on a 1v1 or a
 group screen: *say votes, rounds, said; never days, majority, crowned,
 cast as a badge, in charge*. A seat is said as its line in play (*the

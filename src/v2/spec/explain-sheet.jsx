@@ -23,7 +23,7 @@ const { useState } = React;
 // about: what the whole instrument measures · dims: what each axis means
 const EX = {
   // the 1v1 and group readings as instruments (2026-08-24; the owner's
-  // 2026-09-09 design's dims since D435) — the Roles panel's roses read
+  // 2026-09-09 design's dims since D437) — the Roles panel's roses read
   // these through the same ⓘ as every test. Both are SHARES: a quarter
   // each is the neutral, and nothing here is scored against luck.
   duo: {

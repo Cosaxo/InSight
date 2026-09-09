@@ -71,7 +71,7 @@ export const IS_ARCHETYPES = {
     { name: 'The Small Circle',  share: 4,  line: 'A small circle, fiercely kept.',              sig: { warm: 40, loyal: 80, open: 25, play: 40, easy: 45 } },
   ]},
   // ── the role instruments (D204; the tables the owner's 2026-09-09 design
-  // wrote, D435) ────────────────────────────────────────────────────────
+  // wrote, D437) ────────────────────────────────────────────────────────
   // One idea in two settings — what the people around you make you. A 1v1's
   // four dims are the share of cast rounds in which they said you are the
   // one they tell first (Trust), the one who gets them out the door (Spark),
@@ -304,7 +304,7 @@ const IS_RULE_WORD = {
   political:  { econ: 'market freedom', auth: 'order', foreign: 'global outlook', env: 'climate urgency', tech: 'tech optimism', estab: 'distrust of the system' },
   values:     { future: 'hope', circle: 'breadth of care', hedonism: 'pleasure', meaning: 'meaning', moral: 'moral certainty', beauty: 'beauty' },
   attachment: { warm: 'warmth', loyal: 'loyalty', open: 'openness', play: 'playfulness', easy: 'ease' },
-  // the role instruments (D435): nouns for the seats and the axes
+  // the role instruments (D437): nouns for the seats and the axes
   duo:        { trust: 'trust', spark: 'spark', judgement: 'judgement', constancy: 'constancy' },
   group:      { engine: 'engine', hands: 'hands', heart: 'heart', wild: 'wildcard' },
 };

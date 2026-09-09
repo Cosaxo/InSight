@@ -1,4 +1,4 @@
-// roleField — the role map's geometry (D435). What matters is not where a
+// roleField — the role map's geometry (D437). What matters is not where a
 // dot lands but that everyone is placed, every held role hangs off its
 // holder, a shared role sits between its two, and nothing lands on top of
 // anything else.
