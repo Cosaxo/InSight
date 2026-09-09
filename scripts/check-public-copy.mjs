@@ -232,7 +232,149 @@ export const RETIRED = [
     re: /\b(?:takes?|free text|posts?)\b[^.!?]{0,60}\banonymous by construction\b/i,
     why: "takes carry the author's name at both scopes since D98",
   },
+
+  // ── the anonymous-first vocabulary, retired by D414 ───────────────
+  //
+  // A SECOND retired model, and it went the same way as the first: on
+  // 2026-09-07 the account wall went up, and three surfaces kept
+  // promising the opposite for the rest of the afternoon —
+  // `design/store/listing.json` (BOTH store descriptions: "No sign-up
+  // wall. Open it and start: no email, no phone number"), `web/join.html`
+  // ("the app works anonymously from the first tap") and, worst,
+  // `web/privacy.html`'s Children section ("there is little to collect:
+  // no account is required"). The listing was hours from being submitted
+  // to Apple beside a build that opens on a wall, which is guideline
+  // 2.3.1 and a rejection round.
+  //
+  // That is this file's own founding failure, repeated: its header
+  // records listing.json shipping "answers are owner-only" to App Store
+  // Connect while the rules said otherwise. The remedy the header argues
+  // for is a word list rather than a discipline — so D414's vocabulary
+  // joins D98's here rather than being swept once and trusted.
+  //
+  // NOT a ban on the word "anonymous". The app still signs every session
+  // in anonymously (D3, untouched), the attention tally is genuinely
+  // unlinkable, and both are described in copy that must keep saying so.
+  // What is retired is the claim that a user may USE the app without an
+  // account.
+  {
+    re: /\bno (?:sign[- ]?up|signup|log[- ]?in|login) wall\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\bno account (?:or [a-z]+ )?(?:is )?(?:needed|required)\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\b(?:works?|usable|use it) anonymously\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\byou do not need an account\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\bwithout (?:an account|signing in|an email)\b[^.!?]{0,40}\b(?:answer|use|start|open)\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\b(?:linking|signing in)\b[^.!?]{0,30}\bis optional\b/i,
+    why: "the app requires an account since D414",
+  },
 ];
+
+// ── the duel surfaces' voice (D437, the owner's 2026-09-09 brief) ──
+//
+// A THIRD list, narrower in scope than the two above: it reads only the
+// screens where a 1v1 or a group is played or read back, and it holds a
+// VOICE rather than a retired model. The owner's brief for those screens
+// ends with the words to use and the words never to use — "say votes,
+// rounds, said; never days, majority, crowned, in charge" — and the
+// reason is the same as D98's: a sentence that says "days" describes a
+// cadence the app no longer has (a round is a round, ROUNDS-PLAN / D426),
+// and one that says "majority" or "crowned" describes a call the group
+// no longer makes (D437: nothing in a group is predicted or called). Both
+// read as true to a user who cannot see the code.
+//
+// The same lesson as the two lists above, one step earlier: the days
+// vocabulary had ALREADY grown back twice by the time this was written —
+// "aligned with you · 3 of 4 days" and "Reading the days…" on the Groups
+// stop, "3 days you both guessed" on the Roles tab — each written after
+// the rounds model landed, each green under every gate. A word list is
+// what stops the third time.
+//
+// Scoped by FILE, not by pattern, because "days" is a fine word on the
+// privacy page and a wrong one on a reveal. The list is the live duel
+// surfaces and the demo's ported family (VISION-2026-09-09 §7 step 6).
+//
+// What the patterns leave alone, on purpose: a relative DATE ("3 days
+// ago" under a reveal is a timestamp, not the game's unit), the words as
+// identifiers (`majorityIdx` carries no word boundary), and past tense.
+export const DUEL_SURFACES = [
+  "src/v2/ui/LiveDuelPanel.tsx",
+  "src/v2/ui/LiveGroupsMirrorBody.tsx",
+  "src/v2/ui/LgRoleMap.tsx",
+  "src/v2/ui/LiveRolesPanel.tsx",
+  "src/v2/data/roles.ts",
+  "src/v2/data/groupCast.ts",
+  // …and the demo's family, since the port that made it play rounds
+  // (D437 step 6): the store's copy, the two cards, the Groups stop, the
+  // role map, and the Map's People branch that reads the store.
+  "src/v2/spec/duels-data.js",
+  "src/v2/spec/group-daily.jsx",
+  "src/v2/spec/duo-daily.jsx",
+  "src/v2/spec/group-mirror.jsx",
+  "src/v2/spec/group-role-map.jsx",
+  "src/v2/spec/map-people.jsx",
+];
+export const VOICE = [
+  {
+    re: /(?:\b\d+|\}|\bof(?: the)?) days?\b(?! ago\b)/i,
+    why: "a round is the unit since ROUNDS-PLAN / D426 — say rounds, never days",
+  },
+  {
+    re: /\bdays? (?:you|we|they|both|played|revealed|guessed)\b/i,
+    why: "a round is the unit since ROUNDS-PLAN / D426 — say rounds, never days",
+  },
+  {
+    re: /\b(?:the|these|those|revealed|shared|older|more) days\b/i,
+    why: "a round is the unit since ROUNDS-PLAN / D426 — say rounds, never days",
+  },
+  {
+    re: /\b(?:each|every|per|one|a) day\b/i,
+    why: "a round is the unit since ROUNDS-PLAN / D426 — say rounds, never days",
+  },
+  {
+    re: /\b(?:tomorrow|the morning after|until tomorrow)\b/i,
+    why: "a reveal is at everyone-played or the deadline, not a morning (D437) — say until the reveal",
+  },
+  {
+    re: /\bmajority\b/i,
+    why: "nothing in a group is called since D437 — a room names people, it has no majority",
+  },
+  {
+    re: /\bcrowned?\b(?!-)/i,
+    why: "nothing in a group is called since D437 — say who the room named, never crowned",
+  },
+  {
+    re: /\bin charge\b/i,
+    why: "a seat is said as its line (D437) — never 'in charge'",
+  },
+];
+
+/** The voice check, for the duel surfaces only — same shape as scanText. */
+export function scanVoice(text) {
+  const hits = [];
+  for (const { re, why } of VOICE) {
+    const m = re.exec(text);
+    if (!m) continue;
+    const start = Math.max(0, m.index - 60);
+    const excerpt = text.slice(start, m.index + m[0].length + 60)
+      .replace(/\s+/g, " ").trim();
+    hits.push({ matched: m[0], why, excerpt });
+  }
+  return hits;
+}
 
 // Strings a scan must not read as copy. `$`-prefixed keys in listing.json
 // are annotations to the operator (asc-push ignores them), and _comment
@@ -342,6 +484,14 @@ export function scan() {
   for (const { label, text, error } of surfaces) {
     if (error) { readErrors.push(`${label} — ${error}`); continue; }
     for (const hit of scanText(text)) problems.push({ label, ...hit });
+    if (DUEL_SURFACES.includes(label)) {
+      for (const hit of scanVoice(text)) problems.push({ label, ...hit });
+    }
+  }
+  // A surface named in DUEL_SURFACES that collect() did not read is a list
+  // gone stale — the file moved, and its voice is unguarded again.
+  for (const f of DUEL_SURFACES) {
+    if (!surfaces.some((s) => s.label === f)) readErrors.push(`${f} — named in DUEL_SURFACES but not collected`);
   }
   return { surfaces, problems, readErrors };
 }
@@ -360,7 +510,7 @@ if (readErrors.length) {
 }
 
 if (problems.length) {
-  console.error("check-public-copy: the retired privacy model is back in copy a user reads.\n");
+  console.error("check-public-copy: copy a user reads says something the app no longer does.\n");
   for (const p of problems) {
     console.error(`  ${p.label}`);
     console.error(`    matched : ${p.matched}`);
@@ -380,5 +530,5 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`check-public-copy OK — ${surfaces.length} user-facing strings, no retired-model claims.`);
+console.log(`check-public-copy OK — ${surfaces.length} user-facing strings, no retired-model claims; the duel surfaces (${DUEL_SURFACES.length}) in the owner's voice.`);
 }

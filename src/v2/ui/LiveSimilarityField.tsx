@@ -689,7 +689,12 @@ export function NearField() {
     ? roster
       .map((p) => {
         const theirs = LIVE.scoresFor(p.uid);
-        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), 3) : null };
+        // MIN_PLACE_AXES, not a literal 3. The sentence one screen down
+        // PRINTS this constant ("needs {MIN_PLACE_AXES}"), and last night
+        // it started printing it on the Near stop too — so a second copy
+        // of the floor at the call site is a number the app can state and
+        // not enforce. They agree today; this is what keeps them agreeing.
+        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), MIN_PLACE_AXES) : null };
       })
       .filter((p): p is { uid: string; m: NonNullable<ReturnType<typeof scoreMatch>> } => !!p.m)
       // RAW, not the drawn number. This is the one place `raw` exists for
@@ -723,6 +728,23 @@ export function NearField() {
   // be counted as people who have not taken it.
   const untested = reading ? 0 : roster.length - placeable.length;
   const capped = placeable.length > placed.length;
+  // THE THIRD REASON, and it is the one both sentences below were missing.
+  // `scoreMatch(…, MIN_PLACE_AXES)` returns null on FEWER THAN THREE SHARED
+  // axes, and `flattenAxes` keys an axis `${kind}:${dim}` — so the four
+  // instruments share no axis id at all. A viewer who has taken only
+  // Politics shares zero axes with everyone who has taken only Big Five,
+  // and every one of them drops out of `placeable` having taken a test.
+  //
+  // So "nobody here has taken the test" was said to rooms where everybody
+  // had. `scored` is the honest split: who has readable scores at all,
+  // regardless of whether they overlap with yours. The sibling field one
+  // function down already draws this distinction and says the true
+  // sentence ("None of these shares enough axes with yours yet"); this one
+  // is being brought level with it.
+  const scored = roster.filter((p) => {
+    const theirs = LIVE.scoresFor(p.uid);
+    return !!theirs && Object.keys(flattenAxes(theirs)).length > 0;
+  }).length;
 
   if (!on) {
     return (
@@ -761,8 +783,15 @@ export function NearField() {
                    reader can act on. Only the claim ABOUT THE ROOM has to
                    wait for the room to be read. */
                 ? <>Matching…</>
-                : <>Nobody here has taken the test — {roster.length} in the room,
-                  {" "}<strong>People</strong> lists them.</>}
+                : scored
+                  /* They have scores; they just do not overlap with yours.
+                     Naming the instrument gap is the only version a reader
+                     can act on — take the one they took. */
+                  ? <>Nobody here shares enough axes with your tests yet
+                    {" "}(needs {MIN_PLACE_AXES}) — {roster.length} in the room,
+                    {" "}<strong>People</strong> lists them.</>
+                  : <>Nobody here has taken a test yet — {roster.length} in the
+                    room, <strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }
@@ -795,7 +824,7 @@ export function NearField() {
       <SfEmpty>
         Nobody is named here; <strong>People</strong> names them. Placed by
         test scores{capped ? ` — the closest ${placed.length} of ${placeable.length} who have` : ""}
-        {untested > 0 ? `${capped ? "; the rest" : " — the rest"} have not taken it` : ""}.
+        {untested > 0 ? `${capped ? "; the rest" : " — the rest"} have not taken one, or share too few axes with yours` : ""}.
       </SfEmpty>
     </div>
   );
@@ -871,6 +900,10 @@ function PlacesField({ scope, myFlat }: {
   const positioned = scored.slice(0, PLACE_FIELD_CAP);
   const thin = profiles.length - scored.length;
   const capped = scored.length - positioned.length;
+  // The chip fallback's own cap, and its own overflow — see the note
+  // beside the row it feeds.
+  const chips = profiles.slice(0, PLACE_FIELD_CAP);
+  const chipsHidden = profiles.length - chips.length;
   const loading = LIVE.similarityLoading();
   const pickedP = profiles.find((p) => p.key === picked) || null;
   const what = dim === "city" ? "city" : "country";
@@ -938,7 +971,7 @@ function PlacesField({ scope, myFlat }: {
               : <>Finish a test and these take their places around you.</>}
           </SfEmpty>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "2px 0 6px" }}>
-            {profiles.slice(0, PLACE_FIELD_CAP).map((p) => (
+            {chips.map((p) => (
               <button key={p.key} onClick={() => setPicked(picked === p.key ? null : p.key)}
                 aria-pressed={picked === p.key}
                 style={{ border: SF_LINE, borderRadius: 999, padding: "5px 12px", cursor: "pointer",
@@ -949,6 +982,20 @@ function PlacesField({ scope, myFlat }: {
               </button>
             ))}
           </div>
+          {/* AND THIS BRANCH SAYS IT TOO, which it did not. Both
+              disclosure lines below are gated off here — `thin`'s on
+              `positioned.length > 0`, and `capped` is 0 by construction,
+              since reaching this branch means nothing was placeable. So
+              thirty countries answered, twenty-four chips were drawn, and
+              the list read as all of them. That is exactly what the
+              comment under `capped` forbids, two lines from where it
+              happened — and this is the branch every account is in before
+              its first test result. */}
+          {chipsHidden > 0 && (
+            <SfEmpty>
+              {chipsHidden} more {plural(chipsHidden)} answered, not shown here.
+            </SfEmpty>
+          )}
         </>
       )}
       {thin > 0 && positioned.length > 0 && (

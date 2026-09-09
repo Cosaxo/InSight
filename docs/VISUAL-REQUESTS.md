@@ -36,6 +36,93 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
+### 10 · The account-setup sheet — fits the phone, and asks before it lets go
+
+- **title · asked by** — *A few things about you* · the owner, 2026-09-07,
+  on build 33: *"the shert for filling in data is scaled wrong an looks
+  bad… and some of them should ve requierd before skiping."*
+- **surface** — `src/v2/ui/LiveProfileSetup.tsx`, a full-screen sheet
+  mounted by `main.jsx` after first paint on any account with no anchors
+  and no display name (`profileSetup.tsx` decides). It is the FIRST screen
+  after the sign-in gate, so it and
+  `design/front-door-2026-09-07/` are read as one arrival — and today
+  they do not look like one thing.
+- **what is wrong now, measured** — the column is `width: 100%` with 22px
+  of padding a side and no `box-sizing`, and `styles.css` has no universal
+  `border-box` reset, so the content box was 446px inside a 402px window:
+  every field ran 44px off the right edge and the sentence about the
+  handle was cut mid-word. **That one property is already fixed** — this
+  request is not for the overflow. It is for the sheet the overflow
+  revealed: eleven controls stacked at full width, a three-column
+  day/month/year grid at `0.9fr 1.5fr 1.1fr`, two paragraphs of
+  explanation above the first field, and nothing that says which of it
+  matters.
+- **data and basis** — every control is a CLOSED vocabulary held equal to
+  the server's buckets by `check:anchors`; the city is the catalogue
+  picker (D9); the birthday never leaves the device — `anchorsFrom` writes
+  the band and the year-resolution age, not the date (D155,
+  `profile-vitals.js`). Nothing here is free text except the display name
+  and the handle. A handle is claimed once and cannot be changed; every
+  other field is editable later in the profile's Basics card.
+- **the ask that changes the screen's job** — some fields become
+  REQUIRED before the sheet can be skipped. Today nothing is: `canSave`
+  is `filled > 0 || newName || typedHandle`, and *Skip for now* always
+  works.
+  **This reverses half of the file's own stated reasoning and the
+  reversal is the owner's to make, not the design's.** That reasoning
+  reads: *"It does not block. Every field can be skipped and the whole
+  screen can be dismissed, because D3 is anonymous-first and 'never a
+  wall' — and because a required demographic form is how you teach people
+  to lie to one."* The first clause is already gone: D414 put the wall up,
+  so "never a wall" no longer describes this build. **The second clause
+  still stands and is the design problem this request is really about** —
+  a required field does not produce truth, it produces a value. So the
+  question for the canvas is not *where do the asterisks go*, it is **how
+  does a screen earn four honest answers**, and the two levers are which
+  fields are asked for and what each one visibly buys.
+  A proposal to rule on rather than a decision taken: **year of birth,
+  gender, country and display name** required; city, education, work and
+  relationship optional. That set is chosen from what the product cannot
+  work without — the Mirror's City and Country stops need a place, its
+  breakdowns need a band, and every reveal needs a name (D190) — not from
+  what is nice to have. Country rather than city because a country is
+  cheap to answer honestly and a city is where people start being vague.
+- **states** — *empty* (the case it exists for: a new account, nothing
+  filled) · *partial* (some fields answered, required ones not) ·
+  *complete* · *saving* · *handle refused* (taken or malformed — the one
+  error state that must survive a save and keep the rest of the writes) ·
+  *offline*. There is no loading state: the vocabularies are local.
+- **interaction** — every control is a native picker or select, which is
+  deliberate on a phone and constrains the visual language more than a
+  desktop form would. A tap opens the platform sheet. The hardware back
+  button peels this screen as one layer (Android). The primary button
+  today reads *Save 3 of 7* / *Answer one to continue*, which is a
+  counter; whether a count is still the right primary label once some
+  fields are required is a question for the canvas.
+- **vocabulary** — `design/front-door-2026-09-07/` is the screen
+  immediately before this one and sets the arrival's tone; the standalone
+  family in `design/` and `src/v2/styles.css`; the two palettes of D302;
+  `--field-size` owns the type size of any text input
+  (`check:touch-zoom` fails a literal, 16px floor, because a smaller
+  field makes iOS zoom the whole fixed shell and nothing zooms it back).
+  Copy follows D182 — and `docs/COPY.md` §3 is the part that matters
+  here, because two of the paragraphs on this screen are CLAIMS (what
+  each answer is copied into, that a handle cannot be changed) and are
+  not shortenable to nothing.
+- **constraints** — the whole screen is behind `main.jsx`'s dynamic
+  import and must stay there (`check:bundle`'s eager ceiling has no
+  headroom, and `profileSetup.tsx`'s header records that even the
+  DECISION measured 1 KB over when it lived in an eager gate). Tap
+  targets: `check:tap-targets`. No new fetch — every list is local.
+- **why** — the anchors are the join. An answer snapshots them at write
+  time (D8), and that snapshot is the only thing that lets a vote be
+  counted with a city, an age, a field — which is the app's whole first
+  sentence, *connecting data and drawing the connection where someone can
+  read it*. A sheet that people skip produces answers that belong to no
+  cohort, and CLAUDE.md's own test applies to this screen as much as to a
+  lens: a surface that collects without joining is unfinished.
+- **status** — `requested`.
+
 ### 0b · The interest profile, shown and editable
 
 - **title · asked by** — *Your interests* · a session, 2026-09-04 (D367),
@@ -296,116 +383,6 @@ that lets a buyer read them.
   price they do not pay.
 - **status** — `requested`.
 
-### 5 · The 1v1 and group profile — three instruments, and the pair's card
-
-**Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
-groups profile better … assume you have full creative freedom."*
-`ROLES-PLAN.md` is the plan; this is the screen half of it, and it
-waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
-it is planned here.
-
-- **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
-  (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
-- **surface** — three places, one vocabulary. (1) The profile
-  overlay's **Roles** subtab (`ui/LiveRolesPanel.tsx`, D204 — yours,
-  live only): today an average rose, a name, a line, a day count, and
-  one row per setting with receipts on tap. (2) The **1v1 daily
-  card's** done state (`ui/LiveDuelPanel.tsx`, D156): today the two
-  runs of dots under the day's answer. (3) The **person's page**
-  (`spec/person-overlay.jsx` — its *Play together* card, D310, draws
-  a pair type from demo data only).
-- **what it draws** — on the Roles tab: *you across 1v1s* (Insight ·
-  Legibility · Projection) with the rule that earns the name, the
-  runner-up when the match is close (*The Watcher · nearly The Mind
-  Reader — if sharper on them*), and the rarity; then one row per
-  pair carrying the PAIR's type (The Familiar, The One-Way — who is
-  ahead named, The Twins…) beside your role in it, the two runs, and
-  on tap the receipts and the domain rows (*everyday · under pressure
-  · how they see you*). Then *you in groups* (Independence · Reading
-  the room · Standing · Presence) the same way, one row per group
-  with the group's cast in miniature (request 6 is the full cast).
-  On the 1v1 card: the pair's type and line under the runs. On the
-  person's page: the pair's type and their role in each group you
-  share, from the record you both already see.
-- **data and basis** — `data/roles.ts` over the reveal documents the
-  duel panel already fetches (14 per room, `COSTS.md`'s Roles row) or
-  the per-member ledger the plan's §3.3 adds to the group document
-  (zero reads either way); the tables in `ROLES-PLAN.md` §3.4–§3.5;
-  every rate chance-scaled (§3.2: 50 is luck). Floors: a pair at 4
-  days both guessed, you-across-pairs at 6, a group at 3 days played,
-  Standing at 3 pick days with D224 snapshots, Reading the room at 3
-  guessed days. Below a floor a dim is absent and the types it
-  defines are out of the running; D1's empty state is the thin row
-  with its count, as today.
-- **states** — no settings (the sentence, as today); thin (the dashed
-  ring and *2 of 4 days both guessed*); one setting (no rows, the
-  card alone); several; a close match (the runner-up line present);
-  a setting whose history could not be read (*couldn't read this
-  one*, as today); demo: never — the tab is not there.
-- **interaction** — tap a row: receipts and domains; tap a pair's
-  type: the 1v1 card (`data/duelCue`, the daily ruler's licensed
-  exit); tap a name in a group's cast: their page; the ⓘ opens the
-  explain sheet's instrument entry; long press nothing.
-- **vocabulary** — the result card family (`spec/result-card.jsx`:
-  `TestRose`, `TypeMark`, the rule line, the nearly chips, the rarity
-  field); `RP_TESTS` hues (`--c-people` for a 1v1, `--c-groups` for a
-  group, new dims need hues); the 2026-09-02 standalone family and
-  `src/v2/styles.css`; D302's palettes; `COPY.md` — a type's line is
-  a claim about a person, true and kind at once (§3.5 of the plan).
-- **constraints** — the panel stays behind its `React.lazy` boundary
-  (first paint untouched; `check:bundle` at its band); zero new
-  reads; 44 px targets (`check:tap-targets`); the daily card's done
-  state must not grow a screen (D156: a finished circle collapses to
-  its content).
-- **why** — the ties axiom (D347, tie-1: the pair, the person across
-  pairs and the person in a group are three objects); CLAUDE.md's
-  first paragraph — a join nothing draws is unfinished, and the
-  pair's reading and the group's cast fold from data already on the
-  phone.
-- **status** — `requested` (waits on the plan's owner call).
-
-### 6 · The cast — the group as roles
-
-- **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
-  §2.6 and §3.8.
-- **surface** — the Mirror's **Groups** stop, **People** tab
-  (`ui/LiveGroupsMirrorBody.tsx`, `LgPeopleCard`): today a
-  constellation of the members, a likeness bar per member, and the
-  twin / breaks-ranks labels (D277). The prototype's
-  `spec/group-role-map.jsx` drew a cast from a scenario generator —
-  stars with earned roles orbiting, contested roles between rivals —
-  and is the reference for the idea, not the data.
-- **what it draws** — every member's role in THIS group (the same
-  fold that gives you yours, run for each uid): mark, first name,
-  type, line — *Anna · The Anchor · Where the room lands, you were
-  already standing*; and the crowns of the pick days where D224
-  snapshots exist: *Best advice · 3 of 4*. The twin and breaks-ranks
-  labels stay. A member under the floor is listed with their count,
-  not omitted.
-- **data and basis** — `groupRole` over the stop's own reveals (or the
-  ledger), per member; nominations from `pickUid` snapshots, counted
-  only when the counted votes agree (`groupPortrait`'s
-  `majorityPickUid` rule); the same floors as request 5. Zero reads
-  beyond the stop's own.
-- **states** — a group under the floor for everyone (today's People
-  card, unchanged); some members over it; crowns present or absent
-  (pre-D224 reveals carry none); demo: the demo body keeps its sample
-  people and never draws this.
-- **interaction** — tap a member: their page; tap a crown: the pick
-  day's reveal row; the constellation keeps its place above.
-- **vocabulary** — `LgPeopleCard` and the stop's tab row; `TypeMark`
-  at 20 px beside a name (the Kindred rows' shape, D156 §7); `COPY.md`
-  — a role is said to a person in front of their group.
-- **constraints** — `LiveGroupsMirrorBody` is a static import in
-  `mirror-tab`, so anything with weight goes behind `React.lazy` as
-  `LgField` and `GroupCompare` do; zero new reads; 44 px targets;
-  the floor is D1's line — no member wears a role the days do not
-  earn.
-- **why** — the group is a population the Mirror already draws; a
-  cast is the group reading itself, which is what a group stop is
-  for. Every input is public (D98) and already on screen with names.
-- **status** — `requested` (waits on the plan's owner call).
-
 ### 8 · The logic test's worked example — one solved matrix before item 1
 
 - **title · asked by** — *How a matrix works* · a session, 2026-09-06
@@ -537,8 +514,296 @@ it is planned here.
 
 ## Designed
 
+_(none — 5 and 6 were built at D437 and moved below)_
 
 ## Built
+
+### 5 · The 1v1 and group profile — three instruments, and the pair's card
+
+**Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
+groups profile better … assume you have full creative freedom."*
+`ROLES-PLAN.md` is the plan; this is the screen half of it, and it
+waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
+it is planned here. **Noted 2026-09-07**: the owner's `InSight_10`
+upload draws the third surface — the person's page — on paper: *Play
+together* as doors whose sub-line carries the named type's one-line
+meaning, and the read-each-other card as a two-column hit-rate table
+under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
+pair's card as this request wants it drawn; the plan's owner call still
+gates what the doors say. **Noted 2026-09-08**: the owner's `InSight_12`
+upload draws the group half — the role votes in packs, the ratings, the
+cast, and a group instrument with Standing back and nine types
+(`design/standalone-2026-09-08/role-data.js`, `roles-panel.jsx`); D434
+built the rounds and Standing as an aside, and the tables are step 2 of
+`VISION-2026-09-08.md`.
+
+- **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
+  (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
+- **surface** — three places, one vocabulary. (1) The profile
+  overlay's **Roles** subtab (`ui/LiveRolesPanel.tsx`, D204 — yours,
+  live only): today an average rose, a name, a line, a day count, and
+  one row per setting with receipts on tap. (2) The **1v1 daily
+  card's** done state (`ui/LiveDuelPanel.tsx`, D156): today the two
+  runs of dots under the day's answer. (3) The **person's page**
+  (`spec/person-overlay.jsx` — its *Play together* card, D310, draws
+  a pair type from demo data only).
+- **what it draws** — on the Roles tab: *you across 1v1s* (Insight ·
+  Legibility · Projection) with the rule that earns the name, the
+  runner-up when the match is close (*The Watcher · nearly The Mind
+  Reader — if sharper on them*), and the rarity; then one row per
+  pair carrying the PAIR's type (The Familiar, The One-Way — who is
+  ahead named, The Twins…) beside your role in it, the two runs, and
+  on tap the receipts and the domain rows (*everyday · under pressure
+  · how they see you*). Then *you in groups* (Independence · Reading
+  the room · Standing · Presence) the same way, one row per group
+  with the group's cast in miniature (request 6 is the full cast).
+  On the 1v1 card: the pair's type and line under the runs. On the
+  person's page: the pair's type and their role in each group you
+  share, from the record you both already see.
+- **data and basis** — `data/roles.ts` over the reveal documents the
+  duel panel already fetches (14 per room, `COSTS.md`'s Roles row) or
+  the per-member ledger the plan's §3.3 adds to the group document
+  (zero reads either way); the tables in `ROLES-PLAN.md` §3.4–§3.5;
+  every rate chance-scaled (§3.2: 50 is luck). Floors: a pair at 4
+  days both guessed, you-across-pairs at 6, a group at 3 days played,
+  Standing at 3 pick days with D224 snapshots, Reading the room at 3
+  guessed days. Below a floor a dim is absent and the types it
+  defines are out of the running; D1's empty state is the thin row
+  with its count, as today.
+- **states** — no settings (the sentence, as today); thin (the dashed
+  ring and *2 of 4 days both guessed*); one setting (no rows, the
+  card alone); several; a close match (the runner-up line present);
+  a setting whose history could not be read (*couldn't read this
+  one*, as today); demo: never — the tab is not there.
+- **interaction** — tap a row: receipts and domains; tap a pair's
+  type: the 1v1 card (`data/duelCue`, the daily ruler's licensed
+  exit); tap a name in a group's cast: their page; the ⓘ opens the
+  explain sheet's instrument entry; long press nothing.
+- **vocabulary** — the result card family (`spec/result-card.jsx`:
+  `TestRose`, `TypeMark`, the rule line, the nearly chips, the rarity
+  field); `RP_TESTS` hues (`--c-people` for a 1v1, `--c-groups` for a
+  group, new dims need hues); the 2026-09-02 standalone family and
+  `src/v2/styles.css`; D302's palettes; `COPY.md` — a type's line is
+  a claim about a person, true and kind at once (§3.5 of the plan).
+- **constraints** — the panel stays behind its `React.lazy` boundary
+  (first paint untouched; `check:bundle` at its band); zero new
+  reads; 44 px targets (`check:tap-targets`); the daily card's done
+  state must not grow a screen (D156: a finished circle collapses to
+  its content).
+- **why** — the ties axiom (D347, tie-1: the pair, the person across
+  pairs and the person in a group are three objects); CLAUDE.md's
+  first paragraph — a join nothing draws is unfinished, and the
+  pair's reading and the group's cast fold from data already on the
+  phone.
+- **status** — `designed` (2026-09-09, D436): the owner's `InSight_15`
+  upload draws all three surfaces — `design/standalone-2026-09-09/roles-panel.jsx`
+  (*In 1v1s* and *In groups*, the average card, one row per setting
+  with its casts or votes, thin rows *asked at round 4* / *not named
+  yet*), `person-overlay.jsx` (the Together tab: *What you are to each
+  other*, *How well you read each other* as two rings and the domain
+  rows, the groups you share) and `role-data.js` (one idea in two
+  settings: casts per axis, votes per seat; ten and eleven types) —
+  and answers the plan's owner call with a third shape, neither
+  `ROLES-PLAN.md`'s three nor D204's two. The build is step 4 of
+  `VISION-2026-09-09.md`, gated on its Q5 (the floor) and Q6.
+  **Built 2026-09-09 (D437):** `ui/LiveRolesPanel.tsx` (*In 1v1s* and
+  *In groups*, one row per setting, a thin row in the floor's own
+  unit — *2 of 3 cast rounds*, *1 of 2 votes*), `data/roles.ts` (the
+  two settings: casts per axis, votes per seat; `MIN_DUO` 3 on the
+  owner's *"a bit more then two"*), the ten and eleven types in
+  `archetype-data.js`, and the person page's Together SECTION in
+  `spec/person-overlay.jsx` (the doors as tiles with the named type,
+  *What you are to each other*, *How well you read each other* as two
+  rings, the reader line and the domain rows). Not ported: the page's
+  tab shell (Match · Answers · Together · Map), which is the 09-07
+  record's layout rather than this brief's.
+
+### 6 · The cast — the group as roles
+
+- **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
+  §2.6 and §3.8.
+- **surface** — the Mirror's **Groups** stop, **People** tab
+  (`ui/LiveGroupsMirrorBody.tsx`, `LgPeopleCard`): today a
+  constellation of the members, a likeness bar per member, and the
+  twin / breaks-ranks labels (D277). The prototype's
+  `spec/group-role-map.jsx` drew a cast from a scenario generator —
+  stars with earned roles orbiting, contested roles between rivals —
+  and is the reference for the idea, not the data.
+- **what it draws** — every member's role in THIS group (the same
+  fold that gives you yours, run for each uid): mark, first name,
+  type, line — *Anna · The Anchor · Where the room lands, you were
+  already standing*; and the crowns of the pick days where D224
+  snapshots exist: *Best advice · 3 of 4*. The twin and breaks-ranks
+  labels stay. A member under the floor is listed with their count,
+  not omitted.
+- **data and basis** — `groupRole` over the stop's own reveals (or the
+  ledger), per member; nominations from `pickUid` snapshots, counted
+  only when the counted votes agree (`groupPortrait`'s
+  `majorityPickUid` rule); the same floors as request 5. Zero reads
+  beyond the stop's own.
+- **states** — a group under the floor for everyone (today's People
+  card, unchanged); some members over it; crowns present or absent
+  (pre-D224 reveals carry none); demo: the demo body keeps its sample
+  people and never draws this.
+- **interaction** — tap a member: their page; tap a crown: the pick
+  day's reveal row; the constellation keeps its place above.
+- **vocabulary** — `LgPeopleCard` and the stop's tab row; `TypeMark`
+  at 20 px beside a name (the Kindred rows' shape, D156 §7); `COPY.md`
+  — a role is said to a person in front of their group.
+- **constraints** — `LiveGroupsMirrorBody` is a static import in
+  `mirror-tab`, so anything with weight goes behind `React.lazy` as
+  `LgField` and `GroupCompare` do; zero new reads; 44 px targets;
+  the floor is D1's line — no member wears a role the days do not
+  earn.
+- **why** — the group is a population the Mirror already draws; a
+  cast is the group reading itself, which is what a group stop is
+  for. Every input is public (D98) and already on screen with names.
+- **status** — `designed` (2026-09-08): the owner's `InSight_12`
+  upload draws it — `design/standalone-2026-09-08/group-role-map.jsx`
+  (the members on a ring, each earned role a satellite on its holder,
+  a contested role dashed between two, a tap opening the vote or the
+  person's sheet) and `group-mirror.jsx` (*Who the room named* by pack,
+  *How the group rates itself*, the crowns as chips) — and D434 built
+  the rounds that feed it: three in four a role vote in a scenario
+  pack. The build is step 3 of `VISION-2026-09-08.md`; the data it
+  draws is the D224 snapshots on role votes and the ratings' steps.
+  **Redrawn 2026-09-09** (D436, `design/standalone-2026-09-09/group-mirror.jsx`
+  and `group-role-map.jsx`): the stop is Overview (the seat line — *Here,
+  you are the one who gets things going · 5 of 15 votes say so* — over
+  the role map, each person's seat under their name) · Votes (by pack,
+  a row opening who voted for whom) · People (the affinity swarm with
+  numbers, the seats list, in-common chips) · Scores (pole rows, five
+  ticks, you over the group) · Compare (the crowns as chips, and *the
+  room named you N of M* — the one place it appears). The build is step
+  5 of `VISION-2026-09-09.md`.
+  **Built 2026-09-09 (D437):** `ui/LiveGroupsMirrorBody.tsx` — the ring
+  is roles cast over all the roles in the packs; the seat line over
+  the role map (`ui/LgRoleMap.tsx` on `data/roleField.ts`, lazy, every
+  node a keyboard control); Votes · People · Scores · Compare folded by
+  `data/groupCast.ts`; *the room named you N of M votes* in Compare
+  alone. The demo twin (`spec/group-mirror.jsx`, `group-role-map.jsx`)
+  re-ported from the same record. Not built: the in-common chips, which
+  wait on request 0b (a live profile carries no interests).
+
+
+### 11 · The pictures on the pick tiles — the catalogue's own faces
+
+- **title · asked by** — *Catalogue pictures* · the owner, 2026-09-07,
+  directly to a session, on being told what copyright allowed:
+  *"i feel if letterbox can do it so can we i think we can atemt it and
+  if we recive a complain we take it down."* **Built the same day on the
+  direct ask, without the drafted step** — recorded here rather than
+  skipped silently, for item 7's reason. D421 is the record.
+- **surface** — the pick card's browse row (`ui/PickTiles.tsx`, D308's
+  faces) and the reveal's "your pick" / "the crowd" faces
+  (`world-feed.jsx` `renderPick`), plus one *Image credits* door under
+  each (`ui/PickCredits.tsx`). The search's rows and the demo store's
+  invented catalogues draw none.
+- **data and basis** — `web/catalog-art/<domain>/<key>.<ext>`, a
+  committed thumbnail on our own hosting per catalogue key, and its
+  `credits.tsv` row (author, licence, source), written by an operator
+  running `scripts/build-catalog-art.mjs` against Wikidata + Commons
+  (P18, P41) or TMDB. Nothing at runtime but the file. The generated
+  index `src/v2/data/catalogArtIndex.ts` says which keys have one.
+- **states** — no picture for the key: the generated face, unchanged;
+  a picture: the face, then the picture fading in once decoded; a failed
+  load (a takedown, an outage): the face again; a domain with no
+  pictures: no door. Credits: a door, then loading, then the list, or
+  one sentence when hosting cannot be reached.
+- **interaction** — none new on the tiles (a tap is still the pick).
+  The credits door toggles the list; each row's *source* is a link out.
+- **vocabulary** — `.wf-tileimg`, the duel tile's one treatment (fade
+  on decode, the same saturation), shared rather than copied; D308's
+  pattern faces as the ground; `.tap44` on the small door.
+- **constraints** — zero eager bytes, measured (544 KB before and
+  after, against 552; +3 KB in the deferred feed chunk); no hotlink,
+  ever; `check:catalog-art` on the directories, `check:tap-targets`
+  and `check:a11y` unchanged; the picture is decorative to assistive
+  tech because the tile already carries the name.
+- **why** — a browse row of patterned rectangles under "the greatest
+  athlete who ever lived" was the design's placeholder for portraits,
+  and the owner asked why the portraits were not there.
+- **status** — `built` 2026-09-07 (D421). **What a canvas would still
+  improve:** the reveal's box is 92 px landscape and a poster is
+  portrait, so a film reveal crops to the poster's middle third; and
+  the credits list is a plain list. Optional, and on `OWNER-LIST.md` §
+  Designs as such.
+
+### 12 · The 1v1 and group card, when a round is the unit
+
+- **title · asked by** — *Your turn · their turn* · the owner, 2026-09-08,
+  directing `ROUNDS-PLAN.md` (*"lets go with this path"*), and answering
+  the screen question in the same message with *"yes"*.
+- **surface** — the daily tab's 1v1 and group modes:
+  `ui/LiveDuelPanel.tsx`'s `LdCard` and the rail above it, plus the
+  first-run branch that `VISION-2026-09-07.md` §3 redraws as *the first
+  day*. The card fills the view and snaps, one room per screen (D156).
+- **what changes, and why the existing drawing cannot be patched** — the
+  card's whole grammar is a clock. Today it draws *answered · reveals in
+  04:12* and the first-day screen draws three beats: *Today · sealed*,
+  *Tonight* (the reveal clock), *Tomorrow · revealed*. Under rounds a
+  **1v1 has no clock at all** — it reveals the moment the other person
+  answers — and a group's clock stops being midnight and becomes its
+  round deadline. A countdown to a moment that is not what the reveal
+  waits on is worse than no countdown.
+- **the states to draw** — `your turn` (the round is open and you have
+  not answered) · `their turn` (you have answered, they have not; the
+  1v1 says *waiting on Ada*, drawn from `roundPlayers`, which is who has
+  answered and never what) · `revealed, and the next round is open`
+  (the reveal and a fresh question on one card, because that IS the
+  loop) · `N rounds waiting for you` (a partner ran ahead; up to the lead
+  cap) · `at the lead` (you have run as far ahead as you may — say what
+  is waiting, not what is forbidden) · `closed at the deadline` (a group
+  round that revealed without everyone) · `late` (you answer a round
+  whose table is already published — the answer shows, marked, and
+  scores nothing; the screen must say that plainly and without scolding).
+- **data and basis** — all of it is on documents the card already holds:
+  `round` · `roundPlayers` · `roundDeadlineAt` on the group document the
+  client subscribes to, and the reveal. No new read. Nothing on this
+  screen may invent a person (D1): an empty seat is a seat, not a name.
+- **interaction** — the reveal and the next round on one card means the
+  run of rounds is what the day dots used to browse; the dots become a
+  run of rounds rather than days. One handler behind the rail's `New`
+  tile and any *start another* row (D392 §3.1's finding).
+- **vocabulary** — the standalone family in `design/`,
+  `src/v2/styles.css`, D302's two palettes, the 12px floor (D391),
+  `check:tap-targets`' 44px. **And the word:** these are **groups** and
+  **1v1s**. `ROUNDS-PLAN.md` §9 has the collision — Circle is the
+  Mirror's follow-graph stop (D101) and the duel panel has been calling a
+  group a circle — and this design should not add to it.
+- **copy** — D182, and D419 §3: no sentence may name a cadence. *"Until
+  the reveal"* is true at any pace; *"until tomorrow"* goes false the day
+  this ships. The two halves of the promise stay — unreadable until the
+  reveal, then named.
+- **constraints** — the panel is lazy behind `daily-split.jsx`'s
+  `React.lazy` (D156 §5), so it costs no first paint; `check:bundle`,
+  `check:a11y`'s ratchet, and no new window global.
+- **why** — the ties axiom (`AXIOMS.md`, operational): rounds are what
+  give `tie-2`'s second-person measurement enough shared items per pair
+  to decompose at all. The screen is what makes the pace legible.
+- **status** — `built` 2026-09-08 (D426's second amendment); **redrawn
+  2026-09-09 (D437)** to the owner's `InSight_15` brief: the group's
+  ballot is a 2-across grid of faces, its run a record with a caption on
+  tap, no call on a role vote, a rating on the fourth by a phase per
+  room, the reveal at everyone-played or 48 hours; the 1v1 gains the
+  cast round every fourth. The owner's
+  canvas of 2026-09-08 — nine states for a 1v1 and a group, light and
+  dark — is extracted to
+  [`design/rounds-card-2026-09-08/`](../design/rounds-card-2026-09-08/),
+  whose README is the readable half of the bundle: every string it
+  settled, the behaviours a static reading loses, and where the tree
+  departs from the canvas (a 1v1 can still close at its deadline and then
+  wears the group's shapes; the next round's ask sits under what you
+  sealed; only the open round carries a deadline; the header's run line
+  and the *N to play* count are gone). Built as `ui/LiveDuelPanel.tsx`'s
+  card, rail, run and first run the same day; `ROUNDS-PLAN.md` §0a has
+  the same departures beside the model's own. **Refined 2026-09-09**
+  (D436, `design/standalone-2026-09-09/group-daily.jsx` and
+  `duo-daily.jsx`): the group's ballot is a 2-across grid of faces, the
+  run at the foot is a record with a caption on tap rather than a score,
+  no call on a role vote, the reveal says *closed at the deadline*, and
+  the 1v1 gains a cast round every fourth — steps 1 and 3 of
+  `VISION-2026-09-09.md`, gated on its questions.
 
 ### 7 · The first-launch walkthrough — how the app works, before the questions
 

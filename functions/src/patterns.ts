@@ -665,10 +665,35 @@ export async function runPatternsFit(
   // each night from the item side — so rotating its published copy costs
   // nothing and buys the devices a map that does not jump.
   //
-  // The crossback path is currently unreachable in the test suite:
-  // deleting this whole `if (crossed)` block leaves the functions suite
-  // green, which is on the night's list. That is a coverage gap, not a
-  // reason to make the two directions symmetric.
+  // IT IS TESTED NOW, and what it took is worth keeping, because two
+  // reasonable-looking fixtures prove nothing here.
+  //
+  // `procrustes` refuses on two conditions, and either one silently turns
+  // this block into a no-op that a test still passes over. It needs at
+  // least `k` SHARED keys, and it needs those rows to SPAN all k
+  // directions ("a direction the shared rows do not span cannot be
+  // aligned — refuse the whole rotation rather than invent it").
+  //
+  //   · Every crossover fixture the suite had shared ONE or TWO rows
+  //     against k = 8. Instrumented 2026-09-07: `crossed=true`, both sets
+  //     exactly [daily-000, daily-001], and the rows handed on byte-
+  //     identical to the ones given — 0 of 2 changed. Widening the LEDGER
+  //     to twelve core questions did not move it, because the corpus that
+  //     matters is the one the FOLD produces: the ten extra never reached
+  //     `als.rows` at all.
+  //   · Ten questions whose answers are read off six bits of the person
+  //     index share ten rows and still refuse — the rows come out rank
+  //     six, so the second condition fires where the first no longer does.
+  //
+  // `patterns.test.ts` "rotates the crossing engine's rows onto the ones
+  // the devices were reading" is the fixture that meets both, and it
+  // asserts both preconditions rather than hoping for them. The property
+  // it pins is that re-fitting a rotation onto the published rows finds
+  // nothing left to do; with this line deleted the same residual comes
+  // back with off-diagonals to 0.25.
+  //
+  // None of that is a reason to make the two directions symmetric; the
+  // asymmetry above is still right.
   let engineRows: Record<string, PublishedRow>;
   let engineItems: Record<string, ItemMeta> | undefined;
   if (nextEngine === "als" && als) {

@@ -34,7 +34,7 @@ import {
   type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
-import { ALS_LAMBDAS_U, PATTERNS_CROSSOVER_NIGHTS } from "./patternsAls";
+import { ALS_LAMBDAS_U, PATTERNS_CROSSOVER_NIGHTS, procrustes, symmetricEigen } from "./patternsAls";
 import { PATTERNS_SAMPLE_CAP, type SampleDoc } from "./patternsSamples";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
@@ -129,7 +129,18 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
 const [CORE_A, CORE_B] = [...PATTERNS_QIDS];
 // A question the CANDIDATE's corpus names and the online engine's does
 // not — the D395 widening. Derived rather than named, so it moves with
-// the bank; 263 of them today.
+// the bank.
+//
+// The count is NOT written here, and that is the point rather than an
+// omission. It said "263 of them today" and the true figure is 423: the
+// bank went 913 → 1073 and `itemEligible` admits `surface === "test"`, so
+// v2content's new deep items all entered the candidate corpus and the
+// sentence was stale inside twenty-four hours. `check:figures` cannot hold
+// it either — the number is the difference between two predicates that
+// live in patterns.ts, and re-deriving them in an .mjs gate would be the
+// second copy of an eligibility rule, which is the D197 failure. So it
+// follows the gate's own advice for a figure it cannot compute: state the
+// relationship, not the number.
 const [WIDE_ONLY] = [...PATTERNS_ITEM_QIDS].filter((q) => !PATTERNS_QIDS.has(q));
 const yesterday = utcDay(NOW, -1);
 const twoBack = utcDay(NOW, -2);
@@ -920,6 +931,83 @@ describe("the candidate engine (D395)", () => {
     expect(state.pub!.crossedAt).toBe(d1);
   });
 
+  it("rotates the crossing engine's rows onto the ones the devices were reading", async () => {
+    // THE FIXTURE IS THE POINT. `procrustes` refuses unless the two row
+    // sets share at least k keys AND those rows span all k directions, so
+    // for a long time this path crossed without ever rotating anything:
+    // every crossover fixture here shared two rows against k = 8, and the
+    // block handed on the rows it was given, byte for byte. A wider
+    // LEDGER does not fix it — the corpus that matters is the one the
+    // fold produces — and neither does a wider corpus whose columns are
+    // dependent: nine questions answered on six independent splits give
+    // rows of rank six, and the refusal fires on the rank instead.
+    //
+    // So: nine questions, each on its own pseudo-random split of two
+    // hundred people, which is full rank; a tenth that half of them
+    // answer on d2 and half on d1, keyed to the first question's split so
+    // the candidate has something to predict one step ahead that the
+    // online engine's vectors cannot.
+    const WIDE = [...PATTERNS_QIDS].slice(0, 10);
+    const TELL = WIDE[WIDE.length - 1];
+    const N = 200;
+    // deterministic, balanced, and independent enough across j — the
+    // published rows come out full rank, which the test asserts rather
+    // than assumes
+    const split = (i: number, j: number) => (Math.imul(i + 1, 2654435761) >>> (j * 3)) & 1;
+    const d3 = utcDay(NOW, -3), d2 = utcDay(NOW, -2), d1 = utcDay(NOW, -1);
+    const ledger: Record<string, PatternsLedgerEntry[]> = { [d3]: [], [d2]: [], [d1]: [] };
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < WIDE.length - 1; j++) {
+        ledger[d3].push({ uid: pad(i), qid: WIDE[j], optionIdx: split(i, j) });
+      }
+      ledger[i < N / 2 ? d2 : d1].push({ uid: pad(i), qid: TELL, optionIdx: split(i, 0) });
+    }
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW - 2 * DAY);
+    await runPatternsFit(store, NOW - DAY);
+
+    // what the devices were reading the night before the crossover
+    const wasReading: Record<string, number[]> = {};
+    for (const [qid, r] of Object.entries(state.pub!.q)) wasReading[qid] = r.v;
+    expect(state.pub!.engine, "the online engine is still the one publishing").toBe("sgd");
+
+    state.pub!.candidates.als!.streak = PATTERNS_CROSSOVER_NIGHTS - 1;
+    const r = await runPatternsFit(store, NOW);
+    expect(r.crossed).toBe(true);
+    const after = state.pub!;
+    expect(after.engine).toBe("als");
+    const nowReading: Record<string, number[]> = {};
+    for (const [qid, row] of Object.entries(after.q)) nowReading[qid] = row.v;
+
+    // The two preconditions procrustes refuses on, asserted rather than
+    // hoped for — a fixture that stops meeting either makes this test
+    // pass on the identity while proving nothing.
+    const k = after.k;
+    const shared = Object.keys(nowReading).filter((qid) => wasReading[qid]);
+    expect(shared.length, "too few shared rows: procrustes would refuse").toBeGreaterThanOrEqual(k);
+    const spans = (rows: Record<string, number[]>) => {
+      const G = Array.from({ length: k }, () => new Array<number>(k).fill(0));
+      for (const v of Object.values(rows)) {
+        for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) G[i][j] += (v[i] ?? 0) * (v[j] ?? 0);
+      }
+      return Math.min(...symmetricEigen(G).values);
+    };
+    expect(spans(nowReading), "the new rows do not span k: procrustes would refuse").toBeGreaterThan(1e-6);
+    expect(spans(wasReading), "the old rows do not span k: procrustes would refuse").toBeGreaterThan(1e-6);
+
+    // THE PROPERTY: the rows that got published are already carried onto
+    // last night's as far as an orthogonal map can carry them, so fitting
+    // one again finds nothing left to do. Measured with the rotation
+    // deleted, same fixture: the residual comes back with off-diagonals
+    // to 0.25 and the diagonal 0.09 off one, and the worst question's
+    // cosine against the row it replaces falls from 0.68 to 0.44.
+    const residual = procrustes(nowReading, wasReading, k);
+    for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+      expect(Math.abs(residual[i][j] - (i === j ? 1 : 0)),
+        `the published rows were not aligned (residual[${i}][${j}])`).toBeLessThan(0.02);
+    }
+  });
+
   it("a night the candidate does not win resets its streak", async () => {
     const d2 = utcDay(NOW, -2);
     const ledger: Record<string, PatternsLedgerEntry[]> = { [d2]: [], [yesterday]: [] };
@@ -940,6 +1028,50 @@ describe("the candidate engine (D395)", () => {
 
 
 // ── the voter samples (D397) ──────────────────────────────────────────
+// ── the marginal's clamp ──────────────────────────────────────────────
+//
+// Every answer is ±1, so |sum| can never exceed n — and the fold enforces
+// that as a CLAMP rather than an assumption, because one shape breaches it:
+// a revision whose first answer this model never folded. A create that fell
+// outside the catch-up window, or landed before the question became
+// eligible, leaves the subtraction removing something that was never added.
+// The comment at patternsFit.ts says exactly that; nothing exercised it,
+// and deleting the two clamp lines left every runner green.
+//
+// Without them the marginal goes past 1 in absolute value, which is a
+// probability the rest of the fold then reasons from.
+describe("a revision whose create was never folded", () => {
+  const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
+
+  it("cannot push a marginal past its own count", async () => {
+    const day = utcDay(NOW, -1);
+    // Two people answer option 0 — x = +1 each, so n = 2 and sum = +2, the
+    // marginal already at its ceiling.
+    const ledger: Record<string, PatternsLedgerEntry[]> = {
+      [day]: [
+        { uid: pad(1), qid: CORE_A, optionIdx: 0 },
+        { uid: pad(2), qid: CORE_A, optionIdx: 0 },
+        // …and a third whose CREATE this model never saw, editing 1 -> 0.
+        // `fromIdx` is what marks it a revision (v2.ts's ledgerEntry), so
+        // the fold adds x and subtracts a prev it never added: +1 - (-1)
+        // takes sum to 4, against an n that a revision does not move.
+        { uid: pad(3), qid: CORE_A, optionIdx: 0, fromIdx: 1 },
+      ],
+    };
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW);
+    const row = state.pub!.q[CORE_A];
+    expect(row, "the question was not published at all — this case proves nothing").toBeTruthy();
+    expect(row.n, "the revision was counted as a new answer").toBe(2);
+    expect(
+      Math.abs(row.sum) <= row.n,
+      `the marginal breached its own count: sum ${row.sum} against n ${row.n}, a mean of `
+      + `${(row.sum / row.n).toFixed(2)} where every answer is +/-1`,
+    ).toBe(true);
+    expect(row.sum, "the clamp took the marginal somewhere other than its ceiling").toBe(2);
+  });
+});
+
 describe("the voter samples the sweep publishes", () => {
   const DAY = 24 * 3600 * 1000;
   const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;

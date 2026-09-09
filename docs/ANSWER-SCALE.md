@@ -63,9 +63,9 @@ read, and most of these exist because something already broke once.
 | Aggregate document growth | **bounded** | `BREAKDOWN_MAX_BUCKETS` (24) × 8 dims (7 until D328) × ≤20 options with eviction (`functions/src/pure.ts`) — its own comment prices the worst case at tens of KB against Firestore's 1 MiB. Catalog `entBy` carries a per-cell cap; a rank aggregate is one array |
 | The cold answer pull | **paged, loud** | `ANS_PAGE` 1000 × `ANS_MAX_PAGES` 100 in `live.ts`, terminating on a short page, reporting rather than truncating. The warm path is two cursors (`answeredAt`, `editedAt`) that self-heal across boots |
 | The agg-events ledger | **TTL-bounded** | 90 days (`LEDGER_RETENTION_DAYS`), and both nightly readers page it — the patterns fit in 5,000-doc `select()` pages, the velocity scan per D64 |
-| Duel reveals | **indexed** | `pendingDays` marks let the scan ask "which groups played yesterday" instead of reading every group |
+| Duel reveals | **indexed** | `roundDeadlineAt` lets the scan ask "which groups' open round is due" instead of reading every group (ROUNDS-PLAN / D426; it was `pendingDays` under the day) |
 | Voter lists / profiles | **capped** | `VOTER_FETCH_CAP` per open; the profile cache holds `PROFILE_CACHE_CAP` (800) entries under a 7-day TTL — added precisely because it was "the one client cache with no natural ceiling". §2 is the same finding one cache over |
-| The patterns fit | **incremental** | Folds yesterday's ledger only, catch-up bounded at `PATTERNS_CATCHUP_DAYS`. Its header records the memory note: the day's user vectors fit ~100k DAU in 256 MiB, and the fix at that size is paging the fold by uid range — recorded, not built, and this page adopts it as §5 item 4 |
+| The patterns fit | **incremental** | Folds yesterday's ledger only, catch-up bounded at `PATTERNS_CATCHUP_DAYS`. Its header records the memory note, and the note was CORRECTED on 2026-08-31: the binding term is the LEDGER DAY, not the user vectors — ~290 bytes retained per entry, so 100k DAU is ~500k entries ≈ 139 MiB for the array alone on a 256 MiB instance, before the per-uid maps and the vectors. Paging by uid range cannot help, because the whole day is read precisely to learn which uids answered; the fix is `velocity.ts`'s — fold each PAGE as it arrives instead of buffering the day. Recorded, not built, and this page adopts THAT as §5 item 4 |
 | Server cost | **linear, modelled** | One trigger invocation and a bounded transaction per answer; `npm run costs` takes answers/user/day as an input. Growing the bank cannot manufacture answers (the density argument), so per-question rates *fall* as the feed grows — the daily lane is the one deliberate exception, §4 |
 
 What that table does not contain is the point: nothing in it watches the
@@ -91,7 +91,7 @@ keys, every one written inside a `try/catch` that swallows failure:
 All three grow with **answering**, not with the bank: an engaged device
 adds an aggregate and two vote entries per question answered, and the
 archive also grows with plain tenure — `hydrate`'s own comment records
-that duel (`g_{gid}_{day}`) and pulse (`{qid}_{day}`) answers "mint a
+that duel (`g_{gid}_r{n}`) and pulse (`{qid}_{day}`) answers "mint a
 document per day forever, so an engaged account passes 1000 inside a
 year", and each pulse day-doc brings its own aggregate into the cache.
 
@@ -277,9 +277,20 @@ taken down and built.
    feed mirror's stay-behind is the recorded deviation.
 3. **Sharding stays shelved, buildable (§4).** Build on the alert. The
    COSTS.md line lands with the build, not before.
-4. **The patterns fold pages by uid range** when DAU approaches its
-   recorded ~100k comfort bound — adopted from `patterns.ts`' own
-   header so it is indexed here rather than only in a comment.
+4. **The patterns fold folds each ledger PAGE as it arrives** instead of
+   buffering the day — `velocity.ts`'s `foldInto` shape, adopted from
+   `patterns.ts`' own header so it is indexed here rather than only in a
+   comment. This item said "pages by uid range … its recorded ~100k
+   comfort bound" and both halves were retired by the header's own
+   correction of 2026-08-31: uid-range paging cannot help, because the
+   whole day is read precisely to learn which uids answered, and the
+   number is not a comfort bound but a measurement of the term that
+   binds — ~139 MiB of ledger array at 100k DAU on a 256 MiB instance,
+   before anything built on top of it. An operator following the old
+   wording would have built the thing the source says does not work and
+   left the term that binds untouched.
+   The same term one level up wedged the nightly pass on catch-up nights
+   until 2026-09-09; see `ledger.ts`'s `memoLedgerReader`.
 5. **The measurement debt stays FEATURE-COMPLETE's row** (`bgCycles`,
    `onlineMin`, the D98 open rates) — those inputs decide the wall
    ordering this page inherits, and a week of real usage answers all of

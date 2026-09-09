@@ -447,7 +447,12 @@ export function installDocs(rows) {
 }
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
-function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
+// EXPORTED since D424 (check-taxonomy.mjs reads the palette literals with
+// it). D197's finding was one bank parser in three copies, one of which
+// swallowed its own failure in a try/catch and reported an invented number;
+// a new gate that needed this shape would have been the fourth copy. Take
+// this one rather than writing another.
+export function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
   const start = src.indexOf(marker);
   if (start < 0) throw new Error(`${at}: marker not found: ${marker}`);
   const open = src.indexOf(openChar, start);
@@ -510,7 +515,7 @@ export function loadCorpus() {
   // that: dragging the rest of the demo pool through production bounds
   // would fail scene fillers that are not production copy.
   const wfdSrc = readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8");
-  const wfd = extractLiteral(wfdSrc, "window.WORLD_FEED_QS = [", "world-feed-data.js");
+  const wfd = extractLiteral(wfdSrc, "const WFD_DEMO_POOL = [", "world-feed-data.js");
   // Pick cards file themselves against WORLD_TOPICS, which is a SUPERSET of
   // the feed's own taxonomy: `fav` and `places` are real topic ids that
   // world-feed filters out of the feed's chip row. So a pick card's `cat` is
@@ -519,7 +524,13 @@ export function loadCorpus() {
   // The marker followed the source: WORLD_TOPICS became a named export
   // when the Patterns tab started importing it (the WPAL precedent), with
   // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
-  const worldTopics = extractLiteral(wfdSrc, "export const WORLD_TOPICS = [", "world-feed-data.js");
+  // WORLD_TOPICS moved to world-feed-topics.js when the feed's pool left the
+  // first-paint graph — daily-split.jsx needed the palette and nothing else,
+  // and the import was carrying the bank. Read from there; the marker
+  // follows the source, as the note above records it did last time.
+  const worldTopics = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-topics.js"), "utf8"),
+    "export const WORLD_TOPICS = [", "world-feed-topics.js");
   // The subtopic tree, for `also` (docs/TAGS-PLAN.md §1): a door may be a
   // leaf, and the leaf→parent map is what the redundancy rule below reads —
   // following a parent already gives you everything under it
@@ -740,8 +751,15 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   }
 
   const opts = (q.options || []).map((o) => (o && typeof o === "object" ? o.label : o));
+  // A cast round's four answers ARE sentences by design (D437, the owner's
+  // 2026-09-09 brief: "every prompt and answer is a plain sentence a person
+  // would say" — *the one who thinks ahead for you both*), and the card
+  // draws them as full-width rows, never side by side, so the label bound
+  // that keeps a split ballot legible does not describe them. The bound
+  // still reaches every other 1v1 entry.
+  const sentences = q.kind === "cast";
   for (const o of opts) {
-    if (String(o).length > OPTION_MAX) {
+    if (!sentences && String(o).length > OPTION_MAX) {
       err("option-length", `option ${JSON.stringify(String(o))} is ${String(o).length} chars (max ${OPTION_MAX})`);
     }
   }
@@ -837,6 +855,21 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
 
     checkAlso(q, ctx.feedTopics, ctx, err);
+    // The subtopic tag (D425): a feed question is a leaf's by `sub`, the field
+    // world-feed.jsx's filter fast-paths (`q.sub && leafOn[q.sub]`) and
+    // SUBTOPICS.count reads. A leaf is a PART of its parent, so the tag has
+    // to sit under the question's own home — a tennis question filed under
+    // food with sub_tennis would be met through Sport's leaf and placed on
+    // Food's branch. And it never repeats in `also`: the tag already places
+    // it there, so the door is one claim stated twice.
+    if (q.sub !== undefined) {
+      if (typeof q.sub !== "string" || !ctx.subParents.has(q.sub)) {
+        err("sub", `sub ${JSON.stringify(q.sub)} is not a committed subtopic leaf (world-subtopics.js) — the tree grows through § When no category fits`);
+      } else if (ctx.subParents.get(q.sub) !== q.cat) {
+        err("sub", `sub ${q.sub} is a leaf of ${JSON.stringify(ctx.subParents.get(q.sub))}, not of this question's home ${JSON.stringify(q.cat)} — a leaf is a part of its parent`);
+      }
+      if (Array.isArray(q.also) && q.also.includes(q.sub)) err("sub", `sub ${q.sub} repeats in \`also\` — the tag already places the card there`);
+    }
 
     // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
     //

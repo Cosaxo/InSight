@@ -10,94 +10,141 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-06 standalone
+## The current vision — the 2026-09-09 standalone: how 1v1s and Groups work now
 
-- **Source:** the owner's `InSight_9.html` upload of 2026-09-06
-  (`InSight_8` was never uploaded here), extracted to
-  `design/standalone-2026-09-06/` (its README is the inventory: the
-  seventeen modules and seven stylesheets that moved, the fourteen
-  patches, the one new stylesheet, the unchanged list — compiled JSX
-  again, the 09-02 README's recipe applies). Made the vision by D361's
+- **Source:** the owner's `InSight_15.html` upload of 2026-09-09 — the
+  fifteenth numbered standalone — delivered with a brief (*"the plan
+  laid for group and 1v1 and visual. ask if anything confuses you"*) and
+  extracted to `design/standalone-2026-09-09/` (its README is the
+  readable half: the ten modules the bundle's own hashes say moved, what
+  moved against the 09-08 record, and the README the brief names that
+  the bundle does not carry).
+- **The plan built on it:** `VISION-2026-09-09.md` — every item measured,
+  and the confusions put to the owner as eight questions (§6) before the
+  build: whether World rounds return to the 1v1, the clock, the call,
+  two role changes, the floor for a name. D436 records the arrival.
+- **What it changed over the 2026-09-08 standalone:** the 1v1 has kinds
+  of round, and every fourth is a **cast** — *Most days, Liv is…*, four
+  plain answers per mode with a dim and a *them* form, the guess at what
+  they said about you; every role has a **seat** (engine · hands · heart
+  · wild) and a member's received votes cluster into one; the group's
+  ballot is a grid of faces, its run a record with a caption on tap, its
+  reveal at everyone-played or 48 hours, and nothing in a group is called;
+  the Groups stop gains an Overview (the seat line, the role map) and its
+  People card the seats and in-common chips; the instrument is one idea
+  in two settings — casts per axis, votes per seat — with ten and eleven
+  types; how well you read each other moves to the person page's new
+  Together tab.
+- **Built from it:** the whole of `VISION-2026-09-09.md` §7 steps 1–6,
+  on the owner's eight answers of the same day (D437): the seats and the
+  cast in the bank, the rotation with a phase per room, the rules'
+  refusal of a call, the card (the face grid, the run as a record, the
+  cast round), the instrument in two settings, the Groups stop with the
+  role map, and the demo re-ported so it plays rounds. Not taken: the
+  World round (Q1: no); the person page's tab shell (the 09-07 record's,
+  not this brief's).
+- **Requests it closed:** 5 and 6 built; 12 redrawn to the brief.
+
+## The one before — the 2026-09-08 standalone: the group as a cast
+
+- **Source:** the owner's `InSight_12.html` upload of 2026-09-08 — the
+  twelfth numbered standalone, delivered with a ruling on the world
+  rounds the tree had built that afternoon (*"they should be more like
+  this … its worst for group as that should mostly be about what role
+  you have in the group"*) — extracted to `design/standalone-2026-09-08/`
+  (its README is the readable half: the duel family whole, the bundle's
+  hashes, what the extraction did not diff, and where the tree departs).
+- **The plan built on it:** `VISION-2026-09-08.md` — the mechanism was
+  already in the tree (a `pick` with D224's snapshot) and the content was
+  not; step 1 built the same day (D434).
+- **What it changed over the 2026-09-08 canvas:** the group's rounds.
+  A round is a role vote in a scenario pack — *Bank Heist · Who plans
+  the whole thing?* — with the members as the options and the pack's hue
+  on the kicker, or every fourth round a rating of the group between two
+  poles on five steps; the reveal crowns who the room named (*Ada is the
+  mastermind*, a contested pair when the runner-up is within a vote) or
+  puts the members on the five stops with the group's dot on the track;
+  the run's marks are the pack's colour where the room named you, a ring
+  where it named someone else, a square for a rating. The Mirror's Groups
+  stop draws the cast and the ratings (step 3), and the group instrument
+  regains Standing and its nine types (step 2). The world rounds the same
+  upload carries on the 1v1 are retired, not drawn (D426's third
+  amendment).
+- **Built from it:** step 1 — the bank, the rotation, the card, the fold
+  (D434) — `content/duel-questions.json`, `data/deck.ts`,
+  `ui/LiveDuelPanel.tsx`, `data/roles.ts`.
+- **Requests it closed:** 6 moves to `designed`; 5's group half is drawn
+  in it.
+
+## Before that — the 2026-09-08 canvas: the 1v1 and group card
+
+- **Source:** the owner's `1v1_and_Group_Cards.html` upload of
+  2026-09-08 — Claude Design, from the prompt the rounds session wrote
+  for request 12 — extracted to `design/rounds-card-2026-09-08/` (its
+  README is the readable half: the nine states, every string, the
+  behaviours a static reading loses, and where the tree departs from the
+  canvas). Made the vision by this page's own rule: the request it
+  answers is crossed out as built.
+- **The plan built on it:** `ROUNDS-PLAN.md` §7.5 and request 12 — the
+  card's whole grammar was a clock, and under rounds a 1v1 has none. §0a
+  records the build's departures beside the model's own.
+- **What it changed over the 2026-09-07 design:** one surface, redrawn
+  whole. The 1v1 and group card stops counting to midnight: a kicker
+  names the round, the prompt is in the serif, the answer is a tinted
+  option and the read a second step, a 1v1 says *waiting on Ada* and
+  nothing else, a group counts coarsely to its round deadline, the reveal
+  is a SAID · CALLED table or a split with faces (the canvas's World
+  round, three columns, was built and retired the same day — D426's
+  third amendment), the absent are seats, the late answer is said plainly,
+  and a run of rounds at the foot carries the calls and the rounds in
+  play. The 09-07 design's *first day* (today sealed, tonight's clock,
+  tomorrow revealed) is superseded by the first run drawn here: sealed,
+  then revealed *when Ada plays*.
+- **Built from it:** the whole card, the same day (D426's second
+  amendment) — `ui/LiveDuelPanel.tsx`.
+- **Requests it closed:** 12.
+
+## Before that — the 2026-09-07 standalone
+
+- **Source:** the owner's `InSight_10.html` upload of 2026-09-07,
+  extracted to `design/standalone-2026-09-07/` (its README is the
+  inventory: the three new modules and seven that moved, the six
+  patches, the unchanged list — compiled JSX again, the 09-02 README's
+  recipe applies; no stylesheet moved). Made the vision by D361's
   standing rule — the owner's upload moves the vision — and recorded
-  at D390.
-- **The plan built on it:** `VISION-2026-09-06.md` — every item
-  measured against the tree with its backend half named, §8 the build
-  order as worklist lines, §9 the gate per step. All six steps are
-  built (the bullet below); §7's owner rows remain.
-- **What it changed over the 2026-09-02 design:** one direction — **ink
-  on paper**. `lens-paper` goes from an unwired hook to the app's
-  default (the Patterns field trades dusk for paper) and the boxes go
-  with it: feed cards on a top-rule ground, the result card and the
-  profile flattened to hairline sections, the ballot one hairline row,
-  the test picker rows, and the figures **drawing themselves in** (the
-  Patterns ring and the Map constellation arrive as ink strokes). A
-  **12px floor** goes under every piece of microtype, app-wide. The
-  **serif voice reaches further** — Circle and 1v1 prompts, the
-  Oracle's options inside the disc halves, the Map's hub figure, the
-  result card's identity line. **Chrome collapses into words**: the
-  standing lens legends retire behind one ⓘ per lens, the daily's ⓘ
-  icon becomes *why this question*, the feed's topic rail folds behind
-  an *all topics* chip, and the Patterns lens picker moves into the
-  header as a dial that docks like the daily's ruler. On the model
-  side, `paid-data.js` **draws the subscription seat split** 08-26
-  §2.2 has waited on (evenly across subscribers, a €24 seat floor) —
-  still the owner's tick, now with the owner's own drawing behind it.
-- **Built from it:** all six steps of its plan's §8 (D391 steps 1–2,
-  D392 steps 3–6, 2026-09-06) — the 12px floor app-wide; the Patterns
-  instrument on paper (the boxless lens card, the guide ⓘ with the
-  moved legends, the ring's in-rim labels and serif hub, the Oracle's
-  serif halves, the People rows); the header dial and the docking; the
-  feed's paper ground and folded topics; the ballot as a hairline row
-  with *why this question*; and the polish pass (the boxless result
-  card, the constellation's ink-in, the profile's hairline sections,
-  the serif duel prompts). The design also draws the anonymous answers
-  words on the daily — the third design in a row to draw that toggle,
-  still the open D98-amendment decision on `OWNER-LIST.md`, so that
-  slot ships empty until the row is ticked.
-- **Requests it closed:** none. It **quiets the field request 1 draws
-  in** (in-rim topic labels now use part of the inner area the "inner
-  arc" grammar priced; the request's three grammars stand, with a note).
-
-## The one before — the 2026-09-02 standalone
-
-- **Source:** the owner's `InSight_7.html` upload of 2026-09-02,
-  extracted to `design/standalone-2026-09-02/` (its README is the
-  inventory: the ten modules and four stylesheets that moved, the four
-  patches, the unchanged list — and the one thing this upload does
-  differently: it ships compiled JSX, so the README carries the recipe
-  that makes the diff exact). Made the vision on the owner's sentence
-  of that day — *"new visual should be added as the new visual vision
-  until i update it with new visuals"* (D361) — not through a request.
-- **The plan built on it:** `VISION-2026-09-02.md` — every item
-  measured against the tree with its backend half named, §7 the build
-  order as worklist lines, §8 the gate per step.
-- **What it changed over the 2026-08-26 design:** the three Patterns
-  lenses become **one instrument** — a round dusk field in a light card,
-  a title and one plain sentence above, a legend in words below
-  (`lens.css`); the Map is redrawn as a **ring** (questions on a rim by
-  topic, ties as chords — position stops meaning similarity, and the
-  basis lines change with it), the Oracle moves into the field (the two
-  options are its halves, the verdict is said in words), the People lens
-  colours every dot by agreement in three steps and names the five most
-  like you; the shell gains a meta line, a topic select and a swipe axis
-  that runs off the far end into the daily. **Every prompt a person
-  answers gets a serif voice** (Spectral, `--serif`). **The two-option
-  ballot splits** into one block with a hairline seam that moves to the
-  crowd's split, on the daily and on every feed card. Smaller: topic-hued
-  answer rows in the Mirror's Answers lens, a quieter Crossroads tree,
-  the paid door's rate rows with the pricing law as scannable tokens, the
-  catalog window's polish (still waiting on its owner decision), the tab
-  bar's buttons losing weight.
-- **Built from it:** all of it but the half that waits on an owner
-  decision (D362, six commits in `VISION-2026-09-02.md` §7's order): the
-  shared instrument and the three lenses, the shell's axis, the prompt
-  voice, the split ballot, the answer rows and the Crossroads tree, the
-  paid door's rate rows. Only the catalog window (§4.2) is unbuilt, on
-  VISION-2026-08-26 §2.2's seat-split sentence.
-- **Requests it closed:** none. It **re-aimed request 1** (trait-axis
-  directions on the Map), which was written against the plane the ring
-  retires: that request now states the three grammars a ring can carry
-  an axis in, and what each costs.
+  at D415.
+- **The plan built on it:** `VISION-2026-09-07.md` — every item
+  measured against the tree with its backend half named, and, on the
+  owner's ask with the upload (*"we need to make a plan for testing
+  them as well"*), its §2 is the plan for how the new sub-scales get
+  MEASURED: the item banks, where they are answered, the fold and its
+  floors, what is stored, what proves it. §6 is the build order as
+  worklist lines, §7 the gate per step. Nothing is built.
+- **What it changed over the 2026-09-06 design:** three additions and a
+  polish pass. **The two instruments most people know get a second
+  level** — the Big Five's five domains unfold into the thirty IPIP-NEO
+  facets (six per domain on a 4–20 track, IPIP-NEO's report text behind
+  each) and the compass's six axes into eighteen positions (three per
+  axis on a 0–100 track with a hollow *most people* ring); the compass
+  carries its own way in (*Six questions place them →*, in place, after
+  which the axis is its positions' mean), while the Big Five draws
+  readings with no questions behind them. **Circle and 1v1 get a first
+  day** — one day of the game drawn with nothing invented (today
+  sealed, tonight's clock, tomorrow revealed) and then the doors;
+  invitation and link heroes; the name field where an account has
+  none; a *Start another* row once circles exist. **The person
+  overlay's three record sections go boxless** — the receipts led by a
+  sentence with the exception side first, *Play together* as doors, the
+  read-each-other card as a two-column hit-rate table. One line on the
+  feed's two-option ballot.
+- **Built from it:** nothing yet. The owner ruled the plan's three rows
+  on 2026-09-07 (D416): the in-place questions do not build (the feed is
+  the only door, D121 stands), the facets and positions stay on the
+  device for now, and the Big Five's facet items are written next — so
+  steps 1–3 and 5–6 build in order and step 4 is struck.
+- **Requests it closed:** none. It **draws the person's-page half of
+  request 5** (the pair's card: the doors and the reading table), which
+  still waits on `ROLES-PLAN.md`'s owner call.
 
 ## The lineage
 
@@ -110,7 +157,11 @@ it is moving toward.
 | 2026-08-24 | `design/standalone-2026-08-24/` | the suggestion board becomes the paid door; the buyer's room; locals and visitors | `VISION-2026-08-24.md`, D287–D288 |
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
-| **2026-09-06** | `design/standalone-2026-09-06/` | **the current vision** — above | `VISION-2026-09-06.md`, D390 |
+| 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
+| 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
+| 2026-09-08 | `design/rounds-card-2026-09-08/` | the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
+| 2026-09-08 | `design/standalone-2026-09-08/` | the group as a cast: role votes in packs, a rating every fourth round, the crown and the contested pair | `VISION-2026-09-08.md`, D434 |
+| **2026-09-09** | `design/standalone-2026-09-09/` | **the current vision** — how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab | `VISION-2026-09-09.md`, D436 |
 
 ## How the next one arrives
 

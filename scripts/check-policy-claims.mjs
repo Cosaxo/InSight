@@ -65,8 +65,12 @@ export const CLAIMS = [
   // three more — the exact shape this file's header names: not a promise
   // thinned on purpose, a promise left behind by a change three commits
   // away.
-  ["D236 · the token is used for the reveal AND the three circle notices",
-    /revealed,\s*someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
+  // D426 (ROUNDS-PLAN §7.4) added the fifth — "your turn" — between the
+  // reveal and the invitation, and the pattern names it: a page that
+  // dropped it would still count five kinds somewhere and match nothing
+  // here.
+  ["D236 · the token is used for the reveal, the turn (D426), AND the three group notices",
+    /revealed,\s*it is your\s+turn[\s\S]{0,160}?someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either
@@ -122,7 +126,7 @@ export const CLAIMS = [
   // The row above pins the SEAL and says nothing about who reads the
   // reveal once it opens, which is how the page went on promising "the
   // people in that group" for a year after D98 removed the membership
-  // arm from `match /reveals/{day}` (it is `request.auth != null`, and
+  // arm from `match /reveals/{revealId}` (it is `request.auth != null`, and
   // rules.test.ts asserts a stranger, a late joiner and someone who left
   // all read a day). Two rows, because the page states the audience
   // twice and a half-corrected promise is the same failure.
@@ -134,6 +138,26 @@ export const CLAIMS = [
     (src) => !/(picks to the people in that group|then the members of that group)/i.test(src)],
   ["D98 · group takes are world-readable too, not circle-scoped",
     (src) => !/group takes: that group/i.test(src)],
+  // THE SAME PROMISE, ONE PARAGRAPH UP, and the row above could not see
+  // it: that row forbids one literal string ("group takes: that group")
+  // from the audience SUMMARY, while the what-we-collect bullet said the
+  // narrowing in different words — "to a group's members when posted
+  // there". `match /v2_takes/{id}` has no membership arm at all (D98
+  // collapsed it), so any signed-in stranger reads a circle take, and the
+  // suite pins exactly that. Which is the half-corrected promise this
+  // script's own header warns about, caught by nothing for as long as the
+  // two sentences disagreed.
+  //
+  // The bullet also carried "one per person per question" across BOTH
+  // kinds. Only the world branch enforces that; the rules' circle branch
+  // says in its own comment that a circle take is many-per-person and
+  // there is no one-take bound to enforce.
+  ["D98 · a circle take is readable by any signed-in user, said where it is collected",
+    /Anyone signed in can read it,\s+wherever you posted it/i],
+  ["D98 · …and the retired member-scoped wording is gone",
+    (src) => !/to a group&rsquo;s members when posted there/i.test(src)],
+  ["D98 · the one-per-question bound is the WORLD feed's, not the circle's",
+    /One per question in the\s+world feed;\s+as many as you like in a circle/i],
   ["D9 · coordinates are never transmitted or stored",
     /coordinates are not sent to us, not stored/i],
   ["D175 · the presence square's SIZE tracks the grid (~200 m, not km)",
@@ -235,6 +259,30 @@ export const CLAIMS = [
     /never\s+contains a question[\s\S]{0,120}?no user can read\s+it, you included/i],
   ["D272 · each note deletes itself 90 days on, and the account's erasure takes it all",
     /deletes itself 90 days after its day/i],
+  // D413/D414/D419 · THE ACCOUNT WALL. Sixty-six lines of new disclosure
+  // landed on this page on 2026-09-07 and not one claim row came with
+  // them, so the whole section could be deleted — measured, 2023 bytes,
+  // gate still exit 0 — or inverted sentence by sentence. That is exactly
+  // the drift this file exists to catch, and it is the third time: D174,
+  // D175 and D177 each updated the app and not the policy, which is what
+  // D183 opened the page to fix.
+  //
+  // Two of these rows are here because the sentence they hold was FALSE
+  // when it was written. The page said a mistyped address "does not end
+  // up with an InSight account behind it" while `emailCreate` makes the
+  // account before anything looks at the address (live.ts's own
+  // `abandonSignIn` note: "Nothing is deleted — the abandoned account
+  // still exists"), and it said the app warns before signing in to an
+  // existing account, which Apple and Google do and the email door does
+  // not.
+  ["D414 · the three doors are named, so the wall cannot quietly grow a fourth",
+    /Sign in with Apple[\s\S]{0,400}?Continue with Google[\s\S]{0,400}?Email and password/i],
+  ["D414 · the password is hashed by Firebase and this app never sees it",
+    /stores\s+it hashed; this app never sees it and never stores it/i],
+  ["D414 · a password account exists BEFORE the address is confirmed, and is abandoned rather than deleted",
+    /exists from the moment the password is accepted, before[\s\S]{0,200}?signing out abandons that account rather\s+than deleting it/i],
+  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
+    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

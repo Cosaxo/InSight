@@ -26,6 +26,7 @@ const RETIRED_WORDING = new Map([
     "The app can ask your device for an approximate location"],
   ["D98 · the retired circle-scoped reveal audience is gone", "then the members of that group"],
   ["D98 · group takes are world-readable too, not circle-scoped", "Your group takes: that group"],
+  ["D98 · …and the retired member-scoped wording is gone", "to a group&rsquo;s members when posted there"],
 ]);
 
 describe("check-policy-claims", () => {

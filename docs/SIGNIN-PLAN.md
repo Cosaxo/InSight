@@ -51,8 +51,8 @@ made of one person's re-installs cannot either.
 | Door | State | Work |
 | --- | --- | --- |
 | Google | built | none |
-| Sign in with Apple | **not built** | ~half a day of code; the plugin already exposes `signInWithApple` |
-| Email + password | **not built** | ~a day and a half; the plugin exposes `createUserWithEmailAndPassword`, `signInWithEmailAndPassword` and `sendPasswordResetEmail`, so the cost is the SCREEN and its tail, not the calls |
+| Sign in with Apple | **built 2026-09-07** (§7 step 1) | was ~half a day; the plugin already exposed `signInWithApple` |
+| Email + password | **built 2026-09-07** (§7 step 3, with address verification) | was ~a day and a half; the cost was the SCREEN and its tail, not the calls |
 
 **The tail is the part that gets underestimated.** Email is not one
 form. It is sign-up, sign-in, a forgotten-password round trip through

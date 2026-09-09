@@ -146,7 +146,15 @@ jobs:
         env:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
-          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'false' }}
+          # D414 (2026-09-07) put the account wall back for good, and this
+          # default was left behind for an afternoon — ios-release.yml
+          # flipped and this did not, which is the exact shape
+          # SHIP-CHECKLIST warns about: a document (or here a second
+          # workflow) that reads a build setting has to be moved by
+          # whoever moves the setting. An Android build cut in that window
+          # would have shipped anonymous-first while the iOS one required
+          # an account, and nothing would have said so.
+          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'true' }}
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -157,6 +165,25 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_RELEASE_TAG: ${{ github.sha }}
         run: |
+          # SAY WHICH APP THIS IS, and REFUSE to upload the wrong one — the
+          # same report-and-gate ios-release.yml has carried since D419,
+          # and it belongs here for a reason that is specific to Play
+          # rather than symmetric. `REQUIRE_SIGNIN` is ONE repository
+          # variable read by both workflows, so clearing it for a single
+          # deliberately wall-less iOS archive disarms the Android upload
+          # too — silently, in a run nobody is watching, on the store where
+          # a production rollout reaches real installs. A report on an
+          # artifact-only run, a refusal on an upload: the override stays
+          # legitimate for a build somebody installs by hand, and D414 says
+          # a build that reaches a store requires an account.
+          echo "VITE_REQUIRE_SIGNIN=${VITE_REQUIRE_SIGNIN:-<unset>}  (D414: 'true' is the wall)"
+          echo "wall=${VITE_REQUIRE_SIGNIN:-<unset>} upload=${{ inputs.upload }} track=${{ inputs.track }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.upload }}" = "true" ] && [ "$VITE_REQUIRE_SIGNIN" != "true" ]; then
+            echo "::error::VITE_REQUIRE_SIGNIN resolved to '${VITE_REQUIRE_SIGNIN:-<unset>}', not 'true'."
+            echo "::error::D414 requires an account in every build that reaches Play."
+            echo "::error::Either clear the REQUIRE_SIGNIN repository variable, or run with upload unticked."
+            exit 1
+          fi
           npm run build
           # Assert against dist/ rather than the environment: the question
           # is whether THIS build saw the config. Both run before cap sync
@@ -274,18 +301,47 @@ jobs:
           #    Measured 2026-09-01: all six 64-bit libraries report 0x4000,
           #    so this passes today and exists to catch the dependency bump
           #    that regresses it.
+          #
+          #    IT HAS TO COUNT WHAT IT CHECKED. As first written this loop
+          #    could print its success line having read nothing: `[ -f ] ||
+          #    continue` swallows an unmatched glob, so an AAB whose lib
+          #    layout moved (an ABI split, a Gradle packaging change) left
+          #    `bad` at 0 and passed; and with `readelf` absent from the
+          #    image the inner `$(…)` is empty, so every library "passed"
+          #    too. Both proved by running this block over a tree with no
+          #    64-bit directory and over one with readelf renamed —
+          #    "every 64-bit native library is 16 KB aligned", exit 0, in
+          #    both. The two assertions above it fail safe because an empty
+          #    pipeline makes grep exit 1; this one had nothing playing
+          #    that role, so it counts instead.
+          command -v readelf >/dev/null || {
+            echo "::error::readelf is not on this runner, so the 16 KB alignment check cannot run. Install binutils rather than skipping it."
+            exit 1
+          }
           bad=0
+          libs=0
+          segs=0
           for so in "$WORK"/base/lib/arm64-v8a/*.so "$WORK"/base/lib/x86_64/*.so; do
             [ -f "$so" ] || continue
+            libs=$((libs + 1))
             for a in $(readelf -lW "$so" | awk '$1=="LOAD"{print $NF}' | sort -u); do
+              segs=$((segs + 1))
               if [ "$(printf '%d' "$a")" -lt 16384 ]; then
                 echo "::error::$(basename "$so") has a LOAD segment aligned to $a (< 16384). Play will refuse this bundle. See docs/PLAY-RELEASE.md §2.6."
                 bad=1
               fi
             done
           done
+          if [ "$libs" = "0" ]; then
+            echo "::error::no 64-bit native libraries found under base/lib/{arm64-v8a,x86_64}. Six were measured on 2026-09-01, so either the bundle's layout moved or this check is looking in the wrong place — do not ship on a check that read nothing. See docs/PLAY-RELEASE.md §2.6."
+            exit 1
+          fi
+          if [ "$segs" = "0" ]; then
+            echo "::error::$libs native librar(y|ies) found but no LOAD segments were read from any of them — readelf's output shape changed. See docs/PLAY-RELEASE.md §2.6."
+            exit 1
+          fi
           [ "$bad" = "0" ] || exit 1
-          echo "every 64-bit native library is 16 KB aligned"
+          echo "every 64-bit native library is 16 KB aligned ($libs librar(y|ies), $segs LOAD segment(s) checked)"
 
       # Kept before the Play step so a bundle that builds correctly but
       # fails to upload is still in hand — the expensive part is the build.

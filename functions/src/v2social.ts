@@ -6,7 +6,8 @@
 //   group  · next UTC day, if at least one member answered
 //   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
 //
-// Sealed answers live under composite ids (g_{gid}_{day}). Since D98 a
+// Sealed answers live under composite ids (g_{gid}_r{n} — one per ROUND,
+// ROUNDS-PLAN / D426). Since D98 a
 // user's world answers are readable by anyone, but DUEL answers are the
 // exception the rules still carve out — read is gated on `surface`, so
 // nobody sees a groupmate's pick before the reveal. That is a game
@@ -42,16 +43,19 @@ import {
   isPlausibleFcmToken,
   nextFcmTokens,
   movesPresentState,
+  openRound,
+  playedIn,
+  prunePlayed,
+  roundKey,
+  roundReveals,
+  ROUND_DEADLINE_MS,
+  ROUND_LEAD,
+  utcDayKeyOf,
   nextStreak,
-  PENDING_DAYS_KEEP,
-  prunePendingDays,
   publishableDuelAgg,
   revealQid,
   revealVotes,
-  scanDays,
   revealMembersFor,
-  shouldReveal,
-  utcDayKey,
   votesMatchingQid,
   presenceCellOk,
   presenceNeighbors,
@@ -67,6 +71,8 @@ import {
   type RoomMix,
   type RoomCounts,
   type DuelVoteLike,
+  isStamped,
+  type TurnRecipient,
 } from "./pure";
 
 const REGION = FUNCTIONS_REGION;
@@ -192,9 +198,9 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     ownerUid: uid,
     memberUids: [uid],
     memberNames: { [uid]: myName },
-    // When each member became one. Read only by revealGroupDay, to scope a
-    // day's reveal to the people who were in the group for that day — see
-    // revealMembersFor (pure.ts). Same map shape as memberNames, and it is
+    // When each member became one. Read only by revealRound, to scope a
+    // round's reveal to the people who were in the group when it opened —
+    // see revealMembersFor (pure.ts). Same map shape as memberNames, and it is
     // removed on the same two paths (leaveGroupV2, deleteAccount phase 1c),
     // because a uid left behind here is the shape D55 §8 records ownerUid
     // having.
@@ -202,6 +208,11 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     inviteCode: code,
     streak: 0,
     lastRevealDay: null,
+    // The open round (ROUNDS-PLAN, D426). Absent reads as 1 everywhere it
+    // is read — the rules, the client, the reveal — so this is stated
+    // rather than relied on. `played` and the round's clock arrive with
+    // the first answer, from the answer trigger.
+    round: 1,
     createdAt: FieldValue.serverTimestamp(),
   });
   return { gid: ref.id, inviteCode: code };
@@ -472,6 +483,11 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
       memberUids: FieldValue.arrayRemove(uid),
       [`memberNames.${uid}`]: FieldValue.delete(),
       [`memberJoinedAt.${uid}`]: FieldValue.delete(),
+      // …and out of every round they have sealed but not seen revealed:
+      // `played` is what the reveal counts against the roster, and a
+      // uid left behind here is the shape D55 §8 records ownerUid having.
+      ...playedRemovals(snap.get("played"), uid),
+      ...stampRemoval(snap.get("pushAt"), uid),
     });
     return "left" as const;
   });
@@ -630,11 +646,51 @@ async function sendPushToUids(
   }
 }
 
+// ── "your turn" (ROUNDS-PLAN §7.4) ─────────────────────────────
+//
+// The volley's other half: the answer trigger decides WHO is told inside
+// its transaction (turnRecipients, pure.ts — stamped in the same commit
+// as the mark) and hands the list here after the commit. One body per
+// count, so a partner who ran ahead is told how far: *Leo answered — your
+// turn* / *Leo played 4 rounds — your turn*. Channel `turns`, importance
+// 3 on the client: a nudge, not a result, and the one control Android
+// gives a person is the channel.
+//
+// Best-effort like every send: never throws, and never before the commit
+// it reports on.
+export async function notifyTurn(
+  db: FirebaseFirestore.Firestore,
+  gid: string,
+  room: { name: string; mode: "duo" | "group"; who: string },
+  recipients: readonly TurnRecipient[],
+): Promise<void> {
+  if (!recipients.length) return;
+  const who = room.who || "Someone";
+  const title = room.name || (room.mode === "duo" ? "Your 1v1" : "Your group");
+  const byBody = new Map<string, string[]>();
+  for (const r of recipients) {
+    const body = r.waiting > 1
+      ? `${who} played ${r.waiting} rounds — your turn.`
+      : `${who} answered — your turn.`;
+    byBody.set(body, [...(byBody.get(body) || []), r.uid]);
+  }
+  for (const [body, uids] of byBody) {
+    await sendPushToUids(db, uids, { title, body }, { kind: "turn", gid }, "turns", "turn");
+  }
+}
+
 // ── the reveal pipeline ─────────────────────────────────────────
 
-interface RevealVote {
+export interface RevealVote {
   optionIdx: number;
   guessIdx?: number;
+  /**
+   * Answered AFTER the round revealed (ROUNDS-PLAN §4) — with the table in
+   * view, so not blind. Appended by the answer trigger, never written by
+   * revealRound; shown in the reveal, counted by nothing: the roles fold,
+   * the runs and the duel signal all skip it. Absent on every blind vote.
+   */
+  late?: true;
   /**
    * The question THIS member answered — written only when it is not the one
    * the day was published under (see revealQid). Absent is the overwhelming
@@ -660,118 +716,133 @@ interface RevealVote {
   pickUid?: string;
 }
 
-export async function revealGroupDay(
-  group: FirebaseFirestore.QueryDocumentSnapshot,
-  dayKey: string,
+/** A Timestamp-ish field as millis, or null. Admin Timestamps carry
+ *  `toMillis()`; the reveal-day harness hands plain numbers. */
+function tsMs(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (raw && typeof (raw as { toMillis?: unknown }).toMillis === "function") {
+    const ms = (raw as { toMillis: () => number }).toMillis();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  return null;
+}
+
+/** The update entries that take `uid` out of every array in a `played`
+ *  map — one nested-path arrayRemove per round key. Used by leaveGroupV2
+ *  and deleteAccount's group phase, which already hold the document. */
+export function playedRemovals(played: unknown, uid: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!played || typeof played !== "object") return out;
+  for (const key of Object.keys(played as Record<string, unknown>)) {
+    if (playedIn(played, key).includes(uid)) out[`played.${key}`] = FieldValue.arrayRemove(uid);
+  }
+  return out;
+}
+
+/**
+ * The turn stamp of a member who is leaving or being erased (ROUNDS-PLAN
+ * §7.4) — playedRemovals' shape, for its reason: a uid left behind on the
+ * group document is the shape D55 §8 records ownerUid having.
+ */
+export function stampRemoval(pushAt: unknown, uid: string): Record<string, FieldValue> {
+  return isStamped(pushAt, uid) ? { [`pushAt.${uid}`]: FieldValue.delete() } : {};
+}
+
+export interface RevealOpts {
+  /** Reveal the open round on any answer at all, deadline or not — the
+   *  operator's lever and the e2e. Never the schedule. */
+  force?: boolean;
+  nowMs?: number;
+}
+
+/**
+ * Reveal a group's OPEN round if it is ready, and open the next one in
+ * the same commit. Returns whether it revealed. ROUNDS-PLAN §3, D426.
+ *
+ * READY means (roundReveals, pure.ts): at least one answer, and every
+ * member has answered, or the deadline has passed, or `force`. The
+ * verdict is taken off the page snapshot first — `played` and the clock
+ * are on the group document — so a group that is neither complete nor
+ * due costs nothing beyond the page it arrived on, and again inside the
+ * transaction off the answers themselves, which are the truth.
+ *
+ * WHAT IS READ, and the cost model counts it (revealReadsPerMember,
+ * scripts/cost-arith.mjs): one field-masked profile per member for the
+ * names, then the committing transaction's getAll — the reveal, the
+ * group, and one answer per member. 2 + 2m for m members. The day's
+ * pipeline read 4 + 3m: a standalone reveal-exists get and a pre-read of
+ * every answer, both of which `played` on the group document makes
+ * unnecessary — and the reveal-exists check is redundant anyway, because
+ * the reveal and the round advance in one commit, so "the round is still
+ * the open one" IS "no reveal exists for it".
+ *
+ * The transaction re-reads the answers for the reason it always did: a
+ * duel answer stays legal until the round advances, so an answer that
+ * commits between the page read and this commit either lands in our
+ * re-read and is included, or is forced after our commit and refused by
+ * the rules (the round has moved on) — never accepted and then dropped.
+ *
+ * tx.create(), not tx.set(): the schedule, the answer trigger and the
+ * operator's lever can overlap on one group, and overwriting would
+ * shrink an already-published vote set. The loser's re-read finds the
+ * round advanced and bails.
+ *
+ * The streak moves in the same transaction, keyed on the calendar day
+ * the reveal lands: two reveals on one day leave it where it is
+ * (movesPresentState), consecutive days advance it (nextStreak), so a
+ * streak is still what it was — days you came back — and rounds are not
+ * spent on it.
+ */
+export async function revealRound(
+  group: FirebaseFirestore.DocumentSnapshot,
+  opts: RevealOpts = {},
 ): Promise<boolean> {
   const db = firestore();
   const gid = group.id;
+  if (!group.exists) return false;
   const mode: string = group.get("mode") || "group";
   const members: string[] = group.get("memberUids") || [];
   if (!members.length) return false;
-  // Cheap skip: already revealed. The other half of the old pair —
-  // "already checked and nobody played" — is now the absence of dayKey from
-  // pendingDays, which the indexed scan expresses as a query rather than a
-  // per-document test. A full scan reaches this line for every group and
-  // pays the reads below deliberately; that is what makes it the recovery
-  // path (see runDuelReveals).
-  if (group.get("lastRevealDay") === dayKey) return false;
-  const revealRef = group.ref.collection("reveals").doc(dayKey);
-  if ((await revealRef.get()).exists) return false;
+  const nowMs = opts.nowMs ?? Date.now();
+  const force = !!opts.force;
+  const round = openRound(group.get("round"));
+  const key = roundKey(round);
 
-  const answerId = `g_${gid}_${dayKey}`;
-  const answerSnaps = await db.getAll(
-    ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
-  );
-  // Push tokens are NOT fetched here any more (D236). They were, next to
-  // the reads the reveal actually needs — which billed one document per
-  // member on every scanned day, including the majority that reveal
-  // nothing. sendPushToUids reads them itself, after the reveal has
-  // committed and only when there is something to announce.
+  const pageDeadline = tsMs(group.get("roundDeadlineAt"));
+  const pageDue = pageDeadline != null && pageDeadline <= nowMs;
+  // A DUE ROUND ALWAYS OPENS THE TRANSACTION, even when the page snapshot
+  // shows nobody in it. `roundReveals` is `played >= 1 && …`, so a round
+  // whose only player left or was erased is false here whatever `force`
+  // says — and the branch that clears a stuck clock lives INSIDE the
+  // transaction this gate was returning before. So the group kept its
+  // `roundDeadlineAt`, the deadline scan orders by that field ascending,
+  // and a never-moving deadline sorts permanently at the head: at
+  // GROUP_SCAN_CAP the run breaks with an error before reaching any live
+  // due round, and reveals stop for everybody. Not even
+  // revealDuelsNowV2 {force:true} could unstick it.
   //
-  // The PROFILES are not fetched here either, for the same reason and the
-  // same distance too late: they sat beside this read, above the
-  // shouldReveal gate, and their only use is the `names` map the reveal
-  // writes — so every scanned day that did not reveal (the ordinary duo
-  // shape: one partner has played, the other has not yet) bought one
-  // document per member and dropped them. They now read directly above
-  // that use, past the gate.
-
-  const votes: Record<string, RevealVote> = {};
-  const qids: unknown[] = [];
-  answerSnaps.forEach((s, i) => {
-    if (!s.exists) return;
-    const optionIdx = s.get("optionIdx");
-    if (typeof optionIdx !== "number") return;
-    const v: RevealVote = { optionIdx };
-    const guessIdx = s.get("guessIdx");
-    if (typeof guessIdx === "number") v.guessIdx = guessIdx;
-    votes[members[i]] = v;
-    qids.push(s.get("qid"));
-  });
-  const qid = revealQid(qids);
-  const played = Object.keys(votes).length;
-
-  // The oldest day still worth carrying in pendingDays. Both settle paths
-  // prune to this, so the array cannot grow without bound on a duo whose
-  // partner never plays. See PENDING_DAYS_KEEP in pure.ts for the bound.
-  const oldestKeptDay = utcDayKey(
-    -PENDING_DAYS_KEEP,
-    Date.parse(`${dayKey}T00:00:00Z`),
-  );
-
-  // duo: both-or-nothing (and the streak lives or dies on it);
-  // group: at least one answer. Below the bar → settle the day unrevealed.
-  if (!shouldReveal(mode, played)) {
-    // Still a TRANSACTION that re-reads the answer docs, but the reason is
-    // now simply "do not close a day an answer just landed on" rather than
-    // the ordering argument the old skip-marker needed. Dropping dayKey from
-    // pendingDays is what closes it; a late answer's arrayUnion re-adds it
-    // unconditionally, so whichever order the two writers commit in, the day
-    // ends up open if and only if an answer exists that we did not see.
-    await db.runTransaction(async (tx) => {
-      const [gsnap, ...fresh] = await tx.getAll(
-        group.ref,
-        ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
-      );
-      if (!gsnap.exists) return;
-      const freshPlayed = fresh.filter(
-        (s) => s.exists && typeof s.get("optionIdx") === "number",
-      ).length;
-      // A late answer flipped the decision — leave the day pending so the
-      // next scan (≤2h away) performs the reveal.
-      if (shouldReveal(mode, freshPlayed)) return;
-      tx.update(group.ref, {
-        pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
-        // Zeroing the streak is a statement about NOW — "you two missed a
-        // day" — so an old day settling empty must not make it. The scan
-        // walks newest-first and the operator's `full` mode covers six
-        // days, so this fired routinely on days already behind the last
-        // reveal. movesPresentState carries the arithmetic.
-        ...(mode === "duo"
-          && gsnap.get("streak")
-          && movesPresentState(gsnap.get("lastRevealDay"), dayKey)
-          ? { streak: 0 } : {}),
-      });
-    });
+  // Letting a due round through costs one transaction (and one profile
+  // fetch) per stuck group, ONCE — the clock is cleared inside it and the
+  // group leaves the scan. A page snapshot that is merely stale is better
+  // off in there too: the transaction re-reads.
+  if (!pageDue && !roundReveals(playedIn(group.get("played"), key).length, members.length, pageDue, force)) {
     return false;
   }
 
-  // ONE FIELD, and the fieldMask is load-bearing rather than tidy. A
-  // profile is client-writable and firestore.rules bounds only some of it:
-  // displayName and the anchors are capped, the consent record is keyed
-  // and typed, `testResults` is bounded only by KEY COUNT (8), and
-  // `createdAt`/`updatedAt` not at all — no cap, not even a type. So a member
-  // can legitimately hold a document approaching Firestore's 1 MiB, and
-  // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
-  // 512 MiB instance. The mask bounds the exposure regardless of what any
-  // rule permits, which is why it is fixed here rather than by capping
-  // testResults: `createdAt` is equally unbounded and the next field
-  // added would be too. (This named `anon` until 2026-08-31 — a key D331
-  // took off the allowlist, so the example had no writer at all. The
-  // argument held; its illustration named a ghost, which is the way an
-  // argument stops being checkable.) Reading past the gate narrows the same window further —
-  // only days that actually reveal put profiles in flight at all.
+  const revealRef = group.ref.collection("reveals").doc(key);
+  const answerId = `g_${gid}_r${round}`;
+  const dayKey = utcDayKeyOf(nowMs);
+
+  // The names, past the gate — only a round that is about to reveal puts
+  // profiles in flight. ONE FIELD, and the fieldMask is load-bearing
+  // rather than tidy: a profile is client-writable and firestore.rules
+  // bounds only some of it (`testResults` by key VOCABULARY since
+  // 2026-09-09, which caps the count structurally but not the size of a
+  // legitimate kind; the stamps not at
+  // all), so a member can legitimately hold a document approaching
+  // Firestore's 1 MiB, and LANES × GROUP_CAP of them in flight on the
+  // 512 MiB instance is the exposure the mask bounds regardless of what
+  // any rule permits.
   const profileSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
     { fieldMask: ["displayName"] },
@@ -781,50 +852,24 @@ export async function revealGroupDay(
     names[members[i]] = (s.exists && s.get("displayName")) || "";
   });
 
-  // The reveal is built and written INSIDE a transaction that re-reads the
-  // answer docs, for the same reason the skip-marker above is one.
-  //
-  // The getAll() above is a snapshot, and a duel answer stays legal until
-  // the reveal doc exists — firestore.rules gates creation on
-  // `!exists(.../reveals/$(day))`, which is still true for the whole
-  // window between that read and the write. So an answer committing in
-  // that window passed rules, and then landed in a reveal that had already
-  // been assembled without it: the vote is dropped, permanently and
-  // silently, because create() never runs twice and the day can never be
-  // re-opened. The member sees a reveal their vote is missing from.
-  //
-  // Re-reading inside the transaction closes it in the direction that
-  // matters. Firestore's serializability leaves a late answer two
-  // outcomes: it commits before our re-read, and we include it; or it is
-  // forced to commit after our create(), in which case rules reject it
-  // outright (the reveal now exists) and the vote never claims to have
-  // been cast. Either way no accepted answer is silently discarded.
-  //
-  // tx.create(), not tx.set(): scheduledDuelReveals (every 2h) and a
-  // manual revealDuelsNowV2 can overlap. The existence read below already
-  // makes the loser retry and bail, so this is belt-and-braces — but
-  // overwriting would shrink an already-published vote set if it ever did
-  // happen, which is the one outcome worth being loud about.
-  //
-  // The streak now moves in the SAME transaction, off a fresh read of the
-  // group rather than the scan's page snapshot. It used to be a follow-up
-  // update() that could fail on its own, leaving a published reveal whose
-  // day the group had no record of — and the next run would then re-derive
-  // the streak from a lastRevealDay that never advanced.
   let streak = 0;
   let didReveal = false;
-  // What the signal fold (below) needs from the committed reveal — captured
-  // here because the transaction's own locals die with it.
+  // What the signal fold (below) needs from the committed reveal —
+  // captured here because the transaction's own locals die with it.
   let aggQid: string | null = null;
   let aggVotes: DuelVoteLike[] = [];
+  // Who the NEXT round waits for once this one is out — the push below
+  // says so to them, and nobody else (ROUNDS-PLAN §7.4).
+  let waitingNext: string[] = [];
   await db.runTransaction(async (tx) => {
     // Reset per attempt: a transaction callback can run more than once,
     // and a retry that bails early must not inherit the previous try's
-    // verdict.
+    // verdict (reveal-day.test.ts pins this).
     didReveal = false;
     streak = 0;
     aggQid = null;
     aggVotes = [];
+    waitingNext = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
       revealRef,
       group.ref,
@@ -832,12 +877,12 @@ export async function revealGroupDay(
     );
     if (existing.exists) return;      // lost the race — the standing reveal wins
     if (!gsnap.exists) return;        // last member left while we were reading
-    if (gsnap.get("lastRevealDay") === dayKey) return;
+    if (openRound(gsnap.get("round")) !== round) return;  // advanced under us
 
     // qid alongside each vote, not just the winning one: the fold below has
     // to know WHICH votes were cast on the question it is folding into, and
     // the reveal doc has to tell the card which prompt to render each answer
-    // under.
+    // under (D70, D71).
     const freshEntries: { uid: string; qid: unknown; vote: RevealVote }[] = [];
     fresh.forEach((s, i) => {
       if (!s.exists) return;
@@ -856,49 +901,45 @@ export async function revealGroupDay(
     // Stamped only on the odd ones out, so the common case — everyone on the
     // same question — writes exactly the document it wrote before D71.
     const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
-    // WHO THE REVEAL SAYS WAS THERE, computed once and used twice: as the
-    // `members` field, and as the set the `names` map is cut down to.
-    //
-    // It was computed once and used ONCE. `names` above is built over the
-    // group's whole roster, and `members` is a strict subset of it —
-    // revealMembersFor drops anyone who joined after the day ended and did
-    // not play. So a person who joined this morning was NAMED in
-    // yesterday's reveal while not being in its `members`, and if they
-    // later left the circle, `deleteAccount`'s membership-independent
-    // sweep — which walks `members` — could not find them. Their display
-    // name stayed in a document every signed-in user may read, after they
-    // had asked to be erased. Confirmed against the real callable in the
-    // emulator, not reasoned: the name survived the erasure.
-    //
-    // Narrowed rather than indexed, because the field's own note two
-    // screens down already says `members` is "what the reveal's names are
-    // drawn against" — the invariant was written down and not enforced.
-    // Nothing is lost: every name any surface draws belongs to someone in
-    // `members` (a voter is always kept), and a pick can only name someone
-    // who was a member when the answer was written, which is before the
-    // day ended — so a picked person is in `members` too, or is out of the
-    // roster entirely and had no name here either way.
+    const played = Object.keys(freshVotes).length;
+    const freshDeadline = tsMs(gsnap.get("roundDeadlineAt"));
+    const freshDue = freshDeadline != null && freshDeadline <= nowMs;
+    if (!roundReveals(played, members.length, freshDue, force)) {
+      // Due with nothing in it — an answer erased since it stamped the
+      // clock. Clear the clock so the scan stops finding this group; the
+      // round stays open with its question unburned.
+      if (played === 0 && freshDue) {
+        tx.update(group.ref, {
+          roundOpenedAt: FieldValue.delete(),
+          roundDeadlineAt: FieldValue.delete(),
+        });
+      }
+      return;
+    }
+
+    // WHO THE REVEAL SAYS WAS THERE — who was in the group when this round
+    // opened, plus anyone who played it — computed once and used twice: as
+    // the `members` field, and as the set the `names` map is cut down to,
+    // so the reveal never names someone it does not record as present
+    // (the erasure sweep walks `members`; a stray name would outlive it).
     const revealMembers = revealMembersFor(
       members,
       joinedAtMs(gsnap.get("memberJoinedAt")),
-      dayKey,
+      tsMs(gsnap.get("roundOpenedAt")),
       Object.keys(freshVotes),
     );
     const revealNames: Record<string, string> = {};
     for (const uid of revealMembers) revealNames[uid] = names[uid] ?? "";
-    // The people this day's picks name — see the field's own note below.
+    // The people this round's picks name — an index erasure can walk. A
+    // pick copies the picked uid into `votes.<voter>.pickUid`, and that uid
+    // may be in no array anybody queries if they left before the reveal.
     const pickedUids = [...new Set(
       Object.values(freshVotes)
         .map((v) => v.pickUid)
         .filter((u): u is string => typeof u === "string" && !!u),
     )];
-    // An answer can only appear between the two reads, never vanish
-    // (answers are create-only, D5) — so this can gain votes but not lose
-    // them, and the reveal condition cannot flip back to false. Re-checked
-    // anyway: the invariant is worth asserting rather than assuming.
-    if (!shouldReveal(mode, Object.keys(freshVotes).length)) return;
 
-    aggQid = freshQid ?? qid;
+    aggQid = freshQid;
     // NOT Object.values(freshVotes) — only the votes cast on aggQid. When
     // members' cached banks disagree (see revealQid), the others' votes are
     // still published in the reveal below; they are simply not folded into a
@@ -906,96 +947,49 @@ export async function revealGroupDay(
     aggVotes = votesMatchingQid(freshEntries, aggQid);
 
     tx.create(revealRef, {
+      round,
+      // The calendar day the reveal landed — what the card labels a
+      // reveal by, what the streak is keyed on, and what orders two
+      // reveals from one day beside `round`.
       day: dayKey,
-      qid: freshQid ?? qid,
+      qid: freshQid,
       votes: freshVotes,
       names: revealNames,
-      // Membership AT REVEAL TIME.
-      //
-      // THIS NO LONGER GATES THE READ, and the paragraph that used to
-      // stand here said it did — "the reveal read rule gates on THIS
-      // array… a later joiner cannot read this day". True when written;
-      // retired by D98, which made the match `allow read: if
-      // request.auth != null` on the reasoning that a reveal is world
-      // answers' younger sibling. Nothing updated the comment, so the
-      // strongest statement about who can read a reveal lived at the
-      // write site and was three months stale — the shape D71 already
-      // named: a comment that overstates a guarantee is how the
-      // guarantee outlives its reason.
-      //
-      // What the field IS for now: the record of who was in the circle
-      // for that day, which `deleteAccount` scrubs on erasure (pinned in
-      // rules.test.ts) and which is what the reveal's names are drawn
-      // against. Writing it in the same create() as the votes is what
-      // stops the two from drifting.
-      //
-      // It is the scan's membership, deliberately, not gsnap's fresher
-      // one: these are the members whose answers were read, and a fresher
-      // list could hand yesterday's reveal to someone who joined this
-      // morning.
-      //
-      // That reasoning was right about the risk and wrong about the size of
-      // it. BOTH reads happen on D+1, so preferring one over the other only
-      // ever closed the seconds between them — while the scan runs `every
-      // 120 minutes`, so anyone joining between 00:00 UTC and it was a
-      // current member either way, and read a day they were not in the group
-      // for. What actually scopes this is WHEN each member joined, which is
-      // why the array below is filtered rather than taken (revealMembersFor,
-      // pure.ts; D55 §9).
-      //
-      // The filtered array can in principle come out empty — every member
-      // who played day D has left, and everyone now in the group joined
-      // after it. The reveal still writes, naming nobody, which is the
-      // correct answer to "who was here for this day"; it also settles the
-      // day so the scan stops re-examining it. (Before D98 that sentence
-      // ended "readable by nobody" — the empty array closed the read. It
-      // does not any more; the document is world-readable and simply
-      // credits no one.)
-      //
-      // The deploy-ordering warning that stood here is spent with the
-      // rule it was about: `members` had to go live BEFORE the rule
-      // started requiring it, because a released ruleset applies
-      // instantly while gen2 functions roll out over minutes. No rule
-      // requires it now, so removing the field costs an erasure sweep and
-      // the reveal's names, not a window of unreadable documents.
       members: revealMembers,
-      // WHO THE PICKS NAME, as an index erasure can walk.
-      //
-      // A pick answer copies the picked person's uid into `votes.<voter>
-      // .pickUid`, validated against membership at ANSWER time. `members`
-      // above is membership at REVEAL time. Answer on a pick day, leave
-      // the circle before the nightly reveal, and the two disagree — the
-      // uid is in the document and in no array anybody queries, so
-      // deleteAccount's `array-contains` sweep never finds it and the
-      // identifier stays in a document any signed-in user can read.
-      // `web/privacy.html` promises the opposite in writing.
-      //
-      // Written only when a pick actually named someone, so ordinary
-      // reveals carry no extra field. Distinct, because two voters may
-      // pick the same person and `arrayRemove` takes every copy anyway.
       ...(pickedUids.length ? { pickedUids } : {}),
       revealedAt: FieldValue.serverTimestamp(),
     });
-    // The day is settled, so it leaves pendingDays in the same write that
-    // publishes the reveal — the scan must not find this group again for
-    // this day, and a reveal that exists while the day still reads as owing
-    // one is the drift that would put the scan into a loop. That much is
-    // true of any day, backfilled or not.
-    const settle: Record<string, unknown> = {
-      pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
-    };
+
+    // Settle: the next round opens in the SAME commit as this reveal, so
+    // "the round is still open" and "no reveal exists for it" can never
+    // drift apart — which is also what lets the rules bound an answer by
+    // the round number alone (ROUNDS-PLAN §2.2).
+    const next = round + 1;
+    const nextPlayed = prunePlayed(gsnap.get("played"), next);
+    const settle: Record<string, unknown> = { round: next, played: nextPlayed };
+    // THE REVEAL IS THE CARRIER (ROUNDS-PLAN §7.4): opening the next round
+    // is this same commit, so the push that says the round is out can say
+    // "and round 8 is waiting for you" to whoever has not sealed it — and
+    // STAMPS them, so the first answer to round 8 is not followed by "Bo
+    // answered — your turn" about the same round. Their own answer clears
+    // the stamp (v2.ts). Members who ran ahead are told the result alone.
+    const sealedNext = playedIn(nextPlayed, roundKey(next));
+    waitingNext = members.filter((u) => !sealedNext.includes(u));
+    for (const u of waitingNext) settle[`pushAt.${u}`] = FieldValue.serverTimestamp();
+    if (playedIn(nextPlayed, roundKey(next)).length) {
+      // Somebody ran ahead: the next round already has an answer, so its
+      // clock starts now rather than waiting for one.
+      settle.roundOpenedAt = Timestamp.fromMillis(nowMs);
+      settle.roundDeadlineAt = Timestamp.fromMillis(nowMs + ROUND_DEADLINE_MS);
+    } else {
+      settle.roundOpenedAt = FieldValue.delete();
+      settle.roundDeadlineAt = FieldValue.delete();
+    }
     // `streak` and `lastRevealDay` are the group's PRESENT tense, and only a
-    // day newer than the last reveal may move them. The scan walks
-    // newest-first, so without this a run that revealed yesterday and then
-    // reached an older pending day wrote lastRevealDay BACKWARDS and reset
-    // the streak to 1 — for filling a gap in. movesPresentState (pure.ts)
-    // has the sequence.
+    // day newer than the last reveal's may move them: the second reveal of
+    // a day leaves them alone (movesPresentState, pure.ts).
     if (movesPresentState(gsnap.get("lastRevealDay"), dayKey)) {
-      streak = nextStreak(
-        gsnap.get("lastRevealDay"),
-        dayKey,
-        gsnap.get("streak") || 0,
-      );
+      streak = nextStreak(gsnap.get("lastRevealDay"), dayKey, gsnap.get("streak") || 0);
       settle.streak = streak;
       settle.lastRevealDay = dayKey;
     } else {
@@ -1011,66 +1005,82 @@ export async function revealGroupDay(
   // cross-group aggregate. OUTSIDE the reveal transaction on purpose — the
   // aggregate doc is contended across every group revealing the same
   // question, and a conflict there must retry this small fold, never the
-  // reveal, which is the product's one daily moment (and whose retry
-  // re-reads 2×members documents). The cost of the split, recorded: a
-  // crash between the reveal commit and this fold undercounts an advisory,
-  // floored aggregate by one reveal — the reveal doc's existence stops the
-  // scan from ever retrying the day, so the loss is permanent and
-  // accepted. ERROR-level so monitoring sees a systematic failure; one
-  // lost increment is survivable, a silent pattern is not.
+  // reveal (whose retry re-reads a document per member). The cost of the
+  // split, recorded: a crash between the reveal commit and this fold
+  // undercounts an advisory, floored aggregate by one reveal — the round
+  // has advanced, so nothing retries it, and the loss is permanent and
+  // accepted. ERROR-level so monitoring sees a systematic failure.
   try {
     await foldDuelSignal(db, mode, aggQid, aggVotes);
   } catch (err) {
-    logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
+    logger.error(`[duel-signal] fold failed for ${gid}/${key} (${aggQid}):`, err);
   }
 
-  // The reveal is out — one of the product's four notifications: this,
-  // the circle invitation, the join request and the join approval (D236
-  // added the last three, and this comment kept saying "two").
-  // Best-effort by construction: sendPushToUids never throws, so FCM
-  // being down can never roll back a reveal that already committed.
+  // The reveal is out — one of the product's five notifications: this,
+  // *your turn* (notifyTurn, above), the group invitation, the join
+  // request and the join approval. Two bodies, one send each: whoever
+  // the next round waits for is told so here rather than nudged again
+  // by its first answer (the stamp above), and whoever ran ahead is told
+  // the result alone. Best-effort by construction: sendPushToUids never
+  // throws, so FCM being down can never roll back a reveal that already
+  // committed.
+  const title = group.get("name") || (mode === "duo" ? "Your 1v1" : "Your group");
+  const out = mode === "duo" ? "Your answers are out" : `Round ${round} is out`;
+  const waiting = new Set(waitingNext);
+  const told = members.filter((u) => !waiting.has(u));
   await sendPushToUids(
     db,
-    members,
-    {
-      title: group.get("name") || "Your duel",
-      body: mode === "duo"
-        ? "Yesterday's answers are out — see if you called it."
-        : "Yesterday's answers are revealed — see who said what.",
-    },
-    { kind: "reveal", gid, day: dayKey },
+    waitingNext,
+    { title, body: `${out} — and round ${round + 1} is waiting for you.` },
+    { kind: "reveal", gid, round: String(round) },
+    "reveals",
+    "reveal",
+  );
+  await sendPushToUids(
+    db,
+    told,
+    { title, body: mode === "duo" ? `${out} — see if you called it.` : `${out} — see who said what.` },
+    { kind: "reveal", gid, round: String(round) },
     "reveals",
     "reveal",
   );
   return true;
 }
 
-// Which groups a run looks at.
-//
-//   "indexed"  where("pendingDays", "array-contains", day) — only groups
-//              that actually have an answer for that day. What the schedule
-//              uses, 12 times a day, forever.
-//   "full"     every group document. The recovery path, and what the ops
-//              callable uses.
-//
-// Why both, rather than replacing one with the other: the marker is written
-// by onV2AnswerCreated, so the indexed query inherits that trigger's
-// at-least-once delivery. In the steady state that is free — the scan runs
-// every 2h and a marker that lands late is picked up by the next run, well
-// inside the ≤2h reveal delay the schedule already promises. But it does
-// mean "the query returned nothing" and "nothing played" are no longer the
-// same statement, and a run that needs to be certain has to read everything.
-// revealDuelsNowV2 is that run: an operator reaching for it is already
-// reacting to something being wrong, which is the worst moment to hand them
-// a scan that trusts the marker they may be there to repair.
-//
-// It is also what keeps the e2e honest. The loop writes duel answers and
-// calls revealDuelsNowV2 immediately; an indexed-only scan would be racing
-// Eventarc for the marker and would fail on timing rather than on
-// behaviour. The e2e exercises the indexed path in its own leg, with a
-// bounded wait, so both are covered for what each is actually for.
+/**
+ * Reveal every round of this group that is ready, one after another —
+ * a pair that ran ahead can have the next round complete the moment this
+ * one opens, and nothing else would ever ask about it (no further answer
+ * is coming; the deadline is a day away). Bounded by the lead: at most
+ * ROUND_LEAD + 1 rounds can be sealed at once. Reads the group fresh
+ * between passes; `first` is the page snapshot a scan already holds.
+ */
+export async function revealDueRounds(
+  ref: FirebaseFirestore.DocumentReference,
+  opts: RevealOpts = {},
+  first?: FirebaseFirestore.DocumentSnapshot,
+): Promise<number> {
+  let n = 0;
+  let snap = first ?? await ref.get();
+  for (let i = 0; i <= ROUND_LEAD; i++) {
+    if (!snap.exists) break;
+    if (!(await revealRound(snap, opts))) break;
+    n++;
+    snap = await ref.get();
+  }
+  return n;
+}
+
+// Which groups a run looks at is runDuelReveals's own note below: the
+// schedule's "indexed" query is an indexed range on `roundDeadlineAt`,
+// and "full" walks every group. The `pendingDays` marker the day's scan
+// queried — and the at-least-once argument for why the full scan had to
+// exist beside it — went with the day (ROUNDS-PLAN / D426): a due round
+// stays due until it reveals, so a mark that lands late or a run that
+// dies is caught by the next run without anybody naming a day.
+
 // The duel signal's fold (D40 part 3). One small transaction per revealed
-// group-day: read the running private state and the question doc — two
+// ROUND: read the running private state and the question doc — two
 // reads; the option count bounds count folding, and a `pick` question
 // (options []) publishes plays/total only, because its optionIdx values
 // index each group's OWN member list and are meaningless summed across
@@ -1128,115 +1138,62 @@ export async function foldDuelSignal(
 
 type ScanMode = "indexed" | "full";
 
+/**
+ * The reveal scan — the deadline's executor (ROUNDS-PLAN §3.2).
+ *
+ * "indexed" asks Firestore for exactly the groups whose open round is
+ * DUE — `roundDeadlineAt <= now`, an indexed range — and is what the
+ * schedule runs. It finds nothing for a 1v1 that revealed on its second
+ * answer, nothing for a group nobody has played, and nothing for a group
+ * still inside its day: only rounds the deadline has to close. That is
+ * the whole cost story of the scan under rounds — the "scanned but
+ * revealed nothing" reads that dominated the day's duo shape are gone.
+ *
+ * "full" walks every group and reveals whatever is ready — complete, due,
+ * or, with `force`, anything with an answer in it. The operator's
+ * recovery lever, and the e2e's way to reveal without waiting a day.
+ *
+ * No composite index is declared for the indexed query, on the
+ * understanding that Firestore's automatic single-field index on
+ * `roundDeadlineAt` serves a range on it ordered by itself and then by
+ * `__name__`. The emulator creates whatever a query asks for, so a green
+ * test says nothing about production; if the assumption is wrong the
+ * scheduled run throws FAILED_PRECONDITION carrying a console link to the
+ * index it wants, and the full scan still works meanwhile.
+ */
 async function runDuelReveals(
-  dayKey?: string,
   mode: ScanMode = "indexed",
-): Promise<{ revealed: number; scanned: number; mode: ScanMode; days: string[] }> {
-  const days = scanDays(dayKey);
-  let revealedTotal = 0;
-  let scannedTotal = 0;
-  for (const day of days) {
-    const one = await runDuelRevealsForDay(day, mode, scannedTotal);
-    revealedTotal += one.revealed;
-    scannedTotal += one.scanned;
-    // The tripwire bounds the RUN, not a day — so a run that hits it stops
-    // asking about later days too, rather than paying the ceiling once per
-    // day in the window.
-    if (one.cappedOut) break;
-  }
-  // The heartbeat, and the only evidence the scheduled scan ran at all.
-  //
-  // Structured fields as well as the message, for the same reason the
-  // contention line in v2.ts carries them: the message is what a human
-  // greps, the fields are what a log-based metric selects on.
-  //
-  // `mode` is load-bearing here rather than decorative.
-  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
-  // this line, and runDuelReveals is shared by the schedule ("indexed") and
-  // revealDuelsNowV2's manual lever ("full"). Without a mode to filter on,
-  // an operator running the lever during an incident would emit the
-  // heartbeat and reset the absence timer — silencing the alert for the
-  // outage it was run to fix.
-  //
-  // ONCE PER RUN, not per day: a run now covers the whole pending window
-  // (scanDays), and one point per day would make the metric's rate a
-  // statement about the window size rather than about the scan running.
-  // `day` stays the day the schedule is primarily about — yesterday — so a
-  // filter on it means what it always did.
-  logger.info(
-    `[v2social] reveals for ${days.join(",")} (${mode}): ` +
-      `${revealedTotal} of ${scannedTotal} scanned`,
-    {
-      metric: "duel_reveal_run",
-      day: days[0],
-      days: days.length,
-      mode,
-      revealed: revealedTotal,
-      scanned: scannedTotal,
-    },
-  );
-  return { revealed: revealedTotal, scanned: scannedTotal, mode, days };
-}
-
-async function runDuelRevealsForDay(
-  yester: string,
-  mode: ScanMode,
-  scannedBefore: number,
-): Promise<{ revealed: number; scanned: number; cappedOut: boolean }> {
+  force = false,
+): Promise<{ revealed: number; scanned: number; mode: ScanMode; day: string }> {
   const db = firestore();
-  // PAGINATED either way. It used to fetch GROUP_SCAN_CAP docs and process
-  // them one at a time; the 60s timeout bound at roughly 200-400 active
-  // groups — an order of magnitude below the cap — so the function died
-  // mid-loop and re-walked the same prefix on every run, with nothing but a
-  // log line saying why.
-  //
-  // The full scan is what the indexed query replaces on the schedule. It was
-  // there because the obvious filter, `lastCheckedDay != yester`, cannot
-  // work: Firestore's != EXCLUDES documents missing the field, so every
-  // never-checked group would silently drop out, and "!= OR missing" is not
-  // expressible in one query. array-contains has no such hole — a group with
-  // no pendingDays field simply has no pending day, which is exactly true.
-  //
-  // Lanes: 5, not 10. The timeout raise is already 8x, and each reveal can
-  // fan out to a group's whole token set; more lanes buys throughput this
-  // does not need and multiplies peak memory and messaging concurrency.
+  const nowMs = Date.now();
+  // Lanes: 5, not 10. Each reveal can fan out to a group's whole token
+  // set; more lanes buys throughput this does not need and multiplies peak
+  // memory and messaging concurrency.
   const LANES = 5;
   let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
   let revealed = 0;
   let scanned = 0;
 
   for (;;) {
-    // No composite index is declared for this, on the understanding that
-    // Firestore's automatic single-field index for an array field is stored
-    // as (value, __name__) and therefore already serves array-contains
-    // followed by orderBy(__name__). That is an assumption about Firestore,
-    // not something this repo can prove: the emulator creates whatever a
-    // query asks for, so a green test says nothing about production.
-    //
-    // If it is wrong the failure is loud rather than silent — the scheduled
-    // run throws FAILED_PRECONDITION carrying a console link to the index it
-    // wants — and it is recoverable without a deploy, because
-    // revealDuelsNowV2 still does the full scan. Add the index, then let the
-    // next scheduled run catch up.
     let q = mode === "indexed"
       ? db.collection("v2_groups")
-        .where("pendingDays", "array-contains", yester)
-        .orderBy("__name__").limit(PAGE_SIZE)
+        .where("roundDeadlineAt", "<=", Timestamp.fromMillis(nowMs))
+        .orderBy("roundDeadlineAt").orderBy("__name__").limit(PAGE_SIZE)
       : db.collection("v2_groups").orderBy("__name__").limit(PAGE_SIZE);
     if (cursor) q = q.startAfter(cursor);
     const page = await q.get();
     if (page.empty) break;
 
-    // Process the page in fixed-width lanes.
     const docs = page.docs;
     for (let i = 0; i < docs.length; i += LANES) {
       const lane = docs.slice(i, i + LANES);
       const results = await Promise.all(lane.map(async (g): Promise<number> => {
         try {
-          return (await revealGroupDay(g, yester)) ? 1 : 0;
+          return await revealDueRounds(g.ref, { force, nowMs }, g);
         } catch (err) {
           // One group's failure must not strand the rest of the scan.
-          logger.error(`[v2social] reveal failed for ${g.id}/${yester}:`, err);
+          logger.error(`[v2social] reveal failed for ${g.id}:`, err);
           return 0;
         }
       }));
@@ -1247,40 +1204,46 @@ async function runDuelRevealsForDay(
     if (page.size < PAGE_SIZE) break;
     cursor = docs[docs.length - 1];
 
-    // The tripwire, repurposed. It no longer bounds one page — it bounds
-    // the whole run, so "I have outgrown this" still gets said rather than
-    // quietly becoming a multi-minute job.
-    //
-    // Counted across the run's whole day window (`scannedBefore`), not per
-    // day: the ceiling is about how long one invocation may take, and a run
-    // now asks about PENDING_DAYS_KEEP days.
-    //
-    // Note what the two modes mean here. In "full" it counts every group in
-    // the collection, which is the number that used to grow with signups. In
-    // "indexed" it counts groups that PLAYED that day, so hitting the ceiling
-    // is a real statement about activity rather than about registration —
-    // and the remedy named below is the one that is actually left.
-    if (scannedBefore + scanned >= GROUP_SCAN_CAP) {
+    // The tripwire bounds the whole run, so "I have outgrown this" still
+    // gets said rather than quietly becoming a multi-minute job. In
+    // "indexed" it counts groups whose round is DUE — a real statement
+    // about activity, and the remedy below is the one that is left.
+    if (scanned >= GROUP_SCAN_CAP) {
       logger.error(
-        `[v2social] scanned ${scannedBefore + scanned} groups in one ${mode} run ` +
-          `(ceiling ${GROUP_SCAN_CAP}), stopping at ${yester}. Groups and days ` +
-          "beyond this are NOT checked this run; their reveals land on a later " +
-          "run at best. Time to shard the scan by day-key suffix or move it to " +
-          "a queue.",
+        `[v2social] scanned ${scanned} groups in one ${mode} run ` +
+          `(ceiling ${GROUP_SCAN_CAP}), stopping. Groups beyond this are NOT ` +
+          "checked this run; their reveals land on a later run at best. " +
+          "Time to shard the scan by deadline or move it to a queue.",
       );
-      return { revealed, scanned, cappedOut: true };
+      break;
     }
   }
 
-  return { revealed, scanned, cappedOut: false };
+  // The heartbeat, and the only evidence the scheduled scan ran at all.
+  //
+  // Structured fields as well as the message: the message is what a human
+  // greps, the fields are what a log-based metric selects on.
+  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
+  // this line, filtered on `mode: "indexed"` — the schedule's mode — so an
+  // operator running the lever (which defaults to "full") during an
+  // incident does not reset the absence timer for the outage they are
+  // working on. `day` stays on the record for the filter that reads it.
+  const day = utcDayKeyOf(nowMs);
+  logger.info(
+    `[v2social] reveals (${mode}${force ? ", forced" : ""}): ${revealed} of ${scanned} scanned`,
+    { metric: "duel_reveal_run", day, mode, revealed, scanned },
+  );
+  return { revealed, scanned, mode, day };
 }
 
 export const scheduledDuelReveals = onSchedule(
-  // ≤2h reveal delay, half the scans — and since the marker landed, each
-  // scan reads the groups that played rather than every group that exists.
+  // The deadline's executor: a due round reveals within two hours of its
+  // deadline. Every 1v1 that completes, and every group that completes,
+  // reveals on the completing answer instead (the trigger, v2.ts) and is
+  // never this scan's to find.
   { schedule: "every 120 minutes", region: REGION },
   async () => {
-    await runDuelReveals(undefined, "indexed");
+    await runDuelReveals("indexed");
   },
 );
 
@@ -1294,12 +1257,14 @@ export const scheduledDuelReveals = onSchedule(
 // the exemption so it cannot spread by copy-paste.
 //
 // Defaults to the FULL scan, deliberately: see the ScanMode note above.
-// Pass scan:"indexed" to exercise the path the schedule takes.
+// Pass scan:"indexed" to exercise the path the schedule takes, and
+// force:true to reveal every open round that has an answer in it, deadline
+// or not — the incident lever, and how the e2e reveals without a day's wait.
 export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
   assertOperator(request);
-  const dayKey = typeof request.data?.day === "string" ? request.data.day : undefined;
   const mode: ScanMode = request.data?.scan === "indexed" ? "indexed" : "full";
-  return runDuelReveals(dayKey, mode);
+  const force = request.data?.force === true;
+  return runDuelReveals(mode, force);
 });
 
 // ── handles and invitations (D122) ──────────────────────────────────

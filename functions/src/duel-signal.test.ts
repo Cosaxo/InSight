@@ -102,7 +102,7 @@ describe("the cross-group duel aggregate", () => {
     expect(agg!.counts).toEqual({ "0": 1, "1": 2 });
   });
 
-  it("publishes the guess-match rate — a 1v1's at the partner, a group's at the room", async () => {
+  it("publishes the guess-match rate for a 1v1 — and none for a group, where nothing is called (D437)", async () => {
     // Positional pairing: each partner's guess is checked against the
     // OTHER's actual pick. One right, one wrong.
     await fold("duo", QID, [
@@ -112,19 +112,22 @@ describe("the cross-group duel aggregate", () => {
     expect(store.get(AGG)!.guessTotal).toBe(2);
     expect(store.get(AGG)!.guessMatches).toBe(1);
 
-    // A group reveal carrying guesses publishes the rate too since D386
-    // (until then the field only meant anything for a pair): each guess
-    // is read against the option the room landed on. Here the room split
-    // 1–1, so both options tied for the top and both calls on option 1
-    // landed.
+    // A group reveal publishes NO guess rate. For one week (D386) it did —
+    // each call read against the option the rest of the room landed on —
+    // and the owner's 2026-09-09 brief removed the call: the rules refuse
+    // a guess on the group surface, and a stray one from an older client
+    // (the two below) scores nothing rather than reviving the arm.
     store.clear();
     store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
     await fold("group", QID, [
       { optionIdx: 0, guessIdx: 1 },
       { optionIdx: 1, guessIdx: 1 },
     ]);
-    expect(store.get(AGG)!.guessTotal).toBe(2);
-    expect(store.get(AGG)!.guessMatches).toBe(2);
+    // …and a rate of nothing is not published at all (publishableDuelAgg
+    // writes the guess fields only when a guess was counted).
+    expect(store.get(AGG)!.guessTotal).toBeUndefined();
+    expect(store.get(AGG)!.guessMatches).toBeUndefined();
+    expect(store.get(AGG)!.total).toBe(2);
   });
 
   it("mints nothing for a question an operator has deleted", async () => {

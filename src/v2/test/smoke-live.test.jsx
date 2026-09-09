@@ -1390,7 +1390,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // body has rendered" are separated by a dynamic import whose duration
     // is the machine's — the same race Circle's case below documents, and
     // the same fix.
-    expect(await screen.findByText(/revealed with names the morning after/i, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await screen.findByText(/then it opens with names/i, {}, { timeout: 3000 })).toBeTruthy();
     expect(screen.queryByText(/No groups yet/i),
       "Groups still answers an empty stop with a headline").toBeNull();
     // The one action a field cannot fill by itself survives the trim.
@@ -1680,8 +1680,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // against the demo cast reaching a live screen; this one guards against
   // the opposite failure, which Roles is uniquely exposed to: a role is
   // four numbers about a person, and four numbers are trivially
-  // computable from one revealed day. The floor is the only thing
-  // stopping a coin flip being drawn with a name on it.
+  // computable from one cast round or one vote. The floor is the only
+  // thing stopping a coin flip being drawn with a name on it.
   it("offers the Roles tab live, and refuses under the floor", async () => {
     const expectNoBoundary = mountLive({ feedCards: 2 });
     await growFeed();
@@ -1694,12 +1694,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // The panel is behind a React.lazy boundary (profile-overlay is eager
     // and the eager budget had 4 KB left), so the assertion has to wait
     // for the chunk rather than for a render.
-    await screen.findByText(/No 1v1 has 3 days you both guessed yet/);
-    // The fixture has no rooms at all, so both instruments refuse — with
-    // their floors named in the floor's own unit (days both guessed / days
-    // you played, not "revealed days"), not with an empty rose.
-    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).not.toBeNull();
-    expect(screen.getByText(/No group has 2 revealed days you played yet/)).not.toBeNull();
+    await screen.findByText(/Every fourth round of a 1v1 asks what the other is to you/);
+    // The fixture has no rooms at all, so both instruments refuse — each
+    // in the unit its own floor is counted in since D437 (cast rounds in
+    // a 1v1, votes received in a group), not with an empty rose.
+    expect(screen.getByText(/Every fourth round of a 1v1 asks what the other is to you/)).not.toBeNull();
+    expect(screen.getByText(/No room has voted you into a role yet/)).not.toBeNull();
     expectNoBoundary();
     // `window.__profileSub` remembers the last-visited subtab so returning
     // from a tracker lands back on it — and it lives on `window`, which

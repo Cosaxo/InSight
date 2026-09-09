@@ -1,0 +1,46 @@
+--- recorded/group-daily.jsx
++++ 2026-09-07/group-daily.jsx
+@@ -806,9 +806,13 @@
+       }
+     }, header, body, days.length > 1 && dots, manageSheet);
+   }
+-  function GroupDailyBody() {
++  function GroupDailyBody({
++    start
++  }) {
+     const D = window.DUELS;
+     const [, bump] = useReducer(x => x + 1, 0);
++    // the first screen when there are no circles (or the demo asks for it)
++    const [dismissed, setDismissed] = useState(false);
+     useEffect(() => D.subscribe(bump), []);
+     const gs = D.groups();
+     // pending first, frozen at mount — answering must not reshuffle the stack
+@@ -913,6 +917,16 @@
+       return () => window.removeEventListener('is:group-focus', go);
+     }, []);
+     const nLeft = ordered.filter(g => !g.done).length;
++    const forced = start && start !== 'seeded' && !dismissed;
++    if ((forced || !ordered.length) && window.FirstDay) {
++      return /*#__PURE__*/React.createElement("div", {
++        ref: rootRef
++      }, /*#__PURE__*/React.createElement(window.FirstDay, {
++        mode: "group",
++        state: forced ? start : 'fresh',
++        onDone: () => setDismissed(true)
++      }));
++    }
+     return /*#__PURE__*/React.createElement("div", {
+       ref: rootRef,
+       style: col(10)
+@@ -956,7 +970,10 @@
+         nextName: next ? next.name : null,
+         first: i === 0
+       });
+-    })), addOpen && document.querySelector('.app') && ReactDOM.createPortal(/*#__PURE__*/React.createElement("div", {
++    })), window.FirstDayCompact ? /*#__PURE__*/React.createElement(window.FirstDayCompact, {
++      mode: "group",
++      onStart: () => setAddOpen(true)
++    }) : null, addOpen && document.querySelector('.app') && ReactDOM.createPortal(/*#__PURE__*/React.createElement("div", {
+       className: 'wf-scrim' + (closing ? ' is-closing' : ''),
+       onClick: closeAdd
+     }, /*#__PURE__*/React.createElement("div", {

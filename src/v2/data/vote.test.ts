@@ -23,6 +23,7 @@ import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/li
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
 import { FOLLOW_CAP } from "./circle";
+import { OVERFLOW_HOT_CAP, overflowDocId } from "./overflow";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -68,6 +69,14 @@ const h = vi.hoisted(() => ({
     data: Record<string, unknown>;
     opts?: Record<string, unknown>;
   }>,
+  // CALLABLE INVOCATIONS, for the writes that are no longer setDoc.
+  // `testResults` became server-only on 2026-09-09 (D431) because rules
+  // cannot bound a nested map's size, so the political coordinate reaches
+  // other people through `saveTestResultV2` rather than through a profile
+  // write. The cases below still assert on THE WRITE — that reasoning is
+  // unchanged and is the whole point of the block — the write just has a
+  // different shape now.
+  callableCalls: [] as Array<{ name: string; data: unknown }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
@@ -107,6 +116,17 @@ const h = vi.hoisted(() => ({
   answerPageSize: 0,
   answerServed: 0,
   aggIdQueries: [] as string[][],
+  // The breakdown tail's shard reads (D400), by the document ids each
+  // query asked for, and a switch that makes the next one fail. Both are
+  // additive: nothing else on this path was observable, so `loadOverflow`
+  // could neither be counted nor made to fail from a case.
+  overflowIdQueries: [] as string[][],
+  overflowFail: false,
+  // Shard documents the tail query resolves to, by document id. Empty
+  // (the default) is a tree where no shard exists, which is what every
+  // memo/retry case wants; a case that puts a cell here is the only way
+  // to reach the MERGE half of loadOverflow at all.
+  overflowDocs: {} as Record<string, Record<string, unknown>>,
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
   // it exists for is a partial one: several chunked `in` queries fire and
@@ -200,7 +220,17 @@ vi.mock("./engagement", async (importActual) => {
 
 vi.mock("firebase/functions", () => ({
   getFunctions: vi.fn(),
-  httpsCallable: vi.fn(),
+  // A vi.fn WITH A DEFAULT, not a plain one, and not a plain function.
+  // It has to stay a vi.fn because several cases below drive it through
+  // `vi.mocked(...).mockReturnValue(...)`. But a bare vi.fn() returns
+  // undefined, which `callable()` then awaits as `.data` — so any call
+  // would throw into the caller's catch and a case could pass because
+  // nothing happened. The default records and resolves; a case that wants
+  // its own invoke still overrides it.
+  httpsCallable: vi.fn((_fns: unknown, name: string) => (data: unknown) => {
+    h.callableCalls.push({ name, data });
+    return Promise.resolve({ data: {} });
+  }),
 }));
 
 vi.mock("firebase/firestore", () => {
@@ -331,6 +361,20 @@ vi.mock("firebase/firestore", () => {
       // unserved, the store could only ever answer "not following".
       if (q?.path === "v2_users/uid_test/following") {
         return Promise.resolve(snapOf(h.followDocs));
+      }
+      if (q?.path === "v2_agg_overflow") {
+        const ids = (q.parts || [])
+          .filter((pt) => pt && pt.__kind === "where" && Array.isArray(pt.value))
+          .flatMap((pt) => pt.value as string[]);
+        h.overflowIdQueries.push(ids);
+        if (h.overflowFail) return Promise.reject(new Error("offline"));
+        // Serves only the ids the query named, like the agg arm above: a
+        // fake that returned everything would pass a read that asked for
+        // the wrong shard, which is the one thing the hash has to get right.
+        return Promise.resolve(snapOf(
+          ids.filter((id) => id in h.overflowDocs)
+            .map((id) => ({ id, data: h.overflowDocs[id] as Record<string, unknown> })),
+        ));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -499,6 +543,7 @@ beforeEach(() => {
   h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
+  h.callableCalls.length = 0;
   h.updateDocImpl = null;
   h.updateDocCalls.length = 0;
   h.snapshots.length = 0;
@@ -511,6 +556,9 @@ beforeEach(() => {
   h.answerServed = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.overflowIdQueries.length = 0;
+  h.overflowFail = false;
+  h.overflowDocs = {};
   h.voterDocs = {};
   h.voterQueries.length = 0;
   h.voterFailQids.clear();
@@ -656,6 +704,153 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
 // vector was therefore scored on its leading run, and `divisiveness`
 // normalises by option COUNT, so the short vector is not merely missing
 // zeros: it is rescaled.
+// ── the rounds a duel answer is written for ─────────────────────────
+//
+// NOTHING EXECUTED THIS CODE. `test/live-fixture.ts` stubs every
+// `LIVE.social` rounds member and `live-surface.ts` pins only the NAMES,
+// so `roundKey` changed to `r${n + 1}` — which moves every duel answer's
+// document id, the reveal listener's target and which rounds count as
+// sealed — left the whole client suite at 201 files / 2951 tests, exit
+// 0. Two separate reviews measured it the same way on the same night,
+// and it is why two live defects in this file shipped past tsc, eslint,
+// check:globals and the window.LIVE pin: all four are name-level.
+//
+// So this drives the real store: a group document through the store's
+// own listener, a duel question through the bank, and the assertion is
+// on the DOCUMENT THAT GETS WRITTEN.
+describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
+  const duelDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "duo", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true,
+    },
+  });
+
+  /** The group listener's own snapshot shape: `snap.docs.map(d => ({ id,
+   *  ...d.data() }))`. */
+  const groupSnap = (docs: Array<{ id: string; data: Record<string, unknown> }>) => ({
+    size: docs.length,
+    docs: docs.map((d) => ({ id: d.id, data: () => d.data, get: (k: string) => d.data[k] })),
+  });
+
+  const withRoom = async (room: Record<string, unknown>) => {
+    h.bankDocs.push(duelDoc("duo-t1", ["Tea", "Coffee"]), duelDoc("duo-t2", ["Cats", "Dogs"]));
+    const LIVE = await bootLive();
+    const sub = h.snapshots.find((x) => x.path === "v2_groups");
+    expect(sub, "no v2_groups listener — this fixture cannot reach the store").toBeTruthy();
+    sub!.next(groupSnap([{ id: "g1", data: room }]));
+    return LIVE;
+  };
+
+  it("writes the open round's answer at its own id, carrying the round and the question", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info, "the room never reached the store").toBeTruthy();
+    expect(info.open).toBe(3);
+    expect(info.next, "the open round is the one to answer").toBe(3);
+    expect(info.sealed).toEqual([]);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const wrote = h.setDocCalls.find((c) => c.path.includes("/answers/g_g1_"));
+    expect(wrote, "no duel answer was written at all").toBeTruthy();
+    // THE ID IS THE ASSERTION. It is what the reveal listener reads back
+    // and what `roundsOf` calls sealed, so an off-by-one here is silent
+    // everywhere else.
+    expect(wrote!.path).toBe("v2_users/uid_test/answers/g_g1_r3");
+    expect(wrote!.data).toMatchObject({ gid: "g1", round: 3, optionIdx: 1, surface: "duo" });
+    expect(typeof wrote!.data.qid).toBe("string");
+    expect(String(wrote!.data.qid), "the answer names no question").toMatch(/^duo-t[12]$/);
+  });
+
+  it("…and the next round is the next one, sealed behind it", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    await LIVE.social.voteDuel("g1", 0);
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info.sealed, "the answered round is not sealed").toEqual([3]);
+    expect(info.next, "the lead did not advance").toBe(4);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const ids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.path);
+    expect(ids).toEqual([
+      "v2_users/uid_test/answers/g_g1_r3",
+      "v2_users/uid_test/answers/g_g1_r4",
+    ]);
+    // Two rounds, two questions: the round is part of the pick, so the
+    // same room does not ask the same thing twice in a row.
+    const qids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.data.qid);
+    expect(new Set(qids).size, "both rounds drew the same question").toBe(2);
+  });
+
+  it("a LATE answer names the question it was GIVEN, not one re-derived from today's bank", async () => {
+    // The defect this closes (fixed earlier tonight, and until now held by
+    // nothing that runs `voteLate`): the card renders a revealed round's
+    // buttons from the reveal's own qid, while `voteLate` re-derived the
+    // round's question with `duelQFor` — a hash over the CURRENT bank and
+    // world pool. One question appended to either remaps every past round,
+    // and a late answer is by definition given after its round revealed.
+    //
+    // Asserted by handing it a qid `duelQFor` would NOT have chosen and
+    // checking the write carries that one. A test that passed the derived
+    // qid would pass with the fix reverted.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 4, played: {} });
+    // What the round would resolve to on today's bank, so the case can
+    // assert it is NOT what gets written.
+    await LIVE.social.voteDuel("g1", 0);       // seals round 4 and names its question
+    const sealedQid = String(h.setDocCalls.find((c) => c.path.endsWith("g_g1_r4"))!.data.qid);
+    const other = sealedQid === "duo-t1" ? "duo-t2" : "duo-t1";
+
+    await LIVE.social.voteLate("g1", 2, 1, other);
+    const late = h.setDocCalls.find((c) => c.path.endsWith("g_g1_r2"));
+    expect(late, "no late answer was written").toBeTruthy();
+    expect(late!.data).toMatchObject({ gid: "g1", round: 2, optionIdx: 1, late: true });
+    expect(late!.data.qid, "the late answer was filed under a re-derived question").toBe(other);
+  });
+
+  it("a late answer stays inside the lead behind the open round, and never overwrites", async () => {
+    // The window the rules enforce, checked on the client so the tap does
+    // not become a refused write. `open - ROUND_LEAD` is the floor.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 9, played: {} });
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteLate("g1", 3, 0, "duo-t1");   // 9 - 5 = 4, so 3 is out
+    expect(h.setDocCalls.length, "a late answer past the lead was written").toBe(before);
+    await LIVE.social.voteLate("g1", 9, 0, "duo-t1");   // the open round is not late
+    expect(h.setDocCalls.length, "the open round was answered through the late door").toBe(before);
+
+    await LIVE.social.voteLate("g1", 5, 0, "duo-t1");
+    expect(h.setDocCalls.length, "a legal late answer was refused").toBe(before + 1);
+    // …and a second tap on the same round writes nothing: the seal is the
+    // product, and a late answer is still an answer.
+    await LIVE.social.voteLate("g1", 5, 1, "duo-t1");
+    expect(h.setDocCalls.length, "a late answer was overwritten").toBe(before + 1);
+  });
+
+  it("myDuelCall reports the vote and the call it was sealed with", async () => {
+    // The reveal card reads this to decide whether it can say "you read
+    // them" — a guess that silently stopped being remembered would make
+    // the row vanish with nothing red.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
+    await LIVE.social.voteDuel("g1", 1, 0);
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // A vote with no call reads as a pick alone, not as a missing vote.
+    await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
+  });
+
+  it("refuses past the lead rather than writing an answer nothing will accept", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 1, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    for (let i = 0; i < info.lead; i++) await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.roundInfo("g1")!.sealed).toHaveLength(info.lead);
+    expect(LIVE.social.roundInfo("g1")!.next, "the lead's edge is not the end of the road").toBeNull();
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteDuel("g1", 0);
+    expect(h.setDocCalls.length, "a write past the lead the rules would refuse").toBe(before);
+  });
+});
+
 describe("divisivenessOf reads the whole question, not its leading run", () => {
   const bankDoc = (id: string, options: string[]) => ({
     id,
@@ -983,6 +1178,71 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(h.voterQueries.length, "no fan-out ran at all").toBeGreaterThan(0);
     expect(LIVE.kindredDepth(),
       "the caption counted questions whose voter query failed").toBe(1);
+  });
+
+  // ── ASKED AND GOT NOTHING IS A FAILURE, NOT AN EMPTY CROWD ───────
+  //
+  // `kindredFailed` is assigned in exactly one place and only the
+  // NOT-a-failure direction was tested. Forcing it to `false` left EVERY
+  // runner in the tree green while the City field says "Nobody from Oslo
+  // yet — fills in as the city answers" after twelve collection-group
+  // queries that all threw.
+  //
+  // (This said "285 files, 4548 tests" and neither number reproduced —
+  // the surface was nearer 292 and 4898 the night it was written. The
+  // claim is "nothing anywhere went red", which does not need a count,
+  // and a hand-maintained count is the one documentation error this repo
+  // keeps re-committing. Run the suites for the live figure.)
+  //
+  // The lens has the arm for it: LiveSimilarityField reads
+  // `LIVE.kindredState()` and draws "Couldn't read the crowd here" on
+  // 'failed'. Nothing could reach that arm from the store, because every
+  // UI suite stubs the getter — so the sentence existed and the state that
+  // produces it was never produced.
+  //
+  // `loadVoters` swallows each failure and leaves its key ABSENT rather
+  // than empty, deliberately, so that absent and empty stay
+  // distinguishable — and this is the line that makes that distinction
+  // mean something downstream.
+  it("says the read FAILED when it asked for lists and got none", async () => {
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+      h.voterFailQids.add(qid);
+    }
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran, so nothing could have failed")
+      .toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(), "a query landed after all").toBe(0);
+    expect(
+      LIVE.kindredState(),
+      "twelve refused queries were reported to the Mirror as an empty city",
+    ).toBe("failed");
+  });
+
+  it("…and reports 'ready' the moment ONE of them lands", async () => {
+    // THE CONTROL, and the rule it pins is deliberate: a partial pool is a
+    // real pool as far as it goes, so one surviving list is a crowd and not
+    // a failure. Without this, "failed" would also be what a flag stuck on
+    // looks like.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(LIVE.kindredDepth()).toBe(1);
+    expect(LIVE.kindredState(), "one list landed and the crowd was called unreadable")
+      .toBe("ready");
   });
 
   it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
@@ -1809,6 +2069,33 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
+  it("a feed doc's subtopic leaf reaches the mapped card, and absence stays absent (D425)", async () => {
+    // `sub` is how a card belongs to a leaf: world-feed.jsx's filter
+    // fast-paths on it and SUBTOPICS.count reads it off this pool — so the
+    // day a bank doc carries the tag, the leaf is offered ("leaves return
+    // by themselves the day live questions carry their tag",
+    // world-subtopics.js). A mapper that dropped it here would leave every
+    // live leaf at zero stock forever, silently. Emit-when-set, as `also`.
+    h.bankDocs.push(
+      {
+        id: "q_feed_leaf",
+        data: { surface: "feed", seq: 7, type: "vote", prompt: "Best-of-five belongs in the past.",
+          options: ["Keep five", "Three is enough"], topic: "sport", sub: "sub_tennis", test: null, active: true },
+      },
+      {
+        id: "q_feed_noleaf",
+        data: { surface: "feed", seq: 8, type: "vote", prompt: "Vote three",
+          options: ["A", "B"], topic: "sport", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; sub?: string }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_leaf")?.sub).toBe("sub_tennis");
+    expect("sub" in (feed.find((q) => q.id === "q_feed_noleaf") || {})).toBe(false);
+  });
+
   // ── background, the card's `i` (D281) ────────────────────────────
   //
   // Emit-when-set in both directions, and the absent half is the half
@@ -2404,9 +2691,16 @@ describe("window.LIVE public surface", () => {
   // Asserted on the WRITE rather than on the returned state, because the
   // write is what reaches other people.
   describe("the political compass is computed only with consent", () => {
+    // THE WRITE, WHEREVER IT LIVES. This read `h.setDocCalls` until
+    // 2026-09-09, when `testResults` became server-only (D431) because
+    // rules cannot bound a nested map's size. The block's reasoning is
+    // untouched — assert on what reaches other people, not on returned
+    // state — so this follows the write to the callable rather than the
+    // cases being weakened to match the new plumbing.
     const politicalWrites = () =>
-      h.setDocCalls.filter((c) => c.path === "v2_users/uid_test"
-        && !!(c.data.testResults as Record<string, unknown> | undefined)?.political);
+      h.callableCalls.filter((c) => c.name === "saveTestResultV2"
+        && (c.data as { kind?: string }).kind === "political"
+        && (c.data as { result?: unknown }).result !== null);
 
     // REAL prompts off the same axis, and this is what makes the cases
     // below bite. `testItemMeta` joins a bank item to an instrument BY
@@ -2504,28 +2798,65 @@ describe("window.LIVE public surface", () => {
       (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
       await flush();
       const kinds = new Set<string>();
-      for (const c of h.setDocCalls) {
-        if (c.path !== "v2_users/uid_test") continue;
-        for (const k of Object.keys((c.data.testResults as object) || {})) kinds.add(k);
+      for (const c of h.callableCalls) {
+        if (c.name !== "saveTestResultV2") continue;
+        const k = (c.data as { kind?: string }).kind;
+        if (k) kinds.add(k);
       }
       expect(kinds.has("political")).toBe(false);
+      // WHAT THIS CASE DOES NOT PROVE, found on 2026-09-09 (D431) by adding
+      // `expect(kinds.size).toBeGreaterThan(0)` and watching it fail: the
+      // set is EMPTY here, so the "still writes the OTHER instruments" half
+      // of the name is not checked by this fixture and never was. Only
+      // political prompts are seeded, and `passiveResult` refuses an
+      // instrument whose axes are not all behind MIN_AXIS_ITEMS — so big5,
+      // values and attachment fold to null whatever the gate does, and a
+      // gate placed one level too high would pass here.
+      //
+      // The assertion above is still real: it is another absence case, and
+      // the block's positive control carries the weight. Closing the other
+      // half needs two real prompts per axis for a second instrument (ten
+      // for the Big Five, matched BY PROMPT — `testItemMeta` refuses
+      // anything else), which is a fixture rather than a line, and it is
+      // not this change's to build. Left named as it is, with the gap
+      // written down, rather than renamed to hide it.
     });
 
     it("setPoliticalConsent(false) deletes the published compass in the SAME write", async () => {
       // The half a display toggle skips. A record written without the
       // deletion is a profile that still carries the coordinate behind a
       // switch reading "off" — worse than no switch, because it is a
-      // claim. One merge, so a partial failure cannot land that state.
+      // claim. One write, so a partial failure cannot land that state.
+      //
+      // STILL ONE WRITE, on the server since D431. `testResults` became
+      // server-only because rules cannot bound a nested map's size, and
+      // the obvious port — a client consent merge plus a callable removal
+      // — would have reintroduced exactly the window this case exists to
+      // forbid, most of all offline, where the old Firestore write simply
+      // queued. So the record rides WITH the removal in one call and one
+      // `set`. This case is what stops anyone splitting them again: it
+      // asserts both halves are in the SAME invocation, not merely that
+      // both happened.
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
         ? { consent: { political: { v: 1, at: 1 } } } : null);
       const LIVE = await bootLive();
       h.setDocCalls.length = 0;
+      h.callableCalls.length = 0;
       await LIVE.setPoliticalConsent(false);
-      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
-      expect(call, "no profile write at all").toBeTruthy();
-      const data = call!.data as Record<string, Record<string, unknown>>;
-      expect(data.consent.political).toMatchObject({ off: expect.any(Number) });
-      expect(data.testResults.political).toBe("__delete__");
+      const call = h.callableCalls.find((c) => c.name === "saveTestResultV2");
+      expect(call, "no withdrawal write at all").toBeTruthy();
+      const data = call!.data as Record<string, unknown>;
+      expect(data.kind).toBe("political");
+      expect(data.result, "the coordinate was not removed").toBe(null);
+      expect(data.politicalConsent, "the consent record did not ride along, so a "
+        + "failed call leaves the coordinate published behind an off switch",
+      ).toMatchObject({ off: expect.any(Number) });
+      // And nothing wrote `testResults` straight to the profile, which the
+      // rules would refuse — a client that still tried would take the
+      // whole withdrawal down with it.
+      const direct = h.setDocCalls.find((c) => c.path === "v2_users/uid_test"
+        && !!(c.data as Record<string, unknown>).testResults);
+      expect(direct, "a client profile write still carried testResults").toBeFalsy();
     });
 
     it("purges a compass a pre-gate build already published, with no consent on file", async () => {
@@ -2547,23 +2878,26 @@ describe("window.LIVE public surface", () => {
       const LIVE = await bootLive();
       await flush();
       h.setDocCalls.length = 0;
+      h.callableCalls.length = 0;
       (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
       await flush();
-      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      // Through the callable's remove arm since D431 — see politicalWrites
+      // above for why the assertion followed the write.
+      const call = h.callableCalls.find((c) => c.name === "saveTestResultV2"
+        && (c.data as { kind?: string }).kind === "political"
+        && (c.data as { result?: unknown }).result === null);
       expect(call, "the stored compass was left on the profile — the gate "
         + "stops a NEW one being computed and says nothing about the one "
         + "already published").toBeTruthy();
-      const data = call!.data as Record<string, Record<string, unknown>>;
-      expect(data.testResults.political).toBe("__delete__");
       // …and no real coordinate is written back in the same breath.
-      // `politicalWrites()` matches on truthiness and the delete sentinel
-      // is a truthy string, so this asks the sharper question: is any
-      // write carrying an actual result object?
-      const real = politicalWrites().filter((c) => {
-        const d = c.data as Record<string, Record<string, unknown>>;
-        return d.testResults.political !== "__delete__";
-      });
-      expect(real).toHaveLength(0);
+      // `politicalWrites()` already excludes the removal arm, so this is
+      // the sharp question on its own: did any call carry a result object?
+      expect(politicalWrites()).toHaveLength(0);
+      // The consent record does NOT ride along here, and that is the
+      // difference between this case and the withdrawal above: there is no
+      // consent on file to withdraw, so the callable is asked to remove a
+      // coordinate and nothing else.
+      expect((call!.data as Record<string, unknown>).politicalConsent).toBeUndefined();
     });
 
     it("purging costs no write when there is nothing to purge", async () => {
@@ -2616,13 +2950,26 @@ describe("window.LIVE public surface", () => {
       h.setDocCalls.length = 0;
       await LIVE.setPoliticalConsent(false);
       await LIVE.setPoliticalConsent(true);
-      const writes = h.setDocCalls.filter((c) => c.path === "v2_users/uid_test");
-      expect(writes.length, "the two writes did not both land").toBeGreaterThanOrEqual(2);
+      // THE TWO HALVES TRAVEL DIFFERENTLY SINCE D431, and the replay has to
+      // follow both or it reads only half the history. A withdrawal is one
+      // server-side write (`saveTestResultV2` carries the record with the
+      // coordinate removal, so a partial failure cannot leave the switch
+      // lying); a grant touches no test result and stays a client write.
+      // Withdrawal first, then grant — the order this case performs them —
+      // so concatenating in that order replays exactly what Firestore saw.
+      const withdrawals = h.callableCalls
+        .filter((c) => c.name === "saveTestResultV2"
+          && (c.data as { politicalConsent?: unknown }).politicalConsent !== undefined)
+        .map((c) => (c.data as { politicalConsent: Record<string, unknown> }).politicalConsent);
+      const grants = h.setDocCalls
+        .filter((c) => c.path === "v2_users/uid_test")
+        .map((c) => ((c.data as Record<string, Record<string, unknown>>).consent || {}).political)
+        .filter(Boolean) as unknown as Array<Record<string, unknown>>;
+      expect(withdrawals.length, "the withdrawal did not land").toBeGreaterThanOrEqual(1);
+      expect(grants.length, "the re-grant did not land").toBeGreaterThanOrEqual(1);
       const stored: Record<string, unknown> = {};
-      for (const w of writes) {
-        const pol = ((w.data as Record<string, Record<string, unknown>>).consent || {}).political;
-        if (!pol) continue;
-        for (const [k, v] of Object.entries(pol as Record<string, unknown>)) {
+      for (const pol of [...withdrawals, ...grants]) {
+        for (const [k, v] of Object.entries(pol)) {
           if (v === "__delete__") delete stored[k];
           else stored[k] = v;
         }
@@ -3702,5 +4049,143 @@ describe("hydrate's answered-delta watermark", () => {
       "the edit page carried the ANSWERED cursor past a create the answered page "
         + "deferred — that answer is now unreachable on this device forever",
     ).toBeLessThan(20_00);
+  });
+});
+
+// ── THE BREAKDOWN TAIL RETRIES A FAILURE (D400) ─────────────────────
+//
+// `loadOverflow` marks a (scope, key) as loaded BEFORE it fetches, so a
+// stop opened twice costs one read, and it un-marks the pair in its catch
+// so a transient failure is not remembered as a load. That second half is
+// one line, and until now nothing in any runner reached this method at
+// all: the only other mention of it in the tree is a `async () => {}`
+// double in LiveCohortBody.test.tsx and one in live-fixture.ts.
+//
+// What the missing line costs, on a device: the tail is the viewer's OWN
+// city or country cell for every question whose hot map is at the
+// 24-bucket cap without it (docs/MIRROR.md, D400). One dropped fetch and
+// the pair stays marked for the rest of the session — so every Mirror
+// number about the viewer's own place under-reports by their city's own
+// share, on the stop the viewer opened to read about their own place,
+// with nothing on screen saying a read failed. The next mount, which is
+// the one chance to recover, does nothing because the memo says loaded.
+//
+// The memo and the retry are the same variable read in two directions, so
+// both are asserted: a case that only checked the retry would also pass on
+// a method that had simply stopped memoising and re-read on every mount.
+describe("loadOverflow — a failed shard read is not remembered as a load (D400)", () => {
+  const CITY = "Oslo, NO";
+  const QID = "q_t00";
+
+  // A hot map exactly at the cap that does NOT hold the viewer's city —
+  // the one shape `overflowWanted` says is worth a read. One bucket fewer
+  // and the tail is not consulted at all, which is every question today.
+  const cappedByCity = () => {
+    const by: Record<string, Record<string, number>> = {};
+    for (let i = 0; i < OVERFLOW_HOT_CAP; i++) by[`Other${i}, XX`] = { "0": 1 };
+    return by;
+  };
+
+  async function bootAtTheCap() {
+    h.bankDocs.push({
+      id: QID,
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item 0",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: QID, data: { total: 24, counts: { "2": 24 }, by: { city: cappedByCity() } } });
+    const LIVE = await bootLive();
+    LIVE.saveAnchors({ city: CITY });
+    // loadSimilarity is the route that files the test-surface aggregates
+    // into the store, which is what `overflowWanted` reads.
+    await LIVE.loadSimilarity();
+    expect(
+      LIVE.aggFor(QID),
+      "the fixture aggregate never landed, so nothing below is about the tail",
+    ).not.toBeNull();
+    h.overflowIdQueries.length = 0;
+    return LIVE;
+  }
+
+  it("re-reads on the next mount after the shard query fails", async () => {
+    const LIVE = await bootAtTheCap();
+
+    h.overflowFail = true;
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries, "the tail was never asked for").toHaveLength(1);
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ where: "loadOverflow", scope: "city" }),
+    );
+
+    // The next mount of the City stop. Without the catch's un-marking this
+    // asks for nothing, for the life of the session.
+    h.overflowFail = false;
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a failed read was remembered as a load — the viewer's own city cell is missing for the session",
+    ).toHaveLength(2);
+    // The read it retried is the right one: the shard the viewer's city
+    // hashes to, for the question at the cap.
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, CITY)]);
+  });
+
+  it("merges the shard's cell into the cached aggregate, which is the whole point", async () => {
+    // THE HALF THE FIRST THREE CASES COULD NOT SEE. They drive the memo
+    // and the retry, and the fake served no shard, so `cells` was empty
+    // by construction: the entire success body — the overflowCells
+    // record, `withOverflowCell`, the dirty mark, the save and the notify
+    // — could be deleted and 77 files / 1382 tests stayed green.
+    //
+    // What it costs is the sentence the fix's own commit uses: every
+    // Mirror number about the viewer's own place under-reports by that
+    // place's own share. The hot map at the cap does not hold the
+    // viewer's city; the tail does; unless this merge happens `aggFor`
+    // keeps answering with the hot document and the city reads as zero.
+    const LIVE = await bootAtTheCap();
+    h.overflowDocs[overflowDocId(QID, CITY)] = { city: { [CITY]: { "2": 7 }, "Elsewhere, XX": { "0": 3 } } };
+
+    await LIVE.loadOverflow("city");
+
+    const agg = LIVE.aggFor(QID) as { by?: Record<string, Record<string, Record<string, number>>> } | null;
+    expect(
+      agg?.by?.city?.[CITY],
+      "the tail cell never reached the cached aggregate — the viewer's own city still reads as zero",
+    ).toEqual({ "2": 7 });
+    // Only the viewer's key. The shard carries other cities' cells too,
+    // and merging them would put back the buckets the cap evicted.
+    expect(agg?.by?.city?.["Elsewhere, XX"]).toBeUndefined();
+    // …and the rows the hot map already held are still there.
+    expect(Object.keys(agg?.by?.city ?? {}).length).toBe(OVERFLOW_HOT_CAP + 1);
+  });
+
+  it("…and a SUCCESSFUL read is remembered, so a re-opened stop costs nothing", async () => {
+    // THE CONTROL. Without it, "asks twice" would also be what a method
+    // that had stopped memoising altogether looks like — and that method
+    // bills a read every time the viewer moves between Mirror stops.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(1);
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a successful tail read was re-issued on the next mount — the once-per-session memo is gone",
+    ).toHaveLength(1);
+  });
+
+  it("re-reads when the anchor moves, failure or not", async () => {
+    // The memo is keyed on the KEY, not on a boolean, for the same reason
+    // loadCityKindred's is: a viewer who corrects their city must not be
+    // served the old city's tail — or no tail — for the session.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(2);
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, "Bergen, NO")]);
   });
 });

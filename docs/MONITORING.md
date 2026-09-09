@@ -72,8 +72,15 @@ not bookkeeping: a non-zero one means the client is already warning.
 > Measured, not assumed, and worth recording because it looked exactly like
 > a bug: a first pass reported 6 orphans. All six prompts contain an
 > apostrophe and are double-quoted in the archive while the rest are
-> single-quoted. The scan was wrong, not the content. The current numbers
-> are 90 archive entries, 90 live, zero unpromoted, zero orphans.
+> single-quoted. The scan was wrong, not the content. The numbers on
+> 2026-09-08 are 154 archive entries, 134 live, **20 unpromoted**, zero
+> orphans — recomputed with `collectArchive`'s own join. This said "90
+> archive entries, 90 live, zero unpromoted" until then, and it is the
+> reading this section says decides the afternoon: a full archive with
+> nothing waiting is a writing session, twenty waiting is a promotion PR.
+> Only the orphan count survived. The apostrophe figure above is 9 of 154
+> now rather than 6 of 90; the mechanism it justifies — scanning both
+> quote styles — is unchanged.
 
 **Bank inventory** cross-checks against the seeded document count read
 independently out of `functions/src/v2content.ts`. Two paths, one number

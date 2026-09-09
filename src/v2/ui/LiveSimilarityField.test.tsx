@@ -373,7 +373,7 @@ describe("the Near field is a crowd, never a directory", () => {
     // until the roster's names resolve, so this reads the settled frame —
     // which is the one a reader sees for anything but an instant.
     expect(await screen.findByText(/2 of 3 here/)).toBeTruthy();
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(screen.getByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
   });
 
   it("says Matching, not 'nobody has taken the test', while the room is being read", async () => {
@@ -389,10 +389,10 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
     render(<NearField />);
     expect(screen.getByText(/Matching/), "the room was blamed before it was read").toBeTruthy();
-    expect(screen.queryByText(/Nobody here has taken the test/)).toBeNull();
+    expect(screen.queryByText(/Nobody here has taken a test yet/)).toBeNull();
     // …and once the fetch lands, the absence is a real one and is stated.
     await act(async () => { release(); });
-    expect(screen.getByText(/Nobody here has taken the test/)).toBeTruthy();
+    expect(screen.getByText(/Nobody here has taken a test yet/)).toBeTruthy();
   });
 
   it("does not tell a room that people who took the test have not", async () => {
@@ -415,7 +415,7 @@ describe("the Near field is a crowd, never a directory", () => {
   it("does not count people still being fetched as people without a test", async () => {
     // The caption half of the same conflation, and it needs a room that
     // DRAWS — the arm above only fires when nobody is placeable, so a
-    // partially-read room is where "the rest have not taken it" appears
+    // partially-read room is where the "the rest…" clause appears
     // while the rest are simply not back yet.
     const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
     LIVE.near.room = () => ({ people: room, qs: {} });
@@ -423,10 +423,10 @@ describe("the Near field is a crowd, never a directory", () => {
     let release: () => void = () => {};
     LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
     render(<NearField />);
-    expect(screen.queryByText(/the rest have not taken it/),
+    expect(screen.queryByText(/the rest have not taken one, or share too few axes with yours/),
       "four people were called untested while their profiles were in flight").toBeNull();
     await act(async () => { release(); });
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(screen.getByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
   });
 
   it("still says so when people really have not taken it", async () => {
@@ -436,7 +436,7 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.near.room = () => ({ people: room, qs: {} });
     LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
     render(<NearField />);
-    expect(await screen.findByText(/the rest have not taken it/)).toBeTruthy();
+    expect(await screen.findByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
     expect(screen.queryByText(/closest/)).toBeNull();
   });
 
@@ -469,9 +469,50 @@ describe("the Near field is a crowd, never a directory", () => {
     expect(nodes(container)).toHaveLength(0);
   });
 
+  it("does not say nobody has taken a test to a room where everybody has", async () => {
+    // THE THIRD REASON. `scoreMatch` returns null below MIN_PLACE_AXES (3)
+    // shared axes, and `flattenAxes` keys an axis `${kind}:${dim}` — so
+    // the four instruments share NO axis id. A viewer who has taken only
+    // Big Five overlaps a Politics-only room on nothing, every one of them
+    // drops out of `placeable`, and the stop's landing surface said none
+    // of them had taken a test. All three here have.
+    //
+    // Not a fixture curiosity: it is what a reader meets whenever the room
+    // took a different instrument than they did, which the app never asks
+    // anyone to avoid.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => ({ political: { econ: 40, soc: 60, env: 50, glob: 45, auth: 55, trad: 35 } });
+    LIVE.myTestResults = () => rawBig5(50, 50, 50, 50, 50);
+    render(<NearField />);
+    expect(
+      await screen.findByText(/shares enough axes with your tests yet/),
+      "a room that has all taken a test was told nobody had",
+    ).toBeTruthy();
+    expect(screen.queryByText(/has taken a test yet/)).toBeNull();
+    // The room is still offered, because the people are the product even
+    // when the likeness is not computable.
+    expect(screen.getByText(/3 in the room/)).toBeTruthy();
+  });
+
+  it("…and DOES say it when the room genuinely has no scores", async () => {
+    // THE CONTROL. Without it, the case above passes just as well on a
+    // component that had stopped saying "has taken a test" at all.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => null;
+    LIVE.myTestResults = () => rawBig5(50, 50, 50, 50, 50);
+    render(<NearField />);
+    // Awaited for the same reason its sibling above is: the first frame is
+    // "Matching…" until the roster's profiles resolve, and the claim about
+    // the room is only made once the room has been read.
+    expect(await screen.findByText(/Nobody here has taken a test yet/)).toBeTruthy();
+    expect(screen.queryByText(/shares enough axes/)).toBeNull();
+  });
+
   it("and says whose turn it is — the room is not to blame for the viewer's own state", () => {
     // The case above never looked at the sentence, and the sentence blamed
-    // the room: "Nobody here has taken the test", in a room where two of
+    // the room: "Nobody here has taken a test yet", in a room where two of
     // the three had, to a reader who simply has not taken it yet. That is
     // the state every account is in before its first instrument, so it is
     // the most common thing this field has ever said.
@@ -481,7 +522,7 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.myTestResults = () => null;
     render(<NearField />);
     expect(screen.getByText(/Finish a test/)).toBeTruthy();
-    expect(screen.queryByText(/Nobody here has taken the test/)).toBeNull();
+    expect(screen.queryByText(/Nobody here has taken a test yet/)).toBeNull();
   });
 });
 
@@ -536,6 +577,54 @@ describe("a position is a claim", () => {
     // Listed, not silently dropped — the difference between "thin" and
     // "unlike you", which is the whole of honesty rule 3.
     expect(screen.getByText(/1 more country answered/)).toBeTruthy();
+  });
+
+  it("says how many countries the chip list is not showing", () => {
+    // THE BRANCH EVERY ACCOUNT IS IN BEFORE ITS FIRST TEST RESULT. With no
+    // scores of your own, nothing can be POSITIONED — so the field falls
+    // back to a row of chips, capped at PLACE_FIELD_CAP (24). Both
+    // disclosure lines are gated off here: `thin`'s on
+    // `positioned.length > 0`, and `capped` is 0 by construction, because
+    // reaching this branch means nothing was placeable at all.
+    //
+    // So thirty countries answered, twenty-four chips were drawn, and the
+    // list read as all of them — which is precisely what the comment above
+    // the `capped` line forbids, two lines from where it happened: "a cap
+    // that silently eats rows reads as 'that is all of them'."
+    LIVE.myTestResults = () => null;
+    LIVE.myVotes = () => ({});
+    const many = ["US", "GB", "NO", "SE", "DK", "FI", "DE", "FR", "ES", "IT",
+      "NL", "BE", "PL", "CZ", "AT", "CH", "IE", "PT", "GR", "CA",
+      "AU", "NZ", "JP", "KR", "BR", "AR", "MX", "ZA", "IN", "CN"];
+    LIVE.aggFor = () => ({
+      by: { country: Object.fromEntries(many.map((c) => [c, { "2": 5 }])) },
+    });
+    render(<SimilaritySection scope="world" />);
+
+    // The precondition, asserted rather than assumed: this is the chip
+    // fallback, not the positioned field.
+    expect(
+      screen.getByText(/Finish a test and these take their places/),
+      "the field positioned them — this case is about the branch that cannot",
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/6 more countries answered, not shown here/),
+      "six countries were dropped from the list with nothing saying so",
+    ).toBeTruthy();
+  });
+
+  it("…and says nothing when the list is complete", () => {
+    // THE CONTROL. A line that always draws is as wrong as one that never
+    // does — under the cap there is no overflow to disclose.
+    LIVE.myTestResults = () => null;
+    LIVE.myVotes = () => ({});
+    LIVE.aggFor = () => ({ by: { country: { NO: { "2": 5 }, SE: { "2": 5 } } } });
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Finish a test and these take their places/)).toBeTruthy();
+    expect(
+      screen.queryByText(/not shown here/),
+      "a complete list claimed to be hiding something",
+    ).toBeNull();
   });
 
   it("says the read FAILED rather than that no country has answered", () => {

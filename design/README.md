@@ -31,9 +31,9 @@ its population chips at D216 — the Patterns tab ported whole
 its port and lists the behaviours the ports refused). Same rule again:
 it does not re-point this file.
 
-**Five more followed in the same numbered series** (`InSight_2`,
-`InSight_3`, `InSight_4`, `InSight_7`, `InSight_9` — five, six and
-eight were never uploaded here): the **2026-08-22** upload carried the paid
+**Six more followed in the same numbered series** (`InSight_2`,
+`InSight_3`, `InSight_4`, `InSight_7`, `InSight_9`, `InSight_10` — five,
+six and eight were never uploaded here): the **2026-08-22** upload carried the paid
 question report's design, extracted to `standalone-2026-08-22/` and
 implemented by the report builder (D251); the **2026-08-24** upload
 turns the suggestion board into the paid door, adds the buyer's room,
@@ -61,9 +61,35 @@ Circle/1v1 prompts and the Oracle's halves, the lens legends retire
 behind one ⓘ, and the Patterns lens picker docks in the header —
 extracted to `standalone-2026-09-06/` (compiled again, same recipe),
 with the plan at
-[`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md);
-`docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D390). Each
+[`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md); and the
+**2026-09-07** upload gives the two instruments a second level — the
+Big Five's thirty IPIP-NEO facets and the compass's eighteen positions,
+the compass carrying its own six questions per axis — draws the first
+day of Circle and 1v1, and puts the person overlay's three record
+sections on paper — extracted to `standalone-2026-09-07/` (compiled
+again, same recipe; no stylesheet moved), with the plan at
+[`docs/VISION-2026-09-07.md`](../docs/VISION-2026-09-07.md), which is
+also the plan for how the facets and positions get measured;
+`docs/VISUAL-VISION.md` named it the current vision (D361's rule,
+D415); and the **2026-09-08** upload (`InSight_12`) makes the group a
+CAST — role votes in five scenario packs with the members as the
+options, a rating of the group between two poles every fourth round,
+the crown and the contested pair on the reveal, the cast drawn on the
+Mirror's Groups stop, and the group instrument's fourth dim back —
+extracted to `standalone-2026-09-08/` (compiled and, new with this
+bundle, compacted; the README says what the extraction did and did not
+diff, and carries the bundle's own hashes for the next one), with the
+plan at [`docs/VISION-2026-09-08.md`](../docs/VISION-2026-09-08.md);
+it was the current vision (D434); and the **2026-09-09** upload
+(`InSight_15`, with the owner's brief *how 1v1s and Groups work now*)
+gives the 1v1 a cast round, every role a seat, the group a run that is
+a record, the Groups stop an Overview, the instrument two settings —
+casts per axis, votes per seat — and the person page a Together tab;
+extracted to `standalone-2026-09-09/` (the ten modules the bundle's own
+hashes say moved, the first extraction measured that way), with the
+plan and the questions at
+[`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it is the
+current vision (D436), recorded and not yet built. Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

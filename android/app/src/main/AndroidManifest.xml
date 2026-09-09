@@ -155,5 +155,18 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- That is the complete list. The app requests no camera and no photo
-         library: the v1 surfaces that needed them were removed in D4. -->
+         library — but not for the reason this used to give. It said "the
+         v1 surfaces that needed them were removed in D4", and D178 has
+         since added one back: the optional profile photo
+         (LivePrivacyPanel). The conclusion survives, on different
+         grounds. That surface is a plain `<input type="file">` with no
+         `capture` attribute, and Capacitor's file chooser only reaches
+         the camera branch when capture is asked for, so the picker Android
+         opens needs no permission at all. iOS is the opposite case and its
+         plist says so: WKWebView demands the purpose strings even for a
+         library pick, and terminates the app on the tap without them.
+         Adding permissions here to match the plist would be asking for
+         two the app never uses.
+         Note this is about PERMISSIONS, not about disclosure: the photo
+         is collected, and the store forms are where that is declared. -->
 </manifest>

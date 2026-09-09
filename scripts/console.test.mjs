@@ -327,9 +327,33 @@ describe("the lists on this tree", () => {
     // numbered 9 and not 7 because 7 is the first-launch walkthrough under
     // Built: the numbers here are unique across SECTIONS, not within one,
     // and a request filed as 7 collided silently until this test caught it.
-    expect(v.requested.length).toBe(9);
-    expect(v.designed).toEqual([]);
-    expect(v.built.length).toBe(2);
+    // 10 since 2026-09-07's build-33 test: the account-setup sheet
+    // (item 10), whose column overflowed every phone by 44px and which
+    // the owner also wants to REQUIRE some answers before it can be
+    // skipped — a reversal of that file's own "it does not block", so a
+    // request rather than a fix. Built is 3 since D421 filed the pictures
+    // on the pick tiles (item 11) straight under Built on 2026-09-07 —
+    // item 7's shape again: built on the owner's direct ask without the
+    // drafted step, and recorded there rather than skipped silently.
+    // 11 requested for one day, 2026-09-08: ROUNDS-PLAN filed the 1v1 and
+    // group card when a round is the unit — the card's whole grammar was
+    // a clock, and a 1v1 that reveals when the other person plays has
+    // none — and the owner's canvas came back the same day, so it sits
+    // under Built as item 12 (its number moved off the pictures' 11 at
+    // the merge): requested 10 again, built 4. Requested 9 and Designed 1
+    // since 2026-09-08 (D434): the owner's InSight_12 upload drew the
+    // group's cast — item 6 — so it moved under Designed, the section
+    // being the status; its build is step 3 of VISION-2026-09-08.md.
+    // Requested 8 and Designed 2 since 2026-09-09 (D436): the owner's
+    // InSight_15 upload drew the roles panel, the person page's pair card
+    // and the instrument in two settings — item 5's three surfaces — so
+    // it moved under Designed beside 6, which the same upload redrew.
+    // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D437): both
+    // were built the same day, on the owner's answers to that plan's
+    // questions, and moved under Built with their status lines saying so.
+    expect(v.requested.length).toBe(8);
+    expect(v.designed.length).toBe(0);
+    expect(v.built.length).toBe(6);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

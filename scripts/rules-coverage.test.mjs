@@ -21,7 +21,7 @@ describe("booleanAtoms — what counts as an atom", () => {
   it("keeps a boolean leaf", () => {
     const atoms = booleanAtoms({ report: [node(10, 100, [B(true, 5), B(false, 2)])] });
     expect(atoms.size).toBe(1);
-    expect(atoms.get("100:110")).toEqual({ line: 10, t: 5, f: 2 });
+    expect(atoms.get("100:110")).toEqual({ line: 10, t: 5, f: 2, e: 0 });
   });
 
   it("DROPS a composite whose children are booleans", () => {
@@ -58,7 +58,23 @@ describe("booleanAtoms — what counts as an atom", () => {
       report: [node(10, 100, [B(true, 3)]), node(10, 100, [B(false, 4)])],
     });
     expect(atoms.size).toBe(1);
-    expect(atoms.get("100:110")).toEqual({ line: 10, t: 3, f: 4 });
+    expect(atoms.get("100:110")).toEqual({ line: 10, t: 3, f: 4, e: 0 });
+  });
+
+  it("counts a non-boolean value on a boolean node as an EVALUATION, not as nothing", () => {
+    // Rules short-circuit on an ERROR as well as on false — `x is int` on
+    // a document with no `x` errors rather than returning false — and the
+    // emulator reports that evaluation with a non-boolean value on the
+    // same node. It was dropped, so the predicate read `true N×, false 0`
+    // and landed on a list meaning "nothing tests this". Measured on
+    // firestore.rules:1251, the guard keeping rank answers out of the D86
+    // edit arm: reported never-false, and deleting it turns the suite red.
+    const atoms = booleanAtoms({ report: [node(10, 100, [B(true, 6), S("err", 3)])] });
+    expect(atoms.get("100:110")).toEqual({ line: 10, t: 6, f: 0, e: 3 });
+    expect(neverFalse(atoms), "an errored negative case still read as untested").toEqual([]);
+    // …and one with neither a false nor an error is still named.
+    const bare = booleanAtoms({ report: [node(11, 200, [B(true, 6)])] });
+    expect(neverFalse(bare).map((n) => n.line)).toEqual([11]);
   });
 
   it("survives a report with no nodes rather than throwing", () => {
@@ -90,6 +106,17 @@ describe("verdict — the ratchet, in both directions", () => {
   it("passes on the baseline", () => {
     expect(verdict(96, 353, 96).ok).toBe(true);
     expect(verdict(96, 353, 96).message).toMatch(/96 of 353/);
+    // …AND THE HALF IT DID NOT SEE. `rules.test.ts` runs a second
+    // environment over a patched ruleset (`insight-rules-enforced`), and
+    // this gate reads only the first — so a predicate whose only FALSE
+    // lives there counts as never-false and the number overstates. That is
+    // a stated gap rather than a closed one, and a success line that reads
+    // as the suite's whole coverage is how a stated gap becomes a
+    // forgotten one.
+    expect(
+      verdict(96, 353, 96).message,
+      "the success line no longer says it read one environment of two",
+    ).toMatch(/ONE of the suite's two rule environments/);
   });
 
   it("FAILS when the count rises — a new rule with no negative test", () => {

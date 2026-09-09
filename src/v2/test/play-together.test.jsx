@@ -43,27 +43,33 @@ afterEach(() => {
 describe('Play together', () => {
   it('a running 1v1 leads with a named duo type and Opens through the cue + nav', () => {
     expect(overlay()).toBeTypeOf('function');
-    const partner = DUELS.partners().find((x) => x.played >= 3);
+    // three casts is the floor (MIN_DUO), and a cast comes every fourth
+    // round — so the partner needs twelve revealed rounds
+    const partner = DUELS.partners().find((x) => x.played >= 12);
     expect(partner, 'the demo bank should carry at least one deep 1v1').toBeTruthy();
     const p = (IS_DATA.people || []).find((x) => x.id === partner.id);
     openFor(p);
-    expect(screen.getByText('Play together')).toBeTruthy();
-    // the type name is real: one of the duo registry's own names
+    expect(screen.getByText('Together')).toBeTruthy();
+    // the type name is real: one of the duo registry's own names — read
+    // off the cast rounds (D437), so the partner needs three of them
     const names = IS_ARCHETYPES.duo.list.map((t) => t.name);
     const typed = names.some((n) => screen.queryByText(n));
-    expect(typed, 'the 1v1 row should carry a registry type name').toBe(true);
-    fireEvent.click(screen.getByText('Open'));
+    expect(typed, 'the 1v1 tile should carry a registry type name').toBe(true);
+    // the tile IS the door: it leads with the rounds played and the type
+    const tile = screen.getAllByRole('button').find((b) => /1v1 · /.test(b.textContent || ''));
+    expect(tile, 'the 1v1 tile is missing').toBeTruthy();
+    fireEvent.click(tile);
     expect(goNav).toHaveBeenCalledWith('track:duo');
     // the cue was consumed by nothing yet — the viewer will take it on mount
     expect(duelCue.takeDuelCue('duo')).toBe(p.id);
   });
 
-  it('a shared group is a chip that cues the group viewer', () => {
+  it('a shared group is a tile that cues the group viewer', () => {
     const g = DUELS.groups().find((x) => x.members.some((m) => !m.pending));
     const mem = g.members.find((m) => !m.pending);
     const p = (IS_DATA.people || []).find((x) => x.id === mem.id);
     openFor(p);
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(g.name) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp('Open ' + g.name) }));
     expect(goNav).toHaveBeenCalledWith('track:group');
     expect(duelCue.takeDuelCue('group')).toBe(g.id);
   });
@@ -77,8 +83,8 @@ describe('Play together', () => {
     );
     if (!p) return; // the demo cast may leave nobody fully unconnected — then there is nothing to pin
     openFor(p);
-    // no shared record, not a friend: the card either hides or says why
-    if (screen.queryByText('Play together')) {
+    // no shared record, not a friend: the section either hides or says why
+    if (screen.queryByText('Together')) {
       expect(screen.getByText(/add .* first/)).toBeTruthy();
       expect(screen.queryByText('Start')).toBeNull();
     }

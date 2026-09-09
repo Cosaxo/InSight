@@ -55,12 +55,35 @@ nothing, loudly, if no topic is thin.
    `functions/src/v2content.ts`, byte-for-byte through the script and
    never by hand — plus the prose figures `check:figures` then names,
    applying exactly the fix lines the gate prints (§ Promoting questions
-   has the procedure). Everything else under `content/` stays
+   has the procedure). Third (D424): the run parks an unfittable question
+   in `content/topic-proposals.json` and, when `npm run topic:budget` says
+   to create, writes the category at every site that regulator names —
+   which for the feed is two files and for the daily is `CAT_META` plus
+   the archive entries that stock it. Fourth (D427): when that regulator
+   says RETIRE, the run FOLDS the room — rewriting `cat`, `sub`, `alts`
+   or `f` on existing rows so their questions are met elsewhere, and
+   nothing else about them — and removes every site the verdict names.
+   Both carve-outs are bounded by `check:taxonomy`, which fails a
+   category written at some of its sites and not the others, and a
+   retired one found at any. Everything else under `content/` stays
    untouchable.
-3. **No new categories.** Every question's `cat`/`alts` tops must be keys
-   that already exist in `CAT_META` in that same file. Creating one is out
-   of scope for every run on every surface; a question that fits none is
-   dropped and its category proposed — § When no category fits.
+3. **The You map's ring is fixed; the taxonomies grow, by ARITHMETIC.**
+   Reversed at D424 and shaped at D425, on the owner's direction: the
+   lanes create categories now — *"learn, feed, daily: all of these can
+   get new topics"* — and what stays as it is is *"the amount of topics
+   shown at the top in the You map"*: the hubs of `map-groups.js`, held
+   at today's count by `check:taxonomy`, a new one being the owner's.
+   A new feed topic, learn subject or daily top lands IN a hub that
+   exists (`group` on the proposal; the daily's `MAP_GROUPS` entry, the
+   feed's `WF_BRANCH` caption row, learn's `lrn-` prefix), and a
+   **subtopic** is the cheaper shape whenever the questions are a part of
+   a topic that exists. What a run may not do is decide alone — `npm run
+   topic:budget` rules on the proposal ledger and a run creates exactly
+   what it says to create, at every site, in the same PR. A question
+   fitting nothing is PARKED in `content/topic-proposals.json`, not
+   dropped. § When no category fits has the whole procedure; hard rule
+   2's ledger carve-out is what lets a run write it. The daily's second
+   level is the path `cat: [Top, Sub]` and is written, never created.
 4. **Never generate answers, votes, takes, or people.** Questions are
    content; activity is fabrication (decision D1). There is no exception.
 5. **Append only, at the end of `Q`.** Ids are positional: entry `i` maps
@@ -394,7 +417,7 @@ siblings*, prints one packet line each, and exits non-zero on any pair at
 or above the 0.5 gate. The sibling half is why the batch form is the rule
 now: `--candidate` run eight times compares eight questions to the bank
 and never to each other, and every lane's budget is bigger than one
-question (8/run here, 10/run learn). Two twins written in the same run
+question (8/run here, 30/run learn). Two twins written in the same run
 used to reach CI — one human review too late. `--candidate "…" --options
 "A|B"` still works for a single lookup while writing.
 
@@ -471,7 +494,14 @@ abort the run with no push rather than force it green.
   is not, leave the PR open and put the failure verbatim in the run's
   issue #31 comment — an open lane PR now MEANS a gate refused it, which
   is exactly what the next run's `--open` count and the roll-up rule
-  below are for.
+  below are for. (This sentence survived D385 on purpose: the
+  shepherd's retirement read as covering the lanes for two days —
+  every run 2026-09-07→09-09 stopped at a green head and waited for
+  the owner's click — until the owner ruled the lanes' self-merge
+  outside D385's scope, *"fix the manual so lanes self merge again"*,
+  recorded as the 2026-09-09 D385 amendment. A lane merges the head
+  its own run built and its own gates proved; what D385 retired was
+  merging on a label.)
 - **One open PR per lane — roll up, don't stack** (2026-08-03). If this
   lane's previous PR is still open (post-D212: its gates failed, or its
   merge was interrupted), do not open a second: check out its branch,
@@ -758,11 +788,17 @@ grantable budget of 10. Rules for a learn run:
 - **Start every run with `npm run learn:budget -- --open <cards on the
   open lane PR>`** (D115, reshaped at D350). The budget is computed, not
   flat, and since D350 it has **no ceiling**: every run is granted up
-  to **10 cards per run**, less whatever already sits unreviewed on the
-  lane's open PR, and the only zero is **10** unreviewed cards on that PR
-  (a gate refused a batch — fix it, do not stack). What the grant is
-  spent on is printed as the ALLOCATION, in the three tiers every lane
-  shares (`scripts/lane-tiers.mjs`), a chunk per field:
+  to **30 cards per run** (10 until D428 — raised on the owner's
+  direction that learn's coverage grows fastest of all the surfaces;
+  half the feed's 60, a learn card costing more at the writing bar),
+  less whatever already sits unreviewed on the lane's open PR, and the
+  only zero is **30** unreviewed cards on that PR (a gate refused a
+  batch — fix it, do not stack). **A third of the grant opens new
+  fields first** (D428 — `npm run topic:budget` names which subjects,
+  and `npm run learn:budget -- --reserve <n>` takes those cards off the
+  top); what the rest is spent on is printed as the ALLOCATION, in the
+  three tiers every lane shares (`scripts/lane-tiers.mjs`), a chunk per
+  field:
 
   1. **The floor first.** Every field is brought to **24 cards per
      field** — three times the scheduler's 8-card spacing floor, what
@@ -865,21 +901,28 @@ docs with `mode: "romantic"`, served only to pairs whose duo doc chose
 the pool). Like learn cards there is no spec-vs-live split to graduate
 across — the same file feeds the demo layer and the seeded bank — so a
 merged duel PR IS the production review: one gate, production-level bar.
-**A Routine fires this lane** (D213; weekly — the inventory under
-Governance carries the schedule). Until then it ran only when the
+**A Routine fires this lane** (D213; weekly by design, and daily from
+2026-09-08 for the bank burst — the inventory under Governance carries
+the schedule, the burst's arithmetic and its exit condition). Until
+D213 it ran only when the
 maintainer asked a dev session, and the measured result was the shape
 every unscheduled lane produced: nothing — twelve straight days without
 a duel question (2026-08-07 → 08-19) while the group pool sat at exactly
-one 24-day rotation, meaning a daily group's day 25 is a rerun. Rules
+one 24-round rotation, meaning a group's 25th round is a rerun (a
+round was a day then; it is a round now, ROUNDS-PLAN / D426). Rules
 for a duel run:
 
 - **Start every run with `npm run duel:budget -- --open <questions on
   the open lane PR>`** (D213). The budget is computed, not flat: it
-  grants up to **4 duel questions per run** while any pool is short of
-  **48 questions per pool** (twice the shipped group rotation, so a
-  daily player goes ~7 weeks without a repeat), subtracts whatever
-  already sits unreviewed on the lane's open PR, and grants **zero** at
-  the target or at **4** unreviewed duel questions on that PR. It prints
+  grants up to **25 duel questions per run** while any pool is short of
+  **400 questions per pool** (the burst, ROUNDS-PLAN §6.1 / D426: a
+  pair at eight rounds a day goes ~7 weeks without a repeat, the horizon
+  the day's 48 gave a daily player — and the romantic pool keeps 48
+  while it ships dark, read off the bank's `active` posture), subtracts
+  whatever already sits unreviewed on the lane's open PR, and grants
+  **zero** at the target or at **25** unreviewed duel questions on
+  that PR. Twenty-five is what one review PR can hold, and every hard
+  rule below applies per question whatever the batch. It prints
   the ALLOCATION — which pools to write into and how many each — and a
   `signal:` line saying whether the guess-match band has anything to
   read yet. This replaced D40's flat "≤4 questions/run, at most weekly
@@ -890,12 +933,45 @@ for a duel run:
   `duel-budget.test.mjs` pins the properties — including that the dark
   romantic pool counts at full weight, because its entries light up in
   one operator step.
-- **Append only, at the end of the right array.** Group order is
-  rotation order — interleaved us/pick/classic, never sorted. Both 1v1
-  pools are ordered light → deep; append deep. Ids continue each series
-  (group: the gu/gp/gd prefixes; 1v1: the next `NNN` suffix, shared
-  across `oneVsOne` and `romantic` — they are one `duo-NNN` id
-  namespace).
+- **Append only, at the end of the right array.** Group order is the
+  demo's rotation order, never sorted. Both 1v1 pools are ordered light
+  → deep; append deep. Ids continue each series (group: `gr` for a role
+  vote, `gs` for a rating — the older gu/gp/gd series are closed; 1v1:
+  the next `NNN` suffix, shared across `oneVsOne` and `romantic` — they
+  are one `duo-NNN` id namespace). **The cast round is not the lane's**:
+  each 1v1 pool holds exactly one `"kind": "cast"` entry (`073`, `074` —
+  *Most days, {name} is…*, D437), dealt every fourth round; never write
+  another, and never give an ordinary 1v1 entry `them` or `dims`.
+- **The group is a CAST (D434, the owner's 2026-09-08 design —
+  `docs/VISION-2026-09-08.md`).** A group question is one of two kinds
+  now. A **role vote** is a `pick` (no options — the members are the
+  options) tagged with the scenario pack it belongs to (`"scen":
+  "<pack id>"`, one of the packs in the file's top-level `scenarios`:
+  Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip) and
+  the role it casts (`"role": { "id", "label", "seat" }` — *the
+  mastermind*, said of a person in front of their group, so `COPY.md`
+  §3 applies word by word; the **seat** is `engine` · `hands` · `heart`
+  · `wild`, what a member's received votes cluster into — D437). A new
+  pack is **four roles, one a seat**, and a hue, added to `scenarios`
+  first; `check:content` refuses a pack with two roles in one seat or a
+  seat empty. A **rating** is `"kind": "rate"` with two
+  `"poles"` and no options — the seed derives the five step labels
+  (*Calm · mostly Calm · in between · mostly Chaos · Chaos*), so a pole
+  has to read as a step's end word. The live rotation deals three role
+  votes and then a rating (`isRatingRound`, data/deck.ts); the older
+  us/classic questions are in the bank and out of the rotation, so
+  **do not write more of them**. `check:content` holds the kinds and
+  their shapes.
+- **The bank is not compiled into the app (D435).** The demo build
+  carries `content/duel-sample.json` — a generated slice (the first few
+  served questions of each group kind and each 1v1 domain, in bank
+  order, plus the packs those votes name), written by
+  `scripts/gen-duel-sample.mjs` and held to its source by
+  `check:duel-sample`. An **append never moves it**, so a run has no cap
+  to stop at and nothing to regenerate beyond `build:content`. The one
+  edit that does move it is a retirement (the next entry of that kind
+  slides in), which is the operator's, and the gate names the fix:
+  `npm run build:duel-sample`. Never edit the sample by hand.
 - **Match the pool's `active` posture.** While the romantic pool is dark
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,
@@ -1380,52 +1456,238 @@ a served question. Rules, each load-bearing:
   none is open), never generated activity, never a flag flipped, never
   a shipped question's options edited.
 
-## When no category fits (every question gets one; new ones are human)
+## When no category fits (every question gets one; the tree grows)
 
 Two rules, and they pull in opposite directions on purpose.
 
 **Every question carries a category, and gates say so.** Per surface:
 `cat` is `[Top, Sub]` with `Top` in `CAT_META` for a daily question; a
-`topics` id for a feed question; a `WORLD_TOPICS` id for a pick card; `f`
-(the field) for a learn card. `check:quality` enforces all four — the
-feed and pick halves since D145, which found both unenforced. Every
-question in the tree already carried one, so nothing was broken; what was
-missing was the gate, and "true in the data" is a different thing from
-"true" once a schedule rather than a human is writing. The pulse is the
-one deliberate exception: it is a single standing card on the daily tab,
-not something filed into a topic list, and its Map branch is unported by
-D139's own decision (the seventh over-category, the D126 boundary).
+`topics` id for a feed question (plus, optionally, a `sub` naming the
+subtopic leaf it belongs to — D425); a `WORLD_TOPICS` id for a pick card;
+`f` (the field) for a learn card. `check:quality` enforces all of it — the
+feed and pick halves since D145, which found both unenforced, and `sub`
+since D425. Every question in the tree already carried one, so nothing
+was broken; what was missing was the gate, and "true in the data" is a
+different thing from "true" once a schedule rather than a human is
+writing. The pulse is the one deliberate exception: it is a single
+standing card on the daily tab, not something filed into a topic list,
+and its Map branch is unported by D139's own decision (the seventh
+over-category, the D126 boundary).
 
-**A new category is never created by a run.** Not for daily (hard rule
-3), not for feed topics, not for pick `cat`s, not for learn fields or
-subjects. The reason is that a category is not a label here — it is a
-`CAT_META` hue, a Map anchor with relations, a chip in a filter row, and
-for learn a group in the Map's layout. Adding one is a structural change
-to the picture the Mirror draws, which is the product; a job that could
-add one on a Tuesday because a question did not fit is a job that
-redraws the Map to make its own writing easier.
+**The You map's ring is fixed, and the taxonomies grow — by the lane,
+when the arithmetic says so.** This is D424 and D425 together, and it
+reverses the rule that stood here from the farm's first day: *"A new
+category is never created by a run."* The owner's direction is that the
+AI creates them — *"learn, feed, daily: all of these can get new
+topics"* — and that what stays roughly the same is *"the amount of
+topics shown at the top in the You map … unless a new one is really
+needed"*. The top of the You map is the ring of hubs in `map-groups.js`
+(Self · Taste · Beliefs · Knowledge · World · People, plus the two aims);
+branches sit inside hubs and draw only once they hold an answer. A new
+hub is the owner's; everything below it is the lane's.
 
-**So the fit rule is: place it, or drop it, and say so.** In order:
+What the old rule was protecting is still true and is why there is a
+system rather than a permission: a top-level category is not a label. It
+is a `CAT_META` hue, a Map anchor with relations, a chip in a filter row,
+and — because feed topics are always-on (D96) — a page of reads for
+every new install (D321). What was WRONG with the old rule is where it
+put the caution: on a human who is not in the loop (D212) and who
+therefore never arrived. Nine months, one category created: `now`, at
+D231, by the owner in person. A rule whose safe path is never taken is
+not caution, it is a stop.
+
+A **subtopic** pays none of those costs. It inherits its parent's hue
+(colour = family, `world-subtopics.js`), adds no chip to the row and no
+branch to the Map, costs an install no page — its cards ride the parent's
+page — and following the parent already reaches it. So a leaf is the
+shape to prefer whenever the questions are a *part* of a topic that
+exists (Football under Sport) — a preference of fit, not a cap: a subject
+that is nobody's part is a topic, and the lane may create it.
+
+So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
+schedule — and since D428 its posture is **breadth-first**, on the
+owner's direction: *"the new topic generation should be higher than
+that, especially in learn … aim to almost become like reddit in the end
+where popular niches are almost all covered."* Reddit's posture is the
+opposite of fill-every-room-first: a niche exists the moment a few
+people want it, and popularity fills it afterwards.
+
+**A leaf — the normal case — is the lane's call, in one run:**
+
+- **Born with a handful, not full.** Four questions for a feed
+  subtopic (`LEAF_BIRTH`), six cards across difficulties for a learn
+  field (`FIELD_BIRTH` — the difficulty span rule needs a spread).
+  Parked questions and **retagged** existing questions under the parent
+  both count; the run writes the rest in the same PR. The floor (12 / 24)
+  is what the lane fills *toward* afterwards, thinnest first — on the
+  feed as a tagging rule (of the questions written into Sport, tag its
+  thinnest leaves first; `topic:budget` prints which), on learn through
+  the learn regulator's own levelling.
+- **No day rule, no parent-levelled rule, no settling.** A leaf is cheap
+  — no chip, no Map branch, no install page — and it folds itself if it
+  loses its handful or the crowd is silent on it (§ Retiring a room). What
+  the run owes is the *argument*: which popular niche this is, and why
+  it before the others, in the PR body.
+- **Coverage steers.** Every parent has a coverage target — 12 leaves per
+  feed topic (`LEAF_TARGET`), 8 fields per learn subject
+  (`FIELD_TARGET`) — and a **third of every run's grant** opens rooms in
+  the least-covered parents first (`BREADTH_SHARE`; `coverageAllocation`
+  prints *open 5 rooms this run: food ×2 · sport ×1 …*). Feed: 20 of 60
+  a day, five leaves at birth. Learn: 10 of 30 a run, a field and a
+  half. Above the target the share rests and a room opens on evidence — a
+  parked question from scouting — not on the coverage line.
+- **A learn subject is cheap too.** It is a branch inside the Knowledge
+  hub by prefix — no chip, no hub change — so it is born like a leaf, in
+  one run, with its first field's six cards. Five subjects is not
+  coverage of anything.
+
+**For a feed topic or a daily top — what costs the chip row, a Map
+branch, or every install — the evidence and settling rules D424 wrote,
+plus one: it is PLACED.** (Breadth debt is no longer a blocker anywhere
+since D428: the fill share pays it, and a thin room somewhere is not a
+reason a popular niche has no room.) The proposal names the hub it lands in — `group`: for the
+daily a hub id in `map-groups.js` (the new top's `catId` goes into that
+hub's `cats`; the file's "unplaced lands in World" default is never how
+a top arrives, and `check:taxonomy` fails one that is in no hub); for
+the feed a `WF_BRANCH` target, which is the *"added to Taste →"* caption
+and not a placement — feed answers do not file on the Map tab; for
+learn nothing, the `lrn-` prefix files a subject under Knowledge by
+itself. A proposal that can only land in a hub that does not exist
+HOLDs for the owner — *"unless a new one is really needed"* is the
+owner's judgement, not arithmetic's. There is no cap on how many topics
+a surface may have. The daily's second level needs none of this: it is
+the path `cat: [Top, Sub]`, 129 distinct pairs over 154 questions,
+written on the question and never created.
+
+**The procedure, per run:**
 
 1. Fit the question to an existing category, including via `alts` — the
    daily surface's two alternative placements exist precisely because one
-   question legitimately reads under more than one top.
-2. If no existing category fits without distorting the question, **drop
-   the question** rather than filing it somewhere wrong. A question in
-   the wrong category answers correctly and lands on the wrong branch of
-   someone's Map forever, which is worse than not asking it.
-3. Then **propose the category**, in the PR body *and* in the run's
-   issue #31 comment: the proposed id and label, the questions that
-   wanted it, and which existing category they were closest to. Both
-   places, because the PR may be days from review and the run log is
-   where the pattern becomes visible across runs — three runs proposing
-   the same missing top is an argument; one is an anecdote. A human
-   decides, in a PR of their own.
+   question legitimately reads under more than one top. This is still the
+   first move and still the usual outcome. On the feed, fitting includes
+   the leaf: a football question under Sport carries `sub: "sub_football"`
+   once that leaf exists.
+2. **Open the rooms the coverage line names.** `npm run topic:budget`
+   prints, per surface, how many rooms the breadth share opens this run
+   and under which parents (least covered first). For each, pick the
+   **most popular niche of that parent that has no room yet** — the
+   world's, not the bank's: Sport's football, tennis, running, F1, gym;
+   Biology's ecology, neuroscience, microbes — write its handful (or
+   retag the existing questions that are already it), and say in the PR
+   which and why this one before the others. This is the lane's call,
+   in one run (D428); the room folds itself if the crowd never comes.
+   Then **scout** for the rest: a *part* of a parent this lane keeps
+   writing into that has no leaf, a subject the `now` lane has carried
+   for months and is no longer *now*, a subject no hub of Knowledge
+   holds — park one question for it (step 3). For a feed topic or a
+   daily top the day rule still counts, because those cost a chip, a
+   branch or every install.
+3. **Park it** in `content/topic-proposals.json` under the proposed leaf:
+   `level: "leaf"`, the `parent`, the label, the question with its run
+   date, and — the free half — `retag`: the ids of existing questions
+   under the parent that are this leaf's. A parked question still has to
+   clear `check:neighbors` like any other; it is a question that has no
+   room, not one already asked. (A top-level proposal is parked the same
+   way with `level: "top"`, `nearest`, and the `group` it lands in.)
+4. Run `npm run topic:budget`. It prints CREATE or HOLD per proposal, and
+   HOLD names which blocker and by how much.
+5. On CREATE, in the same PR: add the row to `WORLD_SUBTOPICS` (`id`,
+   `parent`, `label` — no colour, a leaf wears its family's), set
+   `sub: "<leaf>"` on every `retag` question and on the parked ones as
+   they are written into `content/feed-questions.json`, write the
+   verdict's `write` count of new ones, and append the row to the
+   ledger's `created` with the PR number. For a learn field: the row in
+   `fields`, cards with `f` set. For a top: every site the verdict names
+   — the daily's `CAT_META` row AND its hub's `cats` entry AND its
+   `FALLBACK` row in `map-anchors.js` (the anchor readings its questions
+   fall back to — a top without one reads nothing), the feed's palette
+   row AND wire row AND `WF_BRANCH` caption, a learn `subjects` row —
+   with `hueFor()` for the colour. `check:taxonomy` fails a
+   half-written room at either level and `check:quality` a tag under
+   the wrong parent.
+6. Log it on issue #31 as usual, with the verdict line verbatim.
 
-Rule 3 is the part that was missing rather than merely soft: the older
-wording ("the farm may *note* in a PR body that a category feels
-missing") named no artifact, so a run that placed everything and never
-noticed a gap was indistinguishable from one that noticed and forgot.
+**There is deliberately no semantic gate**, and this is the one place a
+future run is likely to want to add one. The obvious extra blocker is *is
+this proposal actually distinct, or a synonym of a room that exists?* —
+and `question-neighbors.mjs` has the machinery. It was built and then
+measured against the live feed corpus before being believed, and the
+measurement refused it: the lowest per-topic self-affinity (0.049) sits
+BELOW the highest cross-topic affinity (0.117), so no threshold separates
+the classes. The topic it fails hardest on is `now`, whose questions look
+more like `event`'s than like each other — exactly as D231 built it,
+*"a TIME rather than a subject … not what a question is about but how
+long it is worth asking"*. A semantic gate would have refused the last
+real topic this project created, for the reason it was created. The
+numbers are in `topic-budget.mjs`'s header so nobody derives it twice.
+Distinctness is the run's argument in the PR body; the gate is on the
+consequences.
+
+## Retiring a room — fold, never delete (D427)
+
+Creation without removal compounds: every room opened under the
+evidence rule would be a room that could never be wrong. The path out
+is the mirror of the path in — a proposal in the ledger, a verdict from
+`npm run topic:budget`, every site written in one PR, a gate that fails
+a job stopped part way.
+
+**The principle: a room is retired by FOLDING its questions into another
+room, never by deleting them.** Answers are public and immutable but for
+one edit shape (D86); every daily answer is filed on somebody's Map; a
+deleted question is an orphaned answer. So a fold rewrites where a
+question is *met* — its `cat`, `sub` or `f` — and nothing else about it.
+
+**What licenses a fold, per level — the levels differ on purpose:**
+
+- **A leaf that lost its handful** (under what it was born with: 4 for
+  a feed subtopic, 6 for a learn field — D428 re-based this from the
+  floor, since every leaf is under the floor at birth now and the lane
+  fills it), **or that the crowd is silent on** once the demand signal is
+  readable. The fold is free: dropping `sub` leaves every question
+  exactly where it was, the parent's. A learn field folds into a field
+  of the *same* subject, because the Map files mastered cards under
+  `lrn-<subject>` and a cross-subject fold would move them between hubs.
+- **A top that nobody answers.** The lane's own demand signal, once
+  readable (past `DEMAND_MIN_ANSWERS`, 100 credited answers), and the
+  room's share under `RETIRE_SHARE` (a tenth) of an even share. *Thin*
+  is not a signal for a top — the lane levels tops thinnest-first, so a
+  thin top gets filled, never retired. While the crowd is too small to
+  read, a top-level fold is **the owner's word**: a date in the ledger
+  row's `owner`.
+- **The owner's word** licenses either level at any time.
+- **A top with leaves under it folds after its leaves** — each leaf its
+  own row; a leaf re-parented in passing is a placement nobody argued.
+
+**What a fold moves, and what it costs:**
+
+| Room | The fold | Sites removed | Cost |
+| --- | --- | --- | --- |
+| feed subtopic | strip `sub` (into = the parent, always) | `WORLD_SUBTOPICS` row | none — licensed below its handful (4) or on the crowd's silence, never merely under the floor |
+| learn field | cards' `f` → into, same subject | `fields` row | mastered cards move sub-branch, same hub |
+| feed topic | questions' `cat` → into; doors onto it dropped or replaced | palette row · wire row · `WF_BRANCH` caption | where the cards are met, and the demand credit — feed answers do not file on the Map tab |
+| daily top | archive rows' `cat[0]` (and alts) → into | `CAT_META` row · the hub's `cats` entry · `FALLBACK` row | **answers move branch on every user's Map** — which is why this one takes the owner's word or a real crowd's silence, never a run's tidiness |
+| hub | the owner's, both directions (D425) | branches re-hubbed first; `GROUPS_TODAY` moved in the same PR | the ring |
+
+**The procedure, per run:**
+
+1. Notice. A leaf under its floor in `topic:budget`'s summary line; a top
+   the demand line says nobody answers; a row the owner wrote. Add a row
+   to the ledger's `retirements`: `id`, `level`, `surface`, `parent` (a
+   leaf's), `into`, `reason`, and `owner` if it is the owner's word.
+2. Run `npm run topic:budget`. RETIRE names the licence and the fold;
+   HOLD names what is missing — no `into`, the wrong `into`, leaves
+   still under it, a stocked leaf nobody has ruled on, a top the crowd
+   still answers or a signal too blind to read.
+3. On RETIRE, in the same PR: the fold (the rewrite the verdict states,
+   on every row that carries the id), every site the verdict names, and
+   the row moved from `retirements` to `retired` with the PR number and
+   the licence. `check:taxonomy` rule 7 fails a retired id found at any
+   site — a row on a list, a question still met through it, a hub entry,
+   a caption, an anchor fallback, a ledger row pointing at it.
+4. Log it on issue #31 with the verdict line verbatim.
+
+A retired id is never reused: the ledger keeps it, and a proposal
+carrying a retired id or label fails the gate as a rename.
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
@@ -1528,12 +1790,13 @@ bar each entry below has to meet:
 - **Sponsored questions** — a human contract path, never scheduled
   (`source: "sponsor"`, D195); money does not get a robot.
 
-Deferred with arithmetic rather than excluded: **subtopic (`sub`)
-authoring** — the feed's second taxonomy level is shipped and dormant
-(`world-subtopics.js`: three stocked demo leaves, zero live questions
-tagged), and wiring the lane to stock leaves is the recorded next step
-of the volume plan once the ten parent topics level at the D213 target
-(a leaf below a levelled parent is depth where breadth is still owed).
+Subtopic authoring was deferred here with arithmetic until D425 — *"a
+leaf below a levelled parent is depth where breadth is still owed"* —
+and the parents levelled (the feed's ten at the D213 target, measured
+2026-09-08). It is the growth path now: § When no category fits has the
+procedure, `scripts/topic-budget.mjs` the arithmetic, and a feed question
+carries its leaf as `sub` (validated at `check:quality`, emitted by the
+generator, read by the device's filter and discover sheet).
 
 ## Future directions, recorded early (notes, not designs)
 
@@ -1757,13 +2020,18 @@ re-paced, or retired.
 | --- | --- | --- | --- |
 | InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212, D350) | this file, the sections above |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
-| InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D350) | § The learn-card lane |
+| InSight learn lane | `trig_01TckXyab4zPHT4NSfSqPjku` | `0 9 * * *` — daily 09:00 (D145 Mon+Thu; recreated D212, D350, and again 2026-09-08 for D428 — daily, and the prompt's old hard rule 3 lifted) | § The learn-card lane |
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D350) | § The feed lane |
-| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
+| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 since 2026-09-08, for the bank burst; `0 10 * * 3` — weekly, Wednesday 10:00 (D213) — before it and again once the pools are at target (the paragraph below the table) | § The duel lane |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D351) | § The now lane |
 
 **All six live prompts match their canonical blocks below as of
-2026-09-02.** The farm, learn and feed Routines were swapped
+2026-09-08** (five as of 2026-09-02; the learn lane's was swapped
+2026-09-08 for D428 — daily, and its prompt had carried the old hard
+rule 3, *"Never create a field or subject"*, as a hard limit, which is
+the D212 class: a clause in the prompt no manual edit can lift. Same
+mechanism, same reason, same cost: created and verified first, the
+original deleted, this table last).** The farm, learn and feed Routines were swapped
 2026-09-02 for D350's blocks — delete-and-recreate from a sibling
 session, the D148/D212 mechanism for the D148 reason (`update_trigger`
 still refuses a prompt edit into a session that is not the caller's
@@ -1794,6 +2062,22 @@ telemetry. One D148 constraint has since lapsed, re-measured 2026-08-19:
 `list_triggers` now returns each Routine's stored prompt verbatim, so
 the canonical blocks below can be VERIFIED against the live prompts
 rather than trusted. Verify after any swap; keep them exact.
+
+**The duel lane runs daily since 2026-09-08 for the bank burst —
+schedule only.** `update_trigger` moved it from `0 10 * * 3` to
+`0 10 * * *` at the owner's instruction; the prompt and the model were
+not touched, so the live prompt and its canonical block below still
+open *"a scheduled job, weekly"* — a summary this manual outranks, and
+the run re-reads the manual every firing. The stagger holds: 10:00 was
+already the lane's hour, only the days changed. Daily is safe because
+the regulator bounds the lane and not the cadence: `npm run
+duel:budget` grants at most `RUN_CAP` a run, stops at `POOL_TARGET` a
+pool and grants zero at `OPEN_MAX` unreviewed on the open lane PR
+(§ The duel lane quotes the figures; `check:figures` holds them), so a
+firing past the target is a logged no-op. **When the budget reports
+every pool at `POOL_TARGET`, re-pace back to `0 10 * * 3` and record
+it the same way** — this table's row, and `ROUTINES.md` §2's dated
+line, which carries the burst's citation and the caveat on it.
 
 All six fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
@@ -1971,63 +2255,70 @@ session's previous branch afterwards; if the tree is dirty, stash or
 use a separate git worktree.
 ```
 
-The learn lane's canonical prompt (D145; rewritten 2026-08-19 for D212 —
+The learn lane's canonical prompt (D145; rewritten 2026-08-19 for D212, and 2026-09-08 for D428 — daily, topic:budget first, the old hard rule 3 lifted;
 same rule: update BOTH this block and § The learn-card lane in any
 future change):
 
 ```
-You are running InSight's LEARN-CARD lane — a scheduled job, twice
-weekly. It fires into this ongoing session because fresh Routine-spawned
-sessions get read-only git access and no GitHub API tools (issue #31);
-this session has both. Read docs/QUESTION-FARM.md § The learn-card lane
-on origin/main and follow it exactly — it is the contract, it changes,
-and it outranks this prompt's summary; re-read it every run.
+You are running InSight's LEARN-CARD lane — a scheduled job, daily
+since D428. It fires into this ongoing session because fresh
+Routine-spawned sessions get read-only git access and no GitHub API tools
+(issue #31); this session has both. Read docs/QUESTION-FARM.md § The
+learn-card lane and § When no category fits on origin/main and follow
+them exactly — they are the contract, they change, and they outrank this
+prompt's summary; re-read them every run.
 
-Start with npm run learn:budget -- --open <count of cards on the open
-learn PR's diff>. Zero means a gate refused the open batch — fix it, do
-not stack (there is no stock ceiling — § The learn-card lane). Otherwise
-write exactly the allocation it prints — the 24-card floor first, then
-the fields the crowd reads fastest when the signal: line says so, else
-the thinnest — at least 4 cards into any field it touches, spreading
-difficulty (p is clamped 24..92, and check:quality
-fails a batch of 3+ spanning under 20 points). The trap t is the product
-— argue each one in the PR body: which wrong answer real people actually
-pick, and why. Vary the authored c index. Pre-flight the whole batch in
-its native shape from ONE file: npm run check:quality -- --batch
-cards.json and npm run check:neighbors -- --batch cards.json (the batch
-form compares your own cards to each other, which per-candidate lookups
-never did); paste both packet lines per card into the PR body. Then npm
-run build:content, and the gates: check:content, check:quality,
-check:neighbors, check:globals, lint, test:unit, build. Open the PR,
-and when every CI check on it reports success, MERGE it yourself
-(squash — D212: the gates are the review); never merge with a failing
-or pending check, never re-run a job to outwait a real failure, never
-push an empty commit to kick CI — a PR you cannot get green is left
-open and reported.
+Start with npm run topic:budget — it names the fields and subjects the
+breadth share OPENS this run (the least-covered subjects first) and the
+reserve for them — then npm run learn:budget -- --open <count of cards on
+the open learn PR's diff> --reserve <that reserve>. Zero means a gate
+refused the open batch — fix it, do not stack (there is no stock ceiling
+— § The learn-card lane). Open the rooms topic:budget names: pick the
+most popular niche of that subject that has no field yet (or a subject no
+hub of Knowledge holds), write its handful — six cards across
+difficulties — and every site check:taxonomy holds, and say in the PR
+which and why this one before the others (D428). Then write exactly the
+allocation learn:budget prints — the 24-card floor first, then the fields
+the crowd reads fastest when the signal: line says so, else the thinnest
+— at least 4 cards into any field it touches, spreading difficulty (p is
+clamped 24..92, and check:quality fails a batch of 3+ spanning under 20
+points). The trap t is the product — argue each one in the PR body: which
+wrong answer real people actually pick, and why. Vary the authored c
+index. Pre-flight the whole batch in its native shape from ONE file: npm
+run check:quality -- --batch cards.json and npm run check:neighbors --
+--batch cards.json (the batch form compares your own cards to each other,
+which per-candidate lookups never did); paste both packet lines per card
+into the PR body. Then npm run build:content, and the gates:
+check:content, check:quality, check:neighbors, check:taxonomy,
+check:globals, lint, test:unit, build. Open the PR, and when every CI
+check on it reports success, MERGE it yourself (squash — D212: the gates
+are the review); never merge with a failing or pending check, never
+re-run a job to outwait a real failure, never push an empty commit to
+kick CI — a PR you cannot get green is left open and reported.
 
 Hard limits: append only, at the end of `cards` in
 content/learn-questions.json, ids continuing each field's series; never
 renumber and never edit or reorder a shipped card's options (answers key
 on (qid, optionIdx) forever — the fix for a bad option set is a better
 successor card). This is a SINGLE-GATE lane: a merged card is a shipped
-card, and with no person on the merge the fact bar is yours alone —
-cite a source in the PR body for any card that could be contested, and
-drop a card you cannot source. Never create a field or subject; a card
-that fits none is dropped and the field proposed in the PR body and the
-issue #31 comment (§ When no category fits). Never touch
-firestore.rules, functions/, or any other content/ bank. If a learn PR
-is already open (a gate refused it), roll up onto its branch instead of
-stacking (dedup against it, append one commit, retitle to cover the
-span, dated body section); a fresh claude/learn-cards-<YYYY-MM-DD>
-branch from origin/main only when none is open or the open one no
-longer merges cleanly.
+card, and with no person on the merge the fact bar is yours alone — cite
+a source in the PR body for any card that could be contested, and drop a
+card you cannot source. A card that fits no field is PARKED in
+content/topic-proposals.json under its nearest subject, never dropped
+(§ When no category fits). Never touch firestore.rules, functions/, or
+any other content/ bank. If a learn PR is already open (a gate refused
+it), roll up onto its branch instead of stacking (dedup against it,
+append one commit, retitle to cover the span, dated body section); a
+fresh claude/learn-cards-<YYYY-MM-DD> branch from origin/main only when
+none is open or the open one no longer merges cleanly.
 
 Mandatory reporting (hard rule 7): whatever the outcome — PR merged, PR
-left open with a failure, no-op, or aborted — comment it on issue #31
-in Cosaxo/InSight: PR link and the budget line with the fields written,
-or the no-op reason, or the verbatim errors. Work on the lane's branch
-and return to the session's previous branch afterwards; if the tree is
-dirty, stash or use a separate git worktree.
+left open with a failure, no-op, or aborted — comment it on issue #31 in
+Cosaxo/InSight: PR link, the topic:budget coverage line and the budget
+line with the fields written, or the no-op reason, or the verbatim
+errors. Work on the lane's branch and return to the session's previous
+branch afterwards; if the tree is dirty, stash or use a separate git
+worktree.
 ```
 
 The feed lane's canonical prompt (D145; rewritten 2026-08-19 for D212

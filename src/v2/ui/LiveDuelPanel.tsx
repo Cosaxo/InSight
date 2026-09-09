@@ -1,8 +1,9 @@
 // LiveDuelPanel — the LIVE group/duo panel. Replaces the demo
 // GroupDailyBody / DuoBody when LIVE is enabled: real circles with
-// server-minted invite codes, today's question from the shared
-// deterministic rotation, sealed votes, and yesterday's materialized
-// reveal. With no circles yet, the panel IS the create-or-join flow.
+// server-minted invite codes, the open ROUND's question from the shared
+// deterministic rotation (ROUNDS-PLAN, D426), sealed votes, and the latest
+// round's materialized reveal. With no circles yet, the panel IS the
+// create-or-join flow.
 //
 // REBUILT TO THE v25 PROTOTYPE'S SHAPE (D156). It was a plain vertical list
 // of bordered cards: names as text, one flat reveal list, an always-open
@@ -55,16 +56,10 @@ import { atHandle } from "../data/handles";
 import { usePeopleFinder } from "./peopleSearch";
 import PersonRow from "./PersonRow";
 import { inviteLine, type Invite } from "../data/invites";
-import { duoRuns, revealTally, type RevealDocLike } from "../data/duelRuns";
+import { namedBy, revealTally, roleTally, type RevealDocLike, type RoleTallyRow } from "../data/duelRuns";
+import { castText } from "../data/deck";
 import { DuelAv, GroupMark, YouChip } from "./duelMarks";
-import { firstName } from "./marks";
-// Untyped spec modules, both already in the graph these screens' demo twins
-// use. One @ts-expect-error each, at the specifier — TS7016 is reported
-// there, not at the use site.
-// @ts-expect-error TS7016 — untyped spec module
-import { ReadRun } from "../spec/read-run.jsx";
-// @ts-expect-error TS7016 — untyped spec module
-import { RevealClock } from "../spec/reveal-clock.js";
+import { firstName, markHue } from "./marks";
 // LAZY, and that is a measurement rather than a style (D152). This panel is
 // reached from the daily tab; a static import put the whole takes panel into
 // the graph for a thread that renders under a revealed duel, and
@@ -86,7 +81,7 @@ const ROMANCE = "oklch(0.55 0.13 12)";
  *
  * The server zeroes a duo's streak when a day settles unrevealed — but only
  * for a group the scan LOOKS at, and the twice-hourly scan queries
- * `pendingDays array-contains day`, which `onV2AnswerCreated` writes. So a
+ * `roundDeadlineAt <= now`, whose clock `onV2AnswerCreated` starts. So a
  * duo where NEITHER partner played is never examined and its streak stands
  * untouched, while the pair that missed by half — one partner still
  * playing — is zeroed on the first miss. The more engaged pair lost its
@@ -125,8 +120,17 @@ const agoLabel = (key: string | undefined, index: number): string => {
   if (days <= 0) return "Today";
   return days === 1 ? "Yesterday" : days + " days ago";
 };
-const streakIsLive = (g: { lastRevealDay?: string }): boolean =>
-  typeof g.lastRevealDay === "string" && g.lastRevealDay >= dayKeyUTC(-2);
+// The open round's deadline, off the group document (a Firestore
+// Timestamp on the client, a number in fixtures), as millis — or null while
+// nobody has played the open round and there is no clock yet.
+const deadlineMs = (raw: unknown): number | null => {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (raw && typeof (raw as { toMillis?: unknown }).toMillis === "function") {
+    const ms = (raw as { toMillis: () => number }).toMillis();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  return null;
+};
 const GOOD = "var(--c-likeness)";
 const MISS = "var(--ochre)";
 
@@ -135,6 +139,15 @@ const col = (g: number): React.CSSProperties => ({ display: "flex", flexDirectio
 // The store keeps groups/reveals loosely typed at the seam; these are
 // the fields this panel actually renders.
 interface LiveGroup {
+  /** Rounds (ROUNDS-PLAN, D426): the open round, and its clock when the
+   *  open round has an answer in it. A Firestore Timestamp on the client;
+   *  a number in fixtures. */
+  round?: number;
+  roundDeadlineAt?: unknown;
+  /** Who has sealed which round, `{ r7: [uid] }` — who has answered and
+   *  never what (ROUNDS-PLAN §2.4). The card's "who has played" halos and
+   *  its "N rounds waiting for you" band read it. */
+  played?: Record<string, string[]>;
   id: string;
   name?: string;
   mode?: string;
@@ -154,12 +167,27 @@ interface LiveGroup {
   pending?: string[];
   pendingNames?: Record<string, string>;
 }
-interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string }
+interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string; late?: boolean; pickUid?: string | null }
+/** A round's question as the store hands it over (`todayQ`, `roundQ`,
+ * `bankQ` — data/deck.ts's DuelRoundQ): the kind is the seeded topic, and
+ * since D434 a role vote carries the scenario pack it belongs to and the
+ * role it casts, a rating its two poles. */
+interface CastQ {
+  id: string; prompt: string; options: string[]; kind?: string;
+  scen?: { id: string; label: string; hue: number };
+  role?: { id: string; label: string; seat?: string };
+  poles?: string[];
+  // The cast round (D437): the four *them* forms and the four axes.
+  them?: string[];
+  dims?: string[];
+}
 interface LiveReveal extends RevealDocLike {
   day?: string;
   qid?: string;
   votes?: Record<string, RevealVote>;
   names?: Record<string, string>;
+  /** Who the reveal records as there — the seats, against the votes. */
+  members?: string[];
 }
 
 /**
@@ -213,16 +241,6 @@ function LdBtn({ onClick, children, primary, disabled, small }: {
   );
 }
 
-// The prompt, at the prototype's weight. 25 is not a large heading for its
-// own sake — a duel question is the only thing on the card, and it is read
-// standing up.
-function LdPrompt({ children, size = 25 }: { children: React.ReactNode; size?: number }) {
-  return (
-    <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: size, lineHeight: 1.12,
-      letterSpacing: -0.5, textWrap: "pretty" }}>{children}</div>
-  );
-}
-
 // A tinted option. Bigger and softer than a form control, because tapping
 // one IS the answer — there is no submit step to correct it in.
 function LdOption({ label, onClick, tint, lead, disabled }: {
@@ -239,6 +257,38 @@ function LdOption({ label, onClick, tint, lead, disabled }: {
       {lead}
       <span style={{ fontWeight: 700, fontSize: 17, color: "var(--ink)" }}>{label}</span>
     </button>
+  );
+}
+
+// ── a rating's ballot (D434) ─────────────────────────────────────
+//
+// The design's `PoleBallot`: the two poles as words, five equal buttons
+// between them whose dot grows toward either end and hollows at the
+// middle. Each button is named by its step's label, which is what a
+// screen reader gets and what the sealed list prints back.
+function LdPoleBallot({ poles, steps, tint, disabled, onPick }: {
+  poles: string[]; steps: string[]; tint: string; disabled?: boolean; onPick: (i: number) => void;
+}) {
+  const poleWord: React.CSSProperties = { fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "balance", flex: 1, minWidth: 0 };
+  return (
+    <div style={col(10)} role="group" aria-label={`${poles[0]} to ${poles[1]}`}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
+        <span style={poleWord}>{poles[0]}</span>
+        <span style={{ ...poleWord, textAlign: "right" }}>{poles[1]}</span>
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const d = Math.abs(i - 2);
+          return (
+            <button key={i} className="press" aria-label={steps[i] || `step ${i + 1}`} disabled={disabled} onClick={() => onPick(i)}
+              style={{ flex: 1, height: 56, borderRadius: 16, cursor: disabled ? "default" : "pointer", WebkitAppearance: "none", display: "flex", alignItems: "center", justifyContent: "center",
+                background: `color-mix(in oklch, ${tint} 7%, var(--surface))`, border: `1px solid color-mix(in oklch, ${tint} 30%, var(--rule))`, boxShadow: "none", opacity: disabled ? 0.55 : 1 }}>
+              <span style={{ width: 10 + d * 5, height: 10 + d * 5, borderRadius: "50%", background: d === 0 ? "transparent" : tint, border: d === 0 ? `2px solid ${tint}` : "none", boxSizing: "border-box" }} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -409,8 +459,8 @@ function LdOnboard({ mode }: { mode?: string }) {
       </div>
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         {duo
-          ? "One question a day, sealed until tomorrow — if you both play."
-          : "One question a day, sealed until tomorrow, then revealed with names."}
+          ? "Answer blind, guess theirs. It reveals the moment you both have — then the next one."
+          : "Everyone answers blind. It reveals with names when everyone has played, or at the deadline."}
       </div>
       {!known && <LdInput value={typedMe} onChange={setTypedMe} placeholder="Your name (what friends see)" />}
       <div style={{ display: "flex", gap: 8 }}>
@@ -590,7 +640,7 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
     } catch { /* clipboard unavailable */ }
   };
   return (
-    <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
+    <button onClick={copy} aria-label="Copy invite link" title="Copy invite link"
       style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 999, padding: "6px 13px",
         cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700,
         color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -629,18 +679,32 @@ function LdInvites({ mode }: { mode?: string }) {
     setBusy(null);
   };
 
+  // The design's hero (request 12, state 9): the invitation leads, with
+  // the inviter's mark beside the seat that is yours, and one line on what
+  // playing is. Accept is the pill; Decline is a word — refusing somebody
+  // should not look like a button you pressed by accident.
+  const acc = want === "duo" ? ACC_DUO : ACC_GROUP;
   return (
-    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 15px" }}>
-      <span className="kicker" style={{ marginBottom: 0 }}>
-        {list.length === 1 ? "An invitation" : `${list.length} invitations`}
-      </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 0 18px", borderBottom: "0.5px solid var(--rule)", marginBottom: 14 }}>
       {list.map((inv) => (
-        <div key={inv.gid} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ flex: 1, minWidth: 140, fontSize: 14, fontWeight: 650, lineHeight: 1.3 }}>
-            {inviteLine(inv)}
-          </span>
-          <LdBtn small onClick={() => void act(inv.gid, false)} disabled={busy === inv.gid}>Decline</LdBtn>
-          <LdBtn small primary onClick={() => void act(inv.gid, true)} disabled={busy === inv.gid}>Accept</LdBtn>
+        <div key={inv.gid} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: acc }}>Invitation</span>
+          <div style={{ fontWeight: 700, fontSize: 17, letterSpacing: "-0.015em", lineHeight: 1.25, textWrap: "pretty" }}>{inviteLine(inv)}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ display: "flex", gap: 4 }}>
+              <DuelAv uid={inv.from} name={inv.fromName} size={26} />
+              <span aria-label="open seat" style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box", border: `1.5px dashed color-mix(in oklch, ${acc} 72%, transparent)` }} />
+            </span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
+              {want === "duo" ? `answer, then guess ${firstName(inv.fromName) || "their"}${firstName(inv.fromName) ? "’s" : ""}` : "everyone answers blind; the room names one of you"}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="press" onClick={() => void act(inv.gid, true)} disabled={busy === inv.gid}
+              style={{ minHeight: 44, padding: "10px 20px", border: "none", borderRadius: 999, background: acc, color: "#fff", font: "inherit", fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", cursor: "pointer", WebkitAppearance: "none", opacity: busy === inv.gid ? 0.5 : 1 }}>Accept</button>
+            <button className="press" onClick={() => void act(inv.gid, false)} disabled={busy === inv.gid}
+              style={{ minHeight: 44, padding: "8px 10px", border: "none", background: "none", color: "var(--ink-2)", font: "inherit", fontWeight: 700, fontSize: 13.5, cursor: "pointer", WebkitAppearance: "none", opacity: busy === inv.gid ? 0.5 : 1 }}>Decline</button>
+          </div>
         </div>
       ))}
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
@@ -708,12 +772,24 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
       <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
       {/* A CLAIM, not a caption (COPY.md §3). What joining does is put
-          your name on a sealed answer that these people read the next
-          day, and D122 made consent the difference between an invitation
-          and a follow. Somebody arriving from a link has been told
-          nothing by the app yet, so this is where it gets said. */}
+          your name on a sealed answer that gets read, and D122 made
+          consent the difference between an invitation and a follow.
+          Somebody arriving from a link has been told nothing by the app
+          yet, so this is where it gets said — which is exactly why it has
+          to be TRUE.
+
+          It said "revealed with names to the people in it". A revealed day
+          is `request.auth != null` (`match /reveals/{day}`), and
+          rules.test.ts asserts that a stranger, a late joiner and somebody
+          who left can each read one. check-policy-claims retired that
+          promise from web/privacy.html under D98 and reads no other file,
+          so the consent sentence went on understating its own audience.
+
+          The cadence went with it (the owner, 2026-09-07): the reveal is
+          the fact, "tomorrow" is a limit intended to loosen. */}
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-        One question a day, sealed until tomorrow, then revealed with names to the people in it.
+        Everyone answers the same question, sealed until the reveal — then it opens
+        with names, to anyone signed in who has the group’s id.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* ASK, not Join (D240). The link no longer admits its holder —
@@ -727,15 +803,155 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
   );
 }
 
-// ── yesterday's reveal ───────────────────────────────────────────
+// ── the design's grammar (design/rounds-card-2026-09-08, request 12) ──
 //
-// Two shapes over one document, because a circle and a pair are asking
-// different questions of the same data. A circle wants the SPLIT — which
-// way did we go, and who is standing where — so it draws bars with faces
-// on them. A pair has no split worth a bar with two votes in it; what it
-// wants is the two READS, which is the prototype's "you read Ada / Ada
-// read you" pair of rows.
-function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: string }) {
+// Nine states over one card, and the vocabulary they share: a KICKER
+// (12/700 uppercase, ink-3) that names the round — `Round 9`, `· revealed`,
+// `· closed at the deadline` — the prompt in the serif, the
+// answer as tinted 56px options, people as marks and you as a pill, and
+// the RUN at the foot: one dot per round, filled when your call landed,
+// hollow when it missed, with a tail carrying the rounds still in play
+// (sealed · open · late). No clock on a 1v1 anywhere; a group's one clock
+// is its round deadline, drawn coarse (`1d 16h`), because the reveal
+// waits on people and not on the minute.
+const KICK: React.CSSProperties = {
+  fontSize: 12, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase",
+  color: "var(--ink-3)", whiteSpace: "nowrap",
+};
+const GROUND = "var(--surface-a, var(--surface))";
+const serif = (size: number): React.CSSProperties => ({
+  fontFamily: "var(--serif)", fontWeight: 500, fontSize: size, lineHeight: 1.14,
+  letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "balance",
+});
+const NUMWORD = ["", "One", "Two", "Three", "Four", "Five"];
+// THE GROUP AS A CAST (D434, the owner's 2026-09-08 design). A role vote's
+// pack — Bank Heist, Desert Island… — wears its own ink, the design's
+// `scenInk`: one hue per pack, drawn on the kicker, the crown and the
+// run's mark, so a run of rounds reads as packs. A rating between two
+// poles wears none and says what it is.
+const scenInk = (sc: { hue: number }): string => `oklch(0.605 0.118 ${sc.hue})`;
+/** The kicker's tag for a round's question, or null for the older kinds
+ * and for every 1v1 question. */
+function tagOf(q: CastQ | null | undefined): { label: string; color?: string } | null {
+  if (!q) return null;
+  if (q.kind === "rate") return { label: "Rate the group" };
+  if (q.kind === "pick" && q.scen && q.role) return { label: q.scen.label, color: scenInk(q.scen) };
+  return null;
+}
+const isRateQ = (q: CastQ | null | undefined): q is CastQ & { poles: string[] } =>
+  !!q && q.kind === "rate" && Array.isArray(q.poles) && q.poles.length === 2;
+const isRoleVote = (q: CastQ | null | undefined): q is CastQ & { role: { id: string; label: string } } =>
+  !!q && q.kind === "pick" && !!q.role;
+/** A 1v1's cast round (D437): *Most days, {name} is…*, whose answers are
+ *  the four sentences and whose guess is over their *them* forms. */
+const isCastQ = (q: CastQ | null | undefined): q is CastQ & { them: string[] } =>
+  !!q && q.kind === "cast" && Array.isArray(q.them) && q.them.length === q.options.length;
+const roundsWord = (n: number): string => `${NUMWORD[n] || String(n)} ${n === 1 ? "round" : "rounds"}`;
+// An open seat: somebody the room expected who has not answered. A dashed
+// ring and never a name — an empty seat is a seat (D1).
+function OpenSeat({ size = 26 }: { size?: number }) {
+  return (
+    <span aria-label="open seat" style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box",
+      border: "1.5px dashed color-mix(in oklch, var(--accent) 72%, transparent)" }} />
+  );
+}
+// A person's mark with the design's halo when they have played — the fill
+// of their own mark, at 42%, ringed on the ground.
+function HaloAv({ uid, name, size, on }: { uid: string; name?: string; size: number; on: boolean }) {
+  const fill = `oklch(0.52 0.13 ${markHue(uid)})`;
+  return (
+    <span style={{ display: "inline-flex", borderRadius: "50%",
+      boxShadow: on ? `0 0 0 1.5px ${GROUND}, 0 0 0 3.5px color-mix(in oklch, ${fill} 42%, ${GROUND})` : `0 0 0 1.5px ${GROUND}` }}>
+      <DuelAv uid={uid} name={name} size={size} title={(name || "Someone") + (on ? " — played" : " — not yet")} />
+    </span>
+  );
+}
+// The design's coarse clock: `1d 16h`, `3h 04m`, `12m`. Date.now() lives in
+// a helper rather than the render body (react-hooks/purity, the same move
+// reveal-clock.js made), and the tick is a minute — a second hand would
+// claim a precision the deadline does not have.
+const msLeft = (until: number): number => until - Date.now();
+function leftText(ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60000));
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  const mm = m % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${String(mm).padStart(2, "0")}m`;
+  return `${mm}m`;
+}
+function useLeft(until: number | null): string | null {
+  const [, tick] = React.useState(0);
+  React.useEffect(() => {
+    if (until == null) return;
+    const id = setInterval(() => tick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [until]);
+  return until == null ? null : leftText(msLeft(until));
+}
+
+// ── the run of rounds ────────────────────────────────────────────
+//
+// The dots ARE the score, and since request 12 they are also the browser:
+// a revealed round's dot opens that reveal above. Five kinds from the
+// design plus one — `n`, a round you played that carried no call to score
+// (a reveal from before rounds; and the rounds of 2026-09-08 that drew a
+// world question with no guess, before the owner retired those — D426's
+// third amendment).
+// …and, since D434, `r` — a rating round, drawn as a SQUARE in the room's
+// accent: the group rated itself, so there is nothing to call and nobody
+// crowned. On a group's role vote the two scored kinds change meaning
+// with the design: filled in the pack's ink where the room named YOU, a
+// ring where it named someone else.
+type DotKind = 1 | 0 | "s" | "o" | "l" | "n" | "r";
+const DOT_TITLE: Record<string, string> = {
+  "1": "called it", "0": "missed", s: "sealed · waiting on the others",
+  o: "open · waiting for you", l: "late · no score", n: "played · no call",
+  r: "rated the group",
+};
+function dotStyle(k: DotKind, color: string, acc: string): React.CSSProperties {
+  const s: React.CSSProperties = { width: 13, height: 13, flexShrink: 0, borderRadius: "50%", boxSizing: "border-box", display: "block" };
+  if (k === 1) s.background = color;
+  else if (k === "r") { s.borderRadius = 3; s.background = `color-mix(in oklch, ${acc} 70%, transparent)`; }
+  else if (k === 0) s.border = `1.5px solid color-mix(in oklch, ${color} 55%, transparent)`;
+  else if (k === "s") { s.background = acc; s.boxShadow = `inset 0 0 0 2px ${GROUND}, inset 0 0 0 3.5px ${acc}`; }
+  else if (k === "o") s.border = "1.5px dashed color-mix(in oklch, var(--ink-3) 75%, transparent)";
+  else if (k === "l") s.border = "1.5px dotted var(--ink-3)";
+  else s.border = "1.5px solid color-mix(in oklch, var(--ink-3) 55%, transparent)";
+  return s;
+}
+interface RunDot { k: DotKind; aria: string; at?: number; /** a pack's ink on a role vote (D434) */ color?: string }
+interface RunRow { label: string; aria: string; color: string; dots: RunDot[] }
+function LdRun({ rows, acc, onPick }: { rows: RunRow[]; acc: string; onPick: (at: number) => void }) {
+  if (!rows.length || !rows[0].dots.length) return null;
+  return (
+    <div style={{ ...col(8), borderTop: LD_HAIR, paddingTop: 13 }}>
+      {rows.map((r, ri) => (
+        <div key={r.label} style={{ display: "flex", alignItems: "center", gap: 11 }} aria-label={r.aria}>
+          <span style={{ flexShrink: 0, width: 62, padding: "3px 0", fontWeight: 800, fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</span>
+          <span className="h-scroll" style={{ display: "flex", gap: 3, alignItems: "center", overflowX: "auto", minWidth: 0 }}>
+            {r.dots.map((d, i) => ((ri === 0 && d.at != null)
+              ? (
+                <button key={i} className="tap44 is-tight" aria-label={d.aria} title={d.aria} onClick={() => onPick(d.at as number)}
+                  style={{ border: "none", background: "none", padding: 0, cursor: "pointer", display: "flex", WebkitAppearance: "none" }}>
+                  <span style={dotStyle(d.k, d.color || r.color, acc)} />
+                </button>
+              )
+              : <span key={i} title={d.aria} style={dotStyle(d.k, d.color || r.color, acc)} />))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── a round's reveal ─────────────────────────────────────────────
+//
+// One document, two shapes (request 12): a 1v1's SAID · CALLED table, or a
+// group's split with faces on the bars. Under them, who played and who did
+// not (a seat, never a name), the verdict and the calls, a late answer said
+// plainly, the door to one, and the takes.
+function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; browsed?: string | null }) {
   // "" rather than null: this component INDEXES the vote map by it, and an
   // anonymous session has no uid. An empty key matches nobody, which is the
   // right answer — nothing on the reveal is yours.
@@ -743,12 +959,17 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
   const names = { ...(g.memberNames || {}), ...(reveal.names || {}) };
   const votes = (reveal.votes || {}) as Record<string, RevealVote>;
   const rowQid = reveal.qid || null;
-  // resolve the revealed question's prompt + options from the seeded bank
   const bankQ = reveal.qid ? LIVE.social.bankQ(reveal.qid) : null;
   const duo = g.mode === "duo";
   const tint = duo ? ACC_DUO : ACC_GROUP;
-  // Options for a given question — a "pick" question carries none, because
-  // its options ARE the group.
+  // The cast (D434): a role vote is read for its crown and said in its
+  // pack's ink; a rating is read for where the group landed between its
+  // poles. The older kinds read as they did.
+  const cq = bankQ as CastQ | null;
+  const roleVote = !duo && isRoleVote(cq);
+  const rating = !duo && isRateQ(cq);
+  const tag = duo ? null : tagOf(cq);
+  const ink = roleVote && cq && cq.scen ? scenInk(cq.scen) : tint;
   const optsFor = (q: { options?: string[] } | null): string[] =>
     (q && q.options && q.options.length)
       ? q.options
@@ -757,21 +978,161 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
   const labelIn = (list: string[], idx: number) =>
     (list[idx] != null ? list[idx] : "Option " + (idx + 1));
   const who = (u: string) => (u === uid ? "you" : (names[u] || "Someone"));
-  // A member's answer belongs to the question THEY were asked. Rendering it
-  // under the day's prompt is the part D70 could not fix from the server:
-  // the reveal carried one qid, so an answer given to a different question
-  // appeared under this one, with that member's name on it. Their vote now
-  // carries its own qid when it differs (D71), so it can be shown honestly.
   const qidOf = (v: RevealVote) => (typeof v.qid === "string" && v.qid ? v.qid : rowQid);
-  const offQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) !== rowQid);
+  const onQ = (u: string) => !!votes[u] && qidOf(votes[u]) === rowQid;
+  const offQuestion = Object.keys(votes).filter((u) => !onQ(u) && !votes[u].late);
   const mine = votes[uid];
+  const themUid = duo ? ((g.memberUids || []).find((m) => m !== uid) || "") : "";
+  const theirs = themUid ? votes[themUid] : undefined;
+  // A cast round (D437): the prompt and the *them* forms carry the other
+  // person's name, and each side's SAID is a different sentence — mine is
+  // what I said they are (the answer as written), theirs is what they said
+  // I am (its *them* form) — so the table reads as two facts about two
+  // people rather than two picks from one list.
+  const castRound = duo && isCastQ(cq);
+  const themFirst = firstName(names[themUid]);
+  const romantic = g.duoMode === "romantic";
+  const themForms = castRound ? (cq as CastQ & { them: string[] }).them.map((t) => castText(t, themFirst, romantic)) : opts;
+  const promptText = bankQ ? (castRound ? castText(bankQ.prompt, themFirst, romantic) : bankQ.prompt) : "";
+  // Who the reveal says was there (its `members`, the room's roster before
+  // it), against who answered: the difference is the open seats.
+  const roster: string[] = (Array.isArray(reveal.members) && reveal.members.length
+    ? (reveal.members as string[]) : (g.memberUids || []));
+  const openSeats = roster.filter((u) => !votes[u]);
+  const round = typeof reveal.round === "number" ? reveal.round : null;
+  const myLate = !!mine && !!mine.late;
+  const lateOthers = Object.keys(votes).filter((u) => votes[u].late && u !== uid);
+  const closed = openSeats.length > 0 && !myLate;
+
+  // The 1v1's two calls, comparable only on one shared question and only
+  // when both were blind — across a split, or beside a late answer, a
+  // "called it" would be a coincidence, not a read (D71, ROUNDS-PLAN §4).
+  const comparable = !!mine && !!theirs && qidOf(mine) === qidOf(theirs) && !mine.late && !theirs.late
+    && typeof mine.guessIdx === "number" && typeof theirs.guessIdx === "number";
+  const iCalled = comparable && (mine as RevealVote).guessIdx === (theirs as RevealVote).optionIdx;
+  const theyCalled = comparable && (theirs as RevealVote).guessIdx === (mine as RevealVote).optionIdx;
+
+  // The room's verdict: the option(s) most of the room landed on — a room
+  // of one is you, so it needs two. Nothing is read against a call any
+  // more: nothing in a group is called (D437), and D386's *you called it*
+  // went with the tap that made it.
+  // A role vote tallies by WHO was named (`roleTally`), so the card and
+  // the Mirror's Votes lens agree on the holder after a leave has moved
+  // the ballot's indexes under the votes; every other question tallies by
+  // option, which is what its bars are.
+  const tally: Array<{ optionIdx: number; uids: string[]; uid?: string | null }> = roleVote
+    ? roleTally(reveal, roster) : revealTally(reveal, opts.length);
+  const counted = tally.reduce((a, r) => a + r.uids.length, 0);
+  const top = tally.length ? Math.max(...tally.map((r) => r.uids.length)) : 0;
+  const winners = tally.filter((r) => r.uids.length === top).map((r) => r.optionIdx);
+  // WHO an option names, on a role vote: the row's member (`namedBy` — the
+  // D224 snapshot, else the reveal's own roster at that index), and the
+  // reveal's roster for an index no counted vote sits on (a late answer's
+  // row). Never the live roster, which a leave remaps — the hazard D204
+  // priced, and the fallback the second review of #456 caught here.
+  const castUid = (i: number): string | null => {
+    const row = tally.find((r) => r.optionIdx === i);
+    return (row && row.uid) || (roster[i] ?? null);
+  };
+  // …and the NAME of a person the record placed, or the ballot's label when
+  // it placed nobody — the bars' row label and the late list read this
+  // rather than `opts`, which on a pick is the live roster's names by index.
+  const castNameOf = (u: string | null, i: number): string =>
+    (u ? (u === uid ? "You" : (firstName(names[u]) || "Someone")) : labelIn(opts, i));
+  const castName = (i: number): string => castNameOf(castUid(i), i);
+  const castLead = (i: number): React.ReactNode => {
+    const u = castUid(i);
+    return u ? (u === uid ? <YouChip size={26} /> : <DuelAv uid={u} name={names[u]} size={26} />) : null;
+  };
+  // CONTESTED (the design's rule): a runner-up within one vote of the
+  // crown, with two or more behind it — one vote each is not a contest.
+  const runnerUp = tally.filter((r) => !winners.includes(r.optionIdx)).sort((a, b) => b.uids.length - a.uids.length)[0];
+  const contested = roleVote && winners.length === 1 && !!runnerUp && runnerUp.uids.length >= 2 && top - runnerUp.uids.length <= 1;
+  // WHERE THE GROUP LANDED, on a rating: the mean step of the counted
+  // votes, as the step's own label and as 0–100 (the design's `score`).
+  const rateMean = counted ? tally.reduce((a, r) => a + r.optionIdx * r.uids.length, 0) / counted : 2;
+  const rateScore = Math.round((rateMean / 4) * 100);
+  const rateLabel = labelIn(opts, Math.round(rateMean));
+
+  // …and the door to a late answer: a member with no vote in this reveal
+  // may still answer it, marked, as long as the round is inside the lead
+  // behind the open one — the rules' own window (`voteLate`, data/live.ts).
+  const R = LIVE.social.roundInfo(g.id);
+  const mayAnswerLate = !mine && !!uid && (g.memberUids || []).includes(uid)
+    && R != null && round != null && round < R.open && round >= R.open - R.lead;
+  const [lateBusy, setLateBusy] = React.useState(false);
+  const [lateErr, setLateErr] = React.useState<string | null>(null);
+  const answerLate = async (i: number) => {
+    if (lateBusy || round == null) return;
+    setLateBusy(true); setLateErr(null);
+    // The reveal's own qid, so the write names the question these buttons
+    // were rendered from — `duelQFor` re-derives it off a bank that grows
+    // (data/live.ts § voteLate).
+    try { await LIVE.social.voteLate(g.id, round, i, rowQid ?? undefined); }
+    catch { setLateErr("That didn’t save — check your connection."); }
+    setLateBusy(false);
+  };
+
+  const head = round != null ? `Round ${round}` : (reveal.day ? agoLabel(reveal.day, 1) : null);
+  const post = (closed ? "closed at the deadline" : "revealed") + (round != null && browsed ? ` · ${browsed}` : "");
+  const good = GOOD;
 
   return (
-    <div style={{ borderRadius: 12, border: LD_LINE, background: "var(--surface-2)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 9 }}>
-      <div className="kicker" style={{ marginBottom: 0 }}>{day || "Yesterday"} · revealed</div>
-      {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
-      {duo ? duoRows() : <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint} />}
-      {!duo && roomRow()}
+    <div data-testid="ld-reveal" style={col(10)}>
+      <div style={{ display: "flex", gap: 5, alignItems: "baseline", flexWrap: "wrap" }}>
+        {head && <span style={KICK}>{head}</span>}
+        {tag && <span style={{ ...KICK, color: tag.color || "var(--ink-3)" }}>· {tag.label}</span>}
+        <span style={KICK}>{head ? "· " : ""}{post}</span>
+      </div>
+      {bankQ && <div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.25, letterSpacing: "-0.01em", textWrap: "pretty" }}>{promptText}</div>}
+      {castRound && mine && theirs && onQ(uid) && onQ(themUid) && !mine.late && !theirs.late && (
+        // the design's lead line: what each of you is to the other
+        <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.4, color: "var(--ink-2)", textWrap: "pretty" }} data-testid="ld-cast-line">
+          You are <b style={{ color: tint }}>{labelIn(themForms, theirs.optionIdx)}</b>. {themFirst || "They"} {themFirst ? "is" : "are"} <b style={{ color: "var(--ink)" }}>{labelIn(opts, mine.optionIdx)}</b>.
+        </div>
+      )}
+      {rating && cq ? (
+        <LdRateReveal reveal={reveal} opts={opts} poles={cq.poles} names={names} uid={uid} tint={tint} />
+      ) : duo ? duoTable() : (
+        <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint}
+          cast={roleVote ? { ink, rows: tally as RoleTallyRow[], held: winners, rival: contested && runnerUp ? runnerUp.optionIdx : null, leadFor: castLead, labelFor: castName } : undefined} />
+      )}
+      {openSeats.length > 0 && seats()}
+      {line()}
+      {myLate && (
+        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.45, color: "var(--ink-2)", textWrap: "pretty" }}>
+          Answered after the reveal. It shows, and counts for nothing.
+        </div>
+      )}
+      {lateOthers.length > 0 && (
+        <div style={{ borderTop: LD_HAIR, paddingTop: 8, ...col(4) }} aria-label="Answered after the reveal">
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: "var(--ink-3)" }}>Answered after the reveal</div>
+          {lateOthers.map((u) => (
+            <div key={u} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
+              <DuelAv uid={u} name={names[u]} size={20} />
+              <span style={{ fontWeight: 700 }}>
+                {roleVote && qidOf(votes[u]) === rowQid
+                  ? castNameOf(namedBy(votes[u], roster), votes[u].optionIdx)
+                  : labelIn(optsFor(qidOf(votes[u]) === rowQid ? bankQ : (LIVE.social.bankQ(qidOf(votes[u]) as string) as { options?: string[] } | null)), votes[u].optionIdx)}
+              </span>
+              <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>late</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {mayAnswerLate && (
+        <div style={{ borderTop: LD_HAIR, paddingTop: 10, ...col(8) }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
+            You didn’t play this one. You can still answer — it shows here, marked late, and counts for nothing.
+          </div>
+          <div style={col(6)}>
+            {opts.map((o, i) => (
+              <LdOption key={i} label={o} tint={tint} disabled={lateBusy} onClick={() => void answerLate(i)} />
+            ))}
+          </div>
+          {lateErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{lateErr}</div>}
+        </div>
+      )}
       {offQuestion.map((u) => {
         // One block per member who was asked something else: their prompt,
         // then their answer read against THEIR options. Their vote is not in
@@ -786,7 +1147,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
               {who(u) === "you" ? "You were" : who(u) + " was"} asked a different question
             </div>
             {theirQ && theirQ.prompt && (
-              <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.25 }}>{theirQ.prompt}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.25 }}>{castText(theirQ.prompt, themFirst, romantic)}</div>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
               {u === uid ? <YouChip size={20} /> : <DuelAv uid={u} name={names[u]} size={20} />}
@@ -796,21 +1157,18 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
         );
       })}
       {/* Takes hang off the REVEALED question, never today's. Today's vote
-          is sealed until tomorrow, and free text beside a sealed answer is
+          is sealed until the reveal, and free text beside a sealed answer is
           the leak the seal exists to prevent — "obviously B" under a
           question nobody has answered yet is the vote, in prose. Once names
           are on the answers there is nothing left to give away, which is
-          also the only moment a circle has anything to discuss.
+          also the only moment a room has anything to discuss.
 
-          rowQid rather than a member's own qid: a split day (D71) asks
+          rowQid rather than a member's own qid: a split round (D71) asks
           different people different things, and one shared comment thread
           has to belong to one question. The panel renders nothing when the
           reveal carries no qid. */}
       {rowQid && (
         <div style={{ borderTop: LD_LINE, paddingTop: 10 }}>
-          {/* null fallback, not a spinner: the chunk is on the phone's own
-              disk by the time a reveal is open, and a spinner that shows
-              for one frame reads as a stutter. */}
           <React.Suspense fallback={null}>
             <LiveTakesPanel gid={g.id} qid={rowQid} />
           </React.Suspense>
@@ -819,83 +1177,162 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
     </div>
   );
 
-  // The pair's two rows: what you called, and what they called. Each is a
-  // statement about the OTHER's answer, so the other's mark leads it.
-  function duoRows() {
-    const themUid = (g.memberUids || []).find((m) => m !== uid) || "";
-    const theirs = themUid ? votes[themUid] : undefined;
-    // …only when you were both answering the same question. Across a split,
-    // "called it" would compare a guess about one prompt to an answer about
-    // another and land on true by coincidence.
-    const comparable = !!mine && !!theirs && qidOf(mine) === qidOf(theirs);
-    const rows: React.ReactNode[] = [];
-    if (mine && theirs && comparable && typeof mine.guessIdx === "number") {
-      rows.push(revealRow("you read " + (firstName(names[themUid]) || "them"),
-        mine.guessIdx === theirs.optionIdx,
-        labelIn(opts, theirs.optionIdx), labelIn(opts, mine.guessIdx),
-        <DuelAv key="a" uid={themUid} name={names[themUid]} size={20} />));
-    }
-    if (mine && theirs && comparable && typeof theirs.guessIdx === "number") {
-      rows.push(revealRow((firstName(names[themUid]) || "They") + " read you",
-        theirs.guessIdx === mine.optionIdx,
-        labelIn(opts, mine.optionIdx), labelIn(opts, theirs.guessIdx),
-        <YouChip key="b" size={20} />));
-    }
-    // No guesses to score (a pre-D40 reveal, or a split day) — fall back to
-    // the plain answers rather than an empty box.
-    if (!rows.length) {
+  // The 1v1's table: what each of you SAID, and what each CALLED about the
+  // other — a ✓ before the call that landed. Only votes on this question
+  // and only blind ones; a split or a late answer is explained below.
+  function duoTable() {
+    const rows = [uid, themUid].filter((u) => u && onQ(u) && !votes[u].late);
+    if (!rows.length) return null;
+    const cell = (u: string) => {
+      const v = votes[u];
+      const hit = u === uid ? iCalled : theyCalled;
+      // on a cast round my call is over the *them* forms (what they said I
+      // am) and theirs over the answers (what I said they are)
+      const said = u === uid ? labelIn(opts, v.optionIdx) : labelIn(themForms, v.optionIdx);
+      const call = typeof v.guessIdx === "number" ? labelIn(u === uid ? themForms : opts, v.guessIdx) : null;
       return (
-        <div style={col(6)}>
-          {Object.keys(votes).filter((u) => qidOf(votes[u]) === rowQid).map((u) => (
-            <div key={u} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
-              {u === uid ? <YouChip size={20} /> : <DuelAv uid={u} name={names[u]} size={20} />}
-              <span style={{ fontWeight: 700 }}>{labelIn(opts, votes[u].optionIdx)}</span>
-            </div>
-          ))}
+        <div key={u} style={{ display: "grid", gridTemplateColumns: "72px 1fr 1fr", gap: 10, alignItems: "center", padding: "10px 0", borderTop: LD_HAIR }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            {u === uid ? <YouChip size={22} /> : (
+              <>
+                <DuelAv uid={u} name={names[u]} size={26} />
+                <span style={{ fontWeight: 800, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{firstName(names[u]) || "Someone"}</span>
+              </>
+            )}
+          </span>
+          <span style={{ fontWeight: 700, fontSize: 14, textWrap: "pretty" }}>{said}</span>
+          <span style={{ fontWeight: 800, fontSize: 14, textWrap: "pretty", color: comparable ? (hit ? good : MISS) : "var(--ink-3)" }}>
+            {call == null ? "—" : (comparable && hit ? <><span aria-label="called it">✓</span> {call}</> : call)}
+          </span>
         </div>
       );
-    }
-    return <div style={col(0)}>{rows}</div>;
-  }
-
-  // Your call on where the room would land (D386), read against the bars
-  // above it: a hit when it named an option that tied for the top. A room
-  // of one is you, so a day only you answered draws no row — calling your
-  // own vote is not a read. Split days are excluded the way duoRows
-  // excludes them: a guess about one prompt read against another's bars.
-  function roomRow() {
-    if (!mine || typeof mine.guessIdx !== "number" || qidOf(mine) !== rowQid) return null;
-    const tally = revealTally(reveal, opts.length);
-    const counted = tally.reduce((a, r) => a + r.uids.length, 0);
-    if (counted < 2) return null;
-    const top = Math.max(...tally.map((r) => r.uids.length));
-    const winners = tally.filter((r) => r.uids.length === top).map((r) => r.optionIdx);
-    return revealRow("you read the room", winners.includes(mine.guessIdx),
-      winners.map((i) => labelIn(opts, i)).join(" · "), labelIn(opts, mine.guessIdx),
-      <GroupMark key="room" gid={g.id} name={g.name} size={20} />);
-  }
-
-  function revealRow(label: string, right: boolean, ansLabel: string, guessLabel: string, av: React.ReactNode) {
+    };
     return (
-      <div key={label} style={{ padding: "9px 0", borderTop: LD_HAIR, ...col(4) }}>
-        <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)" }}>{label}</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {av}
-          <span style={{ fontWeight: 700, fontSize: 14 }}>{ansLabel}</span>
-          <span style={{ marginLeft: "auto", fontWeight: 800, fontSize: 12.5, color: right ? GOOD : MISS, whiteSpace: "nowrap" }}>
-            {right ? "called it" : "guessed " + guessLabel}
-          </span>
-        </span>
+      <div style={col(0)}>
+        <div style={{ display: "grid", gridTemplateColumns: "72px 1fr 1fr", gap: 10, padding: "0 0 6px" }}>
+          <span />
+          <span style={KICK}>said</span>
+          <span style={KICK}>called</span>
+        </div>
+        {rows.map(cell)}
+      </div>
+    );
+  }
+
+  // Who played, and who did not: marks for the people with an answer, your
+  // pill (marked late when it was), and a dashed ring per member the reveal
+  // recorded as there who never answered. Drawn only when a seat is open.
+  function seats() {
+    const played = roster.filter((u) => u !== uid && !!votes[u]);
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", paddingTop: 2 }} aria-label="Who played">
+        {played.map((u) => <HaloAv key={u} uid={u} name={names[u]} size={30} on={false} />)}
+        {mine && (myLate
+          ? <span style={{ height: 30, padding: "0 10px", borderRadius: 999, display: "inline-flex", alignItems: "center", fontWeight: 800, fontSize: 12, color: "var(--surface)", background: "var(--ink)", whiteSpace: "nowrap" }}>you · late</span>
+          : <YouChip size={30} />)}
+        {openSeats.map((u) => <OpenSeat key={u} size={30} />)}
+      </div>
+    );
+  }
+
+  // The verdict, on one line — a group's: where the room landed. A 1v1's
+  // calls are in its table.
+  // A role vote's verdict names the cast — *Ada is the mastermind*, or
+  // *Ada and Bo share the mastermind · contested* — and a rating's says
+  // where the group landed between its poles, with the 0–100 beside it.
+  function line() {
+    const parts: React.ReactNode[] = [];
+    if (rating && counted >= 1) {
+      parts.push(
+        <span key="v">The group lands on <b style={{ color: tint }}>{rateLabel}</b> <span style={{ color: "var(--ink-3)" }}>· {rateScore}</span></span>,
+      );
+    } else if (!duo && counted >= 2 && winners.length) {
+      if (roleVote && cq) {
+        const w = winners[0];
+        parts.push(contested && runnerUp
+          ? <span key="v"><b style={{ color: ink }}>{castName(w)}</b> and <b style={{ color: ink }}>{castName(runnerUp.optionIdx)}</b> share <b>{cq.role.label}</b> · contested</span>
+          : winners.length > 1
+            ? <span key="v"><b style={{ color: ink }}>{winners.map((i) => castName(i)).join(" and ")}</b> share <b>{cq.role.label}</b></span>
+            : <span key="v"><b style={{ color: ink }}>{castName(w)}</b> {castUid(w) === uid ? "are" : "is"} <b>{cq.role.label}</b></span>);
+      } else {
+        parts.push(<span key="v">{"The room landed on " + winners.map((i) => labelIn(opts, i)).join(" · ")}</span>);
+      }
+    }
+    if (!parts.length) return null;
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", alignItems: "baseline", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
+        {parts}
       </div>
     );
   }
 }
 
 // One bar per option anybody chose: the share carries the fill, the faces
-// sit on the right, and your own row wears the accent border. The
-// prototype's GDReveal, over the live reveal doc.
-function LdRevealBars({ reveal, opts, names, uid, tint }: {
+// sit on the right, and your own row wears the accent border. A late
+// answer sits on its option too — marked, since it was not blind — and
+// stays out of the tally the verdict is read against (revealTally).
+// ── a rating's reveal (D434) ──────────────────────────────────────
+//
+// The two poles, the marks of who stood where on the five steps, and the
+// group's own dot on the track between them — the design's `RateReveal`.
+// Nothing is called on a rating, so there is no table of calls under it.
+function LdRateReveal({ reveal, opts, poles, names, uid, tint }: {
+  reveal: LiveReveal; opts: string[]; poles: string[]; names: Record<string, string>; uid: string; tint: string;
+}) {
+  React.useEffect(() => { note("revealSeen"); }, []);
+  const votes = (reveal.votes || {}) as Record<string, RevealVote>;
+  const rowQid = reveal.qid || "";
+  const onQ = (v: RevealVote) => typeof v.qid !== "string" || !v.qid || v.qid === rowQid;
+  const who = Object.keys(votes).filter((u) => onQ(votes[u]) && typeof votes[u].optionIdx === "number");
+  const counted = who.filter((u) => !votes[u].late);
+  const mean = counted.length ? counted.reduce((a, u) => a + votes[u].optionIdx, 0) / counted.length : 2;
+  const score = Math.round((mean / 4) * 100);
+  const lean = score >= 58 ? 1 : score <= 42 ? 0 : -1;
+  const poleStyle = (i: number): React.CSSProperties => ({
+    flex: 1, minWidth: 0, fontWeight: lean === i ? 800 : 600, fontSize: 13.5, letterSpacing: "-0.01em",
+    color: lean === i ? tint : "var(--ink-2)", textWrap: "balance", textAlign: i ? "right" : "left",
+  });
+  const stops = [0, 1, 2, 3, 4];
+  const pct = (step: number) => 10 + step * 20;
+  return (
+    <div style={col(0)} aria-label="How the group rated itself">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
+        <span style={poleStyle(0)}>{poles[0]}</span>
+        <span style={poleStyle(1)}>{poles[1]}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", alignItems: "end", marginTop: 10, minHeight: 26 }}>
+        {stops.map((i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 3 }} aria-label={opts[i] || `step ${i + 1}`}>
+            {who.filter((u) => u !== uid && votes[u].optionIdx === i).map((u) => (
+              <DuelAv key={u} uid={u} name={names[u]} size={22} title={(names[u] || "Someone") + (votes[u].late ? " · late" : "")} />
+            ))}
+            {who.includes(uid) && votes[uid].optionIdx === i && (votes[uid].late
+              ? <span style={{ height: 22, padding: "0 9px", borderRadius: 999, display: "inline-flex", alignItems: "center", fontWeight: 800, fontSize: 12, color: "var(--surface)", background: "var(--ink)", whiteSpace: "nowrap" }}>you · late</span>
+              : <YouChip size={22} />)}
+          </div>
+        ))}
+      </div>
+      <div style={{ position: "relative", height: 30 }}>
+        <div style={{ position: "absolute", left: "10%", right: "10%", top: 14, height: 1.5, background: "var(--rule)" }} />
+        {stops.map((i) => (
+          <span key={i} style={{ position: "absolute", left: `${pct(i)}%`, top: 14, transform: "translate(-50%, -50%)", width: 7, height: 7, borderRadius: "50%", background: "var(--surface)", border: "1.5px solid var(--ink-3)", boxSizing: "border-box" }} />
+        ))}
+        {counted.length > 0 && (
+          <span role="img" aria-label={`the group · ${score}`} title={`the group · ${score}`}
+            style={{ position: "absolute", left: `${pct(mean)}%`, top: 14, transform: "translate(-50%, -50%)", width: 17, height: 17, borderRadius: "50%", background: tint, border: "2.5px solid var(--surface)", boxShadow: `0 0 0 1px ${tint}`, boxSizing: "border-box", transition: "left .4s cubic-bezier(0.2,0.8,0.2,1)" }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LdRevealBars({ reveal, opts, names, uid, tint, cast }: {
   reveal: LiveReveal; opts: string[]; names: Record<string, string>; uid: string; tint: string;
+  /** A role vote (D434): the pack's ink, the crowned option(s), the
+   *  contested runner-up, and each option's member as its lead. The rows
+   *  are then ordered by count — the design's `VoteReveal` — because a
+   *  cast's rows are people, and the crown reads from the top. */
+  cast?: { ink: string; rows: RoleTallyRow[]; held: number[]; rival: number | null; leadFor: (i: number) => React.ReactNode; labelFor: (i: number) => string };
 }) {
   // R2/D270: a reveal on screen is the duel loop's payoff being
   // collected — the one signal rung 0 could never see (the reveal doc is
@@ -903,31 +1340,67 @@ function LdRevealBars({ reveal, opts, names, uid, tint }: {
   // once per bars instance, a no-op unless the live session armed the
   // tally.
   React.useEffect(() => { note("revealSeen"); }, []);
-  const rows = revealTally(reveal, opts.length);
-  const total = rows.reduce((a, r) => a + r.uids.length, 0) || 1;
-  const mine = (reveal.votes || {})[uid];
+  const votes = (reveal.votes || {}) as Record<string, RevealVote>;
+  const rowQid = reveal.qid || "";
+  // A cast's rows are people (`roleTally`, folded by who was named), so two
+  // ballot indexes that name one member are one row here too.
+  const rows: Array<{ optionIdx: number; uids: string[] }> = cast ? cast.rows : revealTally(reveal, opts.length);
+  const late = Object.keys(votes).filter((u) => votes[u].late
+    && (typeof votes[u].qid !== "string" || !votes[u].qid || votes[u].qid === rowQid));
+  const byOpt = new Map<number, { uids: string[]; late: string[] }>();
+  for (const r of rows) byOpt.set(r.optionIdx, { uids: r.uids, late: [] });
+  for (const u of late) {
+    // On a cast a late vote sits on the row of the person ITS snapshot
+    // names — the counted votes' own rule — and only a vote with no
+    // snapshot falls back to its ballot index.
+    const snap = cast && typeof votes[u].pickUid === "string" && votes[u].pickUid
+      ? cast.rows.find((r) => r.uid === votes[u].pickUid) : undefined;
+    const i = snap ? snap.optionIdx : votes[u].optionIdx;
+    const row = byOpt.get(i) || { uids: [], late: [] };
+    row.late.push(u);
+    byOpt.set(i, row);
+  }
+  const size = (i: number) => (byOpt.get(i) as { uids: string[]; late: string[] }).uids.length;
+  const order = [...byOpt.keys()].sort((a, b) => (cast ? (size(b) - size(a) || a - b) : a - b));
+  const total = order.reduce((a, i) => a + (byOpt.get(i) as { uids: string[]; late: string[] }).uids.length
+    + (byOpt.get(i) as { uids: string[]; late: string[] }).late.length, 0) || 1;
   return (
     <div style={col(8)}>
-      {rows.map((r) => {
-        const isMine = !!mine && mine.optionIdx === r.optionIdx;
+      {order.map((i) => {
+        const row = byOpt.get(i) as { uids: string[]; late: string[] };
+        // Your vote is on the row that holds it — on a cast, the row of the
+        // person it named, whatever ballot index it was cast at.
+        const isMine = row.uids.includes(uid) || row.late.includes(uid);
+        const held = !!cast && cast.held.includes(i);
+        const rival = !!cast && cast.rival === i;
+        const fill = cast ? cast.ink : tint;
+        const border = cast
+          ? (held ? `1.5px solid color-mix(in oklch, ${fill} 60%, transparent)` : rival ? `1.5px solid color-mix(in oklch, ${fill} 40%, transparent)` : LD_LINE)
+          : (isMine ? `1.5px solid color-mix(in oklch, ${tint} 55%, transparent)` : LD_LINE);
         return (
-          <div key={r.optionIdx} style={{
+          <div key={i} data-held={held ? "true" : undefined} style={{
             position: "relative", overflow: "hidden", borderRadius: 14,
-            border: isMine ? `1.5px solid color-mix(in oklch, ${tint} 55%, transparent)` : LD_LINE,
-            background: "var(--surface)", boxShadow: "none",
+            border,
+            background: "var(--surface-2)", boxShadow: "none",
           }}>
             <div style={{ position: "absolute", top: 0, left: 0, bottom: 0,
-              width: (r.uids.length / total) * 100 + "%",
-              background: `color-mix(in oklch, ${tint} 13%, transparent)` }} />
-            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px" }}>
-              <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 13.5 }}>
-                {opts[r.optionIdx] != null ? opts[r.optionIdx] : "Option " + (r.optionIdx + 1)}
+              width: ((row.uids.length + row.late.length) / total) * 100 + "%",
+              background: `color-mix(in oklch, ${fill} ${cast && (held || rival) ? 14 : cast ? 7 : 13}%, transparent)` }} />
+            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px 8px 9px", minHeight: 44, boxSizing: "border-box" }}>
+              {cast && cast.leadFor(i)}
+              <span style={{ flex: 1, minWidth: 0, fontWeight: held || rival ? 800 : 700, fontSize: 13.5 }}>
+                {cast ? cast.labelFor(i) : (opts[i] != null ? opts[i] : "Option " + (i + 1))}
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                {r.uids.filter((u) => u !== uid).map((u) => (
-                  <DuelAv key={u} uid={u} name={names[u]} size={20} />
+                {row.uids.filter((u) => u !== uid).map((u) => (
+                  <DuelAv key={u} uid={u} name={names[u]} size={26} />
                 ))}
-                {isMine && <YouChip size={20} />}
+                {row.late.filter((u) => u !== uid).map((u) => (
+                  <DuelAv key={u} uid={u} name={names[u]} size={26} title={(names[u] || "Someone") + " · late"} />
+                ))}
+                {isMine && (row.late.includes(uid)
+                  ? <span style={{ height: 26, padding: "0 9px", borderRadius: 999, display: "inline-flex", alignItems: "center", fontWeight: 800, fontSize: 12, color: "var(--surface)", background: "var(--ink)", whiteSpace: "nowrap", boxShadow: "0 0 0 1.5px var(--surface-2)" }}>you · late</span>
+                  : <YouChip size={26} />)}
               </span>
             </div>
           </div>
@@ -977,7 +1450,7 @@ function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
       </div>
       {sealed && (
         <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          Pool is locked until tomorrow — today’s answer is sealed.
+          Pool is locked while an answer of yours is sealed.
         </div>
       )}
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
@@ -1042,7 +1515,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-          Or send a link — no account needed.
+          Or send a link — they sign in when they open it.
         </span>
         <LdCopyLink g={g} />
       </div>
@@ -1058,8 +1531,8 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
               {members.length <= 1
                 ? "You’re the last one — leaving deletes this circle and its history."
                 : duo
-                  ? "End this 1v1? You keep the days you played."
-                  : "Leave this circle? You keep the days you played."}
+                  ? "End this 1v1? Your history stays on your map."
+                  : "Leave this circle? Your history stays on your map."}
             </span>
             <button className="press" onClick={() => setConfirmLeave(false)}
               style={{ border: LD_LINE, background: "transparent", borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -1090,22 +1563,48 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
   );
 }
 
-// ── one circle's card — fills the view, snaps into place ─────────
-function LdCard({ g, vh, nextName, newest }: {
-  g: LiveGroup; vh: number; nextName: string | null; newest: boolean;
-}) {
+// ── one room's card — fills the view, snaps into place ───────────
+//
+// Request 12's nine states, over the documents the card already holds:
+// the group document (`round`, `played`, `roundDeadlineAt`), the latest
+// reveal, and the history behind it. No new read. Which state draws is a
+// function of three facts — whether you have sealed the open round,
+// whether a next round is yours to answer, and whether a reveal stands —
+// and the design's grammar for each is named beside it.
+function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }) {
   const S = LIVE.social;
   const uid = LIVE.uid || "";
   const duo = g.mode === "duo";
-  const q = S.todayQ(g.id);
+  // ROUNDS (ROUNDS-PLAN, D426). `q` is the NEXT round this account may
+  // answer — the lowest unsealed one inside the lead — or null at the
+  // lead's edge; `mine` is its answer to the OPEN round; `R.sealed` the
+  // rounds it has sealed that have not revealed. A card is asked for the
+  // next round the moment the last one is sealed: that is the volley.
+  const q = S.todayQ(g.id) as CastQ | null;
+  // The cast (D434): the next round's tag for the kicker, and whether it
+  // is a rating — which seals on the one tap, with no call to make.
+  const qTag = duo ? null : tagOf(q);
+  const rate = !duo && isRateQ(q);
   const mine = S.myDuelVote(g.id);
+  const R = S.roundInfo(g.id) || { open: 1, next: 1 as number | null, sealed: [] as number[], lead: 5 };
+  const atLead = q == null && R.sealed.length > 0;
+  const deadline = deadlineMs(g.roundDeadlineAt);
+  const left = useLeft(!duo && newest ? deadline : null);
   const reveal = S.revealFor(g.id) as LiveReveal | null;
   const members = g.memberUids || [];
   const names = g.memberNames || {};
   const themUid = duo ? (members.find((m) => m !== uid) || "") : "";
   const themName = firstName(names[themUid]) || "them";
   const romantic = g.duoMode === "romantic";
+  // The cast round's copy (D437): the prompt carries the other person's
+  // name and the guess is over the *them* forms. Both go through castText,
+  // which puts the name where the bank could not and never leaves the
+  // placeholder.
+  const themFirst = firstName(names[themUid]);
+  const promptOf = (x: CastQ | null): string => (x ? (duo && isCastQ(x) ? castText(x.prompt, themFirst, romantic) : x.prompt) : "");
+  const themOpts = (x: CastQ): string[] => (isCastQ(x) ? x.them.map((t) => castText(t, themFirst, romantic)) : x.options);
   const tint = duo ? (romantic ? ROMANCE : ACC_DUO) : ACC_GROUP;
+  const openQ = S.roundQ(g.id, R.open) as CastQ | null;
 
   const [menu, setMenu] = React.useState(false);
   // The answer, held locally between the two taps. A duo answers, then
@@ -1115,14 +1614,14 @@ function LdCard({ g, vh, nextName, newest }: {
   const [pick, setPick] = React.useState<number | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [voteErr, setVoteErr] = React.useState<string | null>(null);
-  // Day browsing. `revealFor` is yesterday, live-subscribed and free;
-  // anything older is a doc read per day per circle, so it arrives on the
-  // tap that asks for it rather than on the daily tab's first paint.
-  const [day, setDay] = React.useState(0);
+  // Browsing the run. `revealFor` is the latest, live-subscribed and free;
+  // anything older is one ordered query per room, so it arrives on the tap
+  // that asks for it rather than on the daily tab's first paint.
+  const [at, setAt] = React.useState(0);
   const [histAsked, setHistAsked] = React.useState(false);
   const hist = (S.revealHistory(g.id) as LiveReveal[]) || [];
   const past = hist.length ? hist : (reveal ? [reveal] : []);
-  const shown: LiveReveal | null = day === 0 ? null : (past[day - 1] || null);
+  const shown: LiveReveal | null = at === 0 ? null : (past[at - 1] || null);
 
   const seal = async (optionIdx: number, guessIdx?: number) => {
     if (busy) return;
@@ -1139,69 +1638,310 @@ function LdCard({ g, vh, nextName, newest }: {
     void S.loadRevealHistory(g.id);
   };
 
-  // one dot per day this circle has on record; tap to browse back
-  const dots = past.length > 0 && (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
-      {!histAsked && (
-        <button onClick={loadOlder} aria-label="Load older days"
-          style={{ border: "none", background: "none", padding: "0 4px", cursor: "pointer", color: "var(--ink-3)", fontSize: 12, fontWeight: 800, lineHeight: 1, WebkitAppearance: "none" }}>⋯</button>
+  // Rounds WAITING for you: inside the lead, sealed by somebody else and
+  // not by you — off `played` on the group document, which says who has
+  // answered and never what. Said once, in the band, when more than one.
+  const playedMap = (g.played || {}) as Record<string, string[]>;
+  let waiting = 0;
+  for (let n = R.open; n < R.open + R.lead; n++) {
+    const who = Array.isArray(playedMap[`r${n}`]) ? playedMap[`r${n}`] : [];
+    if (who.some((u) => u !== uid) && !who.includes(uid)) waiting++;
+  }
+  const openPlayers = Array.isArray(playedMap[`r${R.open}`]) ? playedMap[`r${R.open}`] : [];
+
+  // ── the run ──
+  // One dot per reveal you played, oldest left, then the tail: a sealed
+  // ring per round waiting on the others, a dashed seat per round waiting
+  // on you. The first row's revealed dots open that reveal.
+  const tail: DotKind[] = [
+    ...R.sealed.map(() => "s" as DotKind),
+    ...Array<DotKind>(Math.max(q ? 1 : 0, waiting)).fill("o"),
+  ];
+  const youDots: RunDot[] = [];
+  const themDots: RunDot[] = [];
+  past.map((r, i) => ({ r, i })).reverse().forEach(({ r, i }) => {
+    const votes = (r.votes || {}) as Record<string, RevealVote>;
+    const v = votes[uid];
+    if (!v) return;
+    const rn = typeof r.round === "number" ? `Round ${r.round}` : agoLabel(r.day, i + 1);
+    const when = typeof r.round === "number" && r.day ? ` · ${agoLabel(r.day, i + 1)}` : "";
+    const aria = (k: DotKind) => `${rn}${when} — ${DOT_TITLE[String(k)]}`;
+    const rowQid = r.qid || "";
+    const qOf = (x: RevealVote) => (typeof x.qid === "string" && x.qid ? x.qid : rowQid);
+    let me: DotKind = "n";
+    let them: DotKind = "n";
+    let color: string | undefined;
+    let title: string | null = null;
+    if (v.late) me = "l";
+    else if (duo) {
+      const t = themUid ? votes[themUid] : undefined;
+      const comparable = !!t && !t.late && qOf(v) === qOf(t)
+        && typeof v.guessIdx === "number" && typeof t.guessIdx === "number";
+      if (comparable) {
+        me = v.guessIdx === (t as RevealVote).optionIdx ? 1 : 0;
+        them = (t as RevealVote).guessIdx === v.optionIdx ? 1 : 0;
+      }
+    } else if (qOf(v) === rowQid) {
+      const bq = rowQid ? (S.bankQ(rowQid) as CastQ | null) : null;
+      // the reveal's own roster, for a vote with no snapshot to place it
+      const was: string[] = Array.isArray(r.members) && r.members.length ? (r.members as string[]) : (g.memberUids || []);
+      const tally: Array<{ optionIdx: number; uids: string[]; uid?: string | null }> = isRoleVote(bq)
+        ? roleTally(r, was)
+        : revealTally(r, bq && Array.isArray(bq.options) ? bq.options.length : 0);
+      const counted = tally.reduce((a, x) => a + x.uids.length, 0);
+      const top = tally.length ? Math.max(...tally.map((x) => x.uids.length)) : 0;
+      const crowns = tally.filter((x) => x.uids.length === top);
+      if (isRateQ(bq)) {
+        // a rating: nothing to call, nobody named — a square
+        me = "r";
+        title = "rated the group";
+      } else if (isRoleVote(bq)) {
+        // THE RUN IS A RECORD, NOT A SCORE (D437, the owner's 2026-09-09
+        // brief): a dot in the pack's ink for every vote you played, whoever
+        // the room named — the caption says who. D434's filled-or-ring
+        // encoding (named you / named someone else) went with the brief.
+        // Who a row names: `roleTally`'s member — the one definition the
+        // reveal card uses — and the reveal's own roster for an index no
+        // snapshot placed.
+        me = 1;
+        color = bq.scen ? scenInk(bq.scen) : undefined;
+        const holder = (x: { optionIdx: number; uids: string[]; uid?: string | null }): string => {
+          const u = x.uid || was[x.optionIdx];
+          return u ? (u === uid ? "You" : (firstName(names[u]) || "Someone")) : `Option ${x.optionIdx + 1}`;
+        };
+        const pack = bq.scen ? `${bq.scen.label} · ` : "";
+        if (!counted) title = `${pack}${bq.role.label}`;
+        else if (crowns.length === 1) {
+          const w = holder(crowns[0]);
+          title = `${pack}${w} ${w === "You" ? "are" : "is"} ${bq.role.label}`;
+        } else title = `${pack}${crowns.map(holder).join(" and ")} share ${bq.role.label}`;
+      }
+    }
+    youDots.push({ k: me, aria: title ? `${rn}${when} — ${title}` : aria(me), at: i + 1, ...(color ? { color } : {}) });
+    themDots.push({ k: them, aria: aria(them) });
+  });
+  const tailDots = tail.map((k) => ({ k, aria: DOT_TITLE[String(k)] }));
+  const runRows: RunRow[] = [
+    { label: "you", aria: duo ? `How well you read ${themName}` : "The cast so far, one mark per round: a dot in the pack's colour for a vote, a square for a rating. Tap a mark to read it.", color: ACC_GROUP, dots: [...youDots, ...tailDots] },
+  ];
+  if (duo && themUid) runRows.push({ label: themName, aria: `How well ${themName} reads you`, color: tint, dots: [...themDots, ...tailDots] });
+  const runBlock = (youDots.length || tail.length) ? (
+    <div style={col(6)}>
+      <LdRun rows={runRows} acc={tint} onPick={(n) => setAt(n)} />
+      {!histAsked && past.length > 0 && (
+        <button onClick={loadOlder} aria-label="Load older rounds"
+          style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", color: "var(--ink-3)", fontSize: 12, fontWeight: 800, lineHeight: 1, WebkitAppearance: "none" }}>⋯ older rounds</button>
       )}
-      {/* oldest left, today right — the row is time, so it has to run that
-          way even though `past` arrives newest first */}
-      {past.map((r, i) => ({ n: i + 1, r })).reverse().map(({ n, r }) => {
-        const cur = n === day;
-        return (
-          // Labelled from the reveal's own day, like the card it opens —
-          // see `agoLabel`. Kept in step deliberately: a dot that says one
-          // thing and a card that says another is worse than both being
-          // wrong together, and that is what fixing only one of them gives.
-          <button key={n} className="tap44 is-tight" onClick={() => setDay(n)} aria-current={cur ? "true" : undefined}
-            aria-label={agoLabel(r.day, n) + " — revealed"}
-            style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitAppearance: "none" }}>
-            <span style={{ width: cur ? 18 : 6, height: 6, borderRadius: 999,
-              background: cur ? tint : `color-mix(in oklch, ${tint} 45%, var(--surface-3))`,
-              transition: "width .25s ease, background .2s ease" }} />
-          </button>
-        );
-      })}
-      <button className="tap44 is-tight" onClick={() => setDay(0)} aria-current={day === 0 ? "true" : undefined} aria-label="Today"
-        style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitAppearance: "none" }}>
-        <span style={{ width: day === 0 ? 18 : 6, height: 6, borderRadius: 999,
-          background: day === 0 ? tint : (mine ? `color-mix(in oklch, ${tint} 45%, var(--surface-3))` : "color-mix(in oklch, var(--ink-3) 30%, transparent)"),
-          transition: "width .25s ease, background .2s ease" }} />
-      </button>
     </div>
-  );
+  ) : null;
 
   const header = (
     <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
       {duo && themUid
-        ? <DuelAv uid={themUid} name={names[themUid]} size={26} />
-        : <GroupMark gid={g.id} name={g.name} size={26} />}
+        ? <DuelAv uid={themUid} name={names[themUid]} size={30} />
+        : <GroupMark gid={g.id} name={g.name} size={30} />}
       <span style={{ fontWeight: 800, fontSize: 15, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {duo && themUid ? themName : g.name}
       </span>
       {duo && romantic && <span aria-label="romantic mode" style={{ width: 7, height: 7, borderRadius: "50%", background: ROMANCE, flexShrink: 0 }} />}
-      <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        {(g.streak || 0) > 0 && streakIsLive(g) && <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>{g.streak}-day run</span>}
-        {!duo && <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>{members.length}</span>}
-        <button className="tap44" aria-label={"Manage " + (g.name || "this circle")} aria-expanded={menu}
-          onClick={() => setMenu((v) => !v)}
-          style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-3)", fontSize: 17, fontWeight: 800, padding: "0 3px", lineHeight: 1, WebkitAppearance: "none" }}>{"⋯"}</button>
+      <button className="tap44" aria-label={"Manage " + (g.name || "this room")} aria-expanded={menu}
+        onClick={() => setMenu((v) => !v)}
+        style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", color: "var(--ink-3)", fontSize: 18, fontWeight: 800, padding: "0 3px", lineHeight: 1, WebkitAppearance: "none" }}>{"⋯"}</button>
+    </div>
+  );
+
+  const kicker = (n: number, right?: string | null, tag?: { label: string; color?: string } | null) => (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+      <span style={{ display: "flex", gap: 5, alignItems: "baseline", flexWrap: "wrap" }}>
+        <span style={KICK}>{`Round ${n}`}</span>
+        {tag && <span style={{ ...KICK, color: tag.color || "var(--ink-3)" }}>· {tag.label}</span>}
       </span>
+      {right && <span style={{ ...KICK, fontVariantNumeric: "tabular-nums" }}>{right}</span>}
+    </div>
+  );
+  // A role vote's options are the members, so each wears its member's
+  // mark — the design's OptBtn `lead`; the older kinds carry none.
+  const optionLead = (i: number): React.ReactNode => {
+    if (duo || !q || q.kind !== "pick") return undefined;
+    const u = members[i];
+    return u ? (u === uid ? <YouChip size={26} /> : <DuelAv uid={u} name={names[u]} size={26} />) : undefined;
+  };
+  const saidWord = (x: CastQ | null) => (!duo && x && x.kind === "pick" ? "you named" : "you said");
+  const split = <div style={{ height: 0, borderTop: "0.5px solid var(--rule)" }} />;
+
+  // ── the blocks ──
+  const myOpen = mine && openQ ? S.myDuelCall(g.id, R.open) : null;
+  const mineLabel = openQ && myOpen && openQ.options[myOpen.optionIdx] != null ? openQ.options[myOpen.optionIdx] : "—";
+
+  // State 2 · their turn: what you sealed, and who it waits on. Nothing of
+  // anyone else's before the reveal — a 1v1 draws the partner's answer as
+  // redacted bars, a group draws who HAS played (haloed) and its one clock.
+  const waitBlock = mine && openQ && (duo ? (
+    <div style={col(12)} key="wait">
+      <div style={serif(24)}>{promptOf(openQ)}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 6 }}>
+        <YouChip size={22} />
+        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>said</span>
+        <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.2 }}>{mineLabel}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, borderTop: LD_HAIR, paddingTop: 12 }}>
+        <DuelAv uid={themUid} name={names[themUid]} size={26} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+          <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--ink-2)" }}>
+            {themName}’s answer
+            {myOpen && myOpen.guessIdx != null && themOpts(openQ)[myOpen.guessIdx] != null && (
+              <> · <span style={{ color: "var(--ink)", fontWeight: 800 }}>you called {themOpts(openQ)[myOpen.guessIdx]}</span></>
+            )}
+          </span>
+          <span role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>waiting on {themName}</span>
+        </div>
+        <span aria-hidden="true" style={{ display: "flex", gap: 3, alignItems: "center", flexShrink: 0 }}>
+          {[22, 13, 18].map((w, i) => <span key={i} style={{ width: w, height: 11, borderRadius: 2, background: "color-mix(in oklch, var(--ink) 17%, transparent)" }} />)}
+        </span>
+      </div>
+    </div>
+  ) : (
+    <div style={col(16)} key="wait">
+      {kicker(R.open, null, tagOf(openQ))}
+      <div style={serif(24)}>{promptOf(openQ)}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-3)" }}>{saidWord(openQ)}</span>
+        <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: -0.3 }}>{mineLabel}</span>
+      </div>
+      <div style={{ ...col(12), borderTop: "0.5px solid color-mix(in oklch, var(--rule), transparent 20%)", padding: "16px 0 2px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }} aria-label="Who has played">
+          {members.filter((u) => u !== uid).map((u) => (
+            <HaloAv key={u} uid={u} name={names[u]} size={34} on={openPlayers.includes(u)} />
+          ))}
+          <YouChip size={34} />
+        </div>
+        <div role="status" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", textWrap: "pretty" }}>
+          {left ? `Reveals when everyone has played · ${left} at the latest` : "Reveals when everyone has played, or at the deadline"}
+        </div>
+      </div>
+    </div>
+  ));
+
+  // State 5 · at the lead: every round inside it sealed. What is waiting,
+  // with your own picks, and when each opens — nothing called forbidden.
+  const sealedList = atLead && (
+    <div style={col(10)} key="sealed">
+      <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.3 }}>
+        {`${roundsWord(R.sealed.length)} waiting on ${duo ? themName : (g.name || "the room")}`}
+      </div>
+      <div style={col(0)}>
+        {R.sealed.map((n) => {
+          const rq = S.roundQ(g.id, n) as CastQ | null;
+          const call = S.myDuelCall(g.id, n);
+          const parts: string[] = [];
+          const rt = duo ? null : tagOf(rq);
+          if (rt) parts.push(rt.label);
+          if (rq && call && rq.options[call.optionIdx] != null) parts.push(`you: ${rq.options[call.optionIdx]}`);
+          if (rq && call && call.guessIdx != null && themOpts(rq)[call.guessIdx] != null) parts.push(`called ${themOpts(rq)[call.guessIdx]}`);
+          const dl = !duo && n === R.open ? left : null;
+          return (
+            <div key={n} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: LD_HAIR }}>
+              <span aria-label="sealed" style={{ width: 14, height: 14, marginTop: 3, borderRadius: "50%", flexShrink: 0, background: tint, boxShadow: `inset 0 0 0 2px ${GROUND}, inset 0 0 0 3.5px ${tint}` }} />
+              <span style={{ width: 18, flexShrink: 0, paddingTop: 1, fontSize: 12.5, fontWeight: 800, fontVariantNumeric: "tabular-nums", color: "var(--ink-3)" }}>{n}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.3, textWrap: "pretty" }}>{rq ? promptOf(rq) : `Round ${n}`}</span>
+                {parts.length > 0 && <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: "var(--ink-3)" }}>{parts.join(" · ")}</span>}
+              </div>
+              {dl && <span style={{ flexShrink: 0, paddingTop: 1, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--ink-3)", whiteSpace: "nowrap" }}>{dl}</span>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.45, color: "var(--ink-2)", textWrap: "pretty" }}>
+        {duo ? `Each reveals as ${themName} plays.` : "Each reveals when everyone has played, or at its deadline."}
+      </div>
+    </div>
+  );
+
+  // State 4 · several rounds waiting: the count said once.
+  const band = waiting >= 2 && q && (
+    <div style={col(2)} key="band">
+      <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em", color: tint }}>{`${waiting} rounds waiting for you`}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
+        {duo ? "each reveals as you answer" : "each reveals when everyone has played, or at its deadline"}
+      </span>
+    </div>
+  );
+
+  // State 1 · your turn: the question, then the read.
+  const askBlock = q && pick == null && (
+    <div style={col(12)} key="ask">
+      {kicker(R.next ?? R.open, !duo && R.next === R.open && left ? `${left} left` : null, qTag)}
+      <div style={serif(27)}>{promptOf(q)}</div>
+      {rate && q ? (
+        // A rating seals on the one tap: the group is asked about itself,
+        // and there is no room to read (D434).
+        <LdPoleBallot poles={q.poles} steps={q.options} tint={tint} disabled={busy} onPick={(i) => void seal(i)} />
+      ) : !duo && q.kind === "pick" ? (
+        // A role vote's ballot is the members and You as a 2-across grid of
+        // faces (D437, the design's `GroupCard`): the options ARE people, so
+        // each is a mark and a first name, and the tap is the vote.
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }} role="group" aria-label="Who?">
+          {q.options.map((o: string, i: number) => {
+            const u = members[i];
+            const me = !!u && u === uid;
+            return (
+              <button key={i} className="press" disabled={busy} onClick={() => void seal(i)}
+                style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 56, padding: "8px 12px 8px 10px", borderRadius: 14, border: LD_LINE, background: "var(--surface-2)", cursor: busy ? "default" : "pointer", textAlign: "left", color: "inherit", WebkitAppearance: "none", opacity: busy ? 0.55 : 1 }}>
+                {me ? <YouChip size={34} /> : u ? <DuelAv uid={u} name={names[u]} size={34} /> : null}
+                <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em", color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {me ? "You" : (firstName(o) || o)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={col(9)}>
+          {q.options.map((o: string, i: number) => (
+            // A 1v1 answers, then guesses (the morph below); a GROUP round
+            // seals on the one tap — nothing in a group is called (D437,
+            // the owner's 2026-09-09 brief), and the rules refuse a guess
+            // on the group surface, so a second tap here would be a write
+            // the table throws back.
+            <LdOption key={i} label={o} tint={tint} disabled={busy} lead={optionLead(i)}
+              onClick={() => (duo ? setPick(i) : void seal(i))} />
+          ))}
+        </div>
+      )}
+      {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
+    </div>
+  );
+  const guessBlock = duo && q && pick != null && (
+    <div style={{ ...col(12), animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" }} key="guess">
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
+        {isCastQ(q) ? <>You said {themName} is </> : <>You picked </>}<b style={{ color: "var(--ink)", fontWeight: 800 }}>{q.options[pick]}</b>.
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <DuelAv uid={themUid} name={names[themUid]} size={38} />
+        <div style={serif(27)}>{isCastQ(q) ? `And ${themName} said you are…?` : "And " + themName + " picked…?"}</div>
+      </div>
+      <div style={col(9)}>
+        {themOpts(q).map((o: string, i: number) => (
+          <LdOption key={i} label={o} tint={tint} disabled={busy} onClick={() => void seal(pick, i)} />
+        ))}
+      </div>
+      <button className="press" onClick={() => setPick(null)} disabled={busy}
+        style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, color: "var(--ink-3)", WebkitAppearance: "none" }}>
+        {"‹"} change my answer
+      </button>
+      {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
     </div>
   );
 
   let body: React.ReactNode;
   if (shown) {
-    // an earlier day, browsed via the dots
+    // an earlier round, browsed through the run
     body = (
-      <div style={col(12)} key={"past" + day}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => setDay(0)}
-            style={{ border: "none", background: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: 12, color: "var(--ink-2)", WebkitAppearance: "none" }}>{"‹"} today</button>
-        </div>
-        <LdReveal g={g} reveal={shown} day={agoLabel(shown.day, day)} />
+      <div style={col(12)} key={"past" + at}>
+        <button onClick={() => setAt(0)}
+          style={{ alignSelf: "flex-start", border: "none", background: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: 12, color: "var(--ink-2)", WebkitAppearance: "none" }}>{"‹"} back</button>
+        <LdReveal g={g} reveal={shown} browsed={agoLabel(shown.day, at)} />
       </div>
     );
   } else if (duo && members.length < 2) {
@@ -1219,181 +1959,236 @@ function LdCard({ g, vh, nextName, newest }: {
         <LdCopyLink g={g} />
       </div>
     );
-  } else if (mine) {
-    body = (
-      <div style={{ ...col(16), animation: "popIn .35s cubic-bezier(0.2,0.8,0.2,1)" }} key="done">
-        {q && <LdPrompt size={24}>{q.prompt}</LdPrompt>}
-        <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-3)" }}>you said</span>
-          <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, letterSpacing: -0.3, color: "var(--ink)" }}>
-            {q && q.options[mine.optionIdx] != null ? q.options[mine.optionIdx] : "—"}
-          </span>
-        </div>
-        <div style={{ ...col(11), borderTop: LD_HAIR, padding: "14px 0 2px" }}>
-          {/* Everyone who could answer today. Deliberately NOT dimmed by
-              who has played: a duel answer is sealed until the reveal, so
-              nothing on this device knows, and dimming half of them would
-              be a claim invented to fill a shape. */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            {members.filter((u) => u !== uid).map((u) => (
-              <DuelAv key={u} uid={u} name={names[u]} size={34} />
-            ))}
-            <YouChip size={34} />
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-            {/* live countdown when this is the card in view; "tomorrow" is
-                the honest fallback, and stays the wording everywhere else —
-                the clock counts to LOCAL midnight while the reveal is keyed
-                on a UTC day (reveal-clock.js says why).
-
-                The CONDITION is the part that cannot be dropped: a duo
-                reveals both-or-nothing (shouldReveal), so a partner who
-                never plays means no reveal, and a bare "reveals tomorrow"
-                would look broken on the morning that happens. */}
-            {newest
-              ? <RevealClock prefix="Reveals in" suffix={duo ? " — if you both play." : ", with names."} />
-              : (duo ? "Reveals tomorrow — if you both play." : "Reveals tomorrow, with names.")}
-            {" Takes open with the reveal."}
-          </div>
-          {nextName && (
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-              {"Swipe down — " + nextName + " is waiting"}
-            </div>
-          )}
-        </div>
-        {/* Yesterday, kept on the card after you have played — a deliberate
-            departure from the prototype, whose done-state is quiet and
-            offers the past only through the day dots. Live's reveal carries
-            the takes thread, which is the app's only place to say anything
-            to anyone; by the time most people open this they have already
-            answered, and burying the conversation behind a dot tap is not a
-            trade the sample was making (it had no thread). Below the day's
-            own block rather than above it, so the top of the card still
-            reads the way the sample's does. */}
-        {reveal && <LdReveal g={g} reveal={reveal} />}
-      </div>
-    );
-  } else if (q && pick != null) {
-    // the morph: you have answered, now read them — or, in a circle, read
-    // the room (D386): the same second tap, asking where most will land
-    body = (
-      <div style={{ ...col(12), animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" }} key="guess">
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
-          You picked <b>{q.options[pick]}</b>.
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {duo
-            ? <DuelAv uid={themUid} name={names[themUid]} size={38} />
-            : <GroupMark gid={g.id} name={g.name} size={38} />}
-          <LdPrompt>{duo ? "And " + themName + " picked…?" : "And the room picked…?"}</LdPrompt>
-        </div>
-        <div style={col(9)}>
-          {q.options.map((o: string, i: number) => (
-            <LdOption key={i} label={o} tint={tint} disabled={busy} onClick={() => void seal(pick, i)} />
-          ))}
-        </div>
-        <button className="press" onClick={() => setPick(null)} disabled={busy}
-          style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, color: "var(--ink-3)", WebkitAppearance: "none" }}>
-          {"‹"} change my answer
-        </button>
-        {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
-      </div>
-    );
-  } else if (q) {
-    body = (
-      <div style={col(12)} key="ask">
-        {reveal && <LdReveal g={g} reveal={reveal} />}
-        <LdPrompt>{q.prompt}</LdPrompt>
-        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>your answer</span>
-        <div style={col(9)}>
-          {q.options.map((o: string, i: number) => (
-            <LdOption key={i} label={o} tint={tint} disabled={busy}
-              onClick={() => setPick(i)} />
-          ))}
-        </div>
-        {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
-      </div>
-    );
   } else {
+    // The loop (state 3): the standing reveal above, the next round below.
+    // Once you have sealed the open round, what you sealed takes the
+    // reveal's place (state 2) and the reveal waits in the run. At the lead
+    // the list is the whole card (state 5).
+    const top: React.ReactNode[] = [];
+    if (band) top.push(band);
+    if (!atLead && waitBlock) top.push(waitBlock);
+    else if (!atLead && reveal) top.push(<LdReveal key="reveal" g={g} reveal={reveal} />);
+    const under = sealedList || guessBlock || askBlock
+      || <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)" }} key="noq">No question yet — the deck is still loading.</div>;
     body = (
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)" }} key="noq">
-        No question today — the deck is still loading.
+      <div style={col(16)} key="loop">
+        {top}
+        {top.length > 0 && <React.Fragment key="split">{split}</React.Fragment>}
+        {under}
       </div>
     );
   }
 
-  // The pair's two runs, folded out of the reveal history they can both
-  // already read. The dots ARE the score; there is no number, because the
-  // shape of the run says more than an average.
-  const runs = duo && themUid ? duoRuns(hist, uid, themUid) : { read: [], by: [] };
-  const runRows = runs.read.length > 0 && (
-    <div style={{ ...col(8), borderTop: LD_HAIR, paddingTop: 13 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }} aria-label="How well you read them">
-        <span style={{ flexShrink: 0, width: 62, fontWeight: 800, fontSize: 12.5, color: "var(--ink)" }}>you</span>
-        <ReadRun days={runs.read} size={14} />
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }} aria-label="How well they read you">
-        <span style={{ flexShrink: 0, width: 62, fontWeight: 800, fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{themName}</span>
-        <ReadRun days={runs.by} color={ACC_DUO} size={14} />
-      </div>
-    </div>
-  );
-
   return (
     <div data-duel-card={g.id} style={{
       // A card fills the view while it still wants something from you, and
-      // collapses to its content once it does not — a finished circle
+      // collapses to its content once it does not — a finished room
       // should not cost a screen of scrolling to get past.
-      minHeight: mine || shown ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
+      minHeight: atLead || shown ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
       boxSizing: "border-box",
       scrollSnapAlign: "start", scrollSnapStop: "always",
       display: "flex", flexDirection: "column", gap: 16,
-      borderTop: LD_LINE, padding: "20px 1px 26px",
+      borderTop: LD_LINE, padding: "14px 1px 22px",
     }}>
       {header}
       {menu && <LdManage g={g} onClose={() => setMenu(false)} />}
       {menu && duo && members.length === 2 && (S.romanticPoolReady() || romantic) && (
-        <LdModeRow g={g} sealed={mine != null} />
+        <LdModeRow g={g} sealed={R.sealed.length > 0} />
       )}
       {body}
-      {runRows}
-      {dots}
+      {!shown && runBlock}
     </div>
   );
 }
 
-// ── the rail: every circle at a glance, dot = it still wants you ──
+// ── the rail: every room at a glance, dot = your turn ─────────────
 function LdRail({ items, cur, onPick, onNew, duo }: {
   items: Array<{ g: LiveGroup; pending: boolean; themUid: string; label: string }>;
   cur: string; onPick: (id: string) => void; onNew: () => void; duo: boolean;
 }) {
+  const acc = duo ? ACC_DUO : ACC_GROUP;
   return (
-    <div className="h-scroll" style={{ display: "flex", gap: 4, overflowX: "auto", padding: "3px 6px 2px" }}>
+    <div className="h-scroll" style={{ display: "flex", gap: 2, overflowX: "auto", padding: "6px 2px 6px" }}>
       {items.map(({ g, pending, themUid, label }) => {
         const sel = g.id === cur;
         return (
           <button key={g.id} onClick={() => onPick(g.id)} aria-current={sel ? "true" : undefined}
-            aria-label={label + " — " + (pending ? "still to play" : "done for today")}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, border: "none", background: "none", cursor: "pointer", padding: "4px 6px", WebkitAppearance: "none", flexShrink: 0, width: 62 }}>
-            <span style={{ position: "relative", display: "inline-flex", borderRadius: 14, padding: 2,
-              boxShadow: sel ? `0 0 0 2px ${duo ? ACC_DUO : ACC_GROUP}` : "none", transition: "box-shadow .18s" }}>
+            aria-label={label + (pending ? " — your turn" : "")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, border: "none", background: "none", cursor: "pointer", padding: "4px 7px", WebkitAppearance: "none", flexShrink: 0, minWidth: 56, minHeight: 44 }}>
+            <span style={{ position: "relative", display: "inline-flex", borderRadius: duo ? "50%" : 14, padding: 2,
+              boxShadow: sel ? `0 0 0 2px ${acc}` : "none", transition: "box-shadow .18s" }}>
               {duo && themUid
                 ? <DuelAv uid={themUid} name={label} size={38} />
                 : <GroupMark gid={g.id} name={g.name} size={38} />}
               {/* only the waiting state wears a mark — a check on every
-                  circle carried no information and made the rail read as
+                  room carried no information and made the rail read as
                   noise */}
-              {pending && <span style={{ position: "absolute", top: -1, right: -1, width: 11, height: 11, borderRadius: "50%", background: duo ? ACC_DUO : ACC_GROUP, border: "2px solid var(--surface)" }} />}
+              {pending && <span style={{ position: "absolute", top: -1, right: -1, width: 11, height: 11, borderRadius: "50%", background: acc, border: `2px solid ${GROUND}` }} />}
             </span>
-            <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: sel ? 800 : 600, color: sel ? "var(--ink)" : "var(--ink-3)", whiteSpace: "nowrap", maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+            <span style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: sel ? 800 : 600, color: sel ? "var(--ink)" : "var(--ink-3)", whiteSpace: "nowrap", maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
           </button>
         );
       })}
-      <button onClick={onNew} aria-label={duo ? "Start a 1v1" : "Create a group"}
-        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, border: "none", background: "none", cursor: "pointer", padding: "4px 6px", WebkitAppearance: "none", flexShrink: 0, width: 62 }}>
-        <span style={{ width: 38, height: 38, margin: 2, borderRadius: 11, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px dashed color-mix(in oklch, var(--ink-3) 55%, transparent)", color: "var(--ink-2)", fontSize: 18, fontWeight: 600, lineHeight: 1 }}>+</span>
-        <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)" }}>New</span>
+      <button onClick={onNew} aria-label={duo ? "Start a new 1v1" : "Create a group"}
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, border: "none", background: "none", cursor: "pointer", padding: "4px 7px", WebkitAppearance: "none", flexShrink: 0, minWidth: 56, minHeight: 44 }}>
+        <span style={{ width: 38, height: 38, margin: 2, borderRadius: duo ? "50%" : 11, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px dashed color-mix(in oklch, var(--ink-3) 55%, transparent)", color: "var(--ink-2)", fontSize: 19, fontWeight: 600, lineHeight: 1 }}>+</span>
+        <span style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>New</span>
       </button>
+    </div>
+  );
+}
+
+// ── the first run (request 12, state 9) ──────────────────────────
+//
+// One round of the game drawn with nothing invented: for a group the
+// bank's first role vote (D437), for a 1v1 a World question standing in
+// for the one a pair would draw — SEALED on a ballot, then REVEALED —
+// your mark on a row and a dashed seat per person who is not here yet —
+// and the one tap that starts a room. An invitation, when one is waiting,
+// leads it and names who the reveal waits on.
+function LdFirstRun({ mode, pendingCode, onCodeDone }: { mode?: string; pendingCode: string; onCodeDone: () => void }) {
+  const duo = mode === "duo";
+  const acc = duo ? ACC_DUO : ACC_GROUP;
+  const [open, setOpen] = React.useState(false);
+  const [, tick] = React.useState(0);
+  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  const want = duo ? "duo" : "group";
+  const inv = (LIVE.social.invites() as Invite[]).find((i) => (i.mode || "group") === want) || null;
+  const who = duo && inv ? (firstName(inv.fromName) || null) : null;
+  // The stand-in: the first of today's questions an option index can
+  // answer. None means no ballot — never a question made up here (D1).
+  const deck = (typeof (LIVE as { deck?: () => unknown[] }).deck === "function" ? (LIVE as { deck: () => unknown[] }).deck() : []) as Array<{ prompt?: string; options?: string[] }>;
+  const standIn = deck.find((x) => typeof x.prompt === "string" && Array.isArray(x.options) && x.options.length >= 2 && x.options.length <= 4) || null;
+  const seats = duo ? 1 : 2;
+  // A group's preview is a real role vote off the bank (D437), or null
+  // before the cast has reached this device — then the World stand-in.
+  const rv = duo ? null : LIVE.social.roleVotePreview();
+  const startLabel = duo ? "Start a 1v1" : "Start a group";
+  return (
+    <div style={{ ...col(0), padding: "4px 1px 20px" }}>
+      {pendingCode && <LdJoinPending code={pendingCode} onDone={onCodeDone} />}
+      <LdInvites mode={mode} />
+      {rv ? (
+        // A GROUP ROUND DRAWN AS THE BANK DRAWS IT (D437): the first role
+        // vote, SEALED on a 2×2 of You and open seats, then REVEALED — the
+        // role on your row, a seat you name on the other. Nothing invented:
+        // the prompt, the pack and the role are the seeded bank's own, and
+        // a device whose bank predates the cast falls through to the World
+        // stand-in below, as before.
+        <>
+          <div style={{ ...col(12), padding: "4px 0 18px" }}>
+            <div style={{ display: "flex", gap: 5, alignItems: "baseline" }}>
+              <span style={KICK}>Sealed</span>
+              <span style={{ ...KICK, color: scenInk(rv.scen) }}>· {rv.scen.label}</span>
+            </div>
+            <div style={serif(25)}>{rv.prompt}</div>
+            <div style={{ position: "relative", display: "grid", gridTemplateColumns: "1fr 1fr", borderTop: LD_LINE, borderBottom: LD_LINE }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} style={{ minHeight: 52, display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderLeft: i % 2 ? LD_LINE : "none", borderTop: i > 1 ? LD_LINE : "none" }}>
+                  {i === 0 ? <YouChip size={26} /> : <OpenSeat size={26} />}
+                  <span style={{ fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink-3)" }}>{i === 0 ? "You" : "open seat"}</span>
+                </div>
+              ))}
+              <span role="img" aria-label="sealed until the reveal" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 20, height: 20, borderRadius: "50%", background: acc, boxShadow: `0 0 0 3px ${GROUND}, inset 0 0 0 2px ${GROUND}, inset 0 0 0 3.5px ${acc}` }} />
+            </div>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45, textWrap: "pretty" }}>
+              A role a round. The ballot is whoever is in; the room names one of you.
+            </span>
+          </div>
+          <div style={{ ...col(12), padding: "14px 0 6px", borderTop: "0.5px solid var(--rule)" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+              <span style={KICK}>Revealed</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: acc, textAlign: "right", lineHeight: 1.35, textWrap: "pretty" }}>when everyone has played, or at the deadline</span>
+            </div>
+            <div style={col(8)}>
+              {[
+                { lead: <YouChip size={26} />, label: rv.role.label, hi: true, right: [<OpenSeat key="a" size={26} />, <OpenSeat key="b" size={26} />] },
+                { lead: <OpenSeat size={26} />, label: "someone you name", hi: false, right: [<YouChip key="me" size={26} />] },
+              ].map((row, i) => (
+                <div key={i} style={{ position: "relative", overflow: "hidden", borderRadius: 14, border: row.hi ? `1.5px solid color-mix(in oklch, ${scenInk(rv.scen)} 55%, transparent)` : LD_LINE, background: "var(--surface-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", minHeight: 44, boxSizing: "border-box" }}>
+                    {row.lead}
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 13.5 }}>{row.label}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>{row.right}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>Who the room names, round by round</span>
+              <span aria-hidden="true" style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                {Array.from({ length: 7 }, (_, k) => (
+                  <span key={k} style={{ width: 11, height: 11, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box", border: `1.5px dashed color-mix(in oklch, ${acc} 72%, transparent)` }} />
+                ))}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : standIn && (
+        <>
+          <div style={{ ...col(12), padding: "4px 0 18px" }}>
+            <span style={KICK}>Sealed</span>
+            <div style={serif(25)}>{standIn.prompt}</div>
+            <div style={{ position: "relative", display: "grid", gridTemplateColumns: `repeat(${(standIn.options as string[]).length}, 1fr)`, borderTop: LD_LINE, borderBottom: LD_LINE }}>
+              {(standIn.options as string[]).map((o, i) => (
+                <div key={i} style={{ minHeight: 58, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 14px", borderLeft: i ? LD_LINE : "none", fontWeight: 700, fontSize: 17, letterSpacing: "-0.015em", color: "var(--ink-3)", textAlign: "center" }}>{o}</div>
+              ))}
+              <span role="img" aria-label="sealed until the reveal" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 20, height: 20, borderRadius: "50%", background: acc, boxShadow: `0 0 0 3px ${GROUND}, inset 0 0 0 2px ${GROUND}, inset 0 0 0 3.5px ${acc}` }} />
+            </div>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45, textWrap: "pretty" }}>
+              {duo ? "A World question stands in — a 1v1 draws its own." : "A World question stands in — a group draws its own."}
+            </span>
+          </div>
+          <div style={{ ...col(12), padding: "14px 0 6px", borderTop: "0.5px solid var(--rule)" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+              <span style={KICK}>Revealed</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: acc, textAlign: "right", lineHeight: 1.35, textWrap: "pretty" }}>
+                {duo ? `when ${who || "they"} ${who ? "plays" : "play"}` : "when everyone has played, or at the deadline"}
+              </span>
+            </div>
+            <div style={col(8)}>
+              {(standIn.options as string[]).map((o, i) => (
+                <div key={i} style={{ position: "relative", overflow: "hidden", borderRadius: 14, border: i === 0 ? `1.5px solid color-mix(in oklch, ${acc} 55%, transparent)` : LD_LINE, background: "var(--surface-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", minHeight: 44, boxSizing: "border-box" }}>
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 13.5 }}>{o}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {i === 0 && <YouChip size={26} />}
+                      {Array.from({ length: seats }, (_, k) => <OpenSeat key={k} />)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
+                {duo ? `Your guess at ${who || "their"}${who ? "’s" : ""} answer` : "Who the room names, round by round"}
+              </span>
+              <span aria-hidden="true" style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                {Array.from({ length: 7 }, (_, k) => (
+                  <span key={k} style={{ width: 11, height: 11, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box", border: `1.5px dashed color-mix(in oklch, ${acc} 72%, transparent)` }} />
+                ))}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+      <div style={{ ...col(14), padding: "18px 0 6px", borderTop: "0.5px solid var(--rule)" }}>
+        {!open && (duo ? (
+          <button className="press" onClick={() => setOpen(true)} aria-label={startLabel}
+            style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", minHeight: 48, textAlign: "left", padding: "8px 2px", border: "none", background: "none", color: "inherit", font: "inherit", cursor: "pointer", WebkitAppearance: "none" }}>
+            <OpenSeat />
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>{startLabel}</span>
+            <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1, color: "var(--ink-3)" }}>›</span>
+          </button>
+        ) : (
+          <button className="press" onClick={() => setOpen(true)}
+            style={{ width: "100%", minHeight: 48, border: "none", borderRadius: 999, padding: "13px 18px", background: acc, color: "#fff", font: "inherit", fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", cursor: "pointer", WebkitAppearance: "none" }}>{startLabel}</button>
+        ))}
+        {open && <LdOnboard mode={mode} />}
+      </div>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45, textWrap: "pretty", padding: "14px 0 0", marginTop: 12, borderTop: "0.5px solid var(--rule)" }}>
+        An invitation reaches you here, and a link a friend sends lands here too.
+      </div>
     </div>
   );
 }
@@ -1413,7 +2208,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const [cur, setCur] = React.useState("");
   const has = groups.length > 0;
   // A tapped invite link, consumed ONCE (D238). Read-and-clear, so it
-  // prompts on this visit and does not resurface days later on a circle
+  // prompts on this visit and does not resurface days later on a room
   // the person already declined to join — the same contract the field it
   // replaced had, minus the typing.
   const [pendingCode, setPendingCode] = React.useState(() => consumeJoinCode() || "");
@@ -1480,16 +2275,10 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
 
   if (!LIVE.enabled) return null;
 
-  // First run: no rail, no stack — the panel IS the create-or-join flow,
-  // and an empty rail above it would be a frame around nothing.
+  // First run: no rail, no stack — one round of the game drawn, and the
+  // one tap that starts a room (request 12, state 9).
   if (!has) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 1px 20px" }}>
-        {pendingCode && <LdJoinPending code={pendingCode} onDone={() => setPendingCode("")} />}
-        <LdInvites mode={mode} />
-        <LdOnboard mode={mode} />
-      </div>
-    );
+    return <LdFirstRun mode={mode} pendingCode={pendingCode} onCodeDone={() => setPendingCode("")} />;
   }
 
   const items = groups.map((g) => {
@@ -1497,32 +2286,22 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
     const themUid = duo ? (members.find((m) => m !== uid) || "") : "";
     // A ROOM THAT CANNOT BE PLAYED OWES YOU NOTHING. `todayQ` hands back a
     // question for any room whatever its membership, so a 1v1 you created
-    // and whose partner has not joined counted toward "N to play" and got
-    // a "still to play" dot on the rail — for ever — while the card
-    // directly beneath it renders "Waiting for someone" with no options at
-    // all. Same condition the card uses (`duo && members.length < 2`), so
-    // the two cannot disagree.
-    //
-    // The prototype this was ported from had it: `duo-daily.jsx` computes
-    // `pending = !invited && isPending(p)` and filters the count the same
-    // way. The port kept the second half and dropped the first.
+    // and whose partner has not joined would wear a "your turn" dot on the
+    // rail — for ever — while the card directly beneath it renders
+    // "Waiting for someone" with no options at all. Same condition the card
+    // uses (`duo && members.length < 2`), so the two cannot disagree.
     const unplayable = duo && members.length < 2;
     return {
       g,
       pending: !unplayable && S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
       themUid,
-      label: (duo ? (firstName((g.memberNames || {})[themUid]) || g.name || "1v1") : (g.name || "Circle")) as string,
+      label: (duo ? (firstName((g.memberNames || {})[themUid]) || g.name || "1v1") : (g.name || "Group")) as string,
     };
   });
-  const nLeft = items.filter((i) => i.pending).length;
 
   return (
     <div ref={rootRef} style={{ ...col(10), padding: "0 0 20px" }}>
-      <div style={{ display: "flex", alignItems: "baseline", padding: "0 2px" }}>
-        <span className="kicker" style={{ marginBottom: 0 }}>{duo ? "One on one" : "Your circles"}</span>
-        {nLeft > 0 && <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{nLeft} to play</span>}
-      </div>
-      <div ref={railRef} style={{ position: "sticky", top: 0, zIndex: 6, margin: "-1px -16px 0", padding: "1px 10px 0", background: "var(--surface-a, var(--surface))", borderBottom: "0.5px solid color-mix(in oklch, var(--rule), transparent 25%)" }}>
+      <div ref={railRef} style={{ position: "sticky", top: 0, zIndex: 6, margin: "-1px -16px 0", padding: "0 8px", background: "var(--surface-a, var(--surface))", borderBottom: "0.5px solid color-mix(in oklch, var(--rule), transparent 25%)" }}>
         <LdRail items={items} cur={cur} duo={duo}
           onPick={(id) => jumpTo('[data-duel-card="' + id + '"]')}
           onNew={() => jumpTo("[data-ld-new]")} />
@@ -1532,13 +2311,9 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
       {pendingCode && <LdJoinPending code={pendingCode} onDone={() => setPendingCode("")} />}
       <LdInvites mode={mode} />
       <div style={col(0)}>
-        {items.map(({ g }, i) => {
-          const next = items.slice(i + 1).find((x) => x.pending);
-          return (
-            <LdCard key={g.id} g={g} vh={vh}
-              nextName={next ? next.label : null} newest={i === 0} />
-          );
-        })}
+        {items.map(({ g }, i) => (
+          <LdCard key={g.id} g={g} vh={vh} newest={i === 0} />
+        ))}
       </div>
       <LdOnboard mode={mode} />
     </div>

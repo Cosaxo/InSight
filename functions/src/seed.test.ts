@@ -17,7 +17,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
 import { runSeedV2 } from "./v2";
-import { seedDocMatches } from "./pure";
+import { SEEDED_FIELDS, seedDocMatches } from "./pure";
 import { V2_QUESTIONS } from "./v2content";
 
 // A Firestore stand-in that records the batch writes it is handed.
@@ -106,10 +106,23 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
     ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
     ...(q.rubric ? { rubric: q.rubric } : {}),
+    // The instruments' deep items (D416) — emit-when-set like the rest,
+    // and in SEEDED_FIELDS, so the no-op case cannot report the 156 deep
+    // docs as phantom writes.
+    ...(typeof q.facet === "string" ? { facet: q.facet } : {}),
+    ...(q.invert === true ? { invert: true } : {}),
     // The card's background (D281) and the learn card's metadata (D284),
     // mirrored for the same reason as everything above: this function IS
     // what the seed writes, so a field the payload carries and this does
     // not reports every doc holding it as a phantom rewrite.
+    // The group as a cast (D434): a role vote's pack and role, a rating's
+    // poles — mirrored for the same reason, and in SEEDED_FIELDS.
+    ...(q.scen ? { scen: q.scen } : {}),
+    ...(q.role ? { role: q.role } : {}),
+    ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
+    // The cast round (D437): them and dims, in SEEDED_FIELDS too.
+    ...(Array.isArray(q.them) ? { them: q.them } : {}),
+    ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
     ...(typeof q.bg === "string" ? { bg: q.bg } : {}),
     ...(typeof q.c === "number" ? { c: q.c } : {}),
     ...(typeof q.t === "number" ? { t: q.t } : {}),
@@ -410,5 +423,39 @@ describe("the seed's batch flush survives a two-op iteration", () => {
       + "flush condition has to tolerate the counter stepping past it.",
     ).toBe(2);
     expect(450 + bumps).toBeLessThan(500);
+  });
+
+  it("no document with an object-valued seeded field lands on a flush boundary", () => {
+    // The claim the comment beside that flush makes — "today's bank cannot
+    // reach it at all" — computed instead of counted. It used to be
+    // counted, and the count was wrong in every term: it said three
+    // documents (feed-pt1..pt3, at indices 210, 211 and 307) on an
+    // 847-document run, against ten documents (feed-pt1..pt7 and
+    // call-c01..c03) on a bank of 1073. The conclusion held; the
+    // arithmetic under it had not been true for a while, and a reader
+    // checking the reasoning would have re-derived it from scratch.
+    //
+    // Worst case on purpose: a run that rewrites EVERY document, which is
+    // the only run that can put the counter on a boundary at all. The
+    // counter resets after each flush, so the document that trips it is
+    // the 450th of its batch — bank index 449, 899, and so on.
+    const objectValued = (q: Record<string, unknown>) => SEEDED_FIELDS.some((f) => {
+      const v = q[f];
+      return !!v && typeof v === "object" && !Array.isArray(v);
+    });
+    const carrying = V2_QUESTIONS
+      .map((q, i) => ({ id: q.id, i }))
+      .filter((_, i) => objectValued(V2_QUESTIONS[i] as unknown as Record<string, unknown>));
+    expect(
+      carrying.length,
+      "no bank document carries an object-valued seeded field any more — the map-clear guard "
+      + "now protects nothing, so read it before deleting either it or this case",
+    ).toBeGreaterThan(0);
+    expect(
+      carrying.filter(({ i }) => (i + 1) % 450 === 0).map(({ id, i }) => `${id}@${i}`),
+      "a document carrying an object-valued seeded field now sits on a batch boundary, which is the "
+      + "exact coincidence the `>=` guard exists for — it still holds, but the comment beside it "
+      + "saying the bank cannot reach it has stopped being true",
+    ).toEqual([]);
   });
 });

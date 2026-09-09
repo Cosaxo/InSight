@@ -420,7 +420,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // One of the two placed, and the caption says so rather than implying
     // the field drew the room.
     expect(await screen.findByText(/1 of 2 here/)).toBeTruthy();
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(screen.getByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
     expect(screen.getByText("2,847")).toBeTruthy();
     expect(screen.getByText(/within a few hundred metres · Oslo/)).toBeTruthy();
   });

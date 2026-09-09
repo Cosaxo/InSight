@@ -16,36 +16,12 @@ import LIVE from '../data/live.ts';
 // feel like an empty room: every stream ships stocked with live questions and
 // believable vote counts.
 
-// ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
-// Named export alongside the global (D39's "convert on touch", the WPAL
-// precedent): typed panels — ui/PatternsTab first — import the binding, so
-// the coupling meter (rule 4) never counts them, while the nine spec
-// consumers keep reading the global until their own touch converts them.
-export const WORLD_TOPICS = [
-  { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
-  { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },
-  { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.52 0.14 310)' },
-  { id: 'music',   label: 'Music',          color: 'oklch(0.52 0.14 355)' },
-  { id: 'tech',    label: 'Tech',           color: 'oklch(0.52 0.14 235)' },
-  { id: 'culture', label: 'Culture',        color: 'oklch(0.52 0.14 200)' },
-  { id: 'dilemma', label: 'Dilemmas',       color: 'oklch(0.52 0.14 25)'  },
-  { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
-  { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
-  { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
-  // the current-events lane (D231). A TIME, not a subject — which is what
-  // keeps it off 'event' (World events), whose questions are evergreen: a
-  // card here carries an ask window and stops being served when it closes.
-  // Hue 115 is the widest gap left in the row (85 -> 145), picked for
-  // distance from its neighbours rather than for a meaning.
-  { id: 'now',     label: 'Happening now',  color: 'oklch(0.52 0.14 115)' },
-  { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
-  // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
-  // same way dilemmas and rankings do. It also means they always have a home:
-  // 'movies' has no scene pointing at it, so a film question filed under it can
-  // never reach the feed.
-  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
-];
-window.WORLD_TOPICS = WORLD_TOPICS;
+// ── topic palette ── moved to world-feed-topics.js so that daily-split.jsx
+// (eager) can have the thirteen rows without this file's demo pool riding
+// into first paint with them. Re-exported, so every existing consumer of
+// `WORLD_TOPICS` from here is unchanged.
+export { WORLD_TOPICS } from './world-feed-topics.js';
+import { WORLD_TOPICS } from './world-feed-topics.js';
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
 //
@@ -67,7 +43,7 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
 // No window mirror (D249): world-feed.jsx was the only reader.
 export const WORLD_CHANNELS = WFD_LIVE_BUILD
-  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
+  ? WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──
@@ -86,7 +62,15 @@ export const WORLD_CHANNELS = WFD_LIVE_BUILD
 // unguarded clobber after the live boot, which is exactly what
 // `joinDemoStock` and `installSubtopicStock` exist to avoid — so if it ever
 // moves, this line moves behind `demoPoolOpen()` with them.
-window.WORLD_FEED_QS = [
+// GUARDED, and this is the line the note above said would have to move.
+// The pool is DEMO stock: on a live build `buildFeedGlobals` (data/live.ts)
+// publishes the real feed to this same global. While this file was eager it
+// ran BEFORE `initLive` and the clobber was harmless; now that it loads from
+// loadWorldFeed() — after the live boot — an unguarded assignment would
+// overwrite the real feed with invented questions. `demoPoolOpen()` is the
+// one definition of that test, shared with joinDemoStock and
+// installSubtopicStock for exactly this reason.
+const WFD_DEMO_POOL = [
   // sport
   { id: 'f01', cat: 'sport', type: 'duel', prompt: 'The better night in front of the TV?', options: [ { label: 'Champions League final', count: 6300 }, { label: 'Super Bowl', count: 4900 } ] },
   { id: 'f02', cat: 'sport', type: 'vote', prompt: 'Would you rather win\u2026', options: [ { label: 'Olympic gold', count: 4100 }, { label: 'The World Cup', count: 5600 } ] },
@@ -227,6 +211,25 @@ window.WORLD_FEED_QS = [
   { id: 'dl51', cat: 'movies', type: 'dial', prompt: 'Times you’ve seen your most-watched film?', lo: 0, hi: 24, unit: 'times', med: 6, n: 4200, dist: [8, 14, 17, 15, 12, 10, 8, 6, 4, 3, 2, 1] },
   { id: 'dl52', cat: 'music', type: 'dial', prompt: 'Songs on your on-repeat playlist right now?', lo: 0, hi: 36, unit: 'songs', med: 8, n: 4300, dist: [9, 15, 17, 14, 11, 9, 7, 6, 5, 4, 2, 1] },
   { id: 'dl53', cat: 'people', type: 'dial', prompt: 'Posters on your teenage bedroom wall — how many?', lo: 0, hi: 12, unit: 'posters', med: 3, n: 3800, dist: [12, 16, 17, 14, 11, 9, 7, 5, 4, 3, 1, 1] },
+  { id: 'dl54', cat: 'event', type: 'dial', prompt: 'New Year’s resolutions you actually kept, of your last 12?', lo: 0, hi: 12, unit: 'kept', med: 2, n: 4100, dist: [22, 20, 16, 12, 9, 7, 5, 3, 2, 2, 1, 1] },
+  { id: 'dl55', cat: 'movies', type: 'dial', prompt: 'Films you watched last month?', lo: 0, hi: 24, unit: 'films', med: 5, n: 4300, dist: [9, 16, 19, 16, 12, 9, 6, 4, 3, 3, 2, 1] },
+  { id: 'dl56', cat: 'people', type: 'dial', prompt: 'Biographies you’ve read, roughly, ever?', lo: 0, hi: 48, unit: 'biographies', med: 6, n: 3900, dist: [18, 21, 17, 12, 9, 7, 5, 4, 3, 2, 1, 1] },
+  { id: 'dl57', cat: 'dilemma', type: 'dial', prompt: 'Minutes you can sit with a menu before deciding?', lo: 0, hi: 24, unit: 'minutes', med: 6, n: 4200, dist: [8, 14, 18, 17, 13, 10, 7, 5, 3, 2, 2, 1] },
+  { id: 'dl58', cat: 'sport', type: 'dial', prompt: 'Workouts in your last month?', lo: 0, hi: 24, unit: 'workouts', med: 6, n: 4100, dist: [14, 12, 14, 15, 12, 10, 8, 6, 4, 3, 1, 1] },
+  { id: 'dl59', cat: 'tech', type: 'dial', prompt: 'Apps on your phone right now?', lo: 0, hi: 120, unit: 'apps', med: 55, n: 4400, dist: [2, 5, 9, 13, 16, 15, 12, 9, 7, 5, 4, 3] },
+  { id: 'dl60', cat: 'bigq', type: 'dial', prompt: 'How many people truly know you?', lo: 0, hi: 12, unit: 'people', med: 3, n: 4300, dist: [6, 14, 20, 19, 13, 9, 6, 4, 3, 3, 2, 1] },
+  { id: 'dl61', cat: 'culture', type: 'dial', prompt: 'Holiday cards you send a year?', lo: 0, hi: 48, unit: 'cards', med: 6, n: 3800, dist: [24, 16, 13, 11, 9, 7, 6, 5, 4, 2, 2, 1] },
+  { id: 'dl62', cat: 'food', type: 'dial', prompt: 'Meals out in a month?', lo: 0, hi: 24, unit: 'meals', med: 6, n: 4200, dist: [7, 13, 17, 16, 13, 10, 8, 6, 4, 3, 2, 1] },
+  { id: 'dl63', cat: 'music', type: 'dial', prompt: 'Concerts in your last year?', lo: 0, hi: 24, unit: 'concerts', med: 3, n: 4000, dist: [26, 22, 15, 10, 8, 6, 4, 3, 2, 2, 1, 1] },
+  { id: 'dl64', cat: 'sport', type: 'dial', prompt: 'Kilometres you run or walk in an average week?', lo: 0, hi: 48, unit: 'km', med: 10, n: 4100, dist: [14, 16, 15, 13, 11, 9, 7, 5, 4, 3, 2, 1] },
+  { id: 'dl65', cat: 'bigq', type: 'dial', prompt: 'Hours of your day spent on autopilot?', lo: 0, hi: 24, unit: 'hours', med: 8, n: 4200, dist: [3, 6, 10, 14, 16, 14, 11, 9, 7, 5, 3, 2] },
+  { id: 'dl66', cat: 'event', type: 'dial', prompt: 'Meetings this week that could have been an email?', lo: 0, hi: 24, unit: 'meetings', med: 4, n: 4300, dist: [12, 18, 17, 14, 11, 8, 6, 5, 4, 2, 2, 1] },
+  { id: 'dl67', cat: 'event', type: 'dial', prompt: 'Holiday days you’ll lose unused this year?', lo: 0, hi: 24, unit: 'days', med: 3, n: 3900, dist: [26, 20, 14, 10, 8, 6, 5, 4, 3, 2, 1, 1] },
+  { id: 'dl68', cat: 'food', type: 'dial', prompt: 'Glasses of water you actually drink a day?', lo: 0, hi: 12, unit: 'glasses', med: 4, n: 4400, dist: [4, 9, 14, 17, 16, 13, 10, 7, 5, 3, 1, 1] },
+  { id: 'dl69', cat: 'people', type: 'dial', prompt: 'Living famous people you could name in sixty seconds?', lo: 0, hi: 60, unit: 'names', med: 25, n: 3900, dist: [3, 6, 10, 14, 16, 15, 12, 9, 7, 4, 3, 1] },
+  { id: 'dl70', cat: 'movies', type: 'dial', prompt: 'Minutes before you abandon a bad film?', lo: 0, hi: 120, unit: 'minutes', med: 35, n: 4200, dist: [4, 8, 12, 15, 16, 13, 10, 8, 6, 4, 2, 2] },
+  { id: 'dl71', cat: 'music', type: 'dial', prompt: 'Years since you last bought physical music?', lo: 0, hi: 24, unit: 'years', med: 6, n: 4000, dist: [12, 10, 11, 12, 12, 10, 9, 8, 6, 5, 3, 2] },
+  { id: 'dl72', cat: 'tech', type: 'dial', prompt: 'Devices in your home that need charging?', lo: 0, hi: 24, unit: 'devices', med: 8, n: 4300, dist: [2, 5, 9, 13, 16, 15, 12, 10, 7, 5, 4, 2] },
   { id: 'dl20', cat: 'sport', type: 'dial', prompt: 'Minutes of stoppage time that feel honest?', lo: 0, hi: 15, unit: 'min', med: 4, n: 4100, dist: [6, 10, 15, 17, 15, 11, 8, 6, 4, 3, 3, 2] },
   { id: 'dl21', cat: 'tech', type: 'dial', prompt: 'Browser tabs open right now?', lo: 0, hi: 50, unit: 'tabs', med: 9, n: 4400, dist: [10, 16, 17, 14, 11, 8, 7, 6, 4, 3, 2, 2] },
   { id: 'dl22', cat: 'culture', type: 'dial', prompt: 'Seconds a silence can sit comfortably?', lo: 0, hi: 60, unit: 's', med: 8, n: 4000, dist: [12, 18, 17, 13, 10, 8, 6, 5, 4, 3, 2, 2] },
@@ -248,6 +251,17 @@ window.WORLD_FEED_QS = [
   { id: 'fd12', cat: 'culture', type: 'field', prompt: 'Traditions — place it', ax: ['keep them all', 'invent new'], ay: ['comforting', 'confining'], n: 4100, cloud: [[28, 30, 11, 13], [68, 62, 10, 14], [50, 48, 5, 11]] },
   { id: 'fd13', cat: 'food', type: 'field', prompt: 'Snacking — place it', ax: ['a grazer', 'three meals'], ay: ['proud', 'guilty'], n: 4400, cloud: [[30, 36, 11, 13], [70, 62, 10, 14], [50, 50, 6, 10]] },
   { id: 'fd14', cat: 'movies', type: 'field', prompt: 'Sequels — place it', ax: ['never needed', 'keep them'], ay: ['cash grabs', 'real stories'], n: 4300, cloud: [[28, 36, 10, 13], [72, 62, 11, 14], [50, 48, 5, 11]] },
+  { id: 'fd15', cat: 'event', type: 'field', prompt: 'The Olympics — place it', ax: ['pure sport', 'pure show'], ay: ['must-watch', 'skippable'], n: 4100, cloud: [[30, 34, 11, 13], [68, 58, 12, 14], [50, 50, 6, 10]] },
+  { id: 'fd16', cat: 'movies', type: 'field', prompt: 'Cinemas — place it', ax: ['dying out', 'here forever'], ay: ['go often', 'rarely go'], n: 4200, cloud: [[28, 62, 11, 12], [70, 36, 12, 13], [52, 50, 6, 11]] },
+  { id: 'fd17', cat: 'people', type: 'field', prompt: 'Celebrity culture — place it', ax: ['harmless fun', 'corrosive'], ay: ['I follow it', 'I avoid it'], n: 3900, cloud: [[26, 32, 10, 12], [70, 64, 12, 13], [48, 52, 6, 10]] },
+  { id: 'fd18', cat: 'dilemma', type: 'field', prompt: 'Hard choices — place it', ax: ['head decides', 'heart decides'], ay: ['agonise', 'decide fast'], n: 4000, cloud: [[30, 36, 12, 13], [66, 60, 12, 14], [50, 48, 6, 11]] },
+  { id: 'fd19', cat: 'food', type: 'field', prompt: 'Eating out — place it', ax: ['a treat', 'routine'], ay: ['food first', 'company first'], n: 4100, cloud: [[28, 40, 11, 13], [68, 56, 12, 13], [48, 52, 6, 10]] },
+  { id: 'fd20', cat: 'culture', type: 'field', prompt: 'Manners — place it', ax: ['strict', 'relaxed'], ay: ['improving', 'decaying'], n: 4000, cloud: [[30, 62, 12, 13], [68, 38, 12, 13], [50, 50, 6, 10]] },
+  { id: 'fd21', cat: 'dilemma', type: 'field', prompt: 'Risk — place it', ax: ['seek it', 'avoid it'], ay: ['regret risks', 'regret passes'], n: 4100, cloud: [[32, 36, 12, 13], [66, 60, 12, 13], [50, 48, 6, 10]] },
+  { id: 'fd22', cat: 'people', type: 'field', prompt: 'Heroes — place it', ax: ['born', 'made'], ay: ['have one', 'outgrew them'], n: 3800, cloud: [[66, 34, 12, 13], [30, 60, 11, 13], [50, 50, 6, 10]] },
+  { id: 'fd23', cat: 'movies', type: 'field', prompt: 'Animation — place it', ax: ['for kids', 'for everyone'], ay: ['watch lots', 'rarely watch'], n: 4000, cloud: [[70, 36, 12, 13], [32, 62, 11, 13], [52, 50, 6, 10]] },
+  { id: 'fd24', cat: 'music', type: 'field', prompt: 'Festivals — place it', ax: ['the music', 'the scene'], ay: ['yearly', 'never again'], n: 4100, cloud: [[34, 36, 12, 13], [66, 62, 12, 13], [50, 50, 6, 10]] },
+  { id: 'fd25', cat: 'tech', type: 'field', prompt: 'The cloud — place it', ax: ['trust it', 'fear it'], ay: ['all in', 'local first'], n: 4200, cloud: [[30, 38, 12, 13], [68, 58, 12, 13], [48, 50, 6, 10]] },
 
   // ── scene questions ── asked inside one scene; counts are community-scale
   { id: 's01', scene: 'tennis', cat: 'sport', type: 'vote', prompt: 'Doubles or singles?', options: [ { label: 'Doubles', count: 1900 }, { label: 'Singles', count: 2600 } ] },
@@ -268,6 +282,20 @@ window.WORLD_FEED_QS = [
   { id: 's16', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Your sourdough starter deserves a name.', options: [ { label: 'Named, obviously', count: 1100 }, { label: 'It\u2019s yeast', count: 700 } ] },
   { id: 's17', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Kombucha or kefir?', options: [ { label: 'Kombucha', count: 900 }, { label: 'Kefir', count: 600 } ] },
 ];
+// GUARDED, and this is the line the note above said would have to move.
+// The pool is DEMO stock: on a live build `buildFeedGlobals` (data/live.ts)
+// publishes the real feed to this same global. While this file was eager it
+// ran BEFORE `initLive` and the assignment was harmless; now that it loads
+// from loadWorldFeed() — after the live boot — an unguarded one would
+// overwrite the real feed with invented questions. `demoPoolOpen()` is the
+// single definition of that test, shared with joinDemoStock and
+// installSubtopicStock for exactly this reason.
+//
+// The literal is a named const rather than an inline right-hand side so the
+// bank parsers can still find it: question-quality.mjs and
+// question-neighbors.mjs both read this pool by marker, and a ternary in the
+// assignment hid it from them.
+if (demoPoolOpen()) window.WORLD_FEED_QS = WFD_DEMO_POOL;
 
 /**
  * The demo stock that is not in the literal above, joined ON DEMAND rather

@@ -60,7 +60,9 @@ const CONTENT = new Set([
   "src/v2/spec/test-definitions.js",
 ]);
 // Any JSON seed under content/ is content by construction — the banks
-// themselves. duel-questions.json rides duels-data.js today.
+// themselves, and the two generated samples the demo build carries
+// (learn-sample.json in learn-data.js, duel-sample.json in duels-data.js
+// since D435) — a sample is content too, just content that cannot grow.
 const CONTENT_DIR = "content/";
 
 // Eager today, and only because a first-paint surface still imports it.
@@ -68,12 +70,6 @@ const CONTENT_DIR = "content/";
 const ALLOW = new Map([
   ["src/v2/spec/sample-data.js",
     "the demo crowd; scenes.js, map-anchors.js and relmap-lenses.jsx are all eager and import it"],
-  ["src/v2/spec/duels-data.js",
-    "group-daily.jsx is eager and imports it (and it pulls content/duel-questions.json with it)"],
-  ["content/duel-questions.json",
-    "rides duels-data.js above"],
-  ["src/v2/spec/world-feed-data.js",
-    "world-feed.jsx is eager; the feed lane's continuum twins live here, so this is the second lane behind the same wall"],
   ["src/v2/spec/test-feed-data.js",
     "vote-cuts.js and world-feed-report.js sit in its chunk and are reached from the eager feed"],
   ["src/v2/spec/archetype-data.js",
