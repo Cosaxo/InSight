@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 471 lines instead of
-48,980. Do not hand-edit; `npm run check:docs` fails when this
+48,983. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -482,6 +482,6 @@ detect it.
 | **D440** | [The owner of a directory row may delete it — clearing your display name unlists you](DECISIONS.md#d440--the-owner-of-a-directory-row-may-delete-it--clearing-your-display-name-unlists-you) | D445 | 48143 |
 | **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48385 |
 | **D442** | [The nightly voter samples are seeded on first touch: one bounded query per question, once, at most 25 a night](DECISIONS.md#d442--the-nightly-voter-samples-are-seeded-on-first-touch-one-bounded-query-per-question-once-at-most-25-a-night) | — | 48486 |
-| **D443** | [The data export: deleteAccount's read-only twin, and the terms' download promise gets its mechanism](DECISIONS.md#d443--the-data-export-deleteaccounts-read-only-twin-and-the-terms-download-promise-gets-its-mechanism) | — | 48638 |
+| **D443** | [The data export: deleteAccount's read-only twin, and the terms' download promise gets its mechanism](DECISIONS.md#d443--the-data-export-deleteaccounts-read-only-twin-and-the-terms-download-promise-gets-its-mechanism) | D445 | 48638 |
 | **D444** | [The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's](DECISIONS.md#d444--the-ten-plain-picks-get-a-sixth-pack-any-given-evening-four-of-them-in-place-six-retired-by-the-one-role-a-seat-rule-the-live-flip-still-the-owners) | D445 | 48235 |
 | **D445** | [The role ledger: the reveal keeps what the room has made each member, and the roles reading outlives the page](DECISIONS.md#d445--the-role-ledger-the-reveal-keeps-what-the-room-has-made-each-member-and-the-roles-reading-outlives-the-page) | — | 48791 |

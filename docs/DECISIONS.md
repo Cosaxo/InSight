@@ -48921,7 +48921,10 @@ member reads (D55 §8's shape), and a rejoin starts the record fresh the
 way `memberJoinedAt` starts the roster's clock fresh. The e2e asserts
 that on the group the account leaves, beside the assertion that leaving
 does NOT rewrite a reveal — a ledger row is one member's record, a
-reveal is everybody's.
+reveal is everybody's. And since the export is the erasure's read-only
+twin (D443, merged the same evening), `exportAccountV2`'s circle row
+carries `ledger` — this member's row, never the map — and the export's
+own leak case greps the file for the survivor's seat.
 
 ### What it costs
 

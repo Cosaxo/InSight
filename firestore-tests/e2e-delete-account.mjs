@@ -675,6 +675,8 @@ for (const [cond, label] of [
   [exp.presence?.held === true && typeof exp.presence?.until === "string", "the presence square, as held-until (D84)"],
   [exp.groups?.some((g) => g.gid === SOLO && g.owner) && exp.groups?.some((g) => g.gid === SHARED && g.owner),
     "the circles they are in"],
+  [exp.groups?.some((g) => g.gid === SHARED && g.ledger?.votes === 4 && g.ledger?.seats?.engine === 3),
+    "their role-ledger row on the shared circle (D445, phase 1c's field)"],
   [exp.ownedGroups?.some((g) => g.gid === OWNED_LEFT), "the circle they created and left"],
   [exp.reveals?.some((r) => r.gid === SHARED && r.vote?.optionIdx === 1 && r.name === "Doomed" && r.picked === 1),
     "their vote, name and pick in the shared reveal"],
@@ -709,6 +711,8 @@ for (const theirs of [
   "someone else's words", "someone else's suggestion", "someone else's paid ask",
   "Not this account's campaign", "evt_theirs", "somebodyelse", "fourth_party", "Someone Else",
   `"uid":"${OTHER}"`,
+  // the survivor's role-ledger row: the only `hands` seat seeded anywhere
+  '"hands"',
 ]) if (expText.includes(theirs)) fail("the export carries someone else's data: " + theirs);
 // The four things the file leaves out, and says so (exportAccount.ts's header).
 if (exp.logicAttempt?.seed !== undefined) fail("the export carries the logic attempt's seed — the answer key");

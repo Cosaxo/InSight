@@ -422,6 +422,11 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
         owner: g.get("ownerUid") === uid,
         joinedAt: toPlain((g.get("memberJoinedAt") as Record<string, unknown> | undefined)?.[uid]),
         memberName: toPlain((g.get("memberNames") as Record<string, unknown> | undefined)?.[uid]),
+        // The role ledger's row for THIS member (D445) — what the room has
+        // made them, kept by the reveal pipeline and dropped by the same
+        // phase-1c update that drops the name. The other members' rows
+        // stay on the document and out of this file.
+        ledger: toPlain((g.get("ledger") as Record<string, unknown> | undefined)?.[uid]),
         members: members.length,
         // The rounds this account has sealed and not yet seen revealed
         // (`played`, ROUNDS-PLAN §2.1), and the turn stamp if one stands.
