@@ -327,6 +327,51 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     );
     process.exit(1);
   }
+
+  // …AND THE VALUE IT OWNS, which this gate did not read.
+  //
+  // Every check here compares against `var(--field-size)` as a STRING. The
+  // sweep proves each field defers to the token; nothing proved the token
+  // clears 16px, which is the whole reason the token exists — under 16,
+  // iOS zooms the page on focus and the `position: fixed` shell scales
+  // with it, D105's bug applied to every field in the app instead of one.
+  //
+  // Measured 2026-09-09: setting it to 12px left this gate, its own
+  // sixteen tests, and check:figures, check:a11y, check:tap-targets,
+  // check:globals and check:labels ALL at exit 0. Nothing in the tree
+  // asserts the number — `--field-size` appears outside a `var(...)` in
+  // exactly one place, the declaration itself.
+  //
+  // Not hypothetical: the v28 design tokens carry a DIFFERENT
+  // `--field-size: 56px` for a control's height, and
+  // docs/VISION-2026-09-06.md already warns the name means two things —
+  // a paste from the wrong sheet is the route a wrong value takes here.
+  //
+  // A ONE-SIDED FLOOR, said plainly: 56 passes, and should, because a
+  // 56px field does not zoom. This catches the direction that breaks the
+  // app, not every value that would be wrong for another reason.
+  {
+    const decl = /--field-size:\s*(\d+(?:\.\d+)?)px/.exec(readFileSync(CSS, "utf8"));
+    if (!decl) {
+      console.error(
+        "check:touch-zoom FAILED: src/v2/styles.css no longer declares `--field-size` in px."
+        + "\nEvery field in this app defers to that token and this gate compares against its"
+        + "\nNAME, so a declaration it cannot read is a floor nothing holds. Fix this scan.",
+      );
+      process.exit(1);
+    }
+    if (Number(decl[1]) < 16) {
+      console.error(
+        `check:touch-zoom FAILED: --field-size is ${decl[1]}px, under the 16px floor.`
+        + "\nEvery field defers to this token, so under 16 iOS zooms the page on focus and"
+        + "\nthe fixed shell scales with it — D105's bug, applied to every field at once."
+        + "\n(The v28 tokens carry a different --field-size of 56px for a control's height,"
+        + "\n which is the route a wrong value takes here — that one is OVER the floor and"
+        + "\n passes, correctly: a 56px field does not zoom.)",
+      );
+      process.exit(1);
+    }
+  }
   for (const sheet of SHEETS) {
     const css = readFileSync(sheet, "utf8");
     const rel = relative(ROOT, sheet);
