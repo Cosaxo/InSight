@@ -32,10 +32,15 @@ because it had this step filed under "no accounts needed".
 **Status 2026-08-04: the switch is thrown, so this is unblocked** —
 Anonymous is measured working (`accounts:signUp` returns an `idToken`,
 where the same probe returned `ADMIN_ONLY_OPERATION` a day earlier).
-Google is enabled but **unverified**: the project-config endpoint returns
+**And Google is measured too, since 2026-09-09.** This said it was
+"enabled but **unverified**" because "the project-config endpoint returns
 only `authorizedDomains` to an unauthenticated caller, never `idpConfig`,
-so there is no remote probe for it. Signing in and running the seed IS
-the verification — treat a successful seed as proof of both.
+so there is no remote probe for it" — accurate about an *unauthenticated*
+caller, and wrong about this repo, whose deploy service account reads the
+Identity Platform admin API and gets exactly that `idpConfig`.
+`node scripts/check-auth-providers.mjs` reports **apple.com, google.com,
+anonymous and email all on**. Signing in and running the seed is still the
+end-to-end verification; what it is no longer is the ONLY one.
 
 1. ~~Copy your uid~~ — done; the maintainer's Google-account uid, the
    same one `MOD_UIDS` holds. (For a future extra operator: it's shown by
@@ -55,10 +60,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   1145 questions land in `v2_questions`. Re-running is safe (idempotent,
+   1264 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 1145-read
+   alone, so a reseed no longer costs every returning device a 1264-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 

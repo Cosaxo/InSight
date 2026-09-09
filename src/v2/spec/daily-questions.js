@@ -453,6 +453,22 @@ export let DAILYQ;
       cat: ['Food', 'How you cook'], alts: [['Skills', 'Method'], ['Mind', 'Rules']] },
     { type: 'scale', prompt: 'A goal kept secret is a goal kept safe.', tag: 'The reveal', axis: 'keep it quiet', tone: 'deep',
       cat: ['Goals', 'Telling people'], alts: [['Mind', 'Motivation'], ['Values', 'Privacy']] },
+    { type: 'binary', prompt: 'Fixing things yourself: first instinct, or last resort?', tag: 'The fixer', options: ['First instinct', 'Last resort'], tone: 'light',
+      cat: ['Skills', 'Handiness'], alts: [['Mind', 'Confidence'], ['Home', 'Upkeep']] },
+    { type: 'binary', prompt: 'Watching a sport you’ve played yourself: richer, or ruined?', tag: 'The insider', options: ['Richer', 'Ruined'], tone: 'blend',
+      cat: ['Sport', 'The inside view'], alts: [['Skills', 'Knowing how'], ['Mind', 'Attention']] },
+    { type: 'binary', prompt: 'Puzzles: bliss, or busywork?', tag: 'The puzzle', options: ['Bliss', 'Busywork'], tone: 'light',
+      cat: ['Interests', 'Quiet hobbies'], alts: [['Mind', 'Patience'], ['Home', 'Rainy days']] },
+    { type: 'binary', prompt: 'Your inner voice: more coach, or more critic?', tag: 'The voice', options: ['Coach', 'Critic'], tone: 'deep',
+      cat: ['Mind', 'Self-talk'], alts: [['Goals', 'Drive'], ['Story', 'How you narrate']] },
+    { type: 'scale', prompt: 'Small rules exist to be bent.', tag: 'The bend', axis: 'bend them', tone: 'blend',
+      cat: ['Morals', 'Rules'], alts: [['Values', 'Order'], ['Mind', 'Mischief']] },
+    { type: 'binary', prompt: 'The music of your parents’ generation: theirs, or yours too?', tag: 'Inherited songs', options: ['Theirs', 'Mine too'], tone: 'blend',
+      cat: ['Music', 'Inheritance'], alts: [['Story', 'Then and now'], ['Home', 'Family']] },
+    { type: 'binary', prompt: 'Do you ever read the last page first?', tag: 'The last page', options: ['Guilty', 'Never'], tone: 'light',
+      cat: ['Story', 'How you read'], alts: [['Mind', 'Suspense'], ['Values', 'Patience']] },
+    { type: 'binary', prompt: 'Airports: part of the adventure, or the price of it?', tag: 'The airport', options: ['Part of the adventure', 'The price of it'], tone: 'light',
+      cat: ['Travel', 'The journey'], alts: [['Mind', 'Thresholds'], ['Story', 'Departures']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
