@@ -836,7 +836,9 @@ export async function revealRound(
   // The names, past the gate — only a round that is about to reveal puts
   // profiles in flight. ONE FIELD, and the fieldMask is load-bearing
   // rather than tidy: a profile is client-writable and firestore.rules
-  // bounds only some of it (`testResults` by key count, the stamps not at
+  // bounds only some of it (`testResults` by key VOCABULARY since
+  // 2026-09-09, which caps the count structurally but not the size of a
+  // legitimate kind; the stamps not at
   // all), so a member can legitimately hold a document approaching
   // Firestore's 1 MiB, and LANES × GROUP_CAP of them in flight on the
   // 512 MiB instance is the exposure the mask bounds regardless of what

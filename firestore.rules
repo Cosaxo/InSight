@@ -427,7 +427,44 @@ service cloud.firestore {
         // key rides along once the callable has written it), mutation not.
         && (!("testResults" in request.resource.data)
           || (request.resource.data.testResults is map
-            && request.resource.data.testResults.keys().size() <= 8
+            // KEYS, not just a count. `size() <= 8` bounded how MANY
+            // entries a profile carries and nothing bounded how big one
+            // is, on a document every other device downloads WHOLE —
+            // voters.ts resolves thirty uids per query and says so in its
+            // own comment ("the web SDK has no field mask, so the whole
+            // profile document — testResults included — was already on
+            // the wire"). Eight keys of arbitrary values is a 1 MiB
+            // profile from one free anonymous account, served to everyone
+            // who meets it. Measured 2026-09-09 against this ruleset: a
+            // 400 KB value was ACCEPTED while a 61-character display name
+            // was refused.
+            //
+            // The five are the whole vocabulary, verified rather than
+            // assumed: `CORE_TEST_KINDS` (big5, political, values,
+            // attachment) is the only set `saveTestResult` is ever called
+            // with — IS_TESTS defines exactly those four and
+            // `syncPassiveResults` iterates the same constant — plus
+            // `logic`, which only logicSubmitV2 writes through the admin
+            // SDK. Nothing else in the tree writes a key here.
+            //
+            // This does NOT bound the size inside a legitimate kind; that
+            // needs per-kind shape checks and is its own increment. What
+            // it removes is the arbitrary key, which is the whole of the
+            // cheap version of the attack.
+            //
+            // If lenses ever mirror their scores (lens-defs.js records why
+            // they do not), this list is what has to grow — that comment
+            // already says "the rules cap and its test", and this is it.
+            //
+            // AND IT REPLACES `keys().size() <= 8` rather than joining it.
+            // Five names cannot reach nine, so the count could never
+            // evaluate false again — rules-coverage said so on the first
+            // run, 44 never-false predicates going to 45 — and a knowingly
+            // dead clause on a path already near the expression ceiling is
+            // worse than no clause. The vocabulary bounds the count
+            // structurally, at whatever length the list is, forever.
+            && request.resource.data.testResults.keys()
+                 .hasOnly(["logic", "big5", "political", "values", "attachment"])
             && (!("logic" in request.resource.data.testResults)
               || (resource != null
                 && request.resource.data.testResults.logic

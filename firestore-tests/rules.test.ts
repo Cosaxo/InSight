@@ -479,11 +479,39 @@ describe("v2 profile", () => {
       testResults: { big5: { dims: [], title: "Big Five" } },
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
-    // …and capped at 8 keys, which nothing asserted either.
+    // Nine invented keys, refused. This used to be the KEY-COUNT cap's
+    // case; the count clause is gone and the vocabulary below is what
+    // refuses these now, structurally — five names cannot reach nine at
+    // any list length. Kept because it is the shape an attacker sends.
     await assertFails(setDoc(mine, {
       testResults: Object.fromEntries(
         Array.from({ length: 9 }, (_, i) => [`t${i}`, { dims: [] }]),
       ),
+    }, { merge: true }));
+    // THE VOCABULARY. Key COUNT was bounded and key SIZE was not, on a
+    // document every other device downloads whole — voters.ts resolves
+    // thirty uids per query with no field mask. Measured before this
+    // clause: a 400 KB value was accepted while a 61-character display
+    // name was refused, so one free anonymous account could serve a
+    // 1 MiB profile to everyone who met it.
+    await assertFails(setDoc(mine, {
+      testResults: { blob: "x".repeat(400_000) },
+    }, { merge: true }));
+    // A blob is refused because its KEY is not one of the five, which is
+    // the cheap version of the attack. Under a legal key it is still
+    // accepted — bounding the shape inside a kind is its own increment,
+    // and this case says so rather than implying it is covered.
+    await assertSucceeds(setDoc(mine, {
+      testResults: { values: { dims: [], title: "x".repeat(2000) } },
+    }, { merge: true }));
+    // The five, verified against the tree rather than asserted from
+    // memory: CORE_TEST_KINDS is the only set saveTestResult is called
+    // with, plus `logic`, which only the callable writes.
+    await assertSucceeds(setDoc(mine, {
+      testResults: {
+        big5: { dims: [] }, political: { dims: [] },
+        values: { dims: [] }, attachment: { dims: [] },
+      },
     }, { merge: true }));
     // The display name's own 60-char cap. It went untested from the day it
     // was written: this case checked the unknown-field and stranger-write
