@@ -479,8 +479,11 @@ describe("Firestore construction", () => {
       h.firestoreCalls[0].dbId,
       "initializeFirestore was called without a database id — the client would read `(default)`, which the backend does not write to",
     ).toBe(m.FIRESTORE_DB_ID);
-    // Not merely "some string": the value is what the functions read from
-    // the same env var, and "insight" is what an unset environment means.
+    // Not merely "some string": "insight" is what an unset environment
+    // means, and it is the value the SERVER also defaults to — through a
+    // different variable (`FIRESTORE_DB_ID`, not `VITE_FIRESTORE_DB_ID`),
+    // which is why the two agreeing is a coincidence of defaults rather
+    // than a mechanism. The source comment beside the call says so.
     expect(m.FIRESTORE_DB_ID).toBe("insight");
   });
 

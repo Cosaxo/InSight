@@ -160,8 +160,23 @@ export function init(config: FirebaseConfig): void {
   // The third argument is the DATABASE ID (D165). The app moved off
   // `(default)` to a single EU region; omit this and the client talks to a
   // database the backend no longer writes to — which looks like an app with
-  // no data rather than like an error. Emulator runs override it through
-  // the same env var the functions read, so both halves cannot disagree.
+  // no data rather than like an error.
+  //
+  // THE TWO HALVES CAN DISAGREE, and this comment used to say they could
+  // not — "emulator runs override it through the same env var the
+  // functions read". It is not the same variable. The client reads
+  // `VITE_FIRESTORE_DB_ID` (line 91); the functions, the three e2e suites
+  // and every admin script read `FIRESTORE_DB_ID`. `vite.config.ts` sets
+  // no `envPrefix`, so Vite's default `VITE_` applies and the server's
+  // name is not visible to this bundle at all.
+  //
+  // Nothing is broken today: both default to "insight", so they agree by
+  // coincidence rather than by mechanism. What the old sentence invited is
+  // the split-brain D165 exists to prevent — export `FIRESTORE_DB_ID` for
+  // an emulator session and the backend, the e2e loop and the scripts all
+  // move while the client stays on "insight": the app writes and nothing
+  // ever folds. Moving the database means setting BOTH, and `.env.example`
+  // lists only the client's.
   dbInstance = initializeFirestore(app, {
     localCache: persistentLocalCache(),
   }, FIRESTORE_DB_ID);
