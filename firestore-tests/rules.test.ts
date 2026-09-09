@@ -417,8 +417,10 @@ describe("v2 profile", () => {
   it("a profile cannot be DELETED — the only deny in the file that no test held", async () => {
     // Of the denies in firestore.rules, this was the one that could be
     // relaxed to `if request.auth != null` with the whole suite green at
-    // 178; `v2_people`'s identical `allow delete: if false` reds, as does
-    // every other.
+    // 178; `v2_people`'s then-identical `allow delete: if false` reds, as
+    // does every other. (That arm is owner-only since D440 — a directory
+    // row is derived from the profile and can be re-written from it, which
+    // is exactly what the profile itself cannot be.)
     //
     // It is not only coverage. The handle guard reads back
     // `resource.data.get("handle", null)`, so a deleted profile is one
@@ -4222,12 +4224,34 @@ describe("people directory: found by name (D239)", () => {
       { name: "Stranger", nameKey: "stranger" }));
   });
 
-  // deleteAccount (admin SDK) owns removal — phase 3d. A client delete
-  // would be the one path able to strip a row the erasure counts on.
-  it("nobody deletes a row from a client, not even their own", async () => {
+  // The owner deletes their own row (D440): clearing a display name is
+  // the only way a person who set one can stop being found by it, because
+  // the write arm refuses an empty `name` and so there is no unlisted row
+  // to write instead. Until D440 this arm was `if false`, held by a case
+  // titled "nobody deletes a row from a client, not even their own" on
+  // the argument that deleteAccount's phase 3d counts on the row. It does
+  // not: 3d is an idempotent delete followed by a constant, so a row its
+  // owner removed first changes neither the erasure's verdict nor its
+  // report — and the erasure is asserted in e2e-delete-account.mjs, by a
+  // control row that must survive, not by anything here.
+  it("you delete your own row — clearing your name unlists you (D440)", async () => {
+    await seedRow();
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+    // Twice: the second delete meets no document. The writer deletes on
+    // every blank save without reading first, and an account that never
+    // had a row saves a blank too, so a delete of nothing has to be a
+    // legal no-op — the arm reads no `resource`, which is what makes it
+    // one, and this is what holds that.
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+  });
+
+  it("…and nobody deletes another's, signed in or not", async () => {
     await seedRow();
     await refused(deleteDoc(doc(asUser(STRANGER), "v2_people", OWNER)));
-    await refused(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+    // The sign-in conjunct is its own predicate on this arm, and the
+    // coverage ratchet asks that the suite see it refuse: a stranger
+    // fails the uid check, a signed-out delete fails this one.
+    await refused(deleteDoc(doc(asSignedOut(), "v2_people", OWNER)));
   });
 });
 
