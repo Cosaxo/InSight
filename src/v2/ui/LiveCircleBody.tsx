@@ -58,6 +58,10 @@ const PeopleField = React.lazy(() =>
 // tapped.
 const CircleCompare = React.lazy(() => import("./LiveCompareLens"));
 
+/** Divisive-question rows the Answers tab draws. Named rather than a bare
+ *  `12` in the slice, because the caption beside it has to say the same
+ *  number and a second literal is how the two drift apart. */
+const ANSWER_ROWS = 12;
 const CL_LINE = "1px solid var(--rule)";
 
 /**
@@ -140,14 +144,23 @@ function LiveCircleBody() {
   // things everyone answers the same way everywhere.
   const qs = LIVE.aggregated();
   const splits = qs.map((q) => ({ q, split: circleSplit(members, q.id, q.options.length) }));
-  const rows = splits
+  const ranked = splits
     .filter((r) => r.split.n >= 2)
     // divisiveness computed once per surviving row rather than inside the
     // comparator, where it would re-run O(n log n) times per render —
     // same reasoning (and measurement) as LiveCohortBody's sort.
     .map((r) => ({ ...r, d: divisiveness(r.split.counts) }))
-    .sort((a, b) => b.d - a.d || b.split.n - a.split.n)
-    .slice(0, 12);
+    .sort((a, b) => b.d - a.d || b.split.n - a.split.n);
+  const rows = ranked.slice(0, ANSWER_ROWS);
+  // A CAP THAT SAYS SO, which every sibling in this family already does —
+  // LiveAnswerRows offers "Show N more", the places field says "N more …
+  // placed further out than this field draws", and LiveGroupsMirrorBody
+  // writes the rule out: "a cap that silently eats rows reads as that is
+  // all of them". This one was the exception. The tab is labelled
+  // "Answers", so a circle with forty aggregated questions saw twelve and
+  // had no cue that the other twenty-eight existed or that the twelve
+  // were the most divided rather than all of them.
+  const hidden = ranked.length - rows.length;
 
   const myVotes = LIVE.myVotes();
   const mutuals = members.filter((m) => m.mutual).length;
@@ -400,7 +413,17 @@ function LiveCircleBody() {
                 ? <>Fills in once two of them answer the same question.</>
                 : <>Fills in once two people you follow answer the same question.</>}
             </ClEmpty>
-          ) : rows.map(({ q, split }) => {
+          ) : <>
+            {hidden > 0 && (
+              <div style={{
+                fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600,
+                color: "var(--ink-3)", paddingBottom: 11,
+              }}>
+                The {rows.length} your circle splits on most — {hidden} more
+                {" "}answered here.
+              </div>
+            )}
+            {rows.map(({ q, split }) => {
             const pct = pctFor(split.counts);
             const mine = myVotes[q.id];
             const mineIdx = mine == null ? -1 : Number(mine);
@@ -430,7 +453,8 @@ function LiveCircleBody() {
                 </span>
               </div>
             );
-          })}
+            })}
+          </>}
         </div>
       )}
 

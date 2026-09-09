@@ -138,6 +138,26 @@ export const CLAIMS = [
     (src) => !/(picks to the people in that group|then the members of that group)/i.test(src)],
   ["D98 · group takes are world-readable too, not circle-scoped",
     (src) => !/group takes: that group/i.test(src)],
+  // THE SAME PROMISE, ONE PARAGRAPH UP, and the row above could not see
+  // it: that row forbids one literal string ("group takes: that group")
+  // from the audience SUMMARY, while the what-we-collect bullet said the
+  // narrowing in different words — "to a group's members when posted
+  // there". `match /v2_takes/{id}` has no membership arm at all (D98
+  // collapsed it), so any signed-in stranger reads a circle take, and the
+  // suite pins exactly that. Which is the half-corrected promise this
+  // script's own header warns about, caught by nothing for as long as the
+  // two sentences disagreed.
+  //
+  // The bullet also carried "one per person per question" across BOTH
+  // kinds. Only the world branch enforces that; the rules' circle branch
+  // says in its own comment that a circle take is many-per-person and
+  // there is no one-take bound to enforce.
+  ["D98 · a circle take is readable by any signed-in user, said where it is collected",
+    /Anyone signed in can read it,\s+wherever you posted it/i],
+  ["D98 · …and the retired member-scoped wording is gone",
+    (src) => !/to a group&rsquo;s members when posted there/i.test(src)],
+  ["D98 · the one-per-question bound is the WORLD feed's, not the circle's",
+    /One per question in the\s+world feed;\s+as many as you like in a circle/i],
   ["D9 · coordinates are never transmitted or stored",
     /coordinates are not sent to us, not stored/i],
   ["D175 · the presence square's SIZE tracks the grid (~200 m, not km)",

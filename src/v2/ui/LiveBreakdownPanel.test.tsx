@@ -703,7 +703,7 @@ describe("LiveBreakdownPanel · the type cut", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Type"));
     expect(screen.queryByText(/Reading who answered/)).toBeNull();
-    expect(screen.getByText(/None of the 2 answers here carries a Big Five/)).toBeTruthy();
+    expect(screen.getByText(/None of the 2 answers this session has read\s+carries a Big Five/)).toBeTruthy();
   });
 
   it("redraws the question's own options with that type's numbers", () => {
@@ -848,7 +848,7 @@ describe("LiveBreakdownPanel · the logic cut (D227)", () => {
     fireEvent.click(chip("Logic"));
     expect(screen.queryByText(/Reading who answered/)).toBeNull();
     // A Big Five is not a logic score: both rows are untested here.
-    expect(screen.getByText(/None of the 2 answers here carries a verified\s+logic score/)).toBeTruthy();
+    expect(screen.getByText(/None of the 2 answers this session has read\s+carries a verified\s+logic score/)).toBeTruthy();
   });
 
   it("draws bands in scale order and shares once the sample is enough", () => {

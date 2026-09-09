@@ -389,6 +389,19 @@ arithmetic.
       tapping *Link Google* in the app — which 0.1 requires anyway, since
       the seed gate matches a Google-account uid. Treat 0.1 succeeding as
       the proof.
+
+      **APPLE IS A THIRD PROVIDER THIS ITEM NEVER NAMED, and since
+      2026-09-09 the client asks for it.** The tick above is left as it
+      is because it is honest about what it says — Anonymous and Google —
+      but D414 added Apple's door, night shift A wired the native
+      provider list to reach it (`capacitor.config.ts`, previously
+      `["google.com"]` only), and nothing anywhere records Apple being
+      switched on in Sign-in method. It has the same absence of a remote
+      probe as Google and, unlike Google, no record of ever having been
+      enabled. It is on `OWNER-LIST.md` § Clicks with the failure mode
+      (`auth/operation-not-allowed`) and the scope (the toggle is the
+      whole of it for iOS native; a Services ID is only for the web
+      popup path, which the iOS-only wall does not use).
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
       Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak

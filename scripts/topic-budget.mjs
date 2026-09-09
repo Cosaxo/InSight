@@ -131,6 +131,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 import { TOP_FLOOR, RUN_CAP as DAILY_CAP, loadDailyTops, farmSignal } from "./farm-budget.mjs";
 // LANE_EXCLUDED is deliberately NOT imported: loadFeedTopics already drops
 // it, so a parent the lane cannot stock (`now`) is never counted as thin.
@@ -199,7 +200,8 @@ export const TOPS = {
     floor: TOP_FLOOR, cap: DAILY_CAP, noun: "top",
     sites: [
       "src/v2/spec/daily-cats.js (CAT_META)",
-      "src/v2/spec/map-groups.js (the hub's cats — never the silent World default)",
+      "src/v2/spec/map-groups.js (the hub's cats — the bare branch id for a top with a seedId, `top-<slug>` otherwise; never the silent World default)",
+      "src/v2/spec/map-branches.js (the seed branch, if the top carries a seedId — check:taxonomy rule 2 requires every branch it draws to be claimed by a CAT_META top, so a fold that leaves the branch behind cannot go green)",
       "src/v2/spec/map-anchors.js (FALLBACK — the anchor readings a top's questions fall back to)",
     ],
   },
@@ -408,10 +410,20 @@ export function hueRing(surface, taxonomy) {
  * restated: feed topics are always-on (D96), so a new install fetches a
  * page per topic until its cache converges (bankPager.ts, D321). A leaf
  * costs none of this — its cards ride the parent's page. Returns null if
- * the constant moves, so the line goes quiet instead of inventing (D197). */
+ * the constant moves, so the line goes quiet instead of inventing (D197).
+ *
+ * COMMENTS STRIPPED, because "returns null if the constant moves" was not
+ * what it did: `exec` returns the FIRST hit, and this tree parks a
+ * superseded value in a comment above the live one as a matter of house
+ * style. Measured 2026-09-08 on bankPager.ts — live tree 12, the same
+ * file with `// was: export const FEED_PAGE = 8;` above the declaration
+ * read 8, `topic-budget.test.mjs`'s `expect(feedPageCost()).toBe(...)`
+ * stayed green, and the operator line printed a per-install cost a third
+ * under the truth. `source-pins.test.mjs` could not see the shape either;
+ * it does now. */
 export function feedPageCost() {
   try {
-    const src = readFileSync(join(root, "src", "v2", "data", "bankPager.ts"), "utf8");
+    const src = stripComments(readFileSync(join(root, "src", "v2", "data", "bankPager.ts"), "utf8"));
     const m = /export const FEED_PAGE = (\d+);/.exec(src);
     return m ? Number(m[1]) : null;
   } catch {
@@ -421,6 +433,37 @@ export function feedPageCost() {
 
 export function loadLedger() {
   return JSON.parse(readFileSync(join(root, "content", "topic-proposals.json"), "utf8"));
+}
+
+/**
+ * What `settling` holds the door on: the stock of the last top CREATED on
+ * this surface that is still standing, or null when there is no such top.
+ *
+ * NULL AND ZERO ARE DIFFERENT SENTENCES, and reading a missing row as 0
+ * is how this said something false forever. `check-taxonomy.mjs` rule 4
+ * deliberately KEEPS a `created` row whose id has since been retired
+ * (`retiredSince`) — the creation was real, it is history — so the last
+ * created top on a surface that has retired one is a row with no
+ * taxonomy entry behind it. `rows.find(...)?.stock ?? 0` then read that
+ * as an empty room, and `topVerdict` printed "the last feed topic
+ * created is at 0 of 24 — one room at a time" about a room that does not
+ * exist. Measured 2026-09-08: a ledger whose one created feed topic had
+ * been folded held every future feed top proposal, permanently, with
+ * that sentence.
+ *
+ * A created top with no row and no retirement is a broken ledger, and it
+ * is check:taxonomy's to report — not this line's to hold the door on.
+ * Null there too: say nothing rather than a number.
+ */
+export function settlingStock(ledger, surface, rows) {
+  const retired = new Set(
+    (ledger.retired ?? []).filter((r) => r.surface === surface).map((r) => r.id));
+  const prior = (ledger.created ?? [])
+    .filter((c) => c.surface === surface && levelOf(c) === "top" && !retired.has(c.id))
+    .at(-1);
+  if (!prior) return null;
+  const row = rows.find((r) => r.id === prior.id);
+  return row ? row.stock : null;
 }
 
 /** The You map's ring — MAP_GROUPS' hubs, with the branch ids each holds —
@@ -684,8 +727,7 @@ if (invokedDirectly) {
       v = leafVerdict({ surface: p.surface, parked, retag, budget: LEAVES[p.surface]?.cap ?? 0, parentOk });
       console.log(`    ${parked} parked + ${retag} retagged · grant ${LEAVES[p.surface]?.cap ?? 0} · handful ${LEAVES[p.surface]?.birth ?? "-"}`);
     } else {
-      const prior = (ledger.created ?? []).filter((c) => c.surface === p.surface && levelOf(c) === "top").at(-1);
-      const settling = prior ? (tops[p.surface].rows.find((r) => r.id === prior.id)?.stock ?? 0) : null;
+      const settling = settlingStock(ledger, p.surface, tops[p.surface].rows);
       const placed = isPlaced(p, ring);
       v = topVerdict({ surface: p.surface, placed, parked, days, budget: TOPS[p.surface].cap, settling });
       console.log(`    ${parked} parked over ${plural(days, "run day")} · hub ${p.group ? JSON.stringify(p.group) : "unstated"}${placed ? "" : " (none such)"}${TOPS[p.surface].cheap ? " · cheap: Knowledge by prefix" : ""}`);

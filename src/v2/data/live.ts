@@ -3749,6 +3749,19 @@ function roundsOf(g: Record<string, unknown> & { id: string }) {
   return { open, next, sealed, lead: ROUND_LEAD };
 }
 
+/**
+ * A round's question BY ID — the duel bank first, then the world (a world
+ * question served as a round, ROUNDS-PLAN §6.2). The reveal card, the
+ * roles fold and the late-answer write all look it up by the same door;
+ * `SOCIAL.bankQ` is this function under its public name.
+ */
+function roundQById(qid: string) {
+  const q = state.duelBank.find((x) => x.id === qid);
+  if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
+  const w = feedById(qid) || dailyById(qid);
+  return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "world" } : null;
+}
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3757,12 +3770,7 @@ const SOCIAL = {
     return g ? roundsOf(g) : null;
   },
   bankQ(qid: string) {
-    const q = state.duelBank.find((x) => x.id === qid);
-    if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
-    // A world question served as a round (ROUNDS-PLAN §6.2) — the reveal
-    // card and the roles fold look it up by the same door.
-    const w = feedById(qid) || dailyById(qid);
-    return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "world" } : null;
+    return roundQById(qid);
   },
   /**
    * The world's split on a question this device already holds the
@@ -3773,7 +3781,25 @@ const SOCIAL = {
   worldSplit(qid: string): { counts: number[]; total: number } | null {
     const q = feedById(qid) || dailyById(qid);
     if (!q || !hasPublishedCounts(state.aggs[qid])) return null;
-    const counts = countsFor(q.options, voteCtx(qid));
+    const ctx = voteCtx(qid);
+    const counts = countsFor(q.options, ctx);
+    // THE VIEWER'S OWN VOTE, BACK IN — `wfPcts`'s +1, which every surface
+    // that prints a crowd percentage applies and which `countsFor`'s own
+    // comment says the UI layer owes it ("the UI layer adds its own +1").
+    // The reveal's World column divided these raw, so the one person
+    // guaranteed to have answered the question was the one person missing
+    // from the crowd. It fires in the case `ensureWorldSplit` below calls
+    // normal: the cache holds the aggregates of questions you have
+    // ANSWERED. Measured on one aggregate — a viewer on option 0 of a
+    // crowd split 1–1 read 0% / 100%, and a viewer who was the only voter
+    // made the column vanish entirely.
+    //
+    // Unconditional on the option, in both directions of `pending`: not
+    // pending, the aggregate holds the vote and countsFor took it out;
+    // pending, the aggregate does not hold it yet and countsFor left it
+    // out. Either way exactly one is owed.
+    const mine = typeof ctx.mine === "string" ? Number(ctx.mine) : NaN;
+    if (Number.isInteger(mine) && mine >= 0 && mine < counts.length) counts[mine] += 1;
     const total = counts.reduce((a, b) => a + b, 0);
     return total > 0 ? { counts, total } : null;
   },
@@ -4207,13 +4233,34 @@ const SOCIAL = {
    * it to the reveal marked, and no fold counts it. Reaches back at most
    * the lead. The card offers it under a reveal you have no vote in.
    */
-  voteLate(gid: string, round: number, optionIdx: number): Promise<void> {
+  voteLate(gid: string, round: number, optionIdx: number, qid?: string): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
     const uid = state.uid;
     if (!g || !uid) return Promise.resolve();
     const open = openRoundOf(g);
     if (!(round < open && round >= open - ROUND_LEAD)) return Promise.resolve();
-    const q = duelQFor(g, round);
+    // THE REVEAL'S OWN QID, not a recomputation. The card renders these
+    // buttons from `bankQ(reveal.qid)`, so `optionIdx` indexes THAT
+    // question's options — while this used to re-derive the round's
+    // question with `duelQFor`, which is a hash over the CURRENT bank and
+    // world pool: `(gHash + round + len * 1000) % len`. One question
+    // appended to either pool remaps every past round, and a late answer
+    // is by definition given after its round revealed, reaching back the
+    // whole lead. Measured: round 3 moved duo-037 → duo-023 on a bank
+    // that grew by one, and an unloaded world pool swapped an even
+    // round's kind outright.
+    //
+    // The consequence is silent. `optionIdx` names one question's option
+    // and `qid` another, the trigger stamps the mismatch as `vote.qid`
+    // (D71's shape), and the "Answered after the reveal" row draws the
+    // label off the DRIFTED question — so the room reads back a different
+    // option of a different prompt. If the drifted question is a `pick`,
+    // line below writes `pickUid: memberUids[optionIdx]`, publishing a
+    // pick of a person the user never chose.
+    //
+    // `duelQFor` stays the blind path's authority: it is right for a
+    // round nobody has revealed yet, which has no `qid` to carry.
+    const q = (qid ? roundQById(qid) : null) || duelQFor(g, round);
     if (!q) return Promise.resolve();
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();

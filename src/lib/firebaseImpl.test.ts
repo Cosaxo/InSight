@@ -28,6 +28,9 @@
 // test can execute — what this owns is that the app ASKS for it on native
 // and does not on web, which is the line that was wrong.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { cwd } from "node:process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -476,8 +479,11 @@ describe("Firestore construction", () => {
       h.firestoreCalls[0].dbId,
       "initializeFirestore was called without a database id — the client would read `(default)`, which the backend does not write to",
     ).toBe(m.FIRESTORE_DB_ID);
-    // Not merely "some string": the value is what the functions read from
-    // the same env var, and "insight" is what an unset environment means.
+    // Not merely "some string": "insight" is what an unset environment
+    // means, and it is the value the SERVER also defaults to — through a
+    // different variable (`FIRESTORE_DB_ID`, not `VITE_FIRESTORE_DB_ID`),
+    // which is why the two agreeing is a coincidence of defaults rather
+    // than a mechanism. The source comment beside the call says so.
     expect(m.FIRESTORE_DB_ID).toBe("insight");
   });
 
@@ -489,5 +495,104 @@ describe("Firestore construction", () => {
       h.firestoreCalls[0].settings.localCache,
       "initializeFirestore was called with no localCache — an offline boot falls back to the demo deck with the real bank on disk",
     ).toEqual({ __persistent: true });
+  });
+});
+
+// ── THE NATIVE PROVIDER LIST IS PART OF THE SIGN-IN PATH ─────────────
+//
+// `@capacitor-firebase/authentication` builds a handler per provider and
+// only for the ones named in `capacitor.config.ts`:
+//
+//     if config.providers.contains(ProviderId.apple) {
+//       self.appleAuthProviderHandler = AppleAuthProviderHandler(self)
+//     }
+//
+// and every entry point guards on it — `signInWithApple` and
+// `linkWithApple` both `call.reject("Apple sign-in provider is not
+// enabled")` when the handler is null. Android is byte-for-byte the same
+// shape.
+//
+// Apple was missing from that list while `LiveSignInGate` rendered
+// "Sign in with Apple" as the FIRST door on iOS, which guideline 4.8 is
+// the reason for. On device the primary button on the account wall
+// rejected; on web nothing was wrong, because `appleSignIn`/`linkApple`
+// take `signInWithPopup` off-native and never reach the plugin. So no
+// test here could see it: every case in this file mocks the plugin.
+//
+// Derived rather than listed, so the next provider cannot be added to
+// the app and forgotten in the config — the shape the overlay coverage
+// table uses. The ids are the PLUGIN'S OWN, copied from its definitions:
+// Game Center is "gc.apple.com", not "gamecenter", which is what this map
+// said when it was written. Inert, because nothing calls Game Center —
+// and exactly the trap the map exists to prevent, since the entry would
+// have demanded a string the plugin never compares against and gone green
+// on a config loading nothing.
+//
+// An unrecognised provider call FAILS rather than being skipped. The
+// first version filtered to the names it knew (`c in PROVIDER_ID`), so a
+// new `signInWithMicrosoft` would have passed quietly — the comment here
+// claimed the opposite. `NOT_A_PROVIDER` is the deliberate exception
+// list: plugin methods that need no `providers` entry because the plugin
+// builds no handler for them.
+describe("the native sign-in providers", () => {
+  const PROVIDER_ID: Record<string, string> = {
+    signInWithApple: "apple.com",
+    linkWithApple: "apple.com",
+    signInWithGoogle: "google.com",
+    linkWithGoogle: "google.com",
+    signInWithFacebook: "facebook.com",
+    signInWithGameCenter: "gc.apple.com",
+  };
+  /** Calls that are not a loadable provider — no handler, no config entry. */
+  const NOT_A_PROVIDER = new Set([
+    "signOut", "signInWithCustomToken", "signInWithEmailLink",
+    "signInWithEmailAndPassword", "createUserWithEmailAndPassword",
+    "linkWithEmailAndPassword", "signInAnonymously", "getCurrentUser",
+    "getIdToken", "updateProfile", "deleteUser", "sendEmailVerification",
+    "sendPasswordResetEmail", "confirmPasswordReset", "useEmulator",
+    "addListener", "removeAllListeners", "reload", "unlink",
+  ]);
+
+  it("names every provider the app asks the native plugin for", () => {
+    const impl = readFileSync(resolve(cwd(), "src/lib/firebaseImpl.ts"), "utf8");
+    const called = [...new Set(
+      [...impl.matchAll(/FirebaseAuthentication\.(\w+)\(/g)].map((m) => m[1]),
+    )];
+    // Loud, not silent: a native call this map has never heard of is a
+    // provider nobody has decided about, and skipping it is how the
+    // config would go stale again.
+    for (const c of called) {
+      expect(
+        c in PROVIDER_ID || NOT_A_PROVIDER.has(c),
+        `firebaseImpl calls FirebaseAuthentication.${c}, which this map does not know. `
+        + "Add its provider id to PROVIDER_ID, or to NOT_A_PROVIDER if the plugin loads no handler for it.",
+      ).toBe(true);
+    }
+    const needed = [...new Set(
+      called.filter((c) => c in PROVIDER_ID).map((c) => PROVIDER_ID[c]),
+    )];
+    expect(needed.length, "no native provider calls found — the pattern stopped matching")
+      .toBeGreaterThan(0);
+
+    const config = readFileSync(resolve(cwd(), "capacitor.config.ts"), "utf8");
+    const listed = (config.match(/providers:\s*\[([^\]]*)\]/)?.[1] ?? "")
+      .split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+
+    for (const id of needed) {
+      expect(
+        listed,
+        `firebaseImpl calls the native plugin for ${id}, but capacitor.config.ts does not load it — `
+        + "the plugin rejects with \"provider is not enabled\" on device, and only on device",
+      ).toContain(id);
+    }
+  });
+
+  it("…and the app really does ask for Apple, not only Google", () => {
+    // The control. The case above passes vacuously if the call-site scan
+    // ever stops finding Apple — which is exactly what a refactor to the
+    // web popup everywhere would look like, and would be a different bug.
+    const impl = readFileSync(resolve(cwd(), "src/lib/firebaseImpl.ts"), "utf8");
+    expect(impl).toMatch(/FirebaseAuthentication\.signInWithApple\(/);
+    expect(impl).toMatch(/FirebaseAuthentication\.signInWithGoogle\(/);
   });
 });

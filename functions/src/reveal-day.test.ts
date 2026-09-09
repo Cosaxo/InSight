@@ -181,6 +181,54 @@ describe("a reveal that lost the race", () => {
     expect(g.lastRevealDay).toBe(reveal!.day);
   });
 
+  it("clears the clock on a due round nobody is in, instead of leaving it in the scan forever", async () => {
+    // THE STUCK GROUP. `playedRemovals` empties `played.r{n}` when the
+    // only member who answered leaves or is erased, and nothing clears
+    // `roundDeadlineAt`. `roundReveals` is `played >= 1 && …`, so with
+    // zero players it is false whatever `force` says — and the branch
+    // that clears the clock lives INSIDE the transaction the page gate
+    // was returning before it. The deadline scan orders by that field
+    // ascending, so a never-moving deadline sorts permanently at the
+    // head: at GROUP_SCAN_CAP the run breaks before reaching any live due
+    // round, and reveals stop for everybody.
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: [] }, streak: 2, ...DUE,
+    });
+    // no answers staged at all — the round is due and empty
+
+    const revealed = await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot);
+
+    expect(revealed, "an empty round has nothing to reveal").toBe(false);
+    expect(attempts, "the transaction never opened, so nothing could clear the clock").toBe(1);
+    const g = store.get(`v2_groups/${GID}`)!;
+    // The DELETE SENTINEL by name, not "no longer a Timestamp": the raw
+    // fixture value is a plain number, so "not a Timestamp" was also true
+    // of a clock nothing had cleared — a test of the fixture wearing the
+    // fix's name. `DeleteTransform` is what FieldValue.delete() is.
+    expect((g.roundDeadlineAt as object)?.constructor?.name,
+      "the clock is still set — the scan will re-read this group forever").toBe("DeleteTransform");
+    expect((g.roundOpenedAt as object)?.constructor?.name).toBe("DeleteTransform");
+    // …and the round itself is untouched: its question is unburned and it
+    // reopens the moment somebody answers.
+    expect(g.round).toBe(ROUND);
+    expect(g.streak).toBe(2);
+    expect(store.has(`v2_groups/${GID}/reveals/${KEY}`), "an empty round published a reveal").toBe(false);
+  });
+
+  it("a round that is NOT due and has nobody in it costs no transaction", async () => {
+    // The other side of the same gate: the change is "a DUE round always
+    // opens the transaction", not "every round does". A future round with
+    // nobody in it must still be free.
+    store.set(`v2_groups/${GID}`, {
+      mode: "duo", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: [] }, streak: 2,
+      roundDeadlineAt: Date.now() + 3_600_000, roundOpenedAt: Date.now(),
+    });
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(false);
+    expect(attempts, "a round with time left opened a transaction").toBe(0);
+  });
+
   it("opens the next round with its clock running when somebody sealed it ahead", async () => {
     store.set(`v2_groups/${GID}`, {
       mode: "duo", memberUids: ["u1", "u2"], round: ROUND,

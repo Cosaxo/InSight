@@ -66,10 +66,25 @@ const config: CapacitorConfig = {
       presentationOptions: ["badge"],
     },
     FirebaseAuthentication: {
-      // The plugin loads no providers by default, so the native Google
-      // sheet never opens without this list — the account-upgrade path
-      // (D3) is dead on both platforms until it is set.
-      providers: ["google.com"],
+      // The plugin loads no providers by default, so the native sheet
+      // never opens without this list — the account-upgrade path (D3) is
+      // dead on both platforms until it is set.
+      //
+      // APPLE WAS MISSING UNTIL 2026-09-09, and it is the LEAD door on
+      // iOS (guideline 4.8, LiveSignInGate). `initAuthProviderHandlers`
+      // constructs `appleAuthProviderHandler` only when this list
+      // contains "apple.com"; without it every `signInWithApple` and
+      // `linkWithApple` rejects with "Apple sign-in provider is not
+      // enabled" — on device only, since the web paths use
+      // `signInWithPopup` and never touch the plugin. Exactly the failure
+      // SHIP-CHECKLIST records for Google one provider over: "compiles
+      // and ships but throws the moment anyone taps Continue with
+      // Google."
+      //
+      // src/lib/firebaseImpl.test.ts derives this list from the native
+      // call sites, so a third provider cannot be added to the app and
+      // forgotten here.
+      providers: ["apple.com", "google.com"],
       // The JS SDK owns the session: googleSignIn/linkGoogle take the
       // native idToken and hand it to signInWithCredential /
       // linkWithCredential so Firestore keeps using the same auth

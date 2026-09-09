@@ -665,35 +665,32 @@ export async function runPatternsFit(
   // each night from the item side — so rotating its published copy costs
   // nothing and buys the devices a map that does not jump.
   //
-  // AND IT HAS NEVER ROTATED ANYTHING. This said the path was "unreachable
-  // in the test suite" and read as an ordinary coverage gap — write a case
-  // and it closes. It is not, and the next person to try should have the
-  // measurement rather than the hour.
+  // IT IS TESTED NOW, and what it took is worth keeping, because two
+  // reasonable-looking fixtures prove nothing here.
   //
-  // `procrustes` refuses outright when the two row sets share fewer than
-  // `k` keys ("a direction the shared rows do not span cannot be aligned —
-  // refuse the whole rotation rather than invent it"), and every fixture
-  // that reaches a crossover shares ONE or TWO against k = 8. Instrumented
-  // 2026-09-07 on the suite's own crossover case: `crossed=true`,
-  // `prevSgdPub` 2 keys, `als.rows` 2 keys, and the rows the block hands on
-  // are byte-identical to the ones it was given — 0 of 2 changed. Widening
-  // the ledger to twelve core questions did not move it: `shared` came back
-  // 1 and 2, so procrustes still returned the identity.
+  // `procrustes` refuses on two conditions, and either one silently turns
+  // this block into a no-op that a test still passes over. It needs at
+  // least `k` SHARED keys, and it needs those rows to SPAN all k
+  // directions ("a direction the shared rows do not span cannot be
+  // aligned — refuse the whole rotation rather than invent it").
   //
-  // So deleting this whole block leaves the functions suite green for a
-  // stronger reason than no test asserting it — with these fixtures there
-  // is nothing to assert, and a case that asserted "the published rows
-  // moved" would fail against correct code.
+  //   · Every crossover fixture the suite had shared ONE or TWO rows
+  //     against k = 8. Instrumented 2026-09-07: `crossed=true`, both sets
+  //     exactly [daily-000, daily-001], and the rows handed on byte-
+  //     identical to the ones given — 0 of 2 changed. Widening the LEDGER
+  //     to twelve core questions did not move it, because the corpus that
+  //     matters is the one the FOLD produces: the ten extra never reached
+  //     `als.rows` at all.
+  //   · Ten questions whose answers are read off six bits of the person
+  //     index share ten rows and still refuse — the rows come out rank
+  //     six, so the second condition fires where the first no longer does.
   //
-  // AND THE "WHY" ABOVE IS ANSWERED, so nobody re-does that hour either.
-  // The paragraph before this one asked why a twelve-question ledger still
-  // yielded an intersection of two; instrumenting the crossover the same
-  // night showed `als.rows` and `prevSgdPub` are BOTH exactly
-  // [daily-000, daily-001]. There is no mismatch between the two sets: the
-  // folded CORPUS is two questions, and the ten extra never reached
-  // `als.rows` at all. So closing this needs a fixture whose FOLDED corpus
-  // is at least k — putting more questions in the ledger is not the same
-  // thing, and is where the first attempt went.
+  // `patterns.test.ts` "rotates the crossing engine's rows onto the ones
+  // the devices were reading" is the fixture that meets both, and it
+  // asserts both preconditions rather than hoping for them. The property
+  // it pins is that re-fitting a rotation onto the published rows finds
+  // nothing left to do; with this line deleted the same residual comes
+  // back with off-diagonals to 0.25.
   //
   // None of that is a reason to make the two directions symmetric; the
   // asymmetry above is still right.
