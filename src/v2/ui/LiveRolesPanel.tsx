@@ -84,7 +84,7 @@ export default function LiveRolesPanel(): React.ReactElement {
   const S = LIVE.social as unknown as {
     groups: (mode?: string) => Room[];
     revealHistory: (gid: string) => Record<string, unknown>[];
-    loadRevealHistory?: (gid: string) => Promise<void>;
+    loadRevealHistory?: (gid: string) => Promise<"ok" | "failed" | "busy">;
     revealHistoryLoading?: (gid: string) => boolean;
     bankQ?: (qid: string) => { options?: string[]; kind?: string; role?: { id: string; label: string; seat?: string }; them?: string[]; dims?: string[] } | null;
   };
@@ -120,10 +120,30 @@ export default function LiveRolesPanel(): React.ReactElement {
         // A room the ledger already draws pays no history read here (the
         // header): its reading is on the group document in hand.
         if (ledgerClearsFloor(r.ledger, uid, r.mode)) continue;
-        try {
-          await S.loadRevealHistory!(r.id);
-        } catch {
-          if (live) setFailed((prev) => new Set(prev).add(r.id));
+        // THE ANSWER, not a throw. This was a try/catch, and the store
+        // never throws — its header says so in as many words — so the
+        // catch could not fire and `failed` was always empty: a room
+        // whose read was refused or timed out fell through to "nothing
+        // revealed yet", the definite claim the comment above says this
+        // exists to stop. The suite passed because its fixture REJECTED
+        // where the real store resolves.
+        // The catch stays as the BACKSTOP it should always have been —
+        // this loop is inside a `void (async …)()`, so a throw would be
+        // an unhandled rejection — but the answer is the mechanism.
+        let read: "ok" | "failed" | "busy" = "failed";
+        try { read = await S.loadRevealHistory!(r.id); } catch { read = "failed"; }
+        if (live) {
+          setFailed((prev) => {
+            // Set on a failure, cleared on a later "ok" — the note is
+            // about this read, not about the room forever. "busy" moves
+            // nothing: another caller owns that read and `roomNote` says
+            // "reading…" for it anyway.
+            const want = read === "failed";
+            if (read === "busy" || want === prev.has(r.id)) return prev;
+            const next = new Set(prev);
+            if (want) next.add(r.id); else next.delete(r.id);
+            return next;
+          });
         }
         if (live) bump((x) => x + 1);
       }

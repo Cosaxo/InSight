@@ -3815,6 +3815,13 @@ const revealHistCache: Record<string, {
   out: Array<Record<string, unknown> & { day: string }>;
 }> = {};
 
+/** What one history read did. "busy" is BOTH early returns — already in
+ *  hand, or another caller's read in flight — because neither is a
+ *  failure to draw; `revealHistoryLoading` says which. Exported so the
+ *  panels name the states rather than testing a boolean whose false
+ *  means two unrelated things. */
+export type RevealHistoryRead = "ok" | "failed" | "busy";
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3914,8 +3921,12 @@ const SOCIAL = {
   // should charge. A failure is reported and leaves the room unsettled so
   // a later call retries rather than freezing a gap into the portrait for
   // the rest of the session.
-  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
-    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<RevealHistoryRead> {
+    // "busy" for both early returns, and it is the honest word for each:
+    // the history is either in hand or on its way, and neither is a
+    // failure the caller should draw. `revealHistoryLoading` is what says
+    // which — a panel wanting to distinguish them asks that.
+    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return "busy";
     // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
     // that did not follow it. The Groups stop mounts this on a `[gid]`
     // effect, so it runs AFTER the stop has painted; without the notify
@@ -3926,6 +3937,16 @@ const SOCIAL = {
     // sentence and nothing was ever told the flag had moved.
     state.revealHistLoading[gid] = true;
     notify();
+    // STILL NEVER THROWS (the header): two callers `void` it, and an
+    // unhandled rejection from a history read is not a price a portrait
+    // should charge. What it did not do was tell the ONE caller that
+    // cares — LiveRolesPanel wrapped the call in try/catch to mark a room
+    // as refused, and that catch could never fire, so a room whose read
+    // was denied or timed out fell through to "nothing revealed yet",
+    // the definite claim the panel's own comment says it exists to stop.
+    // Its test passed because the FIXTURE rejected where the real store
+    // resolves. An answer, not a throw: same contract, reachable.
+    let out: RevealHistoryRead = "failed";
     try {
       const db = await getDb();
       const snap = await getDocs(query(
@@ -3937,6 +3958,7 @@ const SOCIAL = {
       snap.forEach((d) => { have[d.id] = d.data() as Record<string, unknown>; });
       state.revealHist[gid] = have;
       state.revealHistLoaded[gid] = true;
+      out = "ok";
     } catch (err) {
       // A refusal cannot be "the rule working" any more — the read is
       // unconditional since D98 — so it is reported, where the per-key
@@ -3947,6 +3969,7 @@ const SOCIAL = {
       state.revealHistLoading[gid] = false;
       notify();
     }
+    return out;
   },
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what

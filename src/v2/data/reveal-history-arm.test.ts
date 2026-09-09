@@ -30,12 +30,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   /** Held open: the loader arms, notifies, and then waits here forever. */
   dbPending: true,
+  /** …or fails, which is the other half: the loader must ANSWER that. */
+  dbThrows: false,
 }));
+
+vi.mock("../../lib/sentry", () => ({ reportError: () => {}, initSentry: () => {} }));
 
 vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
   anonSignIn: () => Promise.resolve("uid_test"),
-  getDb: () => (h.dbPending ? new Promise(() => {}) : Promise.resolve({ __db: true, app: {} })),
+  getDb: () => (h.dbThrows ? Promise.reject(new Error("permission-denied"))
+    : h.dbPending ? new Promise(() => {}) : Promise.resolve({ __db: true, app: {} })),
   getFirestoreApi: () => import("firebase/firestore"),
   getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
@@ -49,7 +54,7 @@ vi.mock("../../lib/firebase", () => ({
 const LIVE = (await import("./live")).default;
 
 describe("loadRevealHistory", () => {
-  beforeEach(() => { h.dbPending = true; });
+  beforeEach(() => { h.dbPending = true; h.dbThrows = false; });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it("tells its subscribers it armed, before the read lands", async () => {
@@ -79,5 +84,22 @@ describe("loadRevealHistory", () => {
     await Promise.resolve();
     expect(woke, "the second call woke the tree for a read it did not start").toBe(0);
     off?.();
+  });
+
+  it("ANSWERS a failed read instead of throwing — the word the panel could not get", async () => {
+    // The header's promise is that this never throws: two callers `void`
+    // it and an unhandled rejection from a history read is not a price a
+    // portrait should charge. The consequence went unnoticed — the ONE
+    // caller that cares wrapped it in try/catch to mark a room refused,
+    // and that catch could never fire, so a room whose read was denied
+    // fell through to "nothing revealed yet". It answers now, and the
+    // promise is unchanged: this call resolves, it does not reject.
+    h.dbThrows = true;
+    h.dbPending = false;
+    await expect(LIVE.social.loadRevealHistory("g_fail")).resolves.toBe("failed");
+    // …and the room is left UNSETTLED so a later call retries, rather
+    // than freezing the gap into the session.
+    expect(LIVE.social.revealHistory("g_fail")).toEqual([]);
+    expect(LIVE.social.revealHistoryLoading("g_fail")).toBe(false);
   });
 });
