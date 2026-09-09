@@ -24,9 +24,12 @@ Wikimedia and a typical app on the same stack. Its finding is about shape
 rather than level. When it was written the totals below were small and the
 **cost per user rose 87× between 500 and 500,000 DAU** — the fan-out of
 finding 2, seen from the unit-economics side. **D129 closed that**: the
-rise is now 2.1×, essentially all of it the free tier at the small end, and
-every scenario grades B against a same-stack peer where the range used to
-run A+ through F. [`docs/COST-REDUCTION.md`](COST-REDUCTION.md)
+rise was 2.1×, essentially all of it the free tier at the small end, and
+every scenario graded B against a same-stack peer where the range used to
+run A+ through F. (Since 2026-09-09 the model nets no free tier — the
+database has none — and the rise is gone: unit cost now *falls* 0.6× from
+500 to 500,000 DAU, the scheduler floor amortising, and the grade is A at
+every size from 3,000 DAU up.) [`docs/COST-REDUCTION.md`](COST-REDUCTION.md)
 (`npm run costs:levers`) prices what is left, and the largest remaining
 lever is a console setting rather than any code on this page.
 
@@ -102,11 +105,32 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 7.0 K | 1.4 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 85.8 K | 14.3 K | 0.32 | 0.00 | **0.32** |
-| Real traction | 5,000 | 678 K | 153 K | 9.97 | 0.00 | **9.97** |
-| Scale | 50,000 | 6.6 M | 1.3 M | 113 | 2.20 | **116** |
-| Hit | 500,000 | 65.4 M | 12.9 M | 1,139 | 43 | **1,182** |
+| Launch / TestFlight | 50 | 7.0 K | 1.4 K | 0.14 | 0.40 | **0.54** |
+| Friends-of-friends | 500 | 85.8 K | 14.3 K | 1.53 | 0.40 | **1.93** |
+| Real traction | 5,000 | 678 K | 153 K | 12 | 0.40 | **13** |
+| Scale | 50,000 | 6.6 M | 1.3 M | 116 | 2.60 | **118** |
+| Hit | 500,000 | 65.4 M | 12.9 M | 1,141 | 43 | **1,185** |
+
+> **Re-printed 2026-09-09, on the database the app is on
+> (`COST-EXPOSURE.md` §6 C1).** Production has run on the named database
+> `insight` since D165, and Google's pricing page grants a named database
+> **no free quota** — the 50 k reads, 20 k writes, 20 k deletes, 1 GiB and
+> 10 GiB of egress a month that `scripts/cost-arith.mjs` netted belong to
+> `(default)`, which was deleted at D333. The model now reads the
+> database id off `functions/src/db.ts` the way it reads the region, nets
+> nothing on a named one, and carries the one floor the invoice has and
+> the model had not: Cloud Scheduler at $0.10 a job-month past three free,
+> counted off the `onSchedule` sites (7 in the tree — $0.40; the three
+> retired nightly functions the console still runs make it $0.70 until
+> their delete on `OWNER-LIST.md`). What moved: **$0.00 → $0.54 at 50 DAU,
+> $0.32 → $1.93 at 500, $9.97 → $13 at 5,000**, and under $3 above that —
+> the allowance was worth about $2.40 a month at every size (the egress
+> quota is the largest part), so this is a premise finding, not a money
+> one; the sentences it broke ("genuinely $0 below ~177 DAU", the A+ row
+> of `COST-COMPARISON.md`) are retired on this page and that one. The
+> re-printed tables on `DATA-EFFICIENCY.md` and `COST-REDUCTION.md` still
+> carry the allowance in their small-size dollar columns — under $2.50
+> low per row, the read counts unchanged — until their next re-print.
 
 > **Re-printed 2026-09-09 (DATA-EFFICIENCY-RUNBOOK Phases 2–4, with
 > D426's rounds in the same tree).** The table had stood at Phase 1's
@@ -960,13 +984,12 @@ passes the Firestore one, which the arithmetic here says is a long way off.
 > **Read [`COST-EXPOSURE.md`](COST-EXPOSURE.md) first (2026-09-08).** It
 > reads production rather than this model — the August invoice, the live
 > policies, the deploy log — and ranks what could make the invoice differ
-> from the tables above. Two premises here are corrected there and not
-> yet in the arithmetic: **a named Firestore database has no free
-> quota** (Google's own sentence; production has been on `insight` since
-> D165), so every "$0 below ~177 DAU" on this page is really under a
-> dollar rather than zero, and the fixed-cost table's scheduler row
-> describes two jobs where ten run. Its §6 C1 is the pass that moves
-> `scripts/cost-arith.mjs` and regenerates these tables.
+> from the tables above. Two premises here were corrected there and, since
+> 2026-09-09, are in the arithmetic (its §6 C1): **a named Firestore
+> database has no free quota** (Google's own sentence; production has
+> been on `insight` since D165), so the "$0 below ~177 DAU" this page used
+> to say is retired and the tables above print the floor instead, and the
+> fixed-cost table's scheduler row counts the jobs off the tree.
 
 Everything above this line predicts the bill. None of it **caps** the bill,
 and the distinction is the whole difference between "expensive" and "out of
@@ -1165,17 +1188,18 @@ would blank three more lenses for a rounding error), and the second level
 is reserved rather than built (the sketch's "deck listeners" predate D129;
 what that level would govern today is 3 + 28 flat reads/user/day).
 
-**Where the free tiers end**, since "still free" is the cheapest possible
-guardrail and worth knowing precisely: reads leave the 50 k/day free tier
-at **~177 DAU**, writes leave the 20 k/day tier at **~1,687 DAU**
-(was ~1,408 before the private mirror collapsed — the crossing moves by
-exactly the write rate's ratio, 24.2 → 20.2 per user-day). (Read off
-the model's *immature* branch, which is how `SCENARIOS` classifies every
-size in that range; the mature branch would say ~149 and would be quoting
-a community that does not exist yet.) Below
-the first of those the infrastructure is genuinely $0 and no control
-matters. That is also why every alert here is sized for the second
-threshold rather than the first.
+**There is no free tier to end** (corrected 2026-09-09; `COST-EXPOSURE.md`
+§2). This paragraph used to place the read tier's end at ~177 DAU and the
+write tier's at ~1,687, and to conclude that below the first *"the
+infrastructure is genuinely $0 and no control matters"*. Both figures
+were arithmetic on an allowance the project does not have: the free
+quota belongs to the `(default)` database, production is on the named
+database `insight` (D165), and `(default)` is deleted (D333). The first
+read bills. What that changes is the sentence, not the money — about
+$2.40 a month at every size — and the alerts are still sized for real
+growth rather than for the first billed read, which is the right size.
+The counterfactual (a project on its free database) is one flag from
+`scripts/cost-arith.mjs`, where `FIRESTORE_FREE_QUOTA` keeps the numbers.
 
 ## The walls, in the order they are hit
 
@@ -1258,7 +1282,7 @@ the day any of them is.
 | Apple Developer Program | $99/yr |
 | Google Play registration | $25 once |
 | Cloud Functions compute | $0 → $43/mo at 500 k DAU |
-| Cloud Scheduler | $0 (2 jobs; 3 free) |
+| Cloud Scheduler | $0.40/mo — 7 jobs in the tree against 3 free per billing account, $0.10 a job-month; $0.70 while the three retired nightly functions (`fitPatternsV2`, `fitTasteV2`, `ledgerVelocityScan`) keep their schedules, until the delete on `OWNER-LIST.md`. Modelled since 2026-09-09 (`SCHEDULER_JOBS` in `scripts/cost-arith.mjs`, counted off the `onSchedule` sites) |
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
 | Firebase Hosting (`web/`, static pages) | $0 |
@@ -1281,7 +1305,10 @@ does not scale down when usage does.
 
 **Below ~1,000 DAU this app costs about $35/month, and $28 of that is the
 Apple developer program and a Claude subscription.** The infrastructure is
-effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500 — and
+nearly free at launch sizes — under a dollar at 50 DAU, ~$2 at 500
+(it said $0 and ~$2 until 2026-09-09; the named database has no free
+quota, and the difference is the scheduler floor plus a few billed reads)
+— and
 $41/month at 5,000 DAU, where this document has previously said $7.26,
 then $46, then $59. The first three described the same app modelled with
 progressively fewer missing terms, and the direction was up every time.

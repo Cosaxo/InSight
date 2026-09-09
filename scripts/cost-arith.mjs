@@ -15,7 +15,7 @@
 //
 // Node stdlib only, like every deploy-adjacent script here.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { stripComments } from "./strip-comments.mjs";
@@ -38,7 +38,21 @@ export const MEM_S = 0.0000025;     // $/GiB-second
 export const REQ = 0.4e-6;          // $/request
 
 // Free tiers. Firestore's are per DAY; Cloud Run's are per MONTH.
-export const FREE = { read: 50_000, write: 20_000, del: 20_000, storeGiB: 1 };
+//
+// FIRESTORE'S FREE QUOTA BELONGS TO THE `(default)` DATABASE ONLY. Google's
+// pricing page: "No free quota for named databases … you will be charged
+// on usage incurred on those named databases." Production has been on the
+// named database `insight` since D165 and `(default)` was deleted at D333,
+// so nothing in this project qualifies — and this model netted the
+// allowance for three weeks after that, which is why COSTS.md printed
+// $0.00 for the launch row and "genuinely $0 below ~177 DAU" while the
+// August invoice read kr10.74 (COST-EXPOSURE.md §2). Same shape as the
+// region premise D200 fixed: an input that was true, stopped being true,
+// and went on being modelled. So the allowance is read off the same file
+// the backend takes the database from, and is zero unless that database
+// is the free one. The counterfactual is one flag away, as with the
+// region sheet.
+export const FIRESTORE_FREE_QUOTA = { read: 50_000, write: 20_000, del: 20_000, storeGiB: 1 };
 export const FREE_MO = { cpu: 180_000, mem: 360_000, req: 2_000_000 };
 
 // ── app constants ───────────────────────────────────────────────
@@ -126,6 +140,45 @@ export const LOCATION = readStr(
 
 /** True when production is on a single region — half the price of a multi-region. */
 export const REGIONAL = LOCATION.includes("-");
+
+// WHICH DATABASE, read the same way (COST-EXPOSURE.md §2, C1). The env
+// override in db.ts exists for the emulator; what the deploy runs is the
+// literal default, which is what this reads.
+export const DB_ID = readStr(
+  "functions/src/db.ts", /export const FIRESTORE_DB_ID = process\.env\.FIRESTORE_DB_ID \|\| "([^"]+)"/, "FIRESTORE_DB_ID");
+
+/** True when production is on a named database, which has no free quota. */
+export const NAMED_DB = DB_ID !== "(default)";
+
+/** The Firestore allowance the model nets: the free quota on `(default)`,
+ *  nothing on a named database. */
+export const FREE = NAMED_DB ? { read: 0, write: 0, del: 0, storeGiB: 0 } : FIRESTORE_FREE_QUOTA;
+
+/** How to name the database in output, beside the location. */
+export const DB_LABEL = NAMED_DB ? `named database \`${DB_ID}\` — no free quota` : "the (default) database — free quota netted";
+
+// THE FLOOR: what the project bills with nobody using it. Cloud Scheduler
+// bills per JOB, not per run — $0.10 a job-month past three free per
+// billing account — and it is most of the invoiced dollar at zero users
+// (COST-EXPOSURE.md §1). Counted off the `onSchedule(` sites in the tree,
+// so a schedule added or retired moves the floor; what the console still
+// runs beyond the tree (the retired nightly functions the deploy's --only
+// list cannot delete, OWNER-LIST.md's row) is the owner's delete, not a
+// term here. Container-image storage is the other floor line and is not
+// modelled: its size is a console read (COST-EXPOSURE.md §6 O5).
+export const SCHEDULER_JOBS = (() => {
+  const dir = join(ROOT, "functions/src");
+  let n = 0;
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
+    n += (stripComments(readFileSync(join(dir, f), "utf8")).match(/\bonSchedule\(/g) || []).length;
+  }
+  if (!n) throw new Error("cost-arith: no onSchedule( site found under functions/src — the pattern changed (D47)");
+  return n;
+})();
+export const SCHEDULER_FREE_JOBS = 3;
+export const SCHEDULER_JOB_USD_MO = 0.10;
+export const SCHEDULER_USD_MO = Math.max(0, SCHEDULER_JOBS - SCHEDULER_FREE_JOBS) * SCHEDULER_JOB_USD_MO;
 
 /** How to name the location in output, so no caller spells it out again. */
 export const LOCATION_LABEL = REGIONAL ? `${LOCATION} regional` : `${LOCATION} multi-region`;
@@ -639,7 +692,9 @@ export const BYTES = {
 // Internet egress, Google Cloud's rate rather than a Firestore line item.
 // The free allowance is monthly, unlike Firestore's per-day tiers.
 export const EGRESS_GIB = 0.12;
-export const FREE_EGRESS_GIB_MO = 10;
+export const FIRESTORE_FREE_EGRESS_GIB_MO = 10;
+/** Part of the same `(default)`-only quota as FREE — nothing on `insight`. */
+export const FREE_EGRESS_GIB_MO = NAMED_DB ? 0 : FIRESTORE_FREE_EGRESS_GIB_MO;
 
 export const SCENARIOS = [
   [50, false, "Launch / TestFlight"],
@@ -971,6 +1026,9 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       cpu: over(cpu * 30, FREE_MO.cpu) * CPU_S,
       mem: over(mem * 30, FREE_MO.mem) * MEM_S,
       req: over(inv * 30, FREE_MO.req) * REQ,
+      // The floor (SCHEDULER_USD_MO): the same at every size, and the
+      // reason the launch row is not $0.00 (COST-EXPOSURE.md §1).
+      sched: SCHEDULER_USD_MO,
     };
     return { r, reads, writes, inv, storeGiB, docGiB, egressGiBMo, cost };
   }
@@ -988,4 +1046,4 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
 export const totalCost = (c) => Object.values(c).reduce((a, b) => a + b, 0);
 export const firestoreCost = (c) =>
   c.reads + c.writes + c.deletes + c.storage + c.egress;
-export const functionsCost = (c) => c.cpu + c.mem + c.req;
+export const functionsCost = (c) => c.cpu + c.mem + c.req + c.sched;
