@@ -31,7 +31,7 @@ A duel question lives in three copies, and today they disagree on purpose:
 | --- | --- | --- |
 | **the bank** (`content/duel-questions.json`) | 6 packs of role votes (four each, one a seat), 10 ratings, one cast entry per 1v1 pool, 41 own 1v1 questions; 13 group questions retired, the romantic pool's 34 dark | a merged PR |
 | **Firestore** (`v2_questions`) | 66 group and 75 duo documents; the seed runs after every backend deploy and ran three times today (last: run 156, 18:26 UTC), so every new pack, seat and cast entry is there | the seed rewrites content, **never `active`** (SHIP-CHECKLIST § the remaining step) |
-| **the phone** | the bank as it was when `contentRev` last moved — **2026-08-16, 24 days ago** | only a `contentRev` bump (Seed content with `bump_rev`) makes a returning device re-read |
+| **the phone** | the bank as it was when `contentRev` last moved — **2026-08-20, 20 days before this was measured** | only a `contentRev` bump (Seed content with `bump_rev`) makes a returning device re-read |
 
 So tonight the packs are in Firestore and on no phone, and some questions
 the bank retired are still dealt. Around them:
@@ -44,12 +44,13 @@ the bank retired are still dealt. Around them:
   is written, so the vote can be cast again on the new build. Build 35,
   the design's client, was uploaded at 17:29 UTC (run 59, #459) and is
   not yet released.
-- **What was measured, and what was not.** Of the first seven retired
-  group ids, two are off in production and five are still dealt. The
-  other retired ids (the romantic pool's 34, D444's six) were not read:
-  the session's production reads were stopped by the permission
-  classifier. `scripts/duel-live-audit.mjs` (this plan's one tool) makes
-  the whole answer one read-only command — §5 is the table it fills.
+- **What the audit measured** (19:27 UTC, on the owner's *"do what you
+  recomend"*): eleven retired group questions were still dealt in
+  production — `gd7 gp0 gp1 gp6 gp7 gp8 gp9 gu11 gu3 gu7 gu8` — and the
+  romantic pool's 34 were already off, seeded that way. Nothing killed
+  by hand, nothing unseeded, nothing extra. `--apply` flipped the eleven
+  and a second read printed zero waiting; the reseed with `bump_rev` was
+  triggered from the same sitting. §5 is the table.
 - **The lane** writes only packs and ratings now (`QUESTION-FARM.md` § The
   duel lane), 25 a run, daily, toward 400 a pool; today's pools hold 53
   active group and 41 own 1v1 questions.
@@ -154,12 +155,11 @@ questions.
 
 ## 5 · The table the audit fills
 
-To be replaced by step 3's output; kept here so the file says what it
-does not yet know.
+Step 3's output, 2026-09-09 19:27 UTC, with step 4 applied in the same sitting.
 
 | pool | bank | active | seeded | retired but still dealt | killed by hand | not yet seeded | extra |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| group | 66 | 53 | 66 | ≥ 5 of 13 measured | — | — | — |
-| oneVsOne | 41 | 41 | — | — | — | — | — |
-| romantic | 34 | 0 | — | — | — | — | — |
-| `contentRev` | 24 days old on 2026-09-09 | | | | | | |
+| group | 66 | 53 | 66 | 11, flipped 19:27 UTC | 0 | 0 | 0 |
+| oneVsOne | 41 | 41 | 41 | 0 | 0 | 0 | 0 |
+| romantic | 34 | 0 | 34 | 0 (seeded off) | 0 | 0 | 0 |
+| `contentRev` | 20 days old at the audit; bumped by the reseed that followed | | | | | | |
