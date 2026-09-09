@@ -46,8 +46,9 @@ describe("the demo Mirror's Groups stop", () => {
   it("draws the group, its role field, and the Compare lens under it", async () => {
     const expectNoBoundary = mountApp();
     await toStop("Groups");
-    // GroupsMirrorBody's own line, under the group's name.
-    expect(document.body.textContent, "the Groups stop never opened").toMatch(/aligned with you/);
+    // GroupsMirrorBody's own line, under the group's name: roles cast and
+    // scores, the two things a room has since D437.
+    expect(document.body.textContent, "the Groups stop never opened").toMatch(/roles cast · \d+ scores?/);
     // The role field is GroupRoleMap's, and this is how you tell the two
     // apart: it mints a `grWash-<gid>` gradient per group, and no other
     // module in the tree does. Asserting on `.mf-canvaswrap` would not —
@@ -60,11 +61,37 @@ describe("the demo Mirror's Groups stop", () => {
     const placed = [...document.querySelectorAll(".mf-canvaswrap text")].map((t) => t.textContent);
     expect(placed, "the role field drew nobody").toContain("Henrik");
     expect(placed, "the role field left you out of your own group").toContain("you");
-    // The stop's own lens row (Answers · People · Compare — no Scores and
-    // no Explore, per D190). Compare is the widest of the three bodies.
+    // The stop's own lens row (Votes · People · Scores · Compare since
+    // D437 — no Explore, per D190). Compare is the widest of the bodies.
     await toLens("Compare");
     expect(document.body.textContent, "the Compare lens opened nothing").toMatch(/six axes/);
     expectNoBoundary("mirror · groups");
+  });
+
+  it("draws no People card for an emptied room, rather than a swarm of NaN", async () => {
+    // group-daily's manage sheet has a Remove button per member, so a room
+    // can be emptied. GroupPeopleCard spreads the members into Math.min and
+    // Math.max, which on nothing are ±Infinity — every dot at NaN and the
+    // band at -Infinity, an SVG that renders and fails no boundary. The
+    // base guarded it; the D437 re-port dropped the guard (the second
+    // review of #456), and this is the case that would have caught it.
+    const expectNoBoundary = mountApp();
+    await toStop("Groups");
+    try {
+      await act(async () => {
+        for (const G of DUELS.groups()) for (const m of DUELS.groupMembers(G.id)) DUELS.removeGroupMember(G.id, m.id);
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      for (const G of DUELS.groups()) expect(DUELS.groupMembers(G.id), `${G.id} did not empty`).toHaveLength(0);
+      await toLens("People");
+      expect(document.body.innerHTML, "a NaN reached the DOM").not.toMatch(/NaN|Infinity/);
+      expectNoBoundary("mirror · groups · people, emptied");
+    } finally {
+      // The demo store keeps its state in memory across cases, and the
+      // purge event is the one door that resets it — without this the
+      // next suite's seeded group has no members and no record.
+      await act(async () => { window.dispatchEvent(new Event("insight:local-purge")); });
+    }
   });
 });
 
@@ -100,33 +127,34 @@ describe("the demo Mirror's place lenses", () => {
 
 // ── a group's history is the group's, not a constant ──
 //
-// `histDays` in duels-data.js is explicit — "custom groups start today —
-// no fake history" — and groupDays, groupAlignment and groupPortrait all
-// bound by it. GroupAnswersCard ran to a literal 7 instead, so a group
-// made this morning drew six days of verdicts nobody had given, under a
-// header reading "0 days played" from the one count that DID honour it.
-// Both halves are asserted here: the seeded group keeps its six rows, so
-// a fix that bounded everything to zero fails too.
-describe("the demo Mirror's Groups stop · what the group landed on", () => {
+// `gHist` in duels-data.js is explicit — "custom groups start now — no
+// fake history" — and every fold bounds by it: a room made this morning
+// has no revealed rounds, so no roles cast, no votes, no scores. Both
+// halves are asserted here: the seeded group keeps its record, so a fix
+// that bounded everything to zero fails too.
+describe("the demo Mirror's Groups stop · who the room named", () => {
   // Found by walking `.card` rather than by getByText: `Kicker` splits the
   // heading across elements, so a text query on it reports "broken up by
   // multiple elements" and finds nothing.
   const card = () => [...document.querySelectorAll(".card")]
-    .find((el) => /What the group landed on/i.test(el.textContent || ""));
-  /** The verdict rows are the only aria-expanded buttons in this card. */
-  const verdictRows = () => [...card().querySelectorAll("button[aria-expanded]")];
+    .find((el) => /Who the room named/i.test(el.textContent || ""));
+  /** The role rows are the only aria-expanded buttons in this card. */
+  const roleRows = () => [...card().querySelectorAll("button[aria-expanded]")];
 
-  it("draws a seeded group's six days and a new group's none", async () => {
+  it("draws a seeded group's record and a new group's none", async () => {
     const expectNoBoundary = mountApp();
     await toStop("Groups");
-    await toLens("Answers");
+    await toLens("Votes");
 
     // The positive half FIRST, because a fix that bounded every group to
     // zero would satisfy the negative half on its own.
-    expect(document.body.textContent, "the Groups stop never opened").toMatch(/aligned with you/);
-    expect(card(), "the Answers lens never opened").toBeTruthy();
-    expect(card().textContent, "the seeded group lost its day count").toMatch(/6 days played/);
-    expect(verdictRows().length, "the seeded group lost its history").toBe(6);
+    expect(document.body.textContent, "the Groups stop never opened").toMatch(/roles cast/);
+    expect(card(), "the Votes lens never opened").toBeTruthy();
+    expect(roleRows().length, "the seeded group lost its record").toBeGreaterThan(0);
+    // …and a row opens onto who voted for whom, the round named
+    fireEvent.click(roleRows()[0]);
+    expect(card().textContent, "the row did not open onto the vote").toMatch(/· round \d+/);
+    expect(card().textContent).toMatch(/by/);
 
     // …now a group created this morning. `save()` fires the store's
     // listeners, so the picker redraws without a remount.
@@ -138,14 +166,15 @@ describe("the demo Mirror's Groups stop · what the group landed on", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
 
     expect(document.body.textContent, "the picker never opened the new group").toMatch(/Night Crew/);
+    expect(document.body.textContent, "a group made this morning reported a record").toMatch(/no rounds revealed yet/);
     // MirrorLenses is keyed on the group id, so switching groups remounts
     // it with no lens open — the same reason the place cases tap a lens
     // after every stop.
-    await toLens("Answers");
-    expect(card().textContent, "a group made today reported days played").toMatch(/0 days played/);
-    expect(verdictRows().length, "a group made today drew verdicts nobody gave").toBe(0);
+    await toLens("Votes");
+    expect(card(), "the Votes lens never opened for the new group").toBeTruthy();
+    expect(roleRows().length, "a group made this morning drew votes nobody cast").toBe(0);
     // …and it says why the card is empty rather than leaving a blank tab.
-    expect(document.body.textContent).toMatch(/This group starts today/);
-    expectNoBoundary("mirror · groups · answers");
+    expect(card().textContent).toMatch(/No votes revealed yet — the first role is on the table/);
+    expectNoBoundary("mirror · groups · votes");
   });
 });

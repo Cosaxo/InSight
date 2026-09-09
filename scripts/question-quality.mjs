@@ -751,8 +751,15 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   }
 
   const opts = (q.options || []).map((o) => (o && typeof o === "object" ? o.label : o));
+  // A cast round's four answers ARE sentences by design (D437, the owner's
+  // 2026-09-09 brief: "every prompt and answer is a plain sentence a person
+  // would say" — *the one who thinks ahead for you both*), and the card
+  // draws them as full-width rows, never side by side, so the label bound
+  // that keeps a split ballot legible does not describe them. The bound
+  // still reaches every other 1v1 entry.
+  const sentences = q.kind === "cast";
   for (const o of opts) {
-    if (String(o).length > OPTION_MAX) {
+    if (!sentences && String(o).length > OPTION_MAX) {
       err("option-length", `option ${JSON.stringify(String(o))} is ${String(o).length} chars (max ${OPTION_MAX})`);
     }
   }

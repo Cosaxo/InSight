@@ -162,9 +162,10 @@ describe("rounds (ROUNDS-PLAN, D426)", () => {
   it("the lead and the deadline are the plan's numbers", () => {
     // ONE constant each. firestore.rules carries the lead as a literal and
     // rules.test.ts pins the two equal; the deadline is the day's
-    // replacement and is a day long.
+    // replacement and is two days long — the owner's 2026-09-09 design
+    // (D437), over the day it had been.
     expect(ROUND_LEAD).toBe(5);
-    expect(ROUND_DEADLINE_MS).toBe(24 * 60 * 60 * 1000);
+    expect(ROUND_DEADLINE_MS).toBe(48 * 60 * 60 * 1000);
   });
 
   it("roundKey is r{n}, unpadded — nothing orders by id", () => {
@@ -1412,53 +1413,16 @@ describe("the duel question-level signal (D40 part 3)", () => {
     }
   });
 
-  it("scores a group's guesses against the option the room landed on (D386)", () => {
-    // Four votes, three on option 0. The room each member reads is the
-    // other three: two call it and land, one calls 1 and does not, one
-    // did not guess at all.
+  it("scores nothing for a group — nothing in a group is called (D437)", () => {
+    // Four votes, three on option 0, three of them carrying a guess the
+    // rules no longer admit (an older client's). D386 scored these against
+    // the room; the owner's 2026-09-09 brief removed the call, and a stray
+    // field must not revive it — guessTotal stays zero by construction, so
+    // the scorecard's guess-rate retirement never fires on a group.
     const d = duelAggDelta([v(0, 0), v(0, 0), v(0, 1), v(1)], "group", 4);
-    expect(d).toMatchObject({ total: 4, guessTotal: 3, guessMatches: 2 });
-  });
-
-  // ── THE ROOM IS EVERYONE BUT THE GUESSER ──────────────────────────
-  //
-  // This arm scored every guess against the whole tally, the guesser's own
-  // vote included, so calling your own answer was partly self-fulfilling —
-  // in a circle of two, entirely so. Measured over 40k trials with every
-  // member guessing their own answer and reading nothing: n=2 k=2 scored
-  // 1.000 and n=4 k=2 scored 0.875, against 0.500 for both once the
-  // guesser comes out. `question-scorecard.mjs` proposes retiring a duel
-  // at a 0.9 guess rate as "no tension — a dead question", and ten
-  // group-days from a circle of two is the twenty guesses it needs.
-  it("does not score a guess against a tally holding the guesser's own vote", () => {
-    // A 1–1 room where both members call their OWN answer. Under the old
-    // rule both options tied for the top of a tally that included them,
-    // so both "landed" — a perfect score for reading nobody.
-    expect(
-      duelAggDelta([v(0, 0), v(1, 1)], "group", 2),
-      "calling your own answer scored as a read of the room",
-    ).toMatchObject({ guessTotal: 2, guessMatches: 0 });
-  });
-
-  it("…and still scores a real read of the same room", () => {
-    // THE CONTROL. The same 1–1 room, each calling the OTHER's answer:
-    // both are genuine reads and both land. Without this, "matches 0"
-    // above passes just as well when group guesses stopped scoring.
-    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2))
-      .toMatchObject({ guessTotal: 2, guessMatches: 2 });
-  });
-
-  it("a tie for the top counts as a hit, and a room of one is no room", () => {
-    // The tie rule is D386's own and is untouched: with the guesser out,
-    // three others splitting 1–1–1 leave every call tied for the top.
-    expect(duelAggDelta([v(0, 3), v(1, 0), v(2, 0), v(3, 0)], "group", 4))
-      .toMatchObject({ guessTotal: 4, guessMatches: 4 });
-    // Nobody else's vote counted, so there was no room to read. The old
-    // floor's case, reached from the other side.
-    expect(duelAggDelta([v(0, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
-    // An out-of-range vote does not count toward the room, and its own
-    // guess is noise — the pool-flip race, read the way the duo arm reads it.
-    expect(duelAggDelta([v(0, 0), v(9, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
+    expect(d).toMatchObject({ total: 4, counts: { "0": 3, "1": 1 }, guessTotal: 0, guessMatches: 0 });
+    // …including the 1–1 room that used to score a perfect read of nobody
+    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
   });
 
   it("scores duo guesses against the partner's actual pick", () => {

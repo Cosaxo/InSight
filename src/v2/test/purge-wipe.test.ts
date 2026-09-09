@@ -205,9 +205,9 @@ describe("module stores drop their memory on the purge (D51)", () => {
     expect(DUELS.myDuo("purge-p").a).toBe(1);
     purge();
     expect(DUELS.myDuo("purge-p").a).toBeUndefined();
-    expect(stored("insight.duels.v1")).toBeNull();
+    expect(stored("insight.duels.v2")).toBeNull();
     DUELS.answerDuo("purge-p2", { a: 0 });
-    const after = stored("insight.duels.v1")!;
+    const after = stored("insight.duels.v2")!;
     expect(after).toContain("purge-p2");
     expect(after).not.toContain("purge-p\"");
   });

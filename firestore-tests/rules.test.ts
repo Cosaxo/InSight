@@ -1369,6 +1369,15 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 // 58 — ~470 — and scripts/rules-budget-baseline.json holds the table for
 // all seven; scripts/rules-budget.mjs re-measures it.
 //
+// Measured with two clauses in the file that left it the same day: the
+// world-content arm (D426's third amendment — a round is its own bank's
+// question again, and the equality is the whole test) and the group's
+// guess (D437 — nothing in a group is called, so a group answer carrying
+// `guessIdx` is refused at the door). The table above is the record of
+// that measurement; the cases below are the heaviest writes that are
+// LEGAL now — the group cases send no guess, and the 1v1 case carries
+// the guess clauses instead of the world arm.
+//
 // Group size is NOT what pays for it: the 32-member case flips at the
 // same N as its two-member twin, because `uid in memberUids` is not
 // priced per element. Pinned below as its own case, since it is the
@@ -1421,10 +1430,6 @@ describe("the heaviest LEGAL create still fits the expression budget", () => {
       surface: "group", seq: 1, type: "classic", prompt: "?",
       options: ["a", "b"], active: true,
     });
-    await setDoc(doc(db, "v2_questions", "feed-w0"), {
-      surface: "feed", seq: 2, type: "vote", prompt: "?",
-      options: ["a", "b"], active: true, core: true,
-    });
     await setDoc(doc(db, "v2_questions", "group-pick0"), {
       surface: "group", seq: 3, type: "classic", topic: "pick", prompt: "?",
       options: [], active: true,
@@ -1435,6 +1440,15 @@ describe("the heaviest LEGAL create still fits the expression budget", () => {
     });
     await setDoc(doc(db, "v2_groups", GID), {
       name: "Room", mode: "group", memberUids: MEMBERS, round: 2,
+    });
+    // …and a pair on the duo pool's own bank, for the one arm that still
+    // carries a guess (D437: a guess is a 1v1's).
+    await setDoc(doc(db, "v2_questions", "duo-b0"), {
+      surface: "duo", seq: 5, type: "classic", prompt: "?",
+      options: ["a", "b"], active: true,
+    });
+    await setDoc(doc(db, "v2_groups", "d_budget"), {
+      name: "Pair", mode: "duo", memberUids: [OWNER, FRIEND], round: 2,
     });
   });
 
@@ -1455,23 +1469,26 @@ describe("the heaviest LEGAL create still fits the expression budget", () => {
   it("a duel answer on the room's own bank", async () => {
     await seedAll();
     await assertSucceeds(setDoc(at(OWNER, `g_${GID}_r2`), {
-      qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0,
+      qid: "group-b0", surface: "group", optionIdx: 1,
       gid: GID, round: 2, answeredAt: serverTimestamp(), anchors: FAT,
     }));
   });
 
-  it("a duel answer on WORLD content (D426 §6.2) — the thinnest margin measured", async () => {
+  it("a 1v1 answer with its guess — the arm that still carries the guess clauses", async () => {
+    // The world-content case stood here while D426 §6.2's arm did; the
+    // guess is what a 1v1 answer adds over a group's now (D437), and the
+    // rules compare it against the same index space as the vote.
     await seedAll();
-    await assertSucceeds(setDoc(at(FRIEND, `g_${GID}_r2`), {
-      qid: "feed-w0", surface: "group", optionIdx: 1, guessIdx: 0,
-      gid: GID, round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    await assertSucceeds(setDoc(at(FRIEND, "g_d_budget_r2"), {
+      qid: "duo-b0", surface: "duo", optionIdx: 1, guessIdx: 0,
+      gid: "d_budget", round: 2, answeredAt: serverTimestamp(), anchors: FAT,
     }));
   });
 
-  it("a pick round, with pickUid — the other thinnest margin", async () => {
+  it("a pick round, with pickUid — the thinnest margin measured", async () => {
     await seedAll();
     await assertSucceeds(setDoc(at(STRANGER, `g_${GID}_r2`), {
-      qid: "group-pick0", surface: "group", optionIdx: 1, guessIdx: 2,
+      qid: "group-pick0", surface: "group", optionIdx: 1,
       pickUid: FRIEND, gid: GID, round: 2,
       answeredAt: serverTimestamp(), anchors: FAT,
     }));
@@ -1509,7 +1526,7 @@ describe("the heaviest LEGAL create still fits the expression budget", () => {
       });
     });
     await assertSucceeds(setDoc(at("m31", "g_g_big_r2"), {
-      qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0,
+      qid: "group-b0", surface: "group", optionIdx: 1,
       gid: "g_big", round: 2, answeredAt: serverTimestamp(), anchors: FAT,
     }));
   });
@@ -1764,19 +1781,44 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // still bounded by the member count
     await assertFails(setDoc(
       doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
-
-    // …and the SAME for guessIdx, which is the half this test did not
-    // cover when it was written: the fixture above never set the field, so
-    // `guessIdx < 20` survived beside the widened optionIdx bound and
-    // members 21-32 stayed unguessable on every pick day. A guess names an
-    // option, so it takes the option bound — no more, no less.
-    await assertSucceeds(setDoc(
-      doc(asUser("m2"), "v2_users", "m2", "answers", aid), duel(0, 31)));
+    // The guess half of this test — `guessIdx` taking the same widened
+    // bound, so members 21–32 were guessable on a pick day — is gone with
+    // the call (D437): a group answer may not carry guessIdx at all, in or
+    // out of bounds, and the case after this one pins that. So the one
+    // index bound on a group answer is optionIdx's; absent stays legal.
     await assertFails(setDoc(
-      doc(asUser("m3"), "v2_users", "m3", "answers", aid), duel(0, 32)));
-    // absent stays legal — the rule reads through .get("guessIdx", 0)
+      doc(asUser("m2"), "v2_users", "m2", "answers", aid), duel(0, 31)));
     await assertSucceeds(setDoc(
       doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
+  });
+
+  it("a group answer carries no guess — nothing in a group is called (D437); a 1v1's still does", async () => {
+    // The owner's 2026-09-09 brief: "The room casts roles and rates itself;
+    // that's all." D386's call on where the room lands was admitted here
+    // for a week; a group answer that carries one is refused now, so the
+    // rule is the table's and not the card's manners. The 1v1's guess —
+    // at what the other person said — is untouched, and the control below
+    // is what keeps this test from passing on a broken duo arm.
+    const GID = "g_nocall";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-vote0"), {
+        surface: "group", seq: 0, type: "pick", prompt: "Who plans the whole thing?", options: [],
+      });
+      await setDoc(doc(db, "v2_questions", "duo-own0"), {
+        surface: "duo", seq: 0, type: "binary", prompt: "Which?", options: ["a", "b"],
+      });
+      await setDoc(doc(db, "v2_groups", GID), { name: "Room", mode: "group", memberUids: ["m0", "m1", "m2"] });
+      await setDoc(doc(db, "v2_groups", "d_call"), { name: "Pair", mode: "duo", memberUids: ["m0", "m1"] });
+    });
+    const answer = (gid: string, qid: string, surface: string, extra: Record<string, unknown>) => ({
+      qid, surface, optionIdx: 0, gid, round: 1, answeredAt: serverTimestamp(), anchors: {}, ...extra,
+    });
+    await assertFails(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", `g_${GID}_r1`), answer(GID, "group-vote0", "group", { guessIdx: 1 })));
+    await assertSucceeds(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", `g_${GID}_r1`), answer(GID, "group-vote0", "group", {})));
+    await assertSucceeds(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", "g_d_call_r1"), answer("d_call", "duo-own0", "duo", { guessIdx: 1 })));
   });
 
   it("a pick answer may snapshot WHO the index meant, and only honestly (D224)", async () => {
@@ -2629,56 +2671,17 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
       duelAnswer({ qid: "duo-retired", optionIdx: 0, guessIdx: 0 })));
-    // Live, on another surface, and NOT an option-index shape: the catalog
-    // is refused by its empty options. (Until ROUNDS-PLAN §6.2 this block
-    // also refused daily-000 — "not this surface" was the whole test —
-    // and the world arm below is what changed that.)
+    // Live, but not this surface: the catalog (empty options — the sharp
+    // case above) and a daily question alike. For one day (2026-09-08,
+    // ROUNDS-PLAN §6.2) a second arm admitted daily-000 here as a round's
+    // content; the owner retired it the same day (D426's third amendment),
+    // so the surface equality is again the whole test and both are refused.
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
       duelAnswer({ qid: "feed-cat0", optionIdx: 0, guessIdx: 0 })));
-    // …and a WORLD question as the round (ROUNDS-PLAN §6.2): a daily or
-    // feed question whose answer is an option index is admitted; the
-    // shapes an optionIdx cannot name — a rank's order, a dial's range —
-    // are refused by type, and the catalog by its empty options.
-    await seed(async (db) => {
-      await setDoc(doc(db, "v2_questions", "feed-f02"), {
-        surface: "feed", seq: 4, type: "vote", prompt: "?", options: ["a", "b"], active: true, core: true,
-      });
-      await setDoc(doc(db, "v2_questions", "feed-rank1"), {
-        surface: "feed", seq: 5, type: "rank", prompt: "?", options: ["a", "b", "c"], active: true,
-      });
-      await setDoc(doc(db, "v2_questions", "feed-dial1"), {
-        surface: "feed", seq: 6, type: "dial", prompt: "?", options: ["lo", "hi"], active: true,
-      });
-      await setDoc(doc(db, "v2_questions", "learn-l1"), {
-        surface: "learn", seq: 7, type: "vote", prompt: "?", options: ["a", "b"], active: true,
-      });
-      await setDoc(doc(db, "v2_questions", "feed-empty"), {
-        surface: "feed", seq: 8, type: "vote", prompt: "?", options: [], active: true,
-      });
-    });
-    await assertSucceeds(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r2`),
-      duelAnswer({ qid: "feed-f02", round: 2, optionIdx: 1, guessIdx: 0 })));
-    await assertSucceeds(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r3`),
-      duelAnswer({ qid: "daily-000", round: 3, optionIdx: 1, guessIdx: 0 })));
     await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r4`),
-      duelAnswer({ qid: "feed-rank1", round: 4, optionIdx: 1, guessIdx: 0 })));
-    await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r5`),
-      duelAnswer({ qid: "feed-dial1", round: 5, optionIdx: 1, guessIdx: 0 })));
-    // The arm is daily-or-feed, not "anything with options": a learn
-    // question of the right type is refused by SURFACE, and a feed vote
-    // with no options by the SIZE test — each of the arm's predicates seen
-    // false once, which is what rules-coverage asks of a new clause.
-    await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r4`),
-      duelAnswer({ qid: "learn-l1", round: 4, optionIdx: 0, guessIdx: 0 })));
-    await assertFails(setDoc(
-      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_r5`),
-      duelAnswer({ qid: "feed-empty", round: 5, optionIdx: 0, guessIdx: 0 })));
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "daily-000", optionIdx: 0, guessIdx: 0 })));
     // The ordinary round still lands — the refusals above are the
     // narrowing, not a seal on the surface.
     await assertSucceeds(setDoc(

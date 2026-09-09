@@ -35,32 +35,32 @@
       "name": "duel · own bank",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 62,
+      "cost": 608,
+      "fillers": 59,
       "bounded": false
     },
     {
-      "name": "duel · WORLD content (thinnest, D429)",
+      "name": "duel · 1v1 with its guess (the guess clauses)",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 58,
+      "cost": 608,
+      "fillers": 60,
       "bounded": false
     },
     {
       "name": "duel · pick round (thinnest, D429)",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 58,
+      "cost": 608,
+      "fillers": 57,
       "bounded": false
     },
     {
       "name": "duel · late answer",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 60,
+      "cost": 608,
+      "fillers": 58,
       "bounded": false
     },
     {
@@ -75,8 +75,8 @@
       "name": "duel · 32-member room",
       "expect": "allowed",
       "verdict": "allowed",
-      "cost": 609,
-      "fillers": 62,
+      "cost": 608,
+      "fillers": 59,
       "bounded": false
     },
     {
@@ -91,7 +91,15 @@
       "name": "REFUSE · round already revealed",
       "expect": "refused",
       "verdict": "refused",
-      "cost": 445,
+      "cost": 444,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · a guess on a group answer (D437)",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 344,
       "fillers": 94,
       "bounded": true
     },
@@ -131,7 +139,7 @@
       "name": "REFUSE · non-member in a room",
       "expect": "refused",
       "verdict": "refused",
-      "cost": 445,
+      "cost": 444,
       "fillers": 94,
       "bounded": true
     },

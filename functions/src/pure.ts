@@ -198,8 +198,12 @@ export function prevDayKey(dayKey: string): string {
 export const ROUND_LEAD = 5;
 
 /** How long an open round with at least one answer stays open before it
- *  reveals for whoever played. The day's replacement (see above). */
-export const ROUND_DEADLINE_MS = 24 * 60 * 60 * 1000;
+ *  reveals for whoever played. The day's replacement (see above) — and
+ *  two days rather than one since D437: the owner's 2026-09-09 design says
+ *  48 hours, and a 1v1 keeps closing at it for the one who played (the
+ *  owner's rule of the 8th; the design's "no clock" was the shape that
+ *  let a partner who stopped hold the other's answer forever). */
+export const ROUND_DEADLINE_MS = 48 * 60 * 60 * 1000;
 
 export function roundKey(n: number): string {
   return `r${n}`;
@@ -525,61 +529,14 @@ export function duelAggDelta(
       guessTotal++;
       if (guess === votes[1 - i].optionIdx) guessMatches++;
     }
-  } else if (mode === "group") {
-    // A group's guess is a call on where the room lands (D386): a hit
-    // when it names an option tied for the top. THE ROOM IS EVERYONE BUT
-    // THE GUESSER, which is the same thing the duo arm does one branch up
-    // — there each guess is checked against `votes[1 - i]`, the OTHER
-    // person, never against a tally holding the guesser's own pick.
-    //
-    // This arm scored every guess against the whole tally, the guesser's
-    // own vote included, so calling your own answer was partly
-    // self-fulfilling. The old guard (`counted >= 2`) states the
-    // invariant it exists for — "with one counted vote the room is the
-    // guesser, and calling your own answer is not a read" — and that is
-    // just as true at two, and at every scattered room where no option
-    // reaches two votes.
-    //
-    // MEASURED, 40k trials per cell, every member guessing their OWN
-    // answer and reading nothing at all:
-    //
-    //     n=2 k=2   1.000 -> 0.500        n=2 k=3   1.000 -> 0.335
-    //     n=4 k=2   0.875 -> 0.500        n=3 k=3   0.778 -> 0.554
-    //     n=6 k=2   0.812 -> 0.500        n=4 k=3   0.703 -> 0.482
-    //
-    // The left column is a published guess rate that says the room is
-    // almost perfectly predictable; the right column is chance, which is
-    // what zero room-reading should score. It matters because
-    // `scripts/question-scorecard.mjs` proposes RETIRING any duel at
-    // `guessTotal >= 20 && guessMatchRate >= 0.9` as "no tension — a dead
-    // question", and ten group-days from a circle of two is 20 guesses.
-    //
-    // n=3 k=2 is 0.750 both ways and is NOT this defect: with two others
-    // and two options a tie is half the outcomes, and a tie counts as a
-    // hit by D386's own choice. Below the retire threshold either way,
-    // and changing the tie rule is a decision, not a fix.
-    for (const v of votes) {
-      const guess = v.guessIdx;
-      if (!inRange(guess)) continue;
-      // A member whose own vote is out of range did not coherently play
-      // this question — the pool-flip race — so their guess is noise, the
-      // same reading the duo arm gives it. Also what keeps their guess
-      // from being scored against a room they were never in.
-      if (!inRange(v.optionIdx)) continue;
-      // The room this member was reading: the tally with their own vote
-      // taken out.
-      const others = { ...counts };
-      const key = String(v.optionIdx);
-      others[key] = (others[key] || 0) - 1;
-      if (others[key] <= 0) delete others[key];
-      const values = Object.values(others);
-      // Nobody else's vote counted, so there is no room to have read.
-      // The old floor's case, arrived at from the other side.
-      if (!values.length) continue;
-      guessTotal++;
-      if ((others[String(guess)] || 0) === Math.max(...values)) guessMatches++;
-    }
   }
+  // A GROUP'S VOTES CARRY NO GUESS (D437 — the owner's 2026-09-09 brief:
+  // "Nothing in a group is predicted or called"). For one week (D386) an
+  // arm here scored a member's call on where the room landed, against the
+  // tally with their own vote taken out; the rules refuse the field on the
+  // group surface now, so the arm is gone rather than left to score a
+  // stray field from an older client, and a group's guessTotal is zero by
+  // construction. The scorecard's guess-rate retirement reads duos alone.
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
 }
 
@@ -1895,6 +1852,14 @@ export const SEEDED_FIELDS = [
   // would ever have got one. Held here now by `check:seed-fields`, which
   // compares this list against what gen-v2content actually emits.
   "bg", "c", "t", "p", "k", "w",
+  // The group as a cast (D434, the owner's 2026-09-08 design): a pick's
+  // scenario pack and the role it casts, and a rate question's two poles.
+  // `scen` and `role` are objects and ride the structural arm; `poles` is
+  // an array and rides the element-wise compare. Compared, because the
+  // card draws all three: a repacked role has to reach the standing doc.
+  "scen", "role", "poles",
+  // The cast round (D437): the four them forms and the four axes.
+  "them", "dims",
   // The instruments' deep items (D416): the facet or position an item
   // scores and its keying, on the document so the device joins by id.
   // Compared so a re-filed or re-keyed item reaches the standing doc.

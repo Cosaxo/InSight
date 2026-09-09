@@ -61,7 +61,7 @@ const EXPORTS = {};
           <div className="mpc-gap">No misses yet — your circle calls your picks.</div>
         )}
         {al.total > 0 && (
-          <div className="mpc-align">with your group's majority {al.withMaj} of {al.total} days</div>
+          <div className="mpc-align">the rooms named you {al.crowns} of {al.votes} votes</div>
         )}
       </div>
     );
@@ -129,7 +129,7 @@ const EXPORTS = {};
           <div className="mpc-gap">No misses yet — your circle calls your picks.</div>
         )}
         {al.total > 0 && (
-          <div className="mpc-align">with your group's majority {al.withMaj} of {al.total} days</div>
+          <div className="mpc-align">the rooms named you {al.crowns} of {al.votes} votes</div>
         )}
       </div>
     );
