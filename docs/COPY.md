@@ -123,6 +123,17 @@ copies, and a second copy of a promise is not twice the promise — it is
 the shape that let the takes line claim namelessness while the takes panel
 printed every author's name (D106).
 
+**The duel surfaces have a voice (D432).** The owner's 2026-09-09 brief
+ends with the words to use and the words never to use on a 1v1 or a
+group screen: *say votes, rounds, said; never days, majority, crowned,
+cast as a badge, in charge*. A seat is said as its line in play (*the
+one who gets things going*), its title on a result card alone. This is
+not a word count either — *3 of 4 days* is a claim about a cadence the
+app no longer has — and `check:public-copy`'s `VOICE` list holds it,
+scoped by file to the live and demo duel surfaces, because the days
+vocabulary grew back twice on screens written after the rounds model
+landed. A relative date under a reveal (*3 days ago*) stays legal.
+
 ## 4 · Before you delete a sentence
 
 1. **Grep for it in tests.** 46 assertions moved in D182 and none was

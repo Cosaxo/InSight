@@ -514,6 +514,10 @@ that lets a buyer read them.
 
 ## Designed
 
+_(none — 5 and 6 were built at D432 and moved below)_
+
+## Built
+
 ### 5 · The 1v1 and group profile — three instruments, and the pair's card
 
 **Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
@@ -602,6 +606,17 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   and answers the plan's owner call with a third shape, neither
   `ROLES-PLAN.md`'s three nor D204's two. The build is step 4 of
   `VISION-2026-09-09.md`, gated on its Q5 (the floor) and Q6.
+  **Built 2026-09-09 (D432):** `ui/LiveRolesPanel.tsx` (*In 1v1s* and
+  *In groups*, one row per setting, a thin row in the floor's own
+  unit — *2 of 3 cast rounds*, *1 of 2 votes*), `data/roles.ts` (the
+  two settings: casts per axis, votes per seat; `MIN_DUO` 3 on the
+  owner's *"a bit more then two"*), the ten and eleven types in
+  `archetype-data.js`, and the person page's Together SECTION in
+  `spec/person-overlay.jsx` (the doors as tiles with the named type,
+  *What you are to each other*, *How well you read each other* as two
+  rings, the reader line and the domain rows). Not ported: the page's
+  tab shell (Match · Answers · Together · Map), which is the 09-07
+  record's layout rather than this brief's.
 
 ### 6 · The cast — the group as roles
 
@@ -661,9 +676,15 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   ticks, you over the group) · Compare (the crowns as chips, and *the
   room named you N of M* — the one place it appears). The build is step
   5 of `VISION-2026-09-09.md`.
+  **Built 2026-09-09 (D432):** `ui/LiveGroupsMirrorBody.tsx` — the ring
+  is roles cast over all the roles in the packs; the seat line over
+  the role map (`ui/LgRoleMap.tsx` on `data/roleField.ts`, lazy, every
+  node a keyboard control); Votes · People · Scores · Compare folded by
+  `data/groupCast.ts`; *the room named you N of M votes* in Compare
+  alone. The demo twin (`spec/group-mirror.jsx`, `group-role-map.jsx`)
+  re-ported from the same record. Not built: the in-common chips, which
+  wait on request 0b (a live profile carries no interests).
 
-
-## Built
 
 ### 11 · The pictures on the pick tiles — the catalogue's own faces
 
@@ -760,7 +781,12 @@ built the rounds and Standing as an aside, and the tables are step 2 of
 - **why** — the ties axiom (`AXIOMS.md`, operational): rounds are what
   give `tie-2`'s second-person measurement enough shared items per pair
   to decompose at all. The screen is what makes the pace legible.
-- **status** — `built` 2026-09-08 (D426's second amendment). The owner's
+- **status** — `built` 2026-09-08 (D426's second amendment); **redrawn
+  2026-09-09 (D432)** to the owner's `InSight_15` brief: the group's
+  ballot is a 2-across grid of faces, its run a record with a caption on
+  tap, no call on a role vote, a rating on the fourth by a phase per
+  room, the reveal at everyone-played or 48 hours; the 1v1 gains the
+  cast round every fourth. The owner's
   canvas of 2026-09-08 — nine states for a 1v1 and a group, light and
   dark — is extracted to
   [`design/rounds-card-2026-09-08/`](../design/rounds-card-2026-09-08/),

@@ -46889,3 +46889,156 @@ The brief opens *"Read `insight/README.md`"*; the bundle carries no
 README (searched by its section title across every decoded resource).
 The brief's paragraphs are the prose, the code is the design, and the
 record says so rather than paraphrasing a document nobody here has read.
+
+## D432 · How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers
+
+**Date:** 2026-09-09 · **Status:** binding. Builds the whole of
+[`VISION-2026-09-09.md`](VISION-2026-09-09.md) §7 (steps 1–6; step 7
+is not taken and step 8 is one constant) on the owner's answers to its
+§6 questions, given the same day, verbatim: *"1. World rounds in the
+1v1. … this is correct"* (no World round — own · own · own · cast),
+*"2, do what you recomend"* (48 hours on both surfaces; a 1v1 still
+closes at the deadline for the one who played), *"3, dont
+understand"*, *"4, dont understand"*, *"5, i bit more then two"*
+(three casts before a 1v1 names you), *"6, yeah they have been
+changed"* (the instrument swap), *"7, sure"* (the plurality rule
+stays), *"8, do what you recomend"* (*Who ends up leading?*). Questions
+3 and 4 were built to the brief itself — the brief is the owner's own
+document, and both are its stated principles — and the plain-words
+explanation is in the session's report to the owner; neither is a
+privacy matter, so neither waited (D334 is about privacy asks).
+
+### What the answers settle, one line each
+
+- **Q1 · no World round.** The 1v1's kinds are own · own · own ·
+  **cast** (`duoKind`, `data/deck.ts`); D426's third amendment stands
+  whole. `OWNER-LIST.md`'s World-round row closes on this word.
+- **Q2 · 48 hours, both surfaces.** `ROUND_DEADLINE_MS` in
+  `functions/src/pure.ts`; the 1v1 keeps closing at the deadline for the
+  one who played (ROUNDS-PLAN §3, the owner's 2026-09-08 rule).
+- **Q3 · the call goes.** *"Nothing in a group is predicted or
+  called."* The second tap on a role vote (D386's *And the room lands
+  on…?*) is gone from the card, `firestore.rules` refuses `guessIdx` on
+  the group surface (a labelled deny at its path, with a rules test),
+  the aggregate's group-guess arm is gone, and the *room* reading and
+  the Bellwether went with it. What this means in plain words: in a
+  group you only ever say who — you never guess what the room will say.
+- **Q4 · both role changes.** Zombie Plan's *the supply hoarder* →
+  *the medic — Who patches everyone up?* (heart); Road Trip's *the snack
+  captain* → *the hourly stop — Who needs to pull over every hour?*
+  (wild). A retirement and a new entry each (answers key on (qid,
+  optionIdx) forever, D30/D52), so each pack is four roles, one a seat.
+  In plain words: two of the twenty roles were swapped so that every
+  pack asks about all four seats.
+- **Q5 · three casts.** `MIN_DUO = 3` (`data/roles.ts`): a 1v1 names
+  you after three cast rounds — the twelfth round — and the roles
+  panel's thin row counts up to it (*2 of 3 cast rounds*). `MIN_GROUP`
+  stays 2 votes.
+- **Q6 · the instrument is the design's.** One idea in two settings —
+  what the people around you make you. A 1v1's dims are the share of
+  cast rounds in which THEY said you are each axis (trust · spark ·
+  judgement · constancy); a group's are the share of the votes you
+  received per seat (engine · hands · heart · wild), off the D224
+  snapshots, never a vote for yourself. Ten and eleven types
+  (`archetype-data.js`: pure seats at 76/8/8/8, blends at 42/42, one
+  neutral), baseline 25 a dim. D204's two instruments, D386's scoring
+  against luck and D429's Standing aside are retired; ROLES-PLAN
+  §3.4–§3.5's tables are answered rather than adopted, its §3.6 name
+  rule stands over the new dims, its §3.3 ledger is still open.
+- **Q7 · the plurality rule stays.** A live answer is create-only
+  (D86); a reveal publishes under the question most of them answered
+  and stamps the rest (D70/D71). The stored `qid` is the receipt the
+  brief asks for.
+- **Q8 · *Who ends up leading?*** — the leader's prompt, since the
+  voice rule bans *in charge*.
+
+### What was built, step by step (`VISION-2026-09-09.md` §7)
+
+1. **The bank and the clock** — `role.seat` on every role vote, the
+   two changes above, one `cast` entry per 1v1 pool (*Most days,
+   {name} is…* with `them` forms and `dims`), transported by the seed
+   and mirrored (`check:seed-fields`), held by `check:content` (a seat
+   from the closed set on every role; one active role per seat per
+   pack; the cast's shape; duplicates keyed by pool), `check:quality`
+   (a cast's four answers are sentences, exempt from the option
+   length), `check:neighbors` (the two casts are one question in two
+   pools). The demo sample regenerated (D430's lane).
+2. **The rotation and the rules** — `duelQFor`: a group's rating on
+   the fourth by a **phase per group** (`groupPhase = hash mod 3`, never
+   round 1), a 1v1's cast every fourth with the own rounds walking the
+   pool past it; `castText` for the name; the rules' group-surface
+   refusal of a guess. **One thing to know at the reseed:** the cast
+   entering the pool re-maps every live pair's OPEN own round once (the
+   skip arithmetic); every revealed round keeps its stored `qid`, so
+   nothing already shown changes — `OWNER-LIST.md`'s reseed row says so.
+3. **The card** (`ui/LiveDuelPanel.tsx`) — no call; the ballot as a
+   2-across grid of faces; the run as a record (a dot in the pack's
+   colour for a vote, a square for a rating, dotted where you were
+   late, a caption on tap); the cast round's ask · guess over the *them*
+   forms · reveal lead line (*You are the one Liv tells first. Liv is
+   the one you ask what to do.*) · sealed sub; the first run's preview a
+   real role vote off the bank; the copy sweep (*until the reveal*,
+   *Answered after the reveal. It shows, and counts for nothing.*).
+4. **The instrument** — `data/roles.ts` rewritten (`castOf`, `duoRole`,
+   `seatTally`, `groupRole`, `seatFor`, `blendRoles`); the tables, the
+   baselines, the hues, the explain sheet; `ui/LiveRolesPanel.tsx`'s two
+   sections with a thin row in the floor's own unit. The read/seen
+   accuracy leaves the instrument for the person page (step 6).
+5. **The Groups stop** (`ui/LiveGroupsMirrorBody.tsx`) — the identity
+   ring is roles cast over all the roles in the packs; the seat line
+   *Here, you are the one who holds the room together · 3 of 5 votes
+   say so*; the role map above the row (`ui/LgRoleMap.tsx` over
+   `data/roleField.ts`, lazy, every node a keyboard control); Votes ·
+   People · Scores · Compare, folded by `data/groupCast.ts`
+   (`roleVotes`, `groupScores`, `namedCount`). **Who holds a role is the
+   card's rule** (every blind vote, a vote for yourself included, so the
+   Votes lens and the reveal agree); the instrument underneath counts no
+   vote for yourself. `groupPortrait`'s *casts the room like you*
+   compares WHOM two votes named (the snapshot), not an index the roster
+   remaps. Gone with the call: the alignment ring, *aligned with you ·
+   N of M days*, the Answers rows of what the group "landed on", and the
+   cross-group *runs most like you* line (D287's groups half) with its
+   fan-out over every room's history — a room's votes are about its
+   people, not about a side. No in-common chips: a live profile carries
+   no interests (request 0b).
+6. **The demo plays rounds** — `spec/duels-data.js` and the family
+   (`group-daily`, `duo-daily`, `group-mirror`, `group-role-map`, the
+   person page's Together section, `map-people`) re-ported from
+   `design/standalone-2026-09-09/`, on the D430 sample, so a demo build
+   plays what live plays; `insight.duels.v2`. The person page keeps its
+   one-scroll shape: the Together TAB shell is the 09-07 record's, not
+   this brief's, and is not ported — Together is a section of the page
+   (the doors as tiles with the named type, *What you are to each
+   other*, *How well you read each other* as two rings and the domain
+   rows).
+
+### The voice, held by a gate
+
+`check:public-copy` grows a third list, `VOICE`, scoped by file to the
+duel surfaces (live and demo): rounds, never days; named, never
+crowned; no majority; no tomorrow; no *in charge*. It exists because
+the days vocabulary had grown back twice on screens written AFTER the
+rounds model landed — *aligned with you · 3 of 4 days*, *Reading the
+days…*, *No 1v1 has 3 days you both guessed* — each green under every
+gate. A relative date (*3 days ago*) is a timestamp and stays legal;
+the card's `crown` identifiers are `held` so the code does not carry
+the word either.
+
+### Measured
+
+`test:unit` 205 files green at the last step; `test:rules` 205 (the
+group-surface deny and its control); `test:scripts` 70 files; the
+shipping build at 548 KB eager of 552 (`check:bundle`), the role map and
+the constellation lazy; `check:globals` at its baseline of 30
+(the family is imports throughout); `check:a11y` 6 known findings, none
+new, 21 deferred suppressions across 8 files after the port; every
+static gate green. `test:e2e:all` is CI's (the emulator cannot boot
+behind this sandbox's proxy, docs/LOCAL-TESTING.md).
+
+### What this record does not decide
+
+The older twenty-one group questions (`OWNER-LIST.md`'s row — the demo
+plays packs and ratings alone now, the live bank still holds them
+inactive); the ledger (ROLES-PLAN §3.3); the person page's tab shell;
+the in-common chips (request 0b); the reseed itself, which is the
+owner's click.

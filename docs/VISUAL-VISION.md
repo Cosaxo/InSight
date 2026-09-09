@@ -35,10 +35,15 @@ it is moving toward.
   in two settings — casts per axis, votes per seat — with ten and eleven
   types; how well you read each other moves to the person page's new
   Together tab.
-- **Built from it:** nothing yet — recorded and planned, the build gated
-  on the answers (`WORKLIST.md` § How 1v1s and Groups work now).
-- **Requests it closed:** 5 moves to `designed` (the roles panel and the
-  person page's pair card are drawn); 6 is redrawn; 12 is refined.
+- **Built from it:** the whole of `VISION-2026-09-09.md` §7 steps 1–6,
+  on the owner's eight answers of the same day (D432): the seats and the
+  cast in the bank, the rotation with a phase per room, the rules'
+  refusal of a call, the card (the face grid, the run as a record, the
+  cast round), the instrument in two settings, the Groups stop with the
+  role map, and the demo re-ported so it plays rounds. Not taken: the
+  World round (Q1: no); the person page's tab shell (the 09-07 record's,
+  not this brief's).
+- **Requests it closed:** 5 and 6 built; 12 redrawn to the brief.
 
 ## The one before — the 2026-09-08 standalone: the group as a cast
 

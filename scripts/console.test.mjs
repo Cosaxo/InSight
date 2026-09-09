@@ -348,9 +348,12 @@ describe("the lists on this tree", () => {
     // InSight_15 upload drew the roles panel, the person page's pair card
     // and the instrument in two settings — item 5's three surfaces — so
     // it moved under Designed beside 6, which the same upload redrew.
+    // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D432): both
+    // were built the same day, on the owner's answers to that plan's
+    // questions, and moved under Built with their status lines saying so.
     expect(v.requested.length).toBe(8);
-    expect(v.designed.length).toBe(2);
-    expect(v.built.length).toBe(4);
+    expect(v.designed.length).toBe(0);
+    expect(v.built.length).toBe(6);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });
