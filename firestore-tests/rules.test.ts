@@ -474,17 +474,67 @@ describe("v2 profile", () => {
     await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }));
     // unknown anchor key
     await assertFails(setDoc(mine, { anchors: { ssn: "123" } }));
-    // synced test results: map allowed, non-map rejected
+    // ── testResults is SERVER-ONLY now, and these cases are the door ──
+    //
+    // Until 2026-09-09 this field was client-written and bounded only in
+    // KEYS (D429's five-name vocabulary). The size INSIDE a legal key was
+    // unbounded and unboundable: rules have no quantifier over a list, so
+    // `dims[i].label` cannot be reached by any `allow` clause. The case
+    // below that used to read `assertSucceeds` on a 2,000-character title
+    // said so out loud. The write moved to `saveTestResultV2`, which can
+    // run the loop, and the rules' job is now to make that callable the
+    // ONLY writer.
+    //
+    // A client may still CARRY the field — every profile write here is a
+    // merge and the key rides along — but may not change it.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), {
+        testResults: { big5: { dims: [], title: "Big Five" } },
+      }, { merge: true });
+    });
+    // Carried unchanged: allowed, and this is the case that keeps ordinary
+    // profile writes working once the callable has written something.
     await assertSucceeds(setDoc(mine, {
       testResults: { big5: { dims: [], title: "Big Five" } },
     }, { merge: true }));
+    // Changed in any direction: refused.
+    await assertFails(setDoc(mine, {
+      testResults: { big5: { dims: [], title: "Big Fives" } },
+    }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
-    // …and capped at 8 keys, which nothing asserted either.
+    // A KIND THE VOCABULARY USED TO ADMIT is refused too, which is the
+    // point of moving from a key list to an equality: the client cannot
+    // add `values` any more than it can add `blob`, so the vocabulary no
+    // longer has to be stated here at all. It lives in the callable's
+    // CLIENT_TEST_KINDS, where an exhaustive test can read it.
+    await assertFails(setDoc(mine, {
+      testResults: { values: { dims: [], title: "Values" } },
+    }, { merge: true }));
     await assertFails(setDoc(mine, {
       testResults: Object.fromEntries(
         Array.from({ length: 9 }, (_, i) => [`t${i}`, { dims: [] }]),
       ),
     }, { merge: true }));
+    // THE CASE THAT CHANGED SIDES. A 2,000-character title under a LEGAL
+    // key was accepted before today and the old case asserted it, with a
+    // comment saying bounding the shape was "its own increment". This is
+    // that increment: same payload, now refused, because the client cannot
+    // write this field at all.
+    await assertFails(setDoc(mine, {
+      testResults: { values: { dims: [], title: "x".repeat(2000) } },
+    }, { merge: true }));
+    // And the 400 KB blob the D429 case measured.
+    await assertFails(setDoc(mine, {
+      testResults: { blob: "x".repeat(400_000) },
+    }, { merge: true }));
+    // Removal is the server's too: a client `deleteField()` here is what a
+    // political-consent withdrawal used to send, and it now goes through
+    // the callable's remove arm. If this ever passes, that path is writable
+    // again and so is every other.
+    await assertFails(setDoc(mine, {
+      testResults: { big5: deleteField() },
+    }, { merge: true }));
+
     // The display name's own 60-char cap. It went untested from the day it
     // was written: this case checked the unknown-field and stranger-write
     // arms and stopped, so `isOptionalShortString(displayName, 60)` could be
@@ -555,12 +605,22 @@ describe("v2 profile", () => {
       }, { merge: true });
     });
 
-    // the POST-merge trap, same as fcmTokens: other test results must
-    // still be writable while the server-written logic key rides along
-    // unchanged — banning presence instead of mutation would brick every
-    // core-test sync for verified users.
-    await assertSucceeds(setDoc(mine, {
+    // THE POST-MERGE TRAP, and it changed sides on 2026-09-09. It used to
+    // read `assertSucceeds`: other test results had to stay writable while
+    // the server-written logic key rode along, because banning presence
+    // instead of mutation would have bricked every core-test sync. That is
+    // still exactly right about PRESENCE — the case below proves the key
+    // may ride along — but the other four kinds are server-written now
+    // too (the size argument, in the block above), so a client writing
+    // `big5` here is refused for its own reason rather than logic's.
+    await assertFails(setDoc(mine, {
       testResults: { big5: { dims: [], title: "Big Five" } },
+    }, { merge: true }));
+    // Presence, unchanged, still rides along — this is the case that keeps
+    // ordinary profile writes working for a verified user.
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Mira",
+      testResults: { logic: { v: 2, verified: true, pctile: 62, marks: [true] } },
     }, { merge: true }));
 
     // mutation is still refused: replacing or clearing the verified score
@@ -569,15 +629,16 @@ describe("v2 profile", () => {
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: { logic: null } }, { merge: true }));
 
-    // DELETING your own verified score is allowed on purpose (it is your
-    // doc; the cooldown and the norms count live in the server-only
-    // attempt doc, so deletion resets nothing) — but the door does not
-    // swing back: reintroducing the key after a delete is a create against
-    // a null prior, and that is forgery, refused.
-    await assertSucceeds(updateDoc(mine, { "testResults.logic": deleteField() }));
-    await assertFails(setDoc(mine, {
-      testResults: { logic: { v: 2, verified: true, pctile: 94, marks: [true] } },
-    }, { merge: true }));
+    // DELETING your own verified score was allowed here on purpose (it is
+    // your doc; the cooldown and the norms count live in the server-only
+    // attempt doc, so deletion resets nothing). The RULES no longer permit
+    // it, because they no longer permit the client to touch this field at
+    // all — but the capability did not disappear with the write path: it
+    // moved to `saveTestResultV2`'s remove arm, whose REMOVABLE_TEST_KINDS
+    // includes `logic` precisely so this stays possible. Deleting is not
+    // forgery; writing is. functions/src/testResults.test.ts holds that
+    // asymmetry.
+    await assertFails(updateDoc(mine, { "testResults.logic": deleteField() }));
   });
 
   // The D57 server-side surfaces around the verified score.
@@ -1276,6 +1337,191 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
       await setDoc(doc(db, "v2_questions", CALL), { active: false }, { merge: true });
     });
     await assertFails(setDoc(mine(), callAnswer()));
+  });
+});
+
+// ── the expression budget the create rule is already close to ───────
+//
+// Firestore stops a rule at 1,000 evaluated expressions and reports the
+// stop as PERMISSION_DENIED — a budget exhaustion is indistinguishable
+// from a rule saying no. `firestore.rules:1206` says exactly that about
+// itself ("correct today, and silently wrong the moment a path grows
+// past the ceiling") and nothing measured it.
+//
+// Measured 2026-09-09 by appending N filler conjuncts (`&& …surface !=
+// "zzfillN"`, roughly 3 expressions each) after `isValidV2Anchors` and
+// running exactly these seven cases against the emulator at each N:
+//
+//   N    world  own-bank  world-content  pick  late  rank  32-member
+//   40    ok      ok          ok          ok    ok    ok      ok
+//   48    ok      ok        BUDGET      BUDGET  ok    ok      ok
+//   52    ok      ok        BUDGET      BUDGET BUDGET ok      ok
+//   56    ok    BUDGET      BUDGET      BUDGET BUDGET ok    BUDGET
+//   60    ok    BUDGET      BUDGET      BUDGET BUDGET BUDGET BUDGET
+//   80  BUDGET  BUDGET      BUDGET      BUDGET BUDGET BUDGET BUDGET
+//
+// The thinnest paths — D426's world-question arm and the pick round —
+// flip between 40 and 48 fillers, so their headroom is somewhere near
+// 130 expressions of the 1,000. That is what "close to the ceiling"
+// means here, in a number.
+//
+// Measured with two clauses in the file that left it the same day: the
+// world-content arm (D426's third amendment — a round is its own bank's
+// question again, and the equality is the whole test) and the group's
+// guess (D435 — nothing in a group is called, so a group answer carrying
+// `guessIdx` is refused at the door). The table above is the record of
+// that measurement; the cases below are the heaviest writes that are
+// LEGAL now — the group cases send no guess, and the 1v1 case carries
+// the guess clauses instead of the world arm.
+//
+// Group size is NOT what pays for it: the 32-member case flips at the
+// same N as its two-member twin, because `uid in memberUids` is not
+// priced per element. Pinned below as its own case, since it is the
+// intuitive suspect and it is wrong.
+//
+// And EVERY refusal already exceeds the budget today, because a deny
+// walks every arm to the end. That is why this pins the SUCCESSES: a
+// denial that costs too much is still a denial, while an allow that
+// costs too much is a person who cannot answer, told they may not.
+//
+// Every other answer/duel case in this file sends `anchors: {}` or a
+// one-key snapshot, which is the cheap end of the payload. These send
+// all ten anchors at their rule bounds, which is what a real device
+// writes.
+describe("the heaviest LEGAL create still fits the expression budget", () => {
+  const GID = "g_budget";
+  // Every anchor `isValidV2Anchors` admits, each at its exact bound —
+  // read off the rule rather than restated as round numbers, so a bound
+  // that moves shows up here as a failing length rather than as a test
+  // that quietly got cheaper.
+  const FAT = {
+    city: "c".repeat(80),
+    country: "n".repeat(80),
+    ageBand: "b".repeat(20),
+    age: "999",
+    gender: "g".repeat(40),
+    profession: "p".repeat(80),
+    jobField: "j".repeat(40),
+    education: "e".repeat(80),
+    relationship: "r".repeat(40),
+    heightBand: "h".repeat(20),
+  };
+
+  const MEMBERS = [OWNER, FRIEND, STRANGER];
+  const seedAll = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", "daily-000"), {
+      surface: "daily", seq: 0, type: "binary", prompt: "?",
+      options: ["a", "b"], active: true,
+    });
+    // "group", not "duo": the own-bank arm requires the QUESTION's
+    // surface to equal the answer's (`== request.resource.data.surface`,
+    // firestore.rules), which is the clause that keeps a room from
+    // sealing a vote against a catalog question. A `duo` question answered
+    // on a `group` round is refused, correctly, and that refusal is not
+    // what these cases are about.
+    await setDoc(doc(db, "v2_questions", "group-b0"), {
+      surface: "group", seq: 1, type: "classic", prompt: "?",
+      options: ["a", "b"], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "group-pick0"), {
+      surface: "group", seq: 3, type: "classic", topic: "pick", prompt: "?",
+      options: [], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "feed-rank0"), {
+      surface: "feed", seq: 4, type: "rank", prompt: "?",
+      options: ["A", "B", "C", "D"], active: true,
+    });
+    await setDoc(doc(db, "v2_groups", GID), {
+      name: "Room", mode: "group", memberUids: MEMBERS, round: 2,
+    });
+    // …and a pair on the duo pool's own bank, for the one arm that still
+    // carries a guess (D435: a guess is a 1v1's).
+    await setDoc(doc(db, "v2_questions", "duo-b0"), {
+      surface: "duo", seq: 5, type: "classic", prompt: "?",
+      options: ["a", "b"], active: true,
+    });
+    await setDoc(doc(db, "v2_groups", "d_budget"), {
+      name: "Pair", mode: "duo", memberUids: [OWNER, FRIEND], round: 2,
+    });
+  });
+
+  const at = (uid: string, aid: string) => doc(asUser(uid), "v2_users", uid, "answers", aid);
+
+  it("carries all ten anchors at their bounds — the payload a real device sends", async () => {
+    // The fixture proves itself first: a bound that shrank would make
+    // every case below cheaper than the thing it is measuring.
+    expect(Object.keys(FAT)).toHaveLength(10);
+    expect(FAT.city.length + FAT.country.length + FAT.profession.length + FAT.education.length).toBe(320);
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, "daily-000"), {
+      qid: "daily-000", surface: "daily", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a duel answer on the room's own bank", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, `g_${GID}_r2`), {
+      qid: "group-b0", surface: "group", optionIdx: 1,
+      gid: GID, round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a 1v1 answer with its guess — the arm that still carries the guess clauses", async () => {
+    // The world-content case stood here while D426 §6.2's arm did; the
+    // guess is what a 1v1 answer adds over a group's now (D435), and the
+    // rules compare it against the same index space as the vote.
+    await seedAll();
+    await assertSucceeds(setDoc(at(FRIEND, "g_d_budget_r2"), {
+      qid: "duo-b0", surface: "duo", optionIdx: 1, guessIdx: 0,
+      gid: "d_budget", round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a pick round, with pickUid — the thinnest margin measured", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(STRANGER, `g_${GID}_r2`), {
+      qid: "group-pick0", surface: "group", optionIdx: 1,
+      pickUid: FRIEND, gid: GID, round: 2,
+      answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a late answer to a revealed round (D426 §4)", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, `g_${GID}_r1`), {
+      qid: "group-b0", surface: "group", optionIdx: 0, late: true,
+      gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a rank answer", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, "feed-rank0"), {
+      qid: "feed-rank0", surface: "feed", order: [2, 0, 1, 3],
+      answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("and the group's size is not what pays for it", async () => {
+    // Pinned because it is the intuitive suspect and it is wrong: `uid in
+    // memberUids` is not priced per element. A room of thirty-two — the
+    // GROUP_CAP — costs what a pair costs, so a growing room is not the
+    // thing that will push a path over.
+    const BIG = Array.from({ length: 32 }, (_, i) => `m${i}`);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-b0"), {
+        surface: "group", seq: 1, type: "classic", prompt: "?",
+        options: ["a", "b"], active: true,
+      });
+      await setDoc(doc(db, "v2_groups", "g_big"), {
+        name: "Crowd", mode: "group", memberUids: BIG, round: 2,
+      });
+    });
+    await assertSucceeds(setDoc(at("m31", "g_g_big_r2"), {
+      qid: "group-b0", surface: "group", optionIdx: 1,
+      gid: "g_big", round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
   });
 });
 
@@ -4604,6 +4850,11 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
       await setDoc(doc(db, "v2_groups", GROUP, "reveals", DAY), { revealed: true });
       await setDoc(doc(db, "v2_people", OWNER), { handle: "owner" });
       await setDoc(doc(db, "v2_avatars", OWNER), { url: "x" });
+      // The answer corpus, for the two cases below. A world answer, so
+      // the collection-group arm's `surface in [...]` admits it.
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
+        qid: "daily-000", surface: "daily", optionIdx: 1, anchors: { ageBand: "25-34" },
+      });
     });
   });
 
@@ -4637,6 +4888,34 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   // below could not see it — it is a bare sign-in gate like the eleven
   // above in every other respect. It is the handle → uid address book.
   it("v2_handles refuses a signed-out read", () => refuses(["v2_handles", "owner"]));
+  // TWO OF THE TWELVE FIXTURES THE COUNT BELOW CALLS TOMORROW'S WORK, and
+  // the pair with the most behind them: every user's answers, by id and
+  // by collection group. That arm is `request.auth != null &&
+  // (uid match || surface in [...])`, and the auth conjunct is the only
+  // thing in it that mentions auth at all — so until now, deleting
+  // `request.auth != null &&` from the collection-group rule turned
+  // exactly ONE of this suite's tests red, and that one is a REGEX OVER
+  // THE RULES FILE, not a behaviour. Measured on that mutation: a
+  // signed-out collection-group query returned all three users' answers,
+  // and a signed-out get on one answer succeeded, while the suite
+  // reported a count that had moved by one.
+  //
+  // D98 is what makes the signed-in half of each pair the real assertion:
+  // answers ARE public to anybody signed in, so "refuses a stranger" would
+  // be the wrong test and passing it would mean the product was broken.
+  // The line is sign-in, and only sign-in.
+  it("an answer document refuses a signed-out read", () => refuses(["v2_users", OWNER, "answers", "daily-000"]));
+
+  it("the answer corpus refuses a signed-out collection-group query", async () => {
+    const corpus = (db: ReturnType<typeof asSignedOut>) => query(
+      collectionGroup(db, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn"]),
+    );
+    await assertFails(getDocs(corpus(asSignedOut())));
+    // …and it is open to any signed-in reader, which is the product (D98).
+    const snap = await assertSucceeds(getDocs(corpus(asUser(STRANGER))));
+    expect((snap as { size: number }).size, "the signed-in half read nothing — the fixture is gone").toBe(1);
+  });
 
   const ruleSource = (): string =>
     readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");

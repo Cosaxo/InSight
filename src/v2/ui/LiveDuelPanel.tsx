@@ -1061,7 +1061,10 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   const answerLate = async (i: number) => {
     if (lateBusy || round == null) return;
     setLateBusy(true); setLateErr(null);
-    try { await LIVE.social.voteLate(g.id, round, i); }
+    // The reveal's own qid, so the write names the question these buttons
+    // were rendered from — `duelQFor` re-derives it off a bank that grows
+    // (data/live.ts § voteLate).
+    try { await LIVE.social.voteLate(g.id, round, i, rowQid ?? undefined); }
     catch { setLateErr("That didn’t save — check your connection."); }
     setLateBusy(false);
   };

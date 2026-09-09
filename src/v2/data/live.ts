@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 42 `await getDb()` sites in this file did not change
+// deliberately: the 40 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -407,7 +407,7 @@ const state = {
   // gid → reveal id → doc. Only documents that exist: the query below
   // returns nothing for a day nobody played, where the old per-key fan-out
   // cached a null (and paid a read) for it. In-memory only: ONE ordered
-  // query of ≤ REVEAL_HIST_DAYS documents per group per session, paid only
+  // query of ≤ REVEAL_HIST_CAP documents per group per session, paid only
   // when the portrait is opened, never at boot. `revealHistLoaded` is the
   // settled flag — an empty history is still a settled one — and a failed
   // query leaves it unset so a later call retries.
@@ -717,12 +717,18 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
-// How far back the Groups portrait reads. 14 ≈ the window a weekly group
-// actually remembers, and its cost ceiling is ONE query returning at most
-// this many reveal documents per group per session — paid only when the
-// portrait is opened. The name says "days" from when a reveal was a day;
-// under rounds (ROUNDS-PLAN) it is simply the newest N reveals.
-const REVEAL_HIST_DAYS = 14;
+// How far back the Groups portrait and the Roles tab read: the newest N
+// reveals per room, ONE query returning at most this many documents per
+// room per session, paid only when a profile is opened. It was 14 while a
+// reveal was a day — "the window a weekly group actually remembers" — and
+// under rounds (D426) fourteen reveals is two days of a pair playing
+// eight a day. Thirty is the stopgap: a few days of an active pair, a
+// month of a slow one, at roughly double the Roles tab's cold cost
+// (COSTS.md's row). The fortnight ROLES-PLAN described would be 112
+// reveals per room at eight a day, which is not a per-session read; its
+// §3.3 ledger — server-written running totals that outlive any window —
+// is the dependency, and an owner row.
+const REVEAL_HIST_CAP = 30;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
 // against work already in flight: the post-vote refresh timer, the agg and
@@ -3723,6 +3729,39 @@ function roundsOf(g: Record<string, unknown> & { id: string }) {
   return { open, next, sealed, lead: ROUND_LEAD };
 }
 
+/**
+ * A round's question BY ID — the duel bank, and behind it the one-day
+ * history below. The reveal card, the roles fold and the late-answer write
+ * all look it up by the same door; `SOCIAL.bankQ` is this function under
+ * its public name.
+ */
+function roundQById(qid: string) {
+  const q = state.duelBank.find((x) => x.id === qid);
+  if (q) {
+    // The cast's fields ride along (D432): the reveal card draws a role
+    // vote's pack and role and a rating's poles off this same door.
+    return {
+      id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic",
+      ...(q.scen ? { scen: q.scen } : {}),
+      ...(q.role ? { role: q.role } : {}),
+      ...(q.poles ? { poles: q.poles } : {}),
+      // …and a cast round's them forms and axes (D435).
+      ...(q.them ? { them: q.them } : {}),
+      ...(q.dims ? { dims: q.dims } : {}),
+    };
+  }
+  // HISTORY ONLY. For one day (2026-09-08, ROUNDS-PLAN §6.2) even rounds
+  // drew a feed question, and the reveals written that day name one. The
+  // owner retired the feature the same day (D426's third amendment) and
+  // nothing serves a world question as a round now — but a reveal has to
+  // draw the question it was about (D71), and with no lookup the card
+  // would label those rounds' options with the members' names, the
+  // catalog fall-through one surface over. So the door stays for what
+  // already exists, and the kind is the plain one.
+  const w = feedById(qid) || dailyById(qid);
+  return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "classic" } : null;
+}
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3731,30 +3770,7 @@ const SOCIAL = {
     return g ? roundsOf(g) : null;
   },
   bankQ(qid: string) {
-    const q = state.duelBank.find((x) => x.id === qid);
-    if (q) {
-      // The cast's fields ride along (D432): the reveal card draws a role
-      // vote's pack and role and a rating's poles off this same door.
-      return {
-        id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic",
-        ...(q.scen ? { scen: q.scen } : {}),
-        ...(q.role ? { role: q.role } : {}),
-        ...(q.poles ? { poles: q.poles } : {}),
-        // …and a cast round's them forms and axes (D435).
-        ...(q.them ? { them: q.them } : {}),
-        ...(q.dims ? { dims: q.dims } : {}),
-      };
-    }
-    // HISTORY ONLY. For one day (2026-09-08, ROUNDS-PLAN §6.2) even rounds
-    // drew a feed question, and the reveals written that day name one. The
-    // owner retired the feature the same day (D426's third amendment) and
-    // nothing serves a world question as a round now — but a reveal has to
-    // draw the question it was about (D71), and with no lookup the card
-    // would label those rounds' options with the members' names, the
-    // catalog fall-through one surface over. So the door stays for what
-    // already exists, and the kind is the plain one.
-    const w = feedById(qid) || dailyById(qid);
-    return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "classic" } : null;
+    return roundQById(qid);
   },
   groups(mode?: string) {
     return mode ? state.groups.filter((g) => (g.mode || "group") === mode) : [...state.groups];
@@ -3824,7 +3840,7 @@ const SOCIAL = {
     return state.reveals[gid] || null;
   },
   // ── reveal history — the Groups portrait's data source ──
-  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_DAYS
+  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_CAP
   // reveal documents by `revealedAt` — not a getDoc per day key
   // (ROUNDS-PLAN §7.1, 2026-09-08).
   //
@@ -3845,7 +3861,7 @@ const SOCIAL = {
   // should charge. A failure is reported and leaves the room unsettled so
   // a later call retries rather than freezing a gap into the portrait for
   // the rest of the session.
-  async loadRevealHistory(gid: string, take = REVEAL_HIST_DAYS): Promise<void> {
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
     if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
     state.revealHistLoading[gid] = true;
     try {
@@ -4144,13 +4160,34 @@ const SOCIAL = {
    * it to the reveal marked, and no fold counts it. Reaches back at most
    * the lead. The card offers it under a reveal you have no vote in.
    */
-  voteLate(gid: string, round: number, optionIdx: number): Promise<void> {
+  voteLate(gid: string, round: number, optionIdx: number, qid?: string): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
     const uid = state.uid;
     if (!g || !uid) return Promise.resolve();
     const open = openRoundOf(g);
     if (!(round < open && round >= open - ROUND_LEAD)) return Promise.resolve();
-    const q = duelQFor(g, round);
+    // THE REVEAL'S OWN QID, not a recomputation. The card renders these
+    // buttons from `bankQ(reveal.qid)`, so `optionIdx` indexes THAT
+    // question's options — while this used to re-derive the round's
+    // question with `duelQFor`, which is a hash over the CURRENT bank and
+    // world pool: `(gHash + round + len * 1000) % len`. One question
+    // appended to either pool remaps every past round, and a late answer
+    // is by definition given after its round revealed, reaching back the
+    // whole lead. Measured: round 3 moved duo-037 → duo-023 on a bank
+    // that grew by one, and an unloaded world pool swapped an even
+    // round's kind outright.
+    //
+    // The consequence is silent. `optionIdx` names one question's option
+    // and `qid` another, the trigger stamps the mismatch as `vote.qid`
+    // (D71's shape), and the "Answered after the reveal" row draws the
+    // label off the DRIFTED question — so the room reads back a different
+    // option of a different prompt. If the drifted question is a `pick`,
+    // line below writes `pickUid: memberUids[optionIdx]`, publishing a
+    // pick of a person the user never chose.
+    //
+    // `duelQFor` stays the blind path's authority: it is right for a
+    // round nobody has revealed yet, which has no `qid` to carry.
+    const q = (qid ? roundQById(qid) : null) || duelQFor(g, round);
     if (!q) return Promise.resolve();
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
@@ -6176,6 +6213,28 @@ const LIVE = {
     if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
     profileChanged();
     publishTestResults();
+    // A WITHDRAWAL IS ONE WRITE, STILL — it just runs on the server now.
+    // `testResults` became server-only (D431: rules cannot bound a nested
+    // map's size), and splitting this into a client consent merge plus a
+    // callable removal would have reintroduced exactly the state this
+    // method was built to make impossible: a profile still publishing the
+    // coordinate behind a switch reading "off". So the record travels WITH
+    // the removal and `saveTestResultV2` lands both in one `set`.
+    //
+    // Granting is unchanged and stays a client write: it touches no test
+    // result, so there is nothing to keep atomic with it.
+    if (!on) {
+      if (!state.uid) return;
+      await callable("saveTestResultV2", {
+        kind: POLITICAL_RESULT_KEY,
+        result: null,
+        politicalConsent: rec,
+      });
+      // No re-fold on the way out: the withdrawal's whole point is that
+      // nothing is computed from here. The grant arm below re-folds, for
+      // the D277 reason its own comment gives.
+      return;
+    }
     const db = await getDb();
     const uid = state.uid;
     if (!uid) return;
@@ -6195,7 +6254,6 @@ const LIVE = {
         // Removed explicitly, with the same `deleteField()` this write
         // already uses one line down for the published coordinate.
         consent: { political: on ? { ...rec, off: deleteField() } : rec },
-        ...(on ? {} : { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } }),
       },
       { merge: true },
     );
@@ -6212,16 +6270,24 @@ const LIVE = {
     // while the boot's profile read was in flight must not make the boot
     // discard the read.
     saveOwnProfile();
+    // THROUGH THE SERVER, because rules cannot bound this field's SIZE.
+    // `v2_users` is world-readable and voters.ts fetches thirty of them
+    // whole per query, so a megabyte parked here is a megabyte every
+    // reader downloads — and rules have no quantifier over a list, so
+    // `dims[i].label` cannot be bounded by any `allow` clause. D429
+    // bounded which KEYS may appear and said the size was its own
+    // increment; this is that increment. `saveTestResultV2` validates
+    // every field and rebuilds the value, and the rules now refuse a
+    // client write to `testResults` outright.
+    //
+    // The local mirror above is written FIRST and unconditionally, so the
+    // screen does not wait on the network and an offline fold still shows
+    // its result. `syncPassiveResults` re-attempts on the next hydrate,
+    // which is what makes a dropped call recoverable rather than lost.
     void (async () => {
       try {
-        const db = await getDb();
-        const uid = state.uid;
-        if (!uid) return;
-        await setDoc(
-          doc(db, "v2_users", uid),
-          { testResults: { [kind]: result } },
-          { merge: true },
-        );
+        if (!state.uid) return;
+        await callable("saveTestResultV2", { kind, result });
       } catch (err) {
         reportError(err, { where: "saveTestResult" });
       }
@@ -6311,21 +6377,25 @@ const LIVE = {
             delete state.profile.testResults[POLITICAL_RESULT_KEY];
             saveOwnProfile(); // the same rule as saveTestResult: not an edit
             wrote = true;
+            // Through the callable, like every other write to this field
+            // (saveTestResult says why). `result: null` is its remove arm,
+            // and this site is the reason that arm exists: a coordinate a
+            // pre-gate build published has to come down, and the client can
+            // no longer take it down itself.
             void (async () => {
               try {
-                const db = await getDb();
-                const uid = state.uid;
-                if (!uid) return;
-                await setDoc(
-                  doc(db, "v2_users", uid),
-                  { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } },
-                  { merge: true },
-                );
+                if (!state.uid) return;
+                await callable("saveTestResultV2", {
+                  kind: POLITICAL_RESULT_KEY,
+                  result: null,
+                });
               } catch (err) {
-                // The local delete stands either way, so the screen never
-                // shows a coordinate this account has not consented to.
-                // The next boot retries; the server is re-read then.
-                reportError(err, { where: "syncPassiveResults.politicalPurge" });
+                // The local delete above stands either way, so the screen
+                // never shows a coordinate this account has not consented
+                // to. The next boot retries — this block runs on every
+                // hydrate — which is what makes a failed call a delay
+                // rather than a coordinate left standing.
+                reportError(err, { where: "syncPassiveResults.removePolitical" });
               }
             })();
           }

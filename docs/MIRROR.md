@@ -181,10 +181,11 @@ become a person with a reading attached.
 
 **Groups.** The room drawn as a cast (D435, the owner's 2026-09-09
 design). Everything is computed from `v2_groups/{gid}/reveals/r{n}`
-documents the viewer can already read, over the newest
-`REVEAL_HIST_DAYS` of them — every number is one the user could recompute
-from the reveals themselves, and the stop reads only the open room's
-history. The head's ring is roles cast over all the roles in the packs;
+documents the viewer can already read, over the newest thirty of them
+(`REVEAL_HIST_CAP` — a fortnight while a reveal was a day, a few days of
+an active room under rounds; the ledger ROLES-PLAN §3.3 proposes is what
+outlives the window) — every number is one the user could recompute from
+the reveals themselves, and the stop reads only the open room's history. The head's ring is roles cast over all the roles in the packs;
 under the name, *Here, you are the one who gets things going · 5 of 15
 votes say so* once two votes have named you (`groupRole`, `MIN_GROUP`) —
 a seat is said as its LINE in play, its title being a result card's. The
@@ -347,7 +348,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and thirty-six, spread over three radii, so
+holds twenty-four in a hundred and thirty-eight, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships

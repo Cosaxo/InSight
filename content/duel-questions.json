@@ -599,6 +599,73 @@
         "seat": "wild"
       },
       "prompt": "Who needs to pull over every hour?"
+    },
+    {
+      "id": "gu12",
+      "kind": "us",
+      "prompt": "Our default meeting place is…",
+      "options": [
+        "Someone’s kitchen",
+        "The same café",
+        "Wherever’s central",
+        "The group chat itself"
+      ]
+    },
+    {
+      "id": "gd9",
+      "prompt": "A friend’s terrible haircut: the truth, or “it’s great”?",
+      "options": [
+        "The truth",
+        "It’s great"
+      ]
+    },
+    {
+      "id": "gp8",
+      "kind": "pick",
+      "prompt": "Who would survive longest without their phone?"
+    },
+    {
+      "id": "gu13",
+      "kind": "us",
+      "prompt": "When one of us wins something, we…",
+      "options": [
+        "Make it loud",
+        "Tease them",
+        "Quiet pride",
+        "Plan a dinner"
+      ]
+    },
+    {
+      "id": "gd10",
+      "prompt": "Surprise parties: throw them, or ban them?",
+      "options": [
+        "Throw them",
+        "Ban them"
+      ]
+    },
+    {
+      "id": "gp9",
+      "kind": "pick",
+      "prompt": "Who’s secretly keeping the group together?"
+    },
+    {
+      "id": "gu14",
+      "kind": "us",
+      "prompt": "Trouble hits one of us at 3am. The group…",
+      "options": [
+        "All lights on",
+        "One goes",
+        "Waits for morning",
+        "Depends who"
+      ]
+    },
+    {
+      "id": "gd11",
+      "prompt": "Borrowed money between friends: fine, or never?",
+      "options": [
+        "Fine",
+        "Never"
+      ]
     }
   ],
   "oneVsOne": [
@@ -922,6 +989,88 @@
     },
     {
       "id": "056",
+      "d": "day",
+      "prompt": "First thing after waking:",
+      "options": [
+        "Phone",
+        "Coffee",
+        "Snooze",
+        "Straight up"
+      ]
+    },
+    {
+      "id": "057",
+      "d": "mirror",
+      "prompt": "Their comfort rewatch is…",
+      "options": [
+        "A sitcom",
+        "An epic",
+        "Cartoons",
+        "They don’t rewatch"
+      ]
+    },
+    {
+      "id": "058",
+      "d": "mirror",
+      "prompt": "When a plan falls apart, they…",
+      "options": [
+        "Re-plan instantly",
+        "Shrug and drift",
+        "Rage quietly",
+        "Blame the plan"
+      ]
+    },
+    {
+      "id": "059",
+      "d": "mirror",
+      "prompt": "Their wedding toast would be…",
+      "options": [
+        "A tear-jerker",
+        "A roast",
+        "Three words",
+        "An overlong epic"
+      ]
+    },
+    {
+      "id": "060",
+      "d": "heat",
+      "prompt": "Being early: respect, or wasted life?",
+      "options": [
+        "Respect",
+        "Wasted life"
+      ]
+    },
+    {
+      "id": "061",
+      "d": "heat",
+      "prompt": "Lending your favourite thing: gladly, or never again after last time?",
+      "options": [
+        "Gladly",
+        "Never again"
+      ]
+    },
+    {
+      "id": "062",
+      "d": "mirror",
+      "prompt": "Their real superpower:",
+      "options": [
+        "Reading rooms",
+        "Remembering everything",
+        "Making people laugh",
+        "Staying calm"
+      ]
+    },
+    {
+      "id": "063",
+      "d": "heat",
+      "prompt": "The silent treatment: sometimes deserved, or always childish?",
+      "options": [
+        "Sometimes deserved",
+        "Always childish"
+      ]
+    },
+    {
+      "id": "073",
       "kind": "cast",
       "d": "cast",
       "prompt": "Most days, {name} is…",
@@ -1213,7 +1362,110 @@
       "active": false
     },
     {
-      "id": "057",
+      "id": "064",
+      "d": "day",
+      "prompt": "Sunday morning, no plans:",
+      "options": [
+        "Slow breakfast",
+        "Straight outside",
+        "Separate corners, happy",
+        "Back to sleep"
+      ],
+      "active": false
+    },
+    {
+      "id": "065",
+      "d": "day",
+      "prompt": "Cooking together: romance, or chaos?",
+      "options": [
+        "Romance",
+        "Chaos",
+        "Chaos we like"
+      ],
+      "active": false
+    },
+    {
+      "id": "066",
+      "d": "heat",
+      "prompt": "Jealousy: a little is healthy, or none ever?",
+      "options": [
+        "A little is healthy",
+        "None ever"
+      ],
+      "active": false
+    },
+    {
+      "id": "067",
+      "d": "heat",
+      "prompt": "An argument at midnight: settle it now, or sleep on it?",
+      "options": [
+        "Settle it now",
+        "Sleep on it"
+      ],
+      "active": false
+    },
+    {
+      "id": "068",
+      "d": "heat",
+      "prompt": "Who says sorry first?",
+      "options": [
+        "Me",
+        "Them",
+        "Whoever’s right",
+        "Whoever’s tired"
+      ],
+      "active": false
+    },
+    {
+      "id": "069",
+      "d": "ahead",
+      "prompt": "The dream kitchen table seats…",
+      "options": [
+        "Two",
+        "Four",
+        "Eight",
+        "The whole street"
+      ],
+      "active": false
+    },
+    {
+      "id": "070",
+      "d": "ahead",
+      "prompt": "Growing old together looks like…",
+      "options": [
+        "A garden",
+        "A city flat",
+        "A campervan",
+        "Near the sea"
+      ],
+      "active": false
+    },
+    {
+      "id": "071",
+      "d": "ahead",
+      "prompt": "In twenty years we’ll still argue about…",
+      "options": [
+        "Directions",
+        "The thermostat",
+        "Whose turn it is",
+        "Nothing — we’ll have won"
+      ],
+      "active": false
+    },
+    {
+      "id": "072",
+      "d": "ahead",
+      "prompt": "The thing we’ll be glad we started early:",
+      "options": [
+        "Saving",
+        "Traditions",
+        "The photo albums",
+        "Saying sorry fast"
+      ],
+      "active": false
+    },
+    {
+      "id": "074",
       "kind": "cast",
       "d": "cast",
       "prompt": "Most days, {name} is…",

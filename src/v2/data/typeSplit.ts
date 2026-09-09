@@ -170,6 +170,9 @@ export function typeSplitFor(
   mine: string | null = null,
 ): TypeSplit {
   const counts = new Map<string, number[]>();
+  /** Types somebody here actually carries, whether or not their answer
+   *  landed in a column — the basis for `absent`. */
+  const carriers = new Map<string, number>();
   const overall = dense(optionCount);
   let typedN = 0;
 
@@ -180,10 +183,19 @@ export function typeSplitFor(
     // an "unknown" type that would then rank against the real ones.
     if (!type) continue;
     typedN += 1;
-    // A catalog answer or an out-of-range index counts toward the type's
-    // n (they are a typed person who answered) but lands in no column.
-    // Dropping them from n instead would make the columns sum to a
-    // number the header does not show.
+    // CARRIERS, kept apart from columns, because the two questions have
+    // different answers for the same person. A catalog answer or an
+    // out-of-range index is a typed person who answered — they carry the
+    // type — but their answer lands in no column, so they add nothing to
+    // any bar.
+    //
+    // The comment that stood here said such a person "counts toward the
+    // type's n", and the one below the rows said the opposite ("invisible
+    // here. That is deliberate"). The code did the second. Both cannot be
+    // right, and each is right about a different number: `n` must be the
+    // column sum or the row lies about its own bars, and `absent` must
+    // mean nobody carries the type or the word is wrong.
+    carriers.set(type, (carriers.get(type) ?? 0) + 1);
     let row = counts.get(type);
     if (!row) {
       row = dense(optionCount);
@@ -203,14 +215,17 @@ export function typeSplitFor(
     n: counts.has(type) ? sum(counts.get(type)!) : 0,
     counts: counts.get(type) || dense(optionCount),
   }));
-  // `n` is the column sum, so a typed voter whose answer landed in no
-  // column is invisible here. That is deliberate: n has to equal what the
-  // bars add up to, or the row lies about its own picture.
+  // `n` stays the column sum: it has to equal what the bars add up to, or
+  // the row lies about its own picture. So a carrier whose answer landed
+  // in no column is invisible in `n` — and is NOT therefore absent.
+  // `absent` asks the other question (does anybody here carry this type),
+  // and `thin` takes the gap between them, so every type still lands in
+  // exactly one of the three lists.
 
   return {
     ranked: rows.filter((r) => r.n >= TYPE_THIN).sort((a, b) => b.n - a.n || a.type.localeCompare(b.type)),
-    thin: rows.filter((r) => r.n > 0 && r.n < TYPE_THIN).sort((a, b) => b.n - a.n || a.type.localeCompare(b.type)),
-    absent: rows.filter((r) => r.n === 0).map((r) => r.type),
+    thin: rows.filter((r) => r.n < TYPE_THIN && carriers.has(r.type)).sort((a, b) => b.n - a.n || a.type.localeCompare(b.type)),
+    absent: rows.filter((r) => !carriers.has(r.type)).map((r) => r.type),
     sampleN: voters.length,
     typedN,
     overall,

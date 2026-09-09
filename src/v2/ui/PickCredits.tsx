@@ -12,16 +12,35 @@
 // The copy rule (D182) does not shorten this: an attribution is a claim
 // the licence requires, so the author's name and the licence's name are
 // the content, and "source" is the link the licence asks for.
+//
+// PAGED, for PickTiles' reason one door down: the catalogues run to a
+// thousand rows, and this committed one `<li>` per row the moment the
+// door opened — 1,025 rows and 2,055 nodes for the Pokédex, on the same
+// card whose tile row was paged to avoid exactly that. What the licence
+// requires is that the attribution be REACHABLE, not that a thousand of
+// them are in the DOM at once, and the reader is already scrolling a
+// 220px box. Same shape as the tiles: a first page, then "+N more".
+// Simpler than the tiles in one way on purpose — no IntersectionObserver.
+// The tiles page on scroll because the row scrolls sideways past a tile
+// nobody would tap; a credits list is read down, and the reader who wants
+// the rest is already at the button.
 import React from "react";
 import {
   hasCatalogArt, loadCatalogCredits, SOURCE_NOTICES, COMMONS_NOTICE, type CatalogCredit,
 } from "../data/catalogArt";
 
-export default function PickCredits({ domain, accent }: { domain: string; accent: string }) {
+/** Rows drawn per page. Exported so a test can drive the door without
+ *  a thousand-row fixture. */
+export const CREDITS_PAGE = 40;
+
+export default function PickCredits({ domain, accent, page = CREDITS_PAGE }: {
+  domain: string; accent: string; page?: number;
+}) {
   const has = hasCatalogArt(domain);
   const [open, setOpen] = React.useState(false);
   const [rows, setRows] = React.useState<CatalogCredit[] | null>(null);
   const [err, setErr] = React.useState(false);
+  const [shown, setShown] = React.useState(page);
 
   React.useEffect(() => {
     if (!open || rows || !has) return;
@@ -72,7 +91,7 @@ export default function PickCredits({ domain, accent }: { domain: string; accent
           {rows && commons && <p style={{ margin: "0 0 6px" }}>{COMMONS_NOTICE}</p>}
           {rows && (
             <ul style={{ margin: 0, paddingLeft: 16 }}>
-              {rows.map((r) => (
+              {rows.slice(0, shown).map((r) => (
                 <li key={r.key}>
                   {r.name}
                   {SOURCE_NOTICES[r.licence] ? "" : ` — ${r.author} · ${r.licence}`}
@@ -81,6 +100,20 @@ export default function PickCredits({ domain, accent }: { domain: string; accent
                 </li>
               ))}
             </ul>
+          )}
+          {rows && rows.length > shown && (
+            <button
+              type="button"
+              data-credits-more=""
+              onClick={() => setShown((n) => n + page)}
+              style={{
+                marginTop: 6, border: "none", background: "none", padding: "2px 0", cursor: "pointer",
+                WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11.5,
+                color: accent, textDecoration: "underline dotted", textUnderlineOffset: 3,
+              }}
+            >
+              {`+${rows.length - shown} more`}
+            </button>
           )}
         </div>
       )}

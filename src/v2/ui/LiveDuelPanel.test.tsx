@@ -75,7 +75,7 @@ const LIVE = vi.hoisted(() => {
     approveJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     declineJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
-    voteLate: async (gid: string, round: number, idx: number) => { void gid; void round; void idx; },
+    voteLate: async (gid: string, round: number, idx: number, qid?: string) => { void gid; void round; void idx; void qid; },
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
     todayKey: () => "2026-07-30",
@@ -307,15 +307,22 @@ describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
     LIVE.social.bankQ = () => Q;
     LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
     LIVE.social.revealFor = () => revealed();
-    const calls: Array<[string, number, number]> = [];
-    LIVE.social.voteLate = async (gid: string, round: number, idx: number) => { calls.push([gid, round, idx]); };
+    const calls: Array<[string, number, number, string | undefined]> = [];
+    LIVE.social.voteLate = async (gid: string, round: number, idx: number, qid?: string) => {
+      calls.push([gid, round, idx, qid]);
+    };
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.getByText(/You didn’t play this one/)).toBeTruthy();
     // The card also asks round 2's question with the same options, so pick
     // the late door's button by its own block.
     const door = screen.getByText(/You didn’t play this one/).parentElement!;
     fireEvent.click(within(door).getByRole("button", { name: "Tea" }));
-    await waitFor(() => expect(calls).toEqual([["g1", 1, 1]]));
+    // THE QID IS THE ASSERTION, not a fourth argument along for the ride.
+    // `optionIdx` indexes the options THESE buttons were rendered from,
+    // which is `bankQ(reveal.qid)` — and `voteLate` used to re-derive the
+    // round's question off the current bank instead, so one appended
+    // question filed the answer under a different prompt.
+    await waitFor(() => expect(calls).toEqual([["g1", 1, 1, "duo-000"]]));
   });
 
   it("does not offer it past the lead, nor to someone who played", () => {
@@ -454,7 +461,7 @@ describe("LiveDuelPanel · the group as a cast (D432)", () => {
 
 describe("LiveDuelPanel · the cast round (D435)", () => {
   const CAST = {
-    id: "duo-056", kind: "cast", prompt: "Most days, {name} is…",
+    id: "duo-073", kind: "cast", prompt: "Most days, {name} is…",
     options: ["the one you tell first", "the one who gets you out the door", "the one you ask what to do", "the one who is just always there"],
     them: ["the one {name} tells first", "the one who gets {name} out the door", "the one {name} asks what to do", "the one who is just always there"],
     dims: ["trust", "spark", "judgement", "constancy"],
@@ -482,7 +489,7 @@ describe("LiveDuelPanel · the cast round (D435)", () => {
     LIVE.social.bankQ = () => CAST;
     LIVE.social.roundInfo = () => ({ open: 5, next: 5, sealed: [], lead: 5 });
     LIVE.social.revealFor = () => ({
-      round: 4, day: "2026-09-09", qid: "duo-056",
+      round: 4, day: "2026-09-09", qid: "duo-073",
       votes: { u_me: { optionIdx: 0, guessIdx: 2 }, u_ada: { optionIdx: 2, guessIdx: 1 } },
     });
     render(<LiveDuelPanel mode="duo" />);
@@ -1195,8 +1202,8 @@ describe("LiveDuelPanel · the pair's read-runs", () => {
 });
 
 describe("LiveDuelPanel · day history is bought, not assumed", () => {
-  it("does not fetch older days just because the tab opened", () => {
-    // REVEAL_HIST_DAYS doc reads per circle per session, on the app's FIRST
+  it("does not fetch older rounds just because the tab opened", () => {
+    // REVEAL_HIST_CAP doc reads per circle per session, on the app's FIRST
     // screen. Anyone with three circles would pay for forty documents to
     // look at today's question.
     const load = vi.fn(async (gid: string) => { void gid; });

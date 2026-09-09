@@ -1066,6 +1066,55 @@ describe("LiveCohortBody · one answer is a count, not a share", () => {
 //
 // The mock carried no `attached` at all until now, so this arm's wording
 // could change with the whole suite green. These two are what stops that.
+// ── the headline figure is a MAX, never a sum ───────────────────────
+//
+// `reach` is the largest single-question count in the cohort, and its
+// docstring spends twenty lines on why: one person answers a question at
+// most once (create-only, D5/D86 — an edit MOVES a vote, it never adds
+// one), so the largest single count is a number of DISTINCT PEOPLE.
+// "Summing across questions … would count the same person once per
+// question they answered, which is the mistake this is written out to
+// avoid."
+//
+// Nothing held it. Swapping `Math.max` for `+` left the whole client
+// suite green — 201 files — while the app's largest population claim
+// inflated by a factor of however many questions the cohort holds. And
+// this is not a hypothetical shape: the exact defect shipped one lens
+// over, where an Explore chip read "35-44 · 26" under a header saying
+// "25 people have answered somewhere". That lens got two cases out of
+// it. The hero figure the chip was compared against got none.
+describe("LiveCohortBody · the header counts people, not answers", () => {
+  // Ten people, three questions, all answered by the same ten. A sum
+  // reads 30; the truth is 10.
+  const SAME_TEN = { by: { city: { "Oslo, NO": { "0": 6, "1": 4 } } } };
+
+  it("reads the largest single question, not the total of all of them", () => {
+    LIVE.aggregated = () => [Q("q1", "One"), Q("q2", "Two"), Q("q3", "Three")];
+    LIVE.aggFor = () => SAME_TEN;
+    LIVE.anchors = () => ({ city: "Oslo, NO", country: "NO" });
+    render(<LiveCohortBody scope="city" />);
+    const body = document.body.textContent || "";
+    expect(body, "the header summed across questions and counted people once each")
+      .toMatch(/10people have answered/);
+    expect(body, "30 is three questions of the same ten people").not.toMatch(/30people have answered/);
+    expect(body).toMatch(/people have answered/);
+  });
+
+  it("…and still moves when one question really is bigger", () => {
+    // THE CONTROL. Without it, "never 30" also passes on a header wired
+    // to a constant, or to the first row, or to the smallest.
+    LIVE.aggregated = () => [Q("q1", "One"), Q("q2", "Two"), Q("q3", "Three")];
+    LIVE.aggFor = (qid) => (qid === "q2"
+      ? { by: { city: { "Oslo, NO": { "0": 40, "1": 8 } } } }
+      : SAME_TEN);
+    LIVE.anchors = () => ({ city: "Oslo, NO", country: "NO" });
+    render(<LiveCohortBody scope="city" />);
+    const body = document.body.textContent || "";
+    expect(body, "the header ignored the largest question").toMatch(/48people have answered/);
+    expect(body, "68 is the sum again").not.toMatch(/68people have answered/);
+  });
+});
+
 describe("LiveCohortBody · reading is not empty", () => {
   it("does not say nobody has answered before the store has attached", () => {
     LIVE.attached = false;

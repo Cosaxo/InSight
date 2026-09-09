@@ -458,10 +458,22 @@ export const loadWorldFeed = retryable(async () => {
 // ── the Map, after first paint too (v28 §5) ────────────────────────────
 //
 // One import, not seven: map-tab.jsx carries its six siblings as static
-// side-effect imports, so the ESM graph evaluates the family in the order
-// the eager list used to hold — including the one hard constraint, the
+// imports, so the ESM graph evaluates the family in the order the eager
+// list used to hold.
+//
+// NAMED imports, and no load-order constraint left. This said "static
+// SIDE-EFFECT imports … including the one hard constraint, the
 // module-scope destructure of window.MapTabLayout in map-tab.jsx needing
-// map-layout.js first.
+// map-layout.js first", and D354's sweep took both halves away: map-tab
+// has zero side-effect imports (measured), every sibling arrives as a
+// named binding, and `window.MapTabLayout` is written nowhere in the
+// tree — the destructure reads `import { MapTabLayout } from
+// './map-layout.js'`, which ESM cannot get wrong. Corrected in place
+// rather than deleted because this is the paragraph somebody reads
+// before touching the Map's load order, and it was telling them to
+// preserve a constraint that does not exist. The loadMirrorTab
+// paragraph below is still exact: mirror-tab.jsx really does carry
+// side-effect imports.
 //
 // SYNCHRONISED BY THE CONSUMER, not by a re-render from here: mirror-tab's
 // MapSlot runs its own dynamic import of the same module and holds the

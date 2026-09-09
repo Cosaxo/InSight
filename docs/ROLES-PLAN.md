@@ -27,25 +27,27 @@ record adopts this.
 1v1 and in a group, each read as an instrument — four dims for a 1v1
 (Insight · Legibility · Likeness · Steadiness), three for a group
 (Independence · Centrality · Steadiness) — folded from the reveal
-documents the duel panel already fetches, over the last fortnight, and
+documents the duel panel already fetches, over the newest thirty reveals
+(fourteen, and a fortnight, until D426's profiles follow-up), and
 matched to one of ten 1v1 types or six group types by the same matcher
 every test uses.
 
 **What is wrong, measured (§2).**
 
-- A fortnight cannot hold a name: at 14 days the match is a tie for
-  over half of records, and one more day changes the name for one in
-  six or seven.
+- A fortnight cannot hold a name: at 14 rounds the match is a tie for
+  over half of records, and one more round changes the name for one in
+  six or seven. (Measured per reveal; a reveal was a day when this was
+  written and is a round since D426, so the rows below read in rounds.)
 - The group instrument is one axis wearing three labels: its dims
   correlate at −0.7 to −0.9, so after a fortnight four in five members
   are "The Quiet Majority" and a member who genuinely votes alone is
   called that too.
 - Steadiness — a dim in both instruments and the definition of two of
   the 1v1 types — measures how long you have played, not who you are.
-- The days are not all the same day: a "mirror" day (what word fits
-  *them*) is folded as if it measured likeness and reading, a 2-option
-  day counts like a 4-option day, and a pick day's 8 options like a
-  classic's 2.
+- The rounds are not all the same round: a "mirror" round (what word
+  fits *them*) is folded as if it measured likeness and reading, a
+  2-option round counts like a 4-option round, and a pick round's 8
+  options like a classic's 2.
 - A role card is missing what every result card has — the rule line,
   the runner-up, the rarity — and nothing draws the pair's own type or
   the group's cast, though both fold from data already on the phone.
@@ -88,9 +90,12 @@ screens.
 - **The record** — `v2_groups/{gid}/reveals/r{n}` (`SCHEMA-V2.md`; one per round since D426, one per day before):
   `votes { uid: { optionIdx, guessIdx?, pickUid? } }`, `members[]` (who
   was in the group ON that day), readable by any signed-in user (D98).
-  The client reads the last `REVEAL_HIST_DAYS` = 14 of them per room
-  (`live.ts`; `COSTS.md`'s Roles row) — so a role is a fortnight's
-  reading, and the run of dots is the only thing that shows the days.
+  The client reads the newest `REVEAL_HIST_CAP` = 30 of them per room
+  (`live.ts`; `COSTS.md`'s Roles row) — so a role is a reading of the
+  last thirty rounds, a few days of an active pair or a month of a slow
+  one, and the run of dots is the only thing that shows the rounds. It
+  was 14, and a fortnight, while a reveal was a day (D426's profiles
+  follow-up raised it as a stopgap; §3.3 is what outlives any window).
 - **The questions** — `content/duel-questions.json`: 26 group (kinds
   `us` · `pick` · `classic`, interleaved in rotation order), 32 friends
   1v1 and 24 romantic 1v1 (dark: `active: false`, D40 part 4). Every
@@ -113,7 +118,7 @@ screens.
 ## 2 · What is wrong, measured
 
 `node scripts/roles-probe.mjs` draws pairs and groups with plausible
-true rates, plays them for *n* days, folds the days exactly as
+true rates, plays them for *n* rounds, folds the rounds exactly as
 `roles.ts` does, and hands the dims to the shipped matcher. The spread
 of true rates is authored — nothing live has scored — so each
 instrument is run under two models and only findings that survive both
@@ -121,21 +126,21 @@ are quoted. Measured 2026-09-06; the script prints the full tables.
 
 ### 2.1 A fortnight cannot hold a name
 
-| 1v1 record | the match is a tie (`gap` < 5 rms — the matcher's own "effectively a tie") | one more day changes the name |
+| 1v1 record | the match is a tie (`gap` < 5 rms — the matcher's own "effectively a tie") | one more round changes the name |
 | --- | --- | --- |
-| 3 days (the floor) | 47–49% | 41–44% |
-| 7 days | 58–62% | 24–27% |
-| 14 days (the whole window) | 58–65% | 15–17% |
-| 30 days (needs §3.3) | 60–72% | 8–10% |
+| 3 rounds (the floor) | 47–49% | 41–44% |
+| 7 rounds | 58–62% | 24–27% |
+| 14 rounds (the window until D426's follow-up) | 58–65% | 15–17% |
+| 30 rounds (the window now; past it needs §3.3) | 60–72% | 8–10% |
 
 The name on the card is a coin toss at the floor and still flips every
-sixth or seventh day at the window's full depth. The matcher computes
+sixth or seventh round at the old window's full depth. The matcher computes
 the gap and the runner-up on every call (`IS_matchArchetype` returns
 both) and the panel reads neither.
 
 ### 2.2 The group instrument is one axis
 
-Independence is the share of days you land away from the majority;
+Independence is the share of rounds you land away from the majority;
 Centrality is how often others land where you land; Steadiness is the
 flip rate of the first. On simulated groups of four and six, r(own,
 pull) is −0.74 to −0.84 and r(own, settle) is −0.64 to −0.91, at every
@@ -144,9 +149,9 @@ and a table of six types over one dim cannot spread:
 
 | group record, six members | Quiet Majority | Anchor | Wildcard | Contrarian + Bellwether + Outlier |
 | --- | --- | --- | --- | --- |
-| 2 days (the floor) | 32% | 30–34% | 30–32% | 5–6% |
-| 14 days | 79–83% | 8–10% | 7% | 1–3% |
-| 30 days | 88–91% | 4–5% | 3–5% | 1–2% |
+| 2 rounds (the floor) | 32% | 30–34% | 30–32% | 5–6% |
+| 14 rounds | 79–83% | 8–10% | 7% | 1–3% |
+| 30 rounds | 88–91% | 4–5% | 3–5% | 1–2% |
 
 At the floor the name is a three-way coin toss; after a fortnight
 everyone is The Quiet Majority — including the members whose true

@@ -370,17 +370,64 @@ for (const name of [...defined].sort()) {
   // bare default with no clause after it — matched the pattern with both
   // groups empty, so the rule read the line, found no names, and passed.
   // Found by an adversarial re-check of the rule itself, on a live instance.
+  //
+  // AND THE NAMESPACE FORM WAS A SECOND HOLE, found the same way on
+  // 2026-09-09. `import * as X from '…'` has no alternative in the
+  // pattern at all, so the whole declaration was skipped: an unused
+  // namespace binding passed this rule AND eslint — `no-unused-vars` is
+  // off for the spec layer and `tsc -b` never reads `.jsx`, so nothing
+  // else was watching. Measured by appending one to edge-fade.js: named,
+  // default and aliased forms each failed loudly on that file while the
+  // namespace form left `check:globals` at "OK" and eslint at exit 0.
+  // Latent rather than live — 0 unused bindings across the layer's 379
+  // import declarations — but a dead namespace binding still drags its
+  // module into the chunk, which is check:eager-content's class.
   const IMPORT_RE =
-    /^import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
+    /^import\s+(?:\*\s+as\s+([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*))?\s*,?\s*(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
+  // A POSITIVE CONTROL ON THE MATCHER, run before the sweep rather than
+  // written as a test, because this rule has no test file to put one in:
+  // the script has no exports and no entry guard, so importing it runs
+  // the whole gate. Both of this pattern's holes were found by reading
+  // it — a bare default in its first version, the namespace form on
+  // 2026-09-09 — and each time the sweep went on reporting OK. Four
+  // forms, each of which must yield exactly the binding it declares; a
+  // pattern that stops seeing one fails HERE, loudly, instead of going
+  // quiet over the whole layer.
+  const CONTROL = [
+    ['import * as NS from "./x.js";', "NS"],
+    ['import Def from "./x.js";', "Def"],
+    ['import { a as Alias } from "./x.js";', "Alias"],
+    ['import Def2, { b } from "./x.js";', "Def2,b"],
+  ];
+  for (const [line, want] of CONTROL) {
+    IMPORT_RE.lastIndex = 0;
+    const m = IMPORT_RE.exec(line);
+    const got = m
+      ? [m[1], m[2], ...(m[3] ? m[3].split(",").map((x) => x.trim().split(/\s+as\s+/).pop().trim()) : [])]
+        .filter(Boolean).join(",")
+      : "";
+    if (got !== want) {
+      failed = true;
+      console.error(
+        `\u2717 rule 8's import matcher no longer reads ${JSON.stringify(line)}`
+        + `\n    expected the binding(s) ${want}, got ${got || "nothing"}.`
+        + "\n    A form it cannot see is a form it cannot check — every unused"
+        + "\n    binding of that shape passes this rule AND eslint, since"
+        + "\n    no-unused-vars is off for the spec layer and tsc never reads .jsx.",
+      );
+    }
+  }
+
   for (const file of readdirSync(specDir).sort()) {
     if (!/\.(js|jsx)$/.test(file)) continue;
     const src = stripComments(readFileSync(join(specDir, file), "utf8"));
     IMPORT_RE.lastIndex = 0;
     for (const m of src.matchAll(IMPORT_RE)) {
       const names = [];
-      if (m[1]) names.push(m[1]);
-      if (m[2]) {
-        for (const part of m[2].split(",")) {
+      if (m[1]) names.push(m[1]);   // * as X
+      if (m[2]) names.push(m[2]);   // a default binding
+      if (m[3]) {
+        for (const part of m[3].split(",")) {
           const name = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop().trim();
           if (name) names.push(name);
         }

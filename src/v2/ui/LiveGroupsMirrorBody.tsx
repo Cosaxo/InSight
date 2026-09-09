@@ -446,7 +446,7 @@ function LiveGroupsMirrorBody() {
   const [gid, setGid] = React.useState<string | null>(null);
   const g = groups.find((x) => x.id === gid) || groups[0] || null;
   // the history fetch is on-demand and idempotent — one ordered query of
-  // ≤REVEAL_HIST_DAYS documents per group per session, only once this
+  // ≤REVEAL_HIST_CAP documents per group per session, only once this
   // stop is actually open, and only for the room you are looking at
   React.useEffect(() => {
     if (g) void S.loadRevealHistory(g.id);

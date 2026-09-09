@@ -20,7 +20,7 @@
 // for a tab most opens never reach.
 //
 // THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM. Each room's reveal
-// history is ONE ordered query of at most `REVEAL_HIST_DAYS` reveal
+// history is ONE ordered query of at most `REVEAL_HIST_CAP` reveal
 // documents (ROUNDS-PLAN §7.1), cached by the store, and the duel panel
 // already pays it for whichever room you open. This tab is the first
 // surface that wants ALL of them, so it loads them on mount and only on

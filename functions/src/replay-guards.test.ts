@@ -48,6 +48,10 @@ const AGG = (qid: string) => `v2_question_aggs/${qid}`;
  *  the sets so the write assertion below stays about the aggregate. */
 const deletes: string[] = [];
 
+/** One page of answer documents for the collection-group scan, consumed
+ *  on the first `get`. Empty unless a case stages it. */
+let scanPage: { uid: string; data: Doc }[] = [];
+
 const fakeDb = {
   // The vote arm writes the aggregate and all eight tail shards in one
   // batch since D400; a set lands like a direct one, a delete is recorded.
@@ -87,14 +91,28 @@ const fakeDb = {
     };
   },
   // The scan. Every builder method returns the same object; `get` answers
-  // empty, which is the state all three guards are reached from.
+  // with `scanPage` and then empties it, so a case that wants answers
+  // stages them and every other case is reached from a zero scan, which
+  // is the state all three write-side guards need.
   collectionGroup() {
     const q = {
       where: () => q,
       orderBy: () => q,
       limit: () => q,
       startAfter: () => q,
-      get: async () => ({ empty: true, docs: [] as unknown[] }),
+      get: async () => {
+        const page = scanPage;
+        scanPage = [];
+        return {
+          empty: page.length === 0,
+          size: page.length,
+          docs: page.map((a) => ({
+            get: (f: string) => a.data[f],
+            // v2_users/{uid}/answers/{aid} — the uid is the grandparent
+            ref: { parent: { parent: { id: a.uid } } },
+          })),
+        };
+      },
     };
     return q;
   },
@@ -120,7 +138,7 @@ function seed(total: number, stamp: Stamp) {
 }
 
 describe("runRebuild's write-side refusals", () => {
-  beforeEach(() => { aggGets = 0; });
+  beforeEach(() => { aggGets = 0; scanPage = []; });
 
   it("refuses to overwrite a published aggregate with an empty fold", async () => {
     seed(42, { seconds: 100, nanoseconds: 0 });
@@ -168,5 +186,91 @@ describe("runRebuild's write-side refusals", () => {
     aggStamps = [{ seconds: 100, nanoseconds: 0 }, { seconds: 200, nanoseconds: 0 }];
     await expect(runRebuild(QID, { ...OPTS, allowEmpty: true }))
       .rejects.toThrow(/was written during the scan/);
+  });
+});
+
+// ── the seal, per ANSWER ────────────────────────────────────────────
+//
+// `rebuildRefusal` asks the QUESTION's surface, and that was the whole
+// guard while a duel round could only carry duel content. D426 §6.2 made
+// a world question duel content, so a feed or daily qid now names public
+// votes AND sealed duel votes — and a duel answer carries neither
+// `entity` nor `order`, which is every shape test the vote arm applies.
+// It folded straight into the public aggregate: the exact thing the
+// refusal's own comment says this tool must never do, on rounds that may
+// not have revealed.
+describe("a rebuild does not fold sealed duel votes into a public aggregate", () => {
+  beforeEach(() => { aggGets = 0; scanPage = []; });
+
+  /** A world question, its published aggregate, and a scan that returns
+   *  two public votes and one sealed duel vote on the same qid. */
+  function seedMixed() {
+    const stamp = { seconds: 100, nanoseconds: 0 };
+    docs.clear();
+    docs.set(`v2_questions/${QID}`, {
+      data: { surface: "feed", type: "binary", options: ["A", "B"] },
+      updateTime: { seconds: 1, nanoseconds: 0 },
+    });
+    docs.set(AGG(QID), { data: { total: 2, counts: { "0": 1, "1": 1 } }, updateTime: stamp });
+    aggStamps = [stamp];
+    aggGets = 0;
+    writes.length = 0;
+    scanPage = [
+      { uid: "u1", data: { qid: QID, surface: "feed", optionIdx: 0 } },
+      { uid: "u2", data: { qid: QID, surface: "feed", optionIdx: 1 } },
+      { uid: "u3", data: { qid: QID, surface: "duo", gid: "g1", round: 3, optionIdx: 1 } },
+    ];
+  }
+
+  it("counts it, skips it, and says so", async () => {
+    seedMixed();
+    const r = await runRebuild(QID, { apply: false, exclude: new Set<string>() });
+    expect(r.scanned, "the scan still meets it — the seal is the fold's, not the query's").toBe(3);
+    expect(r.sealedDuel).toBe(1);
+    expect(r.folded, "the duel vote was folded into a public aggregate").toBe(2);
+    expect(r.total).toBe(2);
+    expect(r.counts).toEqual({ "0": 1, "1": 1 });
+    expect(r.skipped, "a skipped answer is reported as skipped").toBeGreaterThanOrEqual(1);
+    // …and the published aggregate reads as healthy, which is the whole
+    // point of the tool: with the duel vote folded it reported a drift of
+    // +1 on a question nothing was wrong with.
+    expect(r.drift.total).toBe(0);
+  });
+
+  it("…and the write carries the same numbers, not the scan's", async () => {
+    // apply: true, because all three of this file's other refusals live
+    // inside `if (opts.apply)` and a dry run reaches none of them — the
+    // same trap the allowEmpty case above records.
+    seedMixed();
+    await runRebuild(QID, { apply: true, exclude: new Set<string>() });
+    const agg = writes.find((w) => w.path === AGG(QID));
+    expect(agg, "nothing was written").toBeTruthy();
+    expect(agg!.data.total).toBe(2);
+    expect(agg!.data.counts).toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("a group vote is sealed on the same terms as a duo one", async () => {
+    seedMixed();
+    scanPage[2].data.surface = "group";
+    const r = await runRebuild(QID, { apply: false, exclude: new Set<string>() });
+    expect(r.sealedDuel).toBe(1);
+    expect(r.folded).toBe(2);
+  });
+
+  it("the two guards agree on which surfaces are sealed", async () => {
+    // The per-question refusal and the per-answer skip have to name the
+    // same set, or a surface added to one goes on folding through the
+    // other — which is exactly how this happened.
+    const { rebuildRefusal } = await import("./replay");
+    for (const s of ["group", "duo"]) {
+      expect(rebuildRefusal(s), `${s} is not refused per question`).toMatch(/sealed duel votes/);
+    }
+    for (const s of ["feed", "daily", "test"]) {
+      expect(rebuildRefusal(s), `${s} is refused per question`).toBeNull();
+      seedMixed();
+      scanPage[2].data.surface = s;
+      const r = await runRebuild(QID, { apply: false, exclude: new Set<string>() });
+      expect(r.sealedDuel, `${s} was skipped as a sealed duel vote`).toBe(0);
+    }
   });
 });

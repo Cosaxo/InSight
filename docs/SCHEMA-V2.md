@@ -46,15 +46,8 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                        paint. Absent on the 110 core items and the lenses
   topic, axis, test   metadata (test != null only on a test's own items;
                        topic is the feed's topic id, a group question's kind
-                       us|pick|classic|rate, and since D386 a 1v1 question's
+                       us|pick|classic, and since D386 a 1v1 question's
                        domain day|heat|mirror|ahead — the roles fold reads it)
-  scen?, role?        a group pick that casts a ROLE (D432): the scenario
-                       pack { id, label, hue } it belongs to and the role
-                       { id, label } it casts — the card's kicker, crown
-                       and verdict read them. Both or neither
-  poles?              a group `rate` question's two ends (D432); its
-                       `options` are the five step labels between them,
-                       derived at seed time, so the answer stays an index
   active: bool
   until?              feed only (D179): the UTC day after which the card
                       stops being SERVED. A client-side serving filter;
@@ -653,7 +646,7 @@ answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
-D426) with extra fields gid/round/guessIdx — the guess a 1v1's only: a group answer carries none, and the rules refuse one there (D435) — (plus pickUid on a "pick"
+D426) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
 round, D224 — a current member's uid, rules-validated; plus `late: true`
 on an answer to a round that has already revealed, which then carries no
 guess — §4 of the plan) — and they are
@@ -664,15 +657,15 @@ table when the round reveals — on the last member's answer, or at the
 round's deadline for whoever played. Rules require membership and bound
 the round to `[open, open + ROUND_LEAD)`: nothing behind the open round
 (it has revealed — the reveal and the advance are one commit) and
-nothing past the lead. The `qid` names the room's own bank: the
-question's `surface` must equal the answer's, which is also what keeps a
-catalog question (empty options) from being folded as a member pick.
-For one day (2026-09-08, ROUNDS-PLAN §6.2) a second arm admitted a
-`daily` or `feed` question of an option-index type as a round's content;
-the owner retired it the same evening (D426's third amendment), so the
-reveals written that day may name a feed qid and nothing writes one now.
-Duel surfaces are excluded from world aggregates either way: a duel
-answer never moves the crowd's count.
+nothing past the lead. The `qid` names either the room's own bank (the
+question's `surface` equals the answer's) or — ROUNDS-PLAN §6.2, the
+rules' second arm — a `daily` or `feed` question of an option-index
+type (`vote`/`binary`/`choice`, with options), which is how every other
+round draws from the world's core; the arm is explicit rather than a
+relaxation of the equality, so a catalog question (empty options) is
+still refused. Duel surfaces are excluded from world aggregates either
+way: a duel answer to a world question moves the room's reveal and not
+the crowd's count (the e2e's 8a leg pins the total unmoved).
 
 v2_takes/{takeId}                  comments on a question — circle or world,
                                    NAMED at both scopes since D98
@@ -742,7 +735,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (1223 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1342 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -819,7 +812,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (1223 docs) caches in localStorage keyed by
+everything. The question bank (1342 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -854,7 +847,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 205 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 214 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

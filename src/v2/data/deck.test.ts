@@ -402,7 +402,7 @@ describe("duelQFor (duel question rotation)", () => {
     qd("d1", { surface: "duo" }),
   ];
   // …and the 1v1's cast round (D435), the pool's one `cast` entry
-  const CAST = qd("056", {
+  const CAST = qd("073", {
     surface: "duo", topic: "cast", prompt: "Most days, {name} is…",
     options: ["the one you tell first", "the one who gets you out the door", "the one you ask what to do", "the one who is just always there"],
     them: ["the one {name} tells first", "the one who gets {name} out the door", "the one {name} asks what to do", "the one who is just always there"],
@@ -505,7 +505,7 @@ describe("duelQFor (duel question rotation)", () => {
     for (let r = 1; r <= 12; r++) {
       const q = duelQFor(duo, withCast, r)!;
       if (r % 4 === 0) {
-        expect(q.id).toBe("056");
+        expect(q.id).toBe("073");
         expect(q.kind).toBe("cast");
         expect(q.them).toEqual(CAST.them);
         expect(q.dims).toEqual(["trust", "spark", "judgement", "constancy"]);
@@ -622,12 +622,12 @@ describe("duelQFor (duel question rotation)", () => {
     });
 
     it("a romantic duo's cast is the romantic pool's own, and the friends' cast never reaches it", () => {
-      const romCast = qd("057", { surface: "duo", mode: "romantic", topic: "cast", prompt: "Most days, {name} is…",
+      const romCast = qd("074", { surface: "duo", mode: "romantic", topic: "cast", prompt: "Most days, {name} is…",
         options: ["a", "b", "c", "d"], them: ["a", "b", "c", "d"], dims: ["trust", "spark", "judgement", "constancy"] });
       const both = [...pooled, CAST, romCast];
       const rom = { ...duo, duoMode: "romantic" };
-      expect(duelQFor(rom, both, 4)!.id).toBe("057");
-      expect(duelQFor(duo, both, 4)!.id).toBe("056");
+      expect(duelQFor(rom, both, 4)!.id).toBe("074");
+      expect(duelQFor(duo, both, 4)!.id).toBe("073");
       // and a romantic pool with no cast plays round 4 as its own
       expect(duelQFor(rom, [...pooled, CAST], 4)!.id).toMatch(/^r/);
     });

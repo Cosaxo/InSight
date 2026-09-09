@@ -37,9 +37,16 @@
 // invocation is red in the function's own error metrics as well.
 //
 // THE BUDGET. LIGHT_UNBOUNDED is 256 MiB and 480 s. The day's entries are
-// ~200 bytes each in memory: 20 k at 5 k DAU, 200 k (40 MB) at 50 k, held
-// once instead of once per fold — the peak is what any one of the three
-// functions already had. Time is the three folds' in sequence; today
+// ~200 bytes each in memory (~236 measured, retained): 20 k at 5 k DAU,
+// 200 k (40 MB) at 50 k, held once instead of once per fold — the peak is
+// what any one of the three functions already had, PER RESIDENT DAY. That
+// last clause was missing and it mattered: the folds run in sequence, each
+// walking its own owed days, so an unbounded memo held every day of a
+// catch-up at once — ~410 MB on a 7-day recovery at 50 k DAU, on a 256 MiB
+// instance, and the OOM re-read the same days the next night and died
+// identically. `memoLedgerReader` keeps ONE day now; the ordinary night is
+// unchanged and a catch-up re-reads instead of piling up. See its own
+// comment for the measurement and the trade. Time is the three folds' in sequence; today
 // each is seconds. If the sum ever nears the ceiling the lever is
 // `timeoutSeconds` on this one function (gen 2 allows an hour for a
 // schedule), not a fourth function — splitting the pass is what this file

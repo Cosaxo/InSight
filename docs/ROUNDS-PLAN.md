@@ -144,6 +144,23 @@ the tree does not do.
   kinds and `check:policy-claims` holds the named list, its pattern now
   naming *it is your turn*. The channel descriptions say *round* and
   *group*, not *day* and *circle* (§9's collision).
+- **The profiles under rounds** (the follow-up of 2026-09-08, on the
+  owner's *"yes build it"*). The Groups stop keyed its Answers rows by
+  date, and a room can reveal several rounds in one day: two rows got
+  one key, one tap opened both, and both wore the same date. The round
+  rides the portrait row now and is the row's identity and label; the
+  portrait's counts are named for what they count (`rounds`,
+  `roundsPlayed`, `duoRoleRounds`, `groupRoleRounds`); every unit in
+  the two profiles' copy says rounds; the four profile suites gained the
+  cases rounds created (two reveals on one day, a late vote in a fold, a
+  round-ordered run). And the window: the newest 14 reveals was a
+  fortnight while a reveal was a day and is two days of a pair at eight
+  a day, so `REVEAL_HIST_CAP` is 30 as a stopgap — a few days of an
+  active pair, a month of a slow one, roughly double the Roles tab's
+  cold cost — and §7.2's ledger stays the dependency, on the owner's
+  list. Untouched, and demo-only: the demo twins of the card, the person
+  overlay's read-each-other card and the Map's people module still draw
+  the day game from sample data.
 - **The screens are built from the owner's canvas** (§7.5, request 12,
   2026-09-08): nine states for a 1v1 and a group, extracted to
   `design/rounds-card-2026-09-08/` with a README that is the readable
