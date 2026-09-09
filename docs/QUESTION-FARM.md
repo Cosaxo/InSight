@@ -494,7 +494,14 @@ abort the run with no push rather than force it green.
   is not, leave the PR open and put the failure verbatim in the run's
   issue #31 comment — an open lane PR now MEANS a gate refused it, which
   is exactly what the next run's `--open` count and the roll-up rule
-  below are for.
+  below are for. (This sentence survived D385 on purpose: the
+  shepherd's retirement read as covering the lanes for two days —
+  every run 2026-09-07→09-09 stopped at a green head and waited for
+  the owner's click — until the owner ruled the lanes' self-merge
+  outside D385's scope, *"fix the manual so lanes self merge again"*,
+  recorded as the 2026-09-09 D385 amendment. A lane merges the head
+  its own run built and its own gates proved; what D385 retired was
+  merging on a label.)
 - **One open PR per lane — roll up, don't stack** (2026-08-03). If this
   lane's previous PR is still open (post-D212: its gates failed, or its
   merge was interrupted), do not open a second: check out its branch,

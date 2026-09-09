@@ -46813,3 +46813,55 @@ Merged, not decided:
 Each half is its own merge commit and each of the two fixes is its own
 commit; the pull request is one squash. Reverting this record's tree
 restores `main` at `a2ac97e`.
+
+## D385 amendment (2026-09-09) · The content lanes' self-merge is D212's, outside D385's scope
+
+**2026-09-09.** Owner, ruling on the conflict the lane session filed on
+issue #31 on 2026-09-07: *"fix the manual so lanes self merge again."*
+**Status:** binding — the second correction to D385's blast radius,
+and the same finding as the first: a rule written to retire one broken
+mechanism read as covering an actor it never named.
+
+### The conflict, as filed
+
+D385 retired the PR shepherd and wrote *"no lane merges, so no lane
+needs the merge tool."* `docs/QUESTION-FARM.md` § The PR — older, and
+the contract every content-lane run re-reads before acting — still
+instructed *"merge it yourself, on green, in the same run (D212)."*
+The lane session met both sentences on 2026-09-07, took the
+conservative half (merging past a fresh owner rule being the
+unrecoverable direction), stopped every run at a green head, and put
+both resolutions to the owner on #31. Cost, measured: Monday's four
+lane PRs and Wednesday's six (#446–#450, #452) each waited on an owner
+instruction; Wednesday's six were then merged in-order by per-head
+instruction, each after a fresh main-merge and figure re-run — the
+exact chain D212's flow performs unprompted, spread over an afternoon
+instead of landing behind each run.
+
+### The ruling
+
+The content lanes — farm, catalog, learn, feed, duel, now — resume
+D212's self-merge: on green, squash, in the same run, per
+`docs/QUESTION-FARM.md` § The PR, which stands as written. What D385
+retired was a lane merging on a LABEL, unattended, with no gates of
+its own and no head it had built; a content lane merges the head its
+own run just produced, after its own full gate sweep and CI success on
+that exact sha, and an open lane PR still MEANS a gate refused it.
+D385's *"no lane merges"* clause and the first amendment's
+*"`mcp__github__merge_pull_request` granted to no scheduled lane"* are
+narrowed accordingly: they name the program's engineering lanes — the
+shepherd's kind — not the content lanes. `CLAUDE.md`'s merged-by-hand
+rule carries the exception in the same breath, and § The PR's sentence
+now cites this record so the two documents can no longer be read
+against each other.
+
+### What does not change
+
+Everything else in D385 and its first amendment stands: no Action, no
+label that merges anything, nothing acts on a MERGE-LIST tick, a
+non-lane PR is merged by hand or by per-head owner instruction, and an
+instruction to merge is for the head it was given about. The lanes'
+own merge discipline is unchanged too: never merge a failing or
+pending check, never re-run a job to outwait a real failure, never
+push an empty commit to kick CI — a head a run cannot get green is
+left open and reported on #31 (hard rule 7).
