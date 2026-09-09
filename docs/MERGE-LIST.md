@@ -40,13 +40,14 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-09T18:46:00Z -->
+<!-- console:generated 2026-09-09T18:59:25Z -->
 
 ## Open
 
-- [ ] **#462** · a session · *what:* Builds one half of `docs/OWNER-LIST.md`'s row **"The group as a cast — what happens to the eighteen older group questions?"** on the owner's 2026-09-09 answer (the session's recom… · *how:* The other half, flipping `active` on the documents already on `v2_questions`, is the owner's console click and is not touched here. · CI running (9 pending) · 2 behind main · opened 2026-09-09 · stage **new**
-- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 18 behind main · opened 2026-09-09 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 207 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#464** · a session · *what:* Builds the owner's 2026-09-09 answer to the `OWNER-LIST.md` row *"The nightly voter samples have never held anyone who answered before they existed — pay ~23,000 reads once to see… · *how:* Recorded as **D442** (D440 and D441 are unclaimed on `main`; `check:docs` prints them as a note, not a failure, and the task named D442). · CI green (9) · 1 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#463** · a session · *what:* The owner's answer to the `OWNER-LIST.md` § Decisions row *"Should the email door ask too?"* was **add it** (2026-09-09). · *how:* This PR is that answer, recorded as **D441** — D440 is held by the open #460, so D441 was the next free number; `check:docs` prints the D440 hole as a note, not a failure (D408). · CI green (9) · 1 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 20 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 209 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
 
@@ -64,6 +65,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#462** · content: the ten plain picks get a sixth pack — Any Given Evening (D444) · merged 2026-09-09
 - **#461** · Directory row: the owner may delete it — clearing your name unlists you (D440) · merged 2026-09-09
 - **#209** · Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · merged 2026-09-09
 - **#272** · Build(deps): bump firebase-admin from 14.2.0 to 14.3.0 in /functions · merged 2026-09-09
@@ -119,4 +121,3 @@ merge shift like any other PR.
 - **#419** · The first launch explains the app: a five-page walkthrough before the questions, and a row to see it again (D393) · merged 2026-09-06
 - **#422** · Runbook 4.4 closed: the privacy label is published · merged 2026-09-06
 - **#421** · The 2026-09-06 vision built: ink on paper, all six steps (D390–D392) · merged 2026-09-06
-- **#420** · The pick card browses every catalogue, paged; the learn reveal's crowd share is a strip, not a lit row; the field's Change door is pinned (D389) · merged 2026-09-06

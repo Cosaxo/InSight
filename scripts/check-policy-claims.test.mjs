@@ -27,6 +27,7 @@ const RETIRED_WORDING = new Map([
   ["D98 · the retired circle-scoped reveal audience is gone", "then the members of that group"],
   ["D98 · group takes are world-readable too, not circle-scoped", "Your group takes: that group"],
   ["D98 · …and the retired member-scoped wording is gone", "to a group&rsquo;s members when posted there"],
+  ["D441 · the retired email-door caveat is gone", "With an email address it does not"],
 ]);
 
 describe("check-policy-claims", () => {

@@ -92,19 +92,30 @@ const rulesTests =
   + countTests("firestore-tests/storage.rules.test.ts");
 
 // The seeded question bank. `functions/src/v2content.ts` is generated data
-// — one flat array of objects, each with a literal "id" and "surface" — so
-// counting the keys is exact rather than approximate. If that file ever
-// stops being generated and someone hand-writes an entry across lines, the
-// count still holds: the scan matches the key, not the object shape.
+// — one flat array of objects, each with a literal "surface" — so counting
+// that key is exact rather than approximate. If that file ever stops being
+// generated and someone hand-writes an entry across lines, the count still
+// holds: the scan matches the key, not the object shape.
+//
+// The TOTAL is parsed, not scanned, and the difference is 52 documents.
+// This line counted `"id":` keys until D444, which was exact while every
+// id in the file was a document's — and D434 gave a role vote a nested
+// `scen.id` and `role.id`, so from that day the scan ran 44 over the bank
+// (twenty-two role votes, two ids each) and every sentence this gate holds
+// was "corrected" to the over-count. The sixth pack's four votes moved it
+// to 52, which is how it was noticed: a change that added no question
+// moved the figure by eight. `bankArray` is the parser the rest of this
+// file already trusts, and its length is `V2_QUESTIONS.length` — the
+// number `seedContent()` reports back to an operator, so the one they
+// check a seed run against.
 //
 // Two figures rather than one because they answer different questions.
-// The total is what `seedContent()` reports back to an operator, so it is
-// the number they check a seed run against. The daily count is the runway
-// figure the launch plan reasons about — 90 questions is ~13 weeks at the
-// promotion cadence — and the two move independently.
+// The total is the seed's; the daily count is the runway figure the launch
+// plan reasons about — 90 questions is ~13 weeks at the promotion cadence
+// — and the two move independently.
 const v2content = read("functions/src/v2content.ts");
 const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m[1]);
-const seededQuestions = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+const seededQuestions = bankArray(v2content).length;
 const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
 // The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than

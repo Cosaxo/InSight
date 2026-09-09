@@ -48232,6 +48232,257 @@ else reads by that path; zero new reads. The new arm is two predicates,
 both seen refusing, so `rules-coverage` stays at its baseline; the arm
 is not on the answer create path, so no `rules-budget` pin moves — both
 measured on the branch, and the counts are in the PR body.
+## D444 · The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's
+
+**Date:** 2026-09-09 · **Status:** binding, built in the bank; the live
+documents are the owner's. Builds one half of `OWNER-LIST.md`'s row *The
+group as a cast — what happens to the eighteen older group questions?*,
+on the owner's answer of 2026-09-09 through the session's recommendation,
+accepted: the plain picks get **a sixth pack of their own rather than
+being retired**. The other half — flipping `active` on the documents
+already on `v2_questions` — is a console click and is not taken here.
+
+### What the ten were
+
+The group pool's `pick` kind from D40: a question with no options, the
+members as the ballot, the reveal naming one — `Who gives the best
+advice?`, `Who secretly runs this group?` — eight in the bank at D434
+(`gp0`–`gp7`) and ten after the lane's last run in the older shapes
+(`gp8`, `gp9`, `main`'s #450). Since the cast (D434) they dealt with no
+pack: `duelQFor` walks every `pick` on the surface, so a room drew *Who
+would you call from jail at 3am?* with no kicker, no role and no seat,
+between Bank Heist and Desert Island. The owner's 2026-09-09 design has
+no such round (D436 §3.7: the bank is packs and ratings alone), which
+is why the row put the two shapes side by side: retire them, or give
+them the pack a role vote is missing.
+
+### Why a pack rather than retirement
+
+A plain pick is already a role vote in everything but the kicker. Its
+options are the members (D40), the snapshot of whom an index meant is
+D224's, the rules fall through to the member count, the reveal names one
+person — D434's finding, one step further: the mechanism existed and the
+content lacked two fields. So the pack costs `scen` and `role` on the
+entry and moves nothing in the write path, the rules, the trigger or the
+reveal, while retiring the ten would have thrown away eight questions
+whose answers are already on live keyed to them (D30, D52). The
+recommendation was the cheaper half and the owner took it.
+
+### The pack, and the arithmetic that sized it
+
+**Any Given Evening** (`evening`, hue 335 — the widest gap the five hues
+leave, between Road Trip's 60 and Bank Heist's 25 the long way round):
+the scenario a plain role vote already has, which is no scenario — the
+group on an ordinary night, nobody robbing a bank.
+
+A pack is **four roles, one a seat** (D437; `check:content` refuses two
+active roles in one seat or a seat empty; QUESTION-FARM § The duel lane
+says it in the lane's contract). Ten does not divide into four seats, so
+the contract sizes the pack at four and the other six leave the
+rotation — the row's own alternative, applied to the six the pack cannot
+hold. Which four: the one that fills each seat best, chosen so the four
+read as one evening's cast.
+
+| seat | qid | prompt (unchanged) | role |
+| --- | --- | --- | --- |
+| engine | `gp5` | *Who secretly runs this group?* | **the ringleader** |
+| hands | `gp3` | *Who would you call from jail at 3am?* | **the 3am call** |
+| heart | `gp2` | *Who gives the best advice?* | **the voice of reason** |
+| wild | `gp4` | *Who changes the plan at the last minute?* | **the curveball** |
+
+**The four keep their qids.** Joining the pack changes neither a
+question's options (the members, as before) nor its meaning (the prompt
+is untouched; the role label is a name for the answer the prompt already
+asked for), so it is a field merge and not the D30/D52 retirement-plus-
+new-entry that D437's two role changes were — those changed the prompt.
+`seedOptionConflict` (D58) has nothing to refuse on an empty option set,
+and the seed merges `scen` and `role` onto the four live documents on the
+owner's next *Seed content*; every answer stored against `gp2`–`gp5`
+reads exactly as it did. The four sit where they were in the array, so a
+live room's walk through the `picks` pool does not move on the reseed.
+
+**Six retired** (`active: false`, D52's shape), each with the seat it
+would have taken, so a seventh pack is a declaration and one line each
+if the owner wants one — the prompts stay in the bank, and one re-seat
+would be needed (no wild among them):
+
+- `gp0` *Who'd survive longest in the wild?* — hands
+- `gp1` *Who replies to the group chat within a minute?* — engine
+- `gp6` *Who would win a group argument on a technicality?* — hands
+- `gp7` *Who tells the same story every time, and it still lands?* — heart
+- `gp8` *Who would survive longest without their phone?* — hands
+- `gp9` *Who's secretly keeping the group together?* — heart
+
+Two of the six lost a seat to a near twin: `gp9` is the heart's own line
+asked as a question, and `gp1` is an engine, but `gp5` and `gp9` are the
+same *secretly* frame twice, which in a pack of four reads as one
+question asked again — so the pack keeps `gp5` (the row's own example)
+and the voice of reason. **The six carry no pack and no seat on
+purpose.** A retired entry tagged with a pack would draw the kicker onto
+the reveals of rounds it was played in as a plain pick, and the seed
+would write the pack onto its live document while `active` stayed the
+owner's — so the interval between the reseed and the flip would deal Any
+Given Evening with three hands. Untagged, the six deal on live exactly
+as they do today until the owner's click, and not at all after it.
+
+### What the flip is, precisely
+
+The seed never rewrites `active` after create (D40 part 4's rule, in
+`runSeedV2`), so the bank's six retirements reach a seeded document
+never: `gp0`, `gp1`, `gp6` and `gp7` keep dealing on live until the
+console flip, and `gp8`–`gp9`, which the seed has not yet written (the
+reseed row is open), are created retired. The row says so, dated. This
+record retires nothing in production.
+
+### What moved with it
+
+- **The demo sample** (`content/duel-sample.json`, `build:duel-sample`):
+  the four precede `gr0` in bank order, so the sample's eight role votes
+  are Any Given Evening and Bank Heist (they were Heist and Island), and
+  `PER_KIND.pick` is 0 — no pick without a pack is served, and the demo
+  never played one (D437). Eighteen group entries from twenty-one, two
+  packs still, 10.2 KiB.
+- **`content/README.md`** (twenty-six role votes, six packs, thirty in
+  the older shapes, eleven retired), **QUESTION-FARM**'s pack list, and
+  the row.
+
+### One thing the build found the hard way
+
+`check:figures` went red on a change that added no question, asking for
+the bank to be written up as **1350**. Its bank count was a regex over
+every `"id":` key in `functions/src/v2content.ts` — exact until D434 gave
+a role vote a nested `scen.id` and `role.id`, and 44 over the bank from
+that day, with every sentence the gate holds "corrected" to the
+over-count at D434 (*1 145 → 1 215 docs*). The four new votes moved it by
+eight, which is how it surfaced. The count is `bankArray(…).length`
+now — the parser the rest of the gate already trusts, and
+`V2_QUESTIONS.length`, the number `seedContent()` reports — and the
+eleven sentences (LAUNCH-RUNBOOK, SHIP-CHECKLIST, SCHEMA-V2, COSTS, the
+`engagement.ts` fence comment) read **1298**, which is what
+`check:content` has printed all along. COSTS' wire size moved for real,
+382.4 → 383.0 KiB: four `scen` and `role` maps.
+
+### Measured
+
+`check:content` 1298 (group 66, unmoved — nothing was added);
+`check:duel-sample` 18 group (2 packs) · 13 · 13 of 66 · 41 · 34;
+`check:quality` 1271, all bounds hold; `check:neighbors` duel 128,
+closest 0.400 (`gp2` ~ `047`, as before — no prompt changed);
+`check:taxonomy`, `check:labels` (12 references, 96 files),
+`check:seed-fields` (45 fields), `check:eager-content` (93 modules, 4
+content), `check:public-copy` (273 strings, the 12 duel surfaces in the
+owner's voice) green; `check:figures` 106 figures across 314 files with
+the bank at 1298; `check:docs` 440 decisions indexed; `check:globals`
+28, unmoved; `test:scripts` 74 files, 1286 tests; `test:unit` 207
+files, 3016 tests; `test --prefix functions` 39 files, 837 tests;
+`lint` clean. `test:e2e:all` is CI's, as every record since D426's
+third amendment says of this sandbox.
+
+### What this record does not decide
+
+The flip on the live documents; a seventh pack for the six; the reseed
+itself, which is the same owner click as the cast's.
+## D441 · The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again
+
+**Date:** 2026-09-09 · **Status:** Adopted — the owner's answer, 2026-09-09,
+to the `OWNER-LIST.md` § Decisions row *"Should the email door ask too?"*:
+**add it.** Amends
+[D414](#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why)
+§3, whose sentence — *signing in to an account that already exists … is
+a second, named tap with the consequence written on it, never what the
+first tap does* — was true of two doors and not of the third.
+
+### 1 · What was measured (night shift B, 2026-09-07)
+
+`fly("apple" | "google")` catches `auth/credential-already-in-use` and
+shows the in-use screen — *"That account already has an InSight history.
+Signing in to it leaves this phone's answers behind — they are not
+merged"* — with a labelled second tap and a way back. The email door
+never reached it: `emailSignIn` called `signInWithEmailAndPassword`
+directly, the auth observer saw a new uid, and `resetForNewUid` purged
+the session. No screen, no second tap, nothing to go back to. And the
+gate STEERED people there: a create that failed with
+`email-already-in-use` rendered *"Sign in instead"* as the way on, so the
+one door with no warning was the one the app pointed at.
+
+The night shift did the half it could do alone. `web/privacy.html` had
+promised the warning for all three doors, which was false, so the page
+was made to state the difference and four `check:policy-claims` rows
+went under the section (before that night the whole account section
+could be deleted at exit 0). The other half — a confirmation step on the
+primary sign-in path of the wall — is a product change, and it went to
+the owner as the row.
+
+### 2 · What ships
+
+**The condition, not an error.** Apple and Google learn that an account
+exists from Firebase refusing the link. A password sign-in has no link
+to refuse — the call *is* the replacement — so the email door asks on
+the condition instead: in sign-in mode, while the session is anonymous
+and unlinked (`!LIVE.linked` at the gate, where `SignInGate` mounts the
+screen only for an unlinked session and `initLive()` has already signed
+it in), the first tap opens the existing in-use screen and makes no
+call. The second tap — the same *"Sign in and leave this phone's
+answers"* button the other two doors use — runs `emailSignIn`. *"Use a
+different account"* goes back to the form, still filled.
+
+**A failed second tap comes back to the form.** A wrong password or an
+unknown address answers on the door, through the same `FAILURES` table
+as before, because the way out those name — *Forgot password?*, a
+retyped address — is a control the form has and the in-use screen does
+not. The next *Sign in* asks again: a wrong password does not spend the
+acknowledgement, and the cost of that is one tap on a retry.
+
+**The page promises the warning again, and the gate holds it.**
+`web/privacy.html` § The account says the app says so on the screen
+before it happens whichever of the three doors you use, and that it
+takes a second tap. The fourth `check:policy-claims` row of the section
+now pins that sentence, relabelled to this record, and a fifth — an
+absence row — forbids the retired caveat, *"With an email address it
+does not"*, from coming back. Page and gate move in the same commit as
+the code, which is the D183 order.
+
+**Pinned.** `LiveSignInGate.test.tsx`: an anonymous session tapping
+*Sign in* — reached the way the row named, create → *taken* → *Sign in
+instead* — sees the warning with no call made and a way back onto the
+filled form; a linked session is not asked (the one case that renders
+the screen without its wrapper, because the wrapper never mounts it for
+a linked session, so that arm is observable nowhere else); the second
+tap makes the call with the typed credentials; a failed second tap lands
+on the form with *Forgot password?*. Run against the tree before this
+record, four of the suite's twenty-six cases fail — the one that expects
+the ask, the two whose sign-in is the second tap, and the failure case
+that expects the form — and the linked-session case is green on both
+trees, which is what it is for.
+
+### 3 · What it deliberately does not do
+
+- **No acknowledgement memo.** A flag remembering the second tap across
+  a retry would save one tap on a wrong password and be one more piece
+  of state on the wall's worst screen. Asking again is one rule for
+  every attempt.
+- **`firebaseImpl.ts` § emailSignIn is untouched.** The row named it as
+  a possible seam; it is not one. The function is the SDK call and
+  nothing else, and the gate is its only caller — verified, one site. A
+  condition there would need a bypass for the second tap, which is a
+  second way to sign in.
+- **No new store member.** The condition reads `LIVE.linked`, which
+  exists and is pinned by `vote.test.ts`; nothing joins the
+  `window.LIVE` surface.
+- **The copy is the existing screen's, unchanged.** *"That account
+  already has an InSight history"* is what signing in means; at the
+  email door it is read before the password is checked, and a wrong
+  password answers on the form.
+
+### 4 · The arithmetic
+
+One tap more on one path — a password sign-in from an anonymous session
+— and none on create, Apple or Google. Zero reads: nothing is fetched
+before the second tap that was not fetched before. The screen is a lazy
+chunk (`SignInGate`'s header), so the eager graph does not move.
+
+**Measured before the push:** the gates and their counts are in the PR
+body.
 ## D442 · The nightly voter samples are seeded on first touch: one bounded query per question, once, at most 25 a night
 
 **2026-09-09.** **Status:** binding. The owner's answer to the
