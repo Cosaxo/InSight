@@ -38,6 +38,7 @@
     "check:panel-suites": "node scripts/check-panel-suites.mjs",
     "check:purge": "node scripts/check-purge-listeners.mjs",
     "check:cities": "node scripts/check-cities.mjs",
+    "check:pick-crowds": "node scripts/check-pick-crowds.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
     "check:elements": "node scripts/check-elements.mjs",
