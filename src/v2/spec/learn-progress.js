@@ -2,13 +2,15 @@
 // revision). THIS file is the live source now, hand-edits and all.
 // OFF THE GLOBAL BRIDGE (D109): `LEARN` is a named export, and the content
 // it folds arrives as imports rather than as globals this file hoped had
-// already been assigned. `window.LIVE` (see below) is the one cross-module
-// global left here, read at call time.
+// already been assigned. The store followed at D354 (`LIVE` below) — read
+// at call time in `answer`, and deliberately NOT for the module-scope seed,
+// which keys off the build flag (see LIVE_BUILD).
 import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';
 // Which build's cards these are (D284). `LEARN_CARDS` above is the demo
 // SAMPLE now — five a field, compiled in so the demo build has something
 // to serve — and a live build's bank arrives here after boot.
-import { learnCards, subscribeLearnBank } from '../data/learnBank.ts';
+import { learnCards, learnFieldTotal, subscribeLearnBank } from '../data/learnBank.ts';
+import LIVE from '../data/live';
 
 // learn-progress.js — the engine behind Learn. Three ideas, no more:
 //
@@ -63,7 +65,7 @@ export const LEARN = (function () {
   SUBJECTS.forEach((s) => { SBY[s.id] = s; });
 
   const listeners = new Set();
-  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } });
+  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } });
 
   // The live bank, when it lands (D284). `hydrate()` publishes it well
   // after this module evaluated, so the pool is re-read and the two card
@@ -90,7 +92,7 @@ export const LEARN = (function () {
   // …in the DEMO build only. A live build starts Learn at its real zero
   // (D32): the map claims mastery of what you actually answered, and six
   // pre-known cards would be fabricated activity (D1). Gated on the build
-  // flag rather than window.LIVE.enabled because this seed runs at module
+  // flag rather than LIVE.enabled because this seed runs at module
   // scope, before the live boot has attached — the same signal live.ts's
   // demoInProd reads.
   const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
@@ -209,8 +211,8 @@ export const LEARN = (function () {
     // moment that measures difficulty rather than the scheduler's own
     // retries. Later attempts stay in this file's localStorage, and the
     // create-only answer rule refuses them server-side anyway.
-    if (!was && window.LIVE && window.LIVE.enabled && window.LIVE.learnAnswer) {
-      window.LIVE.learnAnswer(id, pick);
+    if (!was && LIVE.enabled) {
+      LIVE.learnAnswer(id, pick);
     }
     const cur = was ? { ...was } : { s: 'new', k: 0, seen: 0, miss: 0, pos: -99, at: 0 };
     const wasKnown = cur.s === 'known';
@@ -253,7 +255,12 @@ export const LEARN = (function () {
     subject: (id) => SBY[id] || null,
     fieldsOf: (sid) => FIELDS.filter((f) => f.subject === sid),
     card: (id) => BYID[id] || null,
-    total: (fid) => (BYF[fid] || []).length,
+    // The BANK's count where the published order carries one (D320): the
+    // live pool is a page since learn left the boot fetch, so counting it
+    // here would claim the page size — the exact under-count D283 was
+    // reported as. Null (demo, or order not yet loaded) falls back to the
+    // pool, which is then the whole truth.
+    total: (fid) => learnFieldTotal(fid) ?? (BYF[fid] || []).length,
     hueOf, colorOf,
     mine: () => F.map((id) => FBY[id]).filter(Boolean),
     has: (id) => F.indexOf(id) >= 0,
@@ -275,7 +282,10 @@ export const LEARN = (function () {
       const cs = BYF[fid] || [];
       let known = 0, learning = 0;
       cs.forEach((c) => { const s = st(c.id); if (!s) return; if (s.s === 'known') known++; else learning++; });
-      return { known, learning, total: cs.length };
+      // Same bank-over-pool rule as total() above: known/learning are
+      // device truth (the pool holds every card with history, by the
+      // pager's cache rule), but the denominator is the bank's.
+      return { known, learning, total: learnFieldTotal(fid) ?? cs.length };
     },
     reset: () => { S = { c: {}, lvl: {}, pos: 0, order: [] }; save(); },
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },

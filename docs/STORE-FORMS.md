@@ -13,6 +13,19 @@ holds the reasoning for the three that bite.
 Re-derive this file if any of these change: a new stored field, a new SDK,
 the takes surface going live, or product analytics being added.
 
+**Re-derived 2026-08-26 for D322 (the interest profile, D317 phase 1).**
+New stored field: `v2_users/{uid}/taste/profile` — feed answers counted
+by topic, server-derived nightly, owner-readable only, used to size the
+feed's topic pages (D321). **One answer moves**: User Content → Other
+User Content gains the **Product Personalisation** purpose beside App
+Functionality, because content selection is now personalised from that
+content — the honest reading of Apple's purpose list. Collected/linked/
+tracking all unchanged (the profile is an arrangement of answers already
+declared; nothing new leaves the device — behaviour stays out until
+D317 phase 2, which must re-derive this file). Play's parked form (D42)
+gains the matching "Personalization" purpose on its answers rows when it
+is actually filed.
+
 **Re-derived 2026-08-06 for D57 (verified logic attempts).** New stored
 fields: `testResults.logic` (server-written verified score, publicly
 readable but client-unwritable since D57/D98),
@@ -60,14 +73,14 @@ companies' apps or sites.
 
 **Every row below is therefore "Not used for tracking".**
 
-### Collected — declare these eight
+### Collected — declare these eleven
 
 | Apple category | Type | Linked? | Purpose | What it actually is |
 | --- | --- | --- | --- | --- |
 | Identifiers | **User ID** | Yes | App Functionality | The Firebase uid, anonymous by default (D3) — every install becomes one at first paint — **and the handle since D122**, which Apple's own definition of this type names ("any screen name, handle, account ID …"). See the note below the table |
-| Contact Info | **Email Address** | Yes | App Functionality | Only if the user links Google. See the warning below |
+| Contact Info | **Email Address** | Yes | App Functionality | **Every account since D414** — the wall takes an address through all three doors, so this stopped being conditional the day the wall went up. It was "only if the user links Google" until then, and that is what both copies still said. See the warning below |
 | Contact Info | **Name** | Yes | App Functionality | Optional display name, shown in group and duel reveals |
-| User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
+| User Content | **Other User Content** | Yes | App Functionality, Product Personalisation (D322) | Answers and test results, the anchors each answer was given under, and question suggestions (D138). The personalisation purpose is the interest profile: feed answers counted by topic, used to size the feed's topic pages. See the note below the table |
 | User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D178)** — shown anywhere the app shows the user's name, including to people nearby since D177. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
 | Health & Fitness | **Health** | Yes | App Functionality | **New at D203.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |
@@ -114,8 +127,10 @@ Gameplay Content · Customer Support · Browsing History · Search History ·
 Diagnostic Data · Other Data Types
 
 **Product Interaction left this list at D270** and is now a ticked row in
-the table above — not linked, the label's first and only unlinked row.
-It is called out here because the D268 bullet below spent a release
+the table above — LINKED since D272 (this sentence said "not linked, the
+label's first and only unlinked row" for two weeks after the table row
+and the bullet below it had both moved; it was true for the two days
+between D270 and D272). It is called out here because the D268 bullet below spent a release
 explaining why it was still a No, and the reasoning that mattered there —
 the row asks what is *collected from the app* — is exactly what changed:
 rung 1 collects.
@@ -139,6 +154,23 @@ door the other section closed.
 What moving it costs, stated plainly: an optional photo, off by default,
 one 256px object per account, deleted with the account (bytes included —
 `deleteAccount` reaches Storage since D178, which it never did before).
+
+**The iOS purpose strings, and why there are two of them for one control.**
+The photo is added through a plain `<input type="file">` — no camera
+plugin, no code path in this app that asks for a camera. WebKit's upload
+sheet offers one regardless: it builds its menu from the `accept`
+attribute, `image/jpeg` and `image/png` conform to `public.image`, and it
+presents the system camera in-process with no check for a purpose string,
+so iOS terminates the app on the tap. `Info.plist` therefore carries
+NSCameraUsageDescription and NSPhotoLibraryUsageDescription, and the
+mechanism is written out beside them. This changes nothing in the table
+above: the datum is the same optional photo the row already declares, and
+a photo taken with the camera is the same "Photos or Videos" as a photo
+chosen from the library. It is recorded here because this is where a
+reviewer will look for it, and because §"Facial symmetry" below reasons
+about camera capture — the app can now be handed a camera photo, and still
+does no face processing of any kind, which is what that refusal was about.
+Android needs no permission for a file input, so its manifest is unchanged.
 
 Four of those are worth knowing *why*, because each looks tickable:
 
@@ -293,10 +325,22 @@ Firebase Auth is your server.
 
 **Never say that line to a reviewer while the nutrition label declares
 Email Address** — a listing that contradicts its own developer response is
-a worse problem than the one the sentence was trying to solve. The rest of
-the 4.8 reply stands and is the strong part: the primary path is anonymous,
-no account is required to use the app, and Google is an optional upgrade
-rather than a login wall.
+a worse problem than the one the sentence was trying to solve.
+
+**And the rest of that reply is retired too, as of D414 (2026-09-07).** It
+argued three things — that the app's primary path was anonymous, that no
+sign-in stood between a user and the questions, and that Google was an
+optional upgrade rather than a login wall. Each was true when written and
+none is now: the app requires an account. The wording is deliberately
+paraphrased rather than quoted, because `check:public-copy` scans this
+file and a verbatim copy of a retired claim is a claim somebody can still
+paste into a developer response.
+
+This was the THIRD place that reply lived, after `SHIP-CHECKLIST.md` and
+`LAUNCH-RUNBOOK.md`, and it is the copy that survived D414's own sweep of
+the other two. The gate holds the vocabulary now, so a fourth cannot
+outlive a fifth sweep. Guideline 4.8 is answered by Sign in with Apple
+leading the gate, not by argument.
 
 If you would rather the claim were true than the label complete, that is a
 code change and not a forms change: request no scopes at all, accept that
@@ -335,15 +379,25 @@ reaches users.
    names. That is user-generated content and social interaction on any
    version of this form, whatever the content questions say.
 2. **Coarse location exists** (D9, optional). Answer consistently with §1.
-3. **Free text is live at both scopes.** Circle takes with names since
-   D78 part 1 (2026-08-09); world takes since D83 (2026-08-10) —
-   **anonymous by construction** (no author names rendered, one take per
-   person per question), behind ENFORCED moderation (`MOD_ADVISORY =
-   false`) with report and per-author mute. This fact has moved twice:
-   "no live free-text surface" → "circle-scoped" (D79) → "both scopes,
-   world anonymous" (D83) — which is why
-   `messagingAndChat` is `true` (D79) while `EMAILS_OR_TEXT_MESSAGES` stays
-   unticked.
+3. **Free text is live at both scopes, and NAMED at both.** Circle takes
+   with names since D78 part 1 (2026-08-09); world takes since D83
+   (2026-08-10), carrying their author's name since D98 (2026-08-16), one
+   take per person per question, behind ENFORCED moderation
+   (`MOD_ADVISORY = false`) with report and per-author mute. This fact has
+   moved three times: "no live free-text surface" → "circle-scoped" (D79)
+   → "both scopes, world anonymous" (D83) → "both scopes, both named"
+   (D98) — which is why `messagingAndChat` is `true` (D79) while
+   `EMAILS_OR_TEXT_MESSAGES` stays unticked.
+
+   It said **anonymous by construction** here until 2026-08-30, two weeks
+   after D98 named every world take. That is a claim about the app made to
+   a store reviewer, and the file it is mirrored into contradicted itself:
+   `$guideline12` in `app-privacy.json` has said "D98 makes every take
+   named at world scale" since the day it shipped. What answers guideline
+   1.2 for the world surface is the kit — enforced moderation, report,
+   per-author mute — and never anonymity, which was always a client-side
+   string choice rather than a rule (`authorUid` has been on the take
+   document and readable all along).
 
 ### Every answer, keyed by the field Apple actually stores
 
@@ -448,9 +502,27 @@ answers came from:
   health topic. The nearest real candidate is the personality and politics
   profiles, and neither is health or wellness.
 
-Also **Made for Kids: No**, and **In-app purchases: No** — `MONETIZATION.md`
-records no consumer paid tier at launch. Neither is an
-`ageRatingDeclarations` attribute, so neither is in the table.
+Also **Made for Kids: No**, and **In-app purchases: No** — there are no
+StoreKit products, which is what that field asks about.
+
+**The answer stands; the reason it used to give does not.** It read
+"`MONETIZATION.md` records no consumer paid tier at launch", which went
+stale at D313: there IS a paid tier now — a buyer books a question or a
+feed ad and pays through Stripe — it is simply B2B and off-StoreKit.
+Same answer, dead reasoning, which is the D179/D183 shape exactly. Where
+that purchase surface may live without the stores taking a cut of it is
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md), and SHIP-CHECKLIST § 3 carries
+it as a pre-submission decision.
+
+Neither is an `ageRatingDeclarations` attribute, so neither is in the
+table.
+
+**Play's equivalent declaration answers No for the same reason** — there
+are no Google Play Billing products either. But the two stores do not ask
+the same second question: whether Play's *Payments* policy **requires**
+that sale to use its billing system is separate, open, and disposed of by
+neither declaration. [`PLAY-RELEASE.md`](PLAY-RELEASE.md) §3.4 has it, and
+`STORE-CUT-PLAN.md` above is the same subject from the Apple side.
 
 **Expect 12+ / 13+.** Answer it deliberately rather than accepting a
 default.
@@ -507,8 +579,9 @@ same inventory and should not be re-derived in a hurry.
 | Personal info → Political or religious beliefs | Yes | No | Optional | App functionality |
 | Personal info → Gender | Yes | No | Optional | App functionality |
 | Location → Approximate location | Yes | No | **Optional** | App functionality |
-| Location → Precise location | **Yes** (D175) | App Functionality | Not linked to identity beyond the account | No |
-| App activity, Web browsing, Contacts, Photos, Financial, Purchases | **No** | — | — | — |
+| Location → Precise location | **Yes** (D175) | No | **Optional** | App functionality |
+| Photos and videos → Photos | **Yes** (D178) | No | **Optional** | App functionality |
+| App activity, Web browsing, Contacts, Financial, Purchases | **No** | — | — | — |
 | App info & performance → Crash logs | Yes | No | **Required** (on with no in-app switch since D211 — Play's "users can choose" definition no longer holds, so the honest answer moved from Optional to Required with it) | App functionality |
 | Advertising ID / any ads box | **No** | — | — | — |
 
@@ -521,6 +594,55 @@ Play additionally asks two things Apple does not:
 Play asks whether location is *required*: it is **optional**. Declining
 leaves the city picker working, and the app never prompts unless the
 button is tapped.
+
+**Three corrections to this table, found 2026-09-01 while assessing the
+Play path ([`PLAY-RELEASE.md`](PLAY-RELEASE.md)). The first is made; the
+other two are flagged rather than made, because they are re-derivations
+and this page's own rule is that `data-inventory.md` is canonical.**
+
+1. **The Precise location row had its columns transposed** against the
+   header — it read `Yes | App Functionality | Not linked to identity
+   beyond the account | No`, which put a purpose in the Shared column, a
+   note in the Optional column and "No" under Purpose. Corrected above to
+   `Yes | No | Optional | App functionality`, matching the Approximate
+   location row directly over it and the paragraph directly under it.
+   The dropped note — *not linked to identity beyond the account* — was an
+   Apple-ism: Play's form has no "linked" column, so there was nowhere
+   for it to go. What it was reaching for is real and belongs in prose:
+   the coordinate is folded to a 0.002° cell on the device and the fix
+   itself discarded (D175).
+
+2. **The App activity row is stale against D270/D272 and reads as an
+   under-declaration** — the direction that gets an app pulled. It files
+   the whole group **No**, but §1's Apple table carries *Usage Data →
+   Product Interaction* as **collected at D270 and linked at D272**, in
+   two shapes (the anonymous device tally, and the per-account day
+   rollup). Play's *App activity → App interactions* is the row that
+   answers to the same facts. Re-derive it from `data-inventory.md`
+   before filing; do not transcribe this table's **No**.
+
+3. **The Purchases row postdates its own answer.** It files **No**, and
+   §1's not-collected list agrees for Apple's *Purchase History*. Since
+   D313/D315 the app records purchase contracts (`v2_purchases`, read by
+   their buyer). Whether that is Play's *Financial info → Purchase
+   history* is a genuine question rather than an oversight — the buyer is
+   a sponsor rather than a consumer, and no payment instrument reaches
+   this tree — but it is a question nobody has answered on the record,
+   and both stores' rows were derived before the sale existed.
+
+**None of these is what §4 of `PLAY-RELEASE.md` is asking for.** The
+reason a transposed row survived in a file this careful is that nothing
+can read it: `check:store-forms` holds `app-privacy.json` equal to §1–2
+and this section has no machine-readable twin. Points 2 and 3 are the
+same absence one step further out — a Play answer can go stale against a
+decision and no gate is watching.
+
+Play's data-safety **Advertising ID** row is a different question from
+the store listing's **Contains ads** declaration, and they now diverge:
+no advertising ID is collected (the row stays **No**), while the app does
+carry paid placements since D315 (the listing declaration is **Yes**).
+Keeping them apart is the point — one is about an identifier, the other
+about the presence of ads.
 
 ---
 

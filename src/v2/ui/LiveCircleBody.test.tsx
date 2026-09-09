@@ -22,11 +22,21 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
   uid: "u_me",
   subscribe: () => () => {},
   loadCircle: async () => {},
   circle: () => [] as Array<Record<string, unknown>> | null,
   circleLoading: () => false as boolean,
+  // The follow list, which is the circle's SIZE — the fold below drops
+  // anyone whose answers read was refused, so `circle()` is the survivors
+  // and this is who you actually follow. Null is "no follow cache", where
+  // the header falls back to what it can see.
+  follows: () => null as string[] | null,
+  budgetPaused: false as boolean,
   aggregated: () => [] as Array<Record<string, unknown>>,
   aggFor: () => null,
   myVotes: () => ({}) as Record<string, string>,
@@ -46,15 +56,90 @@ const { default: LiveCircleBody } = await import("./LiveCircleBody");
 // @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
 const { IS_TESTS } = await import("../spec/test-definitions.js");
 
+// A member as the fold hands one over — only the fields the header and
+// the field read. Local to these cases: the richer helper further down
+// belongs to the tab-row block and carries its own answers.
+const placed = (uid: string) => ({
+  uid, name: uid, mutual: false, like: { pct: 50, same: 5, shared: 10 }, answers: {},
+});
+
 beforeEach(() => {
   LIVE.circle = () => [];
   LIVE.circleLoading = () => false;
+  LIVE.follows = () => null;
+  LIVE.budgetPaused = false;
   LIVE.testFeedItems = () => [];
   LIVE.myTestResults = () => ({});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => {
+  it("counts the people you FOLLOW, not the ones whose answers could be read", () => {
+    // data/circle.ts drops a member whose answers read was refused
+    // (`if (!answers) return`). The header drew the survivors, so a circle
+    // of four with two refusals read "2 people" — a number with no basis
+    // and no hint that anything was missing.
+    LIVE.circle = () => [placed("u_a"), placed("u_b")];
+    LIVE.follows = () => ["u_a", "u_b", "u_c", "u_d"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText("4 people")).toBeTruthy();
+    expect(screen.queryByText("2 people"), "the survivors drawn as the size").toBeNull();
+    expect(screen.getByText(/2 placed · 2 couldn’t be read just now/)).toBeTruthy();
+  });
+
+  it("says the reads failed rather than 'Nobody yet' over people you follow", () => {
+    // Every answers read refused: the fold returns no members at all, and
+    // the header told someone with four follows that they have none. The
+    // store's own note says rebuilding the follow cache from the survivors
+    // "turned a refused read into an unfollow"; this was the same mistake
+    // one layer up, in the sentence.
+    LIVE.circle = () => [];
+    LIVE.follows = () => ["u_a", "u_b", "u_c", "u_d"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText("4 people")).toBeTruthy();
+    expect(screen.queryByText(/Nobody yet/)).toBeNull();
+    expect(screen.getByText(/Couldn’t read anyone’s answers just now/)).toBeTruthy();
+  });
+
+  it("still says Nobody yet when you really follow nobody", () => {
+    // THE CONTROL. A header that always printed the follow count would
+    // pass both cases above and then tell an empty circle it has people in
+    // it; one that always said "couldn't read" would tell a new account
+    // the app is broken.
+    LIVE.circle = () => [];
+    LIVE.follows = () => [];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/Nobody yet/)).toBeTruthy();
+    expect(screen.queryByText(/couldn’t be read/)).toBeNull();
+    expect(screen.queryByText(/Couldn’t read anyone/)).toBeNull();
+  });
+
+  it("does not say nobody follows you back when the followers read was REFUSED", () => {
+    // `mutual: null` is "we could not ask", and the fold sets it that way
+    // for the whole circle when fetchFollowersOf rejects. The sentence
+    // under the header turns that absence into a claim about other people
+    // — and the guard that stops it was added with no case: replacing
+    // `mutualsKnown` with `true` left the whole suite green.
+    LIVE.circle = () => [
+      { ...placed("u_a"), mutual: null },
+      { ...placed("u_b"), mutual: null },
+    ];
+    LIVE.follows = () => ["u_a", "u_b"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/By likeness/)).toBeTruthy();
+    expect(screen.queryByText(/nobody is told/)).toBeNull();
+  });
+
+  it("…and does say it when the read landed and nobody does", () => {
+    // THE CONTROL. A guard that never let the sentence through would pass
+    // the case above and silently delete a true thing the stop is there to
+    // say.
+    LIVE.circle = () => [placed("u_a"), placed("u_b")];
+    LIVE.follows = () => ["u_a", "u_b"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/following is one-way, nobody is told/)).toBeTruthy();
+  });
+
   it("draws the rings and you when you follow nobody", () => {
     const { container } = render(<LiveCircleBody />);
     // The drawing is the claim. Before D172 this arm replaced it with a
@@ -89,6 +174,19 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     LIVE.circleLoading = () => true;
     render(<LiveCircleBody />);
     expect(screen.getByText(/Loading your circle/i)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t load/i)).toBeNull();
+  });
+
+  it("says PAUSED under the read breaker, never 'couldn't load' (D332)", () => {
+    // Same null circle as the failed arm — the breaker refused the fetch
+    // rather than losing it, and the stop must say which happened:
+    // "couldn't load / it retries" promises a retry that will keep
+    // refusing until the operator releases the mode.
+    LIVE.circle = () => null;
+    LIVE.budgetPaused = true;
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/Paused for now/i)).toBeTruthy();
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
     expect(screen.queryByText(/Couldn’t load/i)).toBeNull();
   });
 });
@@ -137,17 +235,39 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
     // top — while the People tab beneath, which draws the same list in
     // rankMembers order under "By likeness", puts the other one first.
     // One screen, two answers.
+    //
+    // A third member carries the OTHER end now. Thin used to fill it, by
+    // being last in a sort that pushes small samples down — which printed
+    // "mirrors you least" over the one person in the circle who had agreed
+    // with everything. The far end is the lowest printed likeness, and Far
+    // is it.
+    LIVE.circle = () => [
+      { uid: "u_thin", name: "Thin", mutual: false, like: { pct: 100, same: 1, shared: 1, rate: 0.21 }, answers: {} },
+      { uid: "u_deep", name: "Deep", mutual: false, like: { pct: 90, same: 45, shared: 50, rate: 0.81 }, answers: {} },
+      { uid: "u_far", name: "Far", mutual: false, like: { pct: 40, same: 20, shared: 50, rate: 0.27 }, answers: {} },
+    ];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Deep");
+    expect(screen.getByText(/mirrors you least|mirrors you closest/).textContent).toContain("Far");
+    expect(screen.getByText(/mirrors you closest/).textContent).not.toContain("Thin");
+    // …and the closest is named before the least-alike, which is the
+    // direction the sentence reads.
+    const line = screen.getByText(/mirrors you closest/).textContent || "";
+    expect(line.indexOf("Deep")).toBeLessThan(line.indexOf("Far"));
+  });
+
+  it("says nothing at all when the far end is the closest member", () => {
+    // Two placed members, one of them a 1-of-1 at 100%: the top is Deep on
+    // the bound, and the lowest PRINTED likeness is Deep as well. There is
+    // no one further from you than the person being called closest, so the
+    // line has nothing true to say and does not say it. It used to name
+    // Thin — at 100% — as the one who mirrors you least.
     LIVE.circle = () => [
       { uid: "u_thin", name: "Thin", mutual: false, like: { pct: 100, same: 1, shared: 1, rate: 0.21 }, answers: {} },
       { uid: "u_deep", name: "Deep", mutual: false, like: { pct: 90, same: 45, shared: 50, rate: 0.81 }, answers: {} },
     ];
     render(<LiveCircleBody />);
-    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Deep");
-    expect(screen.getByText(/mirrors you least|mirrors you closest/).textContent).toContain("Thin");
-    // …and the closest is named before the least-alike, which is the
-    // direction the sentence reads.
-    const line = screen.getByText(/mirrors you closest/).textContent || "";
-    expect(line.indexOf("Deep")).toBeLessThan(line.indexOf("Thin"));
+    expect(screen.queryByText(/mirrors you/)).toBeNull();
   });
 
   it("says nothing when the circle is flat — nobody is closest on equal numbers", () => {
@@ -218,6 +338,60 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
 // sample floor of two rather than thirty, because a circle is not a
 // sample of anything. It is the exact set you chose, and its mean is
 // that set's mean at any size.
+// ── the Answers tab's cap says so ───────────────────────────────────
+//
+// It was the only cap in this family that did not. LiveAnswerRows offers
+// "Show N more"; the places field says how many are placed further out;
+// LiveGroupsMirrorBody writes the rule out — "a cap that silently eats
+// rows reads as that is all of them". Here the tab is labelled "Answers",
+// so a circle with forty aggregated questions saw twelve and had no cue
+// that twenty-eight were missing, or that the twelve were the MOST
+// DIVIDED rather than simply all of them.
+describe("LiveCircleBody · the Answers tab says what it is showing", () => {
+  // Two members answering opposite ways, so every question clears the
+  // n >= 2 floor and is genuinely split.
+  const twoWhoDisagree = (qids: string[]) => ([
+    { uid: "u_a", name: "A", mutual: true, like: { pct: 50, same: 1, shared: 2, rate: 0.5 },
+      answers: Object.fromEntries(qids.map((id) => [id, "0"])) },
+    { uid: "u_b", name: "B", mutual: true, like: { pct: 50, same: 1, shared: 2, rate: 0.5 },
+      answers: Object.fromEntries(qids.map((id) => [id, "1"])) },
+  ]);
+  const bank = (n: number) => Array.from({ length: n }, (_, i) => ({
+    id: `q${i}`, text: `Question ${i}?`,
+    options: [{ id: "0", label: "Yes" }, { id: "1", label: "No" }],
+  }));
+
+  it("names the cap and how many are behind it", () => {
+    const qs = bank(40);
+    LIVE.aggregated = () => qs;
+    LIVE.circle = () => twoWhoDisagree(qs.map((q) => q.id));
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
+    // 12 drawn of 40 that qualify — and the reader is told both halves:
+    // that this is a ranked slice, and that 28 more are there.
+    expect(
+      screen.getByText(/The 12 your circle splits on most/),
+      "twelve of forty rows were drawn with nothing saying so",
+    ).toBeTruthy();
+    expect(screen.getByText(/28 more/)).toBeTruthy();
+  });
+
+  it("…and says nothing when nothing is hidden", () => {
+    // THE CONTROL. A line that always appears is not a cap notice, it is
+    // furniture — and it would be wrong on every circle under the cap,
+    // which is nearly all of them.
+    const qs = bank(4);
+    LIVE.aggregated = () => qs;
+    LIVE.circle = () => twoWhoDisagree(qs.map((q) => q.id));
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
+    expect(screen.queryByText(/splits on most/)).toBeNull();
+    expect(screen.queryByText(/more.*answered here/)).toBeNull();
+    // …and the rows really are all there, so this is not an empty tab.
+    expect(screen.getAllByText(/of your circle answered/)).toHaveLength(4);
+  });
+});
+
 describe("LiveCircleBody · Compare lays two profiles over each other", () => {
   // Every big5 item, in the seeded bank's shape.
   const BIG5 = (IS_TESTS as Record<string, { questions: Array<{ q: string }> }>)

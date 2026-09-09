@@ -83,6 +83,16 @@ const SHARED = "grp_shared";
 // left behind in this group's reveals therefore survived erasure until the
 // collection-group sweep (phase 1c-bis) went looking for it directly.
 const LEFT = "grp_left";
+// A circle this account CREATED and then left. Phase 1c's membership query
+// cannot see it and leaveGroupV2 deliberately leaves `ownerUid` standing, so
+// until the owner-sweep existed the deleted account's raw uid stayed on a
+// document every current member is served in full. `LEFT` above cannot catch
+// this: it is owned by OTHER, on purpose, as the control that erasure does
+// not scrub somebody else's ownership.
+const OWNED_LEFT = "grp_owned_left";
+// A circle the doomed account is NOT a member of, whose reveal names them
+// only through somebody else's pick — see the seed below.
+const PICKED_ONLY = "grp_picked_only";
 
 // ── seed every phase deleteAccount claims to wipe ──
 // Written with admin, because most of these paths are no longer
@@ -113,6 +123,22 @@ await adb.doc(`v2_ratelimits/join_${uid}`).set({ events: [] });
 await adb.doc(`v2_agg_events/evt_mine`).set({ qid: "daily-000", uid });
 await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 
+// The voter samples (D397): the one derived public document family that
+// holds uids — the newest voters per question, rows keyed by uid. Erasure
+// must take this account's row and leave the other voter's, and the
+// document itself: it is everyone else's list, not this account's.
+await adb.doc("v2_patterns/sample-daily-000").set({
+  qid: "daily-000",
+  rows: {
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY },
+    [OTHER]: { o: 0, a: { city: "Bergen, NO" }, d: DAY },
+  },
+  n: 2,
+});
+// …and the fit's per-person state, with the answer map the samples were
+// built beside — under the subtree the recursive delete takes
+await adb.doc(`v2_users/${uid}/patterns/state`).set({ v: [0, 0, 0, 0, 0, 0, 0, 0], n: 1, d: DAY, a: { "daily-000": 1 } });
+
 // cross-user leftovers: data ABOUT the deleted user, living under others
 await adb.doc(`insight_users/${OTHER}/insight_inbound_impressions/i1`)
   .set({ senderUid: uid, traits: ["kind"], createdAt: 1 });
@@ -135,6 +161,14 @@ await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
 // the subtree wipe" a tested claim rather than an assumed one (the
 // foresight row's reasoning, one collection over). The OTHER control
 // below proves the wipe is the account's, not the collection's.
+// The interest profile (D317/D322): under the account's own subtree, so
+// phase 1b's recursive delete is what takes it — seeded so "covered by
+// the subtree wipe" is a tested claim, the foresight row's reasoning.
+// The privacy page promises this deletion by name, which is one more
+// reason it may not be assumed.
+await adb.doc(`v2_users/${uid}/taste/profile`).set({
+  t: { food: 3, sport: 1 }, n: 4, at: new Date(),
+});
 await adb.doc(`v2_users/${uid}/engagement/_state`).set({
   firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2, fg7: [2, 3, 2],
 });
@@ -248,6 +282,32 @@ await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
   members: [uid, OTHER],
 });
 
+// THE SHAPE THE MEMBERS SWEEP CANNOT SEE. A pick answer copies the picked
+// uid into `votes.<voter>.pickUid`, checked against membership at ANSWER
+// time; `members` is membership at REVEAL time. Answer on a pick day, leave
+// before that night's reveal, and the uid is in the document and in no array
+// the erasure query walks. Every other reveal seeded here lists the account
+// in `members`, so this is the only one that can catch it.
+await adb.doc(`v2_groups/${PICKED_ONLY}`).set({
+  name: "PickedOnly", mode: "group", ownerUid: OTHER, memberUids: [OTHER],
+  memberNames: { [OTHER]: "Survivor" }, streak: 1,
+});
+await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).set({
+  day: DAY, qid: "group-pick",
+  votes: { [OTHER]: { optionIdx: 0, pickUid: uid } },
+  names: { [OTHER]: "Survivor" },
+  members: [OTHER],
+  pickedUids: [uid],
+});
+
+// the same shape one field over: OWNED by the doomed account, and left. No
+// membership, no name, no reveal — the whole point is that `ownerUid` is the
+// only thing here that names them, so nothing else can make the case pass.
+await adb.doc(`v2_groups/${OWNED_LEFT}`).set({
+  name: "OwnedLeft", mode: "group", ownerUid: uid, memberUids: [OTHER],
+  memberNames: { [OTHER]: "Survivor" }, streak: 2,
+});
+
 // takes, flags, and the moderation queue's COPY of a take's text
 // (docs/MODERATION.md). The queue is the interesting one: moderation.ts
 // copies the text in so the run reads one collection, which means deleting
@@ -287,8 +347,9 @@ await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 
 // paid purchase records (PAID-PLAN §7, D288 §3): the contract ledger, keyed
 // to the buyer. OTHER's row is the control — phase 4e queries on uid and
-// must not take the whole ledger with it. Seeded with admin because that is
-// the ONLY pen this collection has (no client write path, no callable).
+// must not take the whole ledger with it. Seeded with admin because the
+// pens are server-side only (the D313 webhook and the operator script; no
+// client write path).
 await adb.doc(`v2_purchases/${uid}_e2e`).set({
   uid, kind: "question", qid: "pd_e2e", scope: "city", place: "Oslo",
   dims: ["city:Oslo"], window: { start: "2026-08-24", until: "2026-09-21" },
@@ -301,6 +362,85 @@ await adb.doc(`v2_purchases/${OTHER}_e2e`).set({
   cadence: "once", budget: { cap: 4000, capEur: 640, ratePerAnswer: 0.16 },
   state: "running", reports: [], at: new Date(),
 });
+
+// The two bought QUESTIONS the purchase rows above point at. A bought
+// question survives erasure as content, deliberately — but it carries the
+// buyer's DISPLAY NAME and their audience dims, in a document any signed-in
+// user can read and nothing ever deletes, and after erasure no pointer to it
+// exists at all. OTHER's is the control: this must empty one byline, not
+// every sponsor block in the bank.
+await adb.doc("v2_questions/pd_e2e").set({
+  surface: "feed", seq: 9001, type: "binary", prompt: "Should night buses run later?",
+  options: ["Yes", "No"], paid: true, from: "2026-08-24", until: "2026-09-21",
+  sponsor: { buyer: "Erasable Person", audience: { city: "Oslo, NO", ageBand: "25-34" } },
+});
+await adb.doc("v2_questions/pd_e2e_other").set({
+  surface: "feed", seq: 9002, type: "binary", prompt: "Should ferries run later?",
+  options: ["Yes", "No"], paid: true, from: "2026-08-24", until: "2026-09-21",
+  sponsor: { buyer: "Someone Else", audience: { city: "Bergen, NO" } },
+});
+
+// …and the SAME buyer's campaign that has already FINISHED. The control for
+// the stop below: `sponsor.audience` is the serving filter, so erasing it
+// while a campaign runs would widen that campaign from one city to
+// everybody — but a campaign whose window has closed is already unservable,
+// and `active: false` reaches far past the feed (the Mirror's folds drop an
+// inactive question). Retiring this one would take the crowd's own answers
+// off the Mirror to settle something between the buyer and this app.
+await adb.doc(`v2_purchases/${uid}_done`).set({
+  uid, kind: "question", qid: "pd_e2e_done", scope: "city", place: "Oslo",
+  dims: ["city:Oslo"], window: { start: "2026-07-01", until: "2026-07-29" },
+  cadence: "once", budget: { cap: 4000, capEur: 640, ratePerAnswer: 0.16 },
+  state: "closed", reports: [], at: new Date(),
+});
+await adb.doc("v2_questions/pd_e2e_done").set({
+  surface: "feed", seq: 9003, type: "binary", prompt: "Should trams run later?",
+  options: ["Yes", "No"], paid: true, from: "2026-07-01", until: "2026-07-29",
+  sponsor: { buyer: "Erasable Person", audience: { city: "Oslo, NO" } },
+});
+
+// A bought AD and its purchase row (D315). The ad document is NOT uid-keyed
+// and no query from the sweep can find one: the row's `adId` is the only
+// pointer at it, and the only thing that ever deletes an ad is the closer,
+// which reads that pointer off the RUNNING row. Delete the row first and the
+// ad is immortal — in a collection whose committed half is empty, so every
+// production ad is one of these, and which every session downloads whole.
+// OTHER's pair is the control: this must take one ad, not the collection.
+await adb.doc(`v2_purchases/${uid}_ad`).set({
+  uid, kind: "ad", adId: `paidad-${uid}_ad`, scope: "city", place: "Oslo",
+  dims: ["city:Oslo"], window: { start: "2026-08-24", until: "2026-09-21" },
+  state: "running", reports: [], at: new Date(),
+});
+await adb.doc(`v2_ads/paidad-${uid}_ad`).set({
+  sponsor: "E2E Transit", body: "Night buses now run until three.",
+  from: "2026-08-24", until: "2026-09-21", tags: ["city:Oslo"],
+});
+await adb.doc(`v2_purchases/${OTHER}_ad`).set({
+  uid: OTHER, kind: "ad", adId: `paidad-${OTHER}_ad`, scope: "world", place: null,
+  dims: [], window: { start: "2026-08-24", until: "2026-09-21" },
+  state: "running", reports: [], at: new Date(),
+});
+await adb.doc(`v2_ads/paidad-${OTHER}_ad`).set({
+  sponsor: "Someone Else", body: "Not this account's campaign.",
+  from: "2026-08-24", until: "2026-09-21", tags: [],
+});
+
+// paid-question bookings (paid.ts, D313): the pre-payment half of a sale —
+// free text and a verdict under a uid, phase 4f. OTHER's row is the
+// control again; the budget ledger rides the same sweep as suggest_.
+await adb.doc(`v2_paid_bookings/${uid}_e2e`).set({
+  uid, prompt: "their in-flight paid ask", type: "binary",
+  options: ["a", "b"], topic: null, scope: "world", dims: {},
+  wearName: false, status: "review", reviewAttempts: 0, createdAt: new Date(),
+});
+await adb.doc(`v2_paid_bookings/${OTHER}_e2e`).set({
+  uid: OTHER, prompt: "someone else's paid ask", type: "binary",
+  options: ["a", "b"], topic: null, scope: "world", dims: {},
+  wearName: false, status: "approved",
+  quote: { ratePerAnswer: 0.144, capEur: 320, cap: 2222, windowDays: 29 },
+  reviewAttempts: 0, createdAt: new Date(),
+});
+await adb.doc(`v2_ratelimits/paidbook_${uid}`).set({ events: [Date.now()] });
 // The presence doc (D84): the one location-shaped datum an account can
 // hold, and the wipe must take it — a cell that outlives its account is a
 // standing "someone was here" nobody can retract.
@@ -406,6 +546,7 @@ for (const [path, label] of [
   [`v2_groups/${SHARED}`, "shared group"],
   [`v2_groups/${LEFT}`, "the group they will leave"],
   [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
+  [`v2_ads/paidad-${uid}_ad`, "their bought ad — the wipe assertion is vacuous without it"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
@@ -424,6 +565,9 @@ for (const [path, label] of [
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
   [`v2_purchases/${uid}_e2e`, "their purchase record"],
   [`v2_purchases/${OTHER}_e2e`, "someone else's purchase record"],
+  [`v2_paid_bookings/${uid}_e2e`, "their paid-question booking"],
+  [`v2_paid_bookings/${OTHER}_e2e`, "someone else's paid-question booking"],
+  [`v2_ratelimits/paidbook_${uid}`, "their booking budget ledger"],
 ]) await mustExist(path, label);
 ok("seeded every wipe phase, and verified it landed");
 
@@ -466,6 +610,15 @@ if (!(leftReveal.get("names") || {})[uid])
   fail("leaveGroupV2 rewrote a past reveal — leaving is not erasure (see index.ts phase 1c-bis)");
 ok("left a group: membership gone, the shared reveal deliberately untouched");
 
+// …and the pick that names them in a circle they are not in is really there
+// before the call, or the assertion after it proves nothing.
+const pickedBefore = await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).get();
+if (pickedBefore.get("votes")?.[OTHER]?.pickUid !== uid)
+  fail("fixture: the picked-only reveal does not name the doomed account");
+if ((pickedBefore.get("members") || []).includes(uid))
+  fail("fixture: the picked-only reveal lists the account in members — the members sweep would catch it");
+ok("seeded a reveal that names the account only through someone else's pick");
+
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
 if (!res.data?.ok) fail("deleteAccount did not report ok: " + JSON.stringify(res.data));
@@ -482,11 +635,40 @@ try {
 if (stillThere) fail("the auth user still exists after deleteAccount");
 ok("auth user is gone");
 
+// ── the pick that named the account in a circle it never belonged to ──
+const pickedAfter = await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).get();
+if (!pickedAfter.exists)
+  fail("the picked-only reveal was deleted outright — it is someone else's record of their day");
+if (pickedAfter.get("votes")?.[OTHER]?.pickUid !== undefined)
+  fail("a pick naming the erased account survived in a reveal it was not a member of — web/privacy.html promises it does not");
+if ((pickedAfter.get("pickedUids") || []).includes(uid))
+  fail("the erased uid is still in the reveal's pickedUids index");
+// …and the rest of that reveal is untouched: it is the OTHER account's
+// record of a day they played, and erasure is not a licence to rewrite it.
+if (pickedAfter.get("votes")?.[OTHER]?.optionIdx !== 0)
+  fail("the pick scrub removed more than the pick — the other voter's own answer is gone");
+if (!(pickedAfter.get("names") || {})[OTHER])
+  fail("the pick scrub removed the other member's name");
+ok("a pick naming the erased account is gone, and the rest of that reveal is intact");
+
+// ── the voter sample: this account's row gone, the other voter's kept ──
+const sampleAfter = await adb.doc("v2_patterns/sample-daily-000").get();
+if (!sampleAfter.exists)
+  fail("the voter sample was deleted outright — it is everyone else's list");
+if (sampleAfter.get("rows")?.[uid] !== undefined)
+  fail("the erased account's row survived in a world-readable voter sample (D397)");
+if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
+  fail("the sample scrub removed more than the one row — the other voter is gone");
+if (sampleAfter.get("n") !== 1)
+  fail("the sample's basis did not follow the scrub: n is " + sampleAfter.get("n"));
+ok("the voter sample no longer names the erased account, and the other voter's row is intact");
+
 // ── every seeded phase must be gone ──
 for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
+  [`v2_users/${uid}/patterns/state`, "the fit's per-person state and answer map (D395)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
   [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
@@ -501,13 +683,23 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
-  // Flags that NAME them, which the author-only sweep could not see: a
-  // report on their take (keyed `{qid}_{uid}`, since a world take's id is
-  // its author's) and a report on their face (`target: {uid}`).
+  // Flags that NAME them, which the author-only sweep could not see.
+  //
+  // TWO ROWS, TWO DIFFERENT SWEEPS, and the note here used to imply one:
+  // it said the take flag was reached "keyed `{qid}_{uid}`, since a world
+  // take's id is its author's", which describes the id and not any query
+  // this suite exercises. `MY_TAKE` still EXISTS when erasure runs, so
+  // this row is taken by the takes loop's `where("takeId","in", ids)`.
+  // Only the FACE row exercises `where("target","==", uid)` — measured by
+  // neutering that query, which leaves this row green and the face row
+  // red. The uncovered case is a flag on a take the author deleted first;
+  // nothing reaches it (see the sweep's own note in functions/src/index.ts)
+  // and nothing here pretends to.
   [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
   [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
+  [`v2_users/${uid}/taste/profile`, "their interest profile (D317/D322) — the page promises this by name"],
   [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],
   [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D272)"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
@@ -520,7 +712,12 @@ for (const [path, label] of [
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_suggestions/${uid}_e2e`, "their question suggestion (phase 4d)"],
   [`v2_purchases/${uid}_e2e`, "their purchase record (phase 4e)"],
+  [`v2_purchases/${uid}_ad`, "their AD purchase record (phase 4e)"],
+  [`v2_purchases/${uid}_done`, "their finished campaign's purchase record (phase 4e)"],
+  [`v2_ads/paidad-${uid}_ad`, "the ad that row was the only pointer at (phase 4e)"],
+  [`v2_paid_bookings/${uid}_e2e`, "their paid-question booking (phase 4f)"],
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
+  [`v2_ratelimits/paidbook_${uid}`, "their booking budget ledger"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
   ["v2_handles/erasable", "their handle — the name goes back into circulation"],
   [`v2_people/${uid}`, "their directory row — an erased account stops being findable by name"],
@@ -534,6 +731,60 @@ for (const [path, label] of [
 if ((await myLedgerEntries()).length !== 0)
   fail("agg-ledger entries for the deleted uid survive the sweep");
 ok("every owned document, subcollection and cross-user reference is gone");
+
+// The bought question SURVIVES — that decision is not being reversed — but
+// the byline on it does not. The purchase row is the only pointer at the
+// question, so this has to happen in the same phase that reads the row, and
+// it has to happen BEFORE the row goes.
+{
+  const mine = await adb.doc("v2_questions/pd_e2e").get();
+  if (!mine.exists) fail("the bought question was deleted — it survives as content");
+  const sp = mine.get("sponsor") || {};
+  if (sp.buyer !== undefined)
+    fail(`an erased buyer's name survives on their bought question: ${sp.buyer}`);
+  if (sp.audience !== undefined)
+    fail("an erased buyer's audience dims survive on their bought question");
+  // …and the document SAYS which absence this is. A nameless purchase
+  // (D228) and an untargeted one are both real, deliberate choices that
+  // look exactly like this once the fields are gone — so the public
+  // results page printed "chose not to wear a name" and "asked everyone"
+  // about a one-city sample. `share.ts` reads this marker to tell them
+  // apart.
+  if (sp.erased !== true)
+    fail("the strip left no mark, so the public page reads it as a nameless untargeted purchase");
+  if (mine.get("prompt") !== "Should night buses run later?")
+    fail("the question's own content was damaged by the byline strip");
+  // The control — one byline, not every sponsor block in the bank.
+  const theirs = await adb.doc("v2_questions/pd_e2e_other").get();
+  if (theirs.get("sponsor")?.buyer !== "Someone Else")
+    fail("somebody else's sponsor byline was stripped too");
+  ok("the bought question keeps its content and loses its erased buyer's byline");
+
+  // AND THE RUNNING CAMPAIGN STOPS, because the field that was just deleted
+  // is the one deciding who the card is shown to. `matches()`
+  // (src/v2/data/sponsored.ts) reads `if (!tag) return true`: an untagged
+  // sponsored question matches every device on earth. So stripping the
+  // audience mid-window did not narrow this campaign, it widened it — the
+  // Oslo card went worldwide, the PAID band flipped to the empty list it
+  // renders as shown-to-everyone, and nothing could close it afterwards
+  // because the closer finds its work on the purchase row this phase is
+  // about to delete.
+  if (mine.get("active") !== false)
+    fail("an erased buyer's RUNNING campaign is still being served, and now to everyone");
+  if (theirs.get("active") === false)
+    fail("somebody else's running campaign was stopped too");
+
+  // …and a campaign that had already finished is NOT retired. Its window
+  // has closed, so it serves nobody either way, and `active: false` would
+  // drop it out of the Mirror's folds — taking the crowd's own answers off
+  // the Mirror to settle something between the buyer and this app.
+  const done = await adb.doc("v2_questions/pd_e2e_done").get();
+  if (done.get("sponsor")?.buyer !== undefined)
+    fail("the finished campaign kept its erased buyer's byline");
+  if (done.get("active") === false)
+    fail("a campaign that had already closed was retired as well — its answers leave the Mirror with it");
+  ok("the running campaign stops; the finished one keeps its answers on the Mirror");
+}
 
 // THE BYTES, not only the document (D178). The photo is the app's first
 // object in Storage and the first thing erasure has ever had to reach
@@ -569,6 +820,12 @@ ok("someone else's question suggestion survives");
 if (!(await exists(`v2_purchases/${OTHER}_e2e`)))
   fail("someone else's purchase record was deleted — phase 4e matched more than the uid");
 ok("someone else's purchase record survives (D288 §3)");
+if (!(await exists(`v2_ads/paidad-${OTHER}_ad`)))
+  fail("someone else's paid ad was deleted — phase 4e took the collection, not the account's ads");
+ok("someone else's paid ad survives (D315)");
+if (!(await exists(`v2_paid_bookings/${OTHER}_e2e`)))
+  fail("someone else's paid booking was deleted — phase 4f matched more than the uid");
+ok("someone else's paid-question booking survives (D313)");
 if (!(await exists(`v2_users/${OTHER}/engagement/2026-08-22`)))
   fail("someone else's engagement rollup was deleted — the wipe took the collection, not the account");
 ok("someone else's engagement rollup survives (D272)");
@@ -637,6 +894,19 @@ if (!members.includes(OTHER)) fail("the surviving member was removed from the sh
 // so a leftover ownerUid publishes the deleted account's raw uid to the
 // circle forever.
 if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+
+// …and the same field on a circle they created and LEFT, which the
+// membership query above never visits. The assertion above passes on the
+// member-following sweep alone; only this one fails without the owner sweep.
+const ownedLeft = await adb.doc(`v2_groups/${OWNED_LEFT}`).get();
+if (!ownedLeft.exists) fail("the OWNED_LEFT group was deleted — it still had another member");
+if (ownedLeft.get("ownerUid") === uid) {
+  fail("the deleted user's uid survives as ownerUid on a circle they created and left");
+}
+if (!(ownedLeft.get("memberUids") || []).includes(OTHER)) {
+  fail("erasure removed the surviving member from a group the deleted account merely owned");
+}
+if (ownedLeft.get("name") !== "OwnedLeft") fail("erasure damaged an owned-and-left group's own fields");
 if (shared.get("name") !== "Shared") fail("erasure damaged the surviving group's own fields");
 
 const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();

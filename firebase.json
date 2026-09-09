@@ -13,7 +13,8 @@
     "public": "web",
     "ignore": [
       "firebase.json",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/README.md"
     ],
     "trailingSlash": false,
     "rewrites": [
@@ -24,6 +25,17 @@
       {
         "source": "/join/**",
         "destination": "/join.html"
+      },
+      {
+        "source": "/q/**",
+        "function": {
+          "functionId": "resultsPageV2",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/ask",
+        "destination": "/ask.html"
       }
     ],
     "headers": [
@@ -40,12 +52,12 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'none'; script-src 'sha256-eoFNgfxxqKnTToq5Gy0VSyQF1c/25O6nZDnVDrHx/Ik='; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+            "value": "default-src 'none'; script-src 'sha256-NpSUNPaobxeYRkO/e3QGSwZF9EgvUhh6sgtu6nwLerI='; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
           }
         ]
       },
       {
-        "source": "{/,/home.html,/privacy.html,/terms.html}",
+        "source": "{/,/home.html,/privacy.html,/terms.html,/delete-account.html,/paid-done.html,/paid-cancel.html}",
         "headers": [
           {
             "key": "X-Content-Type-Options",
@@ -62,11 +74,45 @@
         ]
       },
       {
+        "source": "/ask{.html,}",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; script-src 'sha256-hki2zRIOGSimwnOzCmTnFZmDmyg6b/pVN9vVbbj8Dqw='; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          }
+        ]
+      },
+      {
         "source": "/.well-known/apple-app-site-association",
         "headers": [
           {
             "key": "Content-Type",
             "value": "application/json"
+          }
+        ]
+      },
+      {
+        "source": "/catalog-art/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          },
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "*"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
           }
         ]
       }

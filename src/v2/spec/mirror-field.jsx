@@ -148,7 +148,7 @@ function MFNode({ n, on, onTap, i, hideLabel }) {
 }
 
 // ─── the field canvas ───
-function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall = false, stretch: stretchProp, maxLabels }) {
+export function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall = false, stretch: stretchProp, maxLabels }) {
   // The field FILLS its frame: the wrapper takes the leftover column space and the
   // svg (absolutely placed, so it can never feed back into that measurement) gets a
   // viewBox matched to the measured aspect. Radii stay circular — only the amount of
@@ -182,7 +182,12 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
     const contentH = bot - top, cc = (top + bot) / 2;
     const aspectH = box ? MF_W * (box.h / box.w) : (tall ? 470 : MF_H);
     const h = Math.max(contentH, aspectH);
-    return { y: cc - h / 2, h };
+    // the figure sits a little high in its measured frame (2026-09-06, §6.3)
+    // — read with the header, not the lens row. Only when a box measured the
+    // frame (the slack is real then); capped so a tall frame over a small
+    // figure does not push it into the header's lap.
+    const lift = box ? Math.min(40, Math.max(0, (h - contentH) / 2 - 12)) : 0;
+    return { y: cc - h / 2 + lift, h };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [key, box, tall]);
   // how far the crowd reaches vertically — derived from the frame, not a magic number
@@ -254,7 +259,7 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
 }
 
 // ─── quiet key under the field — always shown so the distance encoding stays readable ───
-function MFKey({ items }) {
+export function MFKey({ items }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
       <span style={{
@@ -262,7 +267,7 @@ function MFKey({ items }) {
         background: 'var(--surface)', border: '0.5px solid var(--rule)', borderRadius: 999,
       }}>
         {items.map((it, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
             {it.glyph === 'ring'
               ? <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1.6px solid color-mix(in oklch, var(--accent) 60%, transparent)', flexShrink: 0, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>+</span>
               : <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }}></span>}
@@ -278,7 +283,7 @@ function MFKey({ items }) {
 // You + the rings + the crowd's mist are honest with no answers at all; the
 // placed dots are not, so they stay away until there is signal. Progress reads
 // as dots, not a sentence about dots.
-function MFSparse({ done = 0, need = 8 }) {
+export function MFSparse({ done = 0, need = 8 }) {
   const left = Math.max(0, need - done);
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
@@ -303,7 +308,7 @@ function MFSparse({ done = 0, need = 8 }) {
 }
 
 // ─── compact header above the canvas ───
-function MFHeader({ kicker, fig, unit, right }) {
+export function MFHeader({ kicker, fig, unit, right }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, margin: '4px 2px 0' }}>
       <div style={{ minWidth: 0 }}>
@@ -336,7 +341,7 @@ function MFAnonAv({ hue, size = 40 }) {
 }
 
 // ─── the tapped node, unfolded — one card, appears only on demand ───
-function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
+export function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
   if (!node) return null;
   const d = node.data || {};
   const hue = node.hue != null ? node.hue : 200;
@@ -397,7 +402,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
             {chips.map((c) => (
               <span key={c} style={{
-                fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500, color: `oklch(0.34 0.13 ${hue})`,
+                fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: `oklch(0.34 0.13 ${hue})`,
                 padding: '2px 8px', borderRadius: 99, background: `oklch(0.95 0.03 ${hue})`, border: `0.5px solid oklch(0.85 0.05 ${hue})`,
               }}>{c}</span>
             ))}
@@ -410,7 +415,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
 }
 
 // ─── lens chips — the old sections, now opt-in layers under the field ───
-function MirrorLenses({ lenses }) {
+export function MirrorLenses({ lenses }) {
   const [open, setOpen] = React.useState(null);
   const cur = lenses.find((l) => l.id === open);
   const idx = lenses.findIndex((l) => l.id === open);
@@ -428,7 +433,10 @@ function MirrorLenses({ lenses }) {
     return () => clearTimeout(t);
   }, [open]);
   return (
-    <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+    // paddingTop 16 → 12 (2026-09-06, §6.3): the lens row gained a top
+    // hairline in the paper pass, and a rule carries the separation the
+    // extra 4px was doing
+    <div style={{ marginTop: 'auto', paddingTop: 12 }}>
       <div ref={rowRef} className="mm-lensrow" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
         <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
         {lenses.map((l) => (
@@ -446,12 +454,5 @@ function MirrorLenses({ lenses }) {
   );
 }
 
-Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses });
 
 
-;globalThis.MFCanvas = typeof MFCanvas === 'undefined' ? globalThis.MFCanvas : MFCanvas;
-;globalThis.MFKey = typeof MFKey === 'undefined' ? globalThis.MFKey : MFKey;
-;globalThis.MFHeader = typeof MFHeader === 'undefined' ? globalThis.MFHeader : MFHeader;
-;globalThis.MFDetail = typeof MFDetail === 'undefined' ? globalThis.MFDetail : MFDetail;
-;globalThis.MirrorLenses = typeof MirrorLenses === 'undefined' ? globalThis.MirrorLenses : MirrorLenses;
-;globalThis.MFSparse = typeof MFSparse === 'undefined' ? globalThis.MFSparse : MFSparse;

@@ -25,10 +25,12 @@ import { execFileSync } from "node:child_process";
 
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
-  collectEngagement, engagementFromDays,
+  collectEngagement, engagementFromDays, guardVerdict, MEASURE_MAX_AGE_DAYS,
+  collectGuard,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
+import { stripComments } from "./strip-comments.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
@@ -36,17 +38,47 @@ import {
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
+// The constant pins below mirror cost-arith's own readers, so they have to
+// read the same way it does — over COMMENT-STRIPPED source. They did not:
+// `.match` takes the first hit, so a superseded value parked in a comment
+// above the live declaration was what both the model priced from and what
+// this file compared it against. Two blind readers agreeing is not a check.
+// (Measured: one commented `DECK_DAYS = 3` above the real declaration
+// repriced boot 21 → 15 reads and the Hit scenario $2,568 → $2,462 with
+// this suite green.) `read` itself is left alone — three cases parse JSON
+// through it, and the stripper is a scanner, not a parser.
+const readSrc = (rel) => stripComments(read(rel));
 
 describe("cost-arith reads its constants from source, not from memory", () => {
   // The whole point of D47's fix: these used to be retyped, and the model
   // spent two days disagreeing with the code because nothing compared them.
   // If someone re-hardcodes a value, these fail.
   it("DECK_DAYS matches src/v2/data/deck.ts", () => {
-    expect(DECK_DAYS).toBe(Number(read("src/v2/data/deck.ts").match(/DECK_DAYS = (\d+)/)[1]));
+    expect(DECK_DAYS).toBe(Number(readSrc("src/v2/data/deck.ts").match(/DECK_DAYS = (\d+)/)[1]));
+  });
+
+  it("reads its constants past comments, on both sides of the comparison", () => {
+    // The class swept out of check-anchors, check-cities, account-level-lib
+    // and check-figures on 2026-09-05. cost-arith was missed, which is the
+    // file whose own header cites D47 and D200 for this exact failure, and
+    // ten pins read through its two readers.
+    //
+    // A SHAPE check, said plainly: `readNum`/`readStr` take a path rather
+    // than a source string, so there is no seam to inject a commented
+    // fixture through without changing their signature. What it holds is
+    // that neither reader goes back to raw source — which is the whole of
+    // the defect, since the value read is otherwise correct.
+    const src = read("scripts/cost-arith.mjs");
+    expect(src, "cost-arith stopped stripping comments before matching")
+      .toContain('import { stripComments } from "./strip-comments.mjs";');
+    const raw = [...src.matchAll(/readFileSync\(join\(ROOT, rel\), "utf8"\)/g)];
+    const stripped = [...src.matchAll(/stripComments\(readFileSync\(join\(ROOT, rel\), "utf8"\)\)/g)];
+    expect(raw.length, "a reader is back on raw source").toBe(stripped.length);
+    expect(stripped.length, "expected both readNum and readStr").toBe(2);
   });
 
   it("AGG_CAP matches live.ts's AGG_ID_CAP", () => {
-    expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
+    expect(AGG_CAP).toBe(Number(readSrc("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
   });
 
   it("the price sheet follows the database's own region, not a default", () => {
@@ -56,7 +88,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // false input for the three days after D165 moved production to a single
     // region, and no gate could see it: check:figures compares quoted
     // figures against the tree, and this was never quoted anywhere.
-    const declared = read("functions/src/db.ts").match(/FIRESTORE_LOCATION = "([^"]+)"/)[1];
+    const declared = readSrc("functions/src/db.ts").match(/FIRESTORE_LOCATION = "([^"]+)"/)[1];
     expect(LOCATION).toBe(declared);
     // The rule that turns a place into a price: GCP multi-regions are bare
     // names (nam5, eur3) and every real region carries a hyphen.
@@ -156,13 +188,13 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // throws on a RENAME; these hold the VALUES equal so a retuned cap
     // re-derives the model on the next run instead of drifting from it.
     expect(VOTER_FETCH_CAP).toBe(
-      Number(read("src/v2/data/voters.ts").match(/VOTER_FETCH_CAP = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/voters.ts").match(/VOTER_FETCH_CAP = (\d+)/)[1]));
     expect(KINDRED_QUESTIONS).toBe(
-      Number(read("src/v2/data/live.ts").match(/KINDRED_QUESTIONS = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/live.ts").match(/KINDRED_QUESTIONS = (\d+)/)[1]));
     expect(FOLLOW_CAP).toBe(
-      Number(read("src/v2/data/circle.ts").match(/FOLLOW_CAP = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/circle.ts").match(/FOLLOW_CAP = (\d+)/)[1]));
     expect(CIRCLE_ANSWER_CAP).toBe(
-      Number(read("src/v2/data/circle.ts").match(/CIRCLE_ANSWER_CAP = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/circle.ts").match(/CIRCLE_ANSWER_CAP = (\d+)/)[1]));
   });
 
   it("readsPerUser's key set is exactly what the consumers draw (D102)", () => {
@@ -322,7 +354,72 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // duelIndexSpace() already read — so this is the D224 shape exactly:
       // the site count moves, the billed cost does not, and RULE_READS.duel
       // stays 3.
-    ).toEqual({ gets: 32, exists: 3 });
+      //
+      // 32 → 33 gets: the world TAKE create gained the operational kill
+      // switch — one get() on /v2_questions/{qid}, so a pulled question
+      // stops accepting posts to its public thread the way it already
+      // stopped accepting answers.
+      //
+      // THIS ONE IS NOT THE D139/D194 SHAPE, and saying so is the point of
+      // the entry. Every bump above moved a SITE count onto a document the
+      // same evaluation already read, so the billed cost did not move. The
+      // world take branch read NO document before this: a world take create
+      // billed 0 rule reads and now bills 1. That is a real new cost, and
+      // it is the first one this tripwire has recorded.
+      //
+      // RULE_READS is still unchanged, and for the D98/D178 reason rather
+      // than a dedup argument: it charges the ANSWER-create paths, and
+      // posting a take is not one. The model carries no takes-volume term
+      // to hang the read on either — so rather than invent a rate, the
+      // arithmetic is recorded here: the bound is one read per world take
+      // WRITTEN (not read, not listed), and the rules cap that at one take
+      // per person per question. A user who posts on every question in the
+      // bank all month bills fewer rule reads than a single day of their
+      // own answering. If takes ever grow a volume story worth modelling,
+      // add the term from a measured post rate — not from this note.
+      //
+      // 33 → 35 gets, 3 → 2 exists (ROUNDS-PLAN / D426): the duel answer's
+      // day window became a ROUND bound — two get() sites on the group
+      // document (`round >= open`, `round < open + lead`), the SAME
+      // document the membership clause already fetched, so the site count
+      // moves and the billed cost does not. And the exists() on the reveal
+      // document is GONE: the reveal and the round's advance are one
+      // commit, so "still the open round or later" already says "no reveal
+      // exists for it". That is one billed read fewer per duel answer —
+      // RULE_READS.duel 3 → 2 — and the first time this tripwire has
+      // recorded a cost going down.
+      //
+      // 35 → 34 gets: the late arm (ROUNDS-PLAN §4) needed the open round
+      // four more times, so isDuelAnswer binds it ONCE with `let` and the
+      // two round-bound get() sites became one. Fewer expressions on the
+      // create path whose refusals D409 measured; the billed cost is
+      // unchanged, because every one of those sites read the same group
+      // document the membership clause already fetched.
+      //
+      // 34 → 37 → 34 gets, on one day (2026-09-08): the WORLD ARM. Under
+      // ROUNDS-PLAN §6.2 isDuelAnswer's surface equality gained a second
+      // arm admitting a daily or feed question as a round's content —
+      // three get() sites (surface, type, options.size()) on the SAME
+      // /v2_questions document the kill switch and duelIndexSpace()
+      // already fetch, so a duel create still bills the question once and
+      // RULE_READS.duel stays 2. Sites, not reads, moved — the third time
+      // this comment has had to say so.
+      //
+      // 37 → 14 gets (RULES-BUDGET-PLAN §3(a), D433): the fourth time, and
+      // in the other direction. Every answer arm now fetches each document
+      // ONCE and hands it on as an argument — the duel arm's ten question
+      // sites and four group sites became one each, the world arm's four
+      // became one, the update arm's two became one — because the
+      // EXPRESSION budget counts every site where billing counts every
+      // document, and the sites were what had the create path refusing by
+      // budget. Every removed site read a document a remaining site still
+      // fetches, so RULE_READS is unchanged: world 1, duel 2, call 2.
+      //
+      // And the world arm itself left at D426's third amendment (the owner
+      // retired world questions from the duels on the first such reveal):
+      // by then it read the question document `duelBody` is handed, so its
+      // leaving moved no site and the count stays 14.
+    ).toEqual({ gets: 14, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {
@@ -345,8 +442,15 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "D275 collapsed the private mirror into it); the catalog (D232) and "
       + "rank (D233) branches each read one more — the question doc — which "
       + "the model deliberately absorbs into the vote rate (see the "
-      + "constant's comment). Recount before changing the constant.",
-    ).toBe(8);
+      + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
+      + "D426 — the group document, in the transaction that marks who "
+      + "played and asks whether the round is complete (TRIGGER_READS.duel "
+      + "0 → 1) — plus TWO on its late path alone (the reveal it joins and "
+      + "the member's profile for the name), charged by COSTS.md's own row "
+      + "for a late answer rather than by the per-answer constant, because "
+      + "only an answer to a round that has already revealed takes that "
+      + "path. Recount before changing the constant.",
+    ).toBe(12);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {
@@ -354,18 +458,46 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // over the window rather than a counter or an aggregation query.
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
-    expect(v).toMatch(/\.select\("uid", "qid", "at"\)/);
+    // The FIELD LIST is not the tripwire and must not be pinned as one:
+    // `select()` narrows egress, not billed reads, so adding a field (as
+    // `fromIdx` was, to tell a D86 edit's row from a create) changes the
+    // bytes and not the number this constant charges for. Pinning the
+    // exact string made a projection change look like a cost regression.
+    //
+    // What the constant actually rests on is below: a paged query over the
+    // window, one document per entry, rather than a counter or an
+    // aggregation query that would bill differently.
+    expect(v, "the scan stopped projecting — it now reads whole documents")
+      .toMatch(/\.select\(/);
     expect(v, "select() narrows egress, not reads — one billed read per entry")
       .not.toMatch(/\.count\(\)/);
+    expect(v, "an aggregation query bills differently from a paged scan")
+      .not.toMatch(/\.aggregate\(/);
   });
 
-  it("the reveal pipeline's per-member read count still has its five parts", () => {
-    // revealReadsPerMember(m) = (4 + 3m)/m — the page read, revealRef.get(),
-    // getAll(answers), getAll(profiles), and the committing tx.getAll.
+  it("the reveal pipeline's per-member read count still has its two parts", () => {
+    // revealReadsPerMember(m) = (2 + 2m)/m — getAll(profiles, fieldMask) and
+    // the committing tx.getAll(revealRef, group, ...answers). ROUNDS-PLAN /
+    // D426 took the day's other two out: the standalone revealRef.get()
+    // (redundant, because the reveal and the round's advance are one commit)
+    // and the pre-read of every answer (the verdict comes off `played` on
+    // the group document the page already holds).
+    //
+    // EXACT, not a floor, and that is the difference between a tripwire and
+    // a decoration: ADDING a document access fails here with a pointer to
+    // the block that needs recounting. COMMENTS ARE STRIPPED FIRST, because
+    // the function carries prose that names getAll, and a tripwire over
+    // billed reads that counts prose is wrong twice.
+    //
+    // The two getAll sites are the whole per-round read; a new site here
+    // means a new billed read on some path: recount cost-arith's block
+    // before moving this number.
     const s = read("functions/src/v2social.ts");
-    const fn = s.match(/async function revealGroupDay[\s\S]*?\n\}/)[0];
-    expect((fn.match(/getAll\(/g) || []).length).toBeGreaterThanOrEqual(3);
-    expect(fn).toMatch(/revealRef\.get\(\)/);
+    const fn = s.match(/async function revealRound[\s\S]*?\n\}/)[0]
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect((fn.match(/getAll\(/g) || []).length).toBe(2);
+    expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(0);
   });
 
   it("egress and index storage are billed, not assumed free", () => {
@@ -489,7 +621,7 @@ describe("the pulse artifact", () => {
 
   it("derives the runway as bank minus days elapsed since the epoch", () => {
     const { deck } = p.pipeline;
-    const epoch = Number(read("src/v2/data/deck.ts").match(/DECK_EPOCH = (\d+)/)[1]);
+    const epoch = Number(readSrc("src/v2/data/deck.ts").match(/DECK_EPOCH = (\d+)/)[1]);
     expect(deck.epoch).toBe(epoch);
     expect(deck.runwayDays).toBe(deck.dailyBank - deck.daysElapsed);
     // D30's invariant, stated as the thing the tile is actually claiming.
@@ -513,9 +645,53 @@ describe("the pulse artifact", () => {
     for (const b of p.money.breakEven) expect(b.burnUsd).toBeGreaterThanOrEqual(p.money.fixedUsdPerMonth);
   });
 
+  it("guards usage against revenue at the MEASURED size, not a scenario (D332)", () => {
+    // Whatever the committed engagement trail holds, the guard must agree
+    // with the rate card and the model about its own arithmetic — the
+    // committed tree carries an allowance, so unarmed here means the read
+    // of rates.json broke, not that the owner unarmed it.
+    const rates = JSON.parse(read("monitoring/rates.json"));
+    expect(p.guard.allowanceUsd).toBe(rates.guard.maxNetBurnUsdPerMonth);
+    if (p.guard.state === "unmeasured") {
+      // No committed engagement day yet — the honest pre-launch answer.
+      expect(p.guard.measuredActives).toBeUndefined();
+    } else {
+      // "stale" belongs here and is not a test bug: monitoring/engagement.json
+      // is a committed file that only moves when somebody fetches it, so the
+      // very trail this suite reads goes stale by the calendar. The states
+      // that carry figures are what the arithmetic below applies to.
+      expect(["ok", "over", "stale"]).toContain(p.guard.state);
+      // net = burn − revenue, and burn covers at least the fixed line.
+      expect(p.guard.netBurnUsd).toBe(
+        Math.round((p.guard.burnUsd - p.guard.revenueUsd) * 100) / 100);
+      expect(p.guard.burnUsd).toBeGreaterThanOrEqual(p.money.fixedUsdPerMonth);
+      // The measured size is the engagement trail's, never a scenario's.
+      expect(p.guard.measuredActives).toBe(Math.max(
+        p.engagement.latest?.actives ?? 0, Math.ceil(p.engagement.weekMeanActives ?? 0)));
+    }
+  });
+
   it("counts every deployed function and marks which are alerted", () => {
     const { functions, functionCount, alertedCount } = p.instrumentation;
     expect(functionCount).toBe(functions.length);
+    // AGAINST THE DEPLOY LIST, because the assertion above is a tautology
+    // over the panel's own scan: it counted 40 of 42 for as long as the
+    // scan named three trigger kinds and the tree had five, and this test
+    // — titled "counts every deployed function" — could not see it. The
+    // two missing were onV2AnswerUpdated and the Stripe webhook, neither
+    // of which has an alert policy, so the panel's whole question ("am I
+    // flying blind?") was answered with the two least-watched functions
+    // left out of the frame.
+    //
+    // firebase-deploy.yml's `--only` list is the deploy surface itself,
+    // which makes it the right authority and not a second opinion.
+    const deployed = [...read(".github/workflows/firebase-deploy.yml")
+      .matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]);
+    expect(deployed.length, "the deploy workflow's --only list moved").toBeGreaterThan(30);
+    const scanned = new Set(functions.map((f) => f.name));
+    for (const name of deployed) {
+      expect(scanned, `the console cannot see deployed function ${name}`).toContain(name);
+    }
     expect(alertedCount).toBe(functions.filter((f) => f.alerted).length);
     // onV2AnswerCreated is the one that fails SILENTLY (retry:true), so it
     // is the one that must never lose its alert.
@@ -565,6 +741,86 @@ describe("the pulse artifact", () => {
       expect(x.record).toBeTruthy();
       expect(x.why).toBeTruthy();
     }
+  });
+});
+
+describe("the guard's verdict (D332), pure", () => {
+  // The arithmetic without a tree — the engagementFromDays pattern. The
+  // states matter as much as the numbers: unarmed and unmeasured are
+  // QUESTIONS the console reports, and only "over" may page.
+  it("trips only past the allowance, on burn NET of revenue", () => {
+    const base = { allowanceUsd: 50, measuredActives: 800 };
+    expect(guardVerdict({ ...base, burnUsd: 78, revenueUsd: 0 }).state).toBe("over");
+    expect(guardVerdict({ ...base, burnUsd: 78, revenueUsd: 30 }).state).toBe("ok");
+    // Exactly at the allowance is inside it — the budget's own 100% rule
+    // fires separately; this one is for the overshoot.
+    expect(guardVerdict({ ...base, burnUsd: 50, revenueUsd: 0 }).state).toBe("ok");
+    expect(guardVerdict({ ...base, burnUsd: 120, revenueUsd: 100 }).netBurnUsd).toBe(20);
+  });
+
+  it("answers 'unarmed' with no allowance and 'unmeasured' with no population", () => {
+    expect(guardVerdict({ allowanceUsd: null, measuredActives: 5, burnUsd: 1, revenueUsd: 0 }).state)
+      .toBe("unarmed");
+    expect(guardVerdict({ allowanceUsd: 50, measuredActives: null, burnUsd: 0, revenueUsd: 0 }).state)
+      .toBe("unmeasured");
+    // Zero actives is a MEASURED zero — a real digest day — and must
+    // evaluate rather than read as absent (the trail's gap-vs-zero rule).
+    expect(guardVerdict({ allowanceUsd: 50, measuredActives: 0, burnUsd: 28, revenueUsd: 0 }).state)
+      .toBe("ok");
+  });
+
+  it("will not call a stopped trail a pass", () => {
+    // The condition this state exists for: monitoring/engagement.json moves
+    // only when a human runs the fetch, so a file that froze reads as a
+    // confident green forever — the guard would keep pricing a population
+    // from last month and keep saying "inside the allowance".
+    const base = { allowanceUsd: 50, measuredActives: 800, burnUsd: 30, revenueUsd: 0 };
+    expect(guardVerdict({ ...base, measuredAgeDays: 1 }).state).toBe("ok");
+    expect(guardVerdict({ ...base, measuredAgeDays: MEASURE_MAX_AGE_DAYS }).state).toBe("ok");
+    expect(guardVerdict({ ...base, measuredAgeDays: MEASURE_MAX_AGE_DAYS + 1 }).state).toBe("stale");
+    expect(guardVerdict({ ...base, measuredAgeDays: 400 }).state).toBe("stale");
+    // No age at all (a trail with no day) is not a staleness claim.
+    expect(guardVerdict({ ...base, measuredAgeDays: null }).state).toBe("ok");
+    // Stale still carries its figures, so the banner and the check can say
+    // what it last read rather than going blank.
+    const stale = guardVerdict({ ...base, measuredAgeDays: 30 });
+    expect(stale.netBurnUsd).toBe(30);
+    expect(stale.measuredActives).toBe(800);
+    expect(stale.measuredAgeDays).toBe(30);
+  });
+
+  it("ages the day the guard PRICES, not the fetch that wrote the file", () => {
+    // The wiring, not the arithmetic: `fetchedOn` moves every time anyone
+    // re-runs the fetch, so a trail whose digest stopped folding days would
+    // keep looking fresh if the collector reached for the wrong field. A
+    // pure test of guardVerdict cannot see that — the bug would be a caller
+    // that never passes an age.
+    const today = new Date().toISOString().slice(0, 10);
+    const longAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const money = { fixedUsdPerMonth: 28, revenueUsdPerMonth: 0 };
+    const engagement = {
+      present: true, fetchedOn: today, days: 7, lastDay: longAgo,
+      latest: { actives: 3 }, weekMeanActives: 3,
+    };
+    const g = collectGuard(REGIONAL, money, engagement);
+    expect(g.state).toBe("stale");
+    expect(g.measuredOn).toBe(longAgo);
+    expect(g.measuredAgeDays).toBe(90);
+    // …and yesterday's day, with the same fetch stamp, still passes.
+    const fresh = collectGuard(REGIONAL, money, {
+      ...engagement, lastDay: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    });
+    expect(fresh.state).toBe("ok");
+    expect(fresh.measuredAgeDays).toBe(1);
+  });
+
+  it("keeps an overshoot an overshoot however old the day is", () => {
+    // An over verdict is true at the size it was priced at; what staleness
+    // makes unbelievable is the PASS. Both page, so the distinction is only
+    // in what the operator is told to go look at.
+    expect(guardVerdict({
+      allowanceUsd: 50, measuredActives: 800, measuredAgeDays: 90, burnUsd: 90, revenueUsd: 0,
+    }).state).toBe("over");
   });
 });
 
@@ -745,6 +1001,79 @@ describe("the rendered page", () => {
   });
 });
 
+describe("the console does not claim a floor D98 deleted", () => {
+  // WHY THIS EXISTS. D98 removed the k-anonymity floor outright on
+  // 2026-08-11 — no AGG_MIN_N, no PUBLISH_EVERY, no complementary
+  // suppression, no `tooSmall`. The ARITHMETIC followed a day later in
+  // the client and, at D296, in the scorecard. The CAPTIONS did not: nine
+  // rendered strings across pulse-render and pulse-collect went on telling
+  // the reader that questions had "cleared the k-floor of 5" and that
+  // "under-floor questions publish nothing", beside numbers computed by
+  // `isScoredAgg = (agg) => !!agg`, which floors nothing.
+  //
+  // Nothing could catch them. check:public-copy is the gate for a surface
+  // saying what the server does not do, and its scope note is explicit
+  // that it covers "only files whose audience is a user or a store
+  // reviewer" — this console's audience is the owner, so it sits outside
+  // by design, and source comments are excluded there as recorded debt.
+  // That leaves the rendered strings with no reader at all, which is how
+  // they outlived the thing they describe by fifteen days.
+  //
+  // The assertion is on the RENDERED HTML rather than on the source, so a
+  // caption reintroduced anywhere in the console fails here — including in
+  // a panel this file has no other case for. Comments are untouched on
+  // purpose: they are debt, not a claim to anyone (check-public-copy.mjs
+  // says so), and scanning them would bury this signal in them.
+  //
+  // The one legitimate use of the word is a caption that says the floor is
+  // GONE ("the k-floor this used to wait out is gone — D98"), so the
+  // vocabulary is matched as the CLAIM shapes rather than as the bare
+  // word.
+  const RETIRED = [
+    "cleared the k-floor",
+    "cleared the floor",
+    "k-floored",
+    "under-floor",
+    "below the k-floor",
+    "tooSmall",
+  ];
+
+  // Both banner branches: the population panel says one thing at
+  // totalAnswers > 0 and another at 0, and only one of them renders per
+  // call. The pre-launch branch is the one that carried "No answers have
+  // cleared the k-floor", so rendering only the committed state would
+  // have missed it.
+  const states = () => {
+    const live = collect();
+    const zeroed = {
+      ...live,
+      pipeline: {
+        ...live.pipeline,
+        scorecard: { ...live.pipeline.scorecard, totalAnswers: 0, scoredQuestions: 0 },
+      },
+    };
+    return [["live", live], ["pre-launch", zeroed]];
+  };
+
+  for (const [label, fixture] of states()) {
+    it(`renders no retired floor vocabulary — ${label}`, () => {
+      const html = renderPulse(fixture, []);
+      for (const phrase of RETIRED) {
+        expect(html).not.toContain(phrase);
+      }
+    });
+  }
+
+  it("still describes the population panel's floors, which are a different claim", () => {
+    // Guard against over-correcting. The numbers here really are floors —
+    // an unanswered question has no aggregate document, so every figure
+    // understates — and that sentence must survive a sweep aimed at the
+    // k-floor. Deleting it would trade a false claim for a missing one.
+    const html = renderPulse(collect(), []);
+    expect(html).toContain("a floor");
+  });
+});
+
 describe("the engagement panel (R1/D268)", () => {
   // FLIPPED 2026-08-26, exactly as the case it replaces said to. It read:
   //
@@ -884,13 +1213,82 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("Per-question attention");
   });
 
+  it("draws whether the Mirror was READ, as shares of people (D407)", () => {
+    // ENGAGEMENT-PLAN.md's rung-0 table calls this the one thing rung 0
+    // cannot see — "does anyone open it, which stops, which lenses",
+    // because "reading is the point and reading writes nothing". The
+    // client wrote these three for weeks; nothing folded or drew them.
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2,
+          mirrorRead: 3, lensOpen: 1,
+          feedBuckets: { f0: 1, f1: 0, f2: 0, f3: 1, f4: 2 } } },
+    ]);
+    expect(e.people.mirrorRead).toBe(3);
+    expect(e.people.lensOpen).toBe(1);
+    // Shares of the day's ROLLUPS — a raw count moves with the
+    // population and answers nothing.
+    expect(e.people.readShare).toBe(0.75);
+    expect(e.people.lensShare).toBe(0.25);
+    // A map on the wire, a list here, low bracket first.
+    expect(e.people.feedBuckets).toEqual([1, 0, 0, 1, 2]);
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    expect(html).toContain("read the Mirror");
+    expect(html).toContain("opened a lens");
+    expect(html).toContain("feed depth");
+    expect(html).toContain("75%");
+  });
+
+  it("a fold written before D407 draws dashes, not invented zeros", () => {
+    // Every day already folded lacks these keys entirely WHILE CARRYING A
+    // REAL `rollups`, and that combination is the whole case: a 0% here
+    // would read as "nobody opened the Mirror", which is a claim this data
+    // cannot make. The console must say it does not know, the way it does
+    // for a cohort day that predates the digest.
+    //
+    // This case set `rollups: 0` when it was written, so it passed on the
+    // no-denominator guard — the same fixture as the divide-by-zero case
+    // below — and never exercised a missing key at all. Measured before
+    // the fix: readShare 0, lensShare 0, feedBuckets [0,0,0,0,0].
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2 } },
+    ]);
+    expect(e.people.rollups, "the denominator is real; only the numerators are absent").toBe(4);
+    expect(e.people.mirrorRead).toBeNull();
+    expect(e.people.lensOpen).toBeNull();
+    expect(e.people.readShare).toBeNull();
+    expect(e.people.lensShare).toBeNull();
+    expect(e.people.feedBuckets).toBeNull();
+    // …and it reaches the screen, which is where the false sentence was.
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    const tile = (k) => html.match(new RegExp(`<p class="k">${k}</p>\\s*<div class="v">([^<]*)<`))?.[1];
+    expect(tile("read the Mirror")).toBe("—");
+    expect(tile("opened a lens")).toBe("—");
+    expect(tile("feed depth"), "an all-zero histogram is a distribution a reader can act on").toBe("—");
+  });
+
   it("zero sessions reads as an unknown share, never a divide-by-zero", () => {
     const e = engagementFromDays([
       { day: "2026-08-22", actives: 1, firstTime: 0, votes: 1, events: 1, bySurface: {},
         returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
         streaksBroken: 0,
-        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0 } },
+        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0,
+          // The Mirror three PRESENT and holding zero (D407) — a fold that
+          // ran and saw nothing, which is the other half of the case above
+          // and must not be told apart from it by accident.
+          mirrorRead: 0, lensOpen: 0, feedBuckets: {} } },
     ]);
     expect(e.people.quietShare).toBeNull();
+    expect(e.people.readShare, "no rollups is not a share of nobody").toBeNull();
+    expect(e.people.lensShare).toBeNull();
+    expect(e.people.mirrorRead, "the key is there; only the denominator is missing").toBe(0);
+    expect(e.people.feedBuckets).toEqual([0, 0, 0, 0, 0]);
   });
 });

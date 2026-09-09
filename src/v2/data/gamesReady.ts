@@ -43,11 +43,26 @@ export const READ_MIN_POOL = 12;
 /**
  * Turn the questions the store already holds into the engine's input.
  *
- * `counts` comes off the view model's own options — the same numbers the
- * card behind them draws — and `by` comes from the published aggregate.
+ * BOTH HALVES COME OFF THE PUBLISHED AGGREGATE, and that is the whole
+ * point of this function. `counts` used to come off the view model's own
+ * options — "the same numbers the card behind them draws" — which is a
+ * DIFFERENT POPULATION from `by`: the card's counts have the viewer's own
+ * vote subtracted (`countsFor` in ./deck, so the UI can add its own +1
+ * for "you"), and a published `by` cell does not. `readsFrom` then
+ * compared an overall without you against slices with you in them, and
+ * called the difference a surprise.
+ *
+ * That is not a rounding error at the sizes this game plays at. One
+ * bucket holding the same seven people as the whole crowd reads 43/57 in
+ * the slice against 50/50 overall, `surprise: true`, and the card says
+ * "Everyone else said X — this slice went the other way" over a basis
+ * line counted on the other population. With `mine` unset it agrees with
+ * itself.
+ *
  * A question with no aggregate is dropped rather than zero-filled: it has
  * no slices to read, and a zero-filled one would be a question the game
- * could ask and never score.
+ * could ask and never score. Same for one with a `by` but no `counts` —
+ * a catalog or rank aggregate, whose cells are not option indexes at all.
  */
 export function readSourcesFrom(
   questions: readonly LiveQuestion[],
@@ -56,12 +71,13 @@ export function readSourcesFrom(
   const out: ForesightSource[] = [];
   for (const q of questions) {
     const agg = aggFor(q.id);
-    if (!agg || !agg.by) continue;
+    if (!agg || !agg.by || !agg.counts) continue;
+    const counts = agg.counts;
     out.push({
       id: q.id,
       text: q.text,
       options: q.options.map((o) => o.label),
-      counts: q.options.map((o) => o.count),
+      counts: q.options.map((_, i) => counts[String(i)] || 0),
       by: agg.by,
     });
   }

@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The adaptive icon's background layer: the ink tile (D302). Must
-         match INK in scripts/gen-icons.mjs, which bakes the same colour
-         into the legacy ic_launcher.png rasters — or the same app shows
-         one tile on Android 26+ and another below it. The splash stays
-         paper (capacitor.config.ts); the icon stopped matching it when
-         the identity moved the mark onto ink. -->
-    <color name="ic_launcher_background">#1D1914</color>
+    <!-- The adaptive icon's background layer: the paper tile (D340,
+         reversing D302's ink tile). Must match GROUND in
+         scripts/gen-icons.mjs, which bakes the same colour into the legacy
+         ic_launcher.png rasters — or the same app shows one tile on
+         Android 26+ and another below it. This is the styles.css token
+         named surface-2 — spelled here WITHOUT its two leading dashes on
+         purpose: XML forbids a double hyphen inside a comment, and
+         writing the token's real name failed the android-build resource
+         merge with "The string is not permitted within comments". It is a
+         shade cooler than the splash's paper #FAF9F2
+         (capacitor.config.ts); the two read as one surface, which is the
+         match D302 had deliberately broken by moving the icon onto ink. -->
+    <color name="ic_launcher_background">#FEFDFB</color>
 </resources>

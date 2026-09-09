@@ -32,7 +32,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { collect } from "./pulse-collect.mjs";
+import { collect, MEASURE_MAX_AGE_DAYS } from "./pulse-collect.mjs";
 import { REGIONAL as PROD_REGIONAL } from "./cost-arith.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -72,6 +72,11 @@ function trailRow(p) {
     burnUsd5k: p.money.breakEven[2].burnUsd,
     burnUsd50k: p.money.breakEven[3].burnUsd,
     revenueUsd: p.money.revenueUsdPerMonth,
+    // The guard's two figures worth trending (D332): what we measure the
+    // population at, and what that costs net of revenue. Null until the
+    // engagement trail exists — a gap, never a zero.
+    measuredActives: p.guard.measuredActives ?? null,
+    netBurnUsd: p.guard.netBurnUsd ?? null,
     functionsAlerted: p.instrumentation.alertedCount,
     functionCount: p.instrumentation.functionCount,
     scorecardAgeDays: p.pipeline.scorecard.ageDays ?? null,
@@ -144,14 +149,54 @@ function check(pulse) {
     );
   }
 
+  // The usage-vs-revenue guard (D332). "over" and "stale" trip — unarmed
+  // and unmeasured are questions the OK line carries, not conditions to
+  // page about every morning pre-launch. Stale is neither of those: it
+  // means a trail EXISTED and stopped, which is the one shape that reads
+  // as a confident pass while measuring nothing.
+  const g = pulse.guard;
+  if (g.state === "over") {
+    problems.push(
+      `the bill is outrunning revenue: modelled burn $${g.burnUsd}/mo at the measured\n`
+      + `    ${g.measuredActives} actives (${g.measuredOn}) against $${g.revenueUsd}/mo recorded revenue —\n`
+      + `    net $${g.netBurnUsd}/mo, over the $${g.allowanceUsd} allowance (monitoring/rates.json guard).\n`
+      + "    Three levers, in the order to reach for them (D332):\n"
+      + "      1. price or record real revenue in monitoring/rates.json — if users arrived,\n"
+      + "         this is the good version of this alert;\n"
+      + "      2. pull the read breaker: npm run budget:mode -- --level 1 (sheds the D98\n"
+      + "         social reads, ~80% of the modelled bill, honestly labelled in the app);\n"
+      + "      3. raise the allowance deliberately, in the same commit that says why.\n"
+      + "    And check the Cloud Billing budget/console — this figure is a model, and the\n"
+      + "    model's own record is that its errors are missing terms (docs/COSTS.md).",
+    );
+  }
+
+  if (g.state === "stale") {
+    problems.push(
+      `the usage guard is pricing a ${g.measuredAgeDays}-day-old population (last folded day\n`
+      + `    ${g.measuredOn}, stale past ${MEASURE_MAX_AGE_DAYS}). It reads $${g.netBurnUsd}/mo net against the\n`
+      + `    $${g.allowanceUsd} allowance, and that pass means nothing: the guard averages a 7-day\n`
+      + "    window, so every day it is averaging is now outside it. monitoring/engagement.json\n"
+      + "    moves only when somebody fetches it — nothing schedules that.\n"
+      + "    Fix: npm run scorecard -- --fetch (and if the trail will not move, the digest\n"
+      + "    itself has stopped folding days — check digestEngagementV2).",
+    );
+  }
+
   if (problems.length) {
     console.error("\npulse --check: conditions that need an operator, not a commit:\n");
     for (const p of problems) console.error(`  ${p}\n`);
     return 1;
   }
+  const guardLine = pulse.guard.state === "ok"
+    ? `net burn $${pulse.guard.netBurnUsd}/mo at ${pulse.guard.measuredActives} measured actives (allowance $${pulse.guard.allowanceUsd})`
+    : pulse.guard.state === "unmeasured"
+      ? "guard unmeasured (no committed engagement trail yet — `npm run scorecard -- --fetch` arms it)"
+      : "guard unarmed (no maxNetBurnUsdPerMonth in monitoring/rates.json)";
   console.log(
     `pulse --check OK — deck runway ${deck.runwayDays} days, `
-    + `scorecard ${scorecard.present ? scorecard.staleness : "absent (pre-launch)"}.`,
+    + `scorecard ${scorecard.present ? scorecard.staleness : "absent (pre-launch)"}, `
+    + `${guardLine}.`,
   );
   return 0;
 }

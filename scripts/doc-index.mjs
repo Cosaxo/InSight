@@ -80,9 +80,10 @@
 //      node scripts/doc-index.mjs --write   (regenerate the index)
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { gatePlacement } from "./gate-placement.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { numberingProblems } from "./decision-numbering.mjs";
+import { numberingProblems, unclaimedNumbers } from "./decision-numbering.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
@@ -256,7 +257,10 @@ const { records, lines } = parseDecisions(decisionSrc);
     );
 }
 
-const rendered = renderIndex(records, citations(records, lines));
+// Named rather than inlined: rule 10 reports these same targets when one
+// lands on no record, so the index and the note read one map.
+const citedFrom = citations(records, lines);
+const rendered = renderIndex(records, citedFrom);
 
 if (write) {
   writeFileSync(join(root, INDEX), rendered);
@@ -272,14 +276,63 @@ if (write) {
 
 // -------------------------------------------------- the numbering itself
 //
-// RULE 10: every decision number is claimed exactly once, and the sequence
-// has no holes. The predicate lives in decision-numbering.mjs — extracted
-// so it can be tested, since this script exits on any documentation problem
-// in the tree and a test importing it would be hostage to all of them. That
-// module's header carries the three renumbers that motivated the rule.
+// RULE 10: every decision number is claimed exactly once. Holes in the
+// sequence, and citations inside DECISIONS.md landing on them, are
+// REPORTED rather than refused. The predicate lives in
+// decision-numbering.mjs — extracted so it can be
+// tested, since this script exits on any documentation problem in the tree
+// and a test importing it would be hostage to all of them. That module's
+// header carries the three renumbers that motivated the rule.
+//
+// A HOLE IS NO LONGER A FAILURE (2026-09-06), and neither is a citation
+// pointing into one. Both are printed below instead, because on a branch
+// they are the same fact — the number belongs to another open pull request
+// — and failing on either made decision numbers imply a merge ORDER. The
+// module's header has the arithmetic, and why the citation half went the
+// same way one run after being written as a failure.
 for (const problem of numberingProblems(records)) fail(problem);
+const unclaimed = unclaimedNumbers(records, citedFrom);
+if (unclaimed.length) {
+  const shown = unclaimed.map(({ num, citers }) => (
+    citers.length
+      ? `D${num} (cited by ${citers.map((n) => `D${n}`).join(", ")})`
+      : `D${num}`
+  ));
+  const it = unclaimed.length === 1 ? "it" : "them";
+  console.log(
+    `  note: ${shown.join(", ")} unclaimed — an open branch is holding ${it}, `
+    + "or a record was lost. Not a failure; see decision-numbering.mjs.",
+  );
+}
 
 // -------------------------------------------------------------- orientation
+
+/**
+ * Top-level names .gitignore takes out of the repo.
+ *
+ * Read from the file rather than hardcoded, so a build output added there
+ * is skipped here without a second edit — the failure mode of a
+ * hand-kept list being a red gate on someone else's `dist-ssr/`. Only
+ * plain top-level entries count (no slash inside, no glob), which is the
+ * shape of the entries that matter.
+ *
+ * Used by BOTH the document rules and the directory rule. It was inlined
+ * in the directory rule alone, and filtered on `isDirectory()` there — so
+ * an ignored FILE at the root still reached rule 5, and any scratch note
+ * a person keeps beside the repo turned this gate red demanding that the
+ * map name it. The gate is loud rather than silent about it, which is the
+ * good direction, but a file .gitignore has already declared not part of
+ * the repo is not the map's to name.
+ */
+const gitIgnoredTop = () => new Set([
+  ".git",
+  ...read(".gitignore")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
+    .filter((l) => !/[*?[\]]/.test(l) && !l.slice(0, -1).includes("/"))
+    .map((l) => l.replace(/\/$/, "")),
+]);
 
 const ORIENTATION = "docs/ORIENTATION.md";
 const orientation = existsSync(join(root, ORIENTATION)) ? read(ORIENTATION) : null;
@@ -297,11 +350,37 @@ if (!orientation) fail(`${ORIENTATION} is missing — it is the map every other 
  * cross-reference, not that gate's row.
  */
 const mapRows = new Map();
+/** First cells seen more than once — see the duplicate rule below. */
+const mapDupes = [];
 for (const line of (orientation ?? "").split("\n")) {
   if (!line.startsWith("|")) continue;
   const cells = line.split("|").slice(1, -1).map((c) => c.trim());
   if (cells.length < 2 || /^-+$/.test(cells[0])) continue;
   if (!mapRows.has(cells[0])) mapRows.set(cells[0], cells);
+  else mapDupes.push(cells[0]);
+}
+
+// ONE ROW PER KEY. The map's contract is that a document has a row; the
+// parser keeps the FIRST and drops the rest, which is right for reading it
+// and silently wrong for holding it — a second row can then describe
+// something that does not exist and no rule can see it.
+//
+// That happened. `USAGE-REDUCTION.md` was created independently on two
+// branches; the add/add conflict on the DOCUMENT was resolved to one of
+// them, but each branch's ORIENTATION row sat on a different line, so git
+// merged both rows with no conflict. The survivor described the discarded
+// version — a `get_session` price model and ten ranked levers that are in
+// no file — and `check:docs` reported "64 docs" and exited 0 for as long
+// as it stood.
+//
+// Note the direction: a duplicate placed BEFORE the real row shadows it and
+// the existing rules judge the impostor, which is loud. A duplicate placed
+// AFTER is the silent one, and it is the one that survived.
+for (const key of [...new Set(mapDupes)]) {
+  fail(
+    `${ORIENTATION} has more than one row for ${key} — the parser keeps the first, so`
+    + " the others are unread prose no rule can check. Delete the stale one.",
+  );
 }
 
 /** Every README in the tree, minus the vendored and frozen-reference ones. */
@@ -341,8 +420,13 @@ if (orientation) {
     .filter((f) => f.endsWith(".md"))
     .filter((f) => f !== "ORIENTATION.md" && f !== "DECISIONS-INDEX.md")
     .sort();
+  const ignoredTop = gitIgnoredTop();
   const rootDocs = readdirSync(root)
     .filter((f) => f.endsWith(".md") && f !== "README.md" && f !== "CLAUDE.md")
+    // …and nothing .gitignore has already taken out of the repo. A
+    // scratch note beside the checkout is not a document this map owes a
+    // row; see gitIgnoredTop.
+    .filter((f) => !ignoredTop.has(f))
     .sort();
   checked.docs = docs.length + rootDocs.length;
   for (const doc of docs) {
@@ -412,13 +496,17 @@ if (orientation) {
   // BOTH call — so it guards a PR and production with the same job. `ci`
   // means ci.yml's own jobs: pull requests only. `release` is a
   // platform-release or metadata workflow. `manual` is nothing automated.
-  const placement = (name) => {
-    const runs = [...workflows].filter(([, src]) => src.includes(`npm run ${name}`)).map(([f]) => f);
-    if (runs.includes("backend-checks.yml")) return "deploy";
-    if (runs.includes("ci.yml")) return "ci";
-    if (runs.length) return "release";
-    return "manual";
-  };
+  //
+  // A gate can be invoked two ways and BOTH have to count. `npm run <name>`
+  // is the common one; `node scripts/<file>.mjs --flag` is what a workflow
+  // writes when it needs an argument. Matching only the first said
+  // `check:store-copy` was "manual" while ios-release.yml ran it on every
+  // archive — so the map recorded a false value, the release gate could
+  // have been deleted from that workflow with nothing going red, and
+  // anyone who corrected the row was failed by CI until they put the wrong
+  // value back. A gate that enforces the wrong answer is worse than no
+  // gate: it defends the error.
+  const placement = (name) => gatePlacement(name, pkg.scripts[name], workflows);
   const gates = Object.keys(pkg.scripts).filter((n) => n.startsWith("check:")).sort();
   checked.gates = gates.length;
   for (const gate of gates) {
@@ -556,20 +644,8 @@ if (orientation) {
   // carries two directories (`android/` · `ios/`) satisfies both. What the
   // rule refuses is a directory the page never mentions in any form.
   //
-  // The skip set is read from .gitignore rather than hardcoded, so a build
-  // output directory added there is skipped here without a second edit —
-  // the failure mode of a hand-kept list being a red gate on someone else's
-  // `dist-ssr/`. Only plain top-level entries count (no slash inside, no
-  // glob), which is exactly the shape of the directory entries there.
-  const ignored = new Set([
-    ".git",
-    ...read(".gitignore")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
-      .filter((l) => !/[*?[\]]/.test(l) && !l.slice(0, -1).includes("/"))
-      .map((l) => l.replace(/\/$/, "")),
-  ]);
+  // The skip set is gitIgnoredTop's, shared with the document rules.
+  const ignored = gitIgnoredTop();
   const subdirs = (dir) =>
     readdirSync(join(root, dir), { withFileTypes: true })
       .filter((e) => e.isDirectory() && !ignored.has(e.name))

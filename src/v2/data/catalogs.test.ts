@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { COUNTRIES, DOGS, EMOJI, FILMS, parseCatalog, COLORS } from "./catalogs";
+import { COUNTRIES, DOGS, EMOJI, FILMS, parseCatalog, COLORS, LANGUAGES } from "./catalogs";
 
 // Popularity order, sparse QID keys — the generator's output shape,
 // including a remake disambiguated by year and an accented name.
@@ -176,6 +176,37 @@ describe("the shipped colours catalogue", () => {
     expect(real.some((e) => e.name === "cyan")).toBe(false);
     expect(real.some((e) => e.name === "gray")).toBe(true);
     expect(real.some((e) => e.name === "grey")).toBe(false);
+    expect(new Set(real.map((e) => e.name)).size).toBe(real.length);
+  });
+});
+
+describe("the shipped languages catalogue", () => {
+  // Real-file leg for the minted-key domain (build-languages.mjs): the
+  // initial mint was 1..N in ISO-code order under the append-only
+  // discipline, so keys are exactly 1..N contiguous — the dogs shape —
+  // and the anchors pin the recorded mint, not a derivation.
+  const real = parseCatalog(
+    readFileSync(resolve(__dirname, "../../../public/languages.txt"), "utf8"),
+  );
+
+  it("parses completely with contiguous minted keys", () => {
+    expect(real.length).toBe(183);
+    const keys = real.map((e) => e.key).sort((a, b) => a - b);
+    expect(keys[0]).toBe(1);
+    expect(keys[keys.length - 1]).toBe(183);
+    expect(new Set(keys).size).toBe(real.length);
+  });
+
+  it("resolves a minted key to its language", () => {
+    expect(LANGUAGES.nameOf(real, 47)).toBe("French (Français)");
+    expect(LANGUAGES.nameOf(real, 37)).toBe("English");
+  });
+
+  it("finds a language by either script, and names stay unique", () => {
+    // the native name rides the display name, so a search typed in the
+    // native script resolves — the one thing no other domain offers
+    expect(LANGUAGES.search(real, "français")[0].key).toBe(47);
+    expect(LANGUAGES.search(real, "日本語")[0].key).toBe(74);
     expect(new Set(real.map((e) => e.name)).size).toBe(real.length);
   });
 });

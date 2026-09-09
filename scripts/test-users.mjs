@@ -4,12 +4,13 @@
 //
 // THE PROBLEM THIS SOLVES. docs/LOCAL-TESTING.md tells you to join your own
 // duo "by invite code from a second browser profile/incognito window". That
-// works for the join, and then stops being enough: a duo only reveals when
-// BOTH members played (shouldReveal, functions/src/pure.ts), the Groups
-// portrait is computed from reveal HISTORY (data/groupPortrait.ts), and a
-// streak needs consecutive revealed days. Producing that by hand is a second
-// window, a second set of votes, and a wait for the 2-hourly scan — per day
-// of history you want. Nobody does it, so those surfaces get looked at least.
+// works for the join, and then stops being enough: a 1v1 reveals when BOTH
+// members have answered the round (roundReveals, functions/src/pure.ts),
+// the Groups portrait is computed from reveal HISTORY
+// (data/groupPortrait.ts), and a streak needs consecutive revealed days.
+// Producing that by hand is a second window and a second set of votes —
+// per round of history you want. Nobody does it, so those surfaces get
+// looked at least.
 //
 // WHAT A TEST USER IS. A real account. It signs in, writes its own profile,
 // joins through the real callables, seals its duel answer at the real path,
@@ -19,7 +20,7 @@
 //   * membership   createGroupV2 / joinGroupV2 / leaveGroupV2 (callables —
 //                  invite codes, caps and pairing cannot be forged, so the
 //                  harness cannot forge them either)
-//   * duel answers v2_users/{uid}/answers/g_{gid}_{day}, owner-written,
+//   * duel answers v2_users/{uid}/answers/g_{gid}_r{n}, owner-written,
 //                  shape-checked by firestore.rules like any other
 //   * reveals      revealDuelsNowV2, the scheduled scan's own manual lever
 //
@@ -44,11 +45,11 @@
 //      bucket (breakdownBucket, functions/src/pure.ts) — so the answer
 //      would count in the totals and vanish from every cohort cut, which
 //      looks like a Mirror bug.
-//   3. Backfilled days are revealed OLDEST FIRST, one explicit day per
-//      call. nextStreak only extends when the previous reveal was for the
-//      immediately preceding day, and revealDuelsNowV2 with no day scans
-//      newest-first (scanDays), so one bulk call over a backfill ends on
-//      streak 1 no matter how many days it settled.
+//   3. `history` plays and reveals one round per pass, in order. Under the
+//      day this had to name each day oldest-first or the streak ended on
+//      1; a round has no day to name (ROUNDS-PLAN / D426), and the streak
+//      is keyed on the day a reveal lands, so consecutive passes on
+//      consecutive days are what a streak reads.
 //
 // EMULATOR ONLY, enforced below. Since D98 the public counts are EXACT and
 // publish from the first answer — there is no floor for a fake account to
@@ -97,13 +98,12 @@ import {
 // Node loads these .ts files directly under --experimental-strip-types
 // (see the `testuser` script in package.json); both modules are
 // dependency-free at module scope, so nothing Vite-shaped comes with them.
-import { duelQFor, splitBanks, utcDayIndex } from "../src/v2/data/deck.ts";
+import { duelQFor, splitBanks } from "../src/v2/data/deck.ts";
 import { parseCatalogue, placeKey } from "../src/v2/data/places.ts";
 import { FUNCTIONS_REGION } from "../src/lib/region.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = FUNCTIONS_REGION;
-const DAY_MS = 86400000;
 
 // How far back a duel answer may be dated, in whole days.
 //
@@ -113,7 +113,7 @@ const DAY_MS = 86400000;
 // hours of a UTC day and is refused every afternoon. -3 holds at any hour,
 // which is what makes it the cap here rather than 4: a backfill that half
 // works depending on the clock is worse than one that states its limit.
-const MAX_BACKFILL_DAYS = 3;
+const MAX_BACKFILL_ROUNDS = 14;
 
 const STATE_FILE = resolve(ROOT, ".test-users.json");
 
@@ -351,21 +351,12 @@ function chooseGuess(user, qid, optionCount, myPick) {
   return hash(`crowd|${qid}`) % optionCount;
 }
 
-const utcDayKey = (offset, nowMs = Date.now()) =>
-  new Date(nowMs + offset * DAY_MS).toISOString().slice(0, 10);
 
-// "today" | "yesterday" | "-2" | "2026-08-10" → a whole-day offset from now.
-// Always an offset, because duelQFor needs one and the day key is derived
-// from it — deriving them separately is how the two disagree.
-function dayOffsetOf(spec) {
-  if (spec == null || spec === "today") return 0;
-  if (spec === "yesterday") return -1;
-  if (/^-?\d+$/.test(spec)) return Number(spec);
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(spec);
-  if (!m) die(`--day: expected today|yesterday|-N|YYYY-MM-DD, got "${spec}"`);
-  const target = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return Math.floor(target / DAY_MS) - utcDayIndex(Date.now());
-}
+// Rounds (ROUNDS-PLAN, D426). The open round is on the group document;
+// absent reads as 1, like every other reader. A test user answers the
+// lowest round it has not sealed, inside the lead — the client's own rule.
+const openRoundOf = (g) => (Number.isInteger(g.round) && g.round >= 1 ? g.round : 1);
+const ROUND_LEAD = 5;
 
 // ── sessions ────────────────────────────────────────────────────────
 
@@ -542,16 +533,15 @@ async function cmdHost(config, state, name, opts) {
   return out;
 }
 
-// Seal one day's duel answer for every test user, in every group they are in.
+// Seal the next round's duel answer for every test user, in every group
+// they are in — the lowest round they have not sealed, inside the lead.
 async function cmdPlay(config, state, opts) {
   if (!state.users.length) die("no test users yet: npm run testuser -- join <CODE>");
-  const offset = dayOffsetOf(opts.day);
-  const day = utcDayKey(offset);
   const ops = await opsSession(config);
   const banks = await ensureSeeded(ops);
   await ops.close();
 
-  step(`sealing answers for ${day}${offset === 0 ? " (today)" : ""}`);
+  step("sealing the next round's answers");
   let sealed = 0;
   for (const person of state.users) {
     const s = await signIn(config, person);
@@ -560,11 +550,16 @@ async function cmdPlay(config, state, opts) {
     const targets = opts.gid ? groups.filter((g) => g.id === opts.gid) : groups;
     if (!targets.length) info(`${person.name}: in no group${opts.gid ? " matching --gid" : ""} yet`);
     for (const g of targets) {
-      const q = duelQFor(g, banks.duel, utcDayIndex(Date.now()), offset);
+      const open = openRoundOf(g);
+      let round = null;
+      for (let n = open; n < open + ROUND_LEAD; n++) {
+        const existing = await getDoc(doc(s.db, "v2_users", s.uid, "answers", `g_${g.id}_r${n}`));
+        if (!existing.exists()) { round = n; break; }
+      }
+      if (round == null) { info(`${person.name} → ${g.name}: at the lead — ${ROUND_LEAD} rounds sealed ahead`); continue; }
+      const q = duelQFor(g, banks.duel, round);
       if (!q) { warn(`${g.name}: no question in the ${g.mode || "group"} bank`); continue; }
-      const aid = `g_${g.id}_${day}`;
-      const existing = await getDoc(doc(s.db, "v2_users", s.uid, "answers", aid));
-      if (existing.exists()) { info(`${person.name} → ${g.name}: already sealed`); continue; }
+      const aid = `g_${g.id}_r${round}`;
       const optionCount = q.options.length;
       const optionIdx = chooseOption(person, q.id, optionCount);
       const duo = (g.mode || "group") === "duo";
@@ -573,7 +568,7 @@ async function cmdPlay(config, state, opts) {
         surface: duo ? "duo" : "group",
         optionIdx,
         gid: g.id,
-        day,
+        round,
         answeredAt: serverTimestamp(),
         anchors: person.anchors,
       };
@@ -583,60 +578,53 @@ async function cmdPlay(config, state, opts) {
       try {
         await setDoc(doc(s.db, "v2_users", s.uid, "answers", aid), payload);
         sealed++;
-        ok(`${person.name} → ${g.name}: "${q.options[optionIdx]}"${duo ? ` (guessed "${q.options[payload.guessIdx]}")` : ""}`);
+        ok(`${person.name} → ${g.name}: round ${round} "${q.options[optionIdx]}"${duo ? ` (guessed "${q.options[payload.guessIdx]}")` : ""}`);
         info(`Q ${q.id} — ${q.prompt}`);
       } catch (err) {
-        // The two refusals worth naming, because both look like a broken
-        // harness and neither is: a revealed day is closed to new answers
-        // (firestore.rules gates the create on the reveal not existing),
-        // and a day outside the 4d/2d window is refused by date.
+        // The refusals worth naming, because both look like a broken harness
+        // and neither is: a round behind the open one has revealed, and a
+        // round past the lead is refused by the round bound.
         warn(`${person.name} → ${g.name}: refused (${err.code || err.message})`);
-        info(`${day} is either already revealed or outside the answer window`);
+        info(`round ${round} is either revealed already or past the lead`);
       }
     }
     await s.close();
   }
   if (sealed) {
     say("");
-    say(`  next: npm run testuser -- reveal${opts.day ? ` --day ${day}` : ""}`);
+    say("  A 1v1 reveals the moment both have played; a group when everyone has,");
+    say("  or at its deadline. To close open rounds now: npm run testuser -- reveal");
   }
   return sealed;
 }
 
 async function cmdReveal(config, state, opts) {
-  const offset = dayOffsetOf(opts.day);
-  const day = utcDayKey(offset);
   const ops = await opsSession(config);
-  step(`revealing ${day}`);
-  const out = await ops.call("revealDuelsNowV2", { day });
-  ok(`revealed ${out.revealed} of ${out.scanned} groups scanned`);
+  step("revealing every open round that has an answer in it (force)");
+  const out = await ops.call("revealDuelsNowV2", { force: true });
+  ok(`revealed ${out.revealed} round${out.revealed === 1 ? "" : "s"} across ${out.scanned} groups scanned`);
   await ops.close();
 
-  // Read the reveal back through a member's session — the read rule gates on
-  // the reveal's own `members` snapshot, so this also proves the document is
-  // readable by the people in it rather than merely written.
+  // Read the newest reveal back through a member's session — reveals are
+  // world-readable (D98), so this proves the document is readable by the
+  // people in it rather than merely written.
   //
-  // `--gid` narrows this REPORT only. revealDuelsNowV2 settles every group it
-  // scans and takes no gid, so a run that claimed to have revealed one group
+  // `--gid` narrows this REPORT only. revealDuelsNowV2 walks every group
+  // and takes no gid, so a run that claimed to have revealed one group
   // would be describing a scan it did not perform.
   for (const person of state.users) {
     const s = await signIn(config, person);
     const seen = await groupsOf(s);
     for (const g of (opts.gid ? seen.filter((x) => x.id === opts.gid) : seen)) {
-      const snap = await getDoc(doc(s.db, "v2_groups", g.id, "reveals", day));
-      if (!snap.exists()) {
-        const duo = (g.mode || "group") === "duo";
-        warn(`${g.name}: no reveal for ${day}`);
-        info(duo
-          ? "a duo is both-or-nothing (shouldReveal) — did you answer in the app too?"
-          : "a group needs at least one answer for that day");
-        continue;
-      }
+      const open = openRoundOf(g);
+      if (open <= 1) { warn(`${g.name}: nothing has revealed yet (round 1 is open)`); continue; }
+      const key = `r${open - 1}`;
+      const snap = await getDoc(doc(s.db, "v2_groups", g.id, "reveals", key));
+      if (!snap.exists()) { warn(`${g.name}: no reveal at ${key}`); continue; }
       const r = snap.data();
       const votes = r.votes || {};
-      ok(`${g.name} — ${day} · streak ${(await getDoc(doc(s.db, "v2_groups", g.id))).data()?.streak ?? "?"}`);
-      const q = r.qid;
-      info(`Q ${q}`);
+      ok(`${g.name} — round ${open - 1} · ${r.day} · streak ${g.streak ?? "?"}`);
+      info(`Q ${r.qid}`);
       for (const [uid, v] of Object.entries(votes)) {
         const who = (r.names || {})[uid] || uid.slice(0, 8);
         const guess = typeof v.guessIdx === "number" ? ` · guessed #${v.guessIdx}` : "";
@@ -649,29 +637,22 @@ async function cmdReveal(config, state, opts) {
   return out;
 }
 
-// Backfill N past days of sealed answers and settle each one, oldest first.
+// Play and reveal N rounds in a row, so the Groups stop and the role cards
+// have a history to read. Each pass seals the next round for every test
+// user and then closes every open round with an answer in it.
 async function cmdHistory(config, state, opts) {
-  const days = Math.min(opts.days || MAX_BACKFILL_DAYS, MAX_BACKFILL_DAYS);
-  if ((opts.days || 0) > MAX_BACKFILL_DAYS) {
-    warn(`capped at ${MAX_BACKFILL_DAYS} days — firestore.rules refuses a duel answer dated more than 4 days back, and the day key is midnight UTC, so -4 only lands in the small hours`);
+  const rounds = Math.min(opts.rounds || opts.days || MAX_BACKFILL_ROUNDS, MAX_BACKFILL_ROUNDS);
+  if ((opts.rounds || opts.days || 0) > MAX_BACKFILL_ROUNDS) {
+    warn(`capped at ${MAX_BACKFILL_ROUNDS} rounds a run — run it again for more`);
   }
-  // Run this BEFORE revealing today, not after. lastRevealDay and streak are
-  // written by whichever reveal commits last, so settling today first and
-  // then backfilling leaves a group whose newest reveal is today and whose
-  // lastRevealDay says the day before yesterday. Nothing is broken — the
-  // reveals are all there and readable — but the streak counts the backfill
-  // rather than the run up to today, which reads as a bug and is not one.
-  step(`backfilling ${days} day${days > 1 ? "s" : ""} — do this before revealing today`);
-  // Oldest first, and one explicit day per reveal call: nextStreak extends
-  // only from the immediately preceding revealed day, so any other order
-  // finishes on streak 1.
-  for (let i = days; i >= 1; i--) {
-    await cmdPlay(config, state, { ...opts, day: String(-i) });
-    await cmdReveal(config, state, { gid: opts.gid, day: String(-i) });
+  step(`playing ${rounds} round${rounds > 1 ? "s" : ""}`);
+  for (let i = 0; i < rounds; i++) {
+    await cmdPlay(config, state, opts);
+    await cmdReveal(config, state, { gid: opts.gid });
   }
   say("");
   say("  The Groups stop reads reveal history — open mirror → Groups.");
-  return days;
+  return rounds;
 }
 
 // World answers, so a test user is not a ghost everywhere outside the duel.
@@ -737,12 +718,12 @@ async function cmdList(config, state) {
     if (!groups.length) say("    groups: none");
     for (const g of groups) {
       const mode = g.mode || "group";
-      const q = banks.duel.length ? duelQFor(g, banks.duel, utcDayIndex(Date.now()), 0) : null;
-      const today = utcDayKey(0);
-      const mine = await getDoc(doc(s.db, "v2_users", s.uid, "answers", `g_${g.id}_${today}`));
-      const revealed = await getDoc(doc(s.db, "v2_groups", g.id, "reveals", today));
+      const open = openRoundOf(g);
+      const q = banks.duel.length ? duelQFor(g, banks.duel, open) : null;
+      const mine = await getDoc(doc(s.db, "v2_users", s.uid, "answers", `g_${g.id}_r${open}`));
+      const played = ((g.played || {})[`r${open}`] || []).length;
       say(`    ${g.name}  [${mode}]  code ${g.inviteCode}  streak ${g.streak || 0}  members ${(g.memberUids || []).length}`);
-      say(`      ${today}  ${mine.exists() ? "sealed ✓" : "not sealed"}${revealed.exists() ? "  · revealed ✓" : ""}`);
+      say(`      round ${open}  ${mine.exists() ? "sealed ✓" : "not sealed"}  · ${played} of ${(g.memberUids || []).length} played${g.roundDeadlineAt ? "  · clock running" : ""}`);
       if (q) say(`      Q ${q.id} — ${q.prompt}`);
       say(`      last reveal ${g.lastRevealDay || "—"}`);
     }
@@ -805,22 +786,20 @@ tested from one browser. Emulator only.
   new [--count N] [--name X]  create test users (no group yet)
   join <CODE> [--count N]     join your group or duo by its invite code
   host [NAME] [--mode duo]    a test user creates the group; you join from the app
-  play [--day D] [--gid G]    seal a day's duel answer in every group they are in
-  reveal [--day D]            run the reveal for that day (revealDuelsNowV2)
-  history [--days N]          backfill N past days of answers + reveals (max ${MAX_BACKFILL_DAYS})
+  play [--gid G]              seal the next round's duel answer in every group they are in
+  reveal                      close every open round with an answer in it (revealDuelsNowV2, force)
+  history [--rounds N]        play and reveal N rounds in a row (max ${MAX_BACKFILL_ROUNDS} a run)
   world [--n N]               answer N world questions each (feeds the aggregates)
   seed                        seed the question bank (seedContentV2)
   reset [--purge]             forget the test users; --purge deletes the accounts
-
-  --day accepts today | yesterday | -N | YYYY-MM-DD   (default: today)
 
 The 1v1 loop, end to end:
 
   1  in the app: Circle tab → create a duo → copy the invite code
   2  npm run testuser -- join <CODE>
-  3  in the app: answer today's duel question
-  4  npm run testuser -- play
-  5  npm run testuser -- reveal
+  3  in the app: answer the open round
+  4  npm run testuser -- play      (a 1v1 reveals right here, on the second answer)
+  5  npm run testuser -- reveal    (a group with rounds still open: close them now)
   6  the reveal card is on the daily tab; the portrait is on mirror → Groups
 `);
 }

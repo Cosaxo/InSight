@@ -3,11 +3,13 @@
 //
 // WHY THEY ARE NOT IN ./handles AND ./invites, where they read more
 // naturally: those two are imported by LiveDuelPanel and
-// LivePrivacyPanel, which are EAGER (they self-register on globalThis for
-// the spec layer's render-time lookups). A `firebase/firestore` import
-// reachable from an eager module puts the whole SDK on the first-paint
-// path — check:bundle measured 1270 KB against a 955 KB ceiling, which is
-// exactly the tree as it stood before D110.
+// LivePrivacyPanel, which sat on the first-paint path when this split was
+// made (both are off it now — a React.lazy since D156, the overlays chunk
+// since D344 — but ./handles' own header has why the split outlives
+// them). A `firebase/firestore` import reachable from an eager module
+// puts the whole SDK on the first-paint path — check:bundle measured
+// 1270 KB against a 955 KB ceiling, which is exactly the tree as it
+// stood before D110.
 //
 // So the split is by WHAT MAY BE IMPORTED EAGERLY, not by subject: the
 // validation and the wording are pure and live with their features, and
@@ -98,6 +100,26 @@ export interface DirectoryPerson {
 }
 
 /**
+ * Fold a display name to its directory key.
+ *
+ * ASCII-ONLY, and that is not a simplification — `firestore.rules` checks
+ * `nameKey == name.lower()`, and the rules engine's `.lower()` touches
+ * A-Z and nothing else. JavaScript's `toLowerCase()` is full Unicode, so
+ * for any name carrying a non-ASCII capital the two disagree and the rule
+ * REFUSES the write outright: the account ends up with no directory row
+ * at all, invisible rather than merely hard to find. Measured against the
+ * emulator: {name:"Ólaf", nameKey:"ólaf"} is denied, {name:"Ólaf",
+ * nameKey:"Ólaf"} is allowed.
+ *
+ * The residual, recorded rather than hidden: a non-ASCII capital stays
+ * capital in the key, so "Ólaf" is found by typing "Ó…" and not by "ó…".
+ * Case-sensitive for those characters, which is a far smaller loss than
+ * absent, and it cannot be closed on the client alone — the rule can only
+ * compare against something the rules engine can compute.
+ */
+export const foldName = (s: string) => s.replace(/[A-Z]/g, (c) => c.toLowerCase());
+
+/**
  * People whose display name starts with what was typed.
  *
  * A PREFIX RANGE, which is the only text matching Firestore has: the
@@ -117,12 +139,13 @@ export interface DirectoryPerson {
  * `nameKey` is a single field, so Firestore indexes it automatically and
  * this needs no entry in firestore.indexes.json.
  */
+
 export async function searchPeopleByName(
   db: Firestore,
   raw: string,
   cap: number = PEOPLE_SEARCH_CAP,
 ): Promise<DirectoryPerson[]> {
-  const key = raw.trim().toLowerCase();
+  const key = foldName(raw.trim());
   // An empty prefix spans the WHOLE directory. Refused here rather than
   // bounded by `cap`, because "the first eight people who ever signed
   // up" is not a search result — it is a listing, which is the one thing
@@ -164,6 +187,6 @@ export async function writeDirectoryRow(
   const { doc: fsDoc, setDoc } = await import("firebase/firestore");
   await setDoc(fsDoc(db, "v2_people", uid), {
     name: clean,
-    nameKey: clean.toLowerCase(),
+    nameKey: foldName(clean),
   }, { merge: true });
 }

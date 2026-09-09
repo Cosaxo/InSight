@@ -23,9 +23,6 @@
     }
   ],
   "alertStrategy": {
-    "notificationRateLimit": {
-      "period": "3600s"
-    },
     "autoClose": "604800s"
   },
   "enabled": true,

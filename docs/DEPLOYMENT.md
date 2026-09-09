@@ -65,7 +65,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     `submitModVerdict`
   - `deleteAccount` — the one v1-era function that carries forward, and
     it still wipes the v1 collections (D13)
-  - Hosting (`web/` — the legal pages), as the **last** step and
+  - `resultsPageV2` (D379) — an HTTPS function, not a callable: the
+    shareable results page of a sponsored question, which the hosting
+    rewrite `/q/**` in `firebase.json` points at. No App Check and no
+    sign-in by design (it serves the open web); the page sets its own
+    security headers and a five-minute cache. Deployed with the
+    functions, so the rewrite has a target before hosting goes out.
+  - Hosting (`web/` — the legal pages, and the `/q/**` rewrite above),
+    as the **last** step and
     `continue-on-error` for the same reason as storage
   - The apply is **two steps, and the split is load-bearing.** Rules and
     indexes go first with no `--force`; functions follow with it.
@@ -86,6 +93,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     two are ever recombined.
 
 ### One-off cleanup still owed in production (D13)
+
+> **PAID 2026-08-27 (D333).** The command below ran as written, all nine
+> confirmed 2nd Gen as they went, and their four Cloud Scheduler jobs went
+> with them — `us-central1` now holds zero functions and zero scheduler
+> jobs, verified by `npm run observe`. The inert `aggregates_*` and
+> `taxonomies` documents they kept rewriting went the same day, with the
+> whole `(default)` database (FIRESTORE-REGION step 5). Kept below as the
+> record of what was owed and why the region in it was right.
 
 Dropping a function from the `--only` list stops **deploying** it; it does
 not **delete** the deployed copy. The nine v1 functions removed in D13 are
@@ -150,11 +165,17 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Four jobs — verified rather than assumed,
+**What the environment gates.** Seven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
-sentence in a different document that had counted them.
+sentence in a different document that had counted them. (`budget.yml`
+joined at D332, and this sentence moved in the same commit because
+`check:figures` now holds the count — the gate that grew out of exactly
+this paragraph's history — and it caught the sixth, `appcheck.yml`, in
+the commit that added it, which is the first time this count moved without
+a person noticing it had. It caught the seventh, `auth-config.yml`, the
+same way and in the same commit.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -162,6 +183,9 @@ sentence in a different document that had counted them.
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
 | `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
+| `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
+| `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
+| `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -278,11 +302,35 @@ None are committed files:
 | --- | --- | --- |
 | `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. Set 2026-07-31 to the maintainer's uid (same account as `MOD_UIDS` — the roles are separate, the person currently is not). |
 | `MOD_UIDS` | `functions/src/moderation.ts` → `assertModerator()` | Comma-separated uids allowed to call the moderation callables (`buildModQueueNow`, `fetchModQueue`, `submitModVerdict`). **Deliberately separate** from `SEED_ADMIN_UIDS` — a moderator identity can moderate and do nothing else (docs/MODERATION.md, D22). Unset ⇒ both callables deny everyone, which is fail-safe. Set 2026-07-31 to the maintainer's uid. |
-| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
+| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. That last sentence is held by `check:appcheck`, which evaluates the constant against these environments rather than pinning its text — until 2026-09-06 the gate read the *name* at 28 call sites and nothing read the value, so flipping this to opt-in served all 20 attested callables unattested with every gate green. |
 | `DC_TEAM_ID`, `DC_KEY_ID` | `functions/src/deviceBind.ts` | Apple team id and DeviceCheck key id for `activateDeviceV2`'s iOS verifier (D29, docs/DEVICE-BIND.md). Unset ⇒ iOS activation fails `failed-precondition` — fail-safe while rules enforcement is soft. |
 | `DC_PRIVATE_KEY` *(secret, not a variable)* | `functions/src/deviceBind.ts` | The DeviceCheck `.p8` contents. Stored as a GitHub **secret**; the deploy step \n-escapes it into the dotenv, the function unescapes. |
 | `DC_ENV` | `functions/src/deviceBind.ts` | Set to `development` only when probing with development-signed builds — Apple routes dev-signed device tokens to the development endpoint. Unset ⇒ production endpoint. |
 | `PLAY_PACKAGE_NAME` | `functions/src/deviceBind.ts` | Android package for Play Integrity decode/recall. Unset ⇒ `com.cosaxo.insight`, which is correct; exists so a future flavor/id change is one variable. |
+| `STRIPE_SECRET_KEY` *(secret)* | `functions/src/paid.ts` | The Stripe API key (`sk_live_…`, or `sk_test_…` while rehearsing) for the self-serve paid-question loop (D313): checkout sessions and the closer's refunds. Unset ⇒ `createPaidCheckoutV2` answers `unavailable` and the closer records refund arithmetic without executing it — bookings and reviews still run. |
+| `STRIPE_WEBHOOK_SECRET` *(secret)* | `functions/src/paid.ts` | The signing secret (`whsec_…`) of the Stripe webhook endpoint pointed at `stripeWebhookV2` (see below). Unset ⇒ the webhook answers 503 and no payment can go live. |
+| `ANTHROPIC_API_KEY` *(secret)* | `functions/src/paid.ts` | The Claude API key the automated paid-question review calls (`claude-opus-5` against `REVIEW_GUIDELINES`). Unset ⇒ reviews decide on the deterministic gates alone, logged as `paid_review_gates_only` — fail-open ONLY past the gates, and the deploy warning names it. |
+
+**Stripe webhook, one-time setup (D313):** in the Stripe dashboard add a
+webhook endpoint for **three** events — `checkout.session.completed`,
+`checkout.session.async_payment_succeeded` and
+`checkout.session.async_payment_failed` — pointed at
+`stripeWebhookV2`'s HTTPS URL (printed by the deploy;
+`https://stripewebhookv2-<hash>-ew.a.run.app` shape, or
+`gcloud functions describe stripeWebhookV2 --gen2 --region europe-west1
+--format="value(serviceConfig.uri)"`), then store its signing secret as
+`STRIPE_WEBHOOK_SECRET` and re-run the deploy so the dotenv carries it.
+
+The last two matter because the checkout is created without
+`payment_method_types`, so Stripe's dynamic methods apply — and EUR's
+delayed ones (SEPA Direct Debit, bank transfer) deliver
+`checkout.session.completed` with `payment_status: "unpaid"` and settle
+hours or days later. The handler goes live only on a completion that says
+paid, so subscribing to `completed` alone would leave every delayed-method
+buyer stuck at approved, having paid.
+Deliberately the dotenv mechanism, not `defineSecret()` — a Secret
+Manager entry that does not exist makes `firebase deploy` refuse, and
+the paid loop must never be able to block an emergency rules fix.
 
 The deploy job writes these to `functions/.env.prvfire33`, which the CLI
 bakes into each function's runtime config. The filename is
@@ -627,7 +675,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (eight policies, five log-based metrics)
+## Alerting (ten policies, eight log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -760,14 +808,17 @@ policy's own runbook tells them to do — would reset the absence timer and
 silence the alert for the outage they are working on.
 
 **Why this one does not wait for "someone is actually reading the alerts",
-unlike the aggregators below.** A missed reveal does **not** self-heal.
-`runDuelReveals` computes `const yester = dayKey || utcDayKey(-1)`, and the
-schedule passes no `dayKey` — so every run handles *yesterday and only
-yesterday*. A three-day outage does not resolve into a catch-up run; it
-leaves two days permanently unrevealed, because no later scheduled run ever
-looks at them again. Recovering them needs a manual `revealDuelsNowV2` with
-an explicit `day`, which needs someone to know which days to name. The
-detection gap and the data loss are the same window.
+unlike the aggregators below.** Under the day, a missed reveal did **not**
+self-heal: every run handled yesterday and only yesterday, so a three-day
+outage left two days permanently unrevealed, and recovering them needed a
+manual `revealDuelsNowV2` naming each day. Under rounds (ROUNDS-PLAN,
+D426) the scan asks for every group whose open round is DUE —
+`roundDeadlineAt <= now` — and a due round stays due until it reveals, so
+the first run after an outage catches up everything the outage missed.
+What the alert still buys is the WAIT: while the scan is quiet, every group
+whose round did not complete sits face-down past its deadline (a 1v1 and a
+group everyone answered reveal in the trigger and are not affected), and a
+recovery is one `revealDuelsNowV2` call with no day to name.
 
 **Known limit, recorded rather than discovered later.** A metric-absence
 condition needs a time series that has existed at least once; against a
@@ -787,13 +838,43 @@ the channel, and at zero users most signals are noise. These are the
 conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
-indistinguishable from health. The scheduled aggregators
-(`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
-next — they are 24h jobs whose failure delays a surface by a day and
-self-heals on the next run, so they can wait until someone is actually
-reading the alerts. That "self-heals" is doing real work in this paragraph:
+indistinguishable from health. The nightly jobs are the obvious next
+— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+`closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
+failure delays a surface by a day and self-heals on the next run, so
+they can wait until someone is actually reading the alerts.
+(`sweepPaidReviewsV2` is NOT one of them — it runs every 30 minutes, so
+its silence costs half an hour, not a day. `scheduledDuelReveals` is
+every 120 minutes and is already alerted.)
+
+(This named `scheduledWorldAggregates` and `scheduledCityAggregates` as
+those 24h jobs until 2026-09-08. Neither exists — they are in this same
+document's `functions:delete` list seven hundred lines up, under "PAID
+2026-08-27 (D333) … `us-central1` now holds zero functions and zero
+scheduler jobs" — and the architecture the sentence assumed went with
+them: aggregates are folded by `onV2AnswerCreated` on every answer, exact
+and with no cadence, so there is no 24h aggregate job left to alert on.) That "self-heals" is doing real work in this paragraph:
 it is exactly what is NOT true of the reveal scan, which is why that one
 did not wait.
+
+### The cap alert: cohort counts discarded at the breakdown cap (D398)
+
+`monitoring/onV2AnswerCreated-evictions.json` is the contention alert's
+shape pointed at the other thing the vote path does without an error:
+`BREAKDOWN_MAX_BUCKETS` bounds the breakdown document, and past 24 values
+of one anchor the fold either evicts a sub-floor bucket or refuses the
+newcomer — the answer folds, the transaction commits, and the cell goes to
+the question's tail (`v2_agg_overflow/{qid}-{shard}`, D400) rather than
+to the hot document. `evictForNewBucket` ran silently from the day it was
+written; the fold reports through a callback (D398) and the trigger logs
+`metric: "agg_evict"` once per act of the cap, after the commit (so a
+contended answer counts once, not once per attempt). The metric is
+`agg_evict`, `severity>=WARNING`, and the policy thresholds more than five
+in an hour. Since D400 nothing is lost when it fires; what the line means
+is that the tail is live for that question — a reader whose city is in it
+pays a shard read per such question at the City stop — and the runbook's
+first response is to move `B.tailShare` in the cost model from its honest
+zero, not to raise the threshold.
 
 ## Running a deploy manually
 

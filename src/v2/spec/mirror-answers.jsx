@@ -11,6 +11,7 @@ import { TabSection } from './primitives.jsx';
 // answered by the population the mirror currently reflects. Category chips
 // filter; sort by newest / most divisive / most agreed; a row expands into
 // the full answer distribution with your own answer marked.
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useReducer } = React;
 
@@ -24,21 +25,20 @@ import { TabSection } from './primitives.jsx';
   }
 
   // ── collapsed stack: one thin bar, your segment in accent ─────────────────
-  function MAStack({ q, dist, mine }) {
+  function MAStack({ q, dist, mine, tint }) {
     const lead = topIdx(dist);
     return (
-      <div style={{ display: 'flex', height: 10, borderRadius: 999, overflow: 'hidden', gap: 2 }}>
+      <div style={{ display: 'flex', height: 12, gap: 3 }}>
         {dist.map((v, i) => {
           const isMine = mine === i;
-          const isLead = i === lead;
           return (
             <span key={i} style={{
-              flexGrow: v, minWidth: isMine ? 8 : 0,
+              flexGrow: v, minWidth: isMine ? 10 : 3, borderRadius: 999,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: isMine ? 'var(--accent)'
-                : isLead ? 'color-mix(in oklch, var(--accent) 45%, var(--surface-3))'
-                : 'var(--surface-3)',
-            }}>{isMine && <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--surface)' }}></span>}</span>
+                : i === lead ? `color-mix(in oklch, ${tint} 62%, var(--surface-3))`
+                : `color-mix(in oklch, ${tint} 15%, var(--surface-3))`,
+            }}>{isMine && <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: 'var(--surface)' }}></span>}</span>
           );
         })}
       </div>
@@ -46,10 +46,10 @@ import { TabSection } from './primitives.jsx';
   }
 
   // ── expanded: option bars (choice / binary / scale / dilemma) ─────────────
-  function MABars({ q, dist, mine }) {
+  function MABars({ q, dist, mine, tint, tintInk }) {
     const lead = topIdx(dist);
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         {q.options.map((o, i) => {
           const isMine = mine === i;
           return (
@@ -60,10 +60,10 @@ import { TabSection } from './primitives.jsx';
                 color: isMine ? 'var(--ink)' : 'var(--ink-2)',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>{o}</span>
-              <div style={{ flex: 1, height: 9, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden' }}>
-                <div style={{ width: Math.max(dist[i], 1) + '%', height: '100%', borderRadius: 999, background: 'var(--accent)', opacity: isMine ? 1 : 0.32 }} />
+              <div style={{ flex: 1, height: 10, background: `color-mix(in oklch, ${tint} 9%, var(--surface-3))`, borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ width: Math.max(dist[i], 1) + '%', height: '100%', borderRadius: 999, background: isMine ? 'var(--accent)' : i === lead ? tint : `color-mix(in oklch, ${tint} 34%, var(--surface-3))` }} />
               </div>
-              <span style={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>{isMine || (mine == null && i === lead) ? dist[i] + '%' : ''}</span>
+              <span style={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 10.5, color: isMine ? 'var(--accent-ink)' : tintInk, fontWeight: 700 }}>{isMine || (mine == null && i === lead) ? dist[i] + '%' : ''}</span>
             </div>
           );
         })}
@@ -72,7 +72,7 @@ import { TabSection } from './primitives.jsx';
   }
 
   // ── expanded: 1–10 rating histogram ────────────────────────────────────────
-  function MAHisto({ q, dist, mine }) {
+  function MAHisto({ q, dist, mine, tint, tintInk }) {
     const max = Math.max(...dist, 1);
     const avg = (dist.reduce((a, p, i) => a + p * (i + 1), 0) / 100).toFixed(1);
     const H = 48;
@@ -82,7 +82,7 @@ import { TabSection } from './primitives.jsx';
           {dist.map((v, i) => (
             <div key={i} style={{
               flex: 1, height: Math.max(3, (v / max) * H), borderRadius: 3,
-              background: 'var(--accent)', opacity: mine === i ? 1 : 0.3,
+              background: mine === i ? 'var(--accent)' : `color-mix(in oklch, ${tint} 55%, var(--surface-3))`,
             }} />
           ))}
         </div>
@@ -96,7 +96,7 @@ import { TabSection } from './primitives.jsx';
           ))}
         </div>
         <div style={{ marginTop: 6, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-          average <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{avg}</span> / 10
+          average <span style={{ color: tintInk, fontWeight: 800 }}>{avg}</span> / 10
         </div>
       </div>
     );
@@ -108,10 +108,16 @@ import { TabSection } from './primitives.jsx';
     const dist = q.dist[audId];
     const mine = DQ.myAnswer(q);
     const head = DQ.headline(q, audId);
+    // the row wears its question's topic (2026-09-02) — the same hue the
+    // Map files this answer under, so a screenful of rows stops being one
+    // colour and reads as a list of different subjects
+    const hue = (DQ.catMeta(DQ.categoryPath(q)[0]) || {}).hue || 250;
+    const tint = `oklch(0.55 0.13 ${hue})`;
+    const tintInk = `oklch(0.47 0.13 ${hue})`;
     const yvt = open ? DQ.youVsThem(q, audId) : null;
     const mineLabel = mine != null ? (q.type === 'rating' ? q.options[mine] + '/10' : q.options[mine]) : null;
     return (
-      <div style={{ padding: '12px 0' }}>
+      <div style={{ padding: '14px 0' }}>
         <button onClick={onToggle} className="press" style={{
           display: 'block', width: '100%', background: 'none', border: 'none', padding: 0,
           textAlign: 'left', cursor: 'pointer', color: 'inherit',
@@ -122,10 +128,10 @@ import { TabSection } from './primitives.jsx';
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9 }}>
             <span style={{ flexShrink: 0, maxWidth: '46%', fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              <span style={{ fontWeight: 800, color: 'var(--accent)' }}>{head.big}{head.unit || ''}</span>
+              <span style={{ fontWeight: 800, fontSize: 13.5, color: tintInk }}>{head.big}{head.unit || ''}</span>
               <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}> {head.sub}</span>
             </span>
-            <div style={{ flex: 1, minWidth: 44 }}><MAStack q={q} dist={dist} mine={mine} /></div>
+            <div style={{ flex: 1, minWidth: 44 }}><MAStack q={q} dist={dist} mine={mine} tint={tint} /></div>
             {mineLabel && (
               <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-2)', maxWidth: '32%' }}>
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--surface)' }}></span></span>
@@ -136,7 +142,9 @@ import { TabSection } from './primitives.jsx';
         </button>
         {open && (
           <div className="fade-in">
-            {q.type === 'rating' ? <MAHisto q={q} dist={dist} mine={mine} /> : <MABars q={q} dist={dist} mine={mine} />}
+            {q.type === 'rating'
+              ? <MAHisto q={q} dist={dist} mine={mine} tint={tint} tintInk={tintInk} />
+              : <MABars q={q} dist={dist} mine={mine} tint={tint} tintInk={tintInk} />}
             {yvt && (
               <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-2)' }}>
                 {yvt.text}
@@ -254,6 +262,7 @@ import { TabSection } from './primitives.jsx';
     );
   }
 
-  Object.assign(window, { MirrorAnswers });
+  Object.assign(EXPORTS, { MirrorAnswers });
 })();
+export const { MirrorAnswers } = EXPORTS;
 

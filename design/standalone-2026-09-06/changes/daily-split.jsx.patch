@@ -1,0 +1,303 @@
+--- recorded/daily-split.jsx
++++ 2026-09-06/daily-split.jsx
+@@ -583,7 +583,7 @@
+       style: {
+         fontFamily: 'var(--sans)',
+         fontWeight: 800,
+-        fontSize: 11.5,
++        fontSize: 12,
+         color: 'var(--ink-3)'
+       }
+     }, 'Report this take'), h('div', {
+@@ -1696,7 +1696,7 @@
+       }
+     }, ch.label))), h('div', {
+       style: {
+-        fontSize: 11.5,
++        fontSize: 12,
+         fontWeight: 600,
+         color: 'var(--ink-3)'
+       }
+@@ -1827,7 +1827,7 @@
+         style: {
+           background: c.optObj.color,
+           color: c.optObj.textColor || '#fff',
+-          fontSize: 10.5,
++          fontSize: 12,
+           fontWeight: 800,
+           padding: '2px 8px',
+           borderRadius: 999,
+@@ -1835,7 +1835,7 @@
+         }
+       }, c.optObj.label), h('span', {
+         style: {
+-          fontSize: 11,
++          fontSize: 12,
+           fontWeight: 600,
+           color: 'var(--ink-3)'
+         }
+@@ -1862,7 +1862,7 @@
+           cursor: 'pointer',
+           fontFamily: 'var(--sans)',
+           fontWeight: 800,
+-          fontSize: 11,
++          fontSize: 12,
+           color: replying ? INK : 'var(--ink-3)',
+           WebkitAppearance: 'none'
+         }
+@@ -1900,7 +1900,7 @@
+           gap: 1,
+           cursor: 'pointer',
+           fontWeight: 800,
+-          fontSize: 11,
++          fontSize: 12,
+           background: st.ups[c.key] ? INK : 'var(--surface-2)',
+           color: st.ups[c.key] ? PAPER : INK,
+           flexShrink: 0,
+@@ -1917,7 +1917,7 @@
+           alignItems: 'center',
+           gap: 1,
+           fontWeight: 800,
+-          fontSize: 11,
++          fontSize: 12,
+           color: 'var(--ink-3)',
+           flexShrink: 0,
+           cursor: 'not-allowed'
+@@ -1948,7 +1948,7 @@
+         style: {
+           background: S.options[myIdx].color,
+           color: S.options[myIdx].textColor || '#fff',
+-          fontSize: 10.5,
++          fontSize: 12,
+           fontWeight: 800,
+           padding: '2px 8px',
+           borderRadius: 999,
+@@ -1956,7 +1956,7 @@
+         }
+       }, S.options[myIdx].label), h('span', {
+         style: {
+-          fontSize: 11,
++          fontSize: 12,
+           fontWeight: 600,
+           color: 'var(--ink-3)'
+         }
+@@ -2180,7 +2180,7 @@
+             borderRadius: 999,
+             padding: '4px 11px',
+             fontWeight: on ? 800 : 600,
+-            fontSize: 11.5,
++            fontSize: 12,
+             cursor: 'pointer',
+             whiteSpace: 'nowrap',
+             background: on ? 'var(--surface-3)' : 'transparent',
+@@ -2250,7 +2250,7 @@
+         style: {
+           background: f.chipColor,
+           color: f.textColor || '#fff',
+-          fontSize: 11,
++          fontSize: 12,
+           fontWeight: 800,
+           padding: '4px 10px',
+           borderRadius: 999
+@@ -2448,7 +2448,7 @@
+       style: {
+         ...col(14),
+         position: 'relative',
+-        padding: '4px 1px 20px'
++        padding: '4px 1px 6px'
+       }
+     }, h('div', {
+       style: {
+@@ -2494,33 +2494,7 @@
+       style: {
+         flex: 1
+       }
+-    }), h('button', {
+-      className: 'press',
+-      onClick: () => {
+-        clearTimeout(this._sheetT);
+-        this.setState({
+-          tab: 'ctx',
+-          sheetClosing: false
+-        });
+-      },
+-      'aria-label': 'About this question',
+-      style: {
+-        flexShrink: 0,
+-        width: 20,
+-        height: 20,
+-        borderRadius: '50%',
+-        border: '0.5px solid var(--rule)',
+-        background: 'transparent',
+-        color: 'var(--ink-3)',
+-        fontFamily: BRIC,
+-        fontSize: 11.5,
+-        fontWeight: 800,
+-        lineHeight: 1,
+-        cursor: 'pointer',
+-        WebkitAppearance: 'none',
+-        padding: 0
+-      }
+-    }, 'i'), this.anonNode(S.id, voted), window.PassiveTag ? h(window.PassiveTag, {
++    }), window.PassiveTag ? h(window.PassiveTag, {
+       q: S,
+       answered: voted
+     }) : null), chipRow, h('div', {
+@@ -2540,19 +2514,16 @@
+     // hairline seam — the seam is what moves to the crowd's split once you
+     // vote. Three or more sides stack as rows in the same block.
+     ? h('div', {
++      className: 'ds-ballot',
+       style: {
+         display: 'grid',
+         gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr',
+-        gap: 2,
+-        height: S.options.length === 2 ? 88 : undefined,
+-        borderRadius: 20,
+-        overflow: 'hidden',
+-        background: 'var(--rule)',
+-        border: LINE
++        borderTop: LINE,
++        borderBottom: LINE
+       }
+     }, S.options.map((o, i) => h('button', {
+       key: o.id,
+-      className: 'press',
++      className: 'press ds-half',
+       onClick: () => {
+         this.syncToMap(S, o.id);
+         this.showMapToast(S.id);
+@@ -2566,32 +2537,23 @@
+         }));
+       },
+       style: {
+-        minHeight: 56,
+-        background: 'var(--surface-2)',
++        '--oc': o.color,
++        minHeight: 'var(--field-size)',
++        background: 'transparent',
+         border: 'none',
++        borderLeft: S.options.length === 2 && i === 1 ? LINE : 'none',
++        borderTop: S.options.length > 2 && i > 0 ? LINE : 'none',
+         borderRadius: 0,
+-        padding: '0 18px',
++        padding: '0 14px',
+         display: 'flex',
+-        flexDirection: S.options.length === 2 ? 'column' : 'row',
+-        alignItems: S.options.length === 2 ? 'flex-start' : 'center',
++        alignItems: 'center',
+         justifyContent: 'center',
+-        gap: S.options.length === 2 ? 8 : 12,
+         cursor: 'pointer',
+-        textAlign: 'left',
++        textAlign: 'center',
+         WebkitAppearance: 'none',
+-        boxShadow: 'none',
+-        transition: 'background .16s ease'
++        boxShadow: 'none'
+       }
+     }, h('span', {
+-      'aria-hidden': true,
+-      style: {
+-        width: 9,
+-        height: 9,
+-        borderRadius: '50%',
+-        background: o.color,
+-        flexShrink: 0
+-      }
+-    }), h('span', {
+       style: {
+         fontWeight: 700,
+         fontSize: 18,
+@@ -2712,7 +2674,7 @@
+         }
+       }, o.label), myVote === o.id && h('span', {
+         style: {
+-          fontSize: 10.5,
++          fontSize: 12,
+           fontWeight: 800,
+           letterSpacing: '.08em',
+           textTransform: 'uppercase',
+@@ -2799,7 +2761,63 @@
+       }
+     }, 'added to ' + this.mapBranch(S), h('span', {
+       'aria-hidden': true
+-    }, '\u2192')))), voted && st.beat !== S.id && h('div', {
++    }, '\u2192')))),
++    // the i and the lock, as two words under the ballot — no icon buttons in the kicker row
++    st.beat !== S.id && h('div', {
++      style: {
++        display: 'flex',
++        alignItems: 'center',
++        gap: 18,
++        marginTop: -2
++      }
++    }, h('button', {
++      className: 'press',
++      onClick: () => {
++        clearTimeout(this._sheetT);
++        this.setState({
++          tab: 'ctx',
++          sheetClosing: false
++        });
++      },
++      style: {
++        border: 'none',
++        background: 'none',
++        padding: '4px 0',
++        cursor: 'pointer',
++        fontFamily: BRIC,
++        fontSize: 12,
++        fontWeight: 600,
++        color: 'var(--ink-3)',
++        textDecoration: 'underline',
++        textDecorationColor: 'color-mix(in oklch, var(--rule), var(--ink) 10%)',
++        textUnderlineOffset: 3,
++        WebkitAppearance: 'none'
++      }
++    }, 'why this question'), !voted ? h('button', {
++      className: 'press',
++      onClick: () => this.toggleAnon(S.id),
++      'aria-pressed': st.anon[S.id] ? 'true' : 'false',
++      style: {
++        border: 'none',
++        background: 'none',
++        padding: '4px 0',
++        cursor: 'pointer',
++        fontFamily: BRIC,
++        fontSize: 12,
++        fontWeight: st.anon[S.id] ? 800 : 600,
++        color: st.anon[S.id] ? 'var(--ink)' : 'var(--ink-3)',
++        textDecoration: 'underline',
++        textDecorationColor: st.anon[S.id] ? 'var(--accent)' : 'color-mix(in oklch, var(--rule), var(--ink) 10%)',
++        textUnderlineOffset: 3,
++        WebkitAppearance: 'none'
++      }
++    }, st.anon[S.id] ? 'anonymous \u00b7 on' : 'answer anonymously') : st.anon[S.id] ? h('span', {
++      style: {
++        fontSize: 12,
++        fontWeight: 600,
++        color: 'var(--ink-3)'
++      }
++    }, 'answered anonymously') : null), voted && st.beat !== S.id && h('div', {
+       style: {
+         display: 'flex',
+         gap: 10,
+@@ -2966,7 +2984,7 @@
+           }
+         }, T.title + ' complete')), top && h('div', null, h('div', {
+           style: {
+-            fontSize: 11,
++            fontSize: 12,
+             fontWeight: 800,
+             letterSpacing: '0.08em',
+             textTransform: 'uppercase',
+@@ -3092,7 +3110,7 @@
+           border: '1px solid color-mix(in oklch, var(--test) 42%, transparent)',
+           color: OCHRE,
+           fontWeight: 800,
+-          fontSize: 11.5,
++          fontSize: 12,
+           letterSpacing: '0.08em',
+           textTransform: 'uppercase',
+           padding: '5px 11px',

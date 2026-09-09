@@ -75,6 +75,12 @@ const h = vi.hoisted(() => ({
   /** Every id list `getDocs` was asked for, in order. The reading's cost
    * claim (property 9) is a statement about exactly this. */
   queries: [] as string[][],
+  /** Your own answer for today while it is NOT yet in the published
+   * aggregate — what `LIVE.pulsePending` hands over. */
+  pending: {} as Record<string, number>,
+  /** Make the one read reject, so "the read failed" can be told apart
+   * from "nobody answered" — which is the whole of the case below. */
+  readFails: false,
 }));
 
 const LIVE = vi.hoisted(() => ({
@@ -87,8 +93,14 @@ const LIVE = vi.hoisted(() => ({
   // that is still one poll behind.
   votePulse: vi.fn((pid: string, idx: number) => {
     (h.votes[pid] ??= {})[dayKey(0)] = idx;
+    // …and marks it UNFOLDED, exactly as the real store does. Every other
+    // vote path in live.ts sets `state.unaggregated`; the pulse path was
+    // the one that did not, which is why nothing downstream could tell
+    // that today's published aggregate predates your own answer.
+    h.pending[pid] = idx;
     return Promise.resolve();
   }),
+  pulsePending: (pid: string): number | null => (pid in h.pending ? h.pending[pid] : null),
   anchors: () => ({ city: "Oslo, NO", country: "Norway" }),
   subscribe: () => () => {},
 }));
@@ -106,6 +118,7 @@ vi.mock("../../lib/firebase", () => ({
     query: (_coll: unknown, ids: string[]) => ids,
     getDocs: (ids: string[]) => {
       h.queries.push(ids);
+      if (h.readFails) return Promise.reject(new Error("permission-denied"));
       return Promise.resolve({
         docs: ids.filter((id) => id in h.aggs).map((id) => ({ id, data: (): DayAggDoc => h.aggs[id] })),
       });
@@ -154,6 +167,8 @@ beforeEach(() => {
   h.votes = {};
   h.aggs = {};
   h.queries = [];
+  h.pending = {};
+  h.readFails = false;
   LIVE.votePulse.mockClear();
   localStorage.clear();
   // `data/pulse` caches today's aggregates and every fetched window at
@@ -271,6 +286,39 @@ describe("PulseCard · absent is not zero", () => {
     expect(text()).not.toMatch(/0 answers today/);
   });
 
+  it("does not call a failed read the first answer of the day", async () => {
+    // `todayN` returns 0 for three different facts — nobody answered, the
+    // read is in flight, the read FAILED — and the card turned all three
+    // into "the first answer today". With a hundred real answers on the
+    // server and a refused read, that sentence is simply false, and it is
+    // permanent: nothing in the session retries, and the card swallows the
+    // rejection.
+    //
+    // The store already made this exact distinction for the trend half
+    // (`trendReady`), and the other night shift built the same three-state
+    // reading for the Mirror's test aggregates on the same night. Same
+    // vocabulary here rather than a second one for one distinction.
+    h.readFails = true;
+    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
+    render(<PulseCard />);
+    await settle();
+
+    expect(
+      screen.queryByText(/the first answer today/),
+      "a refused read was reported as a fact about the crowd",
+    ).toBeNull();
+  });
+
+  it("still says you are the first when the read landed and found nobody — the control", async () => {
+    // Without this, "never say it" would satisfy the case above and delete
+    // a true sentence. The read succeeds and returns no document for today.
+    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
+    render(<PulseCard />);
+    await settle();
+
+    expect(screen.getByText("the first answer today")).toBeTruthy();
+  });
+
   it("states your share of today's answers, and it is your own step's", async () => {
     // Five distinct shares, so an index off by one prints a wrong number
     // rather than the same one.
@@ -280,6 +328,42 @@ describe("PulseCard · absent is not zero", () => {
     await settle();
 
     expect(screen.getByText("38% of 100 answers today")).toBeTruthy();
+  });
+
+  it("counts you into the crowd it reports, on the answer you just gave", async () => {
+    // THE AGGREGATE PREDATES YOUR ANSWER, which is the ordinary case for a
+    // second or two after you tap: the fold runs on the server and the
+    // card is already on screen. Every other case in this file seeds the
+    // vote BEFORE the render, so the published document already contains
+    // it and this state was never exercised.
+    //
+    // Four answers, none of them on Brisk. Tap Brisk. The honest reading
+    // is one of five; reading it off the raw document says 0% of 4 —
+    // printed directly under "you · Brisk", beside a bar drawn at the
+    // minimum height, about the answer you are looking at.
+    h.aggs[`pulse-pace_${dayKey(0)}`] = { counts: { "0": 1, "1": 1, "2": 1, "4": 1 }, total: 4 };
+    render(<PulseCard />);
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "Brisk" }));
+    await settle();
+
+    expect(
+      screen.queryByText(/0% of 4 answers today/),
+      "the crowd it reported left out the answer it was reporting on",
+    ).toBeNull();
+    expect(screen.getByText("20% of 5 answers today")).toBeTruthy();
+  });
+
+  it("counts you only once, after the fold has caught up — the control", async () => {
+    // The other direction, and the one a blind +1 gets wrong: on a later
+    // session the aggregate already contains you, nothing is pending, and
+    // adding yourself again would over-report in the opposite direction.
+    h.aggs[`pulse-pace_${dayKey(0)}`] = { counts: { "3": 1, "0": 1 }, total: 2 };
+    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
+    render(<PulseCard />);
+    await settle();
+
+    expect(screen.getByText("50% of 2 answers today")).toBeTruthy();
   });
 
   it("counts one answer as one answer", async () => {

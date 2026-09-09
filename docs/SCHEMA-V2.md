@@ -6,7 +6,7 @@
 > complete breakdown with no `tooSmall`, no `AGG_MIN_N`, no
 > `PUBLISH_EVERY` and no complementary suppression; `publishableCanon` is
 > now `canonTopN`, a display cap. Duel answers remain sealed until their
-> reveal, enforced by a `surface` test on the read rule — game timing, not
+> round's reveal, enforced by a `surface` test on the read rule — game timing, not
 > privacy. Push tokens moved to `v2_users/{uid}/push/tokens`, server-only.
 > The per-collection blocks below have been rewritten to match.
 
@@ -22,7 +22,13 @@ cohort the Mirror slices by, and what is still prototype data — see
 ## Collections
 
 ```
-v2_questions/{qid}                 canonical bank, seeded by seedContentV2
+v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
+                                   paid questions (id paidq-*) written live
+                                   by the payment webhook (paid.ts, D313) in
+                                   the same field shape, updatedAt fresh so
+                                   the bank's delta fetch carries them with
+                                   no deploy. The seed only touches its own
+                                   ids, so a reseed never disturbs them
   surface: daily|feed|group|duo|test|learn|pulse|call
   seq: int            rotation order within a surface
   type: binary|choice|scale|rating|vote|duel|rank|dial|field|path|catalog|pulse|call
@@ -32,7 +38,16 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
   options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
                        pulse → exactly five steps; call → exactly two, and
                        index 0 is the call coming true)
-  topic, axis, test   metadata (test != null only on a test's own items)
+  facet?, invert?     the instruments' DEEP items only (D416): the Big
+                       Five facet or compass position an item scores, and
+                       whether it is keyed against it. On the document so
+                       the device joins by id rather than by prompt text —
+                       which is what keeps the 156 prompts out of first
+                       paint. Absent on the 110 core items and the lenses
+  topic, axis, test   metadata (test != null only on a test's own items;
+                       topic is the feed's topic id, a group question's kind
+                       us|pick|classic, and since D386 a 1v1 question's
+                       domain day|heat|mirror|ahead — the roles fold reads it)
   active: bool
   until?              feed only (D179): the UTC day after which the card
                       stops being SERVED. A client-side serving filter;
@@ -51,7 +66,11 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
                       from the published breakdown dims, matched
                       conjunctively by the DEVICE (data/sponsored.ts) —
                       the server is never asked who should see what — and
-                      every matched dim prints on the band. The window
+                      every matched dim prints on the band. `link`
+                      (D378) is the buyer's one https address: printed as
+                      its bare domain on the ANSWERED face only, opened in
+                      the system browser with no referrer, and counted by
+                      nobody. The window
                       is `until` above rather than a field here, so the
                       band's label and the serving filter are one value. A
                       sponsored question is never `core`
@@ -71,8 +90,9 @@ read: signed-in · write: nobody (admin SDK only)
   the scheduler's spaced retries stay in device localStorage.
 
 v2_users/{uid}
-  displayName?, anon?, anchors { city country ageBand gender
-                                 profession education relationship },
+  displayName?, anon?, anchors { city country ageBand age gender
+                                 profession jobField education
+                                 relationship heightBand },
   testResults? { big5|political|values|attachment: { title, taken,
                                                      dims [{id,label,value 0-100,blurb?}] },
                  logic: server-written only (D57) }
@@ -153,8 +173,12 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    Lives HERE, in the doc the trigger
                                    already writes, so D7's ~1 write/sec
                                    per document is unchanged. Bounded:
-                                   low-cardinality anchors only (no city,
-                                   no profession) and ≤24 buckets/dim.
+                                   low-cardinality anchors only and ≤24
+                                   buckets/dim. `city` is a dim since D9
+                                   (a closed catalogue); `profession` is
+                                   not and cannot be — the pick list is
+                                   longer than the cap — so D328 buckets
+                                   its derived `jobField` instead.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
   { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
     expireAt }                     double-count. Attribution: uid is what
@@ -220,12 +244,32 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    counts only for bank-option questions
                                    (a pick's optionIdx indexes each
                                    group's own members — never summed);
-                                   guess fields only when a duo guessed.
+                                   guess fields when anyone guessed — a
+                                   duo at the partner's pick, a group at
+                                   the option the room landed on (D386).
                                    Same floor, crossing-based cadence
                                    (a reveal folds a batch), no
                                    timestamp. Never: gids, uids, names,
                                    member sets, per-group anything
 read: signed-in · write: nobody
+
+v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D400), s = FNV-1a(bucket) mod 8
+  { dim: { bucket: {opt:n} } }     every city and country cell the hot
+                                   document above evicted or refused at
+                                   BREAKDOWN_MAX_BUCKETS. hot ∪ tail is the
+                                   whole dimension; a bucket lives in
+                                   exactly ONE of them (an evicted cell
+                                   moves whole, a refused newcomer starts
+                                   here, and a bucket here stays here).
+                                   Written in the answer's own transaction
+                                   as merge-increments, only when the cap
+                                   acts — nothing before a dimension has 25
+                                   values; rebuilt whole (all eight shards,
+                                   set or deleted) by rebuildAggregateV2
+read: signed-in · write: NOBODY — the aggregate's own rule. A device reads
+one shard per question, and only for a question whose hot map is at the
+cap and lacks its own city or country (src/v2/data/overflow.ts); the
+client computes the same hash, pinned on both sides.
 
 v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
   advertiser, headline, body       text only. No image, no logo, no brand
@@ -237,13 +281,19 @@ v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
                                    breakdown dims, matched ON THE DEVICE
                                    (data/sponsored.ts). The server is never
                                    asked who should see what
+  from?                            D315: a self-serve ad's first serving
+                                   day — pickPaid holds it until then. No
+                                   new ones since D375 retired the lane;
+                                   a doc that carries it is a window sold
+                                   before, and closes on its own day
   active?, seq, updatedAt
-read: signed-in · write: nobody (seed only). An ad takes no answer, so
-there is no answer arm for it anywhere in firestore.rules, no aggregate
-keyed to it and nothing per-person in it — which is why deleteAccount has
-nothing to reach here. The seed DELETES what the bank no longer names,
-unlike v2_questions: a question is permanent because answers are keyed to
-it, and an ad has none.
+read: signed-in · write: nobody client-side (the seed, and since D315 the
+payment webhook at paidad-* ids). An ad takes no answer, so there is no
+answer arm for it anywhere in firestore.rules, no aggregate keyed to it
+and nothing per-person in it — which is why deleteAccount has nothing to
+reach here. The seed DELETES what the bank no longer names, unlike
+v2_questions — but SPARES paidad-* ids, whose retirement belongs to the
+daily closer (their pen), at window end.
 
 v2_call_outcomes/{qid}             a graded Foresight CALL (D194)
   outcomeIdx: 0|1|-1               the winning option, or -1 for VOID:
@@ -265,29 +315,90 @@ every score in the feature forgeable in one request. Existence is
 load-bearing too: firestore.rules refuses a call answer once this document
 exists, or a player reads the grade and then "predicts" it.
 
-v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1)
+v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
+                                   two engines since D395)
   k                                the vectors' length (8)
-  q {qid: {v: number[k], n, sum}}  one loading vector per CORE two-option
-                                   question (D161 — the eligible set
-                                   compiles from the bank): the streaming
-                                   fit's factorisation of the vote log.
-                                   n is the answers folded (the basis a
-                                   client states or refuses on); sum/n is
-                                   the running marginal the fit centres
-                                   by — the same figure the question's
-                                   public aggregate already carries
+  engine: "sgd"|"als"              which engine's rows are in `q`: the
+                                   shipped online fit (patternsFit.ts) or
+                                   the batch candidate (patternsAls.ts).
+                                   Whichever has won the last fortnight of
+                                   one-step-ahead skill owns the rows; the
+                                   other publishes under `candidates`
+  q {key: {v: number[k], n, sum,   one row per fitted item. Under the online
+     sd?}}                          engine: one per CORE two-option question
+                                   (D161 — the eligible set compiles from
+                                   the bank). Under the candidate: every
+                                   option-shaped core item — two-option
+                                   (`bin`), ordinal (`ord`: scale · rating
+                                   · dial, the instrument items included)
+                                   and one one-hot pseudo-item per option
+                                   of an unordered pick (`opt`, keyed
+                                   `qid~i`). n is the answers folded (the
+                                   basis a client states or refuses on);
+                                   sum/n is the mean the residual centres
+                                   by — for a two-option row the same
+                                   marginal the question's public aggregate
+                                   carries; `sd` is an ordinal row's spread
+  items? {key: {kind, qid, opt?,   the candidate's item metadata — how a
+     nOptions}}                     device encodes its own answer to each
+                                   row; absent while the online engine owns
+                                   `q`, whose rows are all two-option
+  lambdaU                          the device ridge the engine's scorecard
+                                   was measured at, for the phone's own
+                                   solve (estimateTheta) to read rather
+                                   than assume
+  quality, displacement, seeds     the engine's scorecard (D325): the
+                                   prequential series with the marginal-
+                                   only baseline and skill beside every
+                                   row (D394), publish-to-publish
+                                   displacement, and the loadings' distance
+                                   from their hash seeds (D394)
+  candidates {sgd?|als?: {q,       the OTHER engine, with the same rows and
+     items?, quality?,              scorecard, its streak of consecutive
+     displacement?, lambdaU,        winning nights, and (als) the pooled
+     streak, lambdaSweep?}}         bits under each device ridge tried
+  crossedAt?                       the day the engine last changed hands
   lastDay, folded, at              the last UTC day folded (idempotence),
                                    the last run's fold count, server clock
-read: signed-in · write: NOBODY — written once per night by fitPatternsV2
-(admin SDK), so D7's per-document write ceiling never hears about it. The
+read: signed-in · write: NOBODY — written once per night by the nightly
+pass (`digestEngagementV2` since D399, admin SDK), so D7's per-document write ceiling never hears about it. The
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
+Nothing per-person in it, under either engine.
 
-v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
-  v: number[k], n, at              the latent vector the nightly fold
+v2_patterns/sample-{qid}           the nightly voter sample (D397)
+  qid
+  rows {uid: {o, a, d}}            the newest PATTERNS_SAMPLE_CAP (200 — the
+                                   who-voted sheet's own cap) voters of one
+                                   core question: the option index picked,
+                                   the answer's frozen anchors (D8) and the
+                                   UTC day it was ledgered. Keyed by uid so
+                                   a person is one row (an edit moves it)
+                                   and erasure is a field delete
+  n, at                            the basis a client states; server clock
+read: signed-in (the loadings document's own rule — same collection) ·
+write: NOBODY — merged nightly by the pass (D399) from the ledger day it
+already reads. What Kindred, the People lens and the pair card read in
+place of two hundred answer documents per question; the who-voted sheet
+keeps the live query. THE ONE DERIVED PUBLIC DOCUMENT FAMILY THAT HOLDS
+UIDS: exactly what the who-voted sheet already shows anyone signed in,
+nothing derived — and deleteAccount's phase 1a′ removes the account's row
+from every sample, asserted in e2e-delete-account.mjs.
+
+v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D395)
+  v: number[k], n, at              the latent vector the online fold
                                    carries this person's PUBLIC answers
                                    as, and how many it has folded
-read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
+  d                                the last UTC day folded into this doc —
+                                   the retry stamp
+  a: {qid: optionIdx}              the person's CURRENT answer to every
+                                   item the candidate's corpus names,
+                                   compacted nightly from the ledger day
+                                   (an edit overwrites its key). The batch
+                                   engine's substrate: it reads people, not
+                                   days. Derived from the answers
+                                   subcollection, ~1/50th its bytes
+read: NOBODY · write: NOBODY — the push/ shape; the nightly pass (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 
 v2_engagement_daily/{day}          the engagement digest's trail (R1/D268)
@@ -404,9 +515,10 @@ v2_presence/{uid}                  Near-by-radius presence (D84)
                                    coordinate is discarded (data/locate.ts)
   at: request.time                 last write; the beat refreshes it
   until?: timestamp                when this position STOPS counting
-                                   (D174) — the linger for the standing
-                                   option, the session deadline for the
-                                   timed one, whichever is sooner. The
+                                   (D174) — the linger past the last
+                                   beat. (Until D370 the timed option
+                                   clamped it to a session deadline; the
+                                   switch is off or on now.) The
                                    count filters on it, and the rules cap
                                    it at PRESENCE_LINGER_MIN so no client
                                    grants itself a longer stay. OPTIONAL
@@ -464,52 +576,96 @@ doc, so an erased account is not left listed in a room.
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
   memberJoinedAt{uid:ts},
-  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt,
+  inviteCode, streak, lastRevealDay, createdAt,
+  round, played{ r{n}: [uid] }, roundOpenedAt?, roundDeadlineAt?
+                                   (ROUNDS-PLAN, D426 — a ROUND is the unit
+                                   of play, not a day: `round` is the open
+                                   one (absent = 1); `played` is who has
+                                   sealed an answer to which round, written
+                                   by the answer trigger and pruned by the
+                                   reveal — at most ROUND_LEAD keys × the
+                                   roster; the clock starts on the open
+                                   round's FIRST answer and is the indexed
+                                   field the deadline scan queries. Absent
+                                   while nobody has played the open round:
+                                   a round nobody plays never closes and
+                                   never burns its question. pendingDays,
+                                   the day's marker, is gone)
+  pushAt{ uid: ts }?               (ROUNDS-PLAN §7.4 — who has been TOLD a
+                                   round waits for them since their own
+                                   last answer: set by the answer
+                                   trigger's *your turn* and by the
+                                   reveal's carrier, in the same commit as
+                                   the mark or the advance; cleared by the
+                                   member's next answer. One push per turn,
+                                   not per answer. Server-written; dropped
+                                   on leave and erasure with `played`)
   duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
   serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc as a denormalization: it used to be
   because profiles were owner-only, and since D98 it is purely to save
   one profile read per member on every group render;
   callables maintain it on create/join/leave)
-  (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
-  the members who were in the group FOR that day. Maintained on the same
+  (memberJoinedAt is read only by revealRound, to scope a round's reveal to
+  the members who were in the group when it OPENED. Maintained on the same
   three paths as memberNames, plus deleteAccount — a uid left in either map
-  outlives the account. Absent for members who predate the field, which
-  revealMembersFor reads as "joined before any day it will be asked about")
-  (pendingDays: day keys with an answer and no reveal yet. onV2AnswerCreated
-  arrayUnions; the reveal scan removes a day once it settles it and prunes
-  past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
-  an indexed query instead of reading every group — D19)
+  outlives the account, and so does one left in `played`, which the same
+  paths remove. Absent for members who predate the field, which
+  revealMembersFor reads as "joined before any round it will be asked about")
 read: members · write: callables only (create/join/leave — codes, caps
 and pairing can't be forged client-side), with ONE member-writable field:
 a duo member may update duoMode alone (closed enum, affectedKeys-pinned —
 the rule expresses the whole invariant, so no callable; D40 part 4)
 
-v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
-  day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?} }, names, members[], revealedAt
+v2_groups/{gid}/reveals/r{n}       materialized by the reveal pipeline —
+                                   one per ROUND (reveals written before
+                                   D426 are keyed by their day; history
+                                   orders by revealedAt and reads both)
+  round, day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?, late?} }, names, members[], revealedAt
+  (day is the calendar day the reveal LANDED — what the card labels it by
+  and what the streak is keyed on; two reveals on one day order by round)
+  (late — ROUNDS-PLAN §4: answered AFTER the round revealed, with the
+  table in view. The rules admit such an answer only flagged and without
+  a guess, reaching back at most the lead; the answer trigger appends it
+  here — the one server write to a reveal after its create — with the
+  member added to `members` and `names`; every fold skips it)
   (pickUid — pick days only, D224: WHO the vote's optionIdx meant, in the
   roster order the answering client used; the index alone is remapped by
   any join/leave. Absent in reveals older than D224)
   (members is the membership snapshot the read rule USED to gate on — not
   the parent group's current roster, which is what kept the guarantee
   retroactive: D5's amendment. D98 retired the gate, not the field: it is
-  still the members who were in the group ON `day` rather than at reveal
-  time — the two differ by up to one scan interval, and the difference was
-  a joiner reading the previous day, D55 §9 — and it is still what
-  `deleteAccount` scrubs and what the reveal's names are drawn against)
+  still the members who were in the group when the round OPENED rather
+  than at reveal time — under the day the two differed by up to one scan
+  interval, and the difference was a joiner reading the previous day, D55
+  §9 — and it is still what `deleteAccount` scrubs and what the reveal's
+  names are drawn against)
 read: any signed-in user (D98 — the votes inside are world answers'
 younger siblings, and this is their only public copy, since the sealed
 answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
-else, under composite ids (g_{gid}_{day}) with extra fields
-gid/day/guessIdx (plus pickUid on a "pick" day, D224 — a current member's
-uid, rules-validated) — and they are the ONE surface the D98 public read
-excludes, as a `surface` value test rather than an owner-only path. That
-is the seal: the owner still reads their own, nobody else reads any, and
-the reveal doc publishes the whole table the next day. Rules require
-membership and deny creates once the day's reveal exists. Duel surfaces
-are excluded from world aggregates.
+else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
+D426) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
+round, D224 — a current member's uid, rules-validated; plus `late: true`
+on an answer to a round that has already revealed, which then carries no
+guess — §4 of the plan) — and they are
+the ONE surface the D98 public read excludes, as a `surface` value test
+rather than an owner-only path. That is the seal: the owner still reads
+their own, nobody else reads any, and the reveal doc publishes the whole
+table when the round reveals — on the last member's answer, or at the
+round's deadline for whoever played. Rules require membership and bound
+the round to `[open, open + ROUND_LEAD)`: nothing behind the open round
+(it has revealed — the reveal and the advance are one commit) and
+nothing past the lead. The `qid` names either the room's own bank (the
+question's `surface` equals the answer's) or — ROUNDS-PLAN §6.2, the
+rules' second arm — a `daily` or `feed` question of an option-index
+type (`vote`/`binary`/`choice`, with options), which is how every other
+round draws from the world's core; the arm is explicit rather than a
+relaxation of the equality, so a catalog question (empty options) is
+still refused. Duel surfaces are excluded from world aggregates either
+way: a duel answer to a world question moves the room's reveal and not
+the crowd's count (the e2e's 8a leg pins the total unmoved).
 
 v2_takes/{takeId}                  comments on a question — circle or world,
                                    NAMED at both scopes since D98
@@ -548,12 +704,38 @@ v2_mod_queue/{takeId}              server-built daily (buildModQueue):
 v2_mod_verdicts/{takeId}           audit log, one per queue generation
 read/write: nobody client-side — both reachable solely through the
 MOD_UIDS-gated callables (the D22 confinement)
+
+v2_paid_bookings/{uid_ts}          a self-serve paid-question sale in
+  prompt, type, options, topic,    flight (paid.ts, D313). status walks
+  scope, dims (≤3, D228),          review → approved|declined → live:
+  wearName, buyerName?,            the automated review (gates + model)
+  status, note?, review?,          settles it, `quote` locks the rate ×
+  quote?, window?, qid?,           idx off the committed card at
+  stripe?, stripePaymentIntent?,   approval, and the payment webhook
+  reviewAttempts, createdAt        stamps live + window + qid in the
+                                   same transaction that writes the
+                                   purchase and the question
+read: the buyer (uid == auth.uid) · write: nobody (server pens only —
+the callable, the review trigger/sweep, the webhook)
+
+v2_purchases/{uid_bid}             one row per completed sale (PAID-PLAN
+  uid, kind, qid, prompt,          §7 shape) — written by the payment
+  options, scope, place, dims[],   webhook (D313; ad sales D315) or the
+  window{start,until}, cadence,    operator's record-purchase.mjs for hand
+  budget{cap,capEur,rate…},        contracts; closePaidCampaignsV2 marks
+  state, reports[], closed?,       `closed` with the answer count and the
+  stripePaymentIntent?             refund it executed. A kind:"ad" row
+  — ad rows: adId, advertiser,     carries the flat `priceEur` and its
+  headline, body, priceEur         paidad-* id instead of qid/budget —
+                                   no meter, no refund, and the closer
+                                   also deletes its v2_ads doc at close
+read: the buyer (uid == auth.uid) · write: nobody client-side
 ```
 
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (694 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1342 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -568,10 +750,14 @@ MOD_UIDS-gated callables (the D22 confinement)
 - Social callables: `createGroupV2` (invite code minted server-side),
   `joinGroupV2` (by code; duo cap 2, group cap 32), `leaveGroupV2`
   (last member out deletes the group + reveals).
-- `scheduledDuelReveals` (hourly) / `revealDuelsNowV2` (emulator or
-  operator) — materialize yesterday's reveals: groups reveal with ≥1
-  answer; duos only when BOTH played (and the shared streak advances or
-  resets accordingly).
+- `scheduledDuelReveals` (every 120 minutes) / `revealDuelsNowV2`
+  (emulator or operator; `scan: "indexed"`, `force: true`) — the
+  deadline's executor: an indexed query for groups whose open round is
+  DUE (`roundDeadlineAt <= now`), each revealed for whoever played. A
+  round every member has answered reveals on the completing answer
+  instead, inside `onV2AnswerCreated`, and opens the next round in the
+  same commit (ROUNDS-PLAN, D426). The day-keyed streak still advances on
+  the first reveal of a new day.
 - `resolveCallsV2` (scheduled, 04:23 UTC daily; D194,
   docs/FORESIGHT-CALLS.md) — grades every tier-A call past its
   `resolvesAt` by EXECUTING the call's own rubric against
@@ -612,7 +798,7 @@ v2_meta/app                        operator/seed-written metadata
   updateUrl      store link the prompts open (web falls back to reload)
   patternsPool   questions the nightly fit has fitted on `patternsBasis`
                  answers or more — the crowd half of the Patterns tab's
-                 mount gate (D265). Written by fitPatternsV2, merged, and
+                 mount gate (D265). Written by the nightly pass, merged, and
                  the only field here the SWEEP owns (contentRev is the
                  seed's); it lives on this doc rather than on
                  v2_patterns/loadings so a client can read it without
@@ -626,7 +812,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (694 docs) caches in localStorage keyed by
+everything. The question bank (1342 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -647,8 +833,8 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
-  Live cards show takes — named inside a circle, anonymous at world
-  scale (D83) — and DO show who-voted, by name, from the collection-group
+  Live cards show takes — named at both scales since D98, which is the
+  same reversal the rest of this bullet describes — and DO show who-voted, by name, from the collection-group
   read D98 opened (`data/voters.ts`, `ui/LiveBreakdownPanel.tsx`'s
   Friends cut and `ui/LiveTakesPanel.tsx`'s side badges, capped at
   `VOTER_FETCH_CAP`). The per-anchor breakdown beside it is exact per
@@ -661,7 +847,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 149 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 214 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
@@ -669,9 +855,12 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   dup refused → five voters, exact public counts →
   per-anchor breakdown withheld while every cell is sub-floor, then
   published at 5/5 → an 11th answer does not move the mirror off 10 →
-  duo create/join-by-code → sealed answers → reveal with votes+guesses →
-  streak → non-member refused → post-reveal answering refused by a real
-  member → no aggregate leakage.
+  duo create/ask/approve → sealed answers (round 1, and one sealed ahead
+  inside the lead; one past it refused) → the reveal on the completing
+  answer, with votes+guesses → round 2 opened in the same commit → streak
+  → a group's round left alone by the indexed scan inside its day and
+  closed by the forced lever for whoever played → non-member refused →
+  post-reveal answering refused by a real member → no aggregate leakage.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone rather than
   "permission-denied").

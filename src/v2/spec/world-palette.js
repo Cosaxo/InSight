@@ -148,7 +148,19 @@ export const WPAL = (function () {
     // a side's hue, rotated off its card's — cleaned at the destination too, so a
     // rotated side never lands on a clipped chroma either
     opt(color, i, n, textSafe) {
-      const step = (n || 2) > 2 ? 120 : 150;
+      // SPREAD THE SIDES AROUND THE WHEEL, don't step a fixed 120°. At four
+      // options the old step wrapped: sides 0 and 3 landed 360° apart and
+      // came back byte-identical, so a stacked cohort bar — which has no
+      // labels at all, colour being its only encoder — painted two
+      // different answers the same. 29 daily questions and 11 feed
+      // questions in the committed bank have four options; every one of
+      // them collided.
+      //
+      // Only the 4+ case moves. `undefined > 3` is false, so every caller
+      // that passes no `n` (world-feed's wfOpt/wfShade at their one-arg
+      // sites) is untouched; n=2 keeps 150 and n=3 keeps 120, both checked
+      // byte-identical.
+      const step = n > 3 ? 360 / n : (n || 2) > 2 ? 120 : 150;
       const h = hueOf(color);
       if (!step || !i) return h == null ? color : (textSafe ? ink(h) : disp(h));
       if (h != null) return textSafe ? ink(h + i * step) : disp(h + i * step);

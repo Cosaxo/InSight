@@ -24,11 +24,11 @@ import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 // The breakdown dims and their closed vocabularies, from the same
 // compiled output — the report builder takes them as input so it never
 // grows the second copy check:anchors exists to prevent.
-import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
+import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB, BREAKDOWN_MAX_BUCKETS, OVERFLOW_SHARDS } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
-import { expectCode, expectDenied, fail, ok } from "./e2e-lib.mjs";
+import { expectCode, expectDenied, expectRefusal, fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -112,6 +112,47 @@ if (qsnap.empty) fail("daily bank empty");
 const q0 = qsnap.docs[0];
 ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slice(0, 40) + "…\"");
 
+// 3a · THE DAILY'S SEQ SPACE IS DENSE IN THE DATABASE (D383), which is the
+// precondition the paged boot rests on and the one thing only this harness
+// can prove. The client computes its seven deck positions from a published
+// LENGTH and then asks for `seq in [...]`; that maps a position to a
+// question only while the daily's seqs run 0..n-1 with no holes. Every
+// other suite checks the COMPILED bank — this checks what the real seed
+// actually wrote, which is the copy the device reads. A hole here is a
+// device on a different question from everyone else, with no symptom
+// anywhere: the deck renders, the counts publish, and the cohort readings
+// quietly stop meaning "we answered the same thing".
+{
+  const all = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "daily"), orderBy("seq")));
+  const seqs = all.docs.map((d) => d.get("seq"));
+  const holes = seqs.filter((v, i) => v !== i);
+  if (holes.length)
+    fail("the seeded daily seq space is not dense 0..n-1 — `seq` is not a "
+      + "position and the paged deck (D383) would disagree across devices; "
+      + "first bad index " + seqs.findIndex((v, i) => v !== i));
+  // …and the shape the nightly fold would publish agrees with it. The
+  // client REFUSES the fast path unless maxSeq === n - 1, so if these ever
+  // part company the daily silently reverts to fetching the whole surface.
+  if (seqs.length && seqs[seqs.length - 1] !== seqs.length - 1)
+    fail("maxSeq !== n - 1 on the seeded daily bank — the client would "
+      + "refuse the paged deck and fetch the surface whole");
+  ok("daily seq space is dense 0.." + (seqs.length - 1) + " in the database — the paged deck's precondition holds");
+
+  // …and the Scores pool the fold would publish is drawn from documents
+  // that really carry `rates` (D384). The device fetches these BY ID off
+  // the published list, so an id naming a question that is not a place
+  // ask is a wasted read on every boot, and one naming nothing at all is
+  // a read that returns nothing forever.
+  const asks = all.docs.filter((d) =>
+    d.get("active") !== false && d.get("type") === "rating" && typeof d.get("rates") === "string");
+  if (!asks.length)
+    fail("no seeded daily doc is an active place ask — the Scores pool (D384) would be empty");
+  const scopes = [...new Set(asks.map((d) => d.get("rates")))].sort();
+  ok("Scores pool: " + asks.length + " place asks over " + scopes.join(", ") + " — paged by id, not queried off the surface");
+}
+
 // 3b · the doc shape the schema promises actually lands (D234). For two
 // releases core/tag/rates (and until/sponsor/also/the call trio) were in
 // SCHEMA-V2.md, in the client's readers — and in no write: the seed's
@@ -150,6 +191,19 @@ const uid = cred.user.uid;
 // The city split is 5/5 across Oslo and Bergen by the end, so the
 // dimension D9 added is exercised through the whole pipeline rather than
 // only in the pure unit tests.
+// THE PROFILE IS WRITTEN FIRST, as the app writes it (D410). Anchors on an
+// answer are a SNAPSHOT of the author's profile, and since D410 the fold
+// checks that: a claimed anchor the profile does not carry is corrected
+// away, because firestore.rules can only check the anchors are plausible,
+// never that they are the author's. This suite used to write answers with
+// anchors and no profile at all — a state the client cannot produce, since
+// `answerAnchors()` reads `state.profile.anchors` and `saveAnchors` writes
+// the profile before any of it exists. So the shortcut was not just a
+// shortcut: it meant the profile-then-answer ordering the fold now depends
+// on had never been exercised end to end.
+await setDoc(doc(db, "v2_users", uid), {
+  anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+}, { mergeFields: ["anchors"] });
 await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
   qid: q0.id, surface: "daily", optionIdx: 1,
   answeredAt: serverTimestamp(),
@@ -214,6 +268,12 @@ for (let n = 0; n < 4; n++) {
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: {
+    ageBand: n % 2 === 0 ? "25-34" : "35-44",
+    country: "NO",
+    city: n < 2 ? "Oslo, NO" : "Bergen, NO",
+  } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
     answeredAt: serverTimestamp(),
@@ -280,6 +340,12 @@ for (let m = 0; m < 5; m++) {
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: {
+    ageBand: m < 2 ? "25-34" : "35-44",
+    country: "NO",
+    city: m < 2 ? "Oslo, NO" : "Bergen, NO",
+  } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
@@ -327,6 +393,8 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: { ageBand: "25-34", country: "Norway" } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
@@ -420,6 +488,9 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid),
+    { anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 1,
     answeredAt: serverTimestamp(),
@@ -600,8 +671,91 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   await adminDb.doc(`v2_question_aggs/${EMPTY}`).delete();
 }
 
-// 8 · the duel loop: create → join by code → sealed answers → reveal → streak
-const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+// 7j · the cap's tail (D400), through the real trigger. Twenty-five more
+// voters from twenty-five cities nobody else is in — no age band, so the
+// band totals 7b–7f asserted stand. Oslo and Bergen sit at the floor, so
+// with 22 free slots the hot map fills to BREAKDOWN_MAX_BUCKETS and each
+// of the last three newcomers evicts the OLDEST one-answer city into
+// v2_agg_overflow/{qid}-{shard}. What this proves that the unit tests
+// cannot: the transaction's conditional shard read and its blind
+// merge-increments land in the emulator, and hot ∪ tail is exact.
+{
+  const cityKeys = (by) => Object.keys((by && by.city) || {});
+  const cellSumOf = (cell) => Object.values(cell || {}).reduce((a, c) => a + c, 0);
+  const before = (await getDoc(doc(db, "v2_question_aggs", q0.id))).data();
+  const beforeCitySum = cityKeys(before.by).reduce((a, c) => a + cellSumOf(before.by.city[c]), 0);
+  if (cityKeys(before.by).length >= BREAKDOWN_MAX_BUCKETS)
+    fail("7j assumes the hot map is under the cap before it runs: " + cityKeys(before.by).length);
+  const TAIL_N = 25;
+  for (let t = 0; t < TAIL_N; t++) {
+    const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "tail" + t);
+    const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(vAuth);
+    // The profile first (D410), as every one of these voters' real
+    // counterparts would: the fold checks a claimed anchor against the
+    // author's profile, so a tail voter with no profile has no city to be
+    // counted under and the cap this case exists to reach is never reached.
+    await setDoc(doc(vDb, "v2_users", u.user.uid),
+      { anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` } },
+      { mergeFields: ["anchors"] });
+    await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
+      qid: q0.id, surface: "daily", optionIdx: t % 2,
+      answeredAt: serverTimestamp(),
+      anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` },
+    });
+  }
+  let tailed = null;
+  for (let i = 0; i < 80; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && snap.get("total") === before.total + TAIL_N) { tailed = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!tailed) fail("the tail voters never all folded (total " + (before.total + TAIL_N) + " not reached)");
+  const hot = tailed.by.city;
+  if (Object.keys(hot).length !== BREAKDOWN_MAX_BUCKETS)
+    fail("hot city map is not at the cap: " + Object.keys(hot).length);
+  if (!hot["Oslo, NO"] || !hot["Bergen, NO"])
+    fail("a bucket at the floor was evicted: " + JSON.stringify(Object.keys(hot)));
+  // Every shard, through the admin handle (the docs are public; the point
+  // of the handle is that a missing shard reads as missing, not as denied).
+  const tailCells = {};
+  let tailShardsSeen = 0;
+  for (let s = 0; s < OVERFLOW_SHARDS; s++) {
+    const snap = await adminDb.doc(`v2_agg_overflow/${q0.id}-${s}`).get();
+    if (!snap.exists) continue;
+    tailShardsSeen += 1;
+    for (const [c, cell] of Object.entries(snap.get("city") || {})) {
+      if (hot[c]) fail("a bucket is in both the hot map and the tail: " + c);
+      if (tailCells[c]) fail("a bucket is in two shards: " + c);
+      tailCells[c] = cell;
+    }
+  }
+  const expectedTail = cityKeys(before.by).length + TAIL_N - BREAKDOWN_MAX_BUCKETS;
+  if (Object.keys(tailCells).length !== expectedTail)
+    fail(`tail holds ${Object.keys(tailCells).length} cities, expected ${expectedTail}: ` + JSON.stringify(Object.keys(tailCells)));
+  for (const [c, cell] of Object.entries(tailCells)) {
+    if (cellSumOf(cell) !== 1) fail(`tail cell ${c} should hold one answer: ` + JSON.stringify(cell));
+    if (!c.startsWith("Tail0")) fail("the evicted buckets should be the OLDEST one-answer cities: " + c);
+  }
+  const unionSum = Object.keys(hot).reduce((a, c) => a + cellSumOf(hot[c]), 0)
+    + Object.values(tailCells).reduce((a, cell) => a + cellSumOf(cell), 0);
+  if (unionSum !== beforeCitySum + TAIL_N)
+    fail(`hot ∪ tail is not exact: ${unionSum} against ${beforeCitySum + TAIL_N}`);
+  ok(`the cap's tail: hot at ${BREAKDOWN_MAX_BUCKETS}, ${expectedTail} evicted cities in ${tailShardsSeen} shard(s), hot ∪ tail exact`);
+
+  // …and the rebuild sees the same shape from the answers alone (D290
+  // meets D400): the dry run reports the capped dimension and the shards
+  // the fold would write, at the same total.
+  const dryTail = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
+  if (dryTail.total !== before.total + TAIL_N) fail("rebuild total after the tail: " + JSON.stringify(dryTail));
+  if (!dryTail.cappedDims.includes("city")) fail("rebuild did not report the capped city dim: " + JSON.stringify(dryTail.cappedDims));
+  if (dryTail.tailShards !== tailShardsSeen) fail(`rebuild would write ${dryTail.tailShards} shards; the trigger wrote ${tailShardsSeen}`);
+  ok("D290 × D400: the rebuild reproduces the tail's shard count from the answers");
+}
+
+// 8 · the duel loop: create → ask/approve → sealed answers → the reveal on
+// the completing answer → the next round opens → streak (ROUNDS-PLAN, D426)
 const created = await httpsCallable(fns, "createGroupV2")({ name: "The Crew", mode: "duo" });
 const { gid, inviteCode } = created.data;
 if (!gid || !inviteCode) fail("createGroupV2: " + JSON.stringify(created.data));
@@ -693,111 +847,166 @@ if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.dat
 }
 ok("a member let them in; the queue entry and its name are gone");
 
-const aid = `g_${gid}_${YESTER}`;
-// A DUO-surface question, because this group is mode "duo" (line 490) and
-// isDuelAnswer compares the question's surface to the answer's. duelQFor
-// (data/deck.ts) draws with `q.surface === mode`, so "group-gu0" under a
-// duo group was a shape no client could produce — it only ever passed
-// because the rule did not look.
+// Round 1 is what a fresh group opens on. A DUO-surface question, because
+// this group is mode "duo" and isDuelAnswer compares the question's surface
+// to the answer's.
+const aid = `g_${gid}_r1`;
 const duel = (idx, guess) => ({
   qid: "duo-001", surface: "duo", optionIdx: idx, guessIdx: guess,
-  gid, day: YESTER, answeredAt: serverTimestamp(), anchors: {},
+  gid, round: 1, answeredAt: serverTimestamp(), anchors: {},
 });
 await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
 // partner must NOT see the sealed answer pre-reveal
 await expectDenied("sealed answer unreadable to partner pre-reveal", () =>
   getDoc(doc(pDb, "v2_users", uid, "answers", aid)));
-await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", aid), duel(2, 1));
+// …and the first answer started the open round's clock and marked who
+// played — the trigger's transaction, Eventarc-asynchronous, so wait for it.
+{
+  let marked = false;
+  for (let i = 0; i < 25 && !marked; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const g = await getDoc(doc(db, "v2_groups", gid));
+    marked = ((g.get("played") || {}).r1 || []).includes(uid) && !!g.get("roundDeadlineAt");
+  }
+  if (!marked) fail("onV2AnswerCreated never marked played.r1 / started the round's clock");
+  ok("the first answer marked the player and started the round's clock");
+  // …and told the partner it is their turn — the stamp is written in the
+  // same commit as the mark (ROUNDS-PLAN §7.4), so it is already here; the
+  // answerer carries none. The push itself is FCM's and not observable
+  // in the emulator; the stamp is what decides it.
+  const g = await getDoc(doc(db, "v2_groups", gid));
+  const stamps = g.get("pushAt") || {};
+  if (!stamps[partner.user.uid]) fail("the partner was not stamped as told: " + JSON.stringify(stamps));
+  if (stamps[uid]) fail("the answerer was stamped: " + JSON.stringify(stamps));
+  ok("the first answer stamped the partner as told 'your turn', and not the answerer");
+}
+// A round SIX ahead is past the lead; five ahead (r5, with r1 open) is the
+// last one inside it. Both as the same member, both real client shapes.
+await expectDenied("a round past the lead is refused", () =>
+  setDoc(doc(db, "v2_users", uid, "answers", `g_${gid}_r6`), { ...duel(0, 0), round: 6 }));
+await setDoc(doc(db, "v2_users", uid, "answers", `g_${gid}_r5`), { ...duel(0, 1), round: 5 });
+ok("a round inside the lead seals; one past it is refused");
 
-const revealed = await httpsCallable(fns, "revealDuelsNowV2")({ day: YESTER });
-if (revealed.data.revealed < 1) fail("revealDuelsNowV2 revealed nothing");
-const reveal = await getDoc(doc(pDb, "v2_groups", gid, "reveals", YESTER));
-if (!reveal.exists()) fail("reveal doc missing");
+await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", aid), duel(2, 1));
+// THE REVEAL IS WRITTEN BY THE COMPLETING ANSWER'S TRIGGER, not by a scan:
+// wait for it.
+let reveal = null;
+for (let i = 0; i < 25 && !reveal; i++) {
+  await new Promise((r) => setTimeout(r, 400));
+  const snap = await getDoc(doc(pDb, "v2_groups", gid, "reveals", "r1"));
+  if (snap.exists()) reveal = snap;
+}
+if (!reveal) fail("the second answer did not reveal round 1 — the trigger's reveal-on-completion is not running");
 const votes = reveal.get("votes");
 if (votes[uid]?.optionIdx !== 1 || votes[uid]?.guessIdx !== 2
   || votes[partner.user.uid]?.optionIdx !== 2) fail("reveal votes wrong: " + JSON.stringify(votes));
-ok("reveal materialized with both votes + guesses");
+if (reveal.get("round") !== 1 || typeof reveal.get("day") !== "string") fail("reveal lacks its round or day: " + JSON.stringify(reveal.data()));
+ok("round 1 revealed on the second answer, with both votes + guesses");
 
 const gsnap = await getDoc(doc(db, "v2_groups", gid));
+if (gsnap.get("round") !== 2) fail("the reveal did not open round 2: " + gsnap.get("round"));
+if ((gsnap.get("played") || {}).r1) fail("the revealed round is still in played: " + JSON.stringify(gsnap.get("played")));
+if (!((gsnap.get("played") || {}).r5 || []).includes(uid)) fail("the round sealed ahead was pruned: " + JSON.stringify(gsnap.get("played")));
 if (gsnap.get("streak") !== 1) fail("streak != 1: " + gsnap.get("streak"));
-ok("duo streak = 1");
+ok("round 2 opened in the same commit; the round sealed ahead survived; duo streak = 1");
+// The reveal is the carrier (ROUNDS-PLAN §7.4): round 2 has no answer
+// from either member (r5 was sealed ahead, not r2), so the reveal told
+// BOTH that round 2 waits for them, and stamped both — the partner's own
+// answer had cleared theirs a moment earlier.
+{
+  const stamps = gsnap.get("pushAt") || {};
+  if (!stamps[uid] || !stamps[partner.user.uid]) fail("the reveal did not stamp whoever round 2 waits for: " + JSON.stringify(stamps));
+  ok("the reveal stamped both members as told round 2 is waiting");
+}
+// …and round 1 is closed to a late-comer now that it has revealed.
+await expectDenied("the revealed round is refused", () =>
+  setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", `g_${gid}_r1`), duel(0, 0)));
 
-// 8b · the pending-day marker, and the INDEXED scan the schedule uses.
-//
-// The reveal above went through revealDuelsNowV2's default FULL scan, which
-// reads every group and therefore cannot tell whether the marker works. The
-// schedule does not do that — it queries
-// `where("pendingDays","array-contains",day)` and only sees groups the
-// answer trigger has marked. So the marker is on the critical path in
-// production and on no path at all in the test above; this leg closes that.
-//
-// The wait is what the full scan exists to avoid: the marker is written by
-// onV2AnswerCreated, so it is Eventarc-asynchronous, and an indexed scan
-// fired immediately would be racing it. In production that race is free (the
-// scan runs every 2h), but a test has to wait for it explicitly.
+// (8a — round 2 over a WORLD question — stood here for one day. ROUNDS-PLAN
+// §6.2 was built and retired on 2026-09-08, D426's third amendment: a duel
+// round draws from the room's own bank only, which the rules' surface
+// equality says and rules.test.ts pins.)
+
+// 8b · the deadline scan, and the operator's lever. A group where only one
+// of two members plays: the round is neither complete nor due, so the
+// INDEXED scan (the schedule's query, `roundDeadlineAt <= now`) finds
+// nothing — and the lever's `force` reveals it for whoever played, which
+// is what the deadline does a day later (the owner's rule, 2026-09-08).
 {
   const mkGroup = await httpsCallable(fns, "createGroupV2")({ name: "Marker Crew", mode: "group" });
   const mkGid = mkGroup.data.gid;
-  const mkDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
-  await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_${mkDay}`), {
+  await httpsCallable(pFns, "requestJoinV2")({ code: mkGroup.data.inviteCode });
+  await httpsCallable(fns, "approveJoinV2")({ gid: mkGid, uid: partner.user.uid });
+  // …and nothing in a group is called (D437): a group answer carries no
+  // `guessIdx` — the rules refuse one — and the reveal below publishes the
+  // vote alone.
+  await expectDenied("a group answer with a call on the room is refused (D437)", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_r1`), {
+      qid: "group-gu0", surface: "group", optionIdx: 1, guessIdx: 1,
+      gid: mkGid, round: 1, answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_r1`), {
     qid: "group-gu0", surface: "group", optionIdx: 1,
-    gid: mkGid, day: mkDay, answeredAt: serverTimestamp(), anchors: {},
+    gid: mkGid, round: 1, answeredAt: serverTimestamp(), anchors: {},
   });
-
   let marked = false;
   for (let i = 0; i < 25 && !marked; i++) {
     await new Promise((r) => setTimeout(r, 400));
     const s = await getDoc(doc(db, "v2_groups", mkGid));
-    marked = (s.get("pendingDays") || []).includes(mkDay);
+    marked = ((s.get("played") || {}).r1 || []).includes(uid);
   }
-  if (!marked) fail("onV2AnswerCreated never marked pendingDays — the indexed scan would see nothing");
-  ok("answer trigger marked the group's pending day");
+  if (!marked) fail("onV2AnswerCreated never marked played.r1 on the group");
 
-  const idx = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
+  const idx = await httpsCallable(fns, "revealDuelsNowV2")({ scan: "indexed" });
   if (idx.data.mode !== "indexed") fail("scan mode not honoured: " + JSON.stringify(idx.data));
-  if (idx.data.revealed < 1) fail("indexed scan revealed nothing — the marker query missed the group");
-  if (!(await getDoc(doc(db, "v2_groups", mkGid, "reveals", mkDay))).exists())
-    fail("indexed scan reported a reveal that is not there");
-  ok("indexed scan found the marked group and revealed it");
+  if ((await getDoc(doc(db, "v2_groups", mkGid, "reveals", "r1"))).exists())
+    fail("the indexed scan revealed a round that was neither complete nor due");
+  ok("the indexed scan leaves a round inside its day alone");
 
-  // Settling the day must clear it, or every later run re-reads this group
-  // for a day it has already published.
+  const forced = await httpsCallable(fns, "revealDuelsNowV2")({ force: true });
+  if (forced.data.revealed < 1) fail("the forced lever revealed nothing");
+  const mkRevealSnap = await getDoc(doc(db, "v2_groups", mkGid, "reveals", "r1"));
+  if (!mkRevealSnap.exists()) fail("the lever reported a reveal that is not there");
+  const mkVotes = mkRevealSnap.get("votes") || {};
+  if (mkVotes[uid]?.optionIdx !== 1 || mkVotes[uid]?.guessIdx !== undefined)
+    fail("the group reveal's vote is wrong, or carries a call nobody may make: " + JSON.stringify(mkVotes[uid]));
+  if (mkVotes[partner.user.uid]) fail("a member who did not play has a vote in the reveal");
+  ok("a group reveal carries the member's vote and no call (D437), for whoever played");
+
   const after = await getDoc(doc(db, "v2_groups", mkGid));
-  if ((after.get("pendingDays") || []).includes(mkDay))
-    fail("the revealed day is still pending — the scan would loop on it");
-  ok("the reveal cleared its own pending day");
+  if (after.get("round") !== 2) fail("the forced reveal did not open round 2");
+  if (after.get("roundDeadlineAt")) fail("round 2 has a clock with nobody in it");
+  ok("the next round opened with no clock, since nobody has played it");
 
-  // …and the query really is a filter: a second indexed run for the same day
-  // now matches nothing, where the full scan would still walk every group.
-  const again = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
-  if (again.data.scanned !== 0)
-    fail("indexed rerun scanned " + again.data.scanned + " groups; expected 0 once nothing is pending");
-  ok("indexed rerun reads nothing once the day is settled");
+  // …and the lever is idempotent: nothing has an answer in it now.
+  const again = await httpsCallable(fns, "revealDuelsNowV2")({ force: true });
+  if (again.data.revealed !== 0)
+    fail("a second forced run revealed " + again.data.revealed + " rounds; expected 0 with nothing sealed");
+  ok("a second forced run reveals nothing");
 }
 
 // 9 · non-membership and post-reveal are SEPARATE denials. The old single
 // check conflated them with a uid fallback of "x", so it had three
 // independent reasons to fail and proved none of them.
 
-// 9a · a non-member cannot answer, even on a day that is still open.
-const OTHERDAY = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+// 9a · a non-member cannot answer, even on the open round.
 const outApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "outsider");
 const outAuth = getAuth(outApp); connectAuthEmulator(outAuth, "http://127.0.0.1:9099", { disableWarnings: true });
 const outDb = getFirestore(outApp, E2E_DB_ID); connectFirestoreEmulator(outDb, "127.0.0.1", 8080);
 const outsider = await signInAnonymously(outAuth);
-await expectDenied("non-member cannot answer an open duel day", () =>
-  setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
+await expectDenied("non-member cannot answer an open round", () =>
+  setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_r2`), {
     // duo-001 for the same reason as the duel helper above: this is the
     // duo group, and the refusal under test is non-membership, so the rest
     // of the shape has to be one a real client would write.
     qid: "duo-001", surface: "duo", optionIdx: 0, guessIdx: 0,
-    gid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
+    gid, round: 2, answeredAt: serverTimestamp(), anchors: {},
   }));
 
-// 9b · a REAL member cannot answer a day that is already revealed — the
-// property D5 actually rests on. Needs a group (mode "group" reveals on
-// one answer, unlike a duo's both-or-nothing) so a genuine member is left
-// un-answered at reveal time.
+// 9b · a REAL member cannot answer a round that has already revealed — the
+// property D5 actually rests on. A group of two where one plays and the
+// operator's lever closes the round for whoever played (the owner's rule
+// at the deadline), so a genuine member is left un-answered at reveal time.
 const gCreated = await httpsCallable(fns, "createGroupV2")({ name: "Late Crew", mode: "group" });
 const lateGid = gCreated.data.gid;
 const lateApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "latecomer");
@@ -810,38 +1019,120 @@ const latecomer = await signInAnonymously(lateAuth);
 await httpsCallable(lateFns, "requestJoinV2")({ code: gCreated.data.inviteCode });
 await httpsCallable(fns, "approveJoinV2")({ gid: lateGid, uid: latecomer.user.uid });
 
-const lateAid = `g_${lateGid}_${OTHERDAY}`;
+// THE JOINER'S OWN LIMIT, on the one admission path that never checked it.
+// Creating a circle, ASKING to join one and accepting an invite all assert
+// how many circles an account may be in; approve checked only whether the
+// circle had room. So somebody else's tap could put an account past the
+// cap — and that cap is what bounds deleteAccount's group walk, which has
+// no limit of its own.
+//
+// Twenty is the cap, and creating twenty is how an account reaches it
+// honestly (the twenty-first create is refused by the same bound, which is
+// the control below).
+{
+  const capApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "capjoiner");
+  const capAuth = getAuth(capApp); connectAuthEmulator(capAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const capFns = getFunctions(capApp, FUNCTIONS_REGION); connectFunctionsEmulator(capFns, "127.0.0.1", 5001);
+  const capUser = await signInAnonymously(capAuth);
+  // ORDER MATTERS, and it is the whole reason this path needed its own
+  // check. Asking to join asserts the cap too, so an account already at
+  // twenty cannot even ask — the only way to arrive at an approval over
+  // the cap is to ask while under it and cross it before somebody taps
+  // "Let in". So: nineteen circles, then the request, then the twentieth.
+  for (let i = 0; i < 19; i++) {
+    await httpsCallable(capFns, "createGroupV2")({ name: `Cap ${i}`, mode: "group" });
+  }
+  const host = await httpsCallable(fns, "createGroupV2")({ name: "One More", mode: "group" });
+  await httpsCallable(capFns, "requestJoinV2")({ code: host.data.inviteCode });
+  await httpsCallable(capFns, "createGroupV2")({ name: "Cap 19", mode: "group" });
+  await expectCode("a twenty-first circle of their own refused",
+    "functions/resource-exhausted",
+    () => httpsCallable(capFns, "createGroupV2")({ name: "Cap 20", mode: "group" }));
+  await expectCode("letting in someone already in twenty circles refused",
+    "functions/resource-exhausted",
+    () => httpsCallable(fns, "approveJoinV2")({ gid: host.data.gid, uid: capUser.user.uid }));
+  ok("the joiner's membership cap holds on the approval path");
+}
+
+const lateAid = `g_${lateGid}_r1`;
 const groupAnswer = (idx) => ({
   qid: "group-gu0", surface: "group", optionIdx: idx,
-  gid: lateGid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
+  gid: lateGid, round: 1, answeredAt: serverTimestamp(), anchors: {},
 });
 // only the creator plays; the latecomer deliberately does not
 await setDoc(doc(db, "v2_users", uid, "answers", lateAid), groupAnswer(1));
-const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ day: OTHERDAY });
-if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer");
-// Read as the CREATOR, who played this day. This used to read as the
-// latecomer, which asserted the leak D55 §9 closed as though it were the
-// contract: OTHERDAY is three days before either account joined the group,
-// and the latecomer never played it.
-if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
-  fail("group reveal doc missing");
-// …and since D98 the latecomer reaches it too. The read used to be scoped
-// to the members the reveal itself recorded, so a joiner got nothing for a
-// day before they joined — a privacy guarantee about answers, and D98
-// retired it: the votes inside a reveal are ordinary answers, readable
-// directly, so withholding the materialized copy protected nothing.
-//
-// What the `members` array still does is bookkeeping — deleteAccount
-// scrubs a departing uid out of it, which e2e-delete-account asserts.
+// The lever's verdict reads `played` off the group document, which the
+// answer trigger writes — Eventarc-asynchronous, so wait for the mark as
+// 8b does. In production the scan is hours behind the trigger; a test
+// forcing the reveal a millisecond after the answer is racing it.
 {
-  const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
-  if (!lateRead.exists()) fail("a joiner could not read a past reveal — D98 opened this");
+  let marked = false;
+  for (let i = 0; i < 25 && !marked; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const s = await getDoc(doc(db, "v2_groups", lateGid));
+    marked = ((s.get("played") || {}).r1 || []).includes(uid);
+  }
+  if (!marked) fail("onV2AnswerCreated never marked played.r1 on the late group");
+}
+const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ force: true });
+if (lateReveal.data.revealed < 1) fail("the group's round did not reveal for the one who played");
+// Read as the CREATOR, who played this round.
+if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", "r1"))).exists())
+  fail("group reveal doc missing");
+// …and since D98 the latecomer reaches it too: the votes inside a reveal
+// are ordinary answers, readable directly, so withholding the materialized
+// copy protected nothing. What the `members` array still does is
+// bookkeeping — deleteAccount scrubs a departing uid out of it, which
+// e2e-delete-account asserts.
+{
+  const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", "r1"));
+  if (!lateRead.exists()) fail("a member could not read the room's reveal — D98 opened this");
   if (!(lateRead.get("members") || []).includes(uid))
     fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
-  ok("a joiner reads a reveal from before they joined, and it still records who was there");
+  ok("a member reads the room's reveal, and it records who was there");
+  // …and it names NOBODY it does not list as having been there.
+  //
+  // Asserted as an INVARIANT of the document rather than by naming the
+  // latecomer, because the guarantee is about the pair of fields and not
+  // about this fixture: any future writer that puts a name in without
+  // putting the person in `members` fails here.
+  {
+    const names = lateRead.get("names") || {};
+    const listed = lateRead.get("members") || [];
+    const stray = Object.keys(names).filter((u) => !listed.includes(u));
+    if (stray.length)
+      fail("the reveal names people it does not record as there: " + JSON.stringify(stray)
+        + " — members " + JSON.stringify(listed));
+    if (!Object.keys(names).length)
+      fail("the reveal named nobody at all — the assertion above would pass on an empty map");
+    ok("the reveal names only the people it records as having been there");
+  }
 }
-await expectDenied("member cannot answer a day already revealed", () =>
+await expectDenied("member cannot answer a round already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
+// …unless they say so (ROUNDS-PLAN §4): a LATE answer, flagged, with no
+// guess. The trigger appends it to the reveal marked late — the room sees
+// it — and it marks no `played`, starts no clock and folds into nothing.
+await expectDenied("a late answer with a guess is refused", () =>
+  setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), { ...groupAnswer(0), late: true, guessIdx: 0 }));
+await setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), { ...groupAnswer(0), late: true });
+{
+  let joined = null;
+  for (let i = 0; i < 25 && !joined; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const r = await getDoc(doc(db, "v2_groups", lateGid, "reveals", "r1"));
+    const v = (r.get("votes") || {})[latecomer.user.uid];
+    if (v) joined = { reveal: r, vote: v };
+  }
+  if (!joined) fail("the late answer never reached the reveal");
+  if (joined.vote.late !== true || joined.vote.optionIdx !== 0) fail("the late vote is not marked late: " + JSON.stringify(joined.vote));
+  if (!(joined.reveal.get("members") || []).includes(latecomer.user.uid)) fail("the late answerer is named but not recorded as there");
+  if (typeof (joined.reveal.get("names") || {})[latecomer.user.uid] !== "string") fail("the late answerer has no name entry");
+  const g = await getDoc(doc(db, "v2_groups", lateGid));
+  if (((g.get("played") || {}).r1 || []).length) fail("a late answer marked played on a revealed round");
+  if (g.get("round") !== 2) fail("a late answer moved the open round");
+  ok("a late answer joins the reveal marked late, and moves nothing else");
+}
 
 // duel answers must NOT leak into world aggregates
 const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));
@@ -875,18 +1166,83 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
   updateDoc(doc(db, "v2_users", uid, "answers", LQ), {
     optionIdx: 0, editedAt: serverTimestamp(),
   }));
+// 60 × 500 ms, matching the FIRST wait in this file rather than the warm
+// ones — raised from 40 after the feed lane counted five timeouts here.
+//
+// Why this poll is not the warm case the comment at the top describes: the
+// learn write is the only fold in the suite that runs the answer-key and
+// logic-scoring arm as well as the ledger, and it lands after the deny
+// block above, whose three refusals invoke no function at all. So this is
+// a second first-delivery window under the heaviest per-answer work in
+// the file, not the steady state 20 × 400 ms is plenty for.
+//
+// Raised rather than retried, on that comment's own argument: a retry
+// loop around a poll is still a poll with a longer ceiling, only harder
+// to read — and the cost of the longer ceiling is zero on every run that
+// does not need it, because the loop breaks the moment the document
+// appears. What a longer ceiling buys is that the message below stops
+// lying: a timeout here prints "the trigger did not fire", which is the
+// most misleading sentence this file can produce.
+// One constant, because the ceiling was written twice — the loop bound and
+// the failure message's own `40 * 500` — and a message that quotes a number
+// the loop no longer uses is this repo's most-repeated documentation error
+// pointed at a test.
+// MEASURED 2026-09-07 (D411), and it overturns the paragraph above twice
+// over. The ceiling was never the lever: across seven passing runs on a
+// clean `main` the fold commits 6-15 ms BEFORE this poll starts — ~40 ms
+// after the answer write, against a 30,000 ms ceiling. Raising it (20s,
+// then 30s) could not have helped and did not.
+//
+// And when it failed, the fold was not late OR missing — it was INVISIBLE
+// to this client. See the block below the constants for the mechanism and
+// the fix. The constants stay as they are: three orders of magnitude of
+// margin is not the problem, and shrinking them would only fail sooner.
+const LEARN_TRIES = 60;
+const LEARN_EVERY = 500;
+//
+// READ THROUGH THE ADMIN HANDLE, not the client one, and this is the fix —
+// the mechanism is in D411. Measured on a failing run: the aggregate EXISTS
+// (admin sees `{counts:{2:1},total:1}`), the ledger holds its one entry, the
+// answer document is there — and the client's own read says absent, sixty
+// times, every one of them `fromCache: false`. The trigger was never the
+// problem and neither was the ceiling.
+//
+// Why the client cannot see it: the JS SDK implements getDoc AND
+// getDocFromServer as a one-shot WATCH listener, not a direct read. The two
+// deliberate permission-denied writes immediately above this leg tear the
+// write stream (`GrpcConnection RPC 'Write' stream error`), and the client's
+// watch resumes at a snapshot version older than the trigger's commit — so
+// every later one-shot read on that stream reports the document absent, and
+// waiting longer never converges. That is why raising this ceiling twice
+// changed nothing.
+//
+// The admin SDK uses direct RPCs with no watch state, which is also why this
+// file already reaches for it to check a server repair a client cannot see.
+// And it is the RIGHT instrument for this assertion anyway: the question is
+// "did the trigger fold the learn answer into the database", not "can one
+// disturbed client stream observe it".
+//
+// THE HAZARD TO CARRY: a poll placed after an expectDenied() inherits this.
+// The world-aggregate polls above are safe only because they run BEFORE
+// their deny block, not by design.
 let lpub = null;
-for (let i = 0; i < 40; i++) {
-  const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
-  if (snap.exists()) { lpub = snap.data(); break; }
-  await new Promise((r) => setTimeout(r, 500));
+for (let i = 0; i < LEARN_TRIES; i++) {
+  const snap = await adminDb.collection("v2_question_aggs").doc(LQ).get();
+  if (snap.exists) { lpub = snap.data(); break; }
+  await new Promise((r) => setTimeout(r, LEARN_EVERY));
 }
 // Two failures, two messages — the same split the world-question check at
 // the top of this file already makes. Collapsed into one, a TIMEOUT here
 // reports itself as a counts mismatch on null, which reads as a privacy
 // regression and sends the next person hunting for one. It cost exactly
 // that detour on 2026-08-05.
-if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
+if (!lpub) fail(
+  `learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — and `
+  + "this read is the ADMIN handle, so the aggregate genuinely is not in the "
+  + "database. Do NOT raise the ceiling: this fold commits ~40ms after the "
+  + "write, and the client-read flake that made this assertion look flaky for "
+  + "weeks was fixed at D411 by reading through admin. A failure here now "
+  + "means the trigger really did not fold.");
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
@@ -1201,14 +1557,18 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // Asserted through the real callable, on a real bank question, because
   // that is the half the unit test cannot reach.
   for (const [qid, what] of [["group-gu0", "a sealed duel"], ["pulse-pace", "a per-day pulse"]]) {
-    let refused = null;
-    try {
-      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
-    } catch (err) {
-      refused = String(err && err.message ? err.message : err);
-    }
-    if (!refused) fail(`the rebuild tool reported on ${what} (${qid}) instead of refusing it`);
-    // The refusal has to NAME the question and give a reason — a bare
+    // THE CODE, not just the fact that something was thrown. This block
+    // read only the message until tonight, and the callable's own
+    // `internal` wrapper answers `rebuild of <qid> failed: <reason>` —
+    // which names the question and is long, so a missing composite index
+    // or any other crash inside runRebuild passed as the refusal being
+    // asserted. `not-found` (the fixture never seeded) cleared the name
+    // check too and missed the length one by two characters.
+    const refused = await expectRefusal(
+      `the rebuild tool refuses ${what} (${qid})`,
+      "functions/failed-precondition",
+      () => httpsCallable(fns, "rebuildAggregateV2")({ qid }));
+    // AND the refusal has to NAME the question and give a reason — a bare
     // "failed-precondition" tells an operator nothing about which of the
     // two unaddressable shapes they hit.
     if (!refused.includes(qid) || refused.length < qid.length + 30)
@@ -1700,6 +2060,403 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     }
   }
   ok("a scored attempt refuses a second submit");
+}
+
+// 12 · The self-serve paid-question loop (paid.ts, D313): book → the
+// automated review settles it (gates alone in the emulator — no model
+// key, and the run must prove that honest degradation, not paper over
+// it) → the locked quote → the SIGNED webhook goes live in one
+// transaction → the question serves and aggregates like any bank
+// question, which is the whole no-third-serving-path claim.
+{
+  const whsec = process.env.STRIPE_WEBHOOK_SECRET || "";
+  if (!whsec) {
+    fail("STRIPE_WEBHOOK_SECRET missing from the e2e env — package.json's test:e2e scripts set whsec_e2e for exactly this leg");
+  }
+
+  // A fresh account: the main uid's daily budgets are spent by earlier
+  // legs, and a buyer's loop should not lean on them anyway.
+  const payApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "paid1");
+  const payAuth = getAuth(payApp); connectAuthEmulator(payAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const payDb = getFirestore(payApp, E2E_DB_ID); connectFirestoreEmulator(payDb, "127.0.0.1", 8080);
+  const payFns = getFunctions(payApp, FUNCTIONS_REGION); connectFunctionsEmulator(payFns, "127.0.0.1", 5001);
+  const buyer = await signInAnonymously(payAuth);
+
+  // A budget outside the card's range is refused before anything is
+  // written (D372) — the sentence names the range the buyer can pick from.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      prompt: "Should the harbour bath stay open all winter?",
+      type: "binary", options: ["Keep it open", "Close for winter"],
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 2,
+    });
+    fail("a €2 budget was accepted");
+  } catch (e) {
+    if (!/budget between/.test(String(e?.message))) fail("wrong refusal for an out-of-range budget: " + e?.message);
+  }
+  ok("an out-of-range budget is refused with the range");
+
+  // A link that is not an https address is refused before anything is
+  // written (D378) — the sentence says what shape it needs.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      prompt: "Should the harbour bath stay open all winter?",
+      type: "binary", options: ["Keep it open", "Close for winter"],
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
+      link: "http://harboursauna.no/winter",
+    });
+    fail("an http link was accepted");
+  } catch (e) {
+    if (!/https/.test(String(e?.message))) fail("wrong refusal for a malformed link: " + e?.message);
+  }
+  ok("a link that is not https is refused by shape");
+
+  const LINK = "https://harboursauna.no/winter";
+  const book = await httpsCallable(payFns, "bookPaidQuestionV2")({
+    prompt: "Should the harbour bath stay open all winter?",
+    type: "binary", options: ["Keep it open", "Close for winter"],
+    topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
+    link: LINK,
+  });
+  const bid = book.data?.id;
+  if (!bid) fail("bookPaidQuestionV2 returned " + JSON.stringify(book.data));
+  ok("paid booking opened: " + bid.slice(0, 16) + "…");
+
+  // The review trigger settles it. Poll through the buyer's OWN read —
+  // the same rules-refereed path the door polls.
+  let booking = null;
+  for (let i = 0; i < 60; i++) {
+    const s = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+    if (s.exists() && s.get("status") !== "review") { booking = s.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!booking) fail("the review never settled the booking");
+  if (booking.status !== "approved") fail("expected approved, got " + JSON.stringify(booking));
+  // The honest degradation: no ANTHROPIC_API_KEY in the emulator, so the
+  // verdict must SAY it was gates alone — a recorded "model" basis that no
+  // model produced would be the phantom approval paid.ts refuses to fake.
+  if (booking.review?.by !== "gates-only") {
+    fail("emulator review must record by=gates-only, got " + JSON.stringify(booking.review));
+  }
+  // The locked quote, off the LIVE card (D371) — which before any sale
+  // is the committed card's floor: base 0.02 × idx 1.0 (nobody else in
+  // rotation, D373) — with the buyer's €20 budget as the cap (D372).
+  // Read through the buyer's own client, the way the door reads it:
+  // `v2_meta/*` is readable by any signed-in user.
+  const liveCardNow = async () => {
+    const s = await getDoc(doc(payDb, "v2_meta", "pricing"));
+    return s.exists() ? s.data() : null;
+  };
+  const cardBefore = await liveCardNow();
+  const idxBefore = cardBefore?.cohorts?.city?.idx ?? 1;
+  if (idxBefore !== 1) fail("the city index moved before anything was sold: " + JSON.stringify(cardBefore));
+  const q = booking.quote || {};
+  if (q.ratePerAnswer !== 0.02 || q.capEur !== 20 || q.cap !== 1000 || q.windowDays !== 29) {
+    fail("quote is not the card's arithmetic over the buyer's budget: " + JSON.stringify(q));
+  }
+  ok("review approved on gates alone (recorded as such) with the locked quote: €0.02 an answer, €20 budget, 1000 answers");
+
+  // A gate decline, with the reason written to be shown. Duplicate
+  // options are two indexes wearing one answer — the aggregate would
+  // publish a split between identical labels.
+  const bad = await httpsCallable(payFns, "bookPaidQuestionV2")({
+    prompt: "Ferry or ferry?", type: "binary", options: ["Ferry", "FERRY"],
+    topic: null, scope: "world", dims: {}, wearName: false,
+  });
+  let declined = null;
+  for (let i = 0; i < 40; i++) {
+    const s = await getDoc(doc(payDb, "v2_paid_bookings", bad.data.id));
+    if (s.exists() && s.get("status") !== "review") { declined = s.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!declined || declined.status !== "declined" || !/same thing/.test(declined.note || "")) {
+    fail("duplicate-option booking was not declined with its reason: " + JSON.stringify(declined));
+  }
+  ok("a gate decline lands with its reason, before any payment exists");
+
+  // Checkout refuses honestly while Stripe is unconfigured — the
+  // emulator has no STRIPE_SECRET_KEY on purpose.
+  await expectCode("checkout refuses without Stripe configured",
+    "functions/unavailable",
+    () => httpsCallable(payFns, "createPaidCheckoutV2")({ id: bid }));
+
+  // The webhook. A synthetic checkout.session.completed signed with the
+  // shared secret — the same t=…,v1=HMAC(t.payload) scheme
+  // Stripe.webhooks.constructEvent verifies (probed against stripe@18,
+  // not assumed).
+  const { createHmac } = await import("node:crypto");
+  const hookUrl = `http://127.0.0.1:5001/demo-insight/${FUNCTIONS_REGION}/stripeWebhookV2`;
+  const signedPost = (payload, secret) => {
+    const t = Math.floor(Date.now() / 1000);
+    const v1 = createHmac("sha256", secret).update(`${t}.${payload}`).digest("hex");
+    return fetch(hookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", "stripe-signature": `t=${t},v1=${v1}` },
+      body: payload,
+    });
+  };
+  // `payment_status` is what makes this a PAID completion. The session is
+  // created without `payment_method_types`, so Stripe's dynamic methods
+  // apply and EUR's delayed ones (SEPA debit, bank transfer) deliver
+  // `completed` with "unpaid" and settle later — this fixture carried no
+  // such field at all, so it could not tell the two apart.
+  const evt = (over) => JSON.stringify({
+    id: "evt_e2e_1", object: "event", type: "checkout.session.completed",
+    ...over,
+    data: { object: {
+      id: "cs_e2e_1", object: "checkout.session", client_reference_id: bid,
+      metadata: { bid }, payment_intent: "pi_e2e_1", payment_status: "paid",
+      ...(over?.data?.object || {}),
+    } },
+  });
+  const sessionEvent = evt();
+
+  // A tampered delivery is refused BEFORE any state moves.
+  const forged = await signedPost(sessionEvent, "whsec_wrong");
+  if (forged.status !== 400) fail("a mis-signed webhook was not refused: " + forged.status);
+  const stillApproved = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (stillApproved.get("status") !== "approved") fail("a refused webhook still moved the booking");
+  ok("a mis-signed webhook is refused and moves nothing");
+
+  // AN UNPAID COMPLETION MOVES NOTHING. This is the ordinary first half
+  // of a delayed method — the buyer has committed, the money has not
+  // arrived — and taking it as payment would serve a 29-day window
+  // against a debit that may never clear.
+  const unpaid = await signedPost(evt({ data: { object: { payment_status: "unpaid" } } }), whsec);
+  if (unpaid.status !== 200) fail("an unpaid completion errored: " + unpaid.status);
+  const afterUnpaid = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (afterUnpaid.get("status") !== "approved") {
+    fail("an UNPAID checkout went live: " + JSON.stringify(afterUnpaid.data()));
+  }
+  ok("an unpaid completion is acknowledged and moves nothing");
+
+  // …and the failure that can follow it revokes nothing, because nothing
+  // was granted. What it must not do is look like success.
+  const failedEvt = await signedPost(
+    evt({ type: "checkout.session.async_payment_failed", data: { object: { payment_status: "unpaid" } } }),
+    whsec,
+  );
+  if (failedEvt.status !== 200) fail("a failed async payment errored: " + failedEvt.status);
+  const afterFail = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (afterFail.get("status") !== "approved") fail("a FAILED payment moved the booking");
+  ok("a failed delayed payment is recorded and moves nothing");
+
+  const paid = await signedPost(sessionEvent, whsec);
+  if (paid.status !== 200) fail("webhook answered " + paid.status + ": " + await paid.text());
+
+  // Live: booking stamped, purchase written in the room's exact shape,
+  // question doc world-readable in the seed's field shape.
+  const liveSnap = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (liveSnap.get("status") !== "live") fail("payment did not go live: " + JSON.stringify(liveSnap.data()));
+  const qid = liveSnap.get("qid");
+  if (qid !== `paidq-${bid}`) fail("unexpected qid: " + qid);
+  const purchase = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${bid}`));
+  if (!purchase.exists()) fail("the webhook wrote no purchase record");
+  if (purchase.get("state") !== "running" || purchase.get("qid") !== qid
+    || purchase.get("budget")?.ratePerAnswer !== 0.02 || purchase.get("budget")?.capEur !== 20
+    || purchase.get("stripePaymentIntent") !== "pi_e2e_1") {
+    fail("purchase record malformed: " + JSON.stringify(purchase.data()));
+  }
+  // THE SALE MOVED THE RATE CARD (D371, D373, D377). The webhook folded
+  // the ledger after going live and published the live half onto
+  // v2_meta/pricing: the 29-day window starting tomorrow is one campaign
+  // in the city's rotation on every day of the fortnight — the crowd
+  // strip says so NOW, not after an operator runs a script. The index
+  // itself stays at the floor: the feed carries a paid card in every
+  // sixth place, so the card's free places (three) hold this campaign
+  // and the next two without anyone sharing, and the multiplier counts
+  // only what a buyer would push beyond them. The other two cohorts did
+  // not move: the places are per scope.
+  const cardAfter = await liveCardNow();
+  if (!cardAfter) fail("the webhook published no live rate card");
+  const cityAfter = cardAfter.cohorts?.city || {};
+  if (cityAfter.idx !== 1) {
+    fail("one campaign inside the free places should still read ×1: " + JSON.stringify(cardAfter.cohorts));
+  }
+  if (!Array.isArray(cityAfter.crowd) || cityAfter.crowd.some((n) => n !== 1)) {
+    fail("the crowd strip should show one campaign on every day: " + JSON.stringify(cityAfter));
+  }
+  if (!Array.isArray(cityAfter.booked) || cityAfter.booked.length !== 14 || cityAfter.booked.some((b) => b !== 1)) {
+    fail("a 29-day window starting tomorrow should book the whole fortnight: " + JSON.stringify(cityAfter));
+  }
+  if (cardAfter.cohorts?.country?.idx !== 1 || cardAfter.cohorts?.world?.idx !== 1) {
+    fail("a city sale moved another cohort's index: " + JSON.stringify(cardAfter.cohorts));
+  }
+  if (cardAfter.generated !== new Date().toISOString().slice(0, 10)) {
+    fail("the live card is not dated today: " + JSON.stringify(cardAfter.generated));
+  }
+  ok(`the sale moved the rate card by machinery: city ×${cityAfter.idx} with one campaign on every day of its strip (room for two more), country and world still ×1`);
+
+  // Any signed-in user reads the question — it is bank content now. The
+  // MAIN account (a different uid) is the reader on purpose.
+  const qDoc = await getDoc(doc(db, "v2_questions", qid));
+  if (!qDoc.exists()) fail("the live question doc is not readable as bank content");
+  if (qDoc.get("surface") !== "feed" || qDoc.get("core") !== undefined || !qDoc.get("sponsor")
+    || !qDoc.get("updatedAt") || !qDoc.get("from") || !qDoc.get("until")) {
+    fail("live question doc missing its serving shape: " + JSON.stringify(qDoc.data()));
+  }
+  if (qDoc.get("sponsor").buyer !== undefined) {
+    fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
+  }
+  // The days the buyer paid for, on the question path. `from`/`until` were
+  // checked for truthiness only, so the window could be any length: the
+  // quote assertion above reads the constant, not the dates goLive wrote.
+  // Against the quote the CALLABLE returned, so a change that moved one
+  // and not the other fails here rather than shipping a mismatch.
+  {
+    const from = qDoc.get("from"), until = qDoc.get("until");
+    const span = Math.round(
+      (Date.parse(`${until}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
+    if (span !== q.windowDays) {
+      fail(`the paid question serves ${span} days, the buyer paid for ${q.windowDays}: ${from}..${until}`);
+    }
+    // …and it starts tomorrow, not today: today's decks are already dealt
+    // on every device that booted this morning, which is the reason the
+    // window is written the way it is.
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    if (from !== tomorrow) fail(`the paid question starts ${from}, not tomorrow (${tomorrow})`);
+  }
+  // The buyer's link rides on the content (D378), whole, for every
+  // device to print after the answer — and on the buyer's own record.
+  if (qDoc.get("sponsor").link !== LINK) {
+    fail("the buyer's link is not on the question doc: " + JSON.stringify(qDoc.get("sponsor")));
+  }
+  if (purchase.get("link") !== LINK) fail("the purchase record lost the link: " + JSON.stringify(purchase.data()));
+  ok("payment went live: purchase + disclosed question in one transaction, the buyer's link on both");
+
+  // …AND CHECKOUT REFUSES IT NOW. The guard is `status === "live"` and it
+  // sits ABOVE the missing-key check, so unlike the rest of that callable
+  // it is reachable here — and nothing exercised it: deleting it left the
+  // whole suite green. web/paid-cancel.html tells the buyer that pressing
+  // Pay again "opens a fresh payment page", so a second checkout on a
+  // booking already paid for is a page the product actively offers, and
+  // "failed-precondition" rather than a payable session is the difference
+  // between one charge and two.
+  //
+  // The code distinguishes it from the not-yet-approved refusal, which is
+  // the same code with a different sentence — so the message is checked
+  // too, or this leg would pass on either guard.
+  {
+    // expectRefusal, not expectCode: this leg has to read the MESSAGE, and
+    // expectCode swallows the error and emits its own ok — which is the
+    // exact shape that helper's docstring warns about. It emits no ok, so
+    // the tally counts this only once the sentence is checked too.
+    const why = await expectRefusal("checkout refuses a booking already paid for",
+      "functions/failed-precondition",
+      () => httpsCallable(payFns, "createPaidCheckoutV2")({ id: bid }));
+    if (!/already paid/i.test(why)) {
+      fail("checkout refused a paid booking with the wrong reason: " + why);
+    }
+    ok("checkout refuses a booking already paid for, and says which refusal it is");
+  }
+
+  // At-least-once delivery: the SAME event again answers 200 and mints
+  // nothing new — the status guard is the idempotency.
+  const replay = await signedPost(sessionEvent, whsec);
+  if (replay.status !== 200) fail("a replayed webhook errored: " + replay.status);
+  const afterReplay = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (afterReplay.get("duplicatePayments") !== undefined) {
+    fail("a REPLAY was recorded as a second payment: " + JSON.stringify(afterReplay.get("duplicatePayments")));
+  }
+  ok("a replayed delivery is a no-op behind the status guard");
+
+  // A SECOND PAYMENT is not a replay, and the two used to be
+  // indistinguishable here: both answered 200 and both minted nothing,
+  // so a buyer charged twice for one question had the second charge
+  // recorded nowhere in this app — not on the booking, not in the
+  // purchase row, and so not reachable by the closer's refund. The
+  // payment intent is what tells them apart.
+  const second = await signedPost(
+    evt({ id: "evt_e2e_2", data: { object: { id: "cs_e2e_2", payment_intent: "pi_e2e_2" } } }),
+    whsec,
+  );
+  if (second.status !== 200) fail("a second payment errored: " + second.status);
+  const afterSecond = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  const dupes = afterSecond.get("duplicatePayments");
+  if (!Array.isArray(dupes) || !dupes.includes("pi_e2e_2")) {
+    fail("a SECOND real payment was swallowed: " + JSON.stringify(afterSecond.data()));
+  }
+  // …and it must not have minted a second question or moved the first.
+  if (afterSecond.get("stripePaymentIntent") !== "pi_e2e_1" || afterSecond.get("qid") !== qid) {
+    fail("the second payment overwrote the first: " + JSON.stringify(afterSecond.data()));
+  }
+  ok("a second real payment is recorded and alarmed, not swallowed");
+
+  // The serving claim, closed end to end: the MAIN account answers the
+  // paid question through the ORDINARY answer path and the ordinary
+  // trigger folds it — same rules, same aggregate, no third path. (The
+  // answer works because the doc the webhook wrote satisfies the same
+  // get()-backed rules every bank question does.)
+  await setDoc(doc(db, `v2_users/${uid}/answers/${qid}`), {
+    qid, surface: "feed", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  let paidAgg = null;
+  for (let i = 0; i < 40; i++) {
+    const s = await getDoc(doc(db, "v2_question_aggs", qid));
+    if (s.exists()) { paidAgg = s.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!paidAgg || paidAgg.counts?.["0"] !== 1) {
+    fail("the paid question's answer did not fold: " + JSON.stringify(paidAgg));
+  }
+  ok("a paid question takes answers and aggregates through the ordinary path");
+
+  // The shareable results page (D379): a public web page per sponsored
+  // question, served by an HTTPS function the hosting rewrite /q/{qid}
+  // points at — reached here at the function's own path, with no token,
+  // no account and no App Check, which is the whole point of it. The
+  // same public numbers the card draws, the PAID mark, the buyer's link
+  // as its domain, the security headers a page under web/ carries; and a
+  // bank question, which no buyer stands behind, has no page.
+  const pageUrl = (q) => `http://127.0.0.1:5001/demo-insight/${FUNCTIONS_REGION}/resultsPageV2/q/${q}`;
+  const pageRes = await fetch(pageUrl(qid));
+  const pageHtml = await pageRes.text();
+  if (pageRes.status !== 200) fail("the results page did not render: " + pageRes.status + " " + pageHtml.slice(0, 200));
+  if (!/text\/html/.test(pageRes.headers.get("content-type") || "")) fail("the results page is not html: " + pageRes.headers.get("content-type"));
+  if (pageRes.headers.get("x-content-type-options") !== "nosniff" || pageRes.headers.get("referrer-policy") !== "no-referrer" || !pageRes.headers.get("content-security-policy")) {
+    fail("the results page is missing a security header: " + JSON.stringify(Object.fromEntries(pageRes.headers)));
+  }
+  if (!/max-age=300/.test(pageRes.headers.get("cache-control") || "")) fail("the results page is not cached for five minutes: " + pageRes.headers.get("cache-control"));
+  if (!pageHtml.includes("Should the harbour bath stay open all winter?")) fail("the results page does not carry the question");
+  if (!pageHtml.includes(">PAID<")) fail("the results page does not wear the PAID mark");
+  if (!/<strong>1<\/strong> answer\b/.test(pageHtml)) fail("the results page does not count the one answer: " + pageHtml.slice(0, 400));
+  if (!pageHtml.includes("harboursauna.no ↗")) fail("the results page does not print the buyer's link as its domain");
+  if (pageHtml.includes(uid) || pageHtml.includes(buyer.user.uid)) fail("the results page leaks a uid");
+  const bankPage = await fetch(pageUrl("f01"));
+  if (bankPage.status !== 404) fail("a bank question got a results page: " + bankPage.status);
+  const nonePage = await fetch(pageUrl("no-such-question"));
+  if (nonePage.status !== 404) fail("a missing question got a results page: " + nonePage.status);
+  ok("the results page serves the sponsored question's public numbers to the open web, and nothing else");
+
+  // 13 · The ad lane is retired (D375): an ad booking is refused by name
+  // before anything is written, and the committed ad pen's sparing
+  // still holds — a `paidad-` doc (an ad sold before D375, or a hand
+  // contract) survives a reseed over the deliberately empty file.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      kind: "ad", advertiser: "Harbour Sauna", headline: "The water is warmer than you think",
+      body: "Open every morning from six, all winter.",
+      scope: "city", dims: { city: "Oslo, NO" },
+    });
+    fail("an ad booking was accepted after the lane was retired");
+  } catch (e) {
+    if (!/ask a question instead/.test(String(e?.message))) fail("wrong refusal for an ad booking: " + e?.message);
+  }
+  ok("an ad booking is refused by name — the sponsored question is the one product");
+
+  const spared = "paidad-e2e-legacy";
+  await adminDb.doc(`v2_ads/${spared}`).set({
+    seq: 100001, advertiser: "Harbour Sauna", headline: "Still here", body: "A window sold before D375.",
+    from: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    until: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+    updatedAt: new Date(),
+  });
+  await httpsCallable(fns, "seedContentV2")({});
+  if (!(await getDoc(doc(db, "v2_ads", spared))).exists()) {
+    fail("a reseed deleted a paidad- doc — the sparing is broken");
+  }
+  ok("a reseed leaves a paidad- doc standing (the seed spares the prefix)");
 }
 
 console.log("\nALL E2E CHECKS PASSED");

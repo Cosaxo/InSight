@@ -51,6 +51,30 @@ const BOUNDARY_LOG = "[InSight] boundary caught:";
 // …and the copy it renders in place of the crashed subtree.
 const BOUNDARY_COPY = /This view hit a snag/i;
 
+// REACT'S OWN REPORTS THAT ARE APP BUGS, not test noise.
+//
+// `mountApp` replaces console.error with a no-op, and the checker below
+// only ever looked for the boundary line — so everything else React says
+// went into a black hole, in the one harness that is the spec layer's
+// only runtime net. Two of those are defects a user meets: a render that
+// sets another component's state (the update is dropped or loops, and
+// React names both components), and duplicate or missing keys in a list
+// (rows reorder, state follows the wrong row, an edit lands on a
+// neighbour).
+//
+// AN ALLOWLIST POINTED THE OTHER WAY, deliberately: these three patterns
+// fail, everything else still passes. React's dev build also logs act()
+// warnings that depend on timing, and an assertion that reds on those
+// would make eleven suites flaky rather than honest. Measured 2026-09-09
+// across every App-mounting suite: zero console.error calls of any kind
+// beyond the boundary line, so this starts from an empty set and only
+// ever grows when something real fires.
+const REACT_BUGS = [
+  /Cannot update a component .* while rendering a different component/i,
+  /Encountered two children with the same key/i,
+  /Each child in a list should have a unique "key"/i,
+];
+
 let App;
 let errorSpy;
 
@@ -67,6 +91,14 @@ export function registerSmokeHooks() {
     // layer — the feed renders on the daily tab, so dropping it costs coverage
     // without failing anything.
     await specIndex.loadWorldFeed();
+    // …and the Mirror (D355), which app-shell mounts through a slot that
+    // renders in the same tick ONLY once this has remembered the module on
+    // data/mirrorChunk. Without it every Mirror case would click the tab
+    // and assert against the empty frame before the slot's import lands.
+    // loadOverlays below awaits this too; it is named here anyway, because
+    // a suite that depends on a load nobody in it names is the one that
+    // breaks confusingly the day the overlays stop waiting.
+    await specIndex.loadMirrorTab();
     // …and the six no-button overlays, for the same reason. Every cross-link
     // case opens one of these, and the openers await this same memoised promise
     // — so strictly this line only removes a wait from the first such case. It
@@ -107,6 +139,12 @@ export function mountApp() {
     // is to name the undefined global on the first read.
     expect(caught.map((c) => String(c[1])).join(" · "), `${where}: ErrorBoundary caught`).toBe("");
     expect(screen.queryByText(BOUNDARY_COPY), `${where}: boundary fallback rendered`).toBeNull();
+    // …and React's own reports of the two bug classes above, which this
+    // harness used to swallow whole.
+    const reacted = errorSpy.mock.calls
+      .map((args) => args.map((a) => String(a)).join(" "))
+      .filter((line) => REACT_BUGS.some((re) => re.test(line)));
+    expect(reacted.join("\n"), `${where}: React reported an app bug`).toBe("");
   };
 }
 

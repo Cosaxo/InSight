@@ -22,26 +22,26 @@ const { useState } = React;
 // ── the copy ───────────────────────────────────────────────────────────────
 // about: what the whole instrument measures · dims: what each axis means
 const EX = {
-  // the 1v1 and group readings as instruments (2026-08-24) — the Roles
-  // panel's roses read these through the same ⓘ as every test
+  // the 1v1 and group readings as instruments (2026-08-24; the owner's
+  // 2026-09-09 design's dims since D437) — the Roles panel's roses read
+  // these through the same ⓘ as every test. Both are SHARES: a quarter
+  // each is the neutral, and nothing here is scored against luck.
   duo: {
-    about: 'How a single 1v1 goes: who calls whom, how alike you answer, and whether it holds.',
+    about: 'What you are to them: which of four things they say is true of you, as a share of the rounds that ask.',
     dims: {
-      read:   'Of your guesses at their answer, the share you call right.',
-      seen:   'Of their guesses at yours, the share they call right.',
-      like:   'How often the two of you give the same answer.',
-      steady: 'Whether your right calls come in runs or scattered.',
+      trust:     'How often they say you are the one they tell first.',
+      spark:     'How often they say you are the one who gets them out the door.',
+      judgement: 'How often they say you are the one they ask what to do.',
+      constancy: 'How often they say you are the one who is just always there.',
     },
   },
   group: {
-    about: 'Where you sit in a circle: with it, against it, or the one it names.',
-    // no `cast` line: the prototype's fourth dimension is not computed here
-    // (D204 — its only source was a demo scenario generator), and copy for a
-    // dim that cannot render would only be waiting to describe a fabrication
+    about: 'Your seat in the room: every vote you received, by the part it was cast in.',
     dims: {
-      own:    'The share of days you land away from the majority.',
-      pull:   'How often the others land where you land.',
-      settle: 'Whether which side you’re on holds from day to day.',
+      engine: 'The share of your votes in the roles that get things going.',
+      hands:  'The share in the roles that get it done.',
+      heart:  'The share in the roles that hold the room together.',
+      wild:   'The share in the roles the story happens to.',
     },
   },
   big5: {

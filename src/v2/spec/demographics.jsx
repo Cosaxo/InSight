@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { TabSection } from './primitives.jsx';
+import { DEMOGRAPHICS } from './demographics.js';
 
 // demographics.jsx — one reusable "who they are" card, driven by audience id.
 // Age histogram (with a YOU band), a gender split bar, and an audience-specific
@@ -27,7 +28,7 @@ const GENDER_TINTS = [
 const FITS = 15;
 
 function GenderBar({ gender }) {
-  const segs = window.DEMOGRAPHICS.GENDER
+  const segs = DEMOGRAPHICS.GENDER
     .map((g, i) => ({ ...g, v: gender[g.k] || 0, tint: GENDER_TINTS[i], deep: i === 0 }))
     .filter((s) => s.v > 0);
   const fmt = (v) => (v % 1 ? v.toFixed(1) : v) + '%';
@@ -52,7 +53,7 @@ function GenderBar({ gender }) {
 }
 
 function AgeHistogram({ age, youBand }) {
-  const bands = window.DEMOGRAPHICS.AGE_BANDS;
+  const bands = DEMOGRAPHICS.AGE_BANDS;
   const total = age.reduce((a, b) => a + b, 0) || 1;
   const pct = age.map((v) => (v / total) * 100);
   const max = Math.max(...pct, 1);
@@ -118,8 +119,8 @@ function YouKey() {
   );
 }
 
-function DemographicsCard({ audId }) {
-  const d = window.DEMOGRAPHICS.byAudience(audId);
+export function DemographicsCard({ audId }) {
+  const d = DEMOGRAPHICS.byAudience(audId);
   if (!d) return null;
   return (
     <div>
@@ -162,6 +163,4 @@ function DemographicsCard({ audId }) {
   );
 }
 
-Object.assign(window, { DemographicsCard });
 
-;globalThis.DemographicsCard = typeof DemographicsCard === 'undefined' ? globalThis.DemographicsCard : DemographicsCard;

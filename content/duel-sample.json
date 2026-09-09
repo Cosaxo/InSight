@@ -1,0 +1,524 @@
+{
+  "scenarios": [
+    {
+      "id": "heist",
+      "label": "Bank Heist",
+      "hue": 25
+    },
+    {
+      "id": "island",
+      "label": "Desert Island",
+      "hue": 150
+    }
+  ],
+  "group": [
+    {
+      "id": "gu0",
+      "kind": "us",
+      "prompt": "What actually holds this group together?",
+      "options": [
+        "Food",
+        "Banter",
+        "Showing up",
+        "History"
+      ]
+    },
+    {
+      "id": "gp0",
+      "kind": "pick",
+      "prompt": "Who'd survive longest in the wild?"
+    },
+    {
+      "id": "gu1",
+      "kind": "us",
+      "prompt": "This group's superpower?",
+      "options": [
+        "Honesty",
+        "Loyalty",
+        "Chaos",
+        "Calm"
+      ]
+    },
+    {
+      "id": "gd3",
+      "prompt": "Best dinner together: cook, or book a table?",
+      "options": [
+        "Cook together",
+        "Book a table"
+      ]
+    },
+    {
+      "id": "gp1",
+      "kind": "pick",
+      "prompt": "Who replies to the group chat within a minute?"
+    },
+    {
+      "id": "gu4",
+      "kind": "us",
+      "prompt": "A stranger joins us for an evening. They leave thinking…",
+      "options": [
+        "So loud",
+        "So close",
+        "So weird",
+        "So fun"
+      ]
+    },
+    {
+      "id": "gd0",
+      "prompt": "A winter cabin with no wifi. How long do you last?",
+      "options": [
+        "One night",
+        "A weekend",
+        "A week",
+        "Move me in"
+      ]
+    },
+    {
+      "id": "gu5",
+      "kind": "us",
+      "prompt": "What are we most likely to be late for?",
+      "options": [
+        "Nothing",
+        "Everything",
+        "Dinner",
+        "The airport"
+      ]
+    },
+    {
+      "id": "gp2",
+      "kind": "pick",
+      "prompt": "Who gives the best advice?"
+    },
+    {
+      "id": "gr0",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "mastermind",
+        "label": "the mastermind",
+        "seat": "engine"
+      },
+      "prompt": "Who plans the whole thing?"
+    },
+    {
+      "id": "gr1",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "driver",
+        "label": "the getaway driver",
+        "seat": "hands"
+      },
+      "prompt": "Who drives the getaway car?"
+    },
+    {
+      "id": "gr2",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "inside",
+        "label": "the inside man",
+        "seat": "heart"
+      },
+      "prompt": "Who charms their way inside?"
+    },
+    {
+      "id": "gs0",
+      "kind": "rate",
+      "dim": "pace",
+      "prompt": "This group’s energy?",
+      "poles": [
+        "Calm",
+        "Chaos"
+      ]
+    },
+    {
+      "id": "gr3",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "crack",
+        "label": "first to crack",
+        "seat": "wild"
+      },
+      "prompt": "Who confesses after one question?"
+    },
+    {
+      "id": "gr4",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "fire",
+        "label": "the fire-keeper",
+        "seat": "engine"
+      },
+      "prompt": "Who keeps the fire going?"
+    },
+    {
+      "id": "gr5",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "food",
+        "label": "the food-finder",
+        "seat": "hands"
+      },
+      "prompt": "Who finds something to eat?"
+    },
+    {
+      "id": "gs1",
+      "kind": "rate",
+      "dim": "disagree",
+      "prompt": "When we disagree, we…",
+      "poles": [
+        "Talk it out",
+        "Loudest wins"
+      ]
+    },
+    {
+      "id": "gr6",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "morale",
+        "label": "the morale officer",
+        "seat": "heart"
+      },
+      "prompt": "Who keeps spirits up?"
+    },
+    {
+      "id": "gr7",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "loseit",
+        "label": "first to lose it",
+        "seat": "wild"
+      },
+      "prompt": "Who talks to a coconut first?"
+    },
+    {
+      "id": "gs2",
+      "kind": "rate",
+      "dim": "late",
+      "prompt": "Our timekeeping?",
+      "poles": [
+        "Punctual",
+        "Always late"
+      ]
+    },
+    {
+      "id": "gs3",
+      "kind": "rate",
+      "dim": "plan",
+      "prompt": "A free evening with us is…",
+      "poles": [
+        "Planned",
+        "Spontaneous"
+      ]
+    }
+  ],
+  "oneVsOne": [
+    {
+      "id": "000",
+      "d": "day",
+      "prompt": "Plans get cancelled last minute. First feeling?",
+      "options": [
+        "Relief",
+        "Annoyed"
+      ]
+    },
+    {
+      "id": "001",
+      "d": "day",
+      "prompt": "Phone rings, unknown number.",
+      "options": [
+        "Answer",
+        "Ignore",
+        "Text back later"
+      ]
+    },
+    {
+      "id": "002",
+      "d": "day",
+      "prompt": "A compliment in front of everyone — love it or squirm?",
+      "options": [
+        "Love it",
+        "Squirm"
+      ]
+    },
+    {
+      "id": "040",
+      "d": "mirror",
+      "prompt": "The word that fits them best?",
+      "options": [
+        "Warm",
+        "Sharp",
+        "Steady",
+        "Restless"
+      ]
+    },
+    {
+      "id": "003",
+      "d": "day",
+      "prompt": "Running late. The text says…",
+      "options": [
+        "\"5 min\" (it’s 20)",
+        "The honest ETA",
+        "Nothing — just arrives"
+      ]
+    },
+    {
+      "id": "004",
+      "d": "heat",
+      "prompt": "The food arrives wrong. Say something?",
+      "options": [
+        "Say something",
+        "Eat it anyway"
+      ]
+    },
+    {
+      "id": "041",
+      "d": "mirror",
+      "prompt": "Their best quality, in one word?",
+      "options": [
+        "Loyalty",
+        "Humour",
+        "Honesty",
+        "Nerve"
+      ]
+    },
+    {
+      "id": "042",
+      "d": "mirror",
+      "prompt": "In a room of strangers, they are…",
+      "options": [
+        "Working the room",
+        "Talking to one person",
+        "Near the door"
+      ]
+    },
+    {
+      "id": "008",
+      "d": "heat",
+      "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
+      "options": [
+        "Laugh it off",
+        "Say so"
+      ]
+    },
+    {
+      "id": "009",
+      "d": "heat",
+      "prompt": "A big decision lands. How do you call it?",
+      "options": [
+        "Gut",
+        "A list",
+        "Ask everyone",
+        "Sleep on it"
+      ]
+    },
+    {
+      "id": "010",
+      "d": "heat",
+      "prompt": "Cry in a film — freely, or fight it?",
+      "options": [
+        "Freely",
+        "Fight it"
+      ]
+    },
+    {
+      "id": "043",
+      "d": "mirror",
+      "prompt": "You would call them first for…",
+      "options": [
+        "A crisis",
+        "A laugh",
+        "Advice",
+        "A favour"
+      ]
+    },
+    {
+      "id": "073",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you tell first",
+        "the one who gets you out the door",
+        "the one you ask what to do",
+        "the one who is just always there"
+      ],
+      "them": [
+        "the one {name} tells first",
+        "the one who gets {name} out the door",
+        "the one {name} asks what to do",
+        "the one who is just always there"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
+      ]
+    }
+  ],
+  "romantic": [
+    {
+      "id": "020",
+      "d": "day",
+      "prompt": "A free evening, both home. Ideal version?",
+      "options": [
+        "Out somewhere",
+        "Sofa, one film",
+        "Cooking together"
+      ],
+      "active": false
+    },
+    {
+      "id": "021",
+      "d": "day",
+      "prompt": "How do they like being woken?",
+      "options": [
+        "Slowly, with coffee",
+        "Left alone",
+        "Talked at immediately"
+      ],
+      "active": false
+    },
+    {
+      "id": "022",
+      "d": "heat",
+      "prompt": "A good apology from them looks like…",
+      "options": [
+        "Words",
+        "A gesture",
+        "Time, then normal"
+      ],
+      "active": false
+    },
+    {
+      "id": "023",
+      "d": "heat",
+      "prompt": "You are 20 minutes late to dinner. Their read?",
+      "options": [
+        "Fine, orders a drink",
+        "Says nothing, remembers it"
+      ],
+      "active": false
+    },
+    {
+      "id": "024",
+      "d": "day",
+      "prompt": "Love lands hardest as…",
+      "options": [
+        "Being told",
+        "Being helped",
+        "Being touched",
+        "Being chosen"
+      ],
+      "active": false
+    },
+    {
+      "id": "025",
+      "d": "heat",
+      "prompt": "Mid-argument, they want…",
+      "options": [
+        "To finish it now",
+        "A pause",
+        "Space, then dinner"
+      ],
+      "active": false
+    },
+    {
+      "id": "026",
+      "d": "day",
+      "prompt": "The better anniversary?",
+      "options": [
+        "A plan they made",
+        "A day with nothing in it"
+      ],
+      "active": false
+    },
+    {
+      "id": "027",
+      "d": "ahead",
+      "prompt": "Money in this relationship should be…",
+      "options": [
+        "Fully shared",
+        "Mostly shared",
+        "Separate, split bills"
+      ],
+      "active": false
+    },
+    {
+      "id": "030",
+      "d": "heat",
+      "prompt": "They had a hard day and did not say so. The tell?",
+      "options": [
+        "Goes quiet",
+        "Cleans something",
+        "Talks about nothing else"
+      ],
+      "active": false
+    },
+    {
+      "id": "031",
+      "d": "ahead",
+      "prompt": "Five years out, they picture…",
+      "options": [
+        "Same city, more room",
+        "Somewhere new",
+        "Somewhere quiet"
+      ],
+      "active": false
+    },
+    {
+      "id": "032",
+      "d": "ahead",
+      "prompt": "A big decision that affects you both. They…",
+      "options": [
+        "Decide together, slowly",
+        "Want you to choose",
+        "Already decided"
+      ],
+      "active": false
+    },
+    {
+      "id": "035",
+      "d": "ahead",
+      "prompt": "Kids, someday?",
+      "options": [
+        "Yes",
+        "Open to it",
+        "No"
+      ],
+      "active": false
+    },
+    {
+      "id": "074",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you go home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "them": [
+        "the one {name} goes home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
+      ],
+      "active": false
+    }
+  ]
+}

@@ -14,6 +14,14 @@
 //      stripping the day suffix, everything unknown as "other", never a
 //      guess.
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ESM: no __dirname. The batch-cap case at the foot of this file reads
+// engagement.ts's own source, because the write sites live inside the
+// Firestore store, behind an interface every case here replaces.
+const here = dirname(fileURLToPath(import.meta.url));
 
 vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
@@ -24,6 +32,7 @@ import {
   STREAK_BROKEN_MIN,
   dayGap,
   dayOffset,
+  firestoreAttentionStore,
   firestoreEngagementStore,
   runEngagementDigest,
   surfaceOfQid,
@@ -100,17 +109,31 @@ describe("runEngagementDigest", () => {
 
   it("keys cohort returns on firstDay and reads unknown denominators as null", async () => {
     const d1 = dayOffset(Y, -1);
+    const d30 = dayOffset(Y, -30);
     const { store, state } = memoryStore({
       [d1]: [e("new1", "q1"), e("new2", "q1")], // two first-timers
-      [Y]: [e("new1", "q2"), e("old1", "q1")], // one returns next day
+      // THREE actives, and the third is the whole point. With only new1
+      // (in the d1 cohort) and old1 (in none), the d1 predicate and its
+      // NEGATION both select exactly one account, so `=== ` could be
+      // inverted with every test green — measured. `mid1` belongs to a
+      // different cohort, so the two readings now differ: 1 against 2.
+      [Y]: [e("new1", "q2"), e("old1", "q1"), e("mid1", "q1")],
     });
     // old1 has history from before the window — firstDay far in the past
     state.users.set("old1", { firstDay: "2026-01-01", lastDay: dayOffset(Y, -3), activeDays: 9, streak: 1 });
+    // mid1 first appeared thirty days ago — the d30 cohort, which nothing
+    // asserted at all before.
+    state.users.set("mid1", { firstDay: d30, lastDay: d30, activeDays: 1, streak: 1 });
     await runEngagementDigest(store, NOW, FEED);
     const doc = state.days.get(Y)!;
     expect(doc.returned.d1).toEqual({ returned: 1, of: 2 });
     // the d7 cohort day sits outside the catch-up window — never folded
     expect(doc.returned.d7).toEqual({ returned: 0, of: null });
+    // …and d30 counts its own returner. Inverting this line publishes the
+    // COMPLEMENT of the cohort on a world-readable document — routinely
+    // more accounts than the `of` denominator, which reads as a retention
+    // rate above 100%.
+    expect(doc.returned.d30).toEqual({ returned: 1, of: null });
     expect(doc.firstTime).toBe(0);
   });
 
@@ -122,6 +145,24 @@ describe("runEngagementDigest", () => {
     await runEngagementDigest(store, NOW, FEED);
     expect(state.days.get(Y)!.streaksBroken).toBe(1);
     expect(state.users.get("habit")).toMatchObject({ lastDay: Y, activeDays: 6, streak: 1 });
+  });
+
+  it("breaks the streak at a gap of exactly two — one missed day", async () => {
+    // The boundary, and the case the suite had no instance of: every
+    // broken-streak fixture above uses gap 3, where `gap >= 2` and
+    // `gap >= 3` agree, so the threshold could be moved up one with the
+    // suite green. Gap 2 is a habit user who missed a single day, which is
+    // the commonest instance of the churn signal this day document exists
+    // to publish — under the mutation that whole population silently stops
+    // being counted.
+    const { store, state } = memoryStore({ [Y]: [e("habit", "q1")] });
+    state.users.set("habit", {
+      firstDay: "2026-08-01", lastDay: dayOffset(Y, -2),
+      activeDays: 5, streak: STREAK_BROKEN_MIN,
+    });
+    await runEngagementDigest(store, NOW, FEED);
+    expect(state.days.get(Y)!.streaksBroken).toBe(1);
+    expect(state.users.get("habit")).toMatchObject({ lastDay: Y, streak: 1 });
   });
 
   it("grows an unbroken streak by one per consecutive day", async () => {
@@ -250,7 +291,9 @@ describe("day arithmetic", () => {
 
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
-  BUCKET_MIDPOINTS, MIN_SHARD_RATE, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  BUCKET_MIDPOINTS, MIN_SHARD_RATE, QIDS_PER_DAY_CAP, QID_KEY_MAX, SHARD_FOLD_CAP,
+  ROLLUP_CHUNK, SHARD_CHUNK,
+  foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
 
@@ -258,16 +301,25 @@ function attnStore(shards: AttentionShardDoc[]) {
   const state = {
     shards: [...shards],
     applied: [] as Array<{ day: string; delta: AttnDelta; ids: string[] }>,
-    days: new Map<string, { devices: number; s: Record<string, { reach: number; est: number }> }>(),
+    days: new Map<string, {
+      devices: number;
+      s: Record<string, { reach: number; est: number }>;
+      // The QUESTION keys the document holds, which is what the day cap
+      // is about. The fake used to track devices and surfaces only, so a
+      // day document could grow without bound here and nothing noticed.
+      q: Set<string>;
+    }>(),
   };
   const store: AttentionStore = {
     async shardPage(cap) { return state.shards.slice(0, cap); },
+    async dayQids(day) { return state.days.get(day)?.q ?? new Set<string>(); },
     // the memory twin of the batched set-merge + delete: additive, and it
     // removes exactly the ids it was handed
     async applyAttention(day, delta, ids) {
       state.applied.push({ day, delta, ids });
       state.shards = state.shards.filter((s) => !ids.includes(s.id));
-      const doc = state.days.get(day) ?? { devices: 0, s: {} };
+      const doc = state.days.get(day) ?? { devices: 0, s: {}, q: new Set<string>() };
+      for (const qid of Object.keys(delta.q)) doc.q.add(qid);
       doc.devices += delta.devices;
       for (const [k, c] of Object.entries(delta.s)) {
         const cur = doc.s[k] ?? { reach: 0, est: 0 };
@@ -310,6 +362,60 @@ describe("foldShards", () => {
     expect(d.s.opens).toBeUndefined(); // negative → 0
     expect(d.s.errors).toBeUndefined(); // non-number → 0
     expect(out.has("not-a-day")).toBe(false);
+  });
+
+  // The two KEY fences. The rules bound `qids` to 120 entries and cannot
+  // go further — rules cannot iterate a map — so a key's length and the
+  // union across shards were the fold's to bound, and it bounded neither.
+  // Every client-chosen key became a field name on the shared,
+  // world-readable day document: seven rules-legal shards of 119
+  // 1200-character keys push it past Firestore's 1 MiB entity limit, and
+  // then the day can never be written again, the shards are never
+  // deleted, and the rollup fold behind the awaited attention fold stops
+  // running too. One free account, seven writes, manual recovery only.
+  it("refuses a qid key too long to be a question id, and counts it as overflow", () => {
+    const q = (qids: Record<string, unknown>): AttentionShardDoc =>
+      ({ id: "a", day: "2026-08-22", rate: 1, s: {}, qids } as AttentionShardDoc);
+    const long = "x".repeat(QID_KEY_MAX + 1);
+    const out = foldShards([q({ "feed-f01": { s: 2 }, [long]: { s: 2 } })]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q)).toEqual(["feed-f01"]);
+    // Reported, not silently dropped — the same cell the client's own cap
+    // spills into.
+    expect(d.qOther).toBe(1);
+    // A key exactly at the bound is a legal id and is kept.
+    const ok = foldShards([q({ ["y".repeat(QID_KEY_MAX)]: { s: 2 } })]);
+    expect(Object.keys(ok.get("2026-08-22")!.q)).toHaveLength(1);
+  });
+
+  it("caps the day's distinct qids and spills the rest, once per shard", () => {
+    const many: Record<string, unknown> = {};
+    for (let i = 0; i < QIDS_PER_DAY_CAP + 50; i++) many[`feed-${i}`] = { s: 2 };
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {}, qids: many } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q)).toHaveLength(QIDS_PER_DAY_CAP);
+    // ONE device read "…and more", not fifty. Overflow counts per shard,
+    // like the client's `_other` cell, or qOther would report a crowd
+    // that does not exist.
+    expect(d.qOther).toBe(1);
+  });
+
+  it("a qid already in the map keeps counting past the cap", () => {
+    // Truncating a question halfway through a day would be worse than
+    // either fence: its reach would be a fraction of its real one and
+    // nothing would say so.
+    const first: Record<string, unknown> = {};
+    for (let i = 0; i < QIDS_PER_DAY_CAP; i++) first[`feed-${i}`] = { s: 2 };
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {}, qids: first } as AttentionShardDoc,
+      { id: "b", day: "2026-08-22", rate: 1, s: {}, qids: { "feed-0": { s: 2 }, "feed-new": { s: 2 } } } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.q["feed-0"].s!.reach).toBe(2);
+    expect(d.q["feed-new"]).toBeUndefined();
+    expect(d.qOther).toBe(1);
   });
 
   it("scales a sampled shard by 1/rate", () => {
@@ -377,6 +483,76 @@ describe("runAttentionFold", () => {
     const res = await runAttentionFold(store, 10);
     expect(res).toMatchObject({ shards: 10, capped: true });
     expect(state.shards).toHaveLength(20);
+  });
+
+  // THE CAP IS ABOUT THE DAY DOCUMENT, and for a long time it was not.
+  // `foldShards` builds one delta per CHUNK of 300 shards, every one of
+  // them merged into the same document, and the 1,500 test looked only at
+  // the delta in hand — so each chunk started from zero and the document
+  // grew without any bound at all. Past ~2,500 keys it exceeds Firestore's
+  // 40,000 index entries, the batch fails, the shards are never deleted so
+  // they return on every page forever, and the rollup fold awaited after
+  // this stops running with it.
+  it("refuses a question key that names a prototype member", () => {
+    // `delta.q` is a plain object and its keys come from any anonymous
+    // device: the rules bound that map by count and never by name. Against
+    // the fold as it shipped, one shard carrying `constructor` put
+    // `{reach, est}` on the global `Object` — process-wide, outliving the
+    // invocation on a warm instance — and the shard's own tally for that
+    // key went nowhere.
+    const before = JSON.stringify((Object as unknown as Record<string, unknown>).s);
+    const out = foldShards([
+      { id: "s1", day: "2026-08-22", rate: 1, s: { opens: 1 },
+        qids: { constructor: { s: 1 }, "feed-002": { s: 1 } } } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q), "a prototype name reached the map").toEqual(["feed-002"]);
+    expect((Object as unknown as Record<string, unknown>).s, "the global Object was written")
+      .toBe(undefined);
+    expect(before).toBe(undefined);
+    // …and it spills like the other two fences: a refused key is one
+    // device reading "…and more", never a silent drop.
+    expect(d.qOther).toBeGreaterThan(0);
+    // the real question beside it is untouched
+    expect(d.q["feed-002"]).toMatchObject({ s: { reach: 1 } });
+  });
+
+  it("fences the DAY's question keys, not each chunk's", async () => {
+    // Two chunks' worth of shards, each carrying keys nothing else does.
+    const cap = QIDS_PER_DAY_CAP;
+    const shards: AttentionShardDoc[] = [];
+    for (let i = 0; i < 2 * SHARD_CHUNK; i++) {
+      const qids: Record<string, unknown> = {};
+      for (let k = 0; k < 4; k++) qids[`q-${i}-${k}`] = { s: 1 };
+      shards.push({ id: `s${i}`, day: "2026-08-22", rate: 1, s: { opens: 1 }, qids });
+    }
+    const { store, state } = attnStore(shards);
+    await runAttentionFold(store);
+    const day = state.days.get("2026-08-22")!;
+    expect(day.q.size, "the day document grew past its own cap").toBeLessThanOrEqual(cap);
+    // …and the fence did not simply refuse everything: the first chunk's
+    // keys are there, and the overflow is counted as "…and more" rather
+    // than dropped.
+    expect(day.q.size).toBe(cap);
+    expect(state.applied.some((a) => a.delta.qOther > 0), "overflow was dropped, not spilled").toBe(true);
+  });
+
+  it("carries the fence across NIGHTS, not just across chunks", async () => {
+    // The shards are deleted as they fold, so tomorrow starts with an
+    // empty page and a full budget while the document keeps everything.
+    // Seeding from the document is the only thing that makes the cap true
+    // over time.
+    const { store, state } = attnStore([]);
+    state.days.set("2026-08-22", {
+      devices: 0,
+      s: {},
+      q: new Set(Array.from({ length: QIDS_PER_DAY_CAP }, (_, i) => `old-${i}`)),
+    });
+    state.shards = [{ id: "s1", day: "2026-08-22", rate: 1, s: { opens: 1 }, qids: { "brand-new": { s: 1 } } }];
+    await runAttentionFold(store);
+    const day = state.days.get("2026-08-22")!;
+    expect(day.q.has("brand-new"), "a full day accepted another key").toBe(false);
+    expect(day.q.size).toBe(QIDS_PER_DAY_CAP);
   });
 
   it("a malformed day is skipped, never guessed at, never deleted blind", async () => {
@@ -469,7 +645,7 @@ describe("foldShards · qids", () => {
 
 // ── the rollup fold (R3/D272) ───────────────────────────────────────────
 import {
-  ROLLUP_FOLD_CAP, advanceFgWindow, runRollupFold,
+  ROLLUP_FOLD_CAP, advanceFgWindow, foldRollups, runRollupFold,
   type PeopleDelta, type RollupRow, type RollupStore,
 } from "./engagement";
 
@@ -495,12 +671,15 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
       const doc = state.days.get(day) ?? {
         rollups: 0, sessions: 0, quiet: 0, answers: 0, depthEnd: 0,
         dayparts: [0, 0, 0, 0], fgBuckets: [0, 0, 0, 0, 0], fading: 0,
+        mirrorRead: 0, lensOpen: 0, feedBuckets: [0, 0, 0, 0, 0],
       };
       doc.rollups += delta.rollups; doc.sessions += delta.sessions;
       doc.quiet += delta.quiet; doc.answers += delta.answers;
       doc.depthEnd += delta.depthEnd; doc.fading += delta.fading;
       for (let i = 0; i < 4; i++) doc.dayparts[i] += delta.dayparts[i];
       for (let i = 0; i < 5; i++) doc.fgBuckets[i] += delta.fgBuckets[i];
+      doc.mirrorRead += delta.mirrorRead; doc.lensOpen += delta.lensOpen;
+      for (let i = 0; i < 5; i++) doc.feedBuckets[i] += delta.feedBuckets[i];
       state.days.set(day, doc);
       await Promise.resolve();
     },
@@ -510,7 +689,58 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
 
 const rr = (uid: string, day: string, over: Partial<RollupRow> = {}): RollupRow => ({
   uid, day, sessions: 2, fgMin: 2, quiet: 1, answers: 3, depthEnd: 0,
-  dayparts: [0, 1, 1, 0], ...over,
+  dayparts: [0, 1, 1, 0], feedB: 0, stops: 0, lenses: 0, ...over,
+});
+
+describe("foldRollups and the Mirror-reading three (D407)", () => {
+  // ENGAGEMENT-PLAN.md's rung-0 table names this blind spot in as many
+  // words: "The entire Mirror — does anyone open it, which stops, which
+  // lenses | reading is the point and reading writes nothing". The three
+  // fields were the fix and were written by every device for weeks while
+  // the fold dropped them on the floor.
+  it("counts PEOPLE who read, not stops visited", () => {
+    // The distinction is the whole design: one person opening nine stops
+    // must not read as nine. `depthEnd`'s shape, for `depthEnd`'s reason.
+    const d = foldRollups([
+      rr("a", "2026-09-06", { stops: 9, lenses: 4 }),
+      rr("b", "2026-09-06", { stops: 1, lenses: 0 }),
+      rr("c", "2026-09-06", { stops: 0, lenses: 0 }),
+    ]);
+    expect(d.rollups).toBe(3);
+    expect(d.mirrorRead, "a sum of stops leaked in").toBe(2);
+    expect(d.lensOpen, "a lens open is a tap inside a stop, counted per person").toBe(1);
+  });
+
+  it("brackets feed depth as a histogram rather than an average", () => {
+    const d = foldRollups([
+      rr("a", "2026-09-06", { feedB: 0 }),
+      rr("b", "2026-09-06", { feedB: 4 }),
+      rr("c", "2026-09-06", { feedB: 4 }),
+    ]);
+    expect(d.feedBuckets).toEqual([1, 0, 0, 0, 2]);
+  });
+
+  it("clamps a dishonest client rather than trusting the rules alone", () => {
+    // Every other field in this fold is clamped for this reason; these
+    // three are only ever compared to zero or used as an index, so an
+    // out-of-range bracket would throw rather than lie.
+    const d = foldRollups([
+      rr("a", "2026-09-06", { feedB: 99, stops: -5, lenses: "many" }),
+      rr("b", "2026-09-06", { feedB: -1, stops: 1.9, lenses: 2 }),
+    ]);
+    expect(d.feedBuckets).toEqual([1, 0, 0, 0, 1]);
+    expect(d.mirrorRead, "a negative or fractional count read as presence").toBe(1);
+    expect(d.lensOpen, "a non-number read as presence").toBe(1);
+  });
+
+  it("a day nobody read the Mirror on is zero, not absent", () => {
+    // The console draws a share against `rollups`; a missing key and a
+    // real zero must not look the same to it.
+    const d = foldRollups([rr("a", "2026-09-06"), rr("b", "2026-09-06")]);
+    expect(d.mirrorRead).toBe(0);
+    expect(d.lensOpen).toBe(0);
+    expect(d.feedBuckets).toEqual([2, 0, 0, 0, 0]);
+  });
 });
 
 describe("advanceFgWindow", () => {
@@ -522,6 +752,22 @@ describe("advanceFgWindow", () => {
     expect(advanceFgWindow([4, 4, 4, 1, 1], 0).fading).toBe(true); // 6th reading sinks it
     expect(advanceFgWindow([4, 4, 4, 4], 0).fading).toBe(false); // five readings — too soon
     expect(advanceFgWindow([1, 1, 1, 1, 1], 1).fading).toBe(false); // low is not sinking
+  });
+
+  it("fades at EXACTLY two buckets down, which is what the rule says", () => {
+    // The three cases above all sit well clear of the boundary — the
+    // first drops 3.33 buckets — so the `<=` could be narrowed to `<`
+    // with the whole suite green. Measured. Buckets are integers 0-4, so
+    // an exact two-bucket drop is a common, reachable window, and the
+    // docstring defines the rule as "the newest three average two buckets
+    // under the window's first three". At `<` the constant 2 quietly
+    // means "more than 2" and `fading` — a published per-day count —
+    // stops firing for the case the sentence names.
+    expect(advanceFgWindow([4, 4, 4, 2, 2], 2).fading).toBe(true);
+    // …and a hair under two does not fade, so the bound is pinned from
+    // both sides rather than the direction alone. [4,4,4,3,2,2]: the
+    // newest three average 2.33, which is 1.67 down, not 2.
+    expect(advanceFgWindow([4, 4, 4, 3, 2], 2).fading).toBe(false);
   });
 });
 
@@ -596,6 +842,83 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
   // Asserted on the ADAPTER, because that is where the bug was and the
   // pure passes above cannot see it: the injected memoryStore models a
   // whole-object replace, which is exactly what the real store was doing.
+  // AN EMPTY MAP IS AN INSTRUCTION TO DELETE, and this one erased a day.
+  //
+  // `applyAttention` writes the day document with { merge: true } and
+  // guards `q` and `qOther` as emit-when-set — and wrote `s`
+  // unconditionally, one line above both of them. Firestore puts an
+  // explicitly-written empty map in the UPDATE MASK (the SDK says so in
+  // those words: "Add a field path for an explicitly updated empty map"),
+  // so `s: {}` does not merge into the existing counters, it REPLACES
+  // them. `v2_engagement_daily/{day}.attn.s` is opens, slow boots,
+  // errors, tab and lens visits, answers by surface, reveals, notification
+  // opens — and it cannot be recomputed, because the same batch deletes
+  // the shards it was folded from.
+  //
+  // Reachable without an attacker: the client writes `s` unconditionally
+  // too (src/v2/data/engagement.ts), and `onHidden()` calls `ensureToday()`
+  // without `note()`, so a phone backgrounded just after UTC midnight and
+  // not reopened flushes a shard whose `s` is `{}`. A LATE shard — which
+  // runAttentionFold's own header calls the normal case — folds on a later
+  // night, after the day's real counters are already in the document.
+  //
+  // ASSERTED ON THE ADAPTER, for the same reason the case below is: the
+  // injected fake models applyAttention ADDITIVELY, so an empty delta is a
+  // no-op in the fake and a wipe in the real store. That is the gap
+  // taste.ts and patterns.ts each carry a written note about.
+  it("applyAttention omits an empty s rather than writing it, which would erase the day", async () => {
+    type AttnWrite = { day: string; attn: Record<string, unknown> };
+    const calls: Array<{ path: string; data: AttnWrite; opts: unknown }> = [];
+    const batch = {
+      set(ref: { path: string }, data: unknown, opts?: unknown) {
+        calls.push({ path: ref.path, data: data as AttnWrite, opts });
+      },
+      delete() {},
+      async commit() {},
+    };
+    const doc = (path: string) => ({
+      path,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${path}/${c}/${d}`) }),
+    });
+    const db = {
+      batch: () => batch,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${c}/${d}`) }),
+    } as unknown as Parameters<typeof firestoreAttentionStore>[0];
+
+    const store = firestoreAttentionStore(db);
+    await store.applyAttention("2026-09-05", { devices: 1, s: {}, q: {}, qOther: 0 }, ["shard1"]);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].opts).toEqual({ merge: true });
+    expect(
+      Object.prototype.hasOwnProperty.call(calls[0].data.attn, "s"),
+      "an empty s was written, which Firestore treats as a delete of the whole map — a day's per-surface counters, unrecoverable",
+    ).toBe(false);
+    // The control: the rest of the write still happens, so the guard did
+    // not simply stop the fold from recording anything.
+    expect(calls[0].data.day).toBe("2026-09-05");
+    expect(calls[0].data.attn.devices).toBeTruthy();
+  });
+
+  it("applyAttention still writes s when there is something in it — the control", async () => {
+    type AttnWrite2 = { attn: Record<string, unknown> };
+    const calls: Array<{ data: AttnWrite2 }> = [];
+    const batch = {
+      set(_ref: unknown, data: unknown) { calls.push({ data: data as AttnWrite2 }); },
+      delete() {},
+      async commit() {},
+    };
+    const doc = (path: string) => ({ path, collection: (c: string) => ({ doc: (d: string) => doc(`${path}/${c}/${d}`) }) });
+    const db = {
+      batch: () => batch,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${c}/${d}`) }),
+    } as unknown as Parameters<typeof firestoreAttentionStore>[0];
+
+    const store = firestoreAttentionStore(db);
+    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: 3 }, q: {}, qOther: 0 }, ["shard1"]);
+    expect(calls[0].data.attn.s, "the guard removed a real counter map").toBeTruthy();
+  });
+
   it("putStates merges rather than replacing, so fg7 survives the night", async () => {
     const calls: Array<{ path: string; data: unknown; opts: unknown }> = [];
     const batch = {
@@ -754,86 +1077,129 @@ describe("the cohort day an account never got", () => {
   });
 });
 
-describe("a paged query's projection has to carry the field it orders by", () => {
-  // A cursor is BUILT FROM THE SNAPSHOT: `startAfter(doc)` reads, off that
-  // document, every field the query orders by. `select()` decides which
-  // fields the document actually carries, so a projection that omits the
-  // orderBy field yields a snapshot the cursor cannot be built from and the
-  // Admin SDK throws rather than paging.
-  //
-  // ledgerDay ordered by "at" and projected only uid + qid, so page two of
-  // any day threw — and since putLastDay never runs on a throw, the digest
-  // would come back to the same day every night forever, taking
-  // runAttentionFold and runRollupFold down with it (both are awaited after
-  // it in digestEngagementV2). The two sibling paged readers, patterns.ts
-  // and velocity.ts, both include "at"; this one was the deviation.
-  //
-  // Asserted on the ADAPTER for the same reason as the merge case above:
-  // the injected memoryStore the pure passes use never pages at all.
-  it("ledgerDay pages a second time instead of throwing on the cursor", async () => {
-    const PAGE = 5000;
-    let projection: string[] = [];
-    const orderBys: string[] = [];
-    let pages = 0;
-
-    // A document carries ONLY the projected fields — the whole point of
-    // select(), and what makes the missing cursor field undefined.
-    const docAt = (i: number) => ({
-      get: (f: string) =>
-        projection.includes(f)
-          ? f === "at"
-            ? new Date(Date.UTC(2026, 7, 25, 0, 0, i % 60))
-            : `${f}-${i}`
-          : undefined,
-    });
-
-    const query = {
+describe("the digest's ledger read (D399)", () => {
+  // The pager that lived here — projected uid + qid + at, its own page
+  // loop, and the "at"-in-the-projection lesson its test carried — is
+  // `readLedgerDay` in ledger.ts since D399, where ledger.test.ts pins
+  // the projection against the entry type. What the adapter owes now is
+  // smaller and worth one case: it hands the day to the reader it was
+  // built with, which in production is the night's shared memo.
+  it("ledgerDay is the reader the store was built with (D399: one read a night, three folds)", async () => {
+    const asked: string[] = [];
+    const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
+    const db = {
       // firestoreEngagementStore takes a metaRef off its first collection
       // before returning; ledgerDay never touches it.
-      doc: () => ({}),
-      where: () => query,
-      orderBy: (f: string) => {
-        orderBys.push(f);
-        return query;
-      },
-      select: (...f: string[]) => {
-        projection = f;
-        return query;
-      },
-      limit: () => query,
-      startAfter: (d: { get: (f: string) => unknown }) => {
-        for (const f of orderBys) {
-          if (d.get(f) === undefined) {
-            // The Admin SDK's own wording, so a failure here reads like
-            // the one that would happen in production.
-            throw new Error(
-              `Field "${f}" is missing in the provided DocumentSnapshot. Please provide a document that contains values for all specified orderBy() and where() constraints.`,
-            );
-          }
-        }
-        return query;
-      },
-      async get() {
-        pages++;
-        // A full page first, so the loop is forced to ask for a second one;
-        // a short page second, so it terminates.
-        const size = pages === 1 ? PAGE : 3;
-        return { size, docs: Array.from({ length: size }, (_, i) => docAt(i)) };
-      },
-    };
-    const db = {
-      collection: () => query,
-      doc: () => ({}),
+      collection: () => ({ doc: () => ({}) }),
     } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+    const rows = await firestoreEngagementStore(db, reader).ledgerDay("2026-08-25");
+    expect(asked).toEqual(["2026-08-25"]);
+    expect(rows).toEqual([{ uid: "u1", qid: "daily-000" }]);
+  });
+});
 
-    const store = firestoreEngagementStore(db);
-    const rows = await store.ledgerDay("2026-08-25");
+// The 500-op batch cap, held against the two chunk sizes that feed it.
+//
+// Firestore refuses a batch over 500 writes, and a scheduled function
+// that throws at 2am is a silent nightly outage. Both constants carry the
+// arithmetic in a comment; only one of them was defended by anything, and
+// only by accident — raising SHARD_CHUNK is caught by two cases asserting
+// literal chunk SIZES, not the cap, and raising ROLLUP_CHUNK to 400 (801
+// ops) left all 462 tests green.
+// The two fences on `v2_engagement_daily`, held to the platform limits
+// they were chosen for.
+//
+// WHY THIS EXISTS. `QID_KEY_MAX` is the only thing between one free
+// anonymous account and a permanent nightly outage: every key in a
+// client-written shard's `qids` map becomes a FIELD NAME on the shared,
+// world-readable day document, `firestore.rules` bounds that map by count
+// only and says so, and `runAttentionFold` is awaited unguarded — so a day
+// document pushed past 1 MiB can never be written again, the offending
+// shards are never deleted, and the rollup fold and heartbeat behind it
+// stop with it.
+//
+// It was defended by nothing. Both cases above build their fixtures FROM
+// the constant (`"x".repeat(QID_KEY_MAX + 1)`), so they pass at any value:
+// measured, 64 -> 1200 left the whole functions suite and every script
+// test green, and grep found no other reference in the tree. That is the
+// same shape as the batch cap below, whose own header says a scheduled
+// function that throws at 2am is a silent nightly outage — this one does
+// not even throw.
+//
+// The numbers are the ones the constant's own comment argues from, and
+// they are Firestore's, not ours.
+describe("the day document's fences stay under the platform limits", () => {
+  const ENTITY_BYTES = 1024 * 1024;      // Firestore's 1 MiB entity limit
+  const INDEX_ENTRIES = 40_000;          // …and its per-document index entries
+  // One qid holds up to 4 kinds x 2 numbers = 8 leaves, each indexed
+  // ascending AND descending.
+  const ENTRIES_PER_QID = 8 * 2;
 
-    expect(pages, "the second page was never requested").toBe(2);
-    expect(rows).toHaveLength(PAGE + 3);
+  it("a full day of the longest legal keys stays inside the entity limit", () => {
+    // The fence's own claim: "at 64 characters that is also ~225 KB,
+    // comfortably inside 1 MiB". Held at a quarter of the limit rather
+    // than at the limit, because the keys are not the only thing in the
+    // document — the per-day scalars and the `s` map share it.
+    const keyBytes = QIDS_PER_DAY_CAP * QID_KEY_MAX;
+    expect(keyBytes).toBeLessThanOrEqual(ENTITY_BYTES / 4);
+  });
+
+  it("…and inside the index-entry ceiling, which is the binding one", () => {
+    // `v2_engagement_daily` carries no field exemptions, so every leaf is
+    // indexed both ways. 40,000 / 16 = 2,500 is the ceiling; 1,500 is the
+    // fence.
+    expect(QIDS_PER_DAY_CAP * ENTRIES_PER_QID).toBeLessThanOrEqual(INDEX_ENTRIES);
+  });
+
+  it("the attack the fence was written for cannot reach the limit", () => {
+    // Seven rules-legal shards of 119 keys each — the case the constant's
+    // comment records as measured on the emulator. At 1200 characters it
+    // pushed the document past 1 MiB; the fence has to make that
+    // arithmetically impossible, not merely unlikely.
+    const RULES_KEYS_PER_SHARD = 120;    // firestore.rules: qids.size() <= 120
+    const SHARDS = 7;
+    expect(SHARDS * RULES_KEYS_PER_SHARD * QID_KEY_MAX).toBeLessThan(ENTITY_BYTES);
+  });
+
+  it("a question id the bank actually ships still fits", () => {
+    // The other direction, so the fence cannot be "fixed" by lowering it
+    // until it refuses real ids. The longest bank id is 18 characters and
+    // a bought question is `paidq-` plus a booking id, ~43.
+    expect(QID_KEY_MAX).toBeGreaterThanOrEqual("test-attachment-00".length);
+    expect(QID_KEY_MAX).toBeGreaterThanOrEqual("paidq-".length + 36);
+  });
+});
+
+describe("the batch arithmetic stays under Firestore's 500-op cap", () => {
+  const CAP = 500;
+
+  it("applyRollups: 1 day-doc set + one mark and one state per row", () => {
+    // `fgWindows.size` equals `rows.length` — one rollup per person per
+    // day — so the batch is exactly 2n + 1.
+    expect(2 * ROLLUP_CHUNK + 1).toBeLessThanOrEqual(CAP);
+  });
+
+  it("the shard fold: 1 day-doc set + one delete per shard", () => {
+    expect(1 * SHARD_CHUNK + 1).toBeLessThanOrEqual(CAP);
+  });
+
+  it("…and the shape those formulas assume has not changed", () => {
+    // An arithmetic pin is only as good as its model of the batch. If a
+    // THIRD write per row is added, `2n + 1` quietly stops being the
+    // count and this file goes on saying the cap is safe. So the write
+    // sites are counted too, off the source.
+    const src = readFileSync(resolve(here, "engagement.ts"), "utf8");
+    const body = src.slice(
+      src.indexOf("async applyRollups("),
+      src.indexOf("await batch.commit();", src.indexOf("async applyRollups(")),
+    );
+    expect(body, "applyRollups moved or was renamed — this case is vacuous").not.toBe("");
+    const writes = [...body.matchAll(/batch\.(set|update|delete|create)\(/g)].map((m) => m[1]);
     expect(
-      projection,
-      'ledgerDay orders by "at" but did not project it, so startAfter cannot build a cursor and every day past one page throws',
-    ).toContain("at");
+      writes,
+      "applyRollups' batch gained or lost a write. The 2n + 1 formula above "
+      + "is now wrong, and it is the only thing keeping this batch under "
+      + "the 500-op cap.",
+    ).toEqual(["set", "update", "set"]);
   });
 });

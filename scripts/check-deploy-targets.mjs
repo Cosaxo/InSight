@@ -73,13 +73,32 @@ if (!exported.length) {
 }
 
 const workflow = readFileSync(resolve(root, WORKFLOW), "utf8");
-const only = workflow.match(/--only\s+"([^"]*functions:[^"]*)"/);
-if (!only) {
+// COMMENTS OFF FIRST, and every match rather than the first.
+//
+// Two bugs, one shape. This read the file raw and took `.match`, which is
+// the LEFTMOST occurrence — so a `# e.g. --only "functions:…"` line above
+// the step answered for the step, and the live list could be truncated to
+// two names with the gate printing "42 exported functions, all present in
+// --only". Commenting the deploy step out entirely did the same. Measured
+// both ways before this line changed.
+//
+// The `--force` rule at the bottom of this same file already strips
+// comments and says why — "a scanner that reads its own explanation as the
+// thing it forbids is worse than no scanner". Only one of the file's two
+// halves had the fix; this is the other half.
+//
+// Every `--only` is unioned because the deploy is allowed to be split
+// across steps, which is exactly what the --force rule below exists to
+// police: reading one of them would make the gate depend on which step
+// happens to come first.
+const liveWorkflow = workflow.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+const onlyLists = [...liveWorkflow.matchAll(/--only\s+"([^"]*functions:[^"]*)"/g)];
+if (!onlyLists.length) {
   console.error(`check-deploy-targets: no --only list found in ${WORKFLOW}`);
   process.exit(1);
 }
 const deployed = new Set(
-  [...only[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]),
+  onlyLists.flatMap((o) => [...o[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1])),
 );
 
 // …and no deploy may combine --force with a firestore target.

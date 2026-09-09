@@ -60,6 +60,24 @@ function impl(): Promise<Impl> {
     implPromise = import("./firebaseImpl").then((m) => {
       m.init(config);
       return m;
+    }).catch((err) => {
+      // A REJECTION MUST NOT BE MEMOISED. The whole point of the cache is
+      // that the SDK loads once; the cost of caching a failure is that it
+      // never loads at all. A chunk fetch that fails transiently — a blip
+      // offline, a deploy swapping the asset mid-session — would otherwise
+      // hand every later caller the same rejection for the life of the
+      // page, with nothing left that could retry: `getDb()` and every
+      // surface below await this identical promise, so one bad moment
+      // takes Firebase down until a reload.
+      //
+      // Cleared BEFORE the rethrow, and NOT in a `finally`: a finally
+      // would drop the memo on success too, which is the memo deleted
+      // rather than repaired. The next caller re-imports; a module the
+      // bundler has already fetched resolves from its own cache, so the
+      // retry is cheap when the failure was in `init` rather than the
+      // fetch.
+      implPromise = null;
+      throw err;
     });
   }
   return implPromise;
@@ -97,6 +115,46 @@ export async function linkGoogle(): Promise<void> {
 export async function googleSignIn(): Promise<void> {
   const m = await impl();
   return m.googleSignIn();
+}
+
+export async function emailSignIn(address: string, password: string): Promise<void> {
+  const m = await impl();
+  return m.emailSignIn(address, password);
+}
+
+export async function emailCreate(address: string, password: string): Promise<void> {
+  const m = await impl();
+  return m.emailCreate(address, password);
+}
+
+export async function sendVerification(): Promise<void> {
+  const m = await impl();
+  return m.sendVerification();
+}
+
+export async function refreshVerification(): Promise<boolean> {
+  const m = await impl();
+  return m.refreshVerification();
+}
+
+export async function emailReset(address: string): Promise<void> {
+  const m = await impl();
+  return m.emailReset(address);
+}
+
+// The screen switches on this, so it is re-exported rather than
+// re-derived: a second copy of the code list is a second thing to keep
+// in step with Firebase.
+export type { EmailFailure } from "./firebaseImpl";
+
+export async function linkApple(): Promise<void> {
+  const m = await impl();
+  return m.linkApple();
+}
+
+export async function appleSignIn(): Promise<void> {
+  const m = await impl();
+  return m.appleSignIn();
 }
 
 export async function googleSignOut(): Promise<void> {

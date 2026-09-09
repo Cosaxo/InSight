@@ -41,8 +41,10 @@ import {
   collectionGroup,
   deleteDoc,
   doc,
+  documentId,
   getDocs,
   limit as fsLimit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -50,6 +52,7 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { agreement, type Agreement } from "./cohort";
+import { chunkUids } from "./voters";
 import { WORLD_ANSWER_SURFACES } from "./voters";
 
 /**
@@ -63,15 +66,63 @@ import { WORLD_ANSWER_SURFACES } from "./voters";
  */
 export const FOLLOW_CAP = 50;
 
-/** Answers to read per followed account. */
+/**
+ * Answers to read per followed account — the NEWEST ones, since D398.
+ *
+ * WHICH answers, when it binds, is the whole question. Until D398 the
+ * query below carried no `orderBy`, and an unordered `limit` in Firestore
+ * takes documents by NAME — here the question id — so past this cap a
+ * member's likeness was computed from the alphabetically-first 300
+ * questions they had answered, and the bias was invisible: the reading
+ * still drew, about a slice nobody chose. The same shape as the follow
+ * cap's own bug, which silently kept the alphabetically-first fifty
+ * people in a circle until it was fixed.
+ *
+ * AND IT BOUND. This said "it cannot bind today — the core bank is ~130
+ * questions" until the closing review of 2026-08-31 measured it against
+ * the wrong bank. `core` is the Mirror's corpus; the query asks for
+ * WORLD_ANSWER_SURFACES, six surfaces — 1061 answerable
+ * questions across the committed banks against a cap of 300, no bank
+ * growth required. Somebody who had worked through more than half of what
+ * they could answer was read from the alphabetically-first slice of it.
+ *
+ * (THE FIGURE IS COMPUTED NOW, not written down, and the history is why.
+ * It first landed as "feed 190, test 160 = 644"; that was hand-corrected
+ * to a per-surface breakdown totalling 570, under a parenthesis saying
+ * that a figure written by hand inside the argument it supports is this
+ * repo's most-repeated documentation error. It was 737 by the time
+ * anyone looked again — the feed bank alone had gone from 166 answerable
+ * cards to 309, and the nightly lane appends to these banks, so the
+ * hand-count was stale within days of being corrected. The conclusion
+ * never moved either time, which is precisely how a figure like this goes
+ * stale unnoticed: the sentence stays persuasive while every number in it
+ * stops being true. `check:figures` holds this one against the banks now,
+ * the same way it holds the counts in SCALE-PLAN and content/README.)
+ *
+ * The fix was not free, which is why it waited on the owner rather than
+ * on a night's judgement (D7): ordering by `answeredAt` needs a composite
+ * index on (surface ASC, answeredAt DESC) scoped to the `answers`
+ * COLLECTION — `firestore.indexes.json`, pinned by indexes.test.ts — and
+ * this repo pays an index entry on every answer ever written. The owner
+ * took the cost with ALGORITHM-REFLECTION §4.6 (2026-09-06), so the cap
+ * now keeps a member's 300 most RECENT answers: the same "latest N" the
+ * who-voted sheet and the nightly samples mean, and a slice somebody did
+ * choose. What the cap still does is bound the read; what it no longer
+ * does is pick the questions.
+ */
 export const CIRCLE_ANSWER_CAP = 300;
 
 export interface Member {
   uid: string;
   /** Display name, or "" when the account has not set one. */
   name: string;
-  /** True when they follow you back — derived, never stored. */
-  mutual: boolean;
+  /** True when they follow you back — derived, never stored. NULL when the
+   *  followers read was refused: "we could not ask" is not "they do not",
+   *  and a screen that states the second on the strength of the first is
+   *  making a claim about another person it never checked. The two places
+   *  that read this already treat a falsy value as "draw no badge", which
+   *  is the safe direction; only the SENTENCE has to know the difference. */
+  mutual: boolean | null;
   /** How alike your answers are, over what you have both answered. */
   like: Agreement;
   /** qid → optionIdx, as read. */
@@ -154,13 +205,32 @@ export function capFollows(uids: readonly string[], cap = FOLLOW_CAP): string[] 
 export async function fetchFollowing(db: Firestore, uid: string): Promise<string[]> {
   const snap = await getDocs(query(
     collection(db, "v2_users", uid, "following"),
+    // ORDERED BEFORE THE CAP, not after it. This ordered the page once it
+    // was in hand — which reorders whatever Firestore already chose, and
+    // an unordered `limit` takes documents by NAME. So an account over the
+    // cap kept the alphabetically-first fifty target uids while the
+    // comment here claimed the oldest fifty, and the rest of their circle
+    // vanished with nothing saying so.
+    //
+    // Reachable, because the cap is client-only and leaky: the follow
+    // button gates on a cached circle that is null until the Circle stop
+    // has been opened, and `firestore.rules` caps nothing. Somebody adding
+    // people from who-voted sheets can pass fifty without ever seeing the
+    // stop that would have stopped them.
+    //
+    // No index needed and none added: this is one document's subcollection
+    // ordered on a single field, which Firestore indexes automatically —
+    // the override in firestore.indexes.json ADDS a collection-group index
+    // for `to` and exempts nothing. `at` is safe to order on because rules
+    // require it on every row (`hasOnly(["at","to"])`, `at == request.time`),
+    // so no follow can be dropped for lacking the field.
+    orderBy("at"),
     fsLimit(FOLLOW_CAP),
   ));
   return snap.docs
     .map((d) => ({ id: d.id, at: (d.data().at as { seconds?: number } | undefined)?.seconds || 0 }))
-    // Oldest first so the cap is stable across sessions: ordering by an
-    // unindexed field server-side would need an index for a list this
-    // small, and the sort is free once the page is in hand.
+    // The server has ordered them; this only settles same-instant ties,
+    // which two follows made in one batch can genuinely have.
     .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
     .map((d) => d.id);
 }
@@ -168,10 +238,32 @@ export async function fetchFollowing(db: Firestore, uid: string): Promise<string
 /**
  * Which of `uids` follow `me` back.
  *
- * One collection-group query on `to`, not one query per candidate. The
- * `to` field exists for deleteAccount (a collection-group query cannot
- * filter on a document id) and this is its second reader — the mutual
- * flag comes free off an index that had to exist anyway.
+ * ASKED FOR EXACTLY THE ROWS IT WANTS, which is the fix for a count that
+ * was bounded on the wrong side of the join. This used to fetch a page of
+ * "everyone who follows me" — `where("to","==",me)` with a 100-row cap, no
+ * ordering, nothing tying the page to `among` — and then intersect it on
+ * the device. Firestore's implicit order is by path, so past 100 followers
+ * the page was the lexicographically-first hundred, chosen without
+ * reference to the people actually being asked about: every mutual outside
+ * that slice read as false. The Circle then printed "N follow you back"
+ * too low, dropped the badge from real mutuals, and at zero told someone
+ * whose circle DOES follow them back that following is one-way. The
+ * follower count is entirely outside the viewer's control, and rules cap
+ * it at nothing.
+ *
+ * The rows wanted are `v2_users/{candidate}/following/{me}` — every path
+ * fully known, because a follow's document id IS its target. So the query
+ * names them: `documentId() in [...]`, thirty at a time, which is Firestore's
+ * limit on `in`. Fewer reads than the old page (at most one per candidate,
+ * ≤50, against a flat 100) and exact at any follower count.
+ *
+ * The `to` equality STAYS, and not as a leftover. `firestore.rules` gates
+ * the collection group on `resource.data.to == request.auth.uid`, and D65's
+ * measured lesson is that a collection-group read must carry the matching
+ * `where` or Firestore refuses the whole query rather than filtering it.
+ * Verified against the real rules in an emulator, not reasoned about: the
+ * two filters together return exactly the candidates who follow back,
+ * including ones the old page could never reach.
  */
 export async function fetchFollowersOf(
   db: Firestore,
@@ -179,17 +271,20 @@ export async function fetchFollowersOf(
   among: readonly string[],
 ): Promise<Set<string>> {
   if (!among.length) return new Set();
-  const snap = await getDocs(query(
-    collectionGroup(db, "following"),
-    where("to", "==", me),
-    fsLimit(FOLLOW_CAP * 2),
-  ));
-  const set = new Set(among);
   const out = new Set<string>();
-  for (const d of snap.docs) {
-    // The follower is the uid that OWNS the row: v2_users/{follower}/following/{me}
-    const owner = d.ref.parent.parent?.id;
-    if (owner && set.has(owner)) out.add(owner);
+  // 30 is the `in` limit. `chunkUids` dedupes and preserves order, which is
+  // the same helper the voter reads use for the same reason.
+  for (const chunk of chunkUids(among, 30)) {
+    const snap = await getDocs(query(
+      collectionGroup(db, "following"),
+      where("to", "==", me),
+      where(documentId(), "in", chunk.map((u) => doc(db, "v2_users", u, "following", me))),
+    ));
+    for (const d of snap.docs) {
+      // The follower is the uid that OWNS the row: v2_users/{follower}/following/{me}
+      const owner = d.ref.parent.parent?.id;
+      if (owner) out.add(owner);
+    }
   }
   return out;
 }
@@ -210,6 +305,12 @@ export async function fetchAnswersOf(
   const snap = await getDocs(query(
     collection(db, "v2_users", uid, "answers"),
     where("surface", "in", [...WORLD_ANSWER_SURFACES]),
+    // Newest first, so the cap below keeps the answers somebody most
+    // recently gave rather than the alphabetically-first question ids —
+    // see CIRCLE_ANSWER_CAP. Needs the (surface, answeredAt DESC)
+    // collection-scope composite; every answer carries `answeredAt` by
+    // rule, so the orderBy excludes nothing.
+    orderBy("answeredAt", "desc"),
     fsLimit(CIRCLE_ANSWER_CAP),
   ));
   const out: Record<string, number> = {};
@@ -220,14 +321,39 @@ export async function fetchAnswersOf(
   return out;
 }
 
-/** Follow someone. Idempotent — re-following an existing row rewrites it. */
+/**
+ * Follow someone.
+ *
+ * NOT idempotent at the rules layer, whatever this docstring used to say.
+ * `firestore.rules` has `allow update: if false` on this row, and a
+ * non-merge `setDoc` onto a document that already exists is an UPDATE in
+ * rules terms rather than a create — the rules suite pins that shape in
+ * three places. So a re-follow of somebody already followed is
+ * PERMISSION_DENIED, and the caller's optimistic state is rolled back:
+ * the row stays, the button springs back, and nothing says why.
+ *
+ * Reachable whenever the caller's own `isFollowing` reads false against a
+ * row that exists — a member dropped from the fold by a failed answer
+ * read, the read breaker, or the window before the follow list lands.
+ *
+ * Swallowing permission-denied is safe HERE and only here, because every
+ * other way this write can be refused is already impossible at this call
+ * site: `me` is the authenticated uid, `me === target` returns above, and
+ * `to`/`at` are built to the rule's exact shape. What is left is "the row
+ * is already there", which is success for the caller — and letting it
+ * through is what lets the caller's own refresh run.
+ */
 export async function follow(db: Firestore, me: string, target: string): Promise<void> {
   if (!me || !target || me === target) return;
-  await setDoc(doc(db, "v2_users", me, "following", target), {
-    at: serverTimestamp(),
-    // Pinned equal to the doc id by the rules; see firestore.rules.
-    to: target,
-  });
+  try {
+    await setDoc(doc(db, "v2_users", me, "following", target), {
+      at: serverTimestamp(),
+      // Pinned equal to the doc id by the rules; see firestore.rules.
+      to: target,
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code !== "permission-denied") throw err;
+  }
 }
 
 export async function unfollow(db: Firestore, me: string, target: string): Promise<void> {
@@ -248,12 +374,40 @@ export async function loadCircle(
   me: string,
   myAnswers: Readonly<Record<string, number>>,
   names: (uid: string) => string,
-): Promise<Member[]> {
+): Promise<{ members: Member[]; following: string[] }> {
+  // TWO ANSWERS, NOT ONE, and conflating them cost a friend their place.
+  // `uids` is who you FOLLOW — read from the follow rows, which is the
+  // only authority on it. `members` is who could be PLACED, which drops
+  // anyone whose answers could not be read; that drop is right for the
+  // fold, because there is nothing to place them by. It is wrong for the
+  // membership, and live.ts was rebuilding its follow cache from the
+  // survivors — so one refused answer read removed a friend from the
+  // Friends cut of every who-voted sheet, from its headline count and from
+  // the patterns map's circle, and left `isFollowing` false so the Follow
+  // button offered to re-follow them: a write the rules refuse as an
+  // update and `follow()` swallows, so the tap did nothing and said
+  // nothing. `loadFollows` could not repair it either — it early-returns
+  // on a non-null cache, and its own docstring states the intent this
+  // violated: "two caches that can disagree about who your friends are is
+  // the bug this note exists to prevent". Named rather than cited by line
+  // — the first draft of this comment said live.ts:4826 and the same
+  // night's edits to that file moved the sentence eight lines down, which
+  // is the hand-maintained-figure failure one layer over. Handing both
+  // back keeps the two questions apart at the one place that knows the
+  // difference.
   const uids = capFollows(await fetchFollowing(db, me));
-  if (!uids.length) return [];
+  if (!uids.length) return { members: [], following: [] };
   const [answerSets, followers] = await Promise.all([
     Promise.all(uids.map((u) => fetchAnswersOf(db, u).catch(() => null))),
-    fetchFollowersOf(db, me, uids).catch(() => new Set<string>()),
+    // null, NOT an empty set. An empty set is a real answer — "nobody
+    // follows you back" — and swallowing the refusal into it is what let
+    // the Circle stop print "following is one-way, nobody is told" after a
+    // read it never got. This function's own docstring names that outcome
+    // as the failure it exists to prevent; the paging cause was fixed and
+    // the swallowed-error cause outlived it. Every sibling loader in the
+    // store keeps the same distinction ("absent is 'we could not ask',
+    // empty is 'nobody answered'").
+    fetchFollowersOf(db, me, uids).catch(() => null),
   ]);
   const out: Member[] = [];
   uids.forEach((uid, i) => {
@@ -262,10 +416,10 @@ export async function loadCircle(
     out.push({
       uid,
       name: names(uid),
-      mutual: followers.has(uid),
+      mutual: followers ? followers.has(uid) : null,
       like: agreement(myAnswers, answers),
       answers,
     });
   });
-  return rankMembers(out);
+  return { members: rankMembers(out), following: uids };
 }

@@ -70,40 +70,44 @@ export const IS_ARCHETYPES = {
     { name: 'The Slow Burn',     share: 10, line: 'Hard to earn, harder to lose.',               sig: { warm: 45, loyal: 70, open: 40, play: 35, easy: 65 } },
     { name: 'The Small Circle',  share: 4,  line: 'A small circle, fiercely kept.',              sig: { warm: 40, loyal: 80, open: 25, play: 40, easy: 45 } },
   ]},
-  // ── the role instruments (D204) ──────────────────────────────────────
-  // Same discipline as the four above: extreme on the 1–2 dims that DEFINE
-  // the type, near-neutral elsewhere, shares summing to 100 — all three are
-  // assumptions `IS_archScores` makes (it weights by |sig − 50| and taxes
-  // rare types by log(maxShare/share)).
+  // ── the role instruments (D204; the tables the owner's 2026-09-09 design
+  // wrote, D437) ────────────────────────────────────────────────────────
+  // One idea in two settings — what the people around you make you. A 1v1's
+  // four dims are the share of cast rounds in which they said you are the
+  // one they tell first (Trust), the one who gets them out the door (Spark),
+  // the one they ask what to do (Judgement), the one who is just always
+  // there (Constancy); a group's are the share of the votes you received
+  // per seat — Engine, Hands, Heart, Wildcard. Shares, so the baseline is
+  // 25 a dim (IS_TEST_AVG) and a pure type sits at 76 on its own dim with 8
+  // on the rest, a blend at 42/42; the last type of each table is the
+  // neutral one, which is a real place to land when the shares are even.
+  // Same discipline as the four above otherwise: shares summing to 100,
+  // every type extreme on the dims that define it — `IS_archScores`'s
+  // assumptions, held by data/roles.test.ts.
   duo: { list: [
-    { name: 'The Mind Reader', share: 7,  line: 'Calls their answer before they do.',                 sig: { read: 92, seen: 52, like: 55, steady: 68 } },
-    { name: 'The Open Book',   share: 12, line: 'Easy to call, and fine with it.',                    sig: { read: 52, seen: 92, like: 58, steady: 62 } },
-    { name: 'The Poker Face',  share: 8,  line: 'Nobody\u2019s guess lands.',                          sig: { read: 55, seen: 10, like: 45, steady: 60 } },
-    { name: 'The Two-Way',     share: 6,  line: 'You read each other equally well.',                  sig: { read: 86, seen: 86, like: 66, steady: 72 } },
-    { name: 'The Stranger',    share: 9,  line: 'Two people still guessing.',                         sig: { read: 18, seen: 20, like: 42, steady: 45 } },
-    { name: 'The Twin',        share: 13, line: 'Same answer before either of you guesses.',          sig: { read: 64, seen: 64, like: 94, steady: 70 } },
-    { name: 'The Wildcard',    share: 10, line: 'Right, wrong, right \u2014 no pattern to hold.',       sig: { read: 55, seen: 48, like: 50, steady: 8 } },
-    { name: 'The Opposite',    share: 11, line: 'Never the same answer \u2014 you read each other anyway.', sig: { read: 72, seen: 68, like: 8, steady: 60 } },
-    { name: 'The Watcher',     share: 9,  line: 'Reads more than gets read.',                         sig: { read: 82, seen: 24, like: 50, steady: 66 } },
-    { name: 'The Steady Hand', share: 15, line: 'Same call, week after week.',                        sig: { read: 60, seen: 60, like: 55, steady: 94 } },
+    { name: 'The Confidant',      share: 12, line: 'The one they tell first.',                    sig: { trust: 76, spark: 8, judgement: 8, constancy: 8 } },
+    { name: 'The Instigator',     share: 10, line: 'Nothing happens until you say so.',            sig: { trust: 8, spark: 76, judgement: 8, constancy: 8 } },
+    { name: 'The Compass',        share: 10, line: 'The one they ask when they\u2019re lost.',     sig: { trust: 8, spark: 8, judgement: 76, constancy: 8 } },
+    { name: 'The Constant',       share: 12, line: 'Still there. Always were.',                    sig: { trust: 8, spark: 8, judgement: 8, constancy: 76 } },
+    { name: 'The Ride-or-Die',    share: 10, line: 'Trusted, and still there.',                    sig: { trust: 42, spark: 8, judgement: 8, constancy: 42 } },
+    { name: 'The Co-conspirator', share: 9,  line: 'In on it, every time.',                        sig: { trust: 42, spark: 42, judgement: 8, constancy: 8 } },
+    { name: 'The Sounding Board', share: 9,  line: 'Told first, asked second.',                    sig: { trust: 40, spark: 8, judgement: 44, constancy: 8 } },
+    { name: 'The Rock',           share: 10, line: 'Steady, and usually right.',                   sig: { trust: 8, spark: 8, judgement: 40, constancy: 44 } },
+    { name: 'The Ringleader',     share: 8,  line: 'Plans it, then makes it happen.',              sig: { trust: 8, spark: 44, judgement: 40, constancy: 8 } },
+    { name: 'The Everything',     share: 10, line: 'A bit of each, depending on the week.',        sig: { trust: 25, spark: 25, judgement: 25, constancy: 25 } },
   ] },
-  // SIX, not the prototype's nine. `cast` (how often the group crowns you)
-  // has no live source — it reads a demo-only scenario generator — so
-  // data/roles.ts does not compute it, and three of the nine types cannot
-  // survive its removal: "The First Pick" (cast 94) and "The Spark" (78)
-  // are DEFINED by it, and "The Floater" was only distinguishable from the
-  // neutral by a low one (16) — without it its signature is 46/46/44,
-  // which `IS_archScores` weights by |sig − 50| and can therefore never
-  // pick. A type that cannot win is dead weight in a table the rarity tax
-  // reads as a distribution, so all three are dropped rather than kept
-  // hollow and the shares renormalised from 83 back to 100.
   group: { list: [
-    { name: 'The Anchor',         share: 19, line: 'Where the group lands, you already were.',  sig: { own: 12, pull: 84, settle: 86 } },
-    { name: 'The Contrarian',     share: 13, line: 'The one vote against, most weeks.',         sig: { own: 92, pull: 28, settle: 58 } },
-    { name: 'The Bellwether',     share: 18, line: 'Vote with you and you vote with everyone.', sig: { own: 20, pull: 92, settle: 66 } },
-    { name: 'The Wildcard',       share: 16, line: 'In with them, then out, no rhythm.',        sig: { own: 58, pull: 44, settle: 8 } },
-    { name: 'The Quiet Majority', share: 24, line: 'With the group, never at the front.',       sig: { own: 10, pull: 68, settle: 78 } },
-    { name: 'The Outlier',        share: 10, line: 'Your own answer, every time.',              sig: { own: 88, pull: 10, settle: 54 } },
+    { name: 'The Engine',     share: 11, line: 'Nothing starts until you do.',                sig: { engine: 76, hands: 8, heart: 8, wild: 8 } },
+    { name: 'The Hands',      share: 11, line: 'The one who actually does it.',               sig: { engine: 8, hands: 76, heart: 8, wild: 8 } },
+    { name: 'The Heart',      share: 11, line: 'The room holds because you\u2019re in it.',    sig: { engine: 8, hands: 8, heart: 76, wild: 8 } },
+    { name: 'The Wildcard',   share: 9,  line: 'The story happens to you.',                   sig: { engine: 8, hands: 8, heart: 8, wild: 76 } },
+    { name: 'The Doer',       share: 10, line: 'Starts it, then finishes it.',                sig: { engine: 44, hands: 40, heart: 8, wild: 8 } },
+    { name: 'The Organiser',  share: 9,  line: 'Gets everyone going, and keeps them.',        sig: { engine: 42, hands: 8, heart: 42, wild: 8 } },
+    { name: 'The Gamble',     share: 8,  line: 'Gets it going \u2014 somewhere.',              sig: { engine: 40, hands: 8, heart: 8, wild: 44 } },
+    { name: 'The Host',       share: 10, line: 'Feeds everyone and fixes the lights.',        sig: { engine: 8, hands: 40, heart: 44, wild: 8 } },
+    { name: 'The Plot Twist', share: 8,  line: 'Adored, and unpredictable.',                  sig: { engine: 8, hands: 8, heart: 40, wild: 44 } },
+    { name: 'The Scout',      share: 6,  line: 'First out the door, either way.',             sig: { engine: 8, hands: 44, heart: 8, wild: 40 } },
+    { name: 'The Ensemble',   share: 7,  line: 'Every seat, some weeks.',                     sig: { engine: 25, hands: 25, heart: 25, wild: 25 } },
   ] },
 };
 
@@ -183,8 +187,8 @@ const IS_DIM_WORD = {
   political: { econ: ['further left on money', 'further right on money'], auth: ['more liberty-minded', 'more order-minded'], foreign: ['more nation-first', 'more global'], env: ['cooler on climate', 'more climate-urgent'], tech: ['warier of tech', 'more tech-hopeful'], estab: ['more system-trusting', 'more anti-establishment'] },
   values: { future: ['darker on the future', 'more hopeful'], circle: ['more family-first', 'more stranger-minded'], hedonism: ['more duty-bound', 'more pleasure-first'], meaning: ['more happiness-first', 'more struggle-friendly'], moral: ['more relativist', 'more certain'], beauty: ['more truth-first', 'more beauty-first'] },
   attachment: { warm: ['more reserved', 'warmer'], loyal: ['lighter-touch', 'more loyal'], open: ['more guarded', 'more open'], play: ['more grounded', 'more playful'], easy: ['more invested', 'more easygoing'] },
-  duo: { read: ['harder to read them', 'sharper on them'], seen: ['harder to read', 'easier to read'], like: ['further apart', 'closer together'], steady: ['streakier', 'steadier'] },
-  group: { own: ['more with the room', 'more your own'], pull: ['further from the middle', 'closer to the middle'], settle: ['streakier', 'steadier'] },
+  duo: { trust: ['told later', 'told first more'], spark: ['starting less', 'starting more'], judgement: ['asked less', 'asked more'], constancy: ['around less', 'around more'] },
+  group: { engine: ['starting less', 'starting more'], hands: ['doing less', 'doing more'], heart: ['holding less', 'holding more'], wild: ['fewer twists', 'more twists'] },
 };
 
 // Why you're NOT that neighbour type: the dim you'd have to shift most, as
@@ -226,6 +230,15 @@ export function IS_nearWhy(testKey, dims, a) {
 //     by a rounding error. A share prior (log-odds against the modal type)
 //     taxes rare types by a fixed, small penalty — enough to break near-ties
 //     toward the plausible answer, never enough to overrule a real match.
+//  4. A TYPE IS IN THE RUNNING ONLY WHEN THE DIMS THAT DEFINE IT ARE THERE
+//     (D386, ROLES-PLAN §3.6). A fold may omit a dim it cannot yet measure
+//     — a group role before any pick day has a snapshot, say — and a type
+//     whose whole identity is that dim would then be scored on the dims it
+//     has no opinion about, at the low weights rule 1 gives them, and win
+//     or lose by noise. So a type with a defining dim (|sig − baseline| ≥
+//     RULE_STRONG, the same bar the rule line uses) absent from `dims` is
+//     scored at Infinity and never picked. With every dim present — every
+//     caller today — nothing changes.
 const ARCH_W_FLOOR = 6;      // every dim counts a little
 const ARCH_SHARE_PULL = 210; // strength of the commonness prior
 
@@ -234,7 +247,14 @@ export function IS_archScores(testKey, dims) {
   if (!sys || !dims || !dims.length) return null;
   const avg = IS_TEST_AVG[testKey] || {};
   const maxShare = Math.max.apply(null, sys.list.map(a => a.share || 1));
+  const present = new Set(dims.map(d => d.id));
   return sys.list.map(a => {
+    for (const id of Object.keys(a.sig)) {                       // rule 4
+      const base = avg[id] != null ? avg[id] : 50;
+      if (Math.abs(a.sig[id] - base) >= RULE_STRONG && !present.has(id)) {
+        return { fit: Infinity, score: Infinity, eligible: false };
+      }
+    }
     let s = 0, w = 0;
     dims.forEach(d => {
       if (a.sig[d.id] == null) return;
@@ -245,7 +265,7 @@ export function IS_archScores(testKey, dims) {
     });
     const fit = w ? s / w : 1e9;                              // mean weighted sq. error
     const prior = ARCH_SHARE_PULL * Math.log(maxShare / Math.max(1, a.share || 1)); // rule 3
-    return { fit, score: fit + prior };
+    return { fit, score: fit + prior, eligible: true };
   });
 };
 
@@ -284,6 +304,9 @@ const IS_RULE_WORD = {
   political:  { econ: 'market freedom', auth: 'order', foreign: 'global outlook', env: 'climate urgency', tech: 'tech optimism', estab: 'distrust of the system' },
   values:     { future: 'hope', circle: 'breadth of care', hedonism: 'pleasure', meaning: 'meaning', moral: 'moral certainty', beauty: 'beauty' },
   attachment: { warm: 'warmth', loyal: 'loyalty', open: 'openness', play: 'playfulness', easy: 'ease' },
+  // the role instruments (D437): nouns for the seats and the axes
+  duo:        { trust: 'trust', spark: 'spark', judgement: 'judgement', constancy: 'constancy' },
+  group:      { engine: 'engine', hands: 'hands', heart: 'heart', wild: 'wildcard' },
 };
 
 // Adjective per pole — the rule reads as a claim ("very curious + warm"), so it
@@ -295,6 +318,8 @@ export const IS_RULE_ADJ = {
   political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
   values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
   attachment: { warm: ['reserved', 'warm'], loyal: ['light-touch', 'loyal'], open: ['guarded', 'open'], play: ['grounded', 'playful'], easy: ['invested', 'easygoing'] },
+  duo: { trust: ['told last', 'told first'], spark: ['along for it', 'the starter'], judgement: ['unconsulted', 'consulted'], constancy: ['come-and-go', 'always there'] },
+  group: { engine: ['waiting for it', 'getting it going'], hands: ['watching', 'doing it'], heart: ['apart', 'holding the room'], wild: ['predictable', 'the twist'] },
 };
 
 // ── the dims that EARN the name, as a claim you can agree or disagree with ──
@@ -337,18 +362,22 @@ export function IS_typeRuleParts(testKey, dims, a, max) {
   });
 };
 
-// Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }
+// Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }, or
+// null when no type is eligible for the dims given (rule 4).
 export function IS_matchArchetype(testKey, dims) {
   const sys = IS_ARCHETYPES[testKey];
   const sc = IS_archScores(testKey, dims);
   if (!sc) return null;
-  let best = 0;
-  sc.forEach((x, i) => { if (x.score < sc[best].score) best = i; });
+  let best = -1;
+  sc.forEach((x, i) => { if (x.eligible && (best < 0 || x.score < sc[best].score)) best = i; });
+  if (best < 0) return null;
   // Fit strength measured in DIM POINTS so the bands are readable: `rms` is your
   // typical miss against your own type's signature, `gap` is how many points
   // worse the runner-up is. gap ≥ 12 = a country mile; < 5 = effectively a tie.
+  // An ineligible type reads Infinity here, so it is never the runner-up and
+  // sorts behind every real neighbour on the result card.
   const rmsOf = sc.map(x => Math.sqrt(Math.max(0, x.fit)));
-  const up = sc.map((x, i) => ({ i, s: x.score })).filter(x => x.i !== best).sort((a, b) => a.s - b.s)[0];
+  const up = sc.map((x, i) => ({ i, s: x.score })).filter(x => x.i !== best && Number.isFinite(x.s)).sort((a, b) => a.s - b.s)[0];
   return {
     list: sys.list, idx: best, rmsOf,
     dists: sc.map(x => x.score), fits: sc.map(x => x.fit),

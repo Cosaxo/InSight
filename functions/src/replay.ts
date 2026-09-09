@@ -91,7 +91,7 @@ import { assertOperator, FUNCTIONS_REGION } from "./ops";
 // Its header says why it is a named function at all: "the trigger, the edit
 // path and the catalog path all want the same one, and three copies is how
 // they drift". A replay that folded anchors its own way would be a fourth.
-import { breakdownFor, CANON_TOP_N, CATALOG_DOMAINS } from "./v2";
+import { breakdownFor, overflowRef, CANON_TOP_N, CATALOG_DOMAINS } from "./v2";
 import {
   BREAKDOWN_DIMS,
   BREAKDOWN_MAX_BUCKETS,
@@ -101,7 +101,10 @@ import {
   foldCanonAnchors,
   foldRankOrder,
   validRankOrder,
+  overflowShard,
+  OVERFLOW_SHARDS,
   type BreakdownCounts,
+  type BucketTail,
   type CanonCounts,
 } from "./pure";
 
@@ -121,6 +124,11 @@ export interface FoldState {
   counts: Record<string, number>;
   total: number;
   by: BreakdownCounts;
+  /** The tail (D400): shard index → dim → bucket → cell, every cell the hot
+   *  map evicted or refused. In memory here, so the fold's own adds are
+   *  visible to its later `has` — the trigger reads its shards for the
+   *  same reason. */
+  tail: Record<string, BreakdownCounts>;
   folded: number;
   skipped: number;
   excluded: number;
@@ -131,16 +139,35 @@ export interface ReplayOutcome {
   counts: Record<string, number>;
   total: number;
   by: BreakdownCounts;
+  tail: Record<string, BreakdownCounts>;
   folded: number;
   skipped: number;
   excluded: number;
-  /** Dimensions sitting at BREAKDOWN_MAX_BUCKETS — where eviction fired and
-   *  the rebuild may legitimately differ from what was published. */
+  /** Dimensions sitting at BREAKDOWN_MAX_BUCKETS — where the cap acted, so
+   *  WHICH buckets the hot map holds depends on arrival order. The tail
+   *  makes hot ∪ tail exact regardless (D400); what this still warns is
+   *  that the hot map alone is not the whole dimension. */
   cappedDims: string[];
 }
 
 export function newFold(qid: string): FoldState {
-  return { qid, counts: {}, total: 0, by: {}, folded: 0, skipped: 0, excluded: 0 };
+  return { qid, counts: {}, total: 0, by: {}, tail: {}, folded: 0, skipped: 0, excluded: 0 };
+}
+
+/** The replay's tail: the same shape the trigger writes, accumulated in
+ * memory, shard by shard — `overflowShard` decides the shard exactly as
+ * the trigger does, so a rebuild reproduces the documents cell for cell. */
+function tailOf(state: FoldState): BucketTail {
+  return {
+    has: (dim, bucket) => !!state.tail[String(overflowShard(bucket))]?.[dim]?.[bucket],
+    add: (dim, bucket, cell) => {
+      const s = String(overflowShard(bucket));
+      const shard = state.tail[s] || (state.tail[s] = {});
+      const byDim = shard[dim] || (shard[dim] = {});
+      const target = byDim[bucket] || (byDim[bucket] = {});
+      for (const [k, n] of Object.entries(cell)) target[k] = (target[k] || 0) + n;
+    },
+  };
 }
 
 /**
@@ -173,7 +200,7 @@ export function foldAnswerInto(
   }
   state.counts[String(optionIdx)] = (state.counts[String(optionIdx)] || 0) + 1;
   state.total += 1;
-  state.by = breakdownFor(state.qid, state.by, answer.anchors, optionIdx);
+  state.by = breakdownFor(state.qid, state.by, answer.anchors, optionIdx, undefined, tailOf(state));
   state.folded += 1;
   return "folded";
 }
@@ -194,6 +221,7 @@ export function finishFold(state: FoldState): ReplayOutcome {
     counts: state.counts,
     total: state.total,
     by: state.by,
+    tail: state.tail,
     folded: state.folded,
     skipped: state.skipped,
     excluded: state.excluded,
@@ -421,6 +449,9 @@ export interface RebuildReport {
   total: number;
   counts: Record<string, number>;
   cappedDims: string[];
+  /** Tail shards the vote fold produced (D400) — 0 until a dimension has
+   *  passed the hot document's cap, and the count a rebuild writes. */
+  tailShards: number;
   published: { total: number; counts: Record<string, number> } | null;
   drift: { total: number; counts: Record<string, number> };
   carriedEdits: boolean;
@@ -432,6 +463,15 @@ export interface RebuildReport {
    *  at nothing. Found on the first production dry run (2026-08-25), where
    *  the project genuinely held zero answers. */
   emptyScan: boolean;
+  /** Answers on the "group"/"duo" surfaces the scan met and refused to
+   *  fold. `rebuildRefusal` guards the QUESTION's surface, which was the
+   *  whole guard until D426 §6.2 made a world question duel content: a
+   *  feed or daily qid now also names sealed duel votes, and those pass
+   *  every shape test the vote arm applies. Reported rather than silently
+   *  dropped, because a rebuild whose scan met sealed votes is a rebuild
+   *  whose `scanned` no longer matches its `folded` for a reason the
+   *  operator has to be able to see. */
+  sealedDuel: number;
 }
 
 /** Which fold an answer to this question goes through. Decided by the
@@ -539,6 +579,7 @@ export async function runRebuild(
   const canon = newCanonFold(qid, domain);
   let scanned = 0;
   let wrongShape = 0;
+  let sealedDuel = 0;
   let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
   for (let page = 0; page < SCAN_MAX_PAGES; page += 1) {
@@ -555,6 +596,22 @@ export async function runRebuild(
       // the grandparent's id and is what the D28 exclusion matches on.
       const uid = doc.ref.parent.parent?.id || "";
       scanned += 1;
+      // THE SEAL, PER ANSWER — not only per question. `rebuildRefusal`
+      // above asks the QUESTION's surface, and that was the whole guard
+      // while a duel round could only carry duel content. D426 §6.2 made
+      // a world question duel content, so a feed or daily qid now names
+      // both public votes and sealed duel votes, and a duel answer
+      // (`{surface:"duo", qid, optionIdx, anchors}`) carries neither
+      // `entity` nor `order` — it passes every shape test the vote arm
+      // applies and folds straight into the public aggregate.
+      //
+      // That is the exact thing rebuildRefusal's own comment says this
+      // tool must never do: mint a public aggregate out of votes that are
+      // sealed until their reveal, on rounds that may not have revealed.
+      // The refusal's reasoning was right and its reach was one level too
+      // shallow.
+      const answerSurface = doc.get("surface");
+      if (answerSurface === "group" || answerSurface === "duo") { sealedDuel += 1; continue; }
       if (arm === "catalog") {
         if (doc.get("entity") === undefined) { wrongShape += 1; continue; }
         foldCanonAnswerInto(canon, { uid, entity: doc.get("entity"), anchors: doc.get("anchors") }, opts.exclude);
@@ -581,7 +638,8 @@ export async function runRebuild(
   const out = arm === "vote" ? finishFold(vote) : null;
   const total = arm === "vote" ? vote.total : arm === "rank" ? rank.total : canon.total;
   const folded = arm === "vote" ? vote.folded : arm === "rank" ? rank.folded : canon.folded;
-  const skipped = (arm === "vote" ? vote.skipped : arm === "rank" ? rank.skipped : canon.skipped) + wrongShape;
+  const skipped = (arm === "vote" ? vote.skipped : arm === "rank" ? rank.skipped : canon.skipped)
+    + wrongShape + sealedDuel;
   const excluded = arm === "vote" ? vote.excluded : arm === "rank" ? rank.excluded : canon.excluded;
 
   // `counts` is the vote arm's shape. The other two report their own, and
@@ -678,10 +736,25 @@ export async function runRebuild(
     } else if (arm === "rank") {
       await pubRef.set({ total: rank.total, pos: rank.pos }, { merge: false });
     } else {
-      await pubRef.set(
+      // The hot document and EVERY tail shard, in one batch (D400): a
+      // rebuild is a whole replacement, so a shard the fold did not
+      // produce is deleted rather than left holding cells the hot map now
+      // has — a bucket must live in exactly one of the two. One batch for
+      // the catalog arm's reason above: the trigger writes the pair inside
+      // one transaction, and a fold landing between two separate writes
+      // would leave them disagreeing.
+      const batch = db.batch();
+      batch.set(
+        pubRef,
         { counts: vote.counts, total: vote.total, by: vote.by, ...(edits ? { edits } : {}) },
         { merge: false },
       );
+      for (let s = 0; s < OVERFLOW_SHARDS; s++) {
+        const cells = vote.tail[String(s)];
+        if (cells) batch.set(overflowRef(db, qid, s), cells, { merge: false });
+        else batch.delete(overflowRef(db, qid, s));
+      }
+      await batch.commit();
     }
     logger.warn(`[replay] rebuilt ${qid}`, {
       metric: "agg_rebuild",
@@ -707,10 +780,12 @@ export async function runRebuild(
     // about; the canon arm's per-segment map has the same caps, so it is
     // reported too. Rank has no breakdown at all and always reports none.
     cappedDims: arm === "vote" ? out!.cappedDims : arm === "catalog" ? cappedDims(canon.entBy) : [],
+    tailShards: arm === "vote" ? Object.keys(out!.tail).length : 0,
     published: before.exists ? { total: beforeTotal, counts: publishedCounts } : null,
     drift: { total: total - beforeTotal, counts: drift },
     carriedEdits: edits !== undefined,
     emptyScan: scanned === 0,
+    sealedDuel,
   };
 }
 

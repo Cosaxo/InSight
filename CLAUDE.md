@@ -9,13 +9,37 @@ decision by number. Read this file, then go there for where your task
 lives. Both are gated by `check:docs`, so neither can quietly stop being
 true.
 
+**What the app is FOR: connecting data, and drawing the connection
+where someone can read it.** Answers are the raw material, not the
+product — the product is what one answer says about another, what yours
+say about you, and what a population's say about it. That is the
+sentence D98 retired the entire privacy model for (*"that's the whole
+point of the app"*), and it is the test to put to a proposal before its
+cost arithmetic: does it create a link between data that did not exist,
+or draw an existing one somewhere it can be read? A surface that
+collects without joining is unfinished, and so is a join nothing draws.
+Where the choice is between hiding a link and drawing it, drawing it is
+the default — and if a privacy argument is what would hide it, that is
+an ASK, not a stop (D334, below). The ratio in the next paragraph — the
+Mirror's modules outweighing the daily's and the feed's put together —
+is that focus measured, not an accident of what got built first.
+
 InSight ships v1 as a two-tab app (daily · mirror) **until the data can
 carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered
 enough to be drawn in it (D265 — see the patterns note below). Nobody
 flips a flag. The **daily** tab is where you
-answer: one blind question a day, a feed under it, and sealed
-group/1v1 duels revealed the next day. The feed is finite *today* and the
+answer, and **the cadence is not the product** (the owner, 2026-09-07,
+reading build 33: *"this app is more questions in general… that is some
+old focus"*). What is distinctive is answering BLIND — committing before
+the crowd can anchor you — and the volume underneath: a daily card
+leads, a feed of hundreds runs under it, and group/1v1 duels stay sealed
+until their reveal. Write copy and documentation against the blind
+answer and the volume, not against "one a day": the daily is what
+OPENS, not what the app is. The one-a-day limit on Circle and 1v1 is a
+limit the owner intends to loosen, so a sentence naming a cadence is a
+sentence with an expiry date — say *"until the reveal"*, never *"until
+tomorrow"*. The feed is finite *today* and the
 owner has decided it should not stay that way —
 [`docs/SCALE-PLAN.md`](docs/SCALE-PLAN.md) is what an unbounded feed
 costs, what trips first, and the core/tail split it forces. Read it
@@ -104,6 +128,55 @@ D98 published what people answered, not where their phone is standing).
 Duel answers stay sealed until the next-day reveal, enforced as a
 `surface` test: that is game timing, not privacy.
 
+**A privacy constraint is an ASK, not a stop (D334).** Where a privacy
+argument is the only thing standing between a proposal and the tree — a
+lens that would name someone, a field that would join two things, a
+number that would be exact, a refusal already written down — it goes to
+the owner with the arithmetic, and the owner rules. Do not quietly drop
+the feature, narrow it to the safe half, or leave a constraint standing
+because it is written somewhere. This has cost the app three times that
+are on the record: under the pre-D98 model most of the Mirror shipped
+dark, and one owner sentence retired the model whole; D269 wrote seven
+refusals as a single bullet and D329 lifted three of them the moment the
+owner read it (*"i think this can be removed dont understand why it is
+here"*), the finding under that record being that a preference stated as
+a rule reads as a rule; and D330's politics exclusion had an option
+nobody had put to the owner — ask for the consent at the start — which
+took one sentence to choose.
+
+The ask goes **both ways**, and that is what keeps it cheap: shipping
+past a constraint silently is the same failure pointed the other way, so
+the rule is *the owner decides*, not *the answer is yes*. Four things
+stay outside the ask because they are not preferences — the three denies
+above; a promise `web/privacy.html` makes in writing (that page moves
+first, `check:policy-claims`); the store forms (`check:store-forms`); and
+a consent requirement in law, which is satisfied by BUILDING the consent
+rather than by deciding it away (D8, D329's line — *"owner preference
+does not reach a consent requirement"* — and D330/D331, which built it).
+What to bring when you ask: what would be exposed, to whom, which of
+those four it touches if any, the smallest shape that still gets the
+value (consent · coarsen · aggregate · defer), and what each costs.
+
+**Axiom power first (the owner, 2026-09-02 — D352).** What the axes
+can measure and connect is the project's first priority, and a
+limitation — privacy, the database, cost, a schema, a store form, a
+refusal already written down — is a design problem to be solved AROUND
+that power, never a reason to shrink it. The question to put to a
+constraint is *how is it made to work with the axiom*, not *how is the
+axiom cut to fit it*. **Nothing blocks axiom functionality on its own:
+where a limit would block something, the block goes to the owner first
+and needs their approval** — the owner's words: *"as long as they dont
+limit functionality then it has to be approved that it can be blocked
+because of a limit."* D334's ask is how the owner is told what a way
+through costs, and the ask is worded as a way through, never as a
+permission slip; a routine that meets such a block builds what does not
+depend on the answer and puts the block on `docs/OWNER-LIST.md`. What
+does not bend is met by building rather than by deciding away: a
+consent requirement in law is satisfied by BUILDING the consent (D8,
+D330, D331), D1's honesty holds, and the three denies above stand at
+their paths — none of them is about answers. The privacy page and the
+store forms move with the feature, page first (D183).
+
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.
 
@@ -116,32 +189,46 @@ prototype. Modules do **not** import each other. They assign to
 `globalThis`/`window` and look each other up **by name at render time**:
 
 ```jsx
-// group-daily.jsx defines it…
-Object.assign(window, { GroupDailyBody, GDAv });
-// …duo-daily.jsx just uses the bare tag, no import
-<GDAv p={p} size={38} plain></GDAv>
+// search-overlay.jsx defines it…
+Object.assign(window, { SearchOverlay });
+// …app-shell.jsx just uses the bare tag, no import
+<SearchOverlay onClose={() => setOv(null)} />
 ```
 
-*(This example named `useTweaks` until D210 and was false: `app-shell.jsx`
-had long since converted to a real `import`, and the publication beneath it
-was the residue that sweep removed. `check:globals` rule 5 could not see
-either — see D210 for why, and pick a live pair from its own output if this
-one ever converts.)*
+*(This example has now been false twice. It named `useTweaks` until D210:
+`app-shell.jsx` had long since converted to a real `import`, and the
+publication beneath it was the residue that sweep removed. It then named
+`group-daily.jsx`'s `GDAv` until D418, which converted it. `check:globals`
+rule 5 could see neither — see D210 for why. The lesson is the one the
+paragraph two sections down states outright: pick a live pair from
+`check:globals`'s own output, because an example of the convention is the
+first thing the convention breaks. Note also that the bare tag above is
+now the rare form: almost every surviving read is the qualified
+`window.X`, which is the shape a conversion will actually meet.)*
 
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.
-Never sort it, never drop an entry. Four of them are deferred past first
-paint via `loadWorldFeed()` (D25) — still listed, still in order, just
-awaited in sequence instead of imported at the top. The Map's seven defer
+Never sort it, never drop an entry. The feed's thirteen are deferred past
+first paint via `loadWorldFeed()` (D25) — still listed, still in order,
+just awaited in sequence instead of imported at the top. (This said
+"four" from the day it was written, which was exact then; the learn
+stack, `pick-data.js`, `world-catalogs.js` and `world-subtopics.js`
+joined the loader afterwards. `spec-index.js`'s own comment corrects
+itself in place and this sentence never got the same edit, which is why
+`check:figures` holds it now.) The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
-comment where the eager list used to hold them.
+comment where the eager list used to hold them. The Mirror's thirteen
+defer the same way since D355 (`loadMirrorTab()` names only
+`mirror-tab.jsx`), and the tab mounts through a slot that renders in the
+tap's own tick once the prewarm has landed — `src/v2/README.md` § the
+Mirror, and `data/mirrorChunk.ts` for the handoff that makes it so.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-32 modules are already off the bridge — they export and publish nothing,
+55 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -192,10 +279,20 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/smoke-*.test.jsx` (six files over one harness,
-  `test/mount-app.jsx`) mount `App` in jsdom and walk both tabs and every
-  overlay. The three guards above are all **name**-level; these are the only
-  ones that execute a render. Measured, not assumed: injecting
+- `src/v2/test/mount-app.jsx` is the harness, and **ten** suites mount
+  the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
+  walk both tabs and every overlay, and five that go PAST first paint into
+  screens no smoke case reaches — the Map's measured body, the daily's
+  Circle and 1v1 modes, the demo Mirror's stops past World, the daily's
+  split ballot before and after a vote, and the Mirror's preview tag on
+  a live build that did not attach. (The sixth
+  smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
+  More suites than these import the harness — `dialog` and the feed's
+  direct-mount files take its helpers without mounting the app.) The three
+  guards above are all **name**-level; these are the ones that mount the
+  whole `App` and execute a render. Other suites
+  render a component directly — `person-mindmap-still` is the one to read,
+  because it found this class first. Measured, not assumed: injecting
   `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves check:globals,
   eslint and `tsc -b` green, and fails only here.
   **Assert on the `ErrorBoundary`, not on a thrown error** — `app-shell`
@@ -203,8 +300,11 @@ real slipped through:
   from `render()`.
 
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
-are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
-and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
+are **not** exempt from the convention: `live.ts` still publishes
+`window.LIVE` (for the mount fixtures and one node-safe reader — every
+spec module imports the binding since D354), and until D354's sweep the
+two `ui/` pickers `Object.assign`ed onto `globalThis` for render-time
+lookups. The scanner reads both directories for that reason.
 
 **The convention is shrinking, and there is a number for it.** Those four
 guards make the bridge safe, which also made it comfortable enough to keep
@@ -247,8 +347,8 @@ Two rules for working with it:
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:scripts` | the gates and the regulators themselves — their parsers, their budget arithmetic, their tripwires | nothing |
-| `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
-| `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
+| `npm run test:rules` | Firestore **and** Storage rules, plus the two ratchets on the same boot: never-false coverage and the expression-budget pins (D438) | Java 21 |
+| `npm run test:e2e` / `:e2e:erasure` / `:e2e:moderation` — or **`test:e2e:all`**, all three on ONE emulator boot, which is what CI runs (D276) | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
 **The fifth one hides, and that has shipped breakage three times.**
 `test:scripts` runs in CI's **lint** job, beside `check:globals` and
@@ -269,18 +369,34 @@ the table are `check:figures`'s now, off package.json — D279 has what it
 does and does not decide is a runner.
 
 Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
-(question form + provenance, D97), `check:public-copy` (the retired
+(question form + provenance, D97), `check:taxonomy` (a category is
+written at every site or not at all — the feed's palette against its
+wire list, `CAT_META` against `map-branches.js`, the leaf lists, the
+You map's ring, and the proposal ledger the lanes grow the tree from:
+the ring's hubs stay as they are, every new topic on any surface
+lands in one, and a retired room is at no site — folded, never
+deleted, D424–D427), `check:public-copy` (the retired
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —
 D130, plus D257's reader column held to the two read rules a script may
 read literally), `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
+`check:bundle`, **`check:eager-content`** (question content may not be in
+the static first-paint graph — the gate that exists because
+`daily-questions.js`, the file the farm lane appends to every day, was
+fetched before the app could paint, which made the bank's size the app's
+start-up cost and put two content lanes behind the eager budget; the
+worst edge was invisible to `check:bundle`, since a module inlined into
+the entry chunk has no chunk of its own to name, and the answer twice was
+to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
+`check:globals` rule 4's shape), `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
-catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
-the last two also run on the deploy path, because the aggregate trigger
-validates answer keys against the committed catalogues (D14–D17;
-docs/CATALOG-QUESTIONS.md).
+catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
+and `check:catalogs` — the last three also run on the deploy path,
+because the aggregate trigger validates answer keys against the committed
+catalogues (D14–D17; docs/CATALOG-QUESTIONS.md) — and `check:catalog-art`
+for the pictures on the pick tiles (D421), `ci` only, because the trigger
+never reads an image.
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the
@@ -345,10 +461,15 @@ an emergency rules fix.
   computes and drawn even when the stop is empty. Scores and Explore are
   not theirs: one needs questions that rate a place, the other needs
   "everyone" as a baseline, and a circle of nine has neither.
-- **`window.MapStats` is real for two anchors and refuses for five, and
+- **`window.MapStats` is real for three anchors and refuses for four, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
-  D99 `dist`/`mode` compute from the published cells. `job` is
-  profession — deliberately never a dim (D8) — and the four test anchors
+  D99 `dist`/`mode` compute from the published cells. `job` joined them
+  at **D328**, through the profession's derived `jobField` — the pick is
+  a 31-option list and growing, which is longer than
+  `BREAKDOWN_MAX_BUCKETS`, so the dim is a closed field of 20 derived
+  from it (the `age`/`ageBand` pair, one anchor over). Its stated reason
+  for refusing had been "profession is free text" long after the profile
+  became a `<select>`. The four test anchors
   are results nothing aggregates per cohort, so those return **null**,
   as does `dimVal` everywhere. Null rather than a gate at each call site
   (D72), so a consumer that forgets the check fails a test instead of
@@ -368,6 +489,21 @@ an emergency rules fix.
   all three suites pass. Environmental, not a broken test, and **not a
   reason to widen an egress allowlist** before trying the variable.
   docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
+- **`LIVE.ready` does not mean the server has been heard from (D356).**
+  A returning device paints its real deck off its own caches before the
+  first network read is answered, so `ready` and `enabled` flip on disk;
+  `attached` is the network boot completing, and `stale` is the gap
+  between them. Key re-entry and is-the-network-up logic on `attached` —
+  `wake()` does, and a wake keyed on `ready` would never retry a failed
+  reconcile. The paint needs the profile mirror
+  (`insight.ownProfile.v1`) as well as the bank, because an answer
+  snapshots the anchors at write time (D8) and a warm deck without them
+  would file votes into no cohort. The boot-driven test helpers wait on
+  `attached` for the same reason. And an answer written before the
+  server's ack is NOT in the answers cache on purpose (D312) — it lives
+  in `insight.pendingAnswers.v1` until the queue drains (D357), so a new
+  optimistic write path marks and clears that mirror or its offline
+  answer is re-offered after a relaunch.
 
 ## House style
 
@@ -381,6 +517,66 @@ an emergency rules fix.
   not parse, an ESM export shape, a module evaluation order.
 - When you defer something, record it in `docs/DECISIONS.md` with the
   arithmetic. A known limit is survivable; a surprise is not.
+- **A deferral on privacy grounds is the one you may not take alone.**
+  Record the arithmetic as above, then ask the owner rather than writing
+  it down as settled — D334, and the privacy section has what to bring.
+- **Visuals are designed in Claude Design before they are built** (the
+  owner's rule, 2026-09-02 — D352). A new screen, module, lens, card
+  family, overlay or visual language is a request in
+  [`docs/VISUAL-REQUESTS.md`](docs/VISUAL-REQUESTS.md) — written so
+  Claude Design understands it whole, planned, drafted by a routine
+  only after its plan, refined by the owner, extracted into `design/`,
+  and only then built. [`docs/VISUAL-VISION.md`](docs/VISUAL-VISION.md)
+  names the design the tree is built toward. A control added to a
+  surface that exists — a button, a toggle, a row — is not a visual in
+  this sense and needs no request.
+- **The lists are how the owner runs the program** (D352). Six files:
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) (tick a row to approve a
+  PR), [`docs/WORKLIST.md`](docs/WORKLIST.md) (items tagged by account),
+  [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md),
+  [`docs/OWNER-LIST.md`](docs/OWNER-LIST.md),
+  [`docs/AXIOMS.md`](docs/AXIOMS.md) (the status word licenses what may
+  be built) and [`docs/VISUAL-REQUESTS.md`](docs/VISUAL-REQUESTS.md). A
+  routine writes to them through the PR it is already opening, or a
+  run-log line the console folds in; it never edits a tick, a status
+  word or another account's tag — those are the owner's.
+  [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
+  [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
+  every program lane defers to.
+- **A pull request is merged BY HAND (D385), and a session merges when
+  the owner says so (D385 amendment).** There is no merge automation in
+  this repository and no label that merges anything. What a session owes
+  before a PR is mergeable is unchanged and is still the whole of the
+  contract: a green head with `main` already merged in and its decision
+  numbers already moved (D299) — off a **collision** only, because since
+  D408 the hole a move leaves behind is a printed note rather than a
+  failure, so no pull request waits on another's merge to go green. Then
+  say so and stop — **unless the
+  owner tells you to merge, in that session and about that head, which
+  is the click — or the PR is a content lane's own, which self-merges
+  on green (D212; the 2026-09-09 D385 amendment)**. What D385 retired
+  was the unattended lane merging on a
+  label, and its first phrasing read as forbidding the instruction too;
+  the first amendment is the owner's own correction (*"the sheperd did
+  not work merge when i say so"*), and it cost a round trip on #408
+  before it was made. The second correction cost two days: the lanes
+  read *"no lane merges"* as covering them, ten green content PRs
+  waited for clicks across 09-07→09-09, and the owner's ruling — *"fix
+  the manual so lanes self merge again"* — is that a run merging the
+  head its own gates just proved was never the retired mechanism.
+  `docs/QUESTION-FARM.md` § The PR is that flow's contract. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where
+  the owner tracks what is waiting, and a tick there is still how
+  approval is recorded (D352); what changed is that nothing downstream
+  acts on the tick.
+- **A Routine you create, re-pace, rebind or retire is registered in
+  [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
+  subscriptions run scheduled lanes against this one repository and no
+  session can read another account's Routines — `list_triggers` returns
+  the caller's and nothing else — so the register is the only surface
+  where two lanes on one hour, two branches carrying one fix, or two
+  accounts each assuming they own `main` can be seen at all. Verify from
+  `list_triggers` before you write a row; a prompt says what a run
+  believes its schedule is.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

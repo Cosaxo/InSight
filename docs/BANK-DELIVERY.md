@@ -1,8 +1,10 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mixed — §2 is BUILT (D284, 2026-08-24) and §3 is BUILT (D312,
-2026-08-26, via [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode
-the answer caches' move); §4 is plan.** Written 2026-08-24 on the
+**Status: built — §2 (D284, 2026-08-24); §3 (D312, 2026-08-26, via
+[`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode the answer
+caches' move; the parallel D318 build converged on it in the merge); §4
+(learn at D320, the feed tail at D321, both 2026-08-26; core ships
+whole by design — D161, not a remainder).** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
@@ -92,15 +94,19 @@ fails CI rather than a device, which is the good version of this
 problem — but it stops the lane dead, and it will read as an unrelated
 build failure to whoever meets it.
 
-`content/duel-questions.json` (14.6 KiB) is compiled in the same way via
-`duels-data.js`. That lane is weekly and much smaller, so it is the same
+`content/duel-questions.json` (14.6 KiB) was compiled in the same way via
+`duels-data.js`. That lane was weekly and much smaller, so it was the same
 mechanism with years of slack — worth fixing in the same pass, not worth
-a pass of its own.
+a pass of its own. *The slack went in a week once the lane ran daily
+(D426) and the cast landed (D434): 22.8 KiB, one run from the cap. It got
+the same treatment on 2026-09-09 — D435, `content/duel-sample.json`,
+`check:duel-sample`.*
 
 **Every other bank is already clean.** Daily, feed and test questions
 reach the client only through Firestore. Learn and duel are the two
 exceptions, and they are exceptions because Learn and the duel pools have
-to work in the DEMO build, which has no backend at all.
+to work in the DEMO build, which has no backend at all — which is why
+each carries a generated sample rather than its bank.
 
 ### Why the live path cannot simply read the bank instead
 
@@ -165,12 +171,16 @@ shipped bank against its source has to import the source, and none of it
 reaches a device. Both directions fail, the check-purge shape: an
 unlisted import, and a listing nothing imports any more.
 
-Two entries today. `learn-sample.json` at 32 KiB — it grows with the
-number of FIELDS and never with the bank, so crossing it means the
-taxonomy roughly doubled and `PER_FIELD` wants re-deriving rather than
-the cap raising. `duel-questions.json` at 24 KiB — the last bank still
-compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
-signal to give it learn's treatment.
+Two content entries today, both samples. `learn-sample.json` at 32 KiB —
+it grows with the number of FIELDS and never with the bank, so crossing
+it means the taxonomy roughly doubled and `PER_FIELD` wants re-deriving
+rather than the cap raising. `duel-sample.json` at 16 KiB (D435) — it
+grows with the number of group KINDS and 1v1 DOMAINS and never with the
+bank, on the same argument. The entry it replaced, `duel-questions.json`
+at 24 KiB, was the last bank compiled in whole: written down as having
+years of slack on a weekly lane, and one daily run from the cap once the
+burst and the cast landed — which is what "crossing it is the signal"
+was for.
 
 ## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D312)**
 
@@ -181,7 +191,9 @@ signal to give it learn's treatment.
 > shape untouched, the legacy key retired after its rows commit, and
 > `BANK_WARN`/`BANK_FAIL` re-pointed a third time at §4's
 > whole-bank-in-memory ceiling. What follows is the reasoning as it
-> stood, and it held.
+> stood, and it held. (The same day's paged-read-path branch built the
+> same move independently as `bankStore.ts` — D318 — and the merge
+> converged on this store; the D318 amendment records the collision.)
 
 `live.ts` caches the whole bank in `localStorage` under
 `insight.bankCache.v2`. The quota is ~5 MB per origin, shared with ~29
@@ -235,10 +247,14 @@ one.
 
 What currently assumes the whole bank is in hand:
 
-- **The daily deck is positional.** `computeDeckIds` indexes
-  `questionIds[(today − epoch − back) % n]`, so it needs every daily id
-  to know what today's question is. 130 documents, growing slowly — this
-  one is fine and should stay.
+- **The daily deck WAS positional, and D383 took it apart.** This bullet
+  read "it needs every daily id to know what today's question is. 130
+  documents, growing slowly — this one is fine and should stay", and
+  D383's record quotes and rebuts exactly that: *"The conclusion drawn
+  from it was that the daily could not page. That does not follow."* The
+  server now publishes a shape document (`dailyShape`, `v2_rank/daily`)
+  and the device fetches seven deck rows at any bank size; `daily` left
+  `BANK_SURFACES` in `live.ts`. The count was also 134, not 130.
 - **The feed's pool.** `buildFeedGlobals` maps every feed question into
   `WORLD_FEED_QS`, and the feed then filters by topic, weaves its
   cadences, and partitions answered from fresh over the whole list.
@@ -254,6 +270,34 @@ current design exists, and each one converts a local fold into either a
 server query or a published aggregate. That is real design work with
 real cost changes, and **it is not needed for volume** — phases 1 and 2
 take the practical ceiling past anything the lanes can write for years.
+
+**Learn converted 2026-08-26 (D320), the feed tail the same day
+(D321)**: both out of the boot fetch, paged against D319's published
+orders, history healed by id (learn's mastery map; the feed's answers).
+Core ships whole by design — the corpus's value is that every device
+holds it (D161). Of the census above, the topic counts and search still
+read the device's pool; their conversions are recorded in D321 with the
+fixes named.
+
+**What a device accumulates by paging — bounded at the pager, D401**
+(D350's amendment asked for it, 2026-09-01): a phone that booted daily
+was handed a fresh page per topic every boot whatever it already held
+unanswered — `pageNeedList` took the first `pageSize` ids of the order
+not in the cache — so a year of boots was 144 tail rows a day, ~50 k
+rows, all read into memory by hydrate. The amendment's answer was
+eviction: keep what was answered and what is on screen, drop the rest
+from memory. Built instead at the source, because an evicted row is one
+the device paid a read for and would then never show: a top-up fills a
+topic TO a page — `pageSize` minus what the device holds unanswered in
+memory for it — and no further (`bankPager.ts`, `held`). Memory is then a
+page per topic or field plus what was answered, which the Mirror files
+and the archive lists and so stays; and the reads a boot pays are what
+the person consumed since the last one, not a page per topic per day.
+It is not a bank-size question: the old `BANK_WARN`/`BANK_FAIL` counted
+the seeded bank as a proxy for this and turned CI red at 10,000
+questions, which was a question limit in everything but name.
+`INSTALL_WARN` (`check:quality`) now warns on what a fresh install is
+handed whole, and nothing fails.
 
 The one thing worth doing early is **not making it worse**: a new surface
 that folds over the whole bank at render time is another consumer to
@@ -272,10 +316,21 @@ convert later, and a published count is usually as good.
 2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ — **Done,
    D312**, ahead of the trigger: ANSWER-SCALE §2 found the answer-side
    caches racing the bank for the same quota, and the owner's direction
-   to build that plan opened the box once for all of them.
-3. **Ceiling 3, when a real product need asks for it** — an interest
-   model that selects server-side (D163), or a bank large enough that a
-   first install feels slow. Not before.
+   to build that plan opened the box once for all of them. (D318 built
+   the same move in parallel on the paged-read-path branch; the merge
+   converged on D312's store.)
+3. ~~**Ceiling 3, when a real product need asks for it**~~ **Done —
+   D319 (the published order), D320 (learn) and D321 (the feed tail),
+   all 2026-08-26.** The install stops scaling with the bank: boot
+   surfaces + core + a page per topic, O(core + pages) per device. The
+   need was named 2026-08-26: the owner directed serving-by-selection —
+   lazy pages, a published order, quality filtered by signal rather
+   than prevented by cap — recorded as D316, adopted the same day
+   ("build the real fixes now"). What §4 still holds is the in-memory
+   walk: a device reads every cached row into memory each boot. That
+   is a device-side eviction design (D350's amendment names it), not a
+   gate's: `INSTALL_WARN` warns on what a fresh install is handed
+   whole, and no bank size fails a gate any more.
 
 Steps 1 and 2 are independent and can land in either order. Step 3
 depends on neither.

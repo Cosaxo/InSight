@@ -1,0 +1,11 @@
+--- recorded/world-feed.jsx
++++ 2026-09-07/world-feed.jsx
+@@ -2198,7 +2198,7 @@
+         style: {
+           flex: Math.max(p[i], 4) + ' 1 0',
+           minHeight: big ? 36 : 30,
+-          minWidth: 0,
++          minWidth: two ? big ? 90 : 78 : 0,
+           border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE,
+           borderRadius: big ? 16 : 13,
+           background: v2 ? 'color-mix(in oklch, ' + T.color + ' ' + s.toFixed(1) + '%, var(--surface))' : 'color-mix(in oklch, ' + col + ' 26%, var(--surface))',

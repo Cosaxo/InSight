@@ -35,6 +35,7 @@ export const LIVE_MEMBERS = [
   // lens's ask rows. From the bank, not the aggregates: an unanswered
   // rates question usually has no counts yet, which is the point.
   "placeAsks",
+  "placeAskTotal",
   "anchors", "appBuild",
   // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social
@@ -73,7 +74,7 @@ export const LIVE_MEMBERS = [
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
   // scores; `testFeedItems` and `myTestResults` are the fold's other two
   // ingredients, exposed so the typed layer never needs a bridge read.
-  "loadSimilarity", "similarityLoading", "kindredPeople",
+  "loadSimilarity", "similarityLoading", "testAggsState", "kindredState", "kindredPeople",
   "testFeedItems", "myTestResults",
   // D277 — the passive fold, persisted. Listed here rather than beside
   // saveTestResult because it is what makes the D112 score tier able to
@@ -102,7 +103,16 @@ export const LIVE_MEMBERS = [
   // said a real user was on demo content without saying why, and an
   // iPhone has no console to ask — the first device this app ran on
   // failed exactly there.
+  // D356 — the warm paint split "there is a deck on screen" (`ready`)
+  // from "the server has been heard from" (`attached`); `stale` is the
+  // gap between them, and the daily's banner reads it beside bootError.
+  "attached",
   "bootError",
+  // The read breaker (D332): true while v2_meta/app.budgetMode pauses the
+  // D98 social loaders above (loadVoters, loadKindred, loadCircle, takes).
+  // The gated panels' paused branches read it, so a crowd that was
+  // withheld is never rendered as one that is absent.
+  "budgetPaused",
   "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/
@@ -118,10 +128,22 @@ export const LIVE_MEMBERS = [
   // to precede every tap in it. `learnMine` is the other half of the same
   // timing problem (D157): the write lands, the trigger has not folded it
   // yet, and without this the reveal counts the crowd minus the reader.
-  "latestBuild", "learnAgg", "learnAnswer", "learnMine", "loadLearnAggs",
+  // `learnAggLoading` is the third state the cache used to swallow: its
+  // first call for a card returns null both while the read is in the air
+  // and once it has come back empty, and two surfaces printed "Nobody
+  // else has answered this one yet" for the first of those.
+  "latestBuild", "learnAgg", "learnAggLoading", "learnAnswer", "learnMine",
+  "loadLearnAggs",
   // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",
+  "emailCreate", "emailReset", "emailSignIn",
+  // The email door's second half (D414): the account exists before its
+  // address is confirmed, so the wall reads BOTH flags and the verify
+  // screen drives these three. `abandonSignIn` is the way out of a typo.
+  "abandonSignIn", "accountEmail",
+  "needsEmailVerify", "refreshVerification", "sendVerification",
+  "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
@@ -132,9 +154,29 @@ export const LIVE_MEMBERS = [
   // folds. Read by app-shell.jsx to decide whether the third tab exists —
   // so a rename here does not blank a screen, it silently hides a tab.
   "patternsSignal",
+  // The viewer's answers as option indexes over the fit's whole corpus
+  // (D396): the Oracle's and the People lens's evidence, read off the
+  // banks and the vote mirror so an instrument item counts whether or not
+  // its crowd counts are cached.
+  "answeredIndex",
+  // The nightly voter samples (D397): one document per question in place
+  // of two hundred answer reads, for every fold that only counts —
+  // Kindred, the People lens, the pair card — and the accessor that hands
+  // a fold the live list where one is in hand, else the sample.
+  "loadVoterSample",
+  "votersOrSample",
+  // The breakdown cap's tail (D400): the viewer's own city or country
+  // cell for a question whose hot map is at the cap without it, merged
+  // into the aggregate every Mirror fold already reads. The City and
+  // Country stops kick it on mount.
+  "loadOverflow",
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
   "pulseQs",
+  // Today's pulse answer while the fold has not counted it yet, so the
+  // card can report a crowd the reader is actually in.
+  "pulsePending",
+  "votePending",
   "pulseVotes",
   // Crossroads' stories with their folded ending counts (D136). A story is
   // an ordinary bank question — real options, real fold, the ordinary vote
@@ -164,7 +206,18 @@ export const LIVE_MEMBERS = [
   // own pool because an ad takes no answer and folds into no aggregate;
   // null while unread, an array once known.
   "feedAds", "loadAds",
+  // The political consent pair (D331). `politicalConsented` is the account
+  // row's read and `setPoliticalConsent` is the only writer — listed here
+  // because a toggle that silently lost its writer would leave the compass
+  // published with a switch that says otherwise, which is the failure the
+  // whole record is about.
+  // `politicalAnswered` is the third: consented, DECLINED, and not asked
+  // are three states, and the setup screen needs to tell the middle one
+  // from the last. Seeding from `politicalConsented` alone made a decline
+  // look like a fresh account and re-asked it.
+  "politicalConsented", "politicalAnswered", "setPoliticalConsent",
   "ready", "saveAnchors",
+  "stale",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is
   // typed into a browser console by hand (SHIP-CHECKLIST §1). It is listed
@@ -177,7 +230,21 @@ export const LIVE_MEMBERS = [
 export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
+  "revealHistoryLoading",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
+  // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
+  // rounds, and a given round's question.
+  "roundInfo", "roundQ", "voteLate",
+  // The first run's preview of a group round (D437): the bank's first role
+  // vote, so the screen draws a real one rather than a World stand-in.
+  "roleVotePreview",
+  "groupBankCounts",
+  // Request 12's card: my answer AND my call on any sealed round.
+  "myDuelCall",
+  // The in-flight flag beside `takes` — listed here because the pin is
+  // what makes the surface reviewed, and this one existed in state for a
+  // long time without it.
+  "takesLoading",
   // Handles and invitations (D122) — the uid-addressed way into a circle.
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.
@@ -197,7 +264,9 @@ export const LIVE_SOCIAL_MEMBERS = [
 ];
 
 // LIVE.near's own members (D84), pinned like social's for the same reason.
+// `mode` and `until` were D174's timed state and left with it (D370): the
+// switch is `on`, and nothing else describes it.
 export const LIVE_NEAR_MEMBERS = [
-  "count", "disable", "enable", "lastError", "loadRoom", "mix", "mode", "on",
-  "refresh", "room", "roomLoading", "supported", "tooFew", "until", "updatedAt",
+  "count", "disable", "enable", "lastError", "loadRoom", "mix", "on",
+  "refresh", "room", "roomLoading", "supported", "tooFew", "updatedAt",
 ];

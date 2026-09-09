@@ -41,7 +41,7 @@ remembered:
 Three Routines, extending the five in `docs/QUESTION-FARM.md`
 § Scheduled runs. Same governance, restated where it differs:
 
-| Lane | Proposed schedule (UTC) | Contract | May edit | Merge authority |
+| Lane | Schedule (UTC) | Contract | May edit | Merge authority |
 | --- | --- | --- | --- | --- |
 | **Axes build** | `0 11 * * 2` — weekly, Tue 11:00 | § The build lane | the files its step names, plus ticking that step's own checkbox here in the same PR | **never merges** — skeptic then owner |
 | **Axes skeptic** | `0 11 * * 3` — weekly, Wed 11:00 | § The skeptic lane | nothing — review comments and the run log only | n/a |
@@ -99,6 +99,26 @@ fallback stays in every prompt so even a tool-less session leaves a
 trace. Fire-with-appended-text is retired as a diagnostic instrument —
 the appended text demonstrably did not preempt the stored prompt;
 minimal `create_session` probes are the instrument that measured true.
+
+**Third platform measurement (2026-09-01, the first retro): the
+dispatcher is a single queue, and a stall delays every lane
+silently.** After the database theory lane's fire on 2026-08-30
+08:03 UTC, the dispatcher session dispatched nothing until 2026-09-01
+12:51 — when ten queued firings (the 08-30 retro, the four
+even-date theory lanes dated 08-30, the 09-01 build fire and the
+four odd-date theory lanes dated 09-01) all delivered within two
+minutes. Observed consequences: the retro ran two days late; no
+sessions dated 2026-08-31 exist, so that day's odd-date theory fires
+were either skipped or absorbed into the 09-01 batch; and the flush
+ran ten lanes concurrently against one subscription window, which
+the schedule spacing exists to avoid. No lane could see this from
+inside its own run and no run-log line could have shown it — a lane
+that never fires writes nothing, so the silence was upstream of
+every reporter. The response is detection rather than rebinding
+(one stall is not a pattern): the retro lane's learned rule of the
+same date makes fire-time drift a weekly check. If it recurs, the
+lever is the binding itself, and that is the owner's call — this
+paragraph is the record to argue from.
 
 **The permission surface is committed, not per-session (added
 2026-08-25, owner's direction: lanes must never stall on a prompt).**
@@ -218,6 +238,21 @@ and this file's unchecked steps. Outputs, in order:
 3. **Nothing to amend → digest only**, and that is a healthy week, not
    a failed run.
 
+Learned rules, dated (the QUESTION-FARM amendment style):
+
+- **2026-09-01 — check fire times, not just run reports.** What
+  happened: the dispatcher stalled from 2026-08-30 08:06 to
+  2026-09-01 12:51 and every queued firing then delivered at once;
+  the retro itself ran two days late, and the run log showed nothing,
+  because a lane that never fires writes no line. What changes: every
+  retro compares actual lane session start times (`list_sessions`,
+  where readable) against each Routine's schedule since the last
+  retro, and the digest reports any gap or batch delivery. Why: the
+  dispatch layer is the one place where "correctly idle" and
+  "silently broken" look identical from outside — farm hard rule 7's
+  blind spot, one level up — and the retro is the only lane
+  positioned to see it.
+
 ## Canonical prompts
 
 Kept here so prompt and manual cannot drift — the farm's rule: update
@@ -243,7 +278,7 @@ Mandatory reporting: whatever the outcome — PR opened or advanced, no-op, or a
 The skeptic lane's canonical prompt:
 
 ```
-You are running InSight's AXES SKEPTIC lane — a scheduled weekly job, the day after the build lane. Your container starts EMPTY and its git is read-only until you provision it — do this first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed). Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
+You are running InSight's AXES SKEPTIC lane — a scheduled weekly job, the day after the build lane. THE CHEAP GATE COMES FIRST (docs/OPS-RUNBOOK.md §0, the no-op gate): before provisioning anything and before reading any contract, list the open claude/axes-* pull requests with your GitHub tools; if there are none, write the no-op on the run log and stop — a run with nothing to review needs neither a clone nor a runbook. Only a run WITH a PR to review goes on: your container starts EMPTY and its git is read-only until you provision it — do that next: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed). Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
 
 The job in one sentence: find the open axes program PRs (claude/axes-* branches); if none, the run is a logged no-op; for each one, review it as a session that did not write it — read the runbook step first and the diff second; hunt what stays green while being wrong (assertions that cannot fail, fakes that cannot see where a number lands, publications nothing pins — D276 in docs/DECISIONS.md is the checklist's source); check the custody surface (new read paths, UI claims firestore.rules does not make true, missing same-PR paperwork: inventory row, store form, privacy sentence, COSTS line, erasure arm); ask whether the step's named gate proves the step or something easier that resembles it; then leave findings as PR review comments with file and line, and a one-line verdict — clean, or findings listed — on the run log.
 

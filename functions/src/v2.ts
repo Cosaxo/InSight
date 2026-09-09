@@ -27,7 +27,7 @@
 //
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D98).
 
-import { FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
@@ -40,7 +40,15 @@ import {
   foldRankOrder,
   catalogEntityKey,
   foldAnchors,
+  honestAnchors,
   foldCanonAnchors,
+  type OnBucketCap,
+  type BucketTail,
+  type OverflowShards,
+  capBoundShards,
+  overflowTail,
+  overflowDocId,
+  retargetTail,
   canonTopN,
   foldEditFlow,
   retargetAnchors,
@@ -48,14 +56,25 @@ import {
   seedDocMatches,
   SEEDED_FIELDS,
   seedOptionConflict,
+  seedMapClears,
   describeSeedOptionConflicts,
   type BreakdownCounts,
   type EditFlow,
   type CanonCounts,
   type CatalogSpec,
   type SeedOptionConflict,
+  openRound,
+  playedIn,
+  roundComplete,
+  mergePlayed,
+  turnRecipients,
+  isStamped,
+  type TurnRecipient,
+  roundKey,
+  ROUND_DEADLINE_MS,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS } from "./catalogKeys";
+import { notifyTurn, revealDueRounds } from "./v2social";
+import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -151,10 +170,96 @@ export function breakdownFor(
   storedBy: BreakdownCounts | null | undefined,
   anchors: unknown,
   optionIdx: number,
+  onCap?: OnBucketCap,
+  tail?: BucketTail,
 ): BreakdownCounts {
   const by: BreakdownCounts = storedBy || {};
-  foldAnchors(by, anchors, optionIdx);
+  foldAnchors(by, anchors, optionIdx, onCap, tail);
   return by;
+}
+
+/** The tail's document for one shard of one question (D400). */
+export const overflowRef = (db: Firestore, qid: string, shard: number) =>
+  db.collection("v2_agg_overflow").doc(overflowDocId(qid, shard));
+
+/**
+ * Read the shards this answer's fold may consult — only where a dimension
+ * is at the cap and lacks the bucket (pure.ts capBoundShards), so the hot
+ * path pays nothing until a tail exists. One `getAll`, inside the
+ * transaction, before any write.
+ */
+export async function readOverflowShards(
+  tx: Transaction,
+  db: Firestore,
+  qid: string,
+  shardIds: readonly number[],
+): Promise<OverflowShards> {
+  const shards: OverflowShards = new Map();
+  if (!shardIds.length) return shards;
+  const snaps = await tx.getAll(...shardIds.map((s) => overflowRef(db, qid, s)));
+  snaps.forEach((snap, i) => {
+    shards.set(shardIds[i], (snap.exists ? (snap.data() as BreakdownCounts) : {}));
+  });
+  return shards;
+}
+
+/** Counts → `FieldValue.increment`s, nested as the shard document is, so
+ * the write is a blind merge: a victim's cell moves into a shard nobody
+ * read, and two answers landing in one shard commute. */
+export function overflowIncrements(counts: BreakdownCounts): Record<string, Record<string, Record<string, FieldValue>>> {
+  const out: Record<string, Record<string, Record<string, FieldValue>>> = {};
+  for (const [dim, buckets] of Object.entries(counts)) {
+    out[dim] = {};
+    for (const [bucket, cell] of Object.entries(buckets)) {
+      out[dim][bucket] = {};
+      for (const [k, n] of Object.entries(cell)) out[dim][bucket][k] = FieldValue.increment(n);
+    }
+  }
+  return out;
+}
+
+/** One thing the bucket cap did while folding an answer — see
+ * `OnBucketCap` in pure.ts for the two kinds. */
+export interface BucketCapEvent {
+  kind: "evicted" | "refused";
+  dim: string;
+  bucket: string;
+  total: number;
+}
+
+/**
+ * The cap's discards, as log lines the alert chain can count (D398).
+ *
+ * `BREAKDOWN_MAX_BUCKETS` bounds the breakdown document (D7's growth
+ * arithmetic) and the bound has two silent outcomes — a sub-floor bucket
+ * evicted to admit a newcomer, or the newcomer refused because every slot
+ * is published — both of which discard an answer's cohort count without a
+ * word. Dormant at launch scale; the first daily question with answers
+ * from 25 cities wakes it, and ALGORITHM-REFLECTION §4.4 builds the
+ * overflow document on the evidence of its FIRST firing rather than on a
+ * guess. So the line exists to be counted: `metric: "agg_evict"` is what
+ * `monitoring/onV2AnswerCreated-evictions.json` thresholds, and `kind`,
+ * `dim` and `bucket` are what an operator then wants to know.
+ *
+ * Called AFTER the transaction commits, with the events of the attempt
+ * that committed. Logging from inside the body would count one line per
+ * attempt on a contended answer, and the metric would read contention
+ * rather than the cap.
+ */
+export function logBucketCaps(qid: string, events: readonly BucketCapEvent[]): void {
+  for (const e of events) {
+    const what = e.kind === "evicted"
+      ? `evicted ${e.dim}/${e.bucket} (${e.total} answers)`
+      : `refused ${e.dim}/${e.bucket}`;
+    logger.warn(`[v2] breakdown cap on ${qid} — ${what}`, {
+      metric: "agg_evict",
+      qid,
+      kind: e.kind,
+      dim: e.dim,
+      bucket: e.bucket,
+      total: e.total,
+    });
+  }
 }
 
 // How long a ledger entry lives (expireAt powers the Firestore TTL policy —
@@ -189,11 +294,39 @@ export const LEDGER_RETENTION_DAYS = 90;
 // account (index.ts phase 4c). Absent on catalog entries — the fit's
 // pool is two-option questions only — and an edit's entry carries the
 // NEW side, so a refit leans toward what the person now says.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number) {
+//
+// `anchors` joined for the nightly voter samples (D397): the sample a
+// device reads instead of querying two hundred answer documents carries
+// each voter's FROZEN cohort chips (D8), and the ledger is the one place
+// the sample builder can take them from without a second read per entry.
+// The snapshot the answer itself carries, string values only; public like
+// the answer (D98); same TTL, same erasure. Absent on catalog entries.
+function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.length <= 80) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown) {
+  const a = ledgerAnchors(anchors);
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
+    ...(a ? { anchors: a } : {}),
+    // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
+    // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
+    // byte-identical in shape to the create it supersedes — which is
+    // exactly right for the counts, whose -old/+new delta is why the
+    // second entry exists, and wrong for every reader that wants a
+    // PERSON's answer. The nightly patterns fit is one: without this it
+    // read an edit as a second person, inflating the published basis and
+    // cancelling the marginal (patterns.ts). One field makes the two
+    // readings distinguishable instead of asking a reader to guess.
+    ...(fromIdx === undefined ? {} : { fromIdx }),
     at: FieldValue.serverTimestamp(),
     expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
   };
@@ -281,6 +414,7 @@ export const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   films: { keys: FILM_KEYS },
   artists: { keys: ARTIST_KEYS },
   athletes: { keys: ATHLETE_KEYS },
+  videogames: { keys: VIDEOGAME_KEYS },
   // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
   emoji: { keys: EMOJI_KEYS },
   elements: { max: CATALOG_MAX_ELEMENT },
@@ -296,6 +430,7 @@ export const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   // the Not-listed 0; sparse, externally stable, and the generated set
   // is the whole contract.
   colors: { keys: COLOR_KEYS },
+  languages: { keys: LANGUAGE_KEYS },
 };
 
 // ── content seed ────────────────────────────────────────────────
@@ -326,6 +461,11 @@ export async function runSeedAds(db: Firestore): Promise<number> {
   const batch = db.batch();
   let n = 0;
   for (const doc of existing.docs) {
+    // Self-serve ads (paid.ts, D315) are not the seed's to retire: the
+    // webhook wrote them against a payment, and the daily closer deletes
+    // them when their window ends — the same accumulation-control this
+    // delete provides for committed ads, owned by the pen that made them.
+    if (doc.id.startsWith("paidad-")) continue;
     if (!want.has(doc.id)) { batch.delete(doc.ref); n++; }
   }
   for (const a of V2_ADS) {
@@ -451,6 +591,24 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The group as a cast (D434): a role vote's scenario pack and the
+      // role it casts, and a rating's two poles. Emit-when-set — the older
+      // group kinds and every other surface carry none of the three.
+      ...(q.scen ? { scen: q.scen } : {}),
+      ...(q.role ? { role: q.role } : {}),
+      ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
+      // The cast round (D437): the four *them* forms and the four axes.
+      ...(Array.isArray(q.them) ? { them: q.them } : {}),
+      ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
+      // The instruments' deep items (D416): which sub-scale an item scores
+      // and how it is keyed, on the document — the device joins these by
+      // id rather than by prompt text, which is what keeps the 156 new
+      // prompts out of first paint (docs/VISION-2026-09-07.md §2.5).
+      // Emit-when-set: the 110 core items and every lens item carry
+      // neither, and writing null onto them would rewrite the whole test
+      // surface to say nothing.
+      ...(typeof q.facet === "string" ? { facet: q.facet } : {}),
+      ...(q.invert === true ? { invert: true } : {}),
       // The card's background (D281) and the learn card's own metadata
       // (D284) — the third and fourth times this whitelist has been the
       // thing a new field died in. Both would have shipped dark: the
@@ -503,6 +661,26 @@ export async function runSeedV2(
         }
       }
     }
+    // …and the same thing one level down, for a MAP that lost a key.
+    // `merge: true` merges maps key by key instead of replacing them
+    // (arrays it does replace), so a Crossroads story that drops a node
+    // keeps it forever while `seedDocMatches` keeps seeing the difference —
+    // the doc is rewritten on every run, churning `updatedAt`, which is the
+    // cursor every returning device reads the bank with. Verified against
+    // the emulator.
+    //
+    // Two writes to one document in one batch, applied in order: clear the
+    // field, then merge the payload. Counted as two ops against the 450
+    // ceiling below, because it is two.
+    const clears = seedMapClears(prior, payload);
+    if (clears.length) {
+      batch.set(
+        refs[i],
+        Object.fromEntries(clears.map((f) => [f, FieldValue.delete()])),
+        { merge: true },
+      );
+      inBatch++;
+    }
     payload.updatedAt = FieldValue.serverTimestamp();
     // Honor a source-carried `active: false` on FIRST create (it used to be
     // hardcoded true, which silently discarded the flag the content layer's
@@ -513,7 +691,36 @@ export async function runSeedV2(
     batch.set(refs[i], payload, { merge: true });
     written++;
     // Firestore batches cap at 500 ops.
-    if (++inBatch === 450) {
+    //
+    // `>=`, not `===`. The map-clear pass above can add a SECOND op in one
+    // iteration, so a clear arriving while the counter already stands at
+    // 449 steps it 449 → 450 (unchecked, inside that branch) → 451 here.
+    // An equality never matches again — the batch grows to the end of the
+    // bank and the final commit throws at Firestore's 500-op cap, losing
+    // every write since the last flush.
+    //
+    // THE PRECONDITION IS THAT EXACT COINCIDENCE, and this comment claimed
+    // "any run that rewrites 450+ documents with at least one map clear"
+    // until the 2026-09-06 night review measured it. A clear anywhere else
+    // only shifts which document lands on the boundary; `===` and `>=`
+    // behave identically. Today's bank cannot reach it at all, and that is
+    // now COMPUTED rather than counted here — seed.test.ts asserts that no
+    // document carrying an object-valued seeded field sits on a flush
+    // boundary, worst case, on a run that rewrites everything.
+    //
+    // The count that used to stand in this comment was wrong in every
+    // term: it said three documents (feed-pt1, feed-pt2, feed-pt3, at
+    // indices 210, 211 and 307) on an 847-document run, and the tree has
+    // ten (feed-pt1..pt7 and call-c01..c03) on a bank of 1073. The
+    // conclusion held throughout; the arithmetic under it had not been
+    // true for a while, and it was written down by a night review that
+    // said it had measured it. So the number is gone and the property is
+    // held, which is what CLAUDE.md asks for a figure a gate can compute.
+    //
+    // So this is a guard against the bank gaining a story in the wrong
+    // place, not a live bug — kept because `>=` is free and the failure
+    // it prevents is silent data loss.
+    if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();
       inBatch = 0;
@@ -622,51 +829,135 @@ export const onV2AnswerCreated = onDocumentCreated(
     // Group/duo answers are sealed duel material — they surface through
     // materialized reveals (v2social), never through world aggregates.
     //
-    // What this write is for: it flags the group's day as owing a reveal, so
-    // the scheduled scan can ask an INDEXED question ("which groups played
-    // yesterday?") instead of reading every group document to find the few
-    // that did. See prunePendingDays in pure.ts for the field's contract.
+    // What this write is for (ROUNDS-PLAN §2, §3.1; D426): it records that
+    // this member has answered this ROUND — `played.r{n}`, an arrayUnion
+    // on the group document — and, if this is the open round's first
+    // answer, starts the round's clock. Then, if the answer completed the
+    // open round (a 1v1: both; a group: every member), it reveals the
+    // round right here rather than leaving it for the scan: the reveal is
+    // the moment the whole idea is for, and a 1v1 waiting two hours on a
+    // schedule for an answer that already landed is the day wearing a
+    // different clock.
     //
-    // It also replaces the `lastCheckedDay` skip-marker this branch used to
-    // compensate for. That was a read, a value comparison and a conditional
-    // delete whose correctness rested on a specific commit ordering between
-    // this trigger and the scan. arrayUnion needs none of it: a late answer
-    // re-adds its day unconditionally, so the day re-opens whatever order
-    // the two writers land in, and the scan's own transaction settles it.
-    // One blind write, no read, and one less race to reason about.
+    // ONE READ, where the day's branch had none. The day's arrayUnion was
+    // blind because nothing about it depended on the document; the clock
+    // and the completeness verdict do. The read is charged in the cost
+    // model (TRIGGER_READS.duel, scripts/cost-arith.mjs) and it buys the
+    // scan's per-day fixed reads back many times over, since a completed
+    // round is never the scan's to find.
+    //
+    // A transaction rather than a blind update for the same reason the
+    // reveal is one: the reveal contends with this on the group document,
+    // and Firestore's retry is what makes "the answer that completed the
+    // round" a fact rather than a race.
     const surface = snap.get("surface");
     if (surface === "group" || surface === "duo") {
       const gid = snap.get("gid");
-      const day = snap.get("day");
-      if (typeof gid === "string" && typeof day === "string") {
+      const round = snap.get("round");
+      const uid = event.params.uid;
+      if (typeof gid === "string" && typeof round === "number" && Number.isInteger(round)) {
+        const gref = firestore().collection("v2_groups").doc(gid);
+        const key = roundKey(round);
+        let completed = false;
+        // Who this answer tells "your turn" (ROUNDS-PLAN §7.4), and the
+        // words the push needs — decided inside the transaction, sent
+        // after it. Reset per attempt, like the reveal's own locals.
+        let nudge: TurnRecipient[] = [];
+        let room: { name: string; mode: "duo" | "group"; who: string } = { name: "", mode: "group", who: "" };
         try {
-          const gref = firestore().collection("v2_groups").doc(gid);
-          // update(), not set(merge): a group deleted between the answer and
-          // this trigger must stay deleted, and set() would resurrect it as a
-          // doc holding nothing but pendingDays. NOT_FOUND is the expected
-          // outcome there, not an error worth logging loudly.
-          await gref.update({ pendingDays: FieldValue.arrayUnion(day) });
+          completed = await firestore().runTransaction(async (tx) => {
+            nudge = [];
+            const g = await tx.get(gref);
+            // A group deleted between the answer and this trigger must stay
+            // deleted: update() on a missing document throws, and set()
+            // would resurrect it as a document holding nothing but `played`.
+            if (!g.exists) return false;
+            const open = openRound(g.get("round"));
+            // A LATE answer (ROUNDS-PLAN §4): the round has revealed, and
+            // the rules admitted this only with `late: true` and no guess.
+            // It joins the reveal — marked — so the room sees it; it marks
+            // no `played`, starts no clock, completes nothing, and folds
+            // into no aggregate. Three reads (group, reveal, profile) and
+            // one write, only on this path.
+            if (round < open) {
+              const revealRef = gref.collection("reveals").doc(key);
+              const [r, prof] = await tx.getAll(revealRef, firestore().doc(`v2_users/${uid}`));
+              // No reveal to join (a round behind the open one always has
+              // one; a retry after an erasure may not), or already in it —
+              // a blind vote is never overwritten by a late one.
+              if (!r.exists) return false;
+              const votes = (r.get("votes") || {}) as Record<string, unknown>;
+              if (Object.prototype.hasOwnProperty.call(votes, uid)) return false;
+              const vote: Record<string, unknown> = { optionIdx: snap.get("optionIdx"), late: true };
+              const pickUid = snap.get("pickUid");
+              if (typeof pickUid === "string" && pickUid) vote.pickUid = pickUid;
+              // D71's shape: the question this member answered, stamped
+              // only when it is not the one the round was published under.
+              const qid = snap.get("qid");
+              if (typeof qid === "string" && qid !== r.get("qid")) vote.qid = qid;
+              const upd: Record<string, unknown> = {
+                [`votes.${uid}`]: vote,
+                // The reveal names only who it records as there (the
+                // erasure sweep walks `members`), so both move together.
+                members: FieldValue.arrayUnion(uid),
+                [`names.${uid}`]: (prof.exists && prof.get("displayName")) || "",
+              };
+              if (typeof vote.pickUid === "string") upd.pickedUids = FieldValue.arrayUnion(vote.pickUid);
+              tx.update(revealRef, upd);
+              return false;
+            }
+            const upd: Record<string, unknown> = { [`played.${key}`]: FieldValue.arrayUnion(uid) };
+            // The open round's clock starts at its FIRST answer — never on
+            // an answer sealed ahead of it: that round's clock starts when
+            // it opens, in the reveal that opens it.
+            if (round === open && !g.get("roundDeadlineAt")) {
+              upd.roundOpenedAt = FieldValue.serverTimestamp();
+              upd.roundDeadlineAt = Timestamp.fromMillis(Date.now() + ROUND_DEADLINE_MS);
+            }
+            const members: unknown = g.get("memberUids");
+            const roster = Array.isArray(members) ? (members as string[]) : [];
+            // WHO IS TOLD "your turn" (ROUNDS-PLAN §7.4), decided here and
+            // STAMPED in the same commit as the mark, so two answers landing
+            // together cannot both nudge one member; the send waits for the
+            // commit. The answerer's own stamp is cleared — they have
+            // played, so the next round waiting for them is a new fact —
+            // and a late answer (above) nudges nobody: it is nobody's turn.
+            const stamps = g.get("pushAt");
+            nudge = turnRecipients(mergePlayed(g.get("played"), key, uid), open, roster, stamps, uid);
+            for (const r of nudge) upd[`pushAt.${r.uid}`] = FieldValue.serverTimestamp();
+            if (isStamped(stamps, uid)) upd[`pushAt.${uid}`] = FieldValue.delete();
+            room = {
+              name: String(g.get("name") || ""),
+              mode: g.get("mode") === "duo" ? "duo" : "group",
+              who: String(((g.get("memberNames") || {}) as Record<string, unknown>)[uid] || ""),
+            };
+            tx.update(gref, upd);
+            const already = playedIn(g.get("played"), key);
+            return round === open
+              && roundComplete(new Set([...already, uid]).size, roster.length);
+          });
         } catch (err) {
-          const code = (err as { code?: number | string }).code;
-          if (code === 5 || code === "not-found") return;
-          // RETHROWN, so `retry: true` above actually means something on this
-          // branch. It used to warn and return normally, which made the retry
-          // policy dead here: the mark is the ONLY thing that puts this day
-          // in front of the scheduled scan, so losing it loses the reveal —
-          // for a group-day where the single answerer has already played,
-          // silently and permanently.
-          //
-          // D19's stated safety net does not cover it. "The answer never
-          // folded into any aggregate — a louder problem, already logged" is
-          // true of the vote path; this branch returns before any aggregate
-          // work. And the monitoring filter is severity>=ERROR while this
-          // logged WARNING, so nothing was watching either.
-          //
-          // Safe to retry: arrayUnion is idempotent, and the NOT_FOUND case
-          // above still returns cleanly rather than retrying against a group
-          // that is deliberately gone.
-          logger.error(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
+          // RETHROWN, so `retry: true` above means something on this
+          // branch: the mark is what puts this round in front of the scan
+          // and what completes it, so losing it loses the reveal — for a
+          // 1v1 whose partner has already played, silently. Safe to retry:
+          // arrayUnion is idempotent, the clock is set only if absent, and
+          // the reveal below is create-guarded.
+          logger.error(`[v2] round mark failed for ${gid}/${key}:`, err);
           throw err;
+        }
+        // After the commit, never before it: a nudge about a mark that did
+        // not land would be a lie. notifyTurn never throws.
+        if (nudge.length) await notifyTurn(firestore(), gid, room, nudge);
+        if (completed) {
+          try {
+            await revealDueRounds(gref);
+          } catch (err) {
+            // The scan is the safety net: a completed round this reveal
+            // failed to publish is due at its deadline, and the indexed
+            // query finds it then. Loud, never fatal to the mark above.
+            logger.error(`[v2] reveal on completion failed for ${gid}/${key}:`, err);
+          }
         }
       }
       return;
@@ -686,7 +977,11 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      // The cap's discards from the attempt that commits — reset per
+      // attempt, logged once the transaction returns (logBucketCaps).
+      const capped: BucketCapEvent[] = [];
       await runAggTransaction(db, qid, async (tx) => {
+        capped.length = 0;
         // Batched for the same reason as the vote path below: three
         // sequential round trips inside the transaction is three times the
         // lock window on the contended per-qid document.
@@ -719,7 +1014,9 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key);
+        foldCanonAnchors(entBy, snap.get("anchors"), key, (kind, dim, bucket, total) => {
+          capped.push({ kind, dim, bucket, total });
+        });
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
         // into `rest`; it used to also drop every entity under the
@@ -749,6 +1046,7 @@ export const onV2AnswerCreated = onDocumentCreated(
           { merge: false },
         );
       });
+      logBucketCaps(qid, capped);
       return;
     }
     // Rank answers carry `order`, never `optionIdx` (D233) — the item
@@ -809,7 +1107,12 @@ export const onV2AnswerCreated = onDocumentCreated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    const profRef = db.collection("v2_users").doc(event.params.uid);
+    // The cap's discards from the attempt that commits — reset per attempt,
+    // logged once the transaction returns (logBucketCaps).
+    const capped: BucketCapEvent[] = [];
     await runAggTransaction(db, qid, async (tx) => {
+      capped.length = 0;
       // ONE aggregate document, and it is the published one. See "the
       // private mirror is gone" in the header: since D98 the private doc
       // held byte-identical bytes to this one on this path, so the write
@@ -835,7 +1138,13 @@ export const onV2AnswerCreated = onDocumentCreated(
       //
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
-      const [seen, agg] = await tx.getAll(eventRef, pubRef);
+      // THE PROFILE RIDES THIS READ (D410). The anchors on an answer are
+      // the client's claim about its own cohort, and firestore.rules can
+      // only check they are plausible, never that they are the author's —
+      // honestAnchors() in pure.ts has why the rule that would check it
+      // cannot exist. One more billed read, no extra round trip, and the
+      // lock window on v2_question_aggs/{qid} is unchanged.
+      const [seen, agg, prof] = await tx.getAll(eventRef, pubRef, profRef);
       if (seen.exists) return;
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
@@ -853,18 +1162,48 @@ export const onV2AnswerCreated = onDocumentCreated(
       // Every question slices since D98 — there is no political carve-out
       // and no per-cell floor. The breakdown folded here is the breakdown
       // published, whole.
+      // The tail (D400): the shards this fold may need, read only where a
+      // dimension is at the cap and lacks this answer's bucket — never
+      // before the cap, so the ordinary answer still pays the one getAll
+      // above and nothing more. What the cap then evicts or refuses goes
+      // to the tail as blind increments after the hot write below.
+      const storedBy = agg.exists ? (agg.get("by") as BreakdownCounts) : null;
+      // What the answer SHOULD have said. Bound here rather than at each use
+      // so the cap's shard bound, the fold and the ledger entry all see the
+      // same thing, and the correction below compares against the claim.
+      const claimed = snap.get("anchors");
+      const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
+      const flow = overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
       const by = breakdownFor(
         qid,
-        agg.exists ? (agg.get("by") as BreakdownCounts) : null,
-        snap.get("anchors"),
+        storedBy,
+        anchors,
         optionIdx,
+        (kind, dim, bucket, total) => { capped.push({ kind, dim, bucket, total }); },
+        flow.tail,
       );
       // The edit-flow matrix (D226) rides these same docs, and this write
       // replaces the doc whole (merge: false) — so carry it, or the first
       // create after an edit erases the flows. Emit-when-set: the common,
       // never-edited question's doc gains no key.
       const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
+      // AND THE DOCUMENT IS CORRECTED, not only the fold. The People lens
+      // reads other users' anchors off their answer rows to say who someone
+      // is, so a fold that quietly ignored an invented cohort would leave
+      // the invention on the screen. It also keeps D8's snapshot true, which
+      // the edit path depends on: onV2AnswerUpdated re-reads these anchors
+      // to retarget the -old/+new delta and must find the cells this create
+      // folded. Written ONLY when it differs, so an honest client pays one
+      // read and no write — the write is the liar's cost.
+      if (JSON.stringify(anchors) !== JSON.stringify(claimed ?? {})) {
+        logger.warn(
+          `[v2] answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+        );
+        tx.set(snap.ref, { anchors }, { merge: true });
+      }
+      // The ledger entry carries the anchors too, and the nightly passes
+      // read them — so it takes the honest set, not the claim.
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, anchors));
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -885,7 +1224,15 @@ export const onV2AnswerCreated = onDocumentCreated(
       // remedy and is now taken; what is left when this bites is sharding,
       // not a floor.
       tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
+      // The tail's own writes — one merge per shard touched, increments
+      // only. Dormant until a dimension reaches the cap; from then on, +1
+      // write per answer whose city or country the hot document cannot
+      // hold (COSTS.md's row).
+      for (const [shard, inc] of flow.pending) {
+        tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
+      }
     });
+    logBucketCaps(qid, capped);
   },
 );
 
@@ -947,13 +1294,25 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      // …and the same move inside the tail (D400), for a bucket the hot
+      // map does not hold: its shard is read (only then — capBoundShards
+      // is empty for a bucket in the hot map or a dimension under the
+      // cap) and the -old/+new lands as increments under retargetAnchors'
+      // own skip rule. Read here, before the writes below, as a
+      // transaction requires.
+      const tailMoves = retargetTail(
+        await readOverflowShards(tx, db, qid, capBoundShards(by, after.get("anchors"))),
+        after.get("anchors"),
+        fromIdx,
+        toIdx,
+      );
       // The move itself is a published fact (D226): one cell of the
       // from → to matrix, folded after the retry guard above so a
       // deferred edit counts once, on the delivery that actually moves.
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone
@@ -961,6 +1320,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // their mind. With no cadence there is no stream to hide in and
       // nothing to hide from: the answer itself is readable.
       tx.set(pubRef, { counts, total, by, edits }, { merge: false });
+      for (const [shard, inc] of tailMoves) {
+        tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
+      }
     });
   },
 );

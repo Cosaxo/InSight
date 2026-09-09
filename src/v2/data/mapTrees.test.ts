@@ -131,6 +131,12 @@ describe("the Foresight branch", () => {
     const b = tree.nodes.find((n) => n.id === "fore-call-call-b")!;
     expect(b.note).toBe("sealed — outcome pending");
     expect(b.typ).toBe(0.5);
+    // …and the same fact where a CONSUMER can key on it. `maj` is false for
+    // a sealed call and false for a missed one, and the Map's "rare take"
+    // ring reads `maj`: without this flag it drew a call that has not been
+    // judged with the same mark as one the reader got wrong.
+    expect(b.sealed, "a sealed call is indistinguishable from a missed one").toBe(true);
+    expect(a.sealed, "a graded call was marked sealed").toBe(false);
   });
 
   it("a voided outcome (nobody scored) stays sealed rather than judged", () => {
@@ -140,5 +146,39 @@ describe("the Foresight branch", () => {
     const n = foreTree().nodes[0];
     expect(n.note).toBe("sealed — outcome pending");
     expect(n.typ).toBe(0.5);
+    expect(n.sealed, "a voided outcome is not a judgement either").toBe(true);
+  });
+});
+
+// ── the consumer of all this, asserted as source text ──
+//
+// The ring is one expression inside a className in a 1000-line spec module,
+// with no seam to render it through, and the flags it must respect live in
+// three different folds. So it is pinned the way the house pins this class
+// (map-live-qid.test.jsx's `MS.mode`): by reading the line.
+//
+// WHAT WAS WRONG: `n.daily && !n.learn && !n.maj` drew the bold hollow ring
+// — "you answered against the crowd" — on every Crossroads walk and every
+// pulse leaf, neither of which folds a crowd majority at all (a pulse's
+// `typ` is your own consistency), and on every SEALED call, whose `maj` is
+// false because nothing has been judged yet. `fore` is deliberately NOT
+// excluded: foreTree computes `maj` on purpose for reads (`d.pct >= 50`)
+// and for graded calls, so a blind-spot read and a genuinely missed call
+// keep their ring.
+describe("the Map's rare-take ring", () => {
+  it("is gated on the folds that actually compute a majority", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    // process.cwd() rather than import.meta.url: this runner does not hand
+    // the module a file: URL, and `new URL(...)` throws on what it does.
+    const src = readFileSync(join(process.cwd(), "src/v2/spec/map-tab.jsx"), "utf8");
+    const m = /\(n\.daily && [^?]*\? ' is-rare'/.exec(src);
+    expect(m, "the rare-take ring moved or was renamed — move this case with it").not.toBeNull();
+    const cond = m![0];
+    for (const flag of ["!n.learn", "!n.walk", "!n.pulse", "!n.sealed", "!n.maj"]) {
+      expect(cond, `the ring stopped excluding ${flag}`).toContain(flag);
+    }
+    expect(cond, "the ring excluded the whole fore family, which does compute maj")
+      .not.toContain("!n.fore");
   });
 });

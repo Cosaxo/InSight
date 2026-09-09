@@ -33,6 +33,8 @@ export interface BuildEnv {
   apiKey?: string;
   /** VITE_APPCHECK_RECAPTCHA_SITE_KEY. */
   siteKey?: string;
+  /** VITE_APPCHECK_DEBUG. Any non-empty value arms the debug provider. */
+  debug?: string;
 }
 
 /**
@@ -48,6 +50,40 @@ export function shipsUnattested({ mode, isNativeBuild, apiKey, siteKey }: BuildE
   if (!apiKey) return false;
   return !siteKey;
 }
+
+/**
+ * True when this build would carry the App Check DEBUG provider — which is a
+ * bypass, not an attestation: whoever holds the token gets past App Check on
+ * every request, and revoking it is a console action nobody watching a store
+ * build would think to take.
+ *
+ * The second refusal, added when src/lib/appcheck.ts learned to run the debug
+ * provider on web WITHOUT a site key. Before that change the two guards were
+ * the same guard — no key meant no App Check at all, and `shipsUnattested`
+ * caught it. Now a build can have no key and still initialise, so the shape
+ * that ships a bypass is reachable and needs its own refusal. A change that
+ * opens a hole pays for it in the same commit.
+ *
+ * NO EXEMPTIONS BEYOND MODE, deliberately, and the native one is the tempting
+ * one to add: on iOS and Android the plugin takes its debug token from
+ * platform environment variables rather than from this one, so `CAPACITOR_BUILD=1`
+ * looks like it makes the flag inert. It does not make it inert for the build
+ * that matters — the screenshot job sets that variable and runs the result in
+ * a BROWSER, on the web path, which is exactly where the bypass is real. An
+ * exemption whose reasoning is false for its own biggest user is worse than no
+ * exemption, so the capture build carries its own `--mode` instead.
+ */
+export function shipsDebugToken({ mode, debug }: BuildEnv): boolean {
+  if (mode !== "production") return false;
+  return Boolean(debug);
+}
+
+export const DEBUG_TOKEN_MESSAGE =
+  "Production build has VITE_APPCHECK_DEBUG set. The App Check debug "
+  + "provider is a bypass, not an attestation — every client built this way "
+  + "gets past App Check, and anyone holding the token can too. Unset it, or "
+  + "build with a non-production --mode if this bundle is not for users "
+  + "(the screenshot job does exactly that).";
 
 export const UNATTESTED_MESSAGE =
   "Production web build has Firebase configured but no "

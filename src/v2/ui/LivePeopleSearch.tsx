@@ -45,6 +45,10 @@ export default function LivePeopleSearch({ query, onActive }: {
 }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  // Every result row carries a follow button, and search is reachable
+  // without ever opening the Circle stop — so the set it reads has to be
+  // asked for here. One query, session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
   const { rows, busy } = usePeopleFinder(query);
 
   // NO QUERY: the people already in your circle, free — they are in

@@ -39,11 +39,14 @@ const TAGLINE = "Answer one question. See where you stand.";
 
 // Pull the <g id="mark"> group — the paper-ground palette — out of the
 // icon master so the graphic and the launcher icons are provably the same
-// geometry. (The launcher icons themselves take the sibling mark-tile
-// group; this composition sits on the app's light surface, so it wears
-// the light conversion.) The group is flat by contract (see mark.svg), so
-// its first </g> closes it — slicing to the end of the file would drag
-// the tile group along.
+// geometry. (The launcher icons take the sibling mark-paper-tile group
+// since D340 — the same light conversion, one radius step fatter so it
+// survives 48 px; this composition renders at ~190 px, so it wants the
+// finer set.) The group is flat by contract (see mark.svg), so
+// its first </g> closes it — slicing to the end of the file would drag both
+// tile groups along, and the closing quote-and-bracket in the search string
+// above is the only thing keeping this match off mark-paper-tile, whose id
+// has this one as a prefix.
 const markSvg = readFileSync(join(ROOT, "design/icon/mark.svg"), "utf8");
 const markStart = markSvg.indexOf('<g id="mark">');
 if (markStart < 0) {

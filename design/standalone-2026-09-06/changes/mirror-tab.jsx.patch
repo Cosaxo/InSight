@@ -1,0 +1,11 @@
+--- recorded/mirror-tab.jsx
++++ 2026-09-06/mirror-tab.jsx
+@@ -266,7 +266,7 @@
+         textAlign: 'center',
+         whiteSpace: 'nowrap',
+         fontFamily: 'var(--sans)',
+-        fontSize: on ? big ? 14 : 12 : big ? 11.5 : 10.5,
++        fontSize: on ? big ? 14 : 13 : big ? 12.5 : 12,
+         fontWeight: on ? 800 : 600,
+         letterSpacing: '-0.02em',
+         color: on ? 'var(--ink)' : 'var(--ink-3)',

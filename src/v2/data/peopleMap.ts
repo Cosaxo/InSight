@@ -13,25 +13,35 @@
 //   position   · the only geometry — no axes, no rings, no lines between
 //                people (a line between strangers reads as a relationship)
 //   every dot  · a real member of the crowd; zero decorative dots or mist
-//   confidence · fewer shared answers = smaller + fainter; under the
-//                floor, not drawn — a near-empty solve shrinks to the
-//                origin, and the middle of the map must never be where
-//                the lens parks people it knows nothing about
+//   colour     · says ONE thing, in three plain steps: mostly agrees with
+//                you, split, mostly disagrees — counted over the answers
+//                you share (the lens folds the step; the counts are here)
+//   confidence · fewer shared answers = a smaller dot; under the floor,
+//                not drawn — a near-empty solve shrinks to the origin,
+//                and the middle of the map must never be where the lens
+//                parks people it knows nothing about
 //   numbers    · every claim beside a name is an exact count with its
 //                basis ("9 of 12 shared answers"), never a cosine
+//
+// SINCE 2026-09-02 the frame is a DISC, not a card (the shared instrument
+// — VISION-2026-09-02 §1.1/§1.4): the plane is framed by the farthest
+// person, everyone is clamped inside the rim, and the decorative per-uid
+// hue is gone. It had claimed nothing, which was the problem: on a field
+// where colour now means agreement, a second colour language reads as a
+// second claim.
 //
 // Pure on purpose (the patternsMap.ts posture): no Firebase, no window,
 // no RNG anywhere — same inputs, same field, so the whole pipeline is
 // testable without a device and the constellation cannot reshuffle
 // between renders.
-import { estimateTheta } from "./patternsMap";
-import { angleHash } from "./similarity";
+import { DEFAULT_LAMBDA_U, estimateTheta } from "./patternsMap";
 
-/** The drawn frame — the question map's own card proportions. */
-export const PEOPLE_W = 344;
-export const PEOPLE_H = 330;
-const PADX = 26;
-const PADY = 30;
+/** The drawn frame — the shared instrument's square field. */
+export const PEOPLE_W = 352;
+export const PEOPLE_H = 352;
+/** Its centre, and how far from it the farthest person is placed. */
+export const PEOPLE_C = 176;
+export const PEOPLE_RMAX = 150;
 
 /** The floor under "placed": three binary answers is a coin run, four is
  * the least that can show a pattern (the prototype's own value). */
@@ -45,8 +55,10 @@ export const PEOPLE_MIN_ANSWERED = 5;
  * a legible basis, cost linear in this number, every list shared with the
  * who-voted sheet, Kindred and the pair card through live.ts's cache. */
 export const PEOPLE_QUESTIONS = 12;
-/** At most this many dots carry a name label; the rest name on tap. */
-export const PEOPLE_LABELS = 5;
+/** The "Most like you" rows under the field (the 2026-09-06 design's
+ * three). Every name on the FIELD is tap-only now, so this caps the one
+ * place a name is standing type. */
+export const PEOPLE_ALIKE = 3;
 /** The circle view's own crowd floor (D216). PEOPLE_MIN_CROWD guards an
  * ANONYMOUS crowd — eight strangers is the least that reads as one. Your
  * circle is named people you chose (FOLLOW_CAP-bounded), each drawn with
@@ -92,8 +104,6 @@ export interface PlacedPerson {
   name: string;
   /** Frozen anchor chips from the answer, never the live profile (D8). */
   chips: string[];
-  /** Decorative stable hue — claims nothing (the similarity-field idiom). */
-  hue: number;
   /** Plane coordinates (unit-θ components) — kept for tests and captions. */
   px: number;
   py: number;
@@ -101,24 +111,48 @@ export interface PlacedPerson {
   x: number;
   y: number;
   r: number;
-  op: number;
+  /** True on the larger of the two dot sizes — more answers in common.
+   * Two steps, not a continuum: a 4px ramp read as jitter, and the size
+   * is a rank, not a measurement. */
+  many: boolean;
   /** Shared answers seen in the fetched samples — the stated basis. */
   shared: number;
   agree: number;
   /** The rarest answer you share: label and its crowd share, from the
    * fit's own marginal. Null when you split on everything you share. */
   tie: { label: string; share: number } | null;
-  /** Name-label anchor, when a collision-free spot exists near the dot. */
-  lab: { x: number; y: number } | null;
 }
 
 export interface PeopleField {
   placed: PlacedPerson[];
   me: { x: number; y: number; r: number };
-  /** The viewer's answered pool questions — the summary card's figure. */
+  /** The viewer's answered pool questions. What the viewer's OWN dot is
+   *  solved from, and the figure the mount gate reads. */
   answered: number;
-  /** The floor `placed` cleared — for tests; the UI states counts, not this. */
+  /**
+   * How many questions the CROWD was placed from — the fetched lists the
+   * fold actually read, which is capped at PEOPLE_QUESTIONS.
+   *
+   * Separate from `answered` because the two are different numbers and the
+   * card was printing the wrong one: "placed around you, from the 40
+   * questions you've answered here" over a crowd folded from twelve, while
+   * every dot the reader taps says "12 of 12 shared answers". The card and
+   * its own detail view contradicted each other on one screen, by up to
+   * about nine times at a full pool.
+   */
+  basis: number;
+  /** The floor `placed` cleared — the legend states it ("everyone who
+   * answered at least N of your questions"), and tests read it. */
   minShared: number;
+  /** The people who actually agree with you most, for the rows that say
+   * so — ranked on the agreement rate each row already prints. (The
+   * field-label set `near` and its spot-scoring placement retired with
+   * the 2026-09-06 design: no name is standing type on the field any
+   * more — the tapped person alone is named — so a layout problem this
+   * module solved for five labels stopped existing. Git history holds
+   * the placement; the D167 no-invented-names rule lives on in `alike`'s
+   * own filter.) */
+  alike: PlacedPerson[];
 }
 
 /**
@@ -169,6 +203,21 @@ export interface PeopleFoldOpts {
    * population, because knowing a friend when you see one outranks a
    * city band you already know. */
   circle?: ReadonlySet<string>;
+  /**
+   * The viewer's OWN evidence, when the caller has more of it than the
+   * two-option pool carries (D396): every answer the published rows can
+   * encode — ordinal and pick items included — as the centred residuals
+   * the fit is written in. Strangers are still placed from the fetched
+   * two-option lists (a voter row is one option index on one two-option
+   * question); the viewer's dot is solved from everything known about
+   * them, which is the honesty rule pointed at the one person the lens
+   * can know that much about. Absent, the viewer is solved from the pool
+   * like everyone else.
+   */
+  viewerObs?: readonly { L: readonly number[]; r: number }[];
+  /** The device ridge, as the fit published it (D395); the shipped value
+   * otherwise. Both solves — strangers' and the viewer's — use it. */
+  lambda?: number;
 }
 
 export function foldPeople(
@@ -221,11 +270,12 @@ export function foldPeople(
     }
   }
 
+  const lambda = opts.lambda ?? DEFAULT_LAMBDA_U;
   const placed: PlacedPerson[] = [];
   for (const a of acc.values()) {
     if (a.shared < minShared) continue;
     if (opts.keep && !opts.keep(a.uid, a.anchors)) continue;
-    const u = unit(estimateTheta(a.obs, k));
+    const u = unit(estimateTheta(a.obs, k, lambda));
     const t = Math.max(0, Math.min(1, (a.shared - minShared) / Math.max(1, fetched.length - minShared)));
     placed.push({
       uid: a.uid,
@@ -233,35 +283,42 @@ export function foldPeople(
       chips: opts.circle?.has(a.uid)
         ? ["your circle"]
         : [a.anchors.city, a.anchors.age].filter((c): c is string => !!c),
-      hue: Math.round(angleHash(a.uid + "#hue") * 360),
       px: u[0] ?? 0,
       py: u[1] ?? 0,
       x: 0,
       y: 0,
-      r: 4.5 + t * 3,
-      op: 0.55 + t * 0.45,
+      r: t > 0.5 ? 5 : 3.4,
+      many: t > 0.5,
       shared: a.shared,
       agree: a.agree,
       tie: a.tie,
-      lab: null,
     });
   }
 
-  const meU = unit(estimateTheta(mineAll.map((i) => ({ L: i.L, r: (i.mine as number) - i.marginal })), k));
+  const meU = unit(estimateTheta(
+    opts.viewerObs && opts.viewerObs.length
+      ? opts.viewerObs
+      : mineAll.map((i) => ({ L: i.L, r: (i.mine as number) - i.marginal })),
+    k,
+    lambda,
+  ));
   const mePx = meU[0] ?? 0;
   const mePy = meU[1] ?? 0;
 
-  // plane → pixels, framed by the people actually shown (plus you)
+  // plane → the disc, framed by the farthest person actually shown (plus
+  // you). Radial, not per-axis: the frame is a circle now, so scaling each
+  // axis by its own extreme would stretch the picture into an ellipse the
+  // rim then clips.
   let mx = 0.2;
-  for (const p of placed) mx = Math.max(mx, Math.abs(p.px), Math.abs(p.py));
-  mx = Math.max(mx, Math.abs(mePx), Math.abs(mePy));
-  const X = (v: number) => PEOPLE_W / 2 + (v / mx) * (PEOPLE_W / 2 - PADX);
-  const Y = (v: number) => PEOPLE_H / 2 + (v / mx) * (PEOPLE_H / 2 - PADY);
+  for (const p of placed) mx = Math.max(mx, Math.hypot(p.px, p.py));
+  mx = Math.max(mx, Math.hypot(mePx, mePy));
+  const X = (v: number) => PEOPLE_C + (v / mx) * PEOPLE_RMAX;
+  const Y = (v: number) => PEOPLE_C + (v / mx) * PEOPLE_RMAX;
   for (const p of placed) {
     p.x = X(p.px);
     p.y = Y(p.py);
   }
-  const me = { x: X(mePx), y: Y(mePy), r: 5.75 };
+  const me = { x: X(mePx), y: Y(mePy), r: 6 };
 
   // nudge overlaps apart — position stays the data, only crowding is eased
   const all: { x: number; y: number; r: number }[] = [...placed, me];
@@ -273,8 +330,12 @@ export function foldPeople(
   // to move a few dots apart.
   //
   // Two circles can only need pushing if their centres are within
-  // `P1.r + P2.r + 5`, and the radii here are bounded — `4.5 + t * 3` for a
-  // person, 5.75 for you — so CELL below is at or above the largest gap
+  // `P1.r + P2.r + 5`, and the radii here are bounded — read them off the
+  // two literals above rather than from here, because this sentence
+  // quoted `4.5 + t * 3` and `5.75` for a while after the commit that
+  // replaced both, and an argument that cites numbers the code no longer
+  // has is worse than one that says where to look — so CELL below is at
+  // or above the largest gap
   // that can matter. A pair further apart than one cell cannot collide,
   // which makes the 3×3 neighbourhood exhaustive rather than approximate:
   // the same pairs are tested, the ones that could never touch are not.
@@ -283,7 +344,7 @@ export function foldPeople(
   // question map — including re-bucketing once per pass rather than after
   // every push, so a dot that a push carries into a new cell is picked up
   // by the next pass. Fifty passes; the physics does not notice.
-  const CELL = 20; // ≥ 2 × max radius (7.5) + the 5 px gap
+  const CELL = 20; // ≥ 2 × max radius (6) + the 5 px gap
   const cellKey = (cx: number, cy: number) => cx * 100003 + cy;
   for (let it = 0; it < 50; it++) {
     let moved = false;
@@ -330,53 +391,47 @@ export function foldPeople(
     }
     if (!moved) break;
   }
+  // back inside the rim — the push above can carry a dot over the edge of
+  // a round field, where a rectangular clamp would leave it in the corner
   for (const p of all) {
-    p.x = Math.max(14, Math.min(PEOPLE_W - 14, p.x));
-    p.y = Math.max(16, Math.min(PEOPLE_H - 14, p.y));
-  }
-
-  // name the nearest few — a label's rect must clear every dot and label
-  const rects: { x0: number; x1: number; y0: number; y1: number }[] = [];
-  const clearRect = (rc: { x0: number; x1: number; y0: number; y1: number }, self: PlacedPerson) => {
-    if (rc.x0 < 4 || rc.x1 > PEOPLE_W - 4 || rc.y0 < 2 || rc.y1 > PEOPLE_H - 2) return false;
-    if (rects.some((o) => rc.x0 < o.x1 && rc.x1 > o.x0 && rc.y0 < o.y1 && rc.y1 > o.y0)) return false;
-    const hits = (p: { x: number; y: number; r: number }) => {
-      const cx = Math.max(rc.x0, Math.min(p.x, rc.x1));
-      const cy = Math.max(rc.y0, Math.min(p.y, rc.y1));
-      return Math.hypot(p.x - cx, p.y - cy) < p.r + 2.5;
-    };
-    return !all.some((p) => p !== self && hits(p));
-  };
-  const near = [...placed].sort(
-    (a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y),
-  );
-  const used = new Set<string>();
-  let labeled = 0;
-  for (const p of near) {
-    if (labeled >= PEOPLE_LABELS) break;
-    // The prototype drew invented names for nameless accounts; live does
-    // not (D167) — an unnamed dot stays unlabeled and reads "Someone" on
-    // its card, the who-voted convention.
-    if (!p.name || used.has(p.name)) continue;
-    const w = p.name.length * 6 + 4;
-    const h = 12;
-    const cands = [
-      { x: p.x, y: p.y + p.r + 4 },
-      { x: p.x, y: p.y - p.r - 16 },
-      { x: p.x + p.r + 7 + w / 2, y: p.y - 6 },
-      { x: p.x - p.r - 7 - w / 2, y: p.y - 6 },
-    ];
-    for (const c of cands) {
-      const rc = { x0: c.x - w / 2, x1: c.x + w / 2, y0: c.y, y1: c.y + h };
-      if (clearRect(rc, p)) {
-        p.lab = { x: c.x, y: c.y + 9.5 };
-        rects.push(rc);
-        used.add(p.name);
-        labeled++;
-        break;
-      }
+    const d = Math.hypot(p.x - PEOPLE_C, p.y - PEOPLE_C);
+    const lim = PEOPLE_C - p.r - 12;
+    if (d > lim) {
+      p.x = PEOPLE_C + ((p.x - PEOPLE_C) * lim) / d;
+      p.y = PEOPLE_C + ((p.y - PEOPLE_C) * lim) / d;
     }
   }
 
-  return { placed, me, answered: mineAll.length, minShared };
+  // THE ROWS SAY "MOST LIKE YOU", SO THEY RANK ON LIKENESS.
+  //
+  // They used to render `near` — the label-placement set, the people whose
+  // dots sat closest to yours. Position is two components of a
+  // unit-normalised EIGHT-dimensional solve, so six dimensions of
+  // agreement are discarded before that distance is taken — and the rail
+  // could therefore lead with the person who agrees with you least under
+  // the words "Most like you", while the real 11-of-12 match sat at the
+  // far rim. The honest number is already on every person and already
+  // printed on the row.
+  //
+  // The nameless filter is D167's no-invented-names rule: an unnamed
+  // account stays a drawn dot that reads "Someone" on tap, and never
+  // reaches a row — a row with no name to carry would be an identity the
+  // fold invented.
+  //
+  // Everyone here has already cleared `minShared`, so a rate is a rate;
+  // ties go to the bigger overlap, then to the name so the order cannot
+  // depend on iteration order.
+  const alike = [...placed]
+    .filter((p) => !!p.name && p.shared > 0)
+    .sort((a, b) =>
+      (b.agree / b.shared) - (a.agree / a.shared)
+      || b.shared - a.shared
+      || a.name.localeCompare(b.name))
+    .slice(0, PEOPLE_ALIKE);
+
+  // `fetched` is what the caller asked the store for; the basis is how
+  // many of those actually came back with rows, because a list that
+  // failed or was refused placed nobody.
+  const basis = fetched.filter((qid) => (rowsOf(qid) || []).length > 0).length;
+  return { placed, me, answered: mineAll.length, basis, minShared, alike };
 }

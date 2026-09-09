@@ -27,8 +27,65 @@ import { describe, expect, it } from "vitest";
 import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfTileArt, wfTint,
+  wfVotesOf,
+  wfAnsweredOf,
 } from "../spec/world-feed-math.js";
 import { pctFor } from "../data/cohort";
+
+// WHOSE SIDE WON is a question about counts, and it was answered off the
+// drawn percentages.
+//
+// `sharePcts` guarantees no INVERSION — a smaller count never draws
+// larger — and that is the property the rest of the app leans on. It does
+// NOT guarantee distinctness: two different counts can print the same
+// integer. So `p[mine] === Math.max(...p)` said "with the majority" to a
+// voter whose option had strictly fewer votes.
+//
+// Measured with the shipped rule over 400,000 random 2-5 option vectors
+// with counts 0-299: 3.07% of cards carried at least one wrong reading,
+// and 0.91% of individual readings claimed a majority that was not one.
+// The reverse ("you picked the underdog" on a genuine top count) is
+// almost absent — 3 in 1.38 million — because sharePcts breaks ties
+// toward the lower index, so the true leader usually keeps the drawn one.
+// That asymmetry is why this reads as flattery rather than as a bug.
+//
+// It was also written into the permanent per-device read log, which feeds
+// the Mirror's with-the-crowd rate — recorded, not just drawn.
+describe("wfPcts returns the counts, because the majority is a count question", () => {
+  it("hands back the count vector it actually used, viewer's +1 included", () => {
+    const { c } = wfPcts([3, 4], 0);
+    expect(c).toEqual([4, 4]);
+    expect(wfPcts([3, 4], -1).c).toEqual([3, 4]);
+  });
+
+  it("the counts disagree with the percentages exactly where the claim was wrong", () => {
+    // 449 vs 451 both draw 45%. Reading the winner off `p` tells the
+    // voter on 449 they are with the majority; reading it off `c` does
+    // not. (mineIdx -1 so the +1 does not move either side.)
+    const { p, c } = wfPcts([449, 451, 100], -1);
+    expect(p).toEqual([45, 45, 10]);
+    expect(p[0] === Math.max(...p)).toBe(true);   // what it used to ask
+    expect(c[0] === Math.max(...c)).toBe(false);  // what it asks now
+  });
+
+  it("a genuine tie in COUNTS is still with the majority, on both sides", () => {
+    // The fix must not swing the other way: equal counts are equal, and
+    // neither voter picked an underdog.
+    const { c } = wfPcts([5, 5], -1);
+    expect(c[0] === Math.max(...c)).toBe(true);
+    expect(c[1] === Math.max(...c)).toBe(true);
+  });
+
+  it("your own vote can make you the majority, and that is not a rounding artefact", () => {
+    // [5, 5, 3] draws [39, 38, 23] — the percentages already disagree with
+    // each other on a genuine tie. With your vote on the second option the
+    // counts become [5, 6, 3] and you are the majority in fact.
+    expect(wfPcts([5, 5, 3], -1).p).toEqual([39, 38, 23]);
+    const { c } = wfPcts([5, 5, 3], 1);
+    expect(c).toEqual([5, 6, 3]);
+    expect(c[1] === Math.max(...c)).toBe(true);
+  });
+});
 
 describe("wfPcts — the split a user reads", () => {
   it("counts the viewer's own vote, which the store leaves out", () => {
@@ -126,8 +183,8 @@ describe("wfPcts — the split a user reads", () => {
     //
     // Asserted from THIS side rather than from cohort.test.ts: `data/` is
     // typed and world-feed-math.js is not, so importing it there costs a
-    // @ts-expect-error and crosses the boundary DECISIONS.md:3337 rests the
-    // no-allowJs argument on. This file is plain JS and is the feed's own.
+    // @ts-expect-error and crosses the boundary D38 rests the no-allowJs
+    // argument on. This file is plain JS and is the feed's own.
     //
     // mineIdx -1 is the comparable call: adding the viewer's vote is this
     // surface's convention, not the rounding's.
@@ -268,5 +325,82 @@ describe("the texture helpers", () => {
   it("wfRateBg strengthens with the score", () => {
     const pct = (css) => Number(/\s([\d.]+)%/.exec(css)[1]);
     expect(pct(wfRateBg("red", 1))).toBeLessThan(pct(wfRateBg("red", 9)));
+  });
+});
+
+describe("wfVotesOf — one counter for every question shape", () => {
+  // The search overlay carried a FORK of this that knew `rank` and `rate`
+  // and then fell through to summing `q.options`. Continuum and catalogue
+  // questions carry no options, so dial, field and pick all scored 0 — in
+  // both of the overlay's orderings. These are the three that were zero.
+  it("counts the continuum and catalogue types off `n`", () => {
+    expect(wfVotesOf({ type: "dial", n: 5200 })).toBe(5200);
+    expect(wfVotesOf({ type: "field", n: 6800 })).toBe(6800);
+    expect(wfVotesOf({ type: "pick", n: 91 })).toBe(91);
+  });
+
+  it("falls back to the catalogue's own tally for a pick with no `n`", () => {
+    expect(wfVotesOf({ type: "pick" }, 44)).toBe(44);
+    // …and to zero where the caller has no table to consult, rather than
+    // to NaN or undefined.
+    expect(wfVotesOf({ type: "pick" })).toBe(0);
+  });
+
+  it("keeps the shapes that already worked", () => {
+    expect(wfVotesOf({ type: "rank", votes: 12 })).toBe(12);
+    expect(wfVotesOf({ type: "rate", n: 7 })).toBe(7);
+    expect(wfVotesOf({ type: "vote", options: [{ count: 10 }, { count: 20 }] })).toBe(30);
+    expect(wfVotesOf({ type: "vote" })).toBe(0);
+  });
+
+  it("treats an option row with no count as zero, not as NaN", () => {
+    // The fork omitted the `|| 0`, so one row missing `count` turned the
+    // whole total into NaN — which sorts unpredictably rather than low.
+    expect(wfVotesOf({ type: "vote", options: [{ count: 10 }, {}] })).toBe(10);
+  });
+});
+
+describe("wfAnsweredOf — an answer that exists only on the server", () => {
+  // The search overlay carried the feed's TAIL with the live branch cut
+  // off, so a continuum or catalogue answer given on another device — or
+  // on a page fetched after boot, which the local mirror never sees — read
+  // as UNANSWERED. It then went into the "five open questions"
+  // round-robin, sorted as unanswered in the result tiebreak, and its row
+  // offered the question again instead of the share meter.
+  const server = () => ({ d1: 2 });
+
+  it("counts a continuum answer held only server-side", () => {
+    for (const type of ["dial", "field", "pick", "rank"]) {
+      expect(wfAnsweredOf({ id: "d1", type, live: true }, {}, server),
+        `${type} answered only on the server read as unanswered`).toBe(true);
+    }
+  });
+
+  it("does not consult the server for an ordinary vote question", () => {
+    // The branch is deliberately narrow: a vote question's local value is
+    // the whole truth, and asking the store for one would be a read the
+    // feed never made.
+    let asked = 0;
+    const spy = () => { asked++; return { v1: 1 }; };
+    expect(wfAnsweredOf({ id: "v1", type: "vote", live: true }, {}, spy)).toBe(false);
+    expect(asked, "the server was consulted for a vote question").toBe(0);
+  });
+
+  it("prefers the local value when there is one", () => {
+    let asked = 0;
+    const spy = () => { asked++; return {}; };
+    expect(wfAnsweredOf({ id: "d1", type: "dial", live: true }, { d1: 3 }, spy)).toBe(true);
+    expect(asked, "the server was consulted over a local answer").toBe(0);
+  });
+
+  it("asks nobody on a demo card, or with no server read to make", () => {
+    expect(wfAnsweredOf({ id: "d1", type: "dial" }, {}, server)).toBe(false);
+    expect(wfAnsweredOf({ id: "d1", type: "dial", live: true }, {}, null)).toBe(false);
+  });
+
+  it("keeps rank's own shape: an order, not merely a value", () => {
+    expect(wfAnsweredOf({ id: "r1", type: "rank" }, { r1: { order: [1, 0] } }, null)).toBe(true);
+    expect(wfAnsweredOf({ id: "r1", type: "rank" }, { r1: {} }, null)).toBe(false);
+    expect(wfAnsweredOf({ id: "q1", type: "vote" }, { q1: "0" }, null)).toBe(true);
   });
 });

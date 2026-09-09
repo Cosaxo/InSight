@@ -34,9 +34,9 @@ the silent removals D166 forbade.
 | --- | --- |
 | "No product analytics of any kind ship today" | `data-inventory.md` — **the audited list the store forms are answered from** |
 | Per-user funnels, session analytics, engagement scoring | `MONITORING.md` § Off the table |
-| Retention or engagement sliced by anchor | same table (D8; nothing suppresses the anchors since D98, which is why the row is a decision, not a side effect) |
-| Anything sliced by the political result | same table (D8; GDPR Art. 9) |
-| Skip / pass / hesitation rates reaching the server | `QUESTION-FARM.md` § Deliberately out of scope; re-stated at D40 ("a pass is local-only; server collection is a privacy decision this record does not make") |
+| ~~Retention or engagement sliced by anchor~~ | **Lifted at D329** — it was a decision rather than a side effect, which is exactly what made it the owner's to drop |
+| Anything sliced by the political result | same table (D8; GDPR Art. 9). **Not** lifted with the row above, and the two were one sentence for long enough to read as one rule |
+| Skip / pass rates reaching the server | narrowed at D271 (aggregate-only, anonymous shards); per-PERSON lists stay local-only. Hesitation joined those terms at **D329** |
 | Server-side per-user content selection, ad-targeting profiles | `MONETIZATION.md` § Ruled out; narrowed to *server-side* by D163 |
 
 Two records already crossed parts of this territory and are the shape to
@@ -168,7 +168,7 @@ The full list the ask asked for. Markers say what each signal needs:
 | --- | --- | --- |
 | Answered the daily; when; streaks; streak deaths | ● | |
 | Sessions that saw the daily and did not answer it | ◐ | count only, no qid needed — there is one daily |
-| Deliberation time between options rendering and the vote | ✕ | hesitation; refused (§4.4) |
+| Deliberation time between options rendering and the vote | ◐ | hesitation; **D329** allows it bucketed inside the anonymous shard, never per answer |
 
 **The feed**
 | Signal | Needs | Notes |
@@ -374,16 +374,27 @@ promises to. Sentry stays the one third party, crash-scoped (D76/D211).
 
 ### 4.4 · Refused at every rung, whatever is adopted
 
+**Narrowed at D329** — three of these were lifted by the owner and the
+list is now written as seven separate refusals rather than one, which is
+what made the old bundle read as arbitrary. What remains:
+
 Per-target reads (who viewed whom — the flag-authorship deny's
-anti-retaliation reasoning, applied to viewing) · hesitation and
-per-option deliberation timing (QUESTION-FARM's row; the D57 posture —
-per-item timings never leave the device) · anything from a sealed duel
-before its reveal · keystrokes, drafts, free text (a take exists when
-posted, not before) · coordinates or anything below the presence cell's
-existing coarseness · engagement sliced by anchor or by any test result
-· pulse cadence · the daily or the Mirror adapting to any of it
-(D128/D163's invariant — one blind question, the same for everyone, is
-load-bearing).
+anti-retaliation reasoning, applied to viewing) · RAW per-event upload
+(the cost argument of §4.3, independent of privacy) · anything from a
+sealed duel before its reveal · keystrokes, drafts, free text (a take
+exists when posted, not before) · coordinates or anything below the
+presence cell's existing coarseness · engagement sliced by any TEST
+RESULT (GDPR Art. 9 for politics; D8 keeps every result out of
+`BREAKDOWN_DIMS`) · pulse cadence · the daily or the Mirror adapting to
+any of it (D128/D163's invariant — one blind question, the same for
+everyone, is load-bearing).
+
+Lifted at D329, each on its own reason: **third-party analytics SDKs**
+(the promise that made it costly retired at D314; the paperwork did
+not) · **engagement sliced by anchor** (an analytics preference, and
+this document said so) · **hesitation timing**, in one shape only —
+measured on the device, published as bucketed counts inside the
+anonymous shard. Raw timings per answer stay refused above.
 
 ## 5 · Where it plugs in
 
@@ -519,7 +530,8 @@ Drafted here, adopted only by the owner writing them into
 - **R4 · Per-question attention, aggregate-only.** Narrows
   QUESTION-FARM's skip/pass refusal the way D163 narrowed MONITORING's:
   seen/pass/defer reach the server **only** inside anonymous shards;
-  hesitation stays refused outright. The scorecard gains
+  hesitation stayed refused outright until **D329**, which admits it on
+  exactly the same terms — bucketed, in the shard, never per answer. The scorecard gains
   attention metrics with D33's goodhart warning printed beside them, and
   measure-and-retire (D162) gains its denominator. **Adopted as D271
   (2026-08-24, "adopt R4") and built the same day** — the record carries

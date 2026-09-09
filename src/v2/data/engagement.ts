@@ -494,6 +494,26 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     sessionOpen = false;
     sessionHadAnswer = false;
     sessionDay = "";
+    // THE CLOCK IS STILL RUNNING, and it was running under the account that
+    // just went away. `visibleSince` is the moment the app came to the
+    // foreground; there is no reload behind an account change, so nothing
+    // else re-stamps it — and the next `onHidden` did
+    // `ensureToday().r.fgMs += ms - visibleSince`, seeding the NEW account's
+    // day with the previous one's minutes. Forty minutes signed in as A,
+    // delete the account, one minute as B, background the app, and B's
+    // first rollup ships forty-one. Measured, not reasoned.
+    //
+    // RE-STAMPED rather than zeroed: the app IS in the foreground at this
+    // instant, so zeroing would throw away the new account's time until the
+    // next visibility change. From the purge forward, the minutes are
+    // theirs. `now()` is safe unarmed — it falls back to Date.now(), and an
+    // unarmed `visibleSince` is already 0, so this stays a no-op in a
+    // never-armed session.
+    visibleSince = visibleSince ? now() : 0;
+    // The other half of the same fresh-boot pair. Hygiene rather than a
+    // second bug: `onVisible`'s session-gap branch already restarts because
+    // `sessionOpen` is false above.
+    lastHiddenAt = 0;
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;

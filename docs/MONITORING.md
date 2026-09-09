@@ -20,7 +20,7 @@ Two instruments, neither of them a view:
 | --- | --- | --- |
 | `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
 | `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
-| `monitoring/*.json` | eight alert policies, put live by the **Arm monitoring** workflow or `npm run monitoring:apply` | which of the remaining functions has no alert |
+| `monitoring/*.json` | ten alert policies, put live by the **Arm monitoring** workflow or `npm run monitoring:apply` | which of the remaining functions has no alert |
 | `npm run check:monitoring` | that each policy's condition resolves to a metric `monitoring:apply` creates, and each metric to a `metric:` field a function emits | whether any of it is live in Cloud Monitoring — `npm run observe` is what answers that (D300) |
 
 Between them sat things nobody was computing at all: how many days of
@@ -72,8 +72,15 @@ not bookkeeping: a non-zero one means the client is already warning.
 > Measured, not assumed, and worth recording because it looked exactly like
 > a bug: a first pass reported 6 orphans. All six prompts contain an
 > apostrophe and are double-quoted in the archive while the rest are
-> single-quoted. The scan was wrong, not the content. The current numbers
-> are 90 archive entries, 90 live, zero unpromoted, zero orphans.
+> single-quoted. The scan was wrong, not the content. The numbers on
+> 2026-09-08 are 154 archive entries, 134 live, **20 unpromoted**, zero
+> orphans — recomputed with `collectArchive`'s own join. This said "90
+> archive entries, 90 live, zero unpromoted" until then, and it is the
+> reading this section says decides the afternoon: a full archive with
+> nothing waiting is a writing session, twenty waiting is a promotion PR.
+> Only the orphan count survived. The apostrophe figure above is 9 of 154
+> now rather than 6 of 90; the mechanism it justifies — scanning both
+> quote styles — is unchanged.
 
 **Bank inventory** cross-checks against the seeded document count read
 independently out of `functions/src/v2content.ts`. Two paths, one number
@@ -120,8 +127,28 @@ Revenue is $0 and the panel says so in the tile rather than in a footnote.
 What it computes instead is the break-even surface: the burn at each size,
 the cost per user per month, and — for each recorded revenue path — how
 many units would cover the whole burn. That question needs no revenue data,
-which is why it is answerable today and why it is the only money question
-worth putting on a screen right now.
+which is why it was answerable from the first day of this console.
+
+Since D332 the panel also answers the question the owner actually asked —
+**is usage outrunning revenue** — and it can, because the engagement trail
+(D268) gave the console a measured population to price. The guard models
+the bill at the measured actives (plus fixed costs), nets the rate card's
+recorded revenue, and goes red past `guard.maxNetBurnUsdPerMonth` in
+`monitoring/rates.json` ($50 — COSTS.md's own budget arithmetic). Red
+rides the pulse workflow's daily `--check`, so it is an email, not a
+dashboard hoping to be opened; the message names the levers in order
+(record revenue, pull `npm run budget:mode -- --level 1`, or raise the
+allowance in a commit that says why). A **stale** trail reds too, and for
+the reason the green would otherwise be worthless: the engagement file
+moves only when somebody runs the fetch, so a trail that stopped folding
+days would keep pricing an old population and keep passing. Past seven
+days — the width of the window the guard averages — it says so instead.
+It is a model at a measured size, never an invoice — the Cloud Billing budget stays the outcome-side
+control, and COSTS.md's controls section still owns that list. Arming
+that budget is one command too since the same record: `npm run
+budget:apply` (or the **Arm budget** workflow) creates it from the
+guard's own figure, and its refusal names the one billing-account role
+that remains a human grant.
 
 The inputs live in `monitoring/rates.json`, because they are the only
 numbers in the whole console that are neither derivable from the repo nor
@@ -175,23 +202,29 @@ consoles, which are not in this repo and never will be.
 
 | Refused | Record |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269**: no event streams, no third-party analytics, no per-target reads, no hesitation timing, no anchor or Art. 9 slicing, and the daily and the Mirror never adapt |
-| Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
-| Anything sliced by political result | D8; GDPR Art. 9 |
-| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
-| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163 — see below |
+| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269 as D329 narrowed it**: no raw event streams, no per-target reads, no slicing by a TEST RESULT, no sealed-duel or pre-post content, no coordinates below the presence cell, no pulse cadence, and the daily and the Mirror never adapt |
+| ~~Retention or engagement sliced by anchor~~ | **Lifted, D329.** It was an analytics preference and said so; the owner dropped it. Art. 9 is a different claim and stays below |
+| Anything sliced by the **politics test result** | D8; GDPR Art. 9. Not lifted by D329 and not lift-able by preference |
+| ~~Third-party analytics SDKs~~ | **Lifted, D329** — the refusal, not the paperwork. Shipping one still moves the store forms, `data-inventory.md` and an EEA consent flow together |
+| ~~Hesitation and per-option deliberation timing~~ | **Lifted in one shape, D329**: measured on the device, published only as bucketed counts in the anonymous attention shard (D270/D271). Raw per-event upload is still refused above |
+| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163, crossed knowingly at D317 (built D322) — see below |
 
-The second row used to read: "the same suppression that stops a paying city
-identifying a person stops the owner doing it." D98 deleted the suppression,
-so that sentence is now false in both halves, and the row survives for a
-different reason worth stating plainly. Nothing technical stops the owner
-slicing retention by anchor any more — the anchors are public and the fold
-is a query away. What stops it is that **this is an analytics decision, not
-a privacy one**: per-user funnels and engagement scoring are refused
-because they build the behavioural model MONETIZATION.md's standing posture
-rules out, and that refusal has to hold on its own now that no floor is
-carrying it. A guarantee that only survived because a side effect enforced
-it was never a decision; this row is the decision, taken deliberately.
+**The anchor row is struck, and how it died is the useful part.** It once
+read: "the same suppression that stops a paying city identifying a person
+stops the owner doing it." D98 deleted the suppression, so that sentence
+went false in both halves, and the row was rewritten to stand on a
+different footing — *"this is an analytics decision, not a privacy one"*,
+held deliberately rather than as a side effect. That was honest, and it is
+also what made it removable: a preference is exactly the kind of line an
+owner may drop without breaking anything, and at **D329** the owner did.
+Nothing technical ever stopped the slice — the anchors are public and the
+fold is a query away.
+
+**Art. 9 did not move with it**, and the two were bundled in one sentence
+for long enough to read as one rule. Slicing by the politics test result
+needs explicit consent under GDPR Article 9 (D8); no amount of owner
+preference reaches it, and `BREAKDOWN_DIMS` still contains no test result
+of any kind.
 
 **The last row was narrowed on 2026-08-15 (D163), and the word doing the
 work is "server-side".** The owner has decided the app should learn what a person
@@ -215,6 +248,29 @@ still cannot show what people are into, because nothing reaches the
 server to show. And the interest model must not shape the Mirror: a
 feed selected by interest produces an interest-selected sample, which is
 why the core/tail split ([`SCALE-PLAN.md`](SCALE-PLAN.md) §1) exists.
+
+**Re-drawn 2026-08-26 (D317, built at D322), and the two paragraphs
+above are kept as the position that was crossed.** The owner's decision:
+the app "should absolutely track what you personally like — if not, it
+does not work", and under the paged read path (D320/D321) that is
+architecturally true — a device only re-orders what the server chose to
+send, so selection that works needs the server to know something. What
+was built is the NARROW form: `v2_users/{uid}/taste/profile`, this
+person's feed answers counted by topic, derived nightly from the ledger
+— from answers that are already public — with passes, defers and dwell
+still on the device (folding those in is D317 phase 2, a future record,
+and `check:policy-claims` pins the page sentence that promises it has
+not happened). So "the server never learns what any person was shown"
+still holds; "or what they are into" does not, and this row stops
+claiming it. The profile is owner-readable (D163's "shown" carried
+over), feeds exactly one thing (the pager's topic page sizes), and the
+console-facing consequences stand differently now: this console COULD
+show what people are into and **must not** — that is now a refusal
+this row carries rather than a fact the architecture enforced. What
+stays refused outright: ad targeting, audiences, engagement scoring,
+selling, and any read of the profile beyond selection. The Mirror
+sentence above survives whole — core is never paged (D321), so the
+corpus stays an interest-neutral sample.
 
 ## The fifth thing: instrumentation
 

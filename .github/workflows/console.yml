@@ -1,0 +1,157 @@
+# The program console — regenerate the merge list, act on the owner's
+# ticks, fold the owner list, record a trail row, and rewrite the pinned
+# Console issue (D352, docs/PROGRAM-RUNBOOK.md § The console).
+#
+# WHY A WORKFLOW AND NOT A ROUTINE. Three claude.ai subscriptions run
+# Routines against this repository and none can see another's; a Routine
+# also costs an account's bucket. Everything this page draws from the
+# tree, GitHub and the theory branch is readable by an Action with no
+# subscription at all — so the page is rendered here, every two hours and
+# on the push that carries the owner's tick, and the accounts contribute
+# only what they alone can see (their roll-call rows), which this reads
+# like any other comment.
+#
+# WHAT IT COMMITS. docs/MERGE-LIST.md (rows from GitHub, ticks the
+# owner's), the folded blocks of docs/OWNER-LIST.md, and one row a day in
+# monitoring/console-trail.jsonl — with the default token, so its own
+# commit never re-triggers it (pulse.yml's reasoning; the same
+# reset-and-regenerate push loop).
+#
+# WHAT IT NEVER DOES. Merge. Apply merge-when-green. The two labels it
+# touches are `approved`, added for a tick and removed for an untick, and
+# nothing else; opening a PR for a ticked branch is the one other write,
+# and that PR carries `approved` so the merge shift takes it.
+#
+# NOTE: scheduled workflows run from the DEFAULT branch only, so the
+# schedule does nothing until this is merged to main. The event triggers
+# below are why the page moves within minutes of a tick or a label rather
+# than at the next slot.
+name: Console
+
+on:
+  schedule:
+    # Every two hours, off the hour: the content lanes self-merge on the
+    # hour and the pulse runs at 06:00, so :17 never shares a minute with
+    # a merge whose row this would then draw a minute stale.
+    - cron: "17 */2 * * *"
+  push:
+    branches: [main]
+    # No `paths:` filter, for pulse.yml's reason: the owner's tick is one
+    # file, but a merge to main moves every other row too, and a list of
+    # "files that change the page" is the hand-maintained copy this repo
+    # keeps paying for. The job installs nothing and takes under a minute.
+  pull_request:
+    types: [opened, reopened, ready_for_review, labeled, unlabeled, closed]
+    branches: [main]
+  issues:
+    types: [edited]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: console
+  cancel-in-progress: true
+
+jobs:
+  console:
+    # An issue edit fires for every issue in the repository; only the
+    # Console's own box ticks are this job's business.
+    if: ${{ github.event_name != 'issues' || github.event.issue.title == 'Console' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Always main, whatever event fired: a pull_request event would
+          # otherwise check out the PR's merge ref, and this job writes to
+          # main.
+          ref: main
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          # Deliberately no `cache: npm` — nothing is installed.
+
+      # The theory branch, shallow: the console reads its graphs, logs,
+      # digest, scores and verdicts as blobs, never its history.
+      - name: Fetch the theory branch
+        run: git fetch --depth=1 origin axiom-theory:refs/remotes/origin/axiom-theory || echo "::warning::origin/axiom-theory could not be fetched — the theory panel draws its absence"
+
+      # A pull_request event runs THIS file from the PR's head against a
+      # checkout of main — so before the PR that adds the console merges,
+      # main has no script to run. That is a state, not a failure: say so
+      # and stop, rather than turning the console's own PR red.
+      - name: Is the console on main?
+        id: present
+        run: |
+          if [ -f scripts/console.mjs ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::scripts/console.mjs is not on main yet — nothing to render until the console merges"
+          fi
+
+      - name: Refresh the console
+        if: ${{ steps.present.outputs.yes == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/console.mjs --refresh
+
+      - name: Summarise
+        if: ${{ steps.present.outputs.yes == 'true' }}
+        run: |
+          {
+            echo "## Console — $(date -u +%Y-%m-%dT%H:%MZ)"
+            echo
+            echo '```'
+            tail -1 monitoring/console-trail.jsonl
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # RESET-AND-REGENERATE, NOT REBASE — pulse.yml's loop, for its reason:
+      # two runs can be in flight over the same files, and the files are
+      # derived from GitHub and the tree, so recomputing against whatever
+      # main holds now always converges. The merge list is only rewritten
+      # when GitHub answered, so a rejected push never costs a tick.
+      #
+      # That was true of a rejected PUSH and not of a rejected ACTION,
+      # which is the case that actually cost one: a failed label-add left
+      # the row drawn unticked, and the next run then saw neither a new
+      # tick nor a withdrawal. The console leaves both files alone and
+      # exits non-zero when an action does not land, so the owner's box
+      # survives and the tick is retried — a red run over a stale list,
+      # rather than a green one over a list that is quietly wrong.
+      #
+      # The RETRY below rides the same door from the other side: it re-runs
+      # the console without --refresh, so the actions are computed and not
+      # applied. That path leaves the files alone too (quietly, exit 0 —
+      # render-only is a legitimate mode), and the `git diff --quiet` at the
+      # top of the next attempt then finds nothing to commit and stops, with
+      # the owner's tick exactly as main holds it.
+      - name: Commit the list, the fold and the trail
+        if: ${{ steps.present.outputs.yes == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4; do
+            if git diff --quiet -- docs/MERGE-LIST.md docs/OWNER-LIST.md monitoring/console-trail.jsonl; then
+              echo "console: nothing to commit."
+              exit 0
+            fi
+            git add docs/MERGE-LIST.md docs/OWNER-LIST.md monitoring/console-trail.jsonl
+            git commit -m "console: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if git push origin HEAD:main; then exit 0; fi
+            echo "push rejected (attempt ${attempt}) — re-syncing and recomputing"
+            sleep $((2 ** attempt))
+            git fetch origin main
+            git reset --hard origin/main
+            node scripts/console.mjs > /dev/null
+          done
+          echo "::error::console could not commit after 4 attempts."
+          exit 1

@@ -48,6 +48,12 @@ import { stripComments } from "./strip-comments.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "src");
 
+// The one place the reference pattern is written. The self-test at the
+// bottom asks THIS function, not a copy of it — a copy would go on passing
+// while the scan used something else, which is the whole failure mode
+// being closed.
+const refPattern = (attr, flags) => new RegExp(`(?<![\\w-])${attr}\\s*=`, flags);
+
 // Attributes whose value NAMES an element elsewhere in the document.
 // htmlFor holds exactly one id; the aria-* ones hold a space-separated list.
 const REF_ATTRS = {
@@ -129,7 +135,7 @@ for (const file of walk(srcDir)) {
 
   // References: must resolve against the set above.
   for (const [attr, { list }] of Object.entries(REF_ATTRS)) {
-    const refRe = new RegExp(`(?<![\\w-])${attr}\\s*=`, "g");
+    const refRe = refPattern(attr, "g");
     while ((m = refRe.exec(src))) {
       const val = readAttrValue(src, m.index + m[0].length);
       if (!val) continue;
@@ -186,6 +192,33 @@ if (problems.length) {
 // association, so a floor of 1 is the honest bound: anything higher would
 // fail a legitimate refactor that nested a label instead, which is the
 // shape this gate exists to encourage.
+// …AND THE PATTERNS THEMSELVES, on a sample this file owns.
+//
+// The floor above cannot see one attribute going dark. Measured: disabling
+// the `htmlFor` scan alone drops the count from 11 references to 2 — every
+// pair D35 was about — and a floor of 1 passes happily. Raising the floor
+// is not the answer and the comment above says why: it would fail the
+// nested-label refactor this gate exists to encourage.
+//
+// So the floor stays a floor, and the SCANNER is tested instead — each
+// attribute's pattern against a fixture with a known answer, which
+// constrains the regexes without constraining the app. A pattern that
+// stops matching fails here even if the app has legitimately stopped
+// using that attribute.
+{
+  const SAMPLE = `<label htmlFor="a">x</label><b id="a"/>`
+    + `<i aria-labelledby="a b" aria-describedby="a" aria-controls="a"/>`;
+  const dead = Object.keys(REF_ATTRS).filter((attr) => !refPattern(attr).test(SAMPLE));
+  if (dead.length) {
+    console.error(
+      `check-labels FAILED: the pattern for ${dead.join(", ")} no longer matches `
+      + "its own sample.\nThe scan is broken — the count below would look healthy "
+      + "while that attribute went unchecked everywhere.",
+    );
+    process.exit(1);
+  }
+}
+
 if (fileCount < 40 || refCount < 1) {
   console.error(
     `check-labels FAILED: walked ${fileCount} files and found ${refCount} id `

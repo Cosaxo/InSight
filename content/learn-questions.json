@@ -86,6 +86,11 @@
       "id": "confused",
       "subject": "words",
       "label": "Commonly confused"
+    },
+    {
+      "id": "flag",
+      "subject": "geo",
+      "label": "Flags of the world"
     }
   ],
   "cards": [
@@ -2326,6 +2331,1123 @@
       "p": 55,
       "k": "Denim: de Nîmes",
       "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
+    },
+    {
+      "id": "sol9",
+      "f": "solar",
+      "q": "Which planet has the most moons?",
+      "a": [
+        "Jupiter",
+        "Saturn",
+        "Neptune",
+        "Uranus"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "Saturn: most moons",
+      "w": "Saturn passed Jupiter in 2023 — well over a hundred confirmed, many just a few kilometres across."
+    },
+    {
+      "id": "sol10",
+      "f": "solar",
+      "q": "The Great Red Spot is…",
+      "a": [
+        "A storm on Jupiter",
+        "A Martian volcano",
+        "A sunspot",
+        "A crater on Mercury"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 62,
+      "k": "Red Spot: Jupiter's storm",
+      "w": "A storm wider than Earth that has been blowing for at least 200 years."
+    },
+    {
+      "id": "sol11",
+      "f": "solar",
+      "q": "Sunlight reaches Earth in about…",
+      "a": [
+        "8 seconds",
+        "8 minutes",
+        "8 hours",
+        "No time at all"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 55,
+      "k": "Sunlight: eight minutes old"
+    },
+    {
+      "id": "sol12",
+      "f": "solar",
+      "q": "Which planet spins on its side?",
+      "a": [
+        "Uranus",
+        "Mercury",
+        "Saturn",
+        "Venus"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 45,
+      "k": "Uranus rolls on its side",
+      "w": "Tilted about 98° — likely knocked over by an ancient collision. Venus is the backwards one, not the sideways one."
+    },
+    {
+      "id": "sol13",
+      "f": "solar",
+      "q": "How much of the solar system's mass is the Sun?",
+      "a": [
+        "About half",
+        "About 75%",
+        "More than 99%",
+        "About 90%"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 34,
+      "k": "The Sun is nearly everything",
+      "w": "99.8% — Jupiter takes most of the rest, and every other body shares the crumbs."
+    },
+    {
+      "id": "str9",
+      "f": "stars",
+      "q": "When you look at a distant star, you see it…",
+      "a": [
+        "As it is now",
+        "As it was long ago",
+        "Slightly blurred",
+        "Slightly magnified"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 58,
+      "k": "Starlight is old light",
+      "w": "The light left years — sometimes millennia — ago. Some of those stars no longer exist."
+    },
+    {
+      "id": "str10",
+      "f": "stars",
+      "q": "What is the Sun mostly made of?",
+      "a": [
+        "Oxygen",
+        "Iron",
+        "Molten rock",
+        "Hydrogen"
+      ],
+      "c": 3,
+      "t": 2,
+      "p": 63,
+      "k": "The Sun: mostly hydrogen"
+    },
+    {
+      "id": "str11",
+      "f": "stars",
+      "q": "The brightest star in our night sky is…",
+      "a": [
+        "The North Star",
+        "Sirius",
+        "Venus",
+        "Betelgeuse"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Sirius outshines Polaris",
+      "w": "Polaris is famous for holding still, not for brightness — it ranks about 48th. Venus is brighter, but it is a planet."
+    },
+    {
+      "id": "str12",
+      "f": "stars",
+      "q": "How many stars can you see at once with the naked eye, from a truly dark place?",
+      "a": [
+        "A few hundred",
+        "A few thousand",
+        "About a million",
+        "Billions"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 36,
+      "k": "Naked eye: a few thousand",
+      "w": "Around 2,500 at once — the Milky Way's glow is the rest, unresolved."
+    },
+    {
+      "id": "str13",
+      "f": "stars",
+      "q": "What keeps the Sun shining?",
+      "a": [
+        "Nuclear fusion",
+        "Burning fuel",
+        "Gravity alone",
+        "Electricity"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 60,
+      "k": "The Sun runs on fusion",
+      "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
+    },
+    {
+      "id": "anc14",
+      "f": "ancient",
+      "q": "Pompeii was buried by…",
+      "a": [
+        "A volcano",
+        "A flood",
+        "An earthquake",
+        "A sandstorm"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 72,
+      "k": "Vesuvius buried Pompeii",
+      "w": "AD 79 — and the town had already been rattled by a major earthquake seventeen years earlier."
+    },
+    {
+      "id": "anc15",
+      "f": "ancient",
+      "q": "The oldest known writing was mostly used for…",
+      "a": [
+        "Poetry",
+        "Prayers",
+        "Accounting",
+        "Royal decrees"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 39,
+      "k": "Writing began as accounting",
+      "w": "The earliest cuneiform tablets are inventories — grain, beer, sheep — centuries before anyone wrote a poem down."
+    },
+    {
+      "id": "anc16",
+      "f": "ancient",
+      "q": "The Sphinx's missing nose was…",
+      "a": [
+        "Shot off by Napoleon's troops",
+        "Removed to a museum",
+        "Eroded by a flood",
+        "Gone centuries before Napoleon"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 42,
+      "k": "The nose predates Napoleon",
+      "w": "Drawings made decades before Napoleon's campaign already show the Sphinx noseless."
+    },
+    {
+      "id": "anc17",
+      "f": "ancient",
+      "q": "The pyramids were built mainly by…",
+      "a": [
+        "Enslaved people",
+        "Paid seasonal workers",
+        "Prisoners of war",
+        "Priests"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Pyramid builders were paid",
+      "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
+    },
+    {
+      "id": "anc18",
+      "f": "ancient",
+      "q": "The trial of Socrates was decided by…",
+      "a": [
+        "A single judge",
+        "A jury of about 500",
+        "The king of Athens",
+        "An oracle"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 33,
+      "k": "Socrates faced 500 jurors",
+      "w": "Athenian juries ran to hundreds precisely so they could not be bribed."
+    },
+    {
+      "id": "body14",
+      "f": "body",
+      "q": "Your stomach gets a new lining every…",
+      "a": [
+        "Few days",
+        "Few months",
+        "Year",
+        "It never renews"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 35,
+      "k": "Stomach relines in days",
+      "w": "The acid would digest the stomach itself otherwise — the mucus lining turns over in under a week."
+    },
+    {
+      "id": "body15",
+      "f": "body",
+      "q": "The body's strongest muscle for its size is…",
+      "a": [
+        "The thigh",
+        "The jaw",
+        "The heart",
+        "The bicep"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 44,
+      "k": "The jaw: strongest for size",
+      "w": "The masseter — bite force concentrates through a short, brutal lever."
+    },
+    {
+      "id": "body16",
+      "f": "body",
+      "q": "Which sense is wired most directly to memory?",
+      "a": [
+        "Sight",
+        "Hearing",
+        "Smell",
+        "Touch"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 51,
+      "k": "Smell wires to memory",
+      "w": "Olfactory signals skip the brain's relay station and land beside the memory centres — hence the time-travel of a familiar smell."
+    },
+    {
+      "id": "body17",
+      "f": "body",
+      "q": "Goosebumps are…",
+      "a": [
+        "A leftover from having fur",
+        "A circulation boost",
+        "An infection response",
+        "Random nerve noise"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 57,
+      "k": "Goosebumps: fur we lost",
+      "w": "The muscles that raise hairs made ancestors look bigger and warmer; the reflex outlived the coat."
+    },
+    {
+      "id": "body18",
+      "f": "body",
+      "q": "How many times does your heart beat in a day, roughly?",
+      "a": [
+        "10,000",
+        "100,000",
+        "1 million",
+        "1,000"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 62,
+      "k": "100,000 beats a day"
+    },
+    {
+      "id": "c214",
+      "f": "c20",
+      "q": "The first successful heart transplant was performed in…",
+      "a": [
+        "The United States",
+        "South Africa",
+        "The Soviet Union",
+        "The United Kingdom"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "First heart transplant: Cape Town",
+      "w": "Christiaan Barnard, Groote Schuur Hospital, 1967 — the patient lived eighteen days; the technique lived on."
+    },
+    {
+      "id": "c215",
+      "f": "c20",
+      "q": "Television was first demonstrated publicly in the…",
+      "a": [
+        "1900s",
+        "1920s",
+        "1940s",
+        "1950s"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 44,
+      "k": "TV demoed in the 1920s",
+      "w": "John Logie Baird showed working television in 1926 — two decades before most homes saw one."
+    },
+    {
+      "id": "c216",
+      "f": "c20",
+      "q": "The Empire State Building went up in about…",
+      "a": [
+        "Fourteen months",
+        "Three years",
+        "Five years",
+        "A decade"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 33,
+      "k": "Empire State: ~14 months",
+      "w": "First steel to opening day in under fourteen months, 1930 to 1931 — Depression labour, round-the-clock shifts."
+    },
+    {
+      "id": "c217",
+      "f": "c20",
+      "q": "The first email was sent in…",
+      "a": [
+        "1971",
+        "1983",
+        "1990",
+        "1995"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 47,
+      "k": "Email: 1971",
+      "w": "Ray Tomlinson sent the first networked email on ARPANET in 1971 — the web came nineteen years later."
+    },
+    {
+      "id": "c218",
+      "f": "c20",
+      "q": "Concorde crossed the Atlantic in about…",
+      "a": [
+        "Three and a half hours",
+        "Five hours",
+        "Seven hours",
+        "Nine hours"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 56,
+      "k": "Concorde: ~3.5 hours",
+      "w": "London to New York at twice the speed of sound — no airliner has come close since its 2003 retirement."
+    },
+    {
+      "id": "cap14",
+      "f": "capitals",
+      "q": "The capital of Pakistan is…",
+      "a": [
+        "Karachi",
+        "Islamabad",
+        "Lahore",
+        "Peshawar"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 51,
+      "k": "Pakistan: Islamabad",
+      "w": "Purpose-built in the 1960s to take the government from Karachi — the port kept the size, the new city took the state."
+    },
+    {
+      "id": "cap15",
+      "f": "capitals",
+      "q": "The capital of Kazakhstan is…",
+      "a": [
+        "Almaty",
+        "Tashkent",
+        "Astana",
+        "Bishkek"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 34,
+      "k": "Kazakhstan: Astana",
+      "w": "The capital moved north from Almaty in 1997; the city has since been renamed twice — Astana, Nur-Sultan, Astana again."
+    },
+    {
+      "id": "cap16",
+      "f": "capitals",
+      "q": "The capital of Ivory Coast is…",
+      "a": [
+        "Abidjan",
+        "Yamoussoukro",
+        "Accra",
+        "Dakar"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 29,
+      "k": "Ivory Coast: Yamoussoukro",
+      "w": "The official capital since 1983 — the first president's home village, with a basilica bigger than St Peter's; Abidjan kept the ministries."
+    },
+    {
+      "id": "cap17",
+      "f": "capitals",
+      "q": "Bolivia's constitutional capital is…",
+      "a": [
+        "La Paz",
+        "Santa Cruz",
+        "Quito",
+        "Sucre"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 32,
+      "k": "Bolivia: Sucre (on paper)",
+      "w": "Sucre holds the constitutional title and the supreme court; the government sits in La Paz — both answers win arguments."
+    },
+    {
+      "id": "cap18",
+      "f": "capitals",
+      "q": "The capital of Sri Lanka is…",
+      "a": [
+        "Colombo",
+        "Anuradhapura",
+        "Sri Jayawardenepura Kotte",
+        "Nuwara Eliya"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 26,
+      "k": "Sri Lanka: Kotte",
+      "w": "The legislative capital since 1982, swallowed by greater Colombo — which is why everyone says Colombo."
+    },
+    {
+      "id": "cell14",
+      "f": "cell",
+      "q": "A cell that can still become many different cell types is…",
+      "a": [
+        "A germ cell",
+        "A stem cell",
+        "A blood cell",
+        "A nerve cell"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 74,
+      "k": "Stem cells can still choose",
+      "w": "Germ cells are the tempting wrong turn — they make eggs and sperm, one committed job. A stem cell is the uncommitted one."
+    },
+    {
+      "id": "cell15",
+      "f": "cell",
+      "q": "Roughly how many cells make up a human body?",
+      "a": [
+        "Around 40 billion",
+        "Around 40 million",
+        "Around 40 trillion",
+        "Nobody has estimated it"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 45,
+      "k": "A body is trillions of cells",
+      "w": "Best current estimates land near 37 trillion — billions sounds enormous and is off by a factor of a thousand."
+    },
+    {
+      "id": "cell16",
+      "f": "cell",
+      "q": "The jelly that fills a cell, where much of its chemistry runs, is…",
+      "a": [
+        "The plasma",
+        "The cytoplasm",
+        "The lymph",
+        "The marrow"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 76,
+      "k": "Cytoplasm fills the cell",
+      "w": "Plasma is the liquid part of blood — a fluid BETWEEN cells, which is exactly why it reads so plausibly here."
+    },
+    {
+      "id": "cell17",
+      "f": "cell",
+      "q": "Is a virus a cell?",
+      "a": [
+        "No — it has no cell machinery",
+        "Yes — a very small one",
+        "Only while infecting one",
+        "Science is split on it"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 54,
+      "k": "A virus is not a cell",
+      "w": "A virus is genetic material in a protein coat — no ribosomes, no metabolism. It borrows a real cell's machinery to copy itself."
+    },
+    {
+      "id": "cell18",
+      "f": "cell",
+      "q": "Nerve impulses travel along a cell called a…",
+      "a": [
+        "A neutron",
+        "A nephron",
+        "A neuron",
+        "A neutrophil"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 82,
+      "k": "Neurons carry nerve signals",
+      "w": "The near-names are the whole trap: a neutron is a particle, a nephron a kidney unit, a neutrophil a white blood cell."
+    },
+    {
+      "id": "con14",
+      "f": "confused",
+      "q": "The one growing UP from a cave floor is a…",
+      "a": [
+        "Stalactite",
+        "Stalagmite",
+        "Stalagnate",
+        "A column"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "Stalagmites grow up",
+      "w": "Stalactites hold tight to the ceiling; stalagmites might reach it one day. Where the two meet, cavers call it a column."
+    },
+    {
+      "id": "con15",
+      "f": "confused",
+      "q": "“e.g.” introduces…",
+      "a": [
+        "A definition",
+        "An example",
+        "An exception",
+        "An emphasis"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 61,
+      "k": "e.g. means for example",
+      "w": "Exempli gratia — for the sake of an example. Defining is i.e.'s job (id est, 'that is'), which is exactly the swap."
+    },
+    {
+      "id": "con16",
+      "f": "confused",
+      "q": "In a pavement, the cement is…",
+      "a": [
+        "The whole mixture",
+        "The gravel in it",
+        "The powder that binds it",
+        "A trade name"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 48,
+      "k": "Cement binds concrete",
+      "w": "Concrete is the finished material — cement plus water, sand and gravel. Calling the slab 'cement' is the everyday slip this pair exists for."
+    },
+    {
+      "id": "con17",
+      "f": "confused",
+      "q": "The singular of “bacteria” is…",
+      "a": [
+        "Bacterium",
+        "Bacteria",
+        "Bacterius",
+        "Bacterial"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 66,
+      "k": "One bacterium, two bacteria",
+      "w": "A Latin neuter plural, like 'data' and 'media' — the plural form is so common it reads as singular."
+    },
+    {
+      "id": "con18",
+      "f": "confused",
+      "q": "Wanting what someone else has is, strictly speaking…",
+      "a": [
+        "Jealousy",
+        "Envy",
+        "Spite",
+        "Greed"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 41,
+      "k": "Envy wants, jealousy guards",
+      "w": "Jealousy strictly fears losing what you already have; envy covets what you don't. Everyday use blurs them — careful writing keeps the line."
+    },
+    {
+      "id": "flag1",
+      "f": "flag",
+      "q": "The only national flag with more than four sides belongs to…",
+      "a": [
+        "Switzerland",
+        "Nepal",
+        "Bhutan",
+        "Vatican City"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "Nepal’s flag has five sides",
+      "w": "Switzerland and Vatican City are the square ones — still four sides. Nepal’s two stacked pennants make five."
+    },
+    {
+      "id": "flag2",
+      "f": "flag",
+      "q": "The national flag with a rifle on it belongs to…",
+      "a": [
+        "Angola",
+        "Cuba",
+        "Mozambique",
+        "Vietnam"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 45,
+      "k": "Mozambique’s flag bears a rifle",
+      "w": "Angola is the near-miss — machete and cog-wheel. Mozambique’s carries an AK-47, crossed with a hoe over a book."
+    },
+    {
+      "id": "flag3",
+      "f": "flag",
+      "q": "Indonesia’s flag is almost identical to…",
+      "a": [
+        "Poland’s",
+        "Monaco’s",
+        "Singapore’s",
+        "Austria’s"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 50,
+      "k": "Indonesia matches Monaco",
+      "w": "Poland is the flip — white over red. Monaco’s red-over-white differs from Indonesia’s only in proportions."
+    },
+    {
+      "id": "flag4",
+      "f": "flag",
+      "q": "How many stars are on the flag of China?",
+      "a": [
+        "One",
+        "Four",
+        "Five",
+        "Ten"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 70,
+      "k": "China’s flag has five stars",
+      "w": "One large star and four small — the big one is what memory keeps, and the trap."
+    },
+    {
+      "id": "flag5",
+      "f": "flag",
+      "q": "The Union Jack combines the crosses of…",
+      "a": [
+        "England, Scotland and Wales",
+        "England, Scotland and Ireland",
+        "England and Scotland only",
+        "All four home nations"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 48,
+      "k": "No Wales in the Union Jack",
+      "w": "St George, St Andrew and St Patrick — the Welsh dragon never made it in."
+    },
+    {
+      "id": "flag6",
+      "f": "flag",
+      "q": "Which colour appears on the most national flags?",
+      "a": [
+        "Blue",
+        "White",
+        "Red",
+        "Green"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 40,
+      "k": "Red is the commonest flag colour",
+      "w": "Roughly three in four national flags carry red; white runs it close, blue further back."
+    },
+    {
+      "id": "ear14",
+      "f": "earth",
+      "q": "The world’s largest island is…",
+      "a": [
+        "Australia",
+        "Greenland",
+        "Madagascar",
+        "Borneo"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 62,
+      "k": "Greenland is the largest island",
+      "w": "Australia is bigger but counts as a continent — the exact line this question exists to draw."
+    },
+    {
+      "id": "ear15",
+      "f": "earth",
+      "q": "The lowest point on Earth’s land surface is the shore of…",
+      "a": [
+        "Death Valley",
+        "The Dead Sea",
+        "The Caspian Sea",
+        "Lake Eyre"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 51,
+      "k": "The Dead Sea sits lowest",
+      "w": "About 430 m below sea level. Death Valley is North America’s low point, not the world’s."
+    },
+    {
+      "id": "ear16",
+      "f": "earth",
+      "q": "Strictly speaking, the largest desert on Earth is…",
+      "a": [
+        "The Sahara",
+        "The Gobi",
+        "Antarctica",
+        "The Arabian"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 44,
+      "k": "Antarctica is the biggest desert",
+      "w": "A desert is defined by precipitation, not sand — and the ice sheet gets almost none."
+    },
+    {
+      "id": "ear17",
+      "f": "earth",
+      "q": "The Volga, Europe’s longest river, empties into…",
+      "a": [
+        "The Black Sea",
+        "The Caspian Sea",
+        "The Baltic",
+        "The Mediterranean"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "The Volga ends in the Caspian",
+      "w": "A closed sea — the Volga never reaches the open ocean at all."
+    },
+    {
+      "id": "evo14",
+      "f": "evo",
+      "q": "Roughly when did the dinosaurs (except birds) die out?",
+      "a": [
+        "6 million years ago",
+        "66 million years ago",
+        "660 million years ago",
+        "66,000 years ago"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 57,
+      "k": "Dinosaurs fell 66 million years ago",
+      "w": "The asteroid’s boundary layer dates it; each near-miss option is a thousandfold off."
+    },
+    {
+      "id": "evo15",
+      "f": "evo",
+      "q": "Which of these is OLDEST as a group?",
+      "a": [
+        "Trees",
+        "Sharks",
+        "Dinosaurs",
+        "Grass"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 36,
+      "k": "Sharks are older than trees",
+      "w": "Sharks swam tens of millions of years before the first true trees stood; grass is younger than T. rex."
+    },
+    {
+      "id": "evo16",
+      "f": "evo",
+      "q": "A trait that spreads because mates prefer it is…",
+      "a": [
+        "Natural selection",
+        "Sexual selection",
+        "Genetic drift",
+        "Mutation"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 49,
+      "k": "Peacock tails are sexual selection",
+      "w": "Darwin’s second engine: the tail costs survival and pays in mates."
+    },
+    {
+      "id": "evo17",
+      "f": "evo",
+      "q": "Insects and birds both fly. Their wings are…",
+      "a": [
+        "Homologous",
+        "Analogous",
+        "Vestigial",
+        "The same genes"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 42,
+      "k": "Same job, different origin",
+      "w": "Analogous — same use from separate origins. The mirror of homologous, and the swap everyone makes."
+    },
+    {
+      "id": "gene14",
+      "f": "gene",
+      "q": "What does DNA stand for?",
+      "a": [
+        "Deoxyribonucleic acid",
+        "Dinucleic acid",
+        "Deoxyribose nitrate",
+        "Double nucleic acid"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 68,
+      "k": "DNA is deoxyribonucleic acid",
+      "w": "The sugar is deoxyribose — the plausible wrong answers all garble that half."
+    },
+    {
+      "id": "gene15",
+      "f": "gene",
+      "q": "The DNA in one of your cells, stretched out, runs about…",
+      "a": [
+        "2 centimetres",
+        "2 metres",
+        "2 kilometres",
+        "2 millimetres"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 46,
+      "k": "Two metres of DNA per cell",
+      "w": "Coiled around histones into a nucleus a hundredth of a millimetre wide."
+    },
+    {
+      "id": "gene16",
+      "f": "gene",
+      "q": "The enzyme that copies DNA is…",
+      "a": [
+        "The ribosome",
+        "DNA polymerase",
+        "ATP synthase",
+        "Amylase"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 39,
+      "k": "Polymerase copies DNA",
+      "w": "Ribosomes read RNA into protein — the copying itself is polymerase’s job."
+    },
+    {
+      "id": "gene17",
+      "f": "gene",
+      "q": "Your blood type is inherited from…",
+      "a": [
+        "Your mother only",
+        "Both parents",
+        "Your father only",
+        "Neither — it’s random"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 74,
+      "k": "Blood type comes from both",
+      "w": "A and B are co-dominant; two O parents can only make O — the kitchen-table proof."
+    },
+    {
+      "id": "org14",
+      "f": "origins",
+      "q": "“Companion” literally means someone you share…",
+      "a": [
+        "A road",
+        "Bread",
+        "A house",
+        "A fight"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 42,
+      "k": "A companion shares bread",
+      "w": "Latin com + panis. The road answer belongs to “travel”, from travail."
+    },
+    {
+      "id": "org15",
+      "f": "origins",
+      "q": "“Deadline” began as…",
+      "a": [
+        "A printing term",
+        "A line at a prison camp",
+        "A fishing term",
+        "A telegraph term"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 34,
+      "k": "Deadline began at a prison",
+      "w": "A Civil-War camp boundary not to be crossed; newspapers took the word, not the stakes."
+    },
+    {
+      "id": "org16",
+      "f": "origins",
+      "q": "“Vaccine” comes from the Latin for…",
+      "a": [
+        "Shield",
+        "Cow",
+        "Needle",
+        "Health"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 56,
+      "k": "Vaccine comes from cow",
+      "w": "Vacca — Jenner’s cowpox inoculations named the whole idea."
+    },
+    {
+      "id": "org17",
+      "f": "origins",
+      "q": "A “freelancer” was originally…",
+      "a": [
+        "A newspaper writer",
+        "A mercenary with a lance",
+        "A freed servant",
+        "A fence-builder"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 52,
+      "k": "Freelancers carried lances",
+      "w": "Scott’s Ivanhoe popularised it: a lance for hire, loyal to whoever paid."
+    },
+    {
+      "id": "sol14",
+      "f": "solar",
+      "q": "The tallest known volcano in the solar system stands on…",
+      "a": [
+        "Venus",
+        "Mars",
+        "Earth",
+        "Mercury"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 59,
+      "k": "Olympus Mons stands on Mars",
+      "w": "Three times Everest — low gravity and no drifting plates let it keep growing in place."
+    },
+    {
+      "id": "sol15",
+      "f": "solar",
+      "q": "Saturn’s rings are mostly…",
+      "a": [
+        "Rock",
+        "Water ice",
+        "Gas",
+        "Dust"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 61,
+      "k": "Saturn’s rings are ice",
+      "w": "Billions of ice pieces, grains to houses — bright precisely because ice reflects."
+    },
+    {
+      "id": "sol16",
+      "f": "solar",
+      "q": "One day on Mercury, sunrise to sunrise, lasts about…",
+      "a": [
+        "24 hours",
+        "176 Earth days",
+        "One Earth year",
+        "59 minutes"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 31,
+      "k": "A Mercury day outlasts its year",
+      "w": "It spins three times for every two orbits — sunrise to sunrise beats its own 88-day year."
+    },
+    {
+      "id": "sol17",
+      "f": "solar",
+      "q": "The Moon is slowly…",
+      "a": [
+        "Falling toward Earth",
+        "Drifting away from Earth",
+        "Fixed in its orbit",
+        "Wobbling at random"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 50,
+      "k": "The Moon drifts away",
+      "w": "About 3.8 cm a year — measured by bouncing lasers off Apollo’s mirrors."
+    },
+    {
+      "id": "str14",
+      "f": "stars",
+      "q": "When the Sun dies, it will…",
+      "a": [
+        "Explode as a supernova",
+        "Swell, then fade to an ember",
+        "Collapse to a black hole",
+        "Simply go dark"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 47,
+      "k": "The Sun ends as an ember",
+      "w": "Too light to go supernova — red giant first, then a white dwarf, cooling for eternity."
+    },
+    {
+      "id": "str15",
+      "f": "stars",
+      "q": "The Milky Way and Andromeda are…",
+      "a": [
+        "Drifting apart",
+        "Drifting closer",
+        "Orbiting each other",
+        "Unrelated"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 43,
+      "k": "Andromeda is inbound",
+      "w": "Due in about four billion years — stars are so sparse that almost none will collide."
+    },
+    {
+      "id": "str16",
+      "f": "stars",
+      "q": "A teaspoon of neutron star would weigh about…",
+      "a": [
+        "A tonne",
+        "A billion tonnes",
+        "A kilogram",
+        "Nothing — it’s gas"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 54,
+      "k": "Neutron-star matter is absurdly dense",
+      "w": "A city-sized core with the Sun’s mass — what a supernova leaves compressed behind."
+    },
+    {
+      "id": "str17",
+      "f": "stars",
+      "q": "Stars twinkle because of…",
+      "a": [
+        "Their own flickering",
+        "Earth’s atmosphere",
+        "Interstellar dust",
+        "Moonlight"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 72,
+      "k": "Twinkling is our air",
+      "w": "Turbulent air bends the light on its way down; from orbit, stars burn steady."
     }
   ]
 }

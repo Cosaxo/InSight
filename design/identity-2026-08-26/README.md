@@ -8,6 +8,12 @@ ink-tile), the lockups, and the two size rules the implementation
 follows: full mark above ~24 px, compact below; ink tile is the primary
 icon, paper tile for light contexts.
 
+**The shipped icon is the PAPER tile (D340), not the ink one the canvas
+names primary.** The owner reversed that choice on 2026-09-01; the canvas
+is committed verbatim and still says what it said, so read its card 3b as
+the two variants it specifies rather than as which one ships. Everything
+else on this page holds.
+
 Read it in a browser as-is. It is a design-canvas document (`.dc.html`),
 so the canvas runtime script it loads is absent here and the `{{ … }}`
 bindings will not resolve — every styled value doubles as a

@@ -36,12 +36,12 @@
 // the vocabularies and vote.test.ts holds which anchors a rates question
 // may take. This holds only that the field is written at all.
 
-import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
+import { resolve, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = "src/v2/data/live.ts";
 const CONSUMER = "functions/src/replay.ts";
 const REQUIRED = ["qid", "answeredAt", "anchors"];
 
@@ -50,7 +50,34 @@ const REQUIRED = ["qid", "answeredAt", "anchors"];
 // elsewhere cannot quietly satisfy this gate.
 const PATH = '"v2_users", uid, "answers"';
 
-const src = readFileSync(resolve(root, SRC), "utf8");
+// COMMENTS BLANKED FIRST, on both reads below. A commented-out `anchors:`
+// line is precisely the shape this gate exists to refuse and the raw text
+// could not tell it from a live one: measured, `// anchors: answerAnchors(),`
+// in the duel payload leaves this printing "6 answer-create site(s) carry
+// qid, answeredAt, anchors", exit 0, while deleting the same line fails by
+// file and line. Blanking rather than deleting is why the line numbers this
+// gate reports stay true — see strip-comments.mjs, whose whole design note
+// is that property, and check-appcheck.mjs, which records the identical
+// failure in its own scan.
+// EVERY CLIENT SOURCE, not one file. This read `src/v2/data/live.ts` and
+// nothing else, so a SECOND answer-write path anywhere else in the app was
+// outside the gate entirely — and the gate's subject is "every answer
+// carries qid, answeredAt and anchors", not "every answer live.ts writes".
+// D357's pending-queue drain is the near miss: a second write path added
+// beside the first. Reads of the same path are already classified and
+// skipped below (circle.ts fetches a member's answers that way), so
+// widening the file set costs nothing but reaches everything.
+const sources = (function walk(dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = resolve(dir, e.name);
+    if (e.isDirectory()) out.push(...walk(full));
+    else if (/\.(tsx?|jsx?)$/.test(e.name) && !/\.test\./.test(e.name)) out.push(full);
+  }
+  return out;
+})(resolve(root, "src"))
+  .map((full) => ({ rel: relative(root, full), text: stripComments(readFileSync(full, "utf8")) }))
+  .filter((f) => f.text.includes(PATH));
 
 /** Take the object literal starting at `open` (an index pointing at `{`). */
 function braceBlock(text, open) {
@@ -92,7 +119,9 @@ function payloadFor(text, callIdx) {
 const problems = [];
 let creates = 0;
 let edits = 0;
+let reads = 0;
 
+for (const { rel: SRC, text: src } of sources) {
 for (let i = 0; ; ) {
   const at = src.indexOf(PATH, i);
   if (at === -1) break;
@@ -113,6 +142,22 @@ for (let i = 0; ; ) {
 
   if (/updateDoc\(/.test(callLine)) { edits++; continue; }
   if (!/setDoc\(/.test(callLine)) {
+    // A READ of the path — `collection(db, "v2_users", uid, "answers")`
+    // inside a query — is outside this gate's subject: nothing a read
+    // does can drop a field from a document. D357's settle is the first
+    // read written with the same `uid` name the write shape uses
+    // (hydrate's deltas say `uidA`, which is why they never reached this
+    // line), and it is classified rather than renamed around the scan.
+    // Tested AFTER both verbs, deliberately: a write spelled
+    // `setDoc(doc(collection(db, "v2_users", uid, "answers"), qid), …)`
+    // — the idiom the takes write already uses one collection over —
+    // carries `collection(` on its line too, and a read test ahead of the
+    // verbs would have waved its payload through unchecked. And NOT a
+    // `doc(` line: the same idiom split across lines puts
+    // `doc(collection(db, "v2_users", uid, "answers"), qid),` on a line
+    // with neither verb, which must land in `problems` below as the
+    // unclassifiable write it is, not here as a read.
+    if (/\bcollection\(/.test(callLine) && !/\bdoc\(/.test(callLine)) { reads++; continue; }
     // Neither verb on the line means the scan shape has drifted from the
     // code — a multi-line call, say. Report it: a site this cannot classify
     // is a site it is not checking, and silence there is the whole failure
@@ -137,12 +182,13 @@ for (let i = 0; ; ) {
     }
   }
 }
+}
 
 // Vacuity: a scanner that matched nothing reports success, which is the
 // gate bug check-appcheck.mjs's header records. Refuse to pass on zero.
 if (creates < 5) {
   problems.push(
-    `only ${creates} answer-create site(s) found in ${SRC} — the scan shape is stale, `
+    `only ${creates} answer-create site(s) found across ${sources.length} file(s) — the scan shape is stale, `
     + "not the code. Fix this script before trusting it.",
   );
 }
@@ -152,7 +198,7 @@ if (creates < 5) {
 // gate green, because a substring match cannot tell a live read from a
 // rename that broke it. It now demands the exact accessor — the value
 // coming off the answer DOCUMENT — which is the thing that must not go.
-const consumer = readFileSync(resolve(root, CONSUMER), "utf8");
+const consumer = stripComments(readFileSync(resolve(root, CONSUMER), "utf8"));
 if (!/\.get\(\s*["']anchors["']\s*\)/.test(consumer)) {
   problems.push(
     `${CONSUMER} no longer reads \`anchors\` off the answer document — `
@@ -174,5 +220,6 @@ if (problems.length) {
 
 console.log(
   `check-answer-shape OK — ${creates} answer-create site(s) carry ${REQUIRED.join(", ")}; `
-  + `${edits} edit site(s) exempt (D86); the rebuild still reads anchors.`,
+  + `${edits} edit site(s) exempt (D86); ${reads} read(s) outside the gate's subject; `
+  + "the rebuild still reads anchors.",
 );

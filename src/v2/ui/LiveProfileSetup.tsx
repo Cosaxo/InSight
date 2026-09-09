@@ -47,15 +47,19 @@
 //   3. It collects no free text and no exact anything. Every control is a
 //      closed vocabulary held equal to the server's buckets by
 //      check:anchors, the city is the catalogue picker (D9), and the
-//      birthday never leaves the device — only its band is written
-//      (profile-vitals.js anchorsFrom).
+//      BIRTHDAY never leaves the device — what `anchorsFrom` writes is
+//      the band and, since D155, the exact age derived from it
+//      (profile-vitals.js). This said "only its band is written", which
+//      understated what the profile carries: a year-resolution age is
+//      published, the date it was computed from is not.
 //   4. It has no vocabulary of its own. Every list, and the map from these
-//      fields onto the eight anchor keys, is imported from
+//      fields onto the 10 anchor keys, is imported from
 //      spec/profile-vitals.js, which is the file check:anchors reads. A
 //      second copy here would pass every gate and quietly stop a level
 //      counting.
 import React from "react";
 import LIVE from "../data/live";
+import { pushBackLayer } from "../data/backLayers";
 import CityPicker from "./CityPicker";
 import { mergeProfileVitals } from "../data/cityAnchor";
 import { CITY_OK_LEAF } from "../data/cityConfirm";
@@ -122,6 +126,34 @@ interface Vitals { [k: string]: string }
 
 function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   const [v, setV] = React.useState<Vitals>({});
+
+  // ANDROID'S BACK BUTTON, which `useDialog` above does not cover. D24 gave
+  // this overlay Escape and a focus trap — the keyboard path — and
+  // `backLayers.ts` is the Android one, deliberately a separate mechanism
+  // because Escape is a DOM event a focused dialog receives and the back
+  // button is not.
+  //
+  // Without this, Back on D151's account questions falls through the shell's handler
+  // (app-shell.jsx peels person → city → overlay → tab, and this screen is
+  // none of them — it lives on its own root outside `<App/>`), the handler
+  // returns false, and `back.ts` calls `App.exitApp()`. That is verbatim
+  // the failure backLayers.ts was written to stop, one screen earlier:
+  // the questions are still on screen and the app quits under them.
+  // `markProfileSetupSeen()` is written by `onDone` alone, so the quit
+  // recorded nothing and the next launch asks the same seven again.
+  //
+  // Back DISMISSES rather than stepping a page, because that is what the
+  // Escape this pairs with does, and `closeTopBackLayer` pops the layer as
+  // it calls it — a stepping closer would have to re-register itself on
+  // every press, which is exactly the stack churn `pushBackLayer`'s own
+  // docstring rules out.
+  //
+  // The ref is Sheet's, for Sheet's reason (primitives.jsx): registered
+  // once per mount so the LIFO order means something, reading the current
+  // handler through a ref rather than re-registering on it.
+  const doneRef = React.useRef(onDone);
+  React.useEffect(() => { doneRef.current = onDone; });
+  React.useEffect(() => pushBackLayer(() => doneRef.current()), []);
   const [busy, setBusy] = React.useState(false);
   // Identity (D190). Seeded from whatever the account already holds, so a
   // returning account is shown its own name rather than an empty box.
@@ -134,12 +166,18 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // restating the mapping. Recomputed per render rather than tracked:
   // it is a pure fold over eight <select>s.
   const anchors: Record<string, string> = anchorsFrom(v);
-  // The DERIVED keys do not count. `country` comes from the city and
-  // `age`/`ageBand` both come from the birthday — counting them would tell
-  // the reader they have filled in fields they were never shown. Nine
-  // anchor keys, seven questions, and the birthday is three controls
-  // feeding two of them.
-  const DERIVED = ["country", "age"];
+  // The DERIVED keys do not count. `country` comes from the city,
+  // `age`/`ageBand` both come from the birthday, and `jobField` (D328)
+  // comes from the profession pick — counting them would tell the reader
+  // they have filled in fields they were never shown. Ten anchor keys,
+  // seven questions: the birthday is three controls feeding two of them,
+  // and two more keys are folds of a single answer.
+  //
+  // A DERIVED key is not an exception to this list, it is the rule for
+  // every fold `anchorsFrom` performs — so a new one belongs here in the
+  // same change that adds it. The counter is what tells on you: D328 read
+  // "Save 1 of 8" over seven questions until this line moved.
+  const DERIVED = ["country", "age", "jobField"];
   const asked = Object.entries(anchors).filter(([k]) => !DERIVED.includes(k));
   const filled = asked.filter(([, val]) => !!val).length;
 
@@ -158,12 +196,51 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // screen up (below), so Save is a button that can be pressed twice —
   // and without this the second press would re-write the anchors and the
   // name it saved on the first.
-  const written = React.useRef({ anchors: false, name: "" });
+  //
+  // KEYED ON THE CONTENT, both halves. The anchors half used to be a
+  // boolean latched on the first save, and the name half one line down
+  // already keyed on the name — so the two disagreed about what "already
+  // written" meant. A refused handle keeps this screen up precisely so
+  // the person can fix something, and anything they fix on the way back
+  // is an EDIT: picking a birth year after the first Save, correcting a
+  // gender they mis-tapped. The latch swallowed all of it, silently, and
+  // the screen then closed as though it had saved.
+  //
+  // Keyed on `v` rather than on `anchors`, because `mergeProfileVitals(v)`
+  // merges the raw controls while `saveAnchors` merges a lossy fold over
+  // them — two vitals can produce one anchor set, and the raw pair is what
+  // actually changed. Both writes merge and are idempotent, so a retry
+  // with nothing edited still costs nothing.
+  const written = React.useRef({ anchors: "", name: "" });
+
+  // D331 — the political consent, asked here for D151's own reason: an
+  // answer cannot be re-filed, and a coordinate published before anyone
+  // agreed to it cannot be un-published from the copies people took.
+  //
+  // RECORDED ON THE TAP, not on Save. A consent is its own act rather than
+  // a field on a form: someone who taps "Not these" and then "Skip for
+  // now" has decided, and losing that to a dismissed screen would re-ask
+  // them tomorrow — which is how a refusal quietly becomes a nag. null is
+  // "not answered yet", and the default while it is null is OFF.
+  const [pol, setPol] = React.useState<boolean | null>(
+    // Three states, and the middle one used to be missing. Consented is
+    // true; ANSWERED-but-not-consented is a decline, and it must come back
+    // as `false` so the screen shows the button they actually pressed;
+    // only an unanswered ask is null. Seeding from consent alone made a
+    // decline indistinguishable from never having been asked — the exact
+    // re-ask the comment above calls a nag.
+    () => (LIVE.politicalConsented() ? true : LIVE.politicalAnswered() ? false : null),
+  );
+  const answerPolitical = (on: boolean) => {
+    setPol(on);
+    void LIVE.setPoliticalConsent(on).catch(() => { /* next boot re-reads the truth */ });
+  };
 
   async function finish(save: boolean) {
     if (busy) return;
     setBusy(true);
-    if (save && filled && !written.current.anchors) {
+    const vKey = JSON.stringify(v);
+    if (save && filled && written.current.anchors !== vKey) {
       // Both halves, exactly as setCityAnchor does it and for the same
       // reason: GeneralPanel mirrors anchorsFrom(vitals) into saveAnchors
       // on EVERY mount, so anchors saved only server-side would survive
@@ -175,7 +252,7 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
       // would be lost to a screen dismissed mid-flight.
       mergeProfileVitals(v);
       LIVE.saveAnchors(anchors);
-      written.current.anchors = true;
+      written.current.anchors = vKey;
     }
     if (save) {
       // Best-effort, like the anchors: a name that fails to write is worth
@@ -218,7 +295,19 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
       paddingTop: "calc(env(safe-area-inset-top) + 22px)",
       paddingBottom: "calc(env(safe-area-inset-bottom) + 28px)",
     }}>
-      <div style={{ width: "100%", maxWidth: 420, margin: "0 auto", padding: "0 22px" }}>
+      {/* boxSizing, and it is the whole of build 33's "scaled wrong" bug.
+          There is NO universal `* { box-sizing: border-box }` in
+          styles.css — it is set per rule — so `width: 100%` here meant
+          100% of the viewport PLUS 44px of padding, and every field ran
+          44px off the right edge on every phone narrower than 464. The
+          screenshot that reported it shows the sentence about the handle
+          cut mid-word.
+          Measured, not assumed: at 402pt (iPhone 16 Pro) maxWidth never
+          binds, so the content box was 446px inside a 402px window. */}
+      <div style={{
+        width: "100%", maxWidth: 420, margin: "0 auto", padding: "0 22px",
+        boxSizing: "border-box",
+      }}>
         <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 26, letterSpacing: "-0.03em" }}>
           A few things about you
         </div>
@@ -325,6 +414,44 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
           <PsField id="ps-heightBand" title="Height">
             <PsSelect id="ps-heightBand" value={v.heightBand || ""} onChange={(x) => set("heightBand", x)} options={HEIGHT_OPTS} placeholder="—" />
           </PsField>
+        </div>
+
+        {/* NOT ONE OF THE SEVEN, and deliberately outside the grid and
+            outside `filled`. The anchors are facts about you that the
+            aggregate slices by; this is permission for the app to derive
+            and publish something it computes. Counting it in "Save N of 7"
+            would file a consent as a demographic.
+
+            TWO BUTTONS OF EQUAL WEIGHT — same size, same border, neither
+            in the accent colour and neither the page's filled primary. A
+            coloured yes beside a grey no is a nudge, and a nudged consent
+            is not freely given, which would cost the app the very thing
+            the ask exists to obtain. This is the one control on this
+            screen that must not look persuasive. */}
+        <div style={{ marginTop: 26, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+          <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 14.5, color: "var(--ink)" }}>
+            The politics questions
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginTop: 6, lineHeight: 1.5 }}>
+            Political opinion is special-category data, so it is a separate
+            choice. Say yes and your answers to those cards build a
+            six-axis compass on your profile, which anyone signed in can
+            read — like every other answer here. Say no and no political
+            profile is built. You can change it later in your account.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            {([[false, "Not these"], [true, "Yes, build it"]] as const).map(([on, label]) => (
+              <button key={label} className="press" onClick={() => answerPolitical(on)} disabled={busy}
+                style={{
+                  flex: 1, borderRadius: 999, padding: "11px 0", cursor: "pointer",
+                  fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5,
+                  WebkitAppearance: "none",
+                  border: `1.5px solid ${pol === on ? "var(--ink)" : "var(--line)"}`,
+                  background: pol === on ? "var(--surface-2)" : "transparent",
+                  color: pol === on ? "var(--ink)" : "var(--ink-2)",
+                }}>{label}</button>
+            ))}
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>

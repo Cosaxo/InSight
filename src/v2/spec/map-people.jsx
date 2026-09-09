@@ -12,6 +12,7 @@ import NAV from '../data/nav';
 // map-people.jsx — how you and your circle read each other in the daily
 // duels. Lives on the CIRCLE stop (a lens card under the relationship map),
 // not on the You map — the You map is answers only.
+const EXPORTS = {};
 (function () {
   const PEOPLE_CAT = { id: 'circle-read', label: 'People', hue: 28 };
 
@@ -60,7 +61,7 @@ import NAV from '../data/nav';
           <div className="mpc-gap">No misses yet — your circle calls your picks.</div>
         )}
         {al.total > 0 && (
-          <div className="mpc-align">with your group's majority {al.withMaj} of {al.total} days</div>
+          <div className="mpc-align">the rooms named you {al.crowns} of {al.votes} votes</div>
         )}
       </div>
     );
@@ -128,12 +129,13 @@ import NAV from '../data/nav';
           <div className="mpc-gap">No misses yet — your circle calls your picks.</div>
         )}
         {al.total > 0 && (
-          <div className="mpc-align">with your group's majority {al.withMaj} of {al.total} days</div>
+          <div className="mpc-align">the rooms named you {al.crowns} of {al.votes} votes</div>
         )}
       </div>
     );
   }
 
-  Object.assign(window, { MTPeopleCard, MTPersonCard, CircleReadCard });
+  Object.assign(EXPORTS, { MTPeopleCard, MTPersonCard, CircleReadCard });
 })();
+export const { MTPeopleCard, MTPersonCard, CircleReadCard } = EXPORTS;
 

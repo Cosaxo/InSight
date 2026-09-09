@@ -13,6 +13,7 @@
 // package.json's values into the two native projects.
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -39,19 +40,64 @@ const warnings = [];
 // ── Android ──────────────────────────────────────────────────────
 const GRADLE = "android/app/build.gradle";
 let gradle = readFileSync(p(GRADLE), "utf8");
-const gCode = gradle.match(/versionCode\s+(\d+)/);
-const gName = gradle.match(/versionName\s+"([^"]+)"/);
+// MATCHED AGAINST THE COMMENT-STRIPPED SOURCE, because `.match` takes the
+// FIRST hit and a superseded value parked in a comment above the live line
+// is house style in this tree:
+//
+//     // was: versionCode 32 / versionName "2.0.0" before the downgrade
+//     versionCode 5
+//     versionName "1.0.0"
+//
+// Planted exactly that and the gate printed "versions OK — 2.0.0 (build
+// 32) across package.json, Android and iOS" while Android declared 1.0.0 /
+// 5. It names Android in its own success line, which is the shape that
+// makes it worse than silence.
+//
+// `scripts/source-pins.test.mjs` exists to ratchet this class and could
+// not see it: its pattern matches `readFileSync(…).match(`, and here the
+// read and the match are separate statements over a variable.
+//
+// THE FIX PATH HAD THE SAME DEFECT ONE LAYER DOWN, and the sentence that
+// used to stand here — "the FIX path below still rewrites the real file"
+// — was the reason nobody looked. It did rewrite the real file, at the
+// wrong offset: `gradle.replace(/versionName\s+"[^"]+"/, …)` is
+// non-global and takes the FIRST hit, which in the shape above is the
+// one INSIDE the comment. So `--fix` on a downgraded checkout printed
+// "Applied fixes", exited 0, rewrote the provenance note and left the
+// live lines alone — on the path the gate's own failure message tells
+// the operator to run.
+//
+// `replaceLive` closes it using the property strip-comments.mjs is built
+// around: blanking, not deleting, so the stripped copy has the SAME
+// length and the same offsets. Match on the stripped copy, splice into
+// the raw one at the index it reports. The iOS half below never had this
+// bug — its replaces are `/g` over a matchAll — so it is untouched.
+const gradleSrc = stripComments(gradle);
+// Re-strips on every call rather than closing over `gradleSrc`, because
+// the two fixes run in sequence and the first can change the file's
+// length: reusing offsets computed against the original would splice the
+// second edit at a stale index. That it happens to be safe today (the
+// versionCode line sits ABOVE versionName, so the earlier offset survives
+// the later edit) is exactly the kind of accident this gate exists to
+// stop trusting.
+const replaceLive = (raw, re, next) => {
+  const m = stripComments(raw).match(re);
+  if (!m || m.index === undefined) return raw;
+  return raw.slice(0, m.index) + next + raw.slice(m.index + m[0].length);
+};
+const gCode = gradleSrc.match(/versionCode\s+(\d+)/);
+const gName = gradleSrc.match(/versionName\s+"([^"]+)"/);
 if (!gCode || !gName) {
   problems.push(`${GRADLE}: could not find versionCode / versionName`);
 } else {
   if (gName[1] !== version) {
     problems.push(`${GRADLE} versionName "${gName[1]}" != package.json version "${version}"`);
-    if (FIX) gradle = gradle.replace(/versionName\s+"[^"]+"/, `versionName "${version}"`);
+    if (FIX) gradle = replaceLive(gradle, /versionName\s+"[^"]+"/, `versionName "${version}"`);
   }
   const code = Number(gCode[1]);
   if (code < appBuild) {
     problems.push(`${GRADLE} versionCode ${code} is BEHIND appBuild ${appBuild}`);
-    if (FIX) gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${appBuild}`);
+    if (FIX) gradle = replaceLive(gradle, /versionCode\s+\d+/, `versionCode ${appBuild}`);
   } else if (code > appBuild) {
     // Legitimate: a Play re-upload of the same release needs a fresh
     // versionCode without a new marketing build.

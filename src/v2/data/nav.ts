@@ -59,7 +59,6 @@ export interface NavHandlers {
   openCity: (name: string) => void;
   /** Open a person's profile by record, id or name. */
   openPerson: (who: unknown) => void;
-  openSuggestions: () => void;
   openLogicTest: () => void;
   /** Open the buyer's room — "Asked by you" (PAID-PLAN §7, D288). */
   openAskedByYou: () => void;
@@ -74,7 +73,7 @@ let handlers: Partial<NavHandlers> = {};
  * exactly the keys this call added.
  *
  * Partial and additive because app-shell registers in TWO effects with
- * different dependency lists — `openSuggestions`/`openLogicTest` re-register
+ * different dependency lists — `openLogicTest`/`openAskedByYou` re-register
  * when `openDeferred` changes identity, the rest are mount-only — and a
  * whole-object set would have the second wipe the first.
  *
@@ -115,7 +114,6 @@ const NAV = {
   openProfileTab(subId?: string): void { handlers.openProfileTab?.(subId); },
   openCity(name: string): void { handlers.openCity?.(name); },
   openPerson(who: unknown): void { handlers.openPerson?.(who); },
-  openSuggestions(): void { handlers.openSuggestions?.(); },
   openLogicTest(): void { handlers.openLogicTest?.(); },
   openAskedByYou(): void { handlers.openAskedByYou?.(); },
   can: canNav,

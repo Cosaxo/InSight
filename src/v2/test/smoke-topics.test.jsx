@@ -16,12 +16,34 @@ import { requestTopicSheet } from "../data/topicSheet.ts";
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
 
+describe("the folded topic rail (2026-09-06)", () => {
+  it("holds the rail behind the disclosure, and the chip says what it holds", () => {
+    const expectNoBoundary = mountApp();
+    // at rest: no chip rail, no +; the head is the kicker and two controls
+    expect(screen.queryByRole("button", { name: /add a topic/i })).toBeNull();
+    const door = screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ });
+    expect(door.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(door);
+    expect(door.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /add a topic/i })).not.toBeNull();
+    // muting one follow renames the door: the fold still says what is off
+    const chip = document.querySelector('.h-scroll .wf-chip[aria-pressed="true"]');
+    expect(chip, "no on chip to mute — the fixture moved").not.toBeNull();
+    fireEvent.click(chip);
+    expect(screen.getByRole("button", { name: /\d+ of \d+ topics/ })).not.toBeNull();
+    expectNoBoundary("folded topic rail");
+  });
+});
+
 describe("the add-a-topic sheet", () => {
   // The demo half of D96's pair — smoke-live asserts the same surfaces refuse.
   // Without this control, the offers() gate could return [] in every build and
   // both suites would stay green.
   it("keeps its demo furniture: topics and communities", () => {
     const expectNoBoundary = mountApp();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     expect(screen.getByText("Topics")).not.toBeNull();
     expect(screen.getByText("Communities")).not.toBeNull();
@@ -41,6 +63,9 @@ describe("the add-a-topic sheet", () => {
   // that the bank's topics are all in it, are world-channels.test.js's.)
   it("lists the channels that stock the feed, with counted meta", () => {
     const expectNoBoundary = mountApp();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     expect(screen.getByText("Your topics"), "the sheet listed no topics at all").not.toBeNull();
     const mutes = screen.getAllByRole("button", { name: /^Mute / });
@@ -60,6 +85,9 @@ describe("the add-a-topic sheet", () => {
     // here has to move the state the rail draws from. Without this the list
     // could render perfectly and control nothing.
     const expectNoBoundary = mountApp();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     const mute = screen.getAllByRole("button", { name: /^Mute / })[0];
     const topic = mute.getAttribute("aria-label").replace(/^Mute /, "");
@@ -87,6 +115,9 @@ describe("the add-a-topic sheet", () => {
 describe("the topic sheet's Learn rows", () => {
   it("lists every field you follow, each with the way back out", () => {
     const expectNoBoundary = mountApp();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     const unfollows = screen.getAllByRole("button", { name: /^Unfollow / });
     expect(unfollows.length, "no field offered a way out — the list is one-way again").toBeGreaterThan(1);
@@ -98,6 +129,9 @@ describe("the topic sheet's Learn rows", () => {
 
   it("drops the field from the list when you unfollow it", () => {
     const expectNoBoundary = mountApp();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     fireEvent.click(screen.getByRole("button", { name: "Unfollow Cell biology" }));
     expect(

@@ -1,6 +1,34 @@
 {
   "indexes": [
     {
+      "collectionGroup": "v2_questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "until",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_paid_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "v2_suggestions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -101,15 +129,15 @@
       ]
     },
     {
-      "collectionGroup": "invites",
-      "queryScope": "COLLECTION_GROUP",
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "to",
+          "fieldPath": "surface",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "at",
+          "fieldPath": "answeredAt",
           "order": "DESCENDING"
         }
       ]
@@ -119,7 +147,7 @@
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
-          "fieldPath": "from",
+          "fieldPath": "to",
           "order": "ASCENDING"
         },
         {
@@ -147,6 +175,20 @@
         {
           "fieldPath": "answeredAt",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
         }
       ]
     },
@@ -207,8 +249,38 @@
       ]
     },
     {
+      "collectionGroup": "invites",
+      "fieldPath": "to",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "invites",
+      "fieldPath": "from",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "reveals",
       "fieldPath": "members",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "reveals",
+      "fieldPath": "pickedUids",
       "indexes": [
         {
           "queryScope": "COLLECTION_GROUP",
@@ -273,6 +345,11 @@
     },
     {
       "collectionGroup": "answers",
+      "fieldPath": "anchors.age",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
       "fieldPath": "anchors.gender",
       "indexes": []
     },
@@ -294,6 +371,11 @@
     {
       "collectionGroup": "answers",
       "fieldPath": "anchors.heightBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.jobField",
       "indexes": []
     }
   ]

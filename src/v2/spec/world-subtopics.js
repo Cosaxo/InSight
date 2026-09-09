@@ -20,6 +20,14 @@ const WORLD_SUBTOPICS = [
   { id: 'sub_tennis',   parent: 'sport', label: 'Tennis' },
   { id: 'sub_football', parent: 'sport', label: 'Football' },
   { id: 'sub_running',  parent: 'sport', label: 'Running' },
+  // Born 2026-09-09 by the feed lane's breadth share (D428) — each the
+  // most popular uncovered niche of its parent, argued in PR #-of-day;
+  // birth handful is the day's tagged questions plus counted retags.
+  { id: 'sub_mind',      parent: 'bigq',    label: 'The mind' },
+  { id: 'sub_etiquette', parent: 'culture', label: 'Etiquette' },
+  { id: 'sub_deals',     parent: 'dilemma', label: 'Deals' },
+  { id: 'sub_work',      parent: 'event',   label: 'Work & money' },
+  { id: 'sub_eatingout', parent: 'food',    label: 'Eating out' },
 ];
 
 // ── background knowledge ────────────────────────────────────────────────────
@@ -166,7 +174,7 @@ export const SUBTOPICS = (function () {
     if (!set) set = SUB_LIVE_BUILD ? new Set() : new Set(['sub_tennis']);        // one leaf followed from day one (demo)
     return set;
   }
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } }); };
   // The purge (data/live.ts, D51): null the cache and ensure() re-derives
   // from storage — now empty, so the day-one default — instead of the
   // previous account's leaf follows surviving to be saved back.

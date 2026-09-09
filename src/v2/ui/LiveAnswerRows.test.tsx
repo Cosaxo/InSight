@@ -207,11 +207,14 @@ describe("your own answer", () => {
     expect(grow, "the three segments are not in the 60/30/10 proportion").toHaveLength(3);
     expect(grow[0]).toBeGreaterThan(grow[1]);
     expect(grow[1]).toBeGreaterThan(grow[2]);
-    // …and your own segment carries the floor that keeps a 1% answer of
-    // yours findable, which no other segment gets.
-    const mineStyle = segs[1].getAttribute("style") || "";
-    expect(mineStyle).toMatch(/min-width:\s*8px/);
-    expect(segs[0].getAttribute("style") || "").toMatch(/min-width:\s*0/);
+    // …and your own segment carries a bigger floor than the rest: a 1%
+    // answer of yours must stay findable, and since 2026-09-02 every
+    // segment has a small floor of its own (the notched shape needs one)
+    // rather than collapsing to nothing.
+    const floorOf = (el: Element) =>
+      parseFloat(/min-width:\s*([\d.]+)/.exec(el.getAttribute("style") || "")?.[1] ?? "0");
+    expect(floorOf(segs[1])).toBeGreaterThan(floorOf(segs[0]));
+    expect(floorOf(segs[0])).toBeGreaterThan(0);
   });
 
   it("explains the accent mark only when a mark is on screen", () => {
@@ -271,14 +274,16 @@ describe("expanded, the shape follows the question", () => {
 
   it("leaves your own column solid and every other one faint", () => {
     rating();
-    // The one place in this panel where a style value IS the reading:
-    // the histogram has no label, no count and no chip on your column —
-    // opacity is the entire mark, so an off-by-one here tells you that
-    // you rated it a 6.
+    // The one place in this panel where a style value IS the reading: the
+    // histogram has no label, no count and no chip on your column — the
+    // COLOUR is the entire mark, so an off-by-one here tells you that you
+    // rated it a 6. (Colour, not opacity, since 2026-09-02: the other
+    // columns wear the question's topic hue and yours wears the accent.)
     const columns = [...(opened().firstElementChild?.firstElementChild?.children ?? [])] as HTMLElement[];
     expect(columns).toHaveLength(10);
-    expect(columns.map((c) => c.style.opacity).filter((o) => o === "1")).toHaveLength(1);
-    expect(columns[4].style.opacity).toBe("1");
+    const accented = columns.map((c) => c.style.background).filter((b) => b === "var(--accent)");
+    expect(accented).toHaveLength(1);
+    expect(columns[4].style.background).toBe("var(--accent)");
   });
 });
 
@@ -349,6 +354,23 @@ describe("the three orderings", () => {
     expect(titles()).toEqual(["four?", "binary?"]);
     fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
     expect(titles()).toEqual(["binary?", "four?"]);
+  });
+
+  it("keeps a two-answer split off the head of most divisive", () => {
+    // The mirror of the case below, and the arm that did not have its
+    // clause. Divisiveness is NORMALISED, so a 1-against-1 cell and a
+    // 500-against-500 cell are both exactly 1.0 — the maximum — and the
+    // thin one led on input order alone, at the top of a list a reader
+    // takes as "the questions this crowd argues about".
+    //
+    // Listed thin-first here, so a missing tie-break shows up as the list
+    // not moving.
+    show([
+      row("lone", [1, 1], { text: "lone?" }),
+      row("crowd", [500, 500], { text: "crowd?" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
+    expect(titles(), "a two-answer split outranked a thousand-answer one").toEqual(["crowd?", "lone?"]);
   });
 
   it("keeps a single answer off the head of most agreed", () => {

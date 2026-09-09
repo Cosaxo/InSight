@@ -59,8 +59,8 @@ describe("groupPortrait", () => {
       ],
       "me",
     );
-    expect(p.days).toBe(3);
-    expect(p.daysPlayed).toBe(2);
+    expect(p.rounds).toBe(3);
+    expect(p.roundsPlayed).toBe(2);
     expect(p.meWithMaj).toBe(1);
     expect(p.alignPct).toBe(50);
   });
@@ -109,14 +109,14 @@ describe("groupPortrait", () => {
 
   it("an empty history yields an empty portrait, not NaN", () => {
     const p = groupPortrait([], "me");
-    expect(p).toMatchObject({ days: 0, daysPlayed: 0, meWithMaj: 0, alignPct: 0, twin: null });
+    expect(p).toMatchObject({ rounds: 0, roundsPlayed: 0, meWithMaj: 0, alignPct: 0, twin: null });
     expect(p.rows).toEqual([]);
     expect(p.people).toEqual([]);
   });
 
   it("a null uid (signed-out edge) produces rows but no people", () => {
     const p = groupPortrait([rev(1, { a: 0, b: 1 })], null);
-    expect(p.days).toBe(1);
+    expect(p.rounds).toBe(1);
     expect(p.people).toEqual([]);
   });
 });
@@ -149,6 +149,68 @@ describe("twin / contrarian need a spread, not just a sample", () => {
     expect(p.people.map((x) => x.pct)).toEqual([0, 0]);
     expect(p.twin).toBeNull();
     expect(p.contrarian).toBeNull();
+  });
+
+  // The sort is `likenessRate` — a lower bound, so a thin sample sits low
+  // whatever it agreed on. Reading the dissenter off the END of that sort
+  // therefore named the member with the least DATA, not the least agreement,
+  // and the row beside the label showed their real number.
+  it("does not call the member who agreed with everything a dissenter", () => {
+    // Ada shares fourteen days and agrees on thirteen (93%); Bo joins for the
+    // last two and agrees on both (100%). Bo sorts last on the bound (.55
+    // against .79) and used to be printed "breaks ranks" beside a full bar.
+    const days = [];
+    for (let d = 1; d <= 12; d++) days.push(rev(d, { me: 0, ann: 0 }));
+    days.push(rev(13, { me: 0, ann: 1, bo: 0 }));
+    days.push(rev(14, { me: 0, ann: 0, bo: 0 }));
+    const p = groupPortrait(days, "me");
+    const pct = Object.fromEntries(p.people.map((x) => [x.uid, x.pct]));
+    expect(pct).toEqual({ ann: 93, bo: 100 });
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian, "called the 100% member a dissenter").toBeNull();
+  });
+
+  it("names the lowest PRINTED likeness when one is genuinely below the twin", () => {
+    // Same shape with a third member who really is further away: the
+    // sentence has something true to say, so it says it — and it names cy
+    // (40%) rather than whoever the bound happened to put last.
+    const days = [];
+    for (let d = 1; d <= 12; d++) days.push(rev(d, { me: 0, ann: 0, cy: d <= 7 ? 1 : 0 }));
+    days.push(rev(13, { me: 0, ann: 1, bo: 0, cy: 1 }));
+    days.push(rev(14, { me: 0, ann: 0, bo: 0, cy: 1 }));
+    const p = groupPortrait(days, "me");
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian!.uid).toBe("cy");
+  });
+
+  it("picks the lowest printed likeness even when it is not last in the sort", () => {
+    // The case that pins the REDUCE rather than the guard beside it. Both
+    // cases above happen to put the min-pct member last in the rate sort,
+    // so replacing the reduce with `eligible[eligible.length - 1]` leaves
+    // them passing — and a group with a genuine dissenter then loses the
+    // sentence entirely, because the guard nulls out the thin 100% member
+    // the sort put last.
+    //
+    // ann 13/14 (93%), cy 40/50 (80%), bo 2/2 (100%). The bound orders
+    // them ann, cy, bo — bo LAST despite agreeing with everything — so
+    // "last of the sort" names bo and the guard then answers null, while
+    // the true dissenter cy sits in the middle.
+    const days = [];
+    for (let d = 1; d <= 50; d++) {
+      const row: Record<string, number> = { me: 0 };
+      // cy is here for all fifty and differs on ten of them.
+      row.cy = d <= 10 ? 1 : 0;
+      // ann for fourteen, differing on exactly one.
+      if (d <= 14) row.ann = d === 14 ? 1 : 0;
+      // bo for the last two, agreeing on both.
+      if (d >= 49) row.bo = 0;
+      days.push(rev(d, row));
+    }
+    const p = groupPortrait(days, "me");
+    const pct = Object.fromEntries(p.people.map((x) => [x.uid, x.pct]));
+    expect(pct).toEqual({ ann: 93, cy: 80, bo: 100 });
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian!.uid, "named whoever the bound put last, not the lowest likeness").toBe("cy");
   });
 
   it("still names both when there is a real spread", () => {
@@ -216,6 +278,46 @@ describe("the pick-day snapshot (D224)", () => {
 // given to something else. Nothing that compares two optionIdx values may
 // look across that line: option 2 of one prompt has nothing to do with
 // option 2 of another.
+describe("who casts the room like you — the snapshot, not the index (D437)", () => {
+  // Two clients can hold the roster in different orders, so on a pick day
+  // the same index need not be the same person and the same person need
+  // not be the same index. The pairwise fold compared indexes until D437,
+  // which put "casts the room like you" beside somebody who had named a
+  // DIFFERENT person at the same index.
+  const pick = (n: number, votes: Record<string, { o: number; p?: string; late?: boolean }>) => ({
+    day: day(n),
+    qid: "q" + n,
+    votes: Object.fromEntries(Object.entries(votes).map(([u, v]) => [u, {
+      optionIdx: v.o, ...(v.p ? { pickUid: v.p } : {}), ...(v.late ? { late: true } : {}),
+    }])),
+  });
+
+  it("agrees on WHOM was named, where both votes carry a snapshot", () => {
+    const p = groupPortrait([
+      pick(1, { me: { o: 0, p: "bo" }, a: { o: 2, p: "bo" }, b: { o: 0, p: "cy" } }),
+      pick(2, { me: { o: 1, p: "cy" }, a: { o: 3, p: "cy" }, b: { o: 1, p: "a" } }),
+    ], "me");
+    const a = p.people.find((x) => x.uid === "a")!;
+    const b = p.people.find((x) => x.uid === "b")!;
+    expect([a.shared, a.agree]).toEqual([2, 2]);
+    expect([b.shared, b.agree]).toEqual([2, 0]);
+    expect(p.twin!.uid).toBe("a");
+  });
+
+  it("falls back to the index where either vote predates the snapshot", () => {
+    const p = groupPortrait([pick(1, { me: { o: 0 }, a: { o: 0, p: "bo" } })], "me");
+    expect(p.people[0].agree).toBe(1);
+  });
+
+  it("counts no late answer on either side — agreeing with what you could see is not casting alike", () => {
+    const p = groupPortrait([
+      pick(1, { me: { o: 0, p: "bo" }, a: { o: 0, p: "bo", late: true } }),
+      pick(2, { me: { o: 0, p: "bo", late: true }, a: { o: 0, p: "bo" } }),
+    ], "me");
+    expect(p.people).toEqual([]);
+  });
+});
+
 describe("votes answered against a different question", () => {
   // b was asked something else that day
   const split = (n: number, votes: Record<string, number>, odd: Record<string, string>) => ({
@@ -244,7 +346,7 @@ describe("votes answered against a different question", () => {
     // …so it cannot count toward alignment either
     expect(r.withMajority).toBe(false);
     const p = groupPortrait([split(1, { me: 2, a: 0, b: 0 }, { me: "q-other" })], "me");
-    expect(p.daysPlayed).toBe(0);
+    expect(p.roundsPlayed).toBe(0);
     expect(p.alignPct).toBe(0);
   });
 
@@ -275,5 +377,45 @@ describe("votes answered against a different question", () => {
     expect(r.offQuestion).toBe(0);
     expect(r.mineOffQuestion).toBe(false);
     expect(r.total).toBe(3);
+  });
+});
+
+// ── rounds (D426): a room can reveal several in one day ────────────
+describe("rounds — the row's identity is the round, not the date", () => {
+  const round = (n: number, votes: Record<string, number | { optionIdx: number; late?: true }>) => ({
+    day: "2026-09-08", round: n, qid: "q" + n,
+    votes: Object.fromEntries(Object.entries(votes).map(([u, o]) =>
+      [u, typeof o === "number" ? { optionIdx: o } : o])),
+  });
+
+  it("keeps two reveals from one day as two rows, each carrying its round", () => {
+    const P = groupPortrait([round(8, { me: 0, ada: 0, bo: 1 }), round(7, { me: 1, ada: 0, bo: 0 })], "me");
+    expect(P.rows.map((r) => r.round)).toEqual([8, 7]);
+    expect(P.rows.map((r) => r.day)).toEqual(["2026-09-08", "2026-09-08"]);
+    expect(P.rounds).toBe(2);
+    expect(P.roundsPlayed).toBe(2);
+    // …and both count: with the majority in round 8, against it in round 7.
+    expect(P.meWithMaj).toBe(1);
+    expect(P.alignPct).toBe(50);
+  });
+
+  it("a reveal from before rounds carries no round, and the date is its identity", () => {
+    const row = portraitRow(rev(3, { me: 0, ada: 1 }), "me");
+    expect(row!.round).toBeNull();
+    expect(row!.day).toBe(day(3));
+  });
+
+  it("a late answer is shown on the card and counted in no row (ROUNDS-PLAN §4)", () => {
+    // Ada answered after the reveal: not blind, so not in the counts, the
+    // total, or anyone's shared rounds — and a late answer of MINE does not
+    // make it a round I played.
+    const P = groupPortrait([round(9, { me: 0, ada: { optionIdx: 0, late: true }, bo: 1 })], "me");
+    expect(P.rows[0].total).toBe(2);
+    expect(P.rows[0].counts).toEqual([1, 1]);
+    // …and Ada is not in the people list at all: nobody shared a round with her.
+    expect(P.people.find((p) => p.uid === "ada")?.shared ?? 0).toBe(0);
+    const mineLate = groupPortrait([round(10, { me: { optionIdx: 1, late: true }, ada: 0, bo: 1 })], "me");
+    expect(mineLate.rows[0].mine).toBeNull();
+    expect(mineLate.roundsPlayed).toBe(0);
   });
 });

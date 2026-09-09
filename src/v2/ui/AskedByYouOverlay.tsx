@@ -19,9 +19,17 @@
 //     design's own posture — no notification path to build or promise.
 import React from "react";
 import LIVE from "../data/live";
-import { loadMine, mine, subscribePurchases, type Purchase } from "../data/purchases";
-import { fmt, subscribeCur } from "../data/pricing";
+import { loadMine, mine, mineFailed, subscribePurchases, type Purchase } from "../data/purchases";
+// `fmtExact`, not `fmt`: every euro figure on this card is one this
+// account was actually charged — the cap it paid up front, the rate its
+// contract locked, an ad's flat price — and `fmt` rounds above a hundred
+// to the nearest ten, which is a rate card's shape and a lie about a
+// receipt. scripts/quote-copy.test.mjs pins the rule.
+import { fmtExact, subscribeCur } from "../data/pricing";
+import { SPONSOR_EVERY } from "../data/sponsored";
+import { SponsorShare } from "./SponsorShare";
 import { askWindow } from "../data/askWindow";
+import { sharePcts } from "../data/pct";
 // The switch lives in its own module since phase 4: the ask-a-question
 // door (a different lazy chunk) renders it too, and CurSwitch.tsx's
 // header says why an import between the two overlays was the wrong wire.
@@ -114,7 +122,17 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
           </div>
           <div style={{ marginTop: 6, fontFamily: SANS, fontSize: 12, fontWeight: 650, color: "var(--ink-2)" }}>
             <span style={{ fontWeight: 800, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
-              {Math.round(((p.counts[lead] || 0) / total) * 100)}% {p.options[lead] || ""}
+              {/* `sharePcts`, not a hand-rolled round: this is the same
+                  published counts vector the public feed card draws for
+                  this question, and the feed rounds it with the app's one
+                  largest-remainder rule (data/pct.ts). Two rules over one
+                  vector disagree on about one cell in eleven at three to
+                  four options, always by a point — so the buyer read a
+                  headline share one off the one everybody else was
+                  reading for the buyer's own question. The BAR widths
+                  above stay exact fractions: they are a shape, not a
+                  number anyone reads. */}
+              {sharePcts(p.counts)[lead]}% {p.options[lead] || ""}
             </span>{" · "}
             <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmtN(total)} {total === 1 ? "answer" : "answers"}</span>
           </div>
@@ -126,14 +144,22 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
       )}
       <div style={{ marginTop: 12, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
         <span style={K}>budget — answers against the cap</span>
-        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmt(spentEur)} of {fmt(p.budget.capEur)} cap</span>
+        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmtExact(spentEur)} of {fmtExact(p.budget.capEur)} cap</span>
       </div>
       <div style={{ marginTop: 6, height: 8, borderRadius: 999, background: "var(--surface-3)", overflow: "hidden" }}>
         <span style={{ display: "block", width: `${pct}%`, height: "100%", borderRadius: 999, background: "var(--accent)" }}></span>
       </div>
       <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 11.5, fontWeight: 650, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
-        <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmt(p.budget.ratePerAnswer)}, stops at the cap
+        <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmtExact(p.budget.ratePerAnswer)}, stops at the cap
       </div>
+      {/* The results page (D379): the payoff, as an address the buyer can
+          post — the same numbers everyone reads, on the open web. */}
+      {p.qid ? (
+        <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ flex: 1, fontFamily: SANS, fontSize: 11, fontWeight: 650, color: "var(--ink-3)", lineHeight: 1.4 }}>A public page of these results, for anyone you send it to.</span>
+          <SponsorShare qid={p.qid} />
+        </div>
+      ) : null}
       <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
         <span aria-hidden="true" style={{ flex: 1, height: 2, borderRadius: 99, background: "var(--surface-3)", position: "relative", overflow: "hidden" }}>
           <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, Math.round(((daysTotal - daysLeft) / daysTotal) * 100))}%`, background: "color-mix(in oklch, var(--ink) 30%, transparent)" }}></span>
@@ -156,17 +182,48 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
   );
 }
 
+/** one bought AD (D315): band + state · the card's own words · the flat
+ * price and the window. No split, no meter, no shelf — an ad collects
+ * nothing, and the card says so instead of drawing an empty chart. */
+function AdPurchaseCard({ p }: { p: Purchase }): React.ReactElement {
+  useCur();
+  return (
+    <div className="card" style={{ marginTop: 12, padding: "13px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <Band>{`ad · ${p.place || "everyone"} · until ${p.win.until}`}</Band>
+        {p.state === "running" ? <StateChip label="running" acc="var(--accent)" /> : <StateChip label={p.state} hollow />}
+      </div>
+      <div style={{ marginTop: 10, fontFamily: SANS, fontSize: 16.5, fontWeight: 750, letterSpacing: "-0.02em", lineHeight: 1.2, textWrap: "pretty", color: "var(--ink)" }}>{p.headline}</div>
+      <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>{p.adBody}</div>
+      <div style={{ marginTop: 7, fontFamily: SANS, fontSize: 11, fontWeight: 650, color: "var(--ink-3)" }}>
+        {p.advertiser}{p.dims.length > 0 ? ` · ${p.dims.join(" · ")}` : ""}
+      </div>
+      <div style={{ marginTop: 11, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+        <span style={K}>flat window — no meter</span>
+        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmtExact(p.priceEur)} · runs {p.win.start} → {p.win.until}</span>
+      </div>
+      <div style={{ marginTop: 6, fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
+        An ad collects nothing — no answers, no clicks, no tracking. It runs, that is all.
+      </div>
+    </div>
+  );
+}
+
 export default function AskedByYouOverlay({ onClose }: { onClose: () => void }): React.ReactElement {
   useCur();
   const [, bump] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
     if (!LIVE.enabled) return; // a demo build has no ledger to read
     const un = subscribePurchases(bump);
-    void loadMine().catch(() => { /* the empty state stands; reopening retries */ });
+    // The room falls to its "couldn't read" line, and reopening retries.
+    // It used to say "the empty state stands", which was not true: a throw
+    // left the cache null and the spinner up for the life of the session.
+    void loadMine().catch(() => { /* mineFailed() carries it; reopening retries */ });
     return un;
   }, []);
   const rows = LIVE.enabled ? mine() : [];
   const questions = (rows || []).filter((p) => p.kind === "question");
+  const adRows = (rows || []).filter((p) => p.kind === "ad");
   const subsRows = (rows || []).filter((p) => p.kind === "subscription");
   return (
     <div className="overlay">
@@ -180,14 +237,22 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
           Everything this account has bought — with its live public numbers and the report shelf. Reports are picked up here (no bells, no email — by design).
         </div>
         {rows == null ? (
-          <div style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>Reading your contracts…</div>
-        ) : questions.length === 0 && subsRows.length === 0 ? (
+          <div style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>
+            {mineFailed() ? "Couldn’t read your contracts. Close and reopen to try again." : "Reading your contracts…"}
+          </div>
+        ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (
           <div className="card" style={{ marginTop: 16, padding: "22px 18px", textAlign: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-            Nothing bought from this account yet. The door is “Ask a question” — one paid slot a day, each place.
+            {/* NOT "one card in N in the feed": the cadence counts ORDINARY
+                QUESTIONS, and the feed carries test cards, lenses and
+                knowledge cards between them — measured at one in nine or
+                ten of the feed with the places full, against the one in
+                six this used to promise. */}
+            {`Nothing bought from this account yet. A bought question takes one place after every ${SPONSOR_EVERY} ordinary questions, and every one says PAID.`}
           </div>
         ) : (
           <>
             {questions.map((p) => <PurchaseCard key={p.id} p={p} />)}
+            {adRows.map((p) => <AdPurchaseCard key={p.id} p={p} />)}
             {subsRows.map((p) => (
               // A subscription row exists before its SURFACE does: the §5
               // series card (per-day docs, the pulse grammar) is unbuilt,

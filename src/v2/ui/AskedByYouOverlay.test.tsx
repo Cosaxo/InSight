@@ -7,15 +7,18 @@
 // — "delivered by the contract channel" is the only fulfilment that
 // exists (D251 builds reports by hand).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Purchase } from "../data/purchases";
+import { sharePcts } from "../data/pct";
 
 const STORE = vi.hoisted(() => ({
   rows: null as Purchase[] | null,
+  failed: false,
 }));
 vi.mock("../data/live", () => ({ default: { enabled: true } }));
 vi.mock("../data/purchases", () => ({
   mine: () => STORE.rows,
+  mineFailed: () => STORE.failed,
   loadMine: async () => STORE.rows ?? [],
   subscribePurchases: () => () => {},
 }));
@@ -26,6 +29,10 @@ const PURCHASE: Purchase = {
   id: "u1_pd01",
   kind: "question",
   qid: "pd01",
+  advertiser: "",
+  headline: "",
+  adBody: "",
+  priceEur: 0,
   prompt: "Should the night buses run all night?",
   options: ["All night", "The hours are fine"],
   scope: "city",
@@ -46,6 +53,7 @@ beforeEach(() => {
   cleanup();
   localStorage.clear();
   STORE.rows = null;
+  STORE.failed = false;
 });
 
 describe("the room", () => {
@@ -66,6 +74,25 @@ describe("the room", () => {
     expect(screen.getByText(/bills per answer at €0.16, stops at the cap/)).toBeTruthy();
     // the dims are printed — every one, D228's own rule
     expect(screen.getByText("city:Oslo")).toBeTruthy();
+  });
+
+  it("rounds the split by the app's rule, not by its own", () => {
+    // The buyer's room and the public feed card draw the SAME published
+    // counts vector, and the feed rounds it with `sharePcts` — the
+    // largest-remainder rule pct.ts exists to be the only one of. This
+    // site used `Math.round` per option, which disagrees on about one
+    // cell in eleven at three and four options, always by a point: the
+    // buyer read a headline share one off the one everyone else was
+    // reading for the buyer's own question.
+    //
+    // [8, 7, 6, 12] is such a cell: 12/33 is 36.36…, which rounds to 36
+    // on its own and takes the last remainder to 37 in the vector.
+    const counts = [8, 7, 6, 12];
+    expect(Math.round((12 / 33) * 100), "fixture no longer separates the rules").toBe(36);
+    expect(sharePcts(counts)[3]).toBe(37);
+    STORE.rows = [{ ...PURCHASE, counts, options: ["A", "B", "C", "D"] }];
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/37% D/)).toBeTruthy();
   });
 
   it("counts the last serving day as a day — `until` is inclusive", () => {
@@ -115,9 +142,45 @@ describe("the room", () => {
     expect(container.textContent).not.toMatch(/n 44|this month/);
   });
 
+  // THREE STATES BEHIND ONE NULL. `mine()` answers null both before the
+  // read lands and after it fails, and the room drew "Reading your
+  // contracts…" for both — a spinner with nothing behind it, no error and
+  // no way back, for the life of the session. Settling the cache to an
+  // empty list instead would have traded the hang for a lie: "Nothing
+  // bought from this account yet", said to a buyer whose read failed.
+  it("says it is reading while the read is in flight", () => {
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/Reading your contracts/)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read/)).toBeNull();
+  });
+
+  it("…and says the read failed once it has", () => {
+    STORE.failed = true;
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/Couldn’t read your contracts/)).toBeTruthy();
+    expect(screen.queryByText(/Reading your contracts/)).toBeNull();
+    // …and never the empty state, which would be a claim about the
+    // account rather than about the read.
+    expect(screen.queryByText(/Nothing bought from this account yet/)).toBeNull();
+  });
+
   it("keeps the room's one honesty line in its foot", () => {
     STORE.rows = [];
     render(<AskedByYouOverlay onClose={() => {}} />);
     expect(screen.getByText(/this room has no other source/)).toBeTruthy();
+  });
+});
+
+describe("the results page's address, in the buyer's room (D379)", () => {
+  it("offers to copy the public page's link on a question row", () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    STORE.rows = [PURCHASE];
+    STORE.failed = false;
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    const b = screen.getByRole("button", { name: /results page/i });
+    fireEvent.click(b);
+    expect(writeText).toHaveBeenCalledWith("https://prvfire33.web.app/q/pd01");
+    expect(screen.getByText(/A public page of these results/)).toBeTruthy();
   });
 });

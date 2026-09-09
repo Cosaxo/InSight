@@ -630,6 +630,249 @@ export let PICK_QS;
       209518: 3,    // Wayne Gretzky — below the floor
       0: 10,        // Not listed — the local-hero vote, among others
     },
+    // daily catalog-question run, 2026-08-27 — the third colours canon is
+    // association, not preference: pk24's board belongs to blue, this one
+    // to yellow, because "which do you like" and "which one FEELS like a
+    // good day" are different questions wearing the same palette.
+    pk29: {
+      16776961: 28, // yellow — the crayon consensus
+      16753921: 18, // orange
+      8900332: 15,  // skyblue
+      16761036: 13, // pink
+      16766721: 12, // gold
+      32769: 11,    // green
+      4251857: 9,   // turquoise
+      15132411: 8,  // lavender
+      16744273: 7,  // coral
+      16777216: 6,  // white
+      16711681: 5,  // red — clears the floor but not the top 10; folds
+      16416883: 5,  // salmon — same
+      16738741: 4,  // hotpink — below the floor
+      129: 2,       // navy — below the floor
+      0: 10,        // Not listed — happiness is apparently also black
+    },
+    // daily catalog-question run, 2026-08-28 — spectacle is the second
+    // athletes canon, and it is not greatness: pk28's board is a career
+    // ledger, this one is a ticket stub. Ali tops that board and does not
+    // chart here — the prime you'd pay to SEE skews to the visually
+    // electric, which is why Bolt's nine seconds lead it.
+    pk30: {
+      1189: 24,     // Usain Bolt — nine seconds, worth the ticket
+      39444: 18,    // Ronaldinho — joy itself
+      41421: 16,    // Michael Jordan
+      615: 15,      // Lionel Messi
+      79031: 13,    // Mike Tyson — prime terror
+      1426: 11,     // Roger Federer
+      7520267: 10,  // Simone Biles — does things nobody else can
+      1835: 8,      // Zinedine Zidane
+      39562: 7,     // Michael Phelps
+      352159: 6,    // Stephen Curry
+      11571: 5,     // Cristiano Ronaldo — clears the floor, not the top 10; folds
+      11459: 5,     // Serena Williams — same
+      21621995: 4,  // Kylian Mbappé — below the floor
+      169452: 3,    // Shaquille O'Neal — below the floor
+      0: 12,        // Not listed — the local-legend and Ali-in-'74 vote
+    },
+    // daily catalog-question run, 2026-08-29 — the third films canon is
+    // grief, and it agrees with neither of the others: pk26 ranks prestige,
+    // pk27 comfort, and this one ranks the films people cannot rewatch.
+    // Shawshank leads pk26 and sits below the floor here; Home Alone leads
+    // pk27 and does not appear at all.
+    pk31: {
+      44578: 24,     // Titanic — the crossover, beloved and devastating
+      208263: 19,    // The Green Mile
+      483941: 16,    // Schindler's List
+      19355: 14,     // Life Is Beautiful
+      11621: 12,     // E.T. the Extra-Terrestrial
+      106316: 11,    // Dead Poets Society
+      223374: 9,     // The Notebook
+      14704171: 8,   // The Fault in Our Stars
+      204057: 7,     // Philadelphia
+      18703032: 6,   // Room
+      3286391: 5,    // A Star Is Born — clears the floor, not the top 10; folds
+      487181: 5,     // Requiem for a Dream — same
+      27044293: 4,   // The Lion King (2019) — below the floor
+      172241: 3,     // The Shawshank Redemption — below the floor
+      0: 15,         // Not listed — the Pixar vote has nowhere to file: Up,
+                     // Coco, Grave of the Fireflies and the 1994 Lion King
+                     // are all absent from the sitelink top-1000
+    },
+    // first card of the languages domain, 2026-09-01 (minted keys —
+    // build-languages.mjs, ISO 639-1 via npm; the Sunday 08-30 domain
+    // slot, run late). The wish canon, not favouritism: the board is the
+    // languages people tell themselves they'll learn someday.
+    pk32: {
+      39: 26,   // Spanish — the world's default someday-language
+      47: 22,   // French
+      74: 18,   // Japanese
+      72: 14,   // Italian
+      182: 12,  // Chinese
+      32: 10,   // German
+      130: 9,   // Portuguese
+      84: 8,    // Korean
+      8: 7,     // Arabic
+      135: 6,   // Russian
+      57: 5,    // Hindi — clears the floor but not the top 10; folds
+      154: 5,   // Swahili — same
+      36: 4,    // Greek — below the floor
+      117: 2,   // Norwegian — below the floor
+      0: 12,    // Not listed — sign languages and the dialects ISO folds away
+    },
+    // daily catalog-question run, 2026-09-01 — sound is the second
+    // languages canon, and it is not the wish: pk32 ranks what you'd USE
+    // (Spanish leads, on sheer usefulness), this ranks what you'd LISTEN
+    // to — Italian takes the top, and Welsh and Irish chart here without
+    // appearing on the wish board at all.
+    pk33: {
+      72: 25,   // Italian — the consensus music
+      47: 22,   // French
+      39: 15,   // Spanish
+      74: 12,   // Japanese
+      130: 11,  // Portuguese
+      8: 10,    // Arabic
+      135: 9,   // Russian
+      36: 8,    // Greek
+      30: 7,    // Welsh — the eisteddfod vote
+      49: 6,    // Irish
+      153: 5,   // Swedish — clears the floor but not the top 10; folds
+      32: 5,    // German — the contrarian vote; same
+      84: 4,    // Korean — below the floor
+      117: 3,   // Norwegian — below the floor
+      0: 10,    // Not listed — everyone's grandmother's dialect
+    },
+    // daily catalog-question run, 2026-09-02 — the third athletes canon
+    // is the LIFE, not the sport: pk28 ranks achievement and pk30 ranks
+    // spectacle; this ranks the whole existence — wealth, adoration, the
+    // clean exit. Federer overtakes the GOATs, and Beckham charts high
+    // here without leading either other board.
+    pk34: {
+      1426: 24,   // Roger Federer — the envied life: grace, beloved, out on his own terms
+      10520: 19,  // David Beckham — the fame and the post-career empire
+      1189: 16,   // Usain Bolt — the joyful one, retired happy
+      36159: 13,  // LeBron James
+      615: 12,    // Lionel Messi
+      9673: 10,   // Lewis Hamilton — the Monaco life
+      11459: 9,   // Serena Williams
+      169452: 8,  // Shaquille O'Neal — the fun life
+      11571: 7,   // Cristiano Ronaldo
+      41421: 6,   // Michael Jordan — the greatness, minus the peace
+      352159: 5,  // Stephen Curry — clears the floor but not the top 10; folds
+      10132: 5,   // Rafael Nadal — same
+      10993: 3,   // Tiger Woods — below the floor; spectacle without the envy
+      39562: 2,   // Michael Phelps — below the floor
+      0: 11,      // Not listed — everyone's local hero
+    },
+    // daily catalog-question run, 2026-09-03 — the third languages canon
+    // is FEAR: pk32 ranks what you'd use (Spanish leads) and pk33 what
+    // you'd listen to (Italian leads); this ranks what looks unclimbable.
+    // Chinese takes the top, and Hungarian and Finnish chart here without
+    // appearing on either other board.
+    pk35: {
+      182: 23,  // Chinese — the consensus mountain: tones plus the script
+      74: 18,   // Japanese — three scripts deep
+      8: 16,    // Arabic
+      61: 12,   // Hungarian — the European outlier, eighteen cases
+      44: 11,   // Finnish — the other one
+      135: 10,  // Russian
+      84: 9,    // Korean
+      71: 8,    // Icelandic
+      128: 7,   // Polish
+      32: 6,    // German — the memeable one; feared more than it deserves
+      41: 5,    // Basque — clears the floor but not the top 10; folds
+      76: 5,    // Georgian — same
+      31: 3,    // Danish — below the floor; the pronunciation vote
+      174: 2,   // Vietnamese — below the floor
+      0: 13,    // Not listed — everyone's own nemesis
+    },
+    // daily catalog-question run, 2026-09-05 — the fourth colours canon
+    // is the CLOSET: pk24 asks the heart (blue wins), pk25 the front door,
+    // pk29 the feeling (yellow country); this asks what actually gets
+    // worn, and black takes a board it appears nowhere else on.
+    pk36: {
+      1: 26,        // black — the closet's landslide-in-waiting
+      129: 17,      // navy
+      8421505: 15,  // gray
+      16777216: 13, // white
+      256: 12,      // blue
+      16119261: 9,  // beige
+      32769: 8,     // green
+      10824235: 7,  // brown
+      8421377: 6,   // olive
+      15787661: 5,  // khaki — the tie at 5 breaks its way into the top 10
+      16711681: 5,  // red — same count, folds at the floor
+      16761036: 5,  // pink — clears the floor but not the top 10; folds
+      13808781: 3,  // tan — below the floor
+      8388737: 2,   // purple — below the floor; loved, rarely worn
+      0: 12,        // Not listed — the exact shade only its owner can name
+    },
+    // daily catalog-question run, 2026-09-06 — the videogames domain's
+    // first canon is the GOAT board, the athletes precedent (pk28): the
+    // bar-argument question, not the sales chart. Ocarina leads the way
+    // it leads every critics' poll; Minecraft and GTA V carry the
+    // biggest-thing-ever vote without taking the board; Chrono Trigger
+    // is the retro seat Super Mario Bros. narrowly loses at the floor.
+    pk37: {
+      213911: 23,   // The Legend of Zelda: Ocarina of Time — the perennial consensus
+      49740: 19,    // Minecraft — the biggest game ever, arguing it's also the best
+      71910: 16,    // Tetris — the eternal one; the purist's ballot
+      17185964: 14, // The Legend of Zelda: Breath of the Wild
+      4267401: 12,  // The Witcher 3: Wild Hunt
+      279446: 10,   // Portal 2 — the flawless-one argument
+      27438121: 9,  // Red Dead Redemption 2
+      17452: 8,     // Grand Theft Auto V
+      761815: 7,    // Chrono Trigger — the retro seat
+      64826862: 6,  // Elden Ring — the recency ballot
+      193581: 5,    // Half-Life 2 — clears the floor but not the top 10; folds
+      11168: 5,     // Super Mario Bros. — the founding document; folds at the floor
+      323862: 3,    // The Elder Scrolls V: Skyrim — below the floor
+      1986744: 2,   // The Last of Us — below the floor
+      0: 12,        // Not listed — everyone's own formative cartridge
+    },
+    // daily catalog-question run, 2026-09-07 — the second videogames
+    // canon is TIME, not esteem: pk37 asks what deserves the crown; this
+    // asks where the hours actually went, and the boards provably
+    // differ. Ocarina tops every GOAT poll and almost nobody's playtime;
+    // WoW and The Sims chart here without touching pk37's board at all.
+    pk38: {
+      49740: 24,    // Minecraft — the decade-eater
+      131007: 18,   // World of Warcraft — the years, plural
+      323862: 15,   // The Elder Scrolls V: Skyrim — a third playthrough is normal
+      223341: 13,   // League of Legends
+      17452: 11,    // Grand Theft Auto V
+      12579896: 10, // The Sims 4 — the quiet thousands
+      842146: 9,    // Counter-Strike: Global Offensive
+      349375: 8,    // Fortnite
+      23013817: 7,  // Stardew Valley — one more day, forever
+      71910: 6,     // Tetris — forty years of commutes
+      332697: 5,    // Terraria — clears the floor but not the top 10; folds
+      692989: 5,    // Roblox — same
+      4267401: 3,   // The Witcher 3 — below the floor; a hundred hours is not a thousand
+      213911: 2,    // Ocarina of Time — below the floor; the GOAT nobody grinds
+      0: 14,        // Not listed — everyone's private obsession
+    },
+    // daily catalog-question run, 2026-09-09 — the fourth languages canon
+    // is the THOUGHT EXPERIMENT: pk32 ranks want, pk33 sound, pk35 fear;
+    // this asks what the world SHOULD share, which is a fairness-and-
+    // utility argument rather than a taste — English wins with a shrug,
+    // and Esperanto and Swahili chart here without touching any other
+    // board, which is the built-to-bridge vote making itself visible.
+    pk39: {
+      37: 31,   // English — the incumbent, voted with a shrug
+      39: 16,   // Spanish
+      182: 12,  // Chinese
+      38: 10,   // Esperanto — the principled neutral vote
+      47: 9,    // French — the old diplomat's answer
+      8: 7,     // Arabic
+      57: 7,    // Hindi
+      130: 6,   // Portuguese
+      154: 6,   // Swahili — built to bridge, and it shows here
+      32: 5,    // German — the tie at 5 breaks its way into the top 10
+      74: 5,    // Japanese — same count, folds at the floor
+      72: 5,    // Italian — same, folds
+      135: 3,   // Russian — below the floor
+      91: 2,    // Latin — below the floor; the classicist's bit
+      0: 15,    // Not listed — the sign-language answer lives here too
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -965,6 +1208,143 @@ export let PICK_QS;
         Men: { 36107: 9, 615: 8, 41421: 7, 11571: 6, 12897: 5 },
       },
     },
+    pk29: {
+      ageBand: {
+        // yellow holds every cohort; the young board runs pink and lavender
+        '18-24': { 16761036: 8, 16776961: 7, 15132411: 6, 8900332: 5, 4251857: 4 },
+        '25-34': { 16776961: 8, 16753921: 6, 32769: 6, 16766721: 5, 8900332: 4 },
+      },
+      gender: {
+        Women: { 16776961: 8, 16761036: 7, 15132411: 6, 16744273: 5, 8900332: 4 },
+        Men: { 16776961: 9, 16753921: 7, 32769: 6, 8900332: 5, 16766721: 4 },
+      },
+    },
+    pk30: {
+      ageBand: {
+        // the youth cell pays for what it grew up streaming; the older
+        // cell for what it remembers live
+        '18-24': { 352159: 8, 7520267: 7, 1189: 6, 615: 5, 39444: 4 },
+        '25-34': { 39444: 8, 1189: 7, 41421: 6, 1835: 5, 1426: 4 },
+      },
+      gender: {
+        Women: { 7520267: 8, 1189: 7, 1426: 6, 39444: 5, 615: 4 },
+        Men: { 1189: 8, 39444: 7, 41421: 7, 79031: 6, 615: 5 },
+      },
+    },
+    pk31: {
+      ageBand: {
+        // the young cell cries at the films it grew up with; the older cell
+        // at the ones it was made to sit through
+        '18-24': { 14704171: 8, 223374: 7, 18703032: 6, 44578: 5, 11621: 4 },
+        '25-34': { 44578: 8, 208263: 7, 19355: 6, 106316: 5, 11621: 4 },
+      },
+      gender: {
+        Women: { 44578: 9, 223374: 7, 14704171: 6, 208263: 5, 18703032: 4 },
+        Men: { 208263: 8, 483941: 7, 19355: 6, 106316: 6, 11621: 5 },
+      },
+    },
+    pk32: {
+      ageBand: {
+        // the young wish follows the screen (Japanese, Korean); the older
+        // wish follows the holiday (Italian, French)
+        '18-24': { 74: 9, 84: 7, 39: 6, 47: 5, 182: 4 },
+        '25-34': { 39: 8, 47: 7, 72: 6, 74: 5, 32: 4 },
+      },
+      gender: {
+        Women: { 47: 8, 72: 7, 39: 6, 84: 5, 74: 4 },
+        Men: { 39: 8, 74: 7, 182: 6, 32: 5, 135: 4 },
+      },
+    },
+    pk33: {
+      ageBand: {
+        // the romance languages hold every cohort; the young cell hears
+        // more Japanese, the older cell more Russian
+        '18-24': { 72: 8, 74: 7, 47: 6, 130: 5, 36: 4 },
+        '25-34': { 47: 8, 72: 7, 39: 6, 135: 5, 8: 4 },
+      },
+      gender: {
+        Women: { 47: 9, 72: 8, 130: 6, 74: 5, 49: 4 },
+        Men: { 72: 8, 39: 7, 135: 6, 8: 5, 30: 4 },
+      },
+    },
+    pk34: {
+      ageBand: {
+        // the young cell wants the still-playing lives; the older cell
+        // has watched enough exits to rank them
+        '18-24': { 1189: 8, 36159: 7, 1426: 6, 11571: 5, 9673: 4 },
+        '25-34': { 1426: 8, 10520: 7, 615: 6, 36159: 5, 11459: 4 },
+      },
+      gender: {
+        Women: { 1426: 8, 11459: 7, 10520: 6, 1189: 5, 9673: 4 },
+        Men: { 1426: 9, 1189: 7, 615: 6, 41421: 5, 169452: 4 },
+      },
+    },
+    pk35: {
+      ageBand: {
+        // the young cell has actually tried the East Asian three; the
+        // older cell fears the scripts it never started
+        '18-24': { 74: 8, 84: 7, 182: 6, 44: 5, 71: 4 },
+        '25-34': { 182: 8, 8: 7, 74: 6, 135: 5, 61: 4 },
+      },
+      gender: {
+        Women: { 182: 8, 74: 7, 44: 6, 8: 5, 84: 4 },
+        Men: { 182: 9, 8: 7, 61: 6, 135: 5, 74: 4 },
+      },
+    },
+    pk36: {
+      ageBand: {
+        // every cohort wears black; the younger cell adds beige and the
+        // older cell navy — the board reorders, it never flips
+        '18-24': { 1: 9, 16119261: 6, 8421505: 5, 16777216: 5, 129: 4 },
+        '25-34': { 1: 8, 129: 7, 8421505: 6, 256: 5, 16777216: 4 },
+      },
+      gender: {
+        Women: { 1: 9, 16119261: 7, 16777216: 6, 8421505: 5, 129: 4 },
+        Men: { 129: 8, 1: 8, 8421505: 6, 256: 5, 32769: 4 },
+      },
+    },
+    pk37: {
+      ageBand: {
+        // the GOAT is generational: the youngest cell grew up inside
+        // Minecraft, the middle one got Ocarina at nine, and the oldest
+        // puts Tetris back on top — the board reorders, it never flips
+        '18-24': { 49740: 11, 64826862: 8, 17185964: 7, 27438121: 5, 71910: 4 },
+        '25-34': { 213911: 9, 4267401: 8, 17452: 7, 49740: 6, 279446: 5 },
+        '45+': { 71910: 8, 761815: 6, 213911: 5, 49740: 4 },
+      },
+      gender: {
+        Women: { 17185964: 9, 49740: 8, 279446: 6, 71910: 5, 213911: 4 },
+        Men: { 213911: 12, 17452: 8, 4267401: 7, 27438121: 6, 49740: 5 },
+      },
+    },
+    pk38: {
+      ageBand: {
+        // hours follow eras: the youngest cell's hours live in Fortnite,
+        // the middle one's in Skyrim saves, and the oldest cell's are
+        // forty years of Tetris — the board reorders, it never flips
+        '18-24': { 349375: 10, 49740: 9, 223341: 7, 23013817: 5, 842146: 4 },
+        '25-34': { 49740: 8, 323862: 8, 223341: 6, 17452: 6, 12579896: 5 },
+        '45+': { 71910: 7, 131007: 6, 323862: 4, 49740: 3 },
+      },
+      gender: {
+        Women: { 12579896: 9, 23013817: 8, 49740: 7, 71910: 5, 323862: 4 },
+        Men: { 131007: 10, 223341: 9, 17452: 8, 842146: 7, 49740: 6 },
+      },
+    },
+    pk39: {
+      ageBand: {
+        // every cell concedes English first; what moves is the second
+        // answer — the youngest cell reaches for Spanish, the oldest
+        // for French, the old lingua franca — reorder, never flip
+        '18-24': { 37: 12, 39: 8, 182: 5, 38: 4, 154: 3 },
+        '25-34': { 37: 10, 39: 6, 38: 4, 182: 4, 57: 3 },
+        '45+': { 37: 9, 47: 5, 39: 4, 182: 3 },
+      },
+      gender: {
+        Women: { 37: 14, 39: 8, 47: 5, 38: 4, 154: 3 },
+        Men: { 37: 15, 182: 6, 39: 6, 38: 5, 57: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1127,7 +1507,18 @@ export let PICK_QS;
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
     { id: 'pk26', cat: 'fav', type: 'pick', domain: 'films', prompt: 'Your favourite film?', n: 161 },
     { id: 'pk27', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you’ve rewatched the most?', n: 158 },
-    { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 160 },
+    { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 168 },
+    { id: 'pk29', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'What colour is happiness?', n: 153 },
+    { id: 'pk30', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d pay to watch in their prime?', n: 157 },
+    { id: 'pk31', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film that made you cry the most?', n: 158 },
+    { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
+    { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
+    { id: 'pk34', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete whose life you’d want?', n: 150 },
+    { id: 'pk35', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The hardest language to learn?', n: 148 },
+    { id: 'pk36', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you actually wear?', n: 145 },
+    { id: 'pk37', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The greatest video game ever made?', n: 151 },
+    { id: 'pk38', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game you’ve sunk the most hours into?', n: 150 },
+    { id: 'pk39', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'If the whole world had to share one language, which should it be?', n: 139 },
   ];
   window.PICK_QS = PICK_QS;
 })();

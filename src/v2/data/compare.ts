@@ -368,7 +368,18 @@ export function compareRead(
       dims.push({ id: d.id, label: d.label, value: v });
       shared[d.id] = them[d.id];
     }
-    if (dims.length < MIN_COMPARE_AXES) continue;
+    // ONE FLOOR, not two. There was a `if (dims.length < MIN_COMPARE_AXES)
+    // continue;` here, and it could never be the line that rejected a
+    // card: `shared` gains a key on exactly the same iterations `dims`
+    // does, and `scoreMatch` counts its axes as the keys of `mine` that
+    // are also in `theirs` — so its own `axes < minAxes` refusal fires on
+    // precisely the same input, two lines later. Replacing the guard with
+    // `dims.length < 0` changed no test's outcome.
+    //
+    // Removed rather than kept as belt-and-braces because it did not read
+    // as one: two independent-looking floors on the same constant is an
+    // invitation to change one of them.
+    //
     // `scoreMatch` needs both sides keyed the same; the bare dim id is
     // safe within one instrument, and the flatten below prefixes for the
     // pooled figure because two instruments can share a dim id ("open" is

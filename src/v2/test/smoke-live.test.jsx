@@ -35,9 +35,10 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, DAILY_BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FIXTURE_THIRD_DAY, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
+import { TYPE_SMALL } from "../data/typeMix";
 import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
@@ -47,12 +48,19 @@ import { TEST_FEED_QS } from "../spec/test-feed-data.js";
 // The bundled demo SAMPLE (D284) — imported so the live cases can assert
 // on the actual cards that must not appear, rather than on a copy.
 import { LEARN_CARDS } from "../spec/learn-data.js";
+import { PATHS } from "../spec/paths-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
 import { IS_DATA } from "../spec/sample-data.js";
 
+// The fixture daily's published option counts — IMPORTED, not copied. A
+// case below asserts an absolute total built from them, and the guard on
+// that total was `12 + 8 + 5 === 25` while this was a hand-copied literal:
+// a constant compared with itself, which stays green for any fixture and
+// leaves the real assertion to fail with the wrong diagnosis.
+const FIXTURE_DAILY_COUNTS = DAILY_COUNTS;
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
@@ -67,6 +75,10 @@ beforeAll(async () => {
   // a tab that never rendered one — the vacuous pass this file's own
   // comments were written about.
   await specIndex.loadWorldFeed();
+  // The Mirror is lazy since D355 and rendered through a slot that is
+  // same-tick only once the prewarm has remembered its module — every
+  // Mirror case below clicks the tab and asserts in the same breath.
+  await specIndex.loadMirrorTab();
   // The Map's family is lazy since v28 §5 and two cases below render
   // window.MTAnswerCard directly — without this await the global is
   // simply absent and both would fail on `undefined`, not on the gate
@@ -162,6 +174,70 @@ describe("spec layer mounts in live mode", () => {
     const expectNoBoundary = mountLive();
     await openHeaderOverlay("profile");
     expectNoBoundary("profile/live");
+  });
+
+  // D344: Account & privacy left the General tab for the gear in the
+  // profile's corner. Three halves worth pinning, because each fails
+  // silently: the General tab no longer mounts the panel (a re-added
+  // inline render would draw the settings twice with every gate green);
+  // the gear's sheet holds the whole panel — the public-answers sentence
+  // and the delete control stay one tap away rather than gone; and Escape
+  // closes the SHEET alone. useDialog's stopPropagation is what keeps the
+  // press off the profile dialog underneath — losing it would throw the
+  // reader out of the profile for asking to leave settings. The demo half
+  // (no gear at all — the panel renders nothing without an account) is in
+  // smoke-overlays, where LIVE is undefined.
+  it("hides Account & privacy behind the corner gear, and the sheet peels alone (D344)", async () => {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    await act(async () => {});
+    expect(
+      screen.queryByText("Delete everything"),
+      "the account panel is still inline on the General tab",
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Account & privacy" }));
+    const sheet = screen.getByRole("dialog", { name: "Account & privacy" });
+    expect(within(sheet).getByText("Delete everything")).toBeTruthy();
+    // The bluntest sentence in the app rides the panel wherever it lives
+    // (D183; LivePrivacyPanel.test pins it open-on-arrival inside).
+    expect(within(sheet).getByText(/Your answers are public/)).toBeTruthy();
+    fireEvent.keyDown(sheet, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Account & privacy" })).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Your profile" }),
+      "closing the account sheet closed the profile under it",
+    ).toBeTruthy();
+    expectNoBoundary("profile/live gear sheet");
+  });
+
+  // The identity row's sub-line, both branches (D344 amendment). It was one
+  // hardcoded sentence for every live session — "anonymous session — link
+  // Google below to keep it" — wrong twice: a Google-linked account was
+  // told it was anonymous (live.ts's auth observer had this exact site on
+  // record), and "below" pointed at the Sign-in row D211 removed. D343
+  // then revived that row inside the account sheet, so the nudge is true
+  // again and only the location claim stays dead. The fixture is
+  // anonymous-first, so the default mount pins that branch; the second
+  // flips `linked` and claims a handle to pin the other.
+  it("keeps the sign-in nudge, minus the dead location, while anonymous", async () => {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    expect(screen.getByText("anonymous session — sign in to keep it")).toBeTruthy();
+    // The location claim must not come back: the Sign-in row is behind
+    // the gear (D344), not "below" on the tab this line sits on.
+    expect(document.body.textContent).not.toMatch(/link Google below/i);
+    expectNoBoundary("profile/live identity row, anonymous");
+  });
+
+  it("shows the handle, not the anonymous line, once the account is linked", async () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      l.LIVE.linked = true;
+      l.LIVE.handle = "fixture";
+    });
+    await openHeaderOverlay("profile");
+    expect(screen.queryByText(/anonymous session/)).toBeNull();
+    expect(screen.getByText("@fixture")).toBeTruthy();
+    expectNoBoundary("profile/live identity row, linked");
   });
 
   // ── the patterns tab's mount gate, both sides (D265) ────────────────
@@ -368,13 +444,14 @@ describe("spec layer mounts in live mode", () => {
     // build's six. What is being pinned here is where the list opened,
     // not what the fixture happens to put in it.
     expect(screen.getByText("Add a topic"), "the topic list never opened").toBeTruthy();
-    // "Ask a question" since D288 §1 — and matched on the visible label,
-    // because the header's compose icon answers to the same accessible name.
+    // INVERTED at D368: shape A took the purchase funnel out of the binary,
+    // so the app must carry NO ask-a-question call to action. This asserted
+    // the door was present until the decision; it now pins its absence,
+    // which is the property App Review reads the app for.
     expect(
-      screen.getAllByRole("button", { name: /Ask a question/i })
-        .some((b) => /ask a question/i.test(b.textContent || "")),
-      "the sheet's ask-a-question door is missing",
-    ).toBe(true);
+      screen.queryAllByRole("button", { name: /ask a question/i }),
+      "an ask-a-question door is still in the binary (D368 removed all five)",
+    ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
       "the door still threw the reader out of the profile to show them a list",
@@ -422,6 +499,91 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("mirror/live/tooSmall");
   });
 
+  it("does not draw a spread for a crowd it is withholding", async () => {
+    // THE THIRD GATE. daily-split.jsx's header says the feed ruled on this
+    // state three times and "the daily was the one answer surface with no
+    // such gate" — then gated the numeral and the option tiles and left the
+    // rating card's ridge drawing unconditionally. The ridge scales to the
+    // biggest count, so the FIRST voter's single answer is a full-height
+    // column beside empty steps: a published spread under a line saying
+    // nobody has answered yet.
+    //
+    // Reachable at all only since the fixture can put the ordinal card
+    // TODAY — the deck draws today's card and has no day dots, so the
+    // rating render had no mount test of any kind.
+    const expectNoBoundary = mountLive({ tooSmall: true, ratingToday: true });
+    const ballot = document.querySelector('[data-screen-label="Split daily v2"] [role="group"], [data-screen-label="Split daily v2"]');
+    expect(ballot, "the daily did not mount").toBeTruthy();
+    // Vote the first step.
+    const first = screen.getByRole("button", { name: "Yes" });
+    fireEvent.click(first);
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+
+    const ridge = screen.queryByRole("img", { name: /Spread across/ });
+    expect(ridge, "the rating card drew no ridge after the vote").toBeTruthy();
+    // The words were already honest — the numeral is withheld — and the
+    // SHAPE is what this pins: every column the same height, so nothing is
+    // claimed about a crowd the card is refusing to count.
+    const bars = [...ridge.querySelectorAll("span > span[style*='height']")];
+    expect(bars.length, "the ridge drew no columns").toBeGreaterThan(1);
+    const heights = new Set(bars.map((b) => b.style.height));
+    expect(
+      heights.size,
+      `a withheld crowd was drawn as a spread: ${[...heights].join(", ")}`,
+    ).toBe(1);
+    // …and it still says nothing about a peak.
+    expect(ridge.getAttribute("aria-label")).not.toMatch(/most at/);
+    expectNoBoundary("daily/live/rating/floored");
+  });
+
+  it("…and DOES draw the spread once the counts publish", async () => {
+    // The control. Without it, "every column the same height" is also what
+    // a ridge that stopped drawing anything looks like — and flattening a
+    // real crowd would cost the card the reading it exists for.
+    const expectNoBoundary = mountLive({ ratingToday: true });
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    const ridge = screen.queryByRole("img", { name: /Spread across/ });
+    expect(ridge, "the rating card drew no ridge").toBeTruthy();
+    const heights = new Set(
+      [...ridge.querySelectorAll("span > span[style*='height']")].map((b) => b.style.height),
+    );
+    expect(heights.size, "a published crowd was flattened").toBeGreaterThan(1);
+    expectNoBoundary("daily/live/rating/published");
+  });
+
+  // ── the day dots say which day they open ────────────────────────────
+  //
+  // The dots carry no text, so their `aria-label` is the whole of what a
+  // screen reader gets: "Yesterday — answered". It was read off a frozen
+  // list of weekday names — `['Today','Yesterday','Tue','Mon','Sun',...]`
+  // — which is correct on a Thursday and on no other day, while the kicker
+  // one screen up printed the card's own label, derived from the date. Six
+  // days in seven a dot announced a different day from the card it opens,
+  // by up to three days.
+  //
+  // NOT PINNABLE UNTIL NOW, and the reason is the fixture: its deck is two
+  // cards, and the frozen list agrees with a real label at both of those
+  // positions. `deckDays` adds the third, which is where they part.
+  it("names the day the card itself names, not the frozen weekday list", async () => {
+    const expectNoBoundary = mountLive({ deckDays: true });
+    // The dots appear only once today is answered — before the vote they
+    // read as pagination competing with the question.
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+
+    const dots = screen.getAllByRole("button", { name: /— (answered|not answered)$/ });
+    expect(dots.length, "the day dots did not render").toBe(3);
+    const labels = dots.map((d) => d.getAttribute("aria-label").split(" — ")[0]);
+    // Rendered right-to-left (today on the right), so the third day is
+    // first in the DOM.
+    expect(
+      labels,
+      `a dot announced a day the card it opens does not claim: ${labels.join(", ")}`,
+    ).toEqual([FIXTURE_THIRD_DAY, "Yesterday", "Today"]);
+    expectNoBoundary("daily/live/day-dots");
+  });
+
   it("renders the demoInProd fallback without tripping the boundary", () => {
     // A live build that could not attach and fell back to mock data. Its own
     // branch again — and the one where D11 suppresses the most.
@@ -451,7 +613,25 @@ describe("spec layer mounts in live mode", () => {
     // reason box. Guards the direction the fixture makes easy to get wrong.
     const expectNoBoundary = mountLive();
     expect(screen.queryByRole("button", { name: /sample questions/i })).toBeNull();
+    // …and not the last-sync pill either (D356): an attached session has
+    // nothing to reconnect to.
+    expect(screen.queryByRole("button", { name: /last sync/i })).toBeNull();
     expectNoBoundary("daily/live/no-reason");
+  });
+
+  it("a warm paint whose reconcile failed shows the last-sync pill, with the reason one tap away", async () => {
+    // D356: the deck on screen is real — this device's caches — so the
+    // sample-questions pill would be a lie; but the counts are as of the
+    // last sync and the server has not been heard from, and that is a
+    // fact the person deserves in the same shape as the demo banner: a
+    // pill, and the reason behind a tap.
+    const expectNoBoundary = mountLive({ stale: true });
+    expect(screen.queryByRole("button", { name: /sample questions/i })).toBeNull();
+    const pill = screen.getByRole("button", { name: /last sync/i });
+    expect(screen.queryByText(/auth\/network-request-failed/)).toBeNull();
+    fireEvent.click(pill);
+    expect(await screen.findByText(/auth\/network-request-failed/)).toBeTruthy();
+    expectNoBoundary("daily/live/stale");
   });
 
   it("renders a profile that has not picked a city", () => {
@@ -601,15 +781,21 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // that quietly fell back to `paths-data.js` would look perfectly fine and
   // be showing authored crowd figures to a live user, which is D1's case.
   // Binding on the fixture's own story title is what tells them apart.
+  //
+  // Since D341 a story is a MEMBER of the feed pool — the fixture pushes
+  // it into WORLD_FEED_QS the way buildFeedGlobals emits it — so finding
+  // the title here also pins the live dispatch: the stream dealt the card,
+  // nothing reserved it a slot. (The membership shape itself — several at
+  // once, parking when finished — is pinned on the demo mount.)
   it("draws Crossroads from the bank on a live feed, never the demo pool", () => {
     const expectNoBoundary = mountLive();
     expect(
       screen.getByText(PATH_TITLE),
       "the live Crossroads card is missing, or fell back to the demo story",
     ).toBeTruthy();
-    // The demo pool's stories stay in the demo pool.
-    expect(screen.queryByText("The Wallet")).toBeNull();
-    expect(screen.queryByText("The Wrong Text")).toBeNull();
+    // The demo pool's stories stay in the demo pool — whichever it holds,
+    // so a swap there (D413) cannot leave this asserting on retired titles.
+    for (const st of PATHS.stories()) expect(screen.queryByText(st.title), st.title).toBeNull();
     expectNoBoundary("live feed, crossroads from the bank");
   });
 
@@ -624,6 +810,73 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/ended here$/)).toBeNull();
     expect(screen.queryByText(/walks your road$/)).toBeNull();
     expectNoBoundary("live feed, crossroads with no walks");
+  });
+
+  // THE FRONT DOOR SAID 100% AND, ONE LINE LOWER, THAT NOBODY HAD BEEN
+  // COUNTED.
+  //
+  // `counts` is the published aggregate plus your own vote, so before the
+  // fold has landed anything it is [1, 0, 0] and the shares are [100, 0, 0].
+  // The result stage printed a 25px "100%" over your side, the tiles drew
+  // the same split as geometry, the consequence beat had already animated
+  // the crowd into your camp — and `resultNote` underneath said "You're
+  // first — the count lands in a moment". This is the first voter after
+  // every UTC rotation, on the app's landing screen.
+  //
+  // The feed had already ruled on the identical state three times
+  // (world-feed routes a floored card off the tiles, suppresses the
+  // numeral, and gates a duel's shares). The daily was the one answer
+  // surface with no gate.
+  it("draws no split on the daily before the crowd has published one", async () => {
+    const expectNoBoundary = mountLive({ tooSmall: true });
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+
+    const body = document.body.textContent;
+    // The line that was always right, and is now the only claim on screen.
+    expect(body, "the first-voter note is missing — the case is testing nothing")
+      .toMatch(/the count lands in a moment/);
+    // …and the four readings that contradicted it.
+    expect(body, "the result stage still prints a share").not.toMatch(/100%/);
+    expect(body, "the result stage still prints a zero share").not.toMatch(/\b0%/);
+    expect(body, "the consequence beat still announces the crowd").not.toMatch(/you.re with them/i);
+    expectNoBoundary("live daily, first voter");
+  });
+
+  it("does not print a share when the only vote in the crowd is yours", async () => {
+    // ONE FOLD LATER THAN THE CASE ABOVE, and the state that case cannot
+    // reach. `tooSmall` is the window BEFORE the trigger folds your vote:
+    // counts zero, `noCountsYet` true, floor on. Once the fold lands the
+    // aggregate has published — its total is 1, and that 1 is you — so
+    // `noCountsYet` goes FALSE while `countsFor` subtracts you back out
+    // and every drawn count stays zero. The floor lifted, `wfPcts` added
+    // its own +1 for "you", and the card printed 100% over a crowd of
+    // nobody.
+    //
+    // Not off-screen: `unaggregated` clears on the next aggregate read
+    // and the refresh fires a couple of seconds after the write acks, so
+    // the card flips from floored to "100% · 1 vote" while the reader is
+    // still looking at it. On the daily this is a state EVERY reader
+    // passes through on a question they answer first.
+    const expectNoBoundary = mountLive({ soloVoter: true });
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+
+    const body = document.body.textContent;
+    expect(body, "the card printed a share over a crowd of one").not.toMatch(/100%/);
+    expect(body, "the card printed a zero share over a crowd of one").not.toMatch(/\b0%/);
+    expect(body, "the consequence beat announced a crowd of nobody").not.toMatch(/you.re with them/i);
+    expectNoBoundary("live daily, solo voter past the fold");
+  });
+
+  // The control, and it is the half that keeps the gate from being "never
+  // draw a split": the same ballot with a published crowd still states one.
+  it("still draws the split once the crowd has published — the control", async () => {
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+    expect(document.body.textContent, "a published crowd stopped being drawn").toMatch(/%/);
+    expectNoBoundary("live daily, published crowd");
   });
 
   // Catalogue picks on a LIVE feed (D14 gone live): the card comes from
@@ -670,6 +923,34 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, pick card answered");
   });
 
+  it("says a pick outside the board is not on it, never that it is below a floor", async () => {
+    // The board is ten rows over catalogues of a thousand entries, so a
+    // pick outside it is the ORDINARY case, and the tile said "below the
+    // floor" — while the ghost row on the same card said "counted with
+    // everyone else — not on the board yet". Post-D98 the live board has
+    // no floor; the pick is counted exactly, it is simply outside the top
+    // ten. One card, two contradictory statements about the same pick.
+    const expectNoBoundary = mountLive({ pickCard: true }, (l) => {
+      l.votes["pick-fixture"] = "9731"; // not on the fixture's board
+    });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture pick card/);
+    fireEvent.click(screen.getByText(PICK_PROMPT));
+    await awaitText(/of 10 spots on the board claimed/);
+    expect(
+      screen.queryByText(/below the floor/i),
+      "a live pick said it was below a floor the live board does not have",
+    ).toBeNull();
+    // Anchored: the ghost row's longer sentence also contains the phrase,
+    // and this is about the TILE.
+    expect(screen.getByText(/^not on the board$/)).toBeTruthy();
+    // …and the card still says the true thing it always said, so this is
+    // not one absence traded for another.
+    expect(screen.getByText(/counted with everyone else — not on the board yet/)).toBeTruthy();
+    expectNoBoundary("live feed, pick outside the board");
+  });
+
   // Rank on a LIVE feed (D233): the whole loop through the real card —
   // tap the four items into an order, watch the completed ranking reach
   // the store, and read the reveal against the DERIVED crowd. The demo's
@@ -686,6 +967,19 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await awaitText(/You matched the crowd on/);
     // fixture crowd [1,3,2,4] against 0,2,1,3 — every position agrees
     expect(screen.getByText(/You matched the crowd on 4 of 4/)).toBeTruthy();
+    // …AND WHICH CROWD. This was the only answered live card with no count
+    // anywhere on it, so "the crowd" could have been one stranger. The
+    // fixture aggregate holds 9 rankings and the viewer's own has just
+    // been folded into it, so the crowd the order rests on is 8 — the
+    // number `rankCrowd` computes and used to discard, not `agg.total`.
+    expect(
+      screen.getByText(/from 8 other rankings/),
+      "the live rank card stated a match against a crowd it never sized",
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/from 9 other rankings/),
+      "the basis counted the viewer's own ranking as part of the crowd",
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: /You matched the crowd/ }),
       "a live rank card offered the demo's stats sheet — its cohorts are fabricated",
@@ -804,7 +1098,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     localStorage.clear();
     const expectNoBoundary = mountLive();
     await growFeed();
-    fireEvent.click(screen.queryAllByRole("button", { name: /About this question/i })[0]);
+    // the daily's ctx opener is the underlined words under the ballot
+    // since 2026-09-06 — the kicker-row ⓘ it replaced is gone
+    fireEvent.click(screen.getByRole("button", { name: /why this question/i }));
 
     // nextElementSibling, not parentElement. The rows are flat key/value
     // spans in one grid, so a row's `parentElement` is the WHOLE sheet body
@@ -1094,7 +1390,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // body has rendered" are separated by a dynamic import whose duration
     // is the machine's — the same race Circle's case below documents, and
     // the same fix.
-    expect(await screen.findByText(/revealed with names the morning after/i, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await screen.findByText(/then it opens with names/i, {}, { timeout: 3000 })).toBeTruthy();
     expect(screen.queryByText(/No groups yet/i),
       "Groups still answers an empty stop with a headline").toBeNull();
     // The one action a field cannot fill by itself survives the trim.
@@ -1223,8 +1519,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // screen that is still animating and proves nothing. Found by
     // mutation: ungating `!S.live` did NOT fail this case until the beat
     // was dismissed here.
-    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
-    if (beat) fireEvent.click(beat);
+    // settleBeat, not `if (beat)`. The harness's own note says why: a
+    // conditional click degrades to a no-op the day the beat stops
+    // mounting, and the assertions below then run against a screen that is
+    // still animating — which is what this click exists to prevent, so the
+    // case would pass while proving nothing.
+    settleBeat();
     await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
     // The DEMO row is what must stay gated. Its two markers: seeded
     // Comments, and the hash-built sheet's cut chips. "Who voted what" is
@@ -1257,8 +1557,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const myLabel = opts[0].textContent.trim();
     fireEvent.click(opts[0]);
     await act(async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); });
-    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
-    if (beat) fireEvent.click(beat);
+    // settleBeat, not `if (beat)`. The harness's own note says why: a
+    // conditional click degrades to a no-op the day the beat stops
+    // mounting, and the assertions below then run against a screen that is
+    // still animating — which is what this click exists to prevent, so the
+    // case would pass while proving nothing.
+    settleBeat();
     await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
 
     const who = screen.getByRole("button", { name: "Who voted what" });
@@ -1333,6 +1637,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     expect(
       screen.queryByText("Communities"),
@@ -1356,11 +1663,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // paid door, and the button wears the door's own name. The header's
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
-    const doors = screen.getAllByRole("button", { name: /ask a question/i });
+    // INVERTED at D368, same reason as the profile case above.
     expect(
-      doors.some((b) => /ask a question/i.test(b.textContent || "")),
-      "the add sheet lost its own door — only the header icon matched",
-    ).toBe(true);
+      screen.queryAllByRole("button", { name: /ask a question/i }),
+      "the sheet still offers a purchase door",
+    ).toHaveLength(0);
     expectNoBoundary("live add sheet");
   });
 
@@ -1373,8 +1680,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // against the demo cast reaching a live screen; this one guards against
   // the opposite failure, which Roles is uniquely exposed to: a role is
   // four numbers about a person, and four numbers are trivially
-  // computable from one revealed day. The floor is the only thing
-  // stopping a coin flip being drawn with a name on it.
+  // computable from one cast round or one vote. The floor is the only
+  // thing stopping a coin flip being drawn with a name on it.
   it("offers the Roles tab live, and refuses under the floor", async () => {
     const expectNoBoundary = mountLive({ feedCards: 2 });
     await growFeed();
@@ -1387,12 +1694,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // The panel is behind a React.lazy boundary (profile-overlay is eager
     // and the eager budget had 4 KB left), so the assertion has to wait
     // for the chunk rather than for a render.
-    await screen.findByText(/No 1v1 has 3 days you both guessed yet/);
-    // The fixture has no rooms at all, so both instruments refuse — with
-    // their floors named in the floor's own unit (days both guessed / days
-    // you played, not "revealed days"), not with an empty rose.
-    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).not.toBeNull();
-    expect(screen.getByText(/No group has 2 revealed days you played yet/)).not.toBeNull();
+    await screen.findByText(/Every fourth round of a 1v1 asks what the other is to you/);
+    // The fixture has no rooms at all, so both instruments refuse — each
+    // in the unit its own floor is counted in since D437 (cast rounds in
+    // a 1v1, votes received in a group), not with an empty rose.
+    expect(screen.getByText(/Every fourth round of a 1v1 asks what the other is to you/)).not.toBeNull();
+    expect(screen.getByText(/No room has voted you into a role yet/)).not.toBeNull();
     expectNoBoundary();
     // `window.__profileSub` remembers the last-visited subtab so returning
     // from a tracker lands back on it — and it lives on `window`, which
@@ -1520,9 +1827,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await awaitText(/ votes/);
     const shown = /(\d[\d.K]*) votes/.exec(document.body.textContent);
     expect(shown, "the card is not printing a vote count — fixture changed").toBeTruthy();
-    // [0] is the daily's, above the feed; [1] is the first feed card's —
-    // the one just answered.
-    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[1]);
+    // the daily's ⓘ became the words under its ballot (2026-09-06), so
+    // every "About this question" is a feed card's — [0] is the one just
+    // answered.
+    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[0]);
     expectNoBoundary("live feed, ctx sheet");
     expect(screen.getByText("Answers"), "the feed's info sheet did not open").toBeTruthy();
     expect(
@@ -1791,6 +2099,223 @@ describe("the feed dial keeps the value you slid (D218)", () => {
     expect(within(card).queryByText("0 cups")).toBeNull();
     expectNoBoundary("feed dial healed");
   });
+
+  // D86 ON A CONTINUUM (2026-09-06). The store has taken a moved bucket
+  // since D218 (setDial routes a repeat through editVote), but the
+  // answered card drew only the curve and the "Change" door excluded dials
+  // by name — so the owner, on a real device, could not change an answer
+  // the rules already allowed them to. The door is the whole fix, and
+  // these two cases are its two halves: the slider comes back at the
+  // value you hold and letting go moves the bucket; a refused move snaps
+  // back to the standing answer and says why.
+  it("Change re-opens the slider at the answer you hold, and letting go moves it", async () => {
+    // bucket 6 of a 1–10 dial shows as "6 cups" (dial-bucket.test.jsx
+    // pins that the shown value re-buckets to 6)
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "6"; }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    // answered: the curve stands, the slider does not, and the door is there
+    expect(within(card).queryByRole("slider")).toBeNull();
+    fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+    const slider = within(card).getByRole("slider");
+    // seeded at the standing answer, not at the middle of the range
+    expect(slider.getAttribute("aria-valuenow")).toBe("6");
+    expect(within(card).getByText("slide · let go to change")).toBeTruthy();
+    // one step right of 6 on 1–10 is 7 (the step floors at one whole unit)
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyDown(slider, { key: "Enter" });
+    // the bucket moved in the store — through editVote, since vote() is
+    // create-only and would have left "6" standing
+    const bucketOf7 = String(globalThis.WorldFeed.prototype.dialBucket(dialCard(), 7));
+    expect(bucketOf7).not.toBe("6");
+    expect(window.LIVE.myVotes()[DIAL_ID]).toBe(bucketOf7);
+    // …and the card shows the new value as yours, slider gone, door back
+    expect(within(card).queryByRole("slider")).toBeNull();
+    expect(within(card).getByText("you").previousSibling.textContent).toBe("7 cups");
+    expect(within(card).getByRole("button", { name: "Change" })).toBeTruthy();
+    expectNoBoundary("feed dial changed");
+  });
+
+  it("a refused change snaps back to the answer that stands, and says why", async () => {
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "6"; }));
+    await growFeed();
+    // the cooldown, as the store reports it: false, nothing sent
+    const refuse = vi.spyOn(window.LIVE, "editVote").mockReturnValue(false);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+      const card = screen.getByText(DIAL_PROMPT).parentElement;
+      fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+      const slider = within(card).getByRole("slider");
+      fireEvent.keyDown(slider, { key: "ArrowRight" });
+      fireEvent.keyDown(slider, { key: "Enter" });
+      expect(refuse).toHaveBeenCalledTimes(1);
+      expect(window.LIVE.myVotes()[DIAL_ID]).toBe("6");
+      // the standing answer, not the one the server never heard — and the
+      // reason, in the slot the slider's instruction used
+      expect(within(card).getByText("you").previousSibling.textContent).toBe("6 cups");
+      expect(within(card).queryByText("7 cups")).toBeNull();
+      expect(within(card).getByText("One change a minute — try again shortly.")).toBeTruthy();
+      expectNoBoundary("feed dial refused");
+    } finally {
+      refuse.mockRestore();
+    }
+  });
+});
+
+// The field's door — the other half of D86 ON A CONTINUUM (2026-09-06).
+// PR #413 opened "Change" for the dial and the field in one change and
+// pinned the dial above; the owner's next report was the field ("Your
+// phone — place it", answered, Takes beside it and no Change), from a
+// build older than that merge. The field half had no case of its own, so
+// this is it, in the dial's two halves: the plane takes a tap again with
+// the dot you hold still drawn, and placing moves the cell through
+// editVote; a refused move snaps the dot back to the standing cell's
+// midpoint and says why. Keyboard placement, because it is deterministic
+// in jsdom — a pointer tap divides by a zero-width rect.
+describe("the feed field can be changed (D86 on a continuum)", () => {
+  const FIELD_ID = "feed-fixture-field";
+  const FIELD_PROMPT = "Fixture phone — place it";
+  const fieldCard = () => ({
+    id: FIELD_ID,
+    cat: "culture",
+    type: "field",
+    prompt: FIELD_PROMPT,
+    ax: ["a tool", "a limb"],
+    ay: ["serves you", "runs you"],
+    // live shape, as buildFeedGlobals emits it: 12 cells (4 across, 3
+    // down) whose counts ARE the crowd — empty here, so the plane draws
+    // no crowd dots and the only dots on it are the ones these cases place
+    options: Array.from({ length: 12 }, (_, i) => ({ label: `c${i}`, count: 0 })),
+    n: 0,
+    live: true,
+  });
+  const addField = (prep) => (handle) => {
+    window.WORLD_FEED_QS.push(fieldCard());
+    if (prep) prep(handle);
+  };
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.removeItem("insight.feedVotes.v1"); });
+
+  // the plane's accessible name carries its state: "— answered" while it
+  // stands, the aim-and-place instruction while it takes a tap
+  const plane = (card) => within(card).getByRole("button", { name: new RegExp("^" + FIELD_PROMPT) });
+  // a dot is a span positioned in the plane's own percent units
+  const dotAt = (card, x, y) => [...card.querySelectorAll("span")].find((s) => s.style.left === x + "%" && s.style.top === y + "%");
+
+  it("Change re-opens the plane with your dot still drawn, and placing moves the cell", async () => {
+    // cell 5 of 12 — second row, second column — stands at its midpoint
+    // (37.5, 50): what a device with no raw point claims (fieldVal)
+    const expectNoBoundary = mountLive({}, addField((h) => { h.votes[FIELD_ID] = "5"; }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(FIELD_PROMPT).parentElement;
+    expect(plane(card).getAttribute("aria-label")).toMatch(/answered$/);
+    expect(dotAt(card, 37.5, 50), "the standing dot is not at its cell's midpoint").toBeTruthy();
+    fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+    const p = plane(card);
+    expect(p.getAttribute("aria-label")).toMatch(/Arrow keys to aim/);
+    // what you are moving stays on screen while you move it
+    expect(dotAt(card, 37.5, 50)).toBeTruthy();
+    // aim one step right of centre and place: (54, 50) is cell 6
+    fireEvent.keyDown(p, { key: "ArrowRight" });
+    fireEvent.keyDown(p, { key: "Enter" });
+    // the cell moved in the store — through editVote, since vote() is
+    // create-only and would have left "5" standing
+    expect(window.LIVE.myVotes()[FIELD_ID]).toBe("6");
+    expect(dotAt(card, 54, 50), "the dot did not move to where it was placed").toBeTruthy();
+    expect(dotAt(card, 37.5, 50)).toBeUndefined();
+    // …and the card stands again: plane answered, door back, no complaint
+    expect(plane(card).getAttribute("aria-label")).toMatch(/answered$/);
+    expect(within(card).getByRole("button", { name: "Change" })).toBeTruthy();
+    expect(within(card).queryByText("One change a minute — try again shortly.")).toBeNull();
+    expectNoBoundary("feed field changed");
+  });
+
+  it("a refused change snaps the dot back to the cell that stands, and says why", async () => {
+    const expectNoBoundary = mountLive({}, addField((h) => { h.votes[FIELD_ID] = "5"; }));
+    await growFeed();
+    // the cooldown, as the store reports it: false, nothing sent
+    const refuse = vi.spyOn(window.LIVE, "editVote").mockReturnValue(false);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+      const card = screen.getByText(FIELD_PROMPT).parentElement;
+      fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+      const p = plane(card);
+      fireEvent.keyDown(p, { key: "ArrowRight" });
+      fireEvent.keyDown(p, { key: "Enter" });
+      expect(refuse).toHaveBeenCalledTimes(1);
+      expect(window.LIVE.myVotes()[FIELD_ID]).toBe("5");
+      // the standing cell's midpoint, not the point the server never heard
+      expect(dotAt(card, 37.5, 50), "the refused point stood instead of the standing cell").toBeTruthy();
+      expect(dotAt(card, 54, 50)).toBeUndefined();
+      expect(plane(card).getAttribute("aria-label")).toMatch(/answered$/);
+      expect(within(card).getByText("One change a minute — try again shortly.")).toBeTruthy();
+      expectNoBoundary("feed field refused");
+    } finally {
+      refuse.mockRestore();
+    }
+  });
+});
+
+// The learn reveal's crowd share is a BAR under the label, never a lit
+// row (2026-09-06). Each wrong option carried the crowd's share as a wash
+// filling the row's height to the share's width — which at a share near
+// 100% is a filled row with no edge showing. The owner's device drew
+// "Zanzibar City" filled edge to edge beside the Dodoma they had answered
+// correctly, and read it as having answered wrong: a filled row beside a
+// solid correct one is a verdict, not a bar. The share is a strip along
+// the row's bottom edge now, so a share of 100% is a full-width bar and
+// the row keeps its surface.
+describe("the learn reveal draws the crowd's share as a strip, not a lit row", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("a wrong option holding the whole crowd is a bar under its label, with no mark", async () => {
+    const expectNoBoundary = mountLive({ learnCard: true, feedCards: 24 }, (h) => {
+      // Every fixture card's crowd: one first try, on the option AFTER the
+      // correct one (the fixture authors c = i % 4) — the owner's shape,
+      // one card at a time. Defined onto the fixture's store the way the
+      // fixture defines its own members, so restore() puts the real
+      // descriptor back.
+      Object.defineProperty(h.LIVE, "learnAgg", {
+        value: (id) => {
+          const m = /^fixlearn(\d+)$/.exec(id);
+          if (!m) return null;
+          const c = (Number(m[1]) - 1) % LEARN_CARD_OPTIONS.length;
+          return { tooSmall: false, total: 1, counts: { [String((c + 1) % LEARN_CARD_OPTIONS.length)]: 1 } };
+        },
+        writable: true, configurable: true, enumerable: true,
+      });
+    });
+    await growFeed();
+    await awaitText(/Fixture learn card/);
+    // whichever fixture card the scheduler served first: its number says
+    // which option is authored correct and how its labels are suffixed
+    const prompt = screen.getAllByText(/^Fixture learn card/)[0];
+    const n = Number((/\((\d+)\)$/.exec(prompt.textContent || "") || [0, "1"])[1]);
+    const c = (n - 1) % LEARN_CARD_OPTIONS.length;
+    const label = (i) => LEARN_CARD_OPTIONS[i] + (n > 1 ? ` ${n}` : "");
+    const card = prompt.parentElement;
+    fireEvent.click(within(card).getByRole("button", { name: label(c) }));
+    // answered right: the tick is on the row you tapped, and that row
+    // carries no share bar — its number says it
+    const right = within(card).getByRole("button", { name: new RegExp("^" + label(c)) });
+    expect(right.textContent).toContain("\u2713");
+    expect(right.querySelector("[data-know-share]")).toBeNull();
+    // the crowd's option carries its share as a strip along the bottom
+    // edge — full width, a few pixels tall, the row's own height untouched
+    const wrong = within(card).getByRole("button", { name: label((c + 1) % LEARN_CARD_OPTIONS.length) });
+    const share = wrong.querySelector("[data-know-share]");
+    expect(share, "the crowd's share is not drawn on the option they picked").toBeTruthy();
+    expect(share.style.width).toBe("100%");
+    expect(share.style.bottom).toBe("0px");
+    expect(share.style.top, "the share fills the row — a lit row beside a correct one reads as a wrong pick").toBe("");
+    expect(parseFloat(share.style.height)).toBeGreaterThan(0);
+    expect(parseFloat(share.style.height)).toBeLessThanOrEqual(6);
+    // …and no verdict mark on it: the cross is yours alone
+    expect(wrong.textContent).not.toContain("\u2715");
+    expectNoBoundary("live learn reveal, the crowd on a wrong option");
+  });
 });
 
 // The demo persona must not become a live user's profile — on ANY mount.
@@ -1890,6 +2415,79 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(localStorage.getItem("insight.profileGeneral.v1")).toBeNull();
   });
 
+  // ── the same write, pointed at a SECOND device ──
+  //
+  // The two cases above are about a demo persona reaching a live account.
+  // These two are the reverse and were live for as long: the live branch of
+  // `baseFor` returned `{ vitals: {} }`, which is not "no opinion" but a
+  // complete profile whose every field is blank, and the effect above writes
+  // the map derived from it WHOLESALE. So opening the profile on a phone
+  // that had never seen the panel erased the anchors the laptop wrote — and
+  // because answers are create-only (D5), every answer written after that
+  // carried no cohort and none of them can be corrected.
+  const ACCOUNT = {
+    age: "29", ageBand: "25-34", gender: "Woman",
+    city: "Oslo, NO", country: "NO",
+    education: "MA Literature", profession: "Baker", jobField: "Food & hospitality",
+    relationship: "Single", heightBand: "170–179 cm",
+  };
+
+  it("seeds a fresh device from the account's own anchors instead of blanking them", async () => {
+    const saved = [];
+    live = installLive({ anchors: ACCOUNT });
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // No local blob at all — a device that has never opened the panel. This
+    // is the ordinary second-device path, not a race.
+    render(<App />);
+    await openProfile();
+
+    expect(saved.length, "the anchors effect never ran — assertion is vacuous")
+      .toBeGreaterThan(0);
+    const last = saved[saved.length - 1];
+    expect(last.profession, "a second device erased the account's profession").toBe("Baker");
+    expect(last.education, "a second device erased the account's education").toBe("MA Literature");
+    expect(last.city, "a second device erased the account's city").toBe("Oslo, NO");
+    expect(last.ageBand, "a second device erased the account's age band").toBe("25-34");
+  });
+
+  it("refuses the wholesale write while the profile doc is still hydrating", async () => {
+    // The seed above cannot close this one: `useState(loadGen)` runs exactly
+    // once, so a panel that mounts before `v2_users/{uid}` has landed seeds
+    // from an empty map however good the seeding rule is.
+    //
+    // KEYED ON THE PANEL'S OWN READ, not on call order. The first version of
+    // this case answered {} to the first `anchors()` read and the account map
+    // to the rest — and it PASSED WITH THE GUARD REMOVED, which is how the
+    // stack sniff below earned its ugliness. Three other consumers read the
+    // anchors before the profile panel does (WorldFeed thrice), so a counter
+    // hands `baseFor` the hydrated map and the race window is never entered.
+    // Naming `baseFor` says exactly what is being reproduced: the doc has not
+    // landed when the panel seeds, and has by the time the effect runs one
+    // commit later — which is what hydrating a microtask late looks like from
+    // here. It fails loudly if `baseFor` stops reading the anchors, which is
+    // the right way for it to break.
+    const saved = [];
+    live = installLive({ anchors: ACCOUNT });
+    let seeded = false;
+    window.LIVE.anchors = () => {
+      if ((new Error().stack || "").includes("baseFor")) { seeded = true; return {}; }
+      return { ...ACCOUNT };
+    };
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+    await openProfile();
+
+    expect(seeded, "the panel never seeded from an empty map — the race is not reproduced")
+      .toBe(true);
+    const blanked = saved.filter((a) => Object.values(a).every((v) => !v));
+    expect(blanked.length, "the hydrate race blanked the account's anchors").toBe(0);
+  });
+
+
   // ── the Map's anchor ring, the second place the persona reached ──
   //
   // The profile panel above was fixed; the ring at the centre of Mirror ·
@@ -1930,6 +2528,28 @@ describe("live mode never inherits the sample persona (D55)", () => {
       ring,
       `the anchor ring invented ${JSON.stringify(ring.map((r) => r.value))}`,
     ).toEqual([]);
+  });
+
+  it("gives Work the cohort's own value beside the profile's, and falls back where there is none", () => {
+    // D328 made the Work dim the derived `jobField`, so the sentence that
+    // carries a number about "people in your line of work" must name the
+    // FIELD — naming the profession reads as a cohort of carpenters. The
+    // row keeps the profession as the value it headlines, which claims no
+    // cohort, and carries the field as `self` for the sentence that does.
+    live = installLive({ anchors: { profession: "Carpenter", jobField: "Trades, construction & manufacturing" } });
+    hydrateTestResults({});
+    const job = anchorList().find((r) => r.id === "job");
+    expect(job, "the Work anchor vanished").toBeTruthy();
+    expect(job.value).toBe("Carpenter");
+    expect(job.self).toBe("Trades, construction & manufacturing");
+
+    // …and a profile written before D328 has no derived field at all, so
+    // the row falls back to the profession rather than to an empty "you:".
+    live.restore();
+    live = installLive({ anchors: { profession: "Carpenter" } });
+    hydrateTestResults({});
+    const old = anchorList().find((r) => r.id === "job");
+    expect(old.self, "a pre-D328 profile lost its side of the sentence").toBe("Carpenter");
   });
 
   it("anchors the viewer's own values, and only those", () => {
@@ -2010,6 +2630,103 @@ describe("live mode never inherits the sample persona (D55)", () => {
   };
   const AGE_ANCHOR = [{ id: "age", label: "Age", hue: 265, value: "age 30-39" }];
 
+  // The OTHER half of the same gate. `age` refuses because the viewer's
+  // age band cannot answer for a cohort that has not answered; 'all' is
+  // not a cohort at all — it is everyone, and the question's own published
+  // counts are exactly that.
+  //
+  // It used to fall through to the anchor lookup, find no 'all' in
+  // MAP_ANCHOR_DIM and return null, and the Map's constellation builder
+  // substituted `typ = 0.5` and `maj = true` for EVERY answer. So on a
+  // live build every dot sat at the same radius from you and the "rare
+  // take" mark could never render for anybody — the fabrication D72's null
+  // exists to prevent, done by the consumer instead of the source.
+  it("answers for EVERYONE from the published counts, and still refuses a cohort", () => {
+    live = installLive();
+    // The fixture publishes counts { 0: 12, 1: 8, 2: 5 } — 25 answers.
+    const all = window.MapStats.dist("daily-000", "all", 3, 0);
+    expect(all, "'all' still refuses — every Map dot is fabricated").not.toBeNull();
+    expect(all.reduce((a, b) => a + b, 0)).toBe(100);
+    // Real, and in the counts' own order: 12 > 8 > 5.
+    expect(all[0]).toBeGreaterThan(all[1]);
+    expect(all[1]).toBeGreaterThan(all[2]);
+    // The mode reads off the same array, so it is real too.
+    expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(0);
+    // …and the cohort anchor still refuses, which is the half that must
+    // not have been widened by this.
+    expect(window.MapStats.dist("daily-000", "age", 3, 0), "the cohort gate was widened too")
+      .toBeNull();
+  });
+
+  // WHICH OPTION THE GROUP CHOSE, off the counts rather than off the
+  // rounded percentages.
+  //
+  // sharePcts guarantees no inversion — a smaller count never draws larger
+  // — and the ridge's bar heights rest on that. It does not guarantee
+  // distinctness: two different counts can print the same integer, and
+  // `indexOf(max)` then breaks the real tie by INDEX. That decided the Map
+  // card's "most chose N" and its "you're with the majority" / "a minority
+  // take" verdict — the same defect the feed's own line had.
+  it("the daily's vote count includes YOUR vote — the one add-back nothing held", async () => {
+    // countsFor (data/deck) subtracts the viewer's own vote out of the
+    // published aggregate and delegates the add-back to a single line in
+    // daily-split.jsx, saying so: "the UI layer adds its own +1 for you".
+    // Nothing pinned that line. Neutering it — `count + 0 * (…)` — leaves
+    // the whole unit suite green while the card, its split and its
+    // Answers row each drop a vote, which is the reader's own.
+    //
+    // Absolute, not self-consistent: the sibling case that opens the info
+    // sheet asserts the card and the sheet AGREE, and they agree just as
+    // well when both are one low.
+    mountLive();
+    act(() => { live.LIVE.vote("daily-000", "1"); });
+    await awaitText(/ votes/);
+    const shown = /(\d+) votes/.exec(document.body.textContent);
+    expect(shown, "the daily is not printing a vote count — fixture changed").toBeTruthy();
+    // The fixture's daily publishes 12 + 8 + 5 = 25, none of them yours,
+    // so the card must read 26. Checked against the fixture's own numbers
+    // rather than a literal 26 alone, so a fixture change moves the
+    // expectation with it instead of silently making the case vacuous.
+    const published = FIXTURE_DAILY_COUNTS.reduce((a, b) => a + b, 0);
+    expect(published, "the fixture's daily counts changed").toBe(25);
+    expect(Number(shown[1]), "the viewer's own vote is missing from the count")
+      .toBe(published + 1);
+  });
+
+  it("the group's mode follows the votes, not the rounding", () => {
+    live = installLive({
+      aggCounts: { 0: 449, 1: 451, 2: 100 },
+    });
+    const all = window.MapStats.dist("daily-000", "all", 3, 0);
+    // Both leaders draw the SAME integer — this is the case that used to
+    // decide by index. If the fixture ever stops producing it, the
+    // assertion below stops proving anything, so it is checked.
+    expect(all[0], "the fixture no longer produces a rounding tie").toBe(all[1]);
+    // …and the answer is still the one with more votes.
+    expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(1);
+  });
+
+  // The Map DOT's own reading of the same tie. `dc099bd7` taught MapStats
+  // to answer 'all', which is what put a real number behind every dot —
+  // and in doing so it brought a line that had been dead to life with the
+  // rounding-tie defect still in it: while 'all' refused, `gd` was always
+  // null there and `maj` was hard-coded true. So the fix activated the
+  // bug, in the block it edited.
+  //
+  // `maj` decides `is-rare` on the dot and "a rare take" in the card, so
+  // on a tie the person who picked the option with MORE votes had their
+  // answer marked as the rare one.
+  it("the Map dot's majority reading follows the votes, not the rounding", () => {
+    live = installLive({ aggCounts: { 0: 449, 1: 451, 2: 100 } });
+    const d = window.MapStats.dist("daily-000", "all", 3, 1);
+    // The rounding tie is really there — otherwise the case proves nothing.
+    expect(d[0], "the fixture no longer produces a rounding tie").toBe(d[1]);
+    // Reading it the way the constellation used to.
+    expect(d.indexOf(Math.max(...d))).toBe(0);
+    // …and the way it reads now: option 1 has 451 votes.
+    expect(window.MapStats.mode("daily-000", "all", 3, 1)).toBe(1);
+  });
+
   it("draws no group split on a Map answer in live mode", () => {
     live = installLive();
     expect(window.MapStats.dist("daily-000", "age", 3, 0), "MapStats still fabricates")
@@ -2060,8 +2777,9 @@ describe("live mode never inherits the sample persona (D55)", () => {
         comments: [], friends: [],
       }];
     });
-    // The daily card's own ⓘ is the FIRST — the feed below has one per card.
-    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[0]);
+    // The daily opens its sheet through the words under the ballot since
+    // 2026-09-06; the feed's cards keep their per-card ⓘ.
+    fireEvent.click(screen.getByRole("button", { name: /why this question/i }));
     expectNoBoundary("daily/live/ctx-sheet");
     // The sheet's own rows are the proof it opened — "On your map" is the
     // one that always draws, whatever the counts say.
@@ -2167,6 +2885,99 @@ describe("live mode never inherits the sample persona (D55)", () => {
       .toMatch(/Openness/);
     expect(initialsIn(container), "invented friends survived on a live result")
       .toEqual([]);
+  });
+
+  it("fetches the people its percentiles count over, on a live build only", async () => {
+    // The card's counted numbers — the percentile line, the rarity field —
+    // are folds over LIVE.kindredPeople(), and nothing else on this screen
+    // fills that pool. It arrived as a side effect of any place stop's
+    // loadSimilarity until 2026-08-31 scoped that fan-out to the surfaces
+    // that read it and missed this one, so a viewer who opened World but
+    // never City lost the numbers with nothing said.
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+    const asked = vi.fn(async () => {});
+    live.LIVE.loadKindred = asked;
+    render(<window.ResultProfileCard testKey="big5" />);
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+    expect(asked, "the card counts over people it never asked for").toHaveBeenCalled();
+  });
+
+  it("asks for nobody in demo mode, where the numbers are authored", async () => {
+    // The control, and it is the half that keeps the case above honest: an
+    // effect with no gate would also satisfy that one. The demo build's
+    // rarity and percentile come from the authored curve, so a fetch here
+    // would be a bill for a number it does not use.
+    //
+    // THROUGH THE HANDLE, not through `window.LIVE`. Written as
+    // `window.LIVE = { ...window.LIVE, enabled: false }` this case passed
+    // with the gate deleted — result-card.jsx does `import LIVE from
+    // '../data/live'`, so replacing the global leaves the binding the
+    // component actually reads untouched. installLive redefines members on
+    // the REAL store, which is why setting them on `live.LIVE` reaches it.
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+    const asked = vi.fn(async () => {});
+    live.LIVE.loadKindred = asked;
+    live.LIVE.enabled = false;
+    render(<window.ResultProfileCard testKey="big5" />);
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+    expect(asked, "the demo build paid for a crowd it does not count over").not.toHaveBeenCalled();
+  });
+
+  // ── the same effect, under the shell that re-renders on its notify (D364) ──
+  //
+  // The fetch the case above pins is also a hazard. The real loadKindred
+  // notifies in its `finally`, app-shell re-renders on every notify
+  // (`liveTick`), and the profile overlay re-renders with it — so the card
+  // has to ride that re-render as an UPDATE. Until 2026-09-05 the overlay
+  // defined its four result panels inside its own render body (`const
+  // Big5Panel = () => <ResultProfileCard …/>`), which is a new component
+  // type on every render, which React treats as an unmount and a fresh
+  // mount. The mount effect re-ran, notified, and re-ran. Every reveal
+  // animation on the card restarted on each pass — a restarted petal sits
+  // at its `from` frame, scale 0.12 and opacity 0, so the rose drew EMPTY
+  // while it shook — paced by the network while the voter lists landed,
+  // then as fast as React could commit once they were cached and the
+  // loader ran synchronously, until the WebView died. Reported from a
+  // device on the Big 5 and Politics tabs as "the bars and charts vibrate
+  // faster and faster, then the app crashes".
+  //
+  // Mounted through the WHOLE app, because the loop needs the shell's
+  // subscriber: the card rendered alone (the cases above) has no parent to
+  // re-render it, so it cannot see this.
+  describe("survives the notify its own loader sends (D364)", () => {
+    afterEach(() => { delete window.__profileSub; });
+
+    it("mounts the card once under a shell that re-renders on every notify", async () => {
+      // The loader as the real one behaves: it notifies when it lands.
+      // Through the fixture's `vote`, which is its notify path (each call
+      // fans out to every subscriber, liveTick included), on a fresh qid
+      // each time because vote() is one answer per question. CAPPED, so
+      // the failure mode is a count and not a hung suite — measured on the
+      // pre-fix overlay: nine calls, one per cap-bounded remount.
+      let n = 0;
+      const asked = vi.fn(async () => { if (n < 8) live.LIVE.vote(`d364-${n++}`, "1"); });
+      const expectNoBoundary = mountLive({}, (l) => {
+        hydrateTestResults(BIG5_RESULT);
+        l.LIVE.loadKindred = asked;
+        // The subtab is remembered on `window`, and reading it is how the
+        // overlay opens anywhere but General.
+        window.__profileSub = "big5";
+      });
+      await openHeaderOverlay("profile");
+      await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+      const rose = screen.getByRole("img", { name: /Trait scores as petals/ });
+      expect(asked, "the card re-mounted on its own loader's notify").toHaveBeenCalledTimes(1);
+      // And a notify from anywhere else — an aggregate landing, a vote —
+      // must leave the card's DOM in place: a remount is a new <svg>, and
+      // a new <svg> is every petal animation starting over.
+      act(() => { live.LIVE.vote("d364-elsewhere", "1"); });
+      expect(screen.getByRole("img", { name: /Trait scores as petals/ }), "a store notify rebuilt the rose")
+        .toBe(rose);
+      expect(asked, "a store notify re-ran the card's mount effect").toHaveBeenCalledTimes(1);
+      expectNoBoundary("profile/big5 under a store notify");
+    });
   });
 
   it("keeps the persona's same-type friends in demo mode", () => {
@@ -2297,12 +3108,63 @@ describe("live mode never inherits the sample persona (D55)", () => {
     const host = renderTypeSheet();
     try {
       expect(host.textContent).toMatch(/of 1 person counted/);
-      expect(host.textContent).toMatch(/1 · 100%/);
+      // A COUNT, not a share. This asserted "1 · 100%" — a percentage over
+      // a basis of one — until the floor below was applied. The card built
+      // on this same fold has always refused shares under TYPE_SMALL, and
+      // typeMix.ts states it as the constant's contract.
+      expect(host.textContent).toMatch(/\b1\b/);
+      expect(host.textContent, "a share was printed over a basis of one")
+        .not.toMatch(/1\s*·\s*100\s*%/);
       // Every other type is a measured zero, drawn as an absence rather
       // than as a share rounding to nothing.
       expect(host.textContent).toMatch(/none/);
       expect(host.textContent, "an authored share is still on screen")
         .not.toMatch(AUTHORED_SHARES);
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("prints counts, not shares, until the basis reaches the card's floor", () => {
+    // Two taps from the card that just named the reader's own type, on a
+    // row marked YOU, this sheet printed "2 · 67%" over three people. The
+    // card built on the same fold refuses shares below TYPE_SMALL and says
+    // why; the sheet counted from one typed person upward.
+    live = installLive();
+    const one = window.LIVE.kindredPeople()[0];
+    const sample = (n) => Array.from({ length: n }, (_, i) => ({ ...one, uid: `u${i}` }));
+    Object.defineProperty(window.LIVE, "kindredPeople",
+      { value: () => sample(TYPE_SMALL - 1), writable: true, configurable: true });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/The Quiet One/);
+      expect(host.textContent, `a share was printed over a basis of ${TYPE_SMALL - 1}`)
+        .not.toMatch(/\d+\s*·\s*\d+\s*%/);
+      // …and the basis is still stated, which is what makes the bare count
+      // readable at all.
+      expect(host.textContent).toMatch(new RegExp(`of ${TYPE_SMALL - 1} people counted`));
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("starts printing shares once the basis reaches the floor", () => {
+    // THE CONTROL. Without it the case above is satisfied by a sheet that
+    // never prints a share at all, which would lose the number on every
+    // basis large enough to carry it.
+    live = installLive();
+    const one = window.LIVE.kindredPeople()[0];
+    Object.defineProperty(window.LIVE, "kindredPeople", {
+      value: () => Array.from({ length: TYPE_SMALL }, (_, i) => ({ ...one, uid: `u${i}` })),
+      writable: true, configurable: true,
+    });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the floor swallowed a basis that is over it")
+        .toMatch(/\d+\s*·\s*\d+\s*%/);
     } finally {
       host.remove();
     }

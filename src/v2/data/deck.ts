@@ -30,6 +30,8 @@ export interface LiveQuestion {
   // Carried through from the bank so the Mirror's Answers lens can group
   // by subject and its Scores lens can tell an ordinal question from a
   // categorical one (D100). Both undefined for a doc seeded before D100.
+  // On a FEED question `sub` is the subtopic leaf id instead (D425) — the
+  // same field, and the surface says which; see QuestionDoc below.
   branch?: string;
   sub?: string;
   type?: string;
@@ -66,9 +68,13 @@ export interface QuestionDoc {
   // seed transports it on every doc; non-null only on catalog docs.
   domain?: string | null;
   // The daily bank's [branch, sub-branch] subject path (D100) — "Mind" /
-  // "Outlook". Absent on every other surface, and absent from any daily
-  // doc seeded before D100 until the next seed run, so every reader has
-  // to tolerate undefined rather than assume the bank is current.
+  // "Outlook" — and, on a FEED doc, `sub` alone is the subtopic LEAF id
+  // the card belongs to (`sub_tennis`; D425, world-subtopics.js). One
+  // wire field, two surfaces: a daily reader gets a name, a feed reader
+  // gets an id, and neither surface ever sees the other's. Absent from
+  // every other surface, and absent from any daily doc seeded before
+  // D100 until the next seed run, so every reader has to tolerate
+  // undefined rather than assume the bank is current.
   branch?: string;
   sub?: string;
   // The daily bank's short label ("Nature access") and, on the questions
@@ -79,6 +85,39 @@ export interface QuestionDoc {
   tag?: string;
   rates?: string;
   test: string | null;
+  // The instrument axis a test item scores — seeded on every doc, read
+  // by the deep join below and by nothing else on the device: the core
+  // items' scoring metadata lives in IS_TESTS and joins by prompt.
+  axis?: string | null;
+  // The instruments' deep items (D416): which sub-scale an item scores —
+  // a Big Five facet or a compass position — and whether it is keyed
+  // against it. On the document rather than in IS_TESTS so the device
+  // joins by id and the 156 prompts stay out of first paint
+  // (docs/VISION-2026-09-07.md §2.5). Absent on the core items and on
+  // every other surface.
+  facet?: string;
+  invert?: boolean;
+  // The group as a CAST (D434, the owner's 2026-09-08 design): a `pick`
+  // may name the scenario pack it belongs to and the role it casts, and a
+  // `rate` question (topic "rate") asks the group about itself on a
+  // five-step scale whose two ends are `poles` — its `options` are the
+  // five step labels, so the answer stays an option index for the rules
+  // and the fold. Absent on every other surface and on the older group
+  // kinds.
+  scen?: { id: string; label: string; hue: number };
+  // …the role's SEAT since D437 (engine · hands · heart · wild): what a
+  // member's received votes cluster into. Optional on the type because a
+  // device may hold a bank seeded before the seats; absent, the instrument
+  // counts nothing for that vote rather than inventing a seat.
+  role?: { id: string; label: string; seat?: string };
+  poles?: string[];
+  // THE CAST ROUND (D437, the owner's 2026-09-09 design): a 1v1 question
+  // of topic "cast" — *Most days, {name} is…* — whose four options each
+  // carry an axis (`dims`: trust · spark · judgement · constancy) and a
+  // *them* form (`them`: *the one {name} tells first*) for when the fact
+  // is said about the other side. One per 1v1 pool; absent elsewhere.
+  them?: string[];
+  dims?: string[];
   active: boolean;
   // Current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231): a
   // feed entry is OFFERED only between these two inclusive UTC day keys;
@@ -111,6 +150,17 @@ export interface QuestionDoc {
   // construction and carries no key, which is why readers must go through
   // `isCore()` below rather than testing this field directly.
   core?: boolean;
+  // Bought reach (D313). Set only by the paying webhook, on a question
+  // written into the bank at runtime — which is exactly the question no
+  // published order can carry, because `rankBankV2` builds the feed's
+  // order from the COMPILED bank. Absent on every seeded question, so
+  // like `core` it is emit-when-set and absence means "not this".
+  //
+  // The client's boot fetch asks for it beside `until`, so a bought
+  // question ships whole for the length of the window it was bought for
+  // (live.ts) — the delivery D313 sells and D316/D321 would otherwise
+  // have left with no route to a device.
+  paid?: boolean;
   // Doors (docs/TAGS-PLAN.md §1): the topics a feed question ALSO belongs
   // to, beside its `topic` home. Feed-only, emit-when-set, and reach-only —
   // the feed's filter, stock and search read topic ∪ also, while everything
@@ -153,8 +203,9 @@ export interface QuestionDoc {
   // and at most one coarse audience tag the DEVICE matches against its own
   // anchors. The window is `until` above rather than a field here, so the
   // label the disclosure prints and the filter that stops serving the card
-  // are one value.
-  sponsor?: { buyer: string; audience?: Record<string, string> };
+  // are one value. `link` (D378) is the buyer's one https address, shown
+  // as its bare domain after the answer and opened in the system browser.
+  sponsor?: { buyer: string; audience?: Record<string, string>; link?: string };
 }
 
 /** One published grade — `v2_call_outcomes/{qid}`, admin-written (D194). */
@@ -213,6 +264,41 @@ export const OPTION_COLORS = [
   "var(--c-world)",
   "var(--c-people)",
 ];
+
+// The FEED SURFACE HAS TWO ID LANES, and one of them does not say "feed".
+//
+// `gen-v2content.mjs` mints a feed question as `feed-<id>` and a catalogue
+// pick as `pick-<id>`, and picks share the feed surface deliberately — they
+// run their own seq lane from PICK_SEQ_BASE so a feed append cannot
+// renumber the whole pick bank. So "is this id on the feed?" is a
+// two-prefix question, and the single-prefix version of it silently
+// excludes every catalogue pick.
+//
+// Named here rather than inlined at the one call site because the fact is
+// about the CONTENT, not about that caller, and the next caller will
+// reach for `startsWith("feed-")` exactly as the last one did.
+// scripts/feed-lanes.test.mjs holds this list to the generator's own
+// output, so a third lane fails there instead of shipping quietly.
+export const FEED_ID_LANES = ["feed-", "pick-"] as const;
+
+/** Whether a question id belongs to the feed surface, both lanes. */
+export function isFeedQid(id: string): boolean {
+  return FEED_ID_LANES.some((p) => id.startsWith(p));
+}
+
+// The daily's lanes — one today, declared the same way and for the same
+// reason the feed's are. The daily became a paged surface at D383, so
+// "which of my answers are dailies?" is now a question the store asks on
+// every boot, and the wrong answer is silent: an answered daily that no
+// longer resolves to a document is an answer the Mirror cannot name.
+// scripts/feed-lanes.test.mjs holds this list to the generator's output
+// too, so a second lane fails there rather than shipping quietly.
+export const DAILY_ID_LANES = ["daily-"] as const;
+
+/** Whether a question id belongs to the daily surface. */
+export function isDailyQid(id: string): boolean {
+  return DAILY_ID_LANES.some((p) => id.startsWith(p));
+}
 
 export const DECK_DAYS = 7; // today + the recent past, like the demo pager
 export const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -348,11 +434,24 @@ export const CANON_BOARD_N = 10;
  * card's first-voter state, not an error. Ties break by item index so
  * equal sums render identically on every device.
  */
-export function rankCrowdFor(
+/**
+ * The crowd order AND how many people it rests on.
+ *
+ * `n` is the number this function has always computed and never returned:
+ * the viewer is subtracted out of the order when their own fold has
+ * landed, so the crowd is `total - 1` then and `total` when the aggregate
+ * is stale. The card could not tell those apart from `agg.total` alone,
+ * which is why the live rank reveal stated "You matched the crowd on 2 of
+ * 4" with no idea whether the crowd was one stranger or a thousand.
+ *
+ * `rankCrowdFor` below stays exactly as it was — the order alone — so
+ * every existing caller and case is untouched.
+ */
+export function rankCrowd(
   agg: AggDoc | undefined,
   mine: number[] | null,
   pending: boolean,
-): number[] | null {
+): { crowd: number[]; n: number } | null {
   const pos = agg?.pos;
   const total = agg?.total ?? 0;
   if (!Array.isArray(pos) || pos.length < 2 || total <= 0) return null;
@@ -380,7 +479,16 @@ export function rankCrowdFor(
   const byMean = [...rest.keys()].sort((a, b) => rest[a] - rest[b] || a - b);
   const crowd = new Array<number>(rest.length).fill(0);
   byMean.forEach((item, i) => { crowd[item] = i + 1; });
-  return crowd;
+  return { crowd, n };
+}
+
+/** The crowd order alone — the long-standing shape. */
+export function rankCrowdFor(
+  agg: AggDoc | undefined,
+  mine: number[] | null,
+  pending: boolean,
+): number[] | null {
+  return rankCrowd(agg, mine, pending)?.crowd ?? null;
 }
 
 export function buildS(
@@ -469,6 +577,32 @@ export function computeDeckIds(
   });
 }
 
+/**
+ * The deck as POSITIONS rather than ids (D383) — the same arithmetic as
+ * `computeDeckIds`, for a device that no longer holds the daily bank.
+ *
+ * The two must agree exactly or two devices disagree about what today's
+ * question is, which is the one thing the daily cannot survive: a blind
+ * question is only worth comparing because everyone answered the same
+ * one. So this is the same expression, and `deck.test.ts` pins them
+ * against each other over a span of days rather than trusting that.
+ *
+ * A position is a `seq` only while the daily's seq space is dense from
+ * zero — live.ts's boot query already states it is ("per-surface and
+ * contiguous"), the server publishes `maxSeq` so a device can CHECK it,
+ * and the caller falls back to the whole-bank fetch when it does not
+ * hold. Nothing here assumes it; the caller does the checking.
+ */
+export function computeDeckSeqs(
+  n: number,
+  today: number,
+  deckDays = DECK_DAYS,
+): number[] {
+  if (!Number.isFinite(n) || n <= 0) return [];
+  return Array.from({ length: Math.min(deckDays, n) }, (_, back) =>
+    (((today - DECK_EPOCH - back) % n) + n) % n);
+}
+
 // The per-surface bank split, extracted from live.ts's refresh path so the
 // fencing is testable: each bank is an ALLOWLIST, so a mistake in one
 // predicate cannot leak a surface into a bank it was never meant to touch —
@@ -541,9 +675,9 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   };
 }
 
-// Every member's client computes the day's question independently — the
-// same pure function of (gid, utcDay, bank) on every device: bank[(hash(gid)
-// + utcDay) % len] over the matching-surface bank. There is NO server-side
+// Every member's client computes a ROUND's question independently — the
+// same pure function of (gid, round, bank) on every device: bank[(hash(gid)
+// + round) % len] over the matching-surface bank. There is NO server-side
 // chooser to mirror: rules only require the answered qid to exist in the
 // bank, and the reveal stores the qid the MOST members answered (plurality,
 // lexical tie-break — revealQid in functions/src/pure.ts) — so a client that
@@ -555,13 +689,72 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 // vote still appears in the reveal — it is only kept out of the cross-group
 // aggregate, which is a claim about one question and must not count answers
 // given to another.
+//
+// The round took the UTC day's place here at ROUNDS-PLAN / D426: the day
+// was what advanced the game when nobody played, and the round's deadline
+// does that now, so the rotation walks rounds. Nothing else about it moved.
 // "pick" questions take the members as options.
+//
+// Every round draws from the room's OWN bank, and only from it. For one
+// day (2026-09-08, ROUNDS-PLAN §6.2) even rounds drew a world question off
+// the feed's core, and the owner retired it the same day on seeing the
+// first reveal — *"that is stufff you already find on the world feed so is
+// totaly pointless"*, and worst for a group, *"as that should mostly be
+// about what role you have in the group"* (D426's third amendment). A duel
+// question is written for reading a person or a room; the feed's are not,
+// and the Mirror already draws you against the crowd on every one of them.
+/** What the card is handed for a round: the question, its options as the
+ * card should draw them (a pick's are the members), its kind (the seeded
+ * `topic`), and — for a role vote — the pack and the role, for a rating
+ * the two poles, for a cast round the them forms and the axes. */
+export interface DuelRoundQ {
+  id: string;
+  prompt: string;
+  options: string[];
+  kind: string;
+  scen?: { id: string; label: string; hue: number };
+  role?: { id: string; label: string; seat?: string };
+  poles?: string[];
+  them?: string[];
+  dims?: string[];
+}
+
+/** A group's PHASE (D437): which of its rounds are the ratings. The
+ * owner's 2026-09-09 design staggers the rating round per group, so two
+ * rooms you are in do not both rate on the same numbers; the tree reads it
+ * off the group id, so it is a fact about the room and never a field to
+ * keep in step. Three values, not four: a phase of three would make ROUND
+ * ONE a rating of a group that has not played yet, which the design's own
+ * seeded groups avoid too (phases 0 · 1 · 2). */
+export const groupPhase = (gid: string): number => gHash(gid) % 3;
+
+/** Every fourth round of a group is a rating of the group itself, counted
+ * from its phase; the other three are role votes (D434, the owner's
+ * 2026-09-08 design; the phase at D437). Exported so the card and the
+ * tests say it once. */
+export const isRatingRound = (round: number, phase = 0): boolean => (round + phase) % 4 === 0;
+
+/** A 1v1's rounds by number (D437): every fourth asks what the other
+ * person is to you — the CAST — and the rest walk the pool. There is no
+ * World round: the owner retired those on the 8th (D426's third
+ * amendment) and confirmed it against the 09-09 design's own list. */
+export const duoKind = (round: number): "cast" | "own" => (round % 4 === 0 ? "cast" : "own");
+
+/** A cast round's copy carries `{name}` — the other person's first name,
+ * which the bank cannot know (D437). Every renderer of a cast prompt or a
+ * them form goes through here. Without a name the fallback is a noun the
+ * sentence still works around — *your friend* or *your partner* by pool —
+ * never the placeholder and never a pronoun the verb disagrees with. */
+export function castText(text: string, name?: string | null, romantic = false): string {
+  const who = name && name.trim() ? name.trim() : (romantic ? "your partner" : "your friend");
+  return text.replace(/\{name\}/g, who);
+}
+
 export function duelQFor(
   g: Record<string, unknown> & { id: string },
   duelBank: Array<QuestionDoc & { id: string }>,
-  utcDay: number,
-  dayOffset = 0,
-): { id: string; prompt: string; options: string[]; kind: string } | null {
+  round: number,
+): DuelRoundQ | null {
   const mode = g.mode === "duo" ? "duo" : "group";
   // A duo draws from exactly one pool (D40 part 4): the romantic pool when
   // its doc says duoMode "romantic", the shared pool otherwise. The two are
@@ -572,16 +765,85 @@ export function duelQFor(
   // rotation unmoved by the pool's arrival — for them the bank is
   // unchanged, so no served day remaps (the D30 growth argument).
   const pool = mode === "duo" && g.duoMode === "romantic" ? "romantic" : null;
-  const bank = duelBank.filter(
+  const surfaceBank = duelBank.filter(
     (q) => q.surface === mode && (pool ? q.mode === pool : q.mode == null),
   );
+  let bank = surfaceBank;
+  let walk = round;
+  if (mode === "group") {
+    // THE GROUP PLAYS A CAST (D434, the owner's 2026-09-08 design —
+    // *"group … should mostly be about what role you have in the group"*).
+    // Three rounds in four are role votes: `pick` questions, whose options
+    // are the members, tagged with the scenario pack they belong to and
+    // the role they cast. Every fourth round — counted from the group's
+    // phase (D437) — is a `rate` question, the group asked about itself
+    // between two poles. The older `us`/`classic` group questions leave
+    // the rotation and stay in the bank, so the reveals that name them
+    // still draw their prompt (`bankQ`); what happens to them is the
+    // owner's row. A bank with no rate questions yet (a device that has
+    // not re-read the bank since they were seeded) plays every round as a
+    // role vote, and a bank with no picks at all falls back to the whole
+    // surface — a group must never be handed no question because its bank
+    // predates the cast. Both fallbacks are the D70 drift a bank change
+    // has always had, and `revealQid` keeps a drifted client coherent.
+    const picks = surfaceBank.filter((q) => q.topic === "pick");
+    const rates = surfaceBank.filter((q) => q.topic === "rate");
+    const phase = groupPhase(g.id);
+    // the ratings strictly before this round, counted from the phase — and
+    // NONE while the bank has no rate question to take a round with. The
+    // pre-reseed bank plays every round as a vote (the branch below), so a
+    // walk that still skipped the rating rounds it never dealt served
+    // round 4's question again on round 5, and round 8's on round 9 —
+    // the live bank's own shape until the reseed, probed 2026-09-09.
+    const before = rates.length ? Math.floor((round - 1 + phase) / 4) : 0;
+    if (isRatingRound(round, phase) && rates.length) {
+      // Ratings walk their own pool, one step per rating round, so the
+      // ten dims come round in turn rather than as every fourth pick.
+      bank = rates;
+      walk = before + 1;
+    } else if (picks.length) {
+      // …and the role votes walk theirs, skipping the rounds a rating
+      // took, so consecutive votes are consecutive questions.
+      bank = picks;
+      walk = round - before;
+    }
+  } else {
+    // THE 1v1 HAS KINDS OF ROUND (D437, the owner's 2026-09-09 design):
+    // every fourth is the CAST — *Most days, Liv is…*, the pool's one
+    // `cast` entry — and the rest walk the pool by the same skip the
+    // group's votes use, so consecutive own rounds are consecutive
+    // questions. A pool with no cast entry yet (a device that has not
+    // re-read the bank since it was seeded) plays every round as its own
+    // — the pre-reseed shape, and the D70 drift again. Note what the skip
+    // costs ONCE: the reseed that lands the cast moves every live pair's
+    // open round to the question the skip arithmetic names (round 5 walks
+    // to the pool's fourth question, not its fifth), and the stored `qid`
+    // on each answer plus `revealQid`'s plurality is what keeps a reveal
+    // across that moment honest.
+    const casts = surfaceBank.filter((q) => q.topic === "cast");
+    const own = surfaceBank.filter((q) => q.topic !== "cast");
+    if (duoKind(round) === "cast" && casts.length) {
+      bank = casts;
+      walk = round / 4;
+    } else if (own.length) {
+      bank = own;
+      walk = casts.length ? round - Math.floor(round / 4) : round;
+    }
+  }
   if (!bank.length) return null;
-  const q = bank[(gHash(g.id) + utcDay + dayOffset + bank.length * 1000) % bank.length];
+  const q = bank[(gHash(g.id) + walk + bank.length * 1000) % bank.length];
   const names = (g.memberNames || {}) as Record<string, string>;
   const memberUids = (g.memberUids || []) as string[];
   const options =
     q.topic === "pick"
       ? memberUids.map((u, i) => names[u] || "Member " + (i + 1))
       : q.options;
-  return { id: q.id, prompt: q.prompt, options, kind: q.topic || "classic" };
+  return {
+    id: q.id, prompt: q.prompt, options, kind: q.topic || "classic",
+    ...(q.scen ? { scen: q.scen } : {}),
+    ...(q.role ? { role: q.role } : {}),
+    ...(q.poles ? { poles: q.poles } : {}),
+    ...(q.them ? { them: q.them } : {}),
+    ...(q.dims ? { dims: q.dims } : {}),
+  };
 }

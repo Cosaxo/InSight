@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
 import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS, swipeDaily } from "./mount-app.jsx";
-import NAV from "../data/nav";
+import NAV, { canNav } from "../data/nav";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -247,10 +247,52 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
 // nothing and write nothing. If this fails, a demo build is collecting.
 describe("the anonymous tally is inert unarmed", () => {
   it("a full mount and a tab switch write no insight.engagement.v1", async () => {
+    // THE TAB SWITCH REALLY HAPPENS NOW. This called `awaitNode` with a
+    // FUNCTION where it wants a selector string and a label where it wants
+    // a retry count, so `document.querySelector(() => …)` threw on the
+    // first line, `.catch(() => null)` swallowed it, and the click was
+    // skipped — the case asserted inertness across a mount that never left
+    // the daily tab, and the dead retry loop (`0 < "mirror tab button"`)
+    // meant it never even waited. Neither of those selectors is how any
+    // other case in these suites finds that button, either.
     const expectNoBoundary = mountApp();
-    const mirror = await awaitNode(() => document.querySelector('[data-nav="mirror"], [data-tab-btn="mirror"]'), "mirror tab button").catch(() => null);
-    if (mirror) fireEvent.click(mirror);
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    // Asserted, so the switch cannot go quiet again: the whole point of
+    // this case is what the tally does when the shell's tab, stop and
+    // overlay effects have all run.
+    expect(
+      document.querySelector(".app")?.getAttribute("data-view"),
+      "the tab switch never happened, so this case proves nothing",
+    ).toMatch(/^mirror/);
     expect(localStorage.getItem("insight.engagement.v1")).toBeNull();
+    expectNoBoundary();
+  });
+});
+
+// ── every door the registry offers is one the shell actually registers ──
+//
+// data/nav.test.ts proves the registry's mechanics against handlers it
+// registers itself, so it cannot see a door that NOTHING registers. That
+// is a real state and this tree was in it: `openSuggestions` stayed a
+// NavHandlers member, a NAV method and a valid NavKey for as long as the
+// suggestions overlay has been deleted — a door a consumer could import,
+// call, and watch silently no-op, with tsc, eslint and check:globals all
+// green because the key existed and its handler was optional.
+//
+// The other direction is covered by the doors' own cases above and in the
+// overlay suite: a door the shell registers and nothing offers is a
+// compile error at the registerNav call.
+describe("the nav registry has no dead doors", () => {
+  it("a mounted shell has registered every door NAV exposes", () => {
+    const expectNoBoundary = mountApp();
+    // `can` is the predicate itself, not a door.
+    const doors = Object.keys(NAV).filter((k) => k !== "can");
+    const dead = doors.filter((k) => !canNav(k));
+    expect(dead, "NAV offers doors the shell never registers").toEqual([]);
+    // The list is not empty for a mount that failed to register anything —
+    // without this, a shell that registered nothing at all would pass by
+    // making `doors` unreachable rather than by wiring it.
+    expect(doors.length).toBeGreaterThan(5);
     expectNoBoundary();
   });
 });

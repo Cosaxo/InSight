@@ -6,9 +6,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  agreement, agreementOf, byOf, cellFor, divergence, divergenceFor, divisiveness, headlineFor,
-  likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
-  vocabMix,
+  agreement, agreementOf, byOf, cellFor, COHORT_DIMS, divergence, divergenceFor, divisiveness,
+  headlineFor, likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn,
+  typicality, vocabMix,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -294,14 +294,23 @@ describe("typicality — the Map's headline claim", () => {
 });
 
 describe("MAP_ANCHOR_DIM", () => {
-  it("maps exactly the two anchors that ARE breakdown dims", () => {
-    // The other six cannot be answered at all: `job` is profession, kept
-    // out of the dims on purpose (D8), and the five test anchors are
+  it("maps exactly the three anchors that ARE breakdown dims", () => {
+    // The other four cannot be answered at all: the test anchors are
     // results with no cohort aggregate anywhere. A key appearing here for
     // one of those would make MapStats fabricate again.
-    expect(Object.keys(MAP_ANCHOR_DIM).sort()).toEqual(["age", "edu"]);
-    expect(MAP_ANCHOR_DIM.job).toBeUndefined();
+    //
+    // `job` was in that list until D328, on the reason "profession is free
+    // text" — which had stopped being true long before: the profile offers
+    // a 31-option select. What actually blocked it was that 31 is longer
+    // than BREAKDOWN_MAX_BUCKETS, so the pick cannot be a dimension; it
+    // now reads the derived `jobField`, the indirection `age` already
+    // takes through `ageBand`.
+    expect(Object.keys(MAP_ANCHOR_DIM).sort()).toEqual(["age", "edu", "job"]);
+    expect(MAP_ANCHOR_DIM.job).toBe("jobField");
     expect(MAP_ANCHOR_DIM.big5).toBeUndefined();
+    // The pick itself must never become a dim — that is the whole reason
+    // the indirection exists, and a regression would look like this line.
+    expect(COHORT_DIMS as readonly string[]).not.toContain("profession");
   });
 });
 
@@ -321,6 +330,21 @@ describe("agreement — the likeness behind Kindred", () => {
     const a = { q1: 0, q2: 1 };
     const b = { q1: 0, q2: 0 };
     expect(agreement(a, b)).toEqual(agreement(b, a));
+  });
+
+  it("counts a MATCH as the match — the fixtures above cannot tell which", () => {
+    // THE MISSING CONTROL, and it was missing rather than weak: every
+    // fixture in this block holds exactly one agreement and one
+    // disagreement, so inverting the comparison inside `agreement` scores
+    // the same 1 of 2 and leaves this file entirely green. Kindred ranks
+    // people by this number; inverted, it puts the person who agrees with
+    // you least at the top and reads the same to every gate.
+    //
+    // Two lopsided pairs in opposite directions: identical answers, and
+    // answers that differ on every shared question. Only one reading of
+    // the comparison gets both.
+    expect(agreement({ q1: 0, q2: 1, q3: 2 }, { q1: 0, q2: 1, q3: 2 })).toEqual(agreementOf(3, 3));
+    expect(agreement({ q1: 0, q2: 1, q3: 2 }, { q1: 1, q2: 2, q3: 0 })).toEqual(agreementOf(0, 3));
   });
 });
 
@@ -445,6 +469,46 @@ describe("standingIn — where you sit in the split", () => {
     // 100) = 33.
     expect(pctFor([1, 1, 4])).toEqual([17, 17, 66]);
     expect(standingIn([1, 1, 4], 2, "rating")).toEqual({ kind: "below", pct: 34 });
+  });
+
+  // ── the two halves of "which side", neither of them pinned ────────
+  //
+  // This sentence prints under EVERY row of the Mirror's Answers lens, and
+  // both decisions behind it could be changed with the whole tree green
+  // (201 files / 2970 tests). The two cases above use margins of 15-vs-0
+  // and 0-vs-9, so option 0 never carries the answer and nothing sits near
+  // a tie — the two places the arithmetic can actually go wrong.
+
+  it("counts option 0 on the side below you", () => {
+    // `counts.slice(0, mine)` — dropping the 0 (an easy "skip the first
+    // bucket" edit) makes below 0 and above 3, and the sentence flips from
+    // "63% are below you" to "37% are above you" about the same room.
+    expect(pctFor([5, 0, 0, 0, 3])).toEqual([63, 0, 0, 0, 37]);
+    expect(
+      standingIn([5, 0, 0, 0, 3], 2, "rating"),
+      "the lowest option was left out of the room below you",
+    ).toEqual({ kind: "below", pct: 63 });
+  });
+
+  it("gives an exact tie to the room below you", () => {
+    // The comment above the branch argues this at length — "WHICH SIDE is
+    // still decided on the raw counts … 'the bigger of the two' is a claim
+    // about the room rather than about the bar" — and `>=` is what makes
+    // it true. `>` sends an even split the other way, and nothing saw it.
+    // The shares are identical on both sides here (50 and 50), so only the
+    // WORD changes: the reader is told they are above a room they are
+    // exactly level with.
+    expect(pctFor([4, 0, 4])).toEqual([50, 0, 50]);
+    expect(
+      standingIn([4, 0, 4], 1, "rating"),
+      "an even split was reported as the room being above you",
+    ).toEqual({ kind: "below", pct: 50 });
+  });
+
+  it("…and still says 'above' when the room really is above", () => {
+    // The control for the tie case: without it, "always below" passes too,
+    // and that is a worse sentence than the one being fixed.
+    expect(standingIn([1, 0, 9], 1, "rating")).toMatchObject({ kind: "above" });
   });
 
   it("is null when you have not answered, or the room is empty", () => {

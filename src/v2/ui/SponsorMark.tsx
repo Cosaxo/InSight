@@ -34,7 +34,36 @@
 // the old sentence would be the `check:public-copy` failure class (D116)
 // with money behind it.
 import React from "react";
-import { whyMatched, windowLabel, type Sponsor } from "../data/sponsored";
+import { linkDomain, whyMatched, windowLabel, type Sponsor } from "../data/sponsored";
+/**
+ * The buyer's link (D378), on the ANSWERED face of a sponsored card —
+ * never before the answer, so the question is answered as a question.
+ *
+ * The bare domain, so the reader knows whose page it is before tapping;
+ * a plain anchor to the system browser with `noreferrer noopener`, so
+ * the buyer learns nothing about who came from here; the address
+ * verbatim, so nothing of ours rides along. The app counts nothing —
+ * no tap log, no impression — which is what keeps this the one way
+ * off-app without a tracker behind it. Renders nothing for a link that
+ * is not an https address.
+ */
+export function SponsorLink({ link }: { link: string | undefined }): React.ReactElement | null {
+  const domain = linkDomain(link);
+  if (!domain || !link) return null;
+  return (
+    <a href={link} target="_blank" rel="noreferrer noopener"
+      onClick={(e) => e.stopPropagation()}
+      aria-label={`Open ${domain}, the buyer's site, in your browser`}
+      style={{
+        alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6,
+        fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 750, color: "var(--accent-ink)",
+        textDecoration: "none", padding: "6px 0",
+      }}>
+      <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.16em", color: "var(--ink-3)" }}>PAID</span>
+      <span>{domain} ↗</span>
+    </a>
+  );
+}
 
 export default function SponsorMark(
   { sponsor, until }: { sponsor: Sponsor; until?: string },

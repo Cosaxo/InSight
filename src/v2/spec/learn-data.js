@@ -12,9 +12,10 @@
 // line above that one — reorder those two and the card bank is silently
 // empty, with no error anywhere. That ordering is now a module-graph
 // guarantee, which is the same fragility the `daily-questions.js` conversion
-// removed for `map-branches.js`. `window.LIVE` in learnMeasured() stays: it
-// is read at CALL time, and it is what the LIVE conversion will take.
+// removed for `map-branches.js`. The store is an import too since D354 —
+// read at CALL time in learnLive()/LEARN_COUNTS, never while evaluating.
 import { sharePcts } from '../data/pct';
+import LIVE from '../data/live';
 // The DEMO SAMPLE, not the bank (D284). This import used to be
 // `learn-questions.json` — the whole thing — so every learn card was
 // compiled into the app and `check:bundle` was about thirty-nine cards from
@@ -147,10 +148,8 @@ export function LEARN_ORDER(card) {
 // below go through this rather than each reaching for the name — which is
 // what keeps check:globals rule 4 flat across D149, and leaves exactly one
 // line for the LIVE conversion to take.
-const liveStore = () => window.LIVE;
 function learnLive() {
-  const L = liveStore();
-  return !!(L && L.enabled);
+  return LIVE.enabled;
 }
 /**
  * The real per-option counts, or null when nothing has been measured.
@@ -175,11 +174,10 @@ function learnLive() {
  * where this adds a second copy of the same person.
  */
 export function LEARN_COUNTS(card) {
-  const L = liveStore();
-  if (!(L && L.enabled && L.learnAgg)) return null;
-  const agg = L.learnAgg(card.id);
+  if (!LIVE.enabled) return null;
+  const agg = LIVE.learnAgg(card.id);
   if (!agg || !agg.counts) return null;
-  const mine = L.learnMine ? L.learnMine(card.id) : null;
+  const mine = LIVE.learnMine(card.id);
   const pending = mine && !mine.folded ? mine.idx : -1;
   const n = card.a.length;
   const counts = [];
@@ -217,8 +215,27 @@ function learnMeasured(card) {
  * estimate does not render there at all, so a label for it would describe
  * something that is not on screen.
  */
+/**
+ * Is the card's aggregate still being read?
+ *
+ * Only ever true in a live build — the demo has nothing to fetch — and
+ * only between the first render that asks for the card and the read
+ * coming back. It exists because `null` from the store used to mean both
+ * "in the air" and "nobody has answered", and two surfaces printed the
+ * second sentence for the first.
+ */
+function learnLoading(card) {
+  // The store is the imported binding (D354), so the `L &&` and the
+  // `L.learnAggLoading &&` this arrived with are both dead: an import
+  // cannot be unset, and `learnAggLoading` is a member live.ts always
+  // defines and vote.test.ts pins. The `enabled` check is the data
+  // condition and stays.
+  return !!(LIVE.enabled && LIVE.learnAggLoading(card.id));
+}
+
 export function LEARN_SPLIT_SRC(card) {
   if (learnMeasured(card)) return 'measured';
+  if (learnLoading(card)) return 'loading';
   return learnLive() ? 'none' : 'estimate';
 }
 
@@ -250,9 +267,38 @@ export function LEARN_RATE(card) {
   // was not a measurement. `pct` is null rather than 0 so a caller that
   // forgets the check draws nothing readable and fails a test, rather
   // than quietly claiming nobody gets the card right (the D72 shape).
+  // A fourth source, and the only one that is not a statement about the
+  // card: the read has not come back. `pct` is null here as it is for
+  // 'none', so a caller that branches on the number alone still draws
+  // nothing — but one that reads `src` can say "counting" instead of
+  // "nobody", which is the difference this exists for.
+  if (learnLoading(card)) return { pct: null, src: 'loading' };
   if (learnLive()) return { pct: null, src: 'none' };
   return { pct: card.p, src: 'estimate' };
 }
+/**
+ * Where a mastered fact's dot sits on the Map: 0 is the outer edge, 1 the
+ * centre, and `map-layout` turns it into a ±80px radial push.
+ *
+ * A POSITION IS A CLAIM, so this may only be a MEASUREMENT. map-tab.jsx
+ * used to pass `card.p / 100` — the authoring hint, "the % of the crowd
+ * expected to get it right", chosen by whoever wrote the card — so on a
+ * live build the dot's distance from You was a guess, while the card that
+ * opens on tapping that same dot says "Nobody else has answered this one
+ * yet" (LEARN_RATE returns `estimate` only when LIVE is off). The daily
+ * branch beside it already refuses exactly this and takes the neutral
+ * radius instead.
+ *
+ * `estimate` is kept because it cannot occur on a live build: in the demo
+ * every number on the map is the demo's own, and flattening its learn
+ * dots would trade one honest map for a duller one.
+ */
+export function LEARN_TYP(card) {
+  const rate = LEARN_RATE(card);
+  const usable = rate.src === 'measured' || rate.src === 'estimate';
+  return usable && rate.pct != null ? rate.pct / 100 : 0.5;
+}
+
 export function LEARN_SPLIT(card) {
   const measured = learnMeasured(card);
   if (measured) return measured;

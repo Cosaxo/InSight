@@ -7,18 +7,115 @@ import React from 'react';
 import { VOTECUTS } from './vote-cuts.js';
 import { navCoasting, OWNS_X } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
-import { DAILYQ } from './daily-questions.js';
-import { DUELS } from './duels-data.js';
+// daily-questions.js is NOT imported here, and the reason is measured.
+// This file is in the entry chunk, so a static import puts that module's
+// 36 KB demo archive — the file the question farm appends to every day —
+// into the bytes a phone fetches before it can paint anything. Both uses
+// below are gated on DAILYSPLIT_DQ_SYNC, which carries exactly one demo
+// id, so on a live build the archive is fetched for nothing at all.
+//
+// It is loaded on that id's first use instead. `dq()` returns the store
+// once it has landed and null before then; both call sites already have
+// a correct path for null (syncToMap does its write in the callback,
+// mapBranch falls through to the live arm and re-renders when the module
+// arrives), so the demo behaves as before one frame later and the live
+// build never pays.
+//
+// Through retryable() (data/lazy.ts) rather than a hand-rolled
+// `if (pending) return` memo, and the difference is two bugs. The memo
+// registered only the FIRST caller's `onReady`, and there are two callers:
+// `mapBranch` asks during render, `syncToMap` asks on the vote a moment
+// later — so the vote's callback was dropped, and since it also got `null`
+// back, `if (dq(write)) write()` read that as "not ready" and nothing ever
+// called `write` at all. The demo's map-sync write was simply lost. And
+// the memo had no `.catch`, so a failed chunk latched the flag true for
+// the rest of the session and left an unhandled rejection behind.
+// retryable() closes both: every caller chains its own `.then` off the one
+// shared promise, and a rejection clears the slot so the next render or
+// vote re-attempts. It is the same helper main.jsx's four loaders use, and
+// it exists because a hand-rolled memo cached a REJECTED promise once
+// already (spec-index.js:332).
+//
+// THE RETRY IS UNBOUNDED, and that is a trade rather than an oversight —
+// stated because the sibling one screen over decided the other way.
+// `mirror-field-pops.jsx` catches its chunk failure and deliberately does
+// NOT retry, on the grounds that main.jsx reports a dead chunk once and
+// the fallback there is a real picture. Here the callers are `mapBranch`
+// (every render) and `syncToMap` (every vote), so a chunk that is
+// permanently gone means one import attempt and one console.error per
+// render. What bounds the cost is the surface, not the loader: both
+// callers are DEMO-only — the one id `DAILYSPLIT_DQ_SYNC` carries, and
+// since the `!LIVE.enabled` gate below, the duel store too — so a shipping
+// build never reaches either. If one of them ever becomes live, this
+// wants a cap.
+import { retryable } from '../data/lazy';
+let DQ = null;
+const loadDQ = retryable(() => import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; }));
+function dq(onReady) {
+  if (DQ) return DQ;
+  loadDQ()
+    .then(() => { if (onReady) onReady(); })
+    .catch((e) => { console.error('[InSight] daily-questions chunk failed to load:', e); });
+  return null;
+}
+// duels-data.js is loaded on demand, not imported — it pulled
+// content/duel-questions.json, the DUEL LANE's bank, and a static import
+// here put that file in first paint so writing a duel question cost every
+// phone start-up bytes. Same shape as `dq()` above, and the same reason.
+// (Since D435 it carries the bank's fixed sample instead — the weight no
+// longer tracks the lane — but it is the DEMO store, and a live build
+// never needs it, so on demand is still right.)
+//
+// The three uses below tolerate a null store by construction: the two
+// pending counts are already gated off on a live build (`liveDuels ? 0 :
+// …`, see the note at their call site), so on live this module is never
+// needed at all; on a demo build they read 0 for the frame before it
+// lands, and the subscribe's own forceUpdate is what redraws them.
+//
+// Same shape as `dq()` above and the same two bugs, with a wider blast
+// radius: the two callers here are in DIFFERENT components — the duel
+// list's subscribe and the pending-count read far below — so whichever
+// asked second never redrew when the store landed.
+let DUELSTORE = null;
+const loadDuels = retryable(() => import('./duels-data.js').then((m) => { DUELSTORE = m.DUELS; }));
+function duels(onReady) {
+  if (DUELSTORE) return DUELSTORE;
+  loadDuels()
+    .then(() => { if (onReady) onReady(); })
+    .catch((e) => { console.error('[InSight] duels chunk failed to load:', e); });
+  return null;
+}
 import { Sheet } from './primitives.jsx';
-// The boot-failure label reads LIVE through the module, not through
-// window: D39's ratchet only moves down, so new coupling has to arrive as
-// an import. result-card.jsx, map-anchors.js and map-group-stats.js
-// already read it this way. The ~50 `window.LIVE` references elsewhere in
-// this file stay for now — converting them is a separate change, and each
-// one needs its `window.LIVE &&` guard re-read rather than deleted
-// wholesale, because an imported binding cannot be unset but the DATA it
-// carries can still be missing.
+// The store, through the module rather than through `window` — D39's
+// ratchet only moves down, so coupling arrives as an import. Every read in
+// this file goes through this binding since the LIVE conversion (D354).
+// The `window.LIVE &&` existence guards went with it, because an imported
+// binding cannot be unset; the DATA conditions beside them (`.enabled`,
+// `.ready`, `.demoInProd`, `.feedReady`) stayed, because those can still
+// be false — and the member-existence guards (`L.myVotes && …`) went too,
+// because the surface pin in data/vote.test.ts holds every one of those
+// methods on the store's literal.
 import LIVE from '../data/live';
+// D354's sweep. WORLD_TOPICS was a module-scope `window.` read with a
+// five-entry fallback — the fragility src/v2/README.md's feed paragraph
+// names ("deferring world-feed-data swaps the real topic set for the
+// fallback, silently"); the import makes the order a graph guarantee and
+// the fallback goes. GroupDailyBody's `|| 'div'` and PassiveTag's guard
+// were load-order guards on eager modules.
+// GroupDailyBody is React.lazy for the reason its live counterpart already
+// is (LiveDuelPanel, below): it is the DEMO Circle body, and the note at its
+// render site says live mode never mounts it. Statically it pulled
+// duels-data.js and with it content/duel-questions.json — the DUEL LANE's
+// bank (its fixed sample since D435) — into first paint, so a scheduled
+// Routine writing a duel question was adding start-up bytes to every phone,
+// including the live builds that
+// can never render this body at all. The `duo` body beside it was already
+// resolved at render time and cost nothing; this makes the pair consistent.
+const GroupDailyBody = React.lazy(() =>
+  import('./group-daily.jsx').then((m) => ({ default: m.GroupDailyBody })));
+import { PassiveTag } from './passive-meter.jsx';
+import { WORLD_TOPICS } from './world-feed-topics.js';
+import { WF_REPORT } from './world-feed-report.js';
 // The one rounding rule (data/pct.ts). This file was the third split
 // surface and the one that kept the rule pct.ts was written to delete —
 // see the commit that converted it. Static, not lazy: pct.ts is a pure
@@ -74,13 +171,7 @@ import NAV from '../data/nav';
 // World topic categories — the subreddit-style subscriptions. Definitions
 // (labels + hues) live in world-feed-data.js; the chip row in the feed is the
 // subscription UI, and the same set filters the daily deck.
-const WORLD_TOPICS_V2 = window.WORLD_TOPICS || [
-  { id: 'culture', label: 'Culture' },
-  { id: 'dilemma', label: 'Dilemmas' },
-  { id: 'event', label: 'World events' },
-  { id: 'people', label: 'Famous people' },
-  { id: 'bigq', label: 'Big questions' },
-];
+const WORLD_TOPICS_V2 = WORLD_TOPICS;
 
 // ── close the loop: a vote lands on your Map ──
 // Questions with a true counterpart in the map's store (DAILYQ) place a real
@@ -97,19 +188,20 @@ const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0,
 // still read as heights instead of every tile pinning at its minimum.
 // Exported for the unit test that holds this arithmetic to the 46/7 the
 // tile styles actually use (test/split-stage.test.js).
-export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
+// Two sides are a ROW since 2026-09-02 — one block whose seam sits at the
+// crowd's split, so the share is a WIDTH and the height is fixed. Three or
+// more stack as before, where the share is a height and the stage must
+// clear every tile's minHeight (see split-stage.test.js).
+export function sdSplitStageH(n) { return n === 2 ? 128 : n <= 4 ? 244 : n * 53 + 123; }
 
 // Is the live store up and answering? Asked by both pending-target
 // consumers below (a tapped reveal, a tapped invitation).
 //
-// ONE shared-global read rather than three at each call site — the same
-// check written inline twice is six references to `window.LIVE` that
-// check:globals rule 4 counts, and rightly: every one of them is a name
-// resolved at render time that no import graph can see.
-const liveReady = () => {
-  const L = window.LIVE;
-  return !!(L && L.enabled && L.ready);
-};
+// One helper rather than the check inline at each call site. (It was
+// written as ONE shared-global read for rule 4's sake; the binding is an
+// import now, and the existence half of the old `L && …` went with the
+// bridge read.)
+const liveReady = () => !!(LIVE.enabled && LIVE.ready);
 
 // The mode of the circle this gid names, or null when it names none this
 // account is in. Shared by both gid-shaped pending targets — a tapped
@@ -118,15 +210,15 @@ const liveReady = () => {
 // difference check:globals rule 4 counts.
 const modeOfGroup = (gid) => {
   if (!gid || !liveReady()) return null;
-  const g = window.LIVE.social.groups().find((x) => x.id === gid);
+  const g = LIVE.social.groups().find((x) => x.id === gid);
   return g ? (g.mode === 'duo' ? 'duo' : 'group') : null;
 };
 
-class DailySplit extends React.Component {
+export class DailySplit extends React.Component {
   state = {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
     idx: 0, idxG: 0,
-    votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
+    votes: (LIVE.enabled ? LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false, editHold: null,
     // Which daily has its D86 re-pick open — id, not boolean, the same
     // shape and the same reason as `liveTakes` below. The reconcile in
@@ -167,7 +259,25 @@ class DailySplit extends React.Component {
     this._toastT = setTimeout(() => { if (this.state.mapToast === id) this.setState({ mapToast: null }); }, 3000);
   }
   componentDidMount() {
-    this._unsubDuels = DUELS.subscribe(() => this.forceUpdate());
+    // Subscribes once the store lands; componentWillUnmount's guard
+    // already tolerates the handle being absent, and a component
+    // unmounted before then simply never subscribes.
+    //
+    // DEMO ONLY, the way the pending-count read far below already is
+    // (`liveDuels ? null : duels(…)`, and `liveDuels` is `LIVE.enabled`).
+    // This call was unconditional, so the gate held on one of the two
+    // call sites and a LIVE build fetched `duels-data.js` — and with it
+    // content/duel-questions.json, then the duel lane's whole bank (its
+    // fixed sample since D435) — on every
+    // daily mount, for a store the block's own comment says "on live this
+    // module is never needed at all". Measured with a live fixture and a
+    // full mount: DUELS.subscribe was reached once, which happens only if
+    // the dynamic import ran. `check:eager-content` cannot see it — that
+    // gate reads the STATIC first-paint graph.
+    if (!LIVE.enabled) {
+      const sub = () => { this._unsubDuels = DUELSTORE.subscribe(() => this.forceUpdate()); };
+      if (duels(() => { if (!this._duelsGone) { sub(); this.forceUpdate(); } })) sub();
+    }
     // The purge (data/live.ts, D51): this component persists dreplies,
     // cats and testProg by spreading state back to the keys the purge just
     // removed, and it stays mounted across a uid change — drop them, or
@@ -184,8 +294,8 @@ class DailySplit extends React.Component {
     // Reconcile (not just repaint) on live-store changes: rolled-back
     // votes must un-vote the UI, and a late live boot (timeout path)
     // must hydrate answers recorded in earlier sessions.
-    if (window.LIVE) this._unsubLive = window.LIVE.subscribe(() => {
-      const L = window.LIVE;
+    this._unsubLive = LIVE.subscribe(() => {
+      const L = LIVE;
       if (!L.enabled || !L.ready) { this.forceUpdate(); return; }
       const lv = L.myVotes();
       this.setState((s) => {
@@ -302,7 +412,7 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); this._duelsGone = true; if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // one axis, three stops. Which axis depends on how the app is navigating:
   // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
@@ -368,8 +478,13 @@ class DailySplit extends React.Component {
   syncToMap(S, optId) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (!s) return;
-    const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-    if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
+    const write = () => {
+      const q = DQ.questions.find(x => x.prompt === s.prompt);
+      if (q && s.map[optId] != null) DQ.answer(q.id, s.map[optId]);
+    };
+    // A vote is a tap, so the one-frame wait for the module costs nothing
+    // visible; the write lands either way.
+    if (dq(write)) write();
   }
   // A refused edit (D86's one-change-a-minute cooldown) says why on the
   // meta line for a moment instead of silently snapping back.
@@ -383,13 +498,12 @@ class DailySplit extends React.Component {
   // how they drift. D86: after a hold-to-change the server still holds
   // the old vote — LIVE.vote is create-only, so a re-pick routes through
   // editVote. A false return (unacked write, or the 60s cooldown) keeps
-  // the standing pick and says why on the meta line. (One window read,
-  // hoisted — the vote call used two.)
+  // the standing pick and says why on the meta line.
   castVote(S, optId) {
     let next = optId, moved = true;
-    const L = S.live ? window.LIVE : null;
+    const L = S.live ? LIVE : null;
     if (L) {
-      const prior = (L.myVotes && L.myVotes()[S.id]) || null;
+      const prior = L.myVotes()[S.id] || null;
       if (prior == null) L.vote(S.id, next);
       else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
       else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
@@ -397,13 +511,36 @@ class DailySplit extends React.Component {
     if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
     // The consequence beat animates SIDES; ten steps of one scale are not
     // sides, so a rating goes straight to its result (D305).
-    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating') ? S.id : null }));
+    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', // …and never on a crowd that has published nothing: the beat's entire
+    // payload is a crowd claim ("100% chose X — you're with them"), and the
+    // only crowd there is at that moment is you. Gated HERE rather than at
+    // the render branch, because `st.beat` also gates the live Takes and
+    // Who-voted doors below (`st.beat !== S.id`) — skipping the render with
+    // `beat` still set would strand it and take both doors with it.
+    // `noCrowd` below is "nobody but me", not "nobody" — the same
+    // widening as `floored`, and it belongs here most of all, because the
+    // beat's whole payload is the crowd claim. `S.noCountsYet` counts the
+    // viewer (`agg.total > 0`) while every `o.count` has the viewer taken
+    // back out, so on a question whose only answer is your own — a second
+    // device's, or your own edit under D86 — the old gate let the beat
+    // through to say "100% chose Yes — you're with them" with nobody to
+    // be with. Measured in a mount test, which is how it was found: the
+    // ballot's own floor was fixed first and the beat still said it.
+    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating'
+      && !(S.live && (S.noCountsYet || S.options.every((o) => !o.count)))) ? S.id : null }));
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (s) {
-      const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-      if (q) return DAILYQ.categoryPath(q)[0];
+      // Null until the archive lands (see the note at the top of this
+      // file). Falling through then is not a wrong answer for the demo id
+      // either — the arms below resolve it too; the forceUpdate is what
+      // replaces that with the branch the user may have re-voted onto.
+      const D = dq(() => this.forceUpdate());
+      if (D) {
+        const q = D.questions.find(x => x.prompt === s.prompt);
+        if (q) return D.categoryPath(q)[0];
+      }
     }
     // THE LIVE ARM, and it has to come before the two demo maps below.
     // A live daily carries its subject in `branch` (D100) — one of the
@@ -437,11 +574,10 @@ class DailySplit extends React.Component {
   // reporting a comment — same short reason list the World feed uses
   reportRow(k) {
     if (this.state.reportFor !== k) return null;
-    const R = window.WF_REPORT;
-    if (!R) return null;
+    const R = WF_REPORT;
     const h = React.createElement;
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 4 } },
-      h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)' } }, 'Report this take'),
+      h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--ink-3)' } }, 'Report this take'),
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } },
         R.REASONS.map((r) => h('button', { key: r, className: 'press', onClick: () => { if (!this._jr) this._jr = new Set(); this._jr.add(k); R.report(k, r); this.setState({ reportFor: null }); }, style: { border: '1px solid var(--rule)', borderRadius: 999, padding: '6px 12px', background: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, r)),
         h('button', { onClick: () => this.setState({ reportFor: null }), style: { border: 'none', background: 'none', padding: '6px 4px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink-3)', cursor: 'pointer', WebkitAppearance: 'none' } }, 'Cancel')));
@@ -579,10 +715,10 @@ class DailySplit extends React.Component {
 
   get data() {
     // Live mode: the deck comes from Firestore (real questions, real
-    // counts) via window.LIVE; the demo deck below stays as the mock
-    // fallback and the offline dev experience.
-    const L = window.LIVE;
-    if (L && L.enabled) {
+    // counts) via LIVE; the demo deck below stays as the mock fallback
+    // and the offline dev experience.
+    const L = LIVE;
+    if (L.enabled) {
       // live mode NEVER shows the demo deck — an empty live deck (slow
       // boot, unseeded day) renders a loading card instead of fake data
       return (L.ready && L.deck()) || [];
@@ -688,6 +824,9 @@ class DailySplit extends React.Component {
 
     // ===== WORLD =====
     const DATA = this.worldDeck;
+    // A FALLBACK, and only that: this reads correctly on a Thursday and on
+    // no other day. Every consumer prefers the card's own `dayLabel`,
+    // which deck.ts derives from the date.
     const dayNames = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
     if (!DATA.length) {
       const placeholder = h('div', { className: 'card', style: { padding: '26px 18px', textAlign: 'center', margin: '4px 1px' } },
@@ -712,10 +851,47 @@ class DailySplit extends React.Component {
     // drew a smaller count taller and gave it the headline numeral: over
     // 200k sampled 6-12 option vectors it inverted 2.36% of them and
     // misplaced the maximum on 1.70%. Both feed straight into the tiles
-    // below (`flex: Math.max(rp[i], 9)`) and into which option gets the
-    // big numeral (`rp[i] === maxP`).
+    // below (`flex: Math.max(rp[i], 9)`). The big numeral is decided off
+    // the COUNTS now — see `leads` under the shares — for the tie the
+    // rounding creates rather than the one the rounding inverts.
     const rp = sharePcts(counts);
-    const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
+    // NOTHING HAS PUBLISHED, SO NOTHING MAY BE DRAWN AS A SPLIT.
+    //
+    // `counts` is the published aggregate plus your own vote, so before the
+    // fold has landed anything it is `[…,1,…]` and `sharePcts` answers
+    // [100, 0]. The result stage then printed a 25px "100%" over your side
+    // and "0%" over the other, the tiles drew the same split as geometry,
+    // and one line lower `resultNote` said "You're first — the count lands
+    // in a moment". The front door stated a crowd conclusion and denied it
+    // in the same frame. This is the first voter after every UTC rotation.
+    //
+    // The feed has ruled on this state three times already — world-feed.jsx
+    // routes a floored card off the tiles, suppresses the numeral, and gates
+    // a duel's shares with the reason that drawing one without the other
+    // "would publish the split geometrically instead of numerically, which
+    // is the same disclosure in a different alphabet". The daily was the one
+    // answer surface with no such gate.
+    // "Nobody but me" rather than "nobody", for wfNoCrowd's reason
+    // (world-feed.jsx, where the same widening is written out):
+    // `noCountsYet` is `agg.total > 0` and counts the viewer, while every
+    // `o.count` here has had the viewer subtracted back out. On the day's
+    // first vote — which on the daily is a state every reader passes
+    // through — the fold lands, the floor lifts, and the card prints 100%
+    // over a crowd of one.
+    const floored = !!(S.live && (S.noCountsYet || S.options.every((o) => !o.count)));
+    const myIdx = S.options.findIndex(o => o.id === myVote);
+    // THE WINNER IS THE BIGGEST COUNT, not the biggest drawn percentage.
+    // `rp` is rounded, so two different counts land on the same integer —
+    // 449 and 451 both draw 50% — and `rp[i] === maxP` was then true for
+    // BOTH tiles, giving each of them the winner's 25px numeral and full
+    // ink. The chart declared a tie the votes do not have, on the app's
+    // front door, the same rounding that let the beat two seconds earlier
+    // tell the losing side they had won.
+    //
+    // Ties on the COUNTS are real ties and still get two big numerals;
+    // that is the only case where both sides genuinely lead.
+    const maxCount = Math.max(...counts);
+    const leads = (i) => counts[i] === maxCount;
     // Below the k-floor the aggregate publishes nothing — say so instead
     // of dressing a single vote up as a population.
     // Under the DESIGN cadence (5) the published count is a LOWER BOUND,
@@ -732,9 +908,12 @@ class DailySplit extends React.Component {
     const liveTotal = total.toLocaleString();
     // Hoisted for the two gates below (the D83 takes row and the demo
     // sheets row): a live build showing the mock fallback to a real user.
-    // The window read rather than the imported LIVE binding, deliberately \u2014
-    // the smoke fixtures drive this branch through the window stand-in.
-    const demoProd = !!(window.LIVE && window.LIVE.demoInProd);
+    // This used to be a WINDOW read "deliberately — the smoke fixtures
+    // drive this branch through the window stand-in", which stopped being
+    // true when test/live-fixture.ts started defining its members onto the
+    // imported singleton: the global and the export are one object, so the
+    // import sees the fixture (its header has the failure that taught it).
+    const demoProd = !!LIVE.demoInProd;
     // noCountsYet means the aggregate has not landed yet — after your own
     // blind vote that is "you're first, the trigger is on its way", never
     // "wait for five people" (D98 removed the floor that made it a wait).
@@ -781,7 +960,7 @@ class DailySplit extends React.Component {
     const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label || S.branch;
 
     // ── the feed: answer today's question, then the feed starts ──
-    const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
+    const feedEnabled = this.props.feed !== false && window.WorldFeed && (!LIVE.enabled || LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
     const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats, opts: this.props.feedOpts });
 
     // ── comments & who-voted — bottom sheets, portaled to the app screen ──
@@ -798,17 +977,16 @@ class DailySplit extends React.Component {
         h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
           [{ id: 'all', label: 'All', color: INK }, ...S.options.map(o => ({ id: o.id, label: o.label, color: o.color, textColor: o.textColor }))].map(ch =>
             h('button', { key: ch.id, onClick: () => this.setState({ filter: ch.id }), style: { border: LINE, borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: st.filter === ch.id ? ch.color : 'var(--surface-2)', color: st.filter === ch.id ? (ch.textColor || PAPER) : INK, WebkitAppearance: 'none' } }, ch.label))),
-        h('div', { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' } }, '\u25B2 You can only boost takes from your own side.')),
+        h('div', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' } }, '\u25B2 You can only boost takes from your own side.')),
       voted && h('div', { style: { display: 'flex', gap: 8 } },
         h('input', { value: st.draft, onChange: (e) => this.setState({ draft: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') post(); }, placeholder: 'Add your take\u2026', style: { flex: 1, border: LINE, borderRadius: 999, padding: '10px 16px', fontSize: 13.5, fontWeight: 600, background: 'var(--surface-2)', color: INK, outline: 'none', minWidth: 0 } }),
         h('button', { onClick: post, style: { border: LINE, borderRadius: 999, padding: '0 18px', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: voted ? S.options[myIdx].color : INK, color: voted ? (S.options[myIdx].textColor || '#fff') : PAPER, WebkitAppearance: 'none' } }, 'Post')),
       filtered.map(c => {
-        const R = window.WF_REPORT;
-        if (R && R.has(c.key)) {
+        if (WF_REPORT.has(c.key)) {
           if (!this._jr || !this._jr.has(c.key)) return null;
           return h('div', { key: c.key, style: { background: 'var(--surface-2)', border: LINE, borderRadius: 14, padding: '12px 13px', display: 'flex', alignItems: 'center', gap: 10 } },
             h('span', { style: { flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' } }, 'Reported. Hidden from your feed.'),
-            h('button', { className: 'press', onClick: () => { R.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
+            h('button', { className: 'press', onClick: () => { WF_REPORT.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
         }
         const canUp = voted && c.opt === myVote;
         const rKey = S.id + '|' + c.key;
@@ -820,22 +998,22 @@ class DailySplit extends React.Component {
             h('div', { style: { flex: 1, ...col(4), minWidth: 0 } },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
                 h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, c.name),
-                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, c.optObj.label),
-                h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
+                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, c.optObj.label),
+                h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, c.text),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-                h('button', { onClick: () => this.setState({ replyTo: replying ? null : rKey }), style: { background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: replying ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, 'Reply'),
+                h('button', { onClick: () => this.setState({ replyTo: replying ? null : rKey }), style: { background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: replying ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, 'Reply'),
                 h('button', { onClick: () => this.setState(s => ({ reportFor: s.reportFor === c.key ? null : c.key })), 'aria-label': 'Report', style: { background: 'none', border: 'none', padding: '2px', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14, lineHeight: 1, color: st.reportFor === c.key ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, '\u22ef')),
               this.reportRow(c.key)),
             canUp
-              ? h('button', { onClick: () => this.setState(s => ({ ups: { ...s.ups, [c.key]: !s.ups[c.key] } })), style: { border: LINE, borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer', fontWeight: 800, fontSize: 11, background: st.ups[c.key] ? INK : 'var(--surface-2)', color: st.ups[c.key] ? PAPER : INK, flexShrink: 0, WebkitAppearance: 'none' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))
-              : h('div', { title: 'Only voters on their side can boost this', style: { border: '1px solid var(--rule)', borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, cursor: 'not-allowed' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))),
+              ? h('button', { onClick: () => this.setState(s => ({ ups: { ...s.ups, [c.key]: !s.ups[c.key] } })), style: { border: LINE, borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer', fontWeight: 800, fontSize: 12, background: st.ups[c.key] ? INK : 'var(--surface-2)', color: st.ups[c.key] ? PAPER : INK, flexShrink: 0, WebkitAppearance: 'none' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))
+              : h('div', { title: 'Only voters on their side can boost this', style: { border: '1px solid var(--rule)', borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontWeight: 800, fontSize: 12, color: 'var(--ink-3)', flexShrink: 0, cursor: 'not-allowed' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))),
           (reps.length > 0 || replying) && h('div', { style: { marginLeft: 46, ...col(6), borderLeft: '2px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingLeft: 10 } },
             reps.map((r, ri) => h('div', { key: ri, style: col(2) },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
                 h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, 'You'),
-                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
-                h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
+                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
+                h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, r))),
             replying && h('form', { onSubmit: (e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) this.addDailyReply(rKey, v); }, style: { display: 'flex', gap: 6 } },
               h('input', { name: 'reply', autoFocus: true, autoComplete: 'off', autoCapitalize: 'sentences', enterKeyHint: 'send', placeholder: 'Your reply\u2026', style: { flex: 1, minWidth: 0, border: LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, background: 'var(--surface)', color: INK, outline: 'none' } }),
@@ -876,7 +1054,7 @@ class DailySplit extends React.Component {
             this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
               this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
                 rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
-                h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
+                h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
           isFriends && h('div', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } },
             legend.map(o => h('span', { key: o.id, style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700 } }, h('span', { style: { width: 12, height: 12, borderRadius: 4, background: o.color, border: '1px solid ' + BORD, display: 'inline-block' } }), o.label))),
           isFriends
@@ -885,7 +1063,7 @@ class DailySplit extends React.Component {
                 friendRows.map((f, i) => h('div', { key: i, style: { background: 'var(--surface-2)', border: LINE, borderRadius: 14, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 } },
                   h('span', { style: { ...av(f.color, 34, 14), color: f.textColor || '#fff' } }, f.init),
                   h('span', { style: { flex: 1, fontWeight: 800, fontSize: 14 } }, f.name),
-                  h('span', { style: { background: f.chipColor, color: f.textColor || '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999 } }, f.chipLabel))))
+                  h('span', { style: { background: f.chipColor, color: f.textColor || '#fff', fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 999 } }, f.chipLabel))))
             : h('div', { style: col(many ? 6 : 9) },
                 h('div', { style: { ...GRID, alignItems: 'end' } },
                   h('span', { style: { fontWeight: 700, fontSize: 12, color: 'var(--ink-3)' } }, 'Everyone'),
@@ -950,17 +1128,20 @@ class DailySplit extends React.Component {
     // feed hierarchy: today's question wins on type alone — 37px against the
     // feed's 24.5px. A tinted band did the work of a border, not a zone.
     const hier = !!this.props.feedHier;
-    const dailyCard = h('div', { style: { ...col(14), position: 'relative', padding: '4px 1px 20px' } },
+    const dailyCard = h('div', { style: { ...col(14), position: 'relative', padding: '4px 1px 6px' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 18 } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
           h('span', { 'aria-hidden': true, style: { width: 6, height: 6, borderRadius: '50%', background: topicCol, flexShrink: 0 } }),
           h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
-        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
-        window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
+        // the \u24d8 icon button that sat here became the underlined words
+        // under the ballot (2026-09-06) \u2014 no icon buttons in the kicker row
+        h(PassiveTag, { q: S, answered: voted })),
       chipRow,
-      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
+      // the prompt voice (2026-09-02): the day's question is the one thing
+      // on this card a person answers, so it is the one thing in the serif
+      h('div', { style: { fontFamily: 'var(--serif)', fontWeight: 500, fontSize: hier ? 31 : 27, lineHeight: 1.14, letterSpacing: '-0.01em', textWrap: 'balance' } }, S.text),
       !voted
         // asking: options size to their content and centre the label — a fixed
         // 236px column left a 22px word floating in a 115px box, reading as a skeleton
@@ -976,14 +1157,31 @@ class DailySplit extends React.Component {
           ? h('div', { style: { display: 'flex', gap: 5 } },
               S.options.map((o, i) => {
                 const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
-                return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
+                return h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
               }))
-          : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
-              h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
-              h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label)))))
+          // `sd-opt` on every ballot button (both shapes) is the store
+          // screenshot harness's hook — scripts/gen-screenshots.mjs votes
+          // by clicking the first one, whatever its label. The 2026-09-02
+          // rewrite dropped it and the reveal scene went dark for four days
+          // before Screenshots run 7 found the gap; it is a marker, not a
+          // style, and it stays on whichever element casts the vote.
+          // asking: ONE split ballot, as a hairline ROW since 2026-09-06
+          // (VISION-2026-09-06 §5.1). The box goes: two paper halves
+          // between a top and bottom rule, the seam an inner hairline —
+          // and the seam is still what moves to the crowd's split once
+          // you vote, so the question and its answer are the same shape.
+          // Three or more sides stack inside the same rules. The colour
+          // dots go with the box; the option's hue survives as --oc,
+          // drawn only on press (a tint and an underline — .ds-half in
+          // styles.css). The halves' height is its own literal: the
+          // repo's --field-size is a 16px input FONT size (the iOS-zoom
+          // guard), not the prototype's 56px tap height — same name, two
+          // tokens, and the trap §5.1 exists to name.
+          : h('div', { className: 'ds-ballot', style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', borderTop: LINE, borderBottom: LINE } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press ds-half sd-opt', onClick: () => this.castVote(S, o.id), style: { '--oc': o.color, minHeight: 56, background: 'transparent', border: 'none', borderLeft: S.options.length === 2 && i === 1 ? LINE : 'none', borderTop: S.options.length > 2 && i > 0 ? LINE : 'none', borderRadius: 0, padding: '0 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', textAlign: 'center', WebkitAppearance: 'none', boxShadow: 'none' } },
+              h('span', { style: { fontWeight: 700, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.015em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
-        ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
+        ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, counts, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
             S.type === 'rating'
             // The result as the Map's card draws the same number
@@ -1003,13 +1201,33 @@ class DailySplit extends React.Component {
                 } : {};
                 return h('div', { ...lp, style: { display: 'flex', flexDirection: 'column', gap: 9, padding: '2px 2px 0', transform: st.pressing ? 'scale(0.985)' : 'none', transition: 'transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: canChange ? 'pointer' : 'default' } },
                   h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
-                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, avg ? (Math.round(avg * 10) / 10).toFixed(1) : '—'),
+                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, (avg && !floored) ? (Math.round(avg * 10) / 10).toFixed(1) : '\u2014'),
                     h('span', { style: { fontWeight: 700, fontSize: 12.5, color: 'var(--ink-3)' } }, '/ ' + S.options.length + ' average'),
                     myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
-                  h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
+                  // FLOORED MEANS FLOORED HERE TOO. The numeral above is
+                  // already withheld on a live card with no published
+                  // counts, and this ridge was drawn regardless — and it
+                  // scales to `max(1, ...counts)`, so the FIRST voter's own
+                  // single answer becomes a full-height column with two
+                  // empty steps beside it. Measured on a live fixture: the
+                  // card read "— / 3 average … You're first — the count
+                  // lands in a moment." over columns at 7%, 7%, 100%.
+                  //
+                  // Zeroed rather than hidden: the scale is worth seeing and
+                  // so is where you landed, and with a zero total the
+                  // component floors every step and drops "most at N" from
+                  // its own description. This is what the option-tile
+                  // branch below already does when floored (`flex: 10`),
+                  // and the third of the three gates this file's header
+                  // says the feed had and the daily did not.
+                  h(RatingRidge, { counts: floored ? counts.map(() => 0) : counts, mine: myIdx, color: topicCol, height: 64 }));
               })()
-            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
+            // the ballot again, its seam now at the crowd's split: two
+            // sides read left-to-right (width is share), three or more
+            // stack (height is share, the shape D305 sized the stage for)
+            : h('div', { style: { display: 'flex', flexDirection: S.options.length === 2 ? 'row' : 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
             S.options.map((o, i) => {
+              const two = S.options.length === 2;
               // change-vote lives behind a long-press on your own bar
               const mineRow = myVote === o.id;
               const lpEnd = () => { clearTimeout(this._lpT); if (this.state.pressing) this.setState({ pressing: false }); };
@@ -1021,13 +1239,19 @@ class DailySplit extends React.Component {
                 'aria-label': o.label + ' \u2014 your vote. Hold to change it.',
               } : {};
               // the option tiles ARE the chart — each one's height is its share
-              return h('div', { key: o.id, ...lp, style: { flex: Math.max(rp[i], 9) + ' 1 0', minHeight: 46, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
-              h('div', { style: { position: 'relative', height: '100%', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 10 } },
+              return h('div', { key: o.id, ...lp, style: { flex: (floored ? 10 : Math.max(rp[i], 9)) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
+              // a side reads bottom-up when the tiles are columns, so the
+              // label sits under its own number rather than beside it
+              h('div', { style: two
+                ? { position: 'relative', height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-start', justifyContent: 'center', padding: '0 16px', gap: 4 }
+                : { position: 'relative', height: '100%', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 10 } },
                 // label, your mark and your circle's dots travel together — the
                 // dots read as people on this side, not a floating glyph
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 } },
-                  h('span', { style: { fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em' } }, o.label),
-                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, '\u00b7 you'),
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: two ? 'none' : 1, flexWrap: 'wrap' } },
+                  h('span', { style: { fontWeight: 600, fontSize: two ? 16 : 18, letterSpacing: '-0.01em' } }, o.label),
+                  // your mark is a stamp, not a footnote: "· you" beside a
+                  // label read as punctuation at a glance
+                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: INK, color: PAPER, whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, 'you'),
                   (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
                     onClick: () => this.setState({ tab: 'stats', dim: 'friends', dimAxis: null }),
                     'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
@@ -1035,7 +1259,7 @@ class DailySplit extends React.Component {
                   }, S.friends.filter(f => f.opt === o.id).map(f =>
                     h('span', { key: f.name, title: f.name, style: { width: 8, height: 8, borderRadius: '50%', background: o.color, boxShadow: '0 0 0 1.5px color-mix(in oklch, var(--surface) 70%, transparent)' } })))),
                 // every side gets its number; only the winner gets the big one
-                h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: rp[i] === maxP ? 25 : 15, letterSpacing: '-0.03em', color: rp[i] === maxP ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
+                floored ? null : h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: leads(i) ? 25 : 15, letterSpacing: '-0.03em', color: leads(i) ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
             })),
             // one quiet meta line; the map-add confirmation pops in on its right and fades on its own
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 } },
@@ -1053,6 +1277,16 @@ class DailySplit extends React.Component {
                 // always naming.
                 onClick: () => NAV.goTab('you'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
+      // the \u24d8, as a word under the ballot (2026-09-06, VISION-2026-09-06
+      // \u00a75.2): the context sheet keeps its two names \u2014 a sponsored card
+      // must say what it is up front, so its word stays the stronger one.
+      // The design draws *answer anonymously* beside this; that control is
+      // the surface of the open D98-amendment decision (OWNER-LIST.md) and
+      // lands in this same row the day its row is ticked \u2014 built neither
+      // silently nor dropped silently (D334).
+      st.beat !== S.id && h('div', { style: { display: 'flex', alignItems: 'center', gap: 18, marginTop: -2 } },
+        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, style: { border: 'none', background: 'none', padding: '4px 0', cursor: 'pointer', fontFamily: BRIC, fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textDecoration: 'underline', textDecorationColor: 'color-mix(in oklch, var(--rule), var(--ink) 10%)', textUnderlineOffset: 3, WebkitAppearance: 'none' } },
+          S.bg ? 'what you need to know' : 'why this question')),
       // The live daily is a world-scope question, so it carries the D83
       // world-takes surface: anonymous, one take per person, enforced
       // moderation behind it. Suppressed in the demoInProd fallback — that
@@ -1108,7 +1342,15 @@ class DailySplit extends React.Component {
           const v = st.votes[q.id], cur = i === wIdx;
           return h('button', {
             key: q.id, className: 'press tap44 is-tight', onClick: () => this.jumpTo(i), title: q.text,
-            'aria-label': (dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
+            // THE CARD'S OWN LABEL FIRST, the frozen list only as a
+            // fallback. `dayNames` is a literal that reads correctly on a
+            // THURSDAY and on no other day: the kicker one screen up
+            // already prefers `S.dayLabel` — the real weekday, derived
+            // from the date — and these dots did not, so six days in seven
+            // a dot announced a different day from the card it opens, by
+            // up to three days. Screen-reader only, since the dots
+            // themselves carry no text.
+            'aria-label': (q.dayLabel || dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
             'aria-current': cur ? 'true' : undefined,
             style: { width: 22, height: 22, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitAppearance: 'none' }
           }, h('span', { style: { width: cur ? 18 : 6, height: 6, borderRadius: 999, background: cur ? 'var(--accent)' : v ? 'color-mix(in oklch, var(--accent) 45%, var(--surface-3))' : 'color-mix(in oklch, var(--ink-3) 30%, transparent)', transition: 'width .25s ease, background .2s ease' } }));
@@ -1120,7 +1362,7 @@ class DailySplit extends React.Component {
       (voted && st.condensed) && h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 15px', borderRadius: 999, border: LINE, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', animation: 'popIn .25s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('span', { style: { flex: 1, minWidth: 0, fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, S.text),
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
-          S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
+          S.options.map((o, i) => h('span', { key: o.id, title: floored ? o.label : o.label + ' \u00b7 ' + rp[i] + '%', style: { width: (floored ? 100 / S.options.length : rp[i]) + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
       // The pulses due today (D139, roster at D203): the fixed instruments
       // on the World day, compact, beside the blind daily — same contract
@@ -1149,9 +1391,15 @@ class DailySplit extends React.Component {
     // LdReveal's is: the chunk lands in the same frame as the mode switch on
     // anything but a cold first tap, and a flashed spinner reads as a
     // stutter.
-    const liveDuels = window.LIVE && window.LIVE.enabled;
+    const liveDuels = LIVE.enabled;
     const lazyDuel = (key, m) => h(React.Suspense, { key, fallback: null }, h(LiveDuelPanel, { mode: m }));
-    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
+    // Both arms are Suspense-wrapped now, with the same null fallback and
+    // for the same reason the note above lazyDuel gives: the chunk lands in
+    // the mode switch's own frame on anything but a cold first tap, and a
+    // flashed spinner reads as a stutter.
+    const groupBody = liveDuels
+      ? lazyDuel('live-group', 'group')
+      : h(React.Suspense, { key: 'group-daily', fallback: null }, h(GroupDailyBody, null));
     const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== chrome =====
@@ -1170,8 +1418,13 @@ class DailySplit extends React.Component {
     // computes "duels you have not answered today" — so live mode draws
     // NOTHING here rather than a number it cannot mean. D1: where a live
     // surface shows nothing, the data is absent.
-    const pendG = liveDuels ? 0 : DUELS.groupsPending();
-    const pendD = liveDuels ? 0 : DUELS.pendingDuos();
+    // `duels()` returns null until the store lands (see the top of this
+    // file). Zero then, which is what a live build draws permanently
+    // anyway — and the demo's own subscribe redraws with the real counts
+    // a frame later.
+    const D = liveDuels ? null : duels(() => this.forceUpdate());
+    const pendG = D ? D.groupsPending() : 0;
+    const pendD = D ? D.pendingDuos() : 0;
     const badges = {
       group: mode !== 'group' && pendG ? String(pendG) : null,
       duo: mode !== 'duo' && pendD ? String(pendD) : null,
@@ -1185,9 +1438,9 @@ class DailySplit extends React.Component {
       // docking into the header once scrolled past
       screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
-        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
-        // quiet footer — the ask-a-question door (the paid path, D288 §1)
-        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Ask it \u2192'))),
+        // The quiet footer's ask-a-question link stood here until D368 moved
+        // buying to the web; the daily now ends on the deck it draws.
+        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body)),
     };
   }
 
@@ -1195,6 +1448,25 @@ class DailySplit extends React.Component {
     const h = React.createElement;
     const st = this.state;
     const { rootRef, screen } = this.renderVals();
+    // One pill for both boot states — the demo deck under a lost race
+    // (D77) and the real deck off this device's caches with the server
+    // unheard from (D356): the label, and the reason one tap away. A
+    // helper rather than two copies, because the second copy had drifted
+    // from the first (no pointer cursor, UA button chrome on WebKit)
+    // before it shipped.
+    const bootPill = (key, label, reason) => h('div', {
+      key,
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+    },
+      h('button', {
+        type: 'button',
+        onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
+        'aria-expanded': !!st.showBootErr,
+        style: { fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
+      }, label),
+      st.showBootErr && h('div', {
+        style: { fontSize: 12, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
+      }, reason));
     return h('div', {
       ref: rootRef,
       'data-screen-label': 'Split daily v2',
@@ -1225,22 +1497,17 @@ class DailySplit extends React.Component {
       // reachable only with a Mac. One tap is the whole remedy; it stays
       // behind a tap because "reconnecting…" is the honest thing to show
       // someone on a train, and `auth/network-request-failed` is not.
-      LIVE.demoInProd && h('div', {
-        key: 'demo-banner',
-        style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
-      },
-        h('button', {
-          type: 'button',
-          onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
-          'aria-expanded': !!st.showBootErr,
-          style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
-        }, 'Sample questions · reconnecting…'),
-        st.showBootErr && h('div', {
-          style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
-        }, LIVE.bootError || 'connecting…')),
+      LIVE.demoInProd && bootPill('demo-banner', 'Sample questions · reconnecting…', LIVE.bootError || 'connecting…'),
+      // D356: the other honest case, and the one the pill above cannot
+      // see. A returning device paints the REAL deck off its own caches
+      // before the network is heard from; if the server then fails or
+      // stays silent past the boot's budget, what is on screen is this
+      // device's last sync — real answers, real counts, as of last time —
+      // and the person deserves to know the counts are not today's.
+      // Gated on a reason existing: the ordinary reconcile takes under a
+      // second and must not flash a label on every launch.
+      LIVE.enabled && LIVE.stale && LIVE.bootError && bootPill('stale-banner', 'Last sync · reconnecting…', LIVE.bootError),
       screen);
   }
 }
-window.DailySplit = DailySplit;
 
-;globalThis.DailySplit = typeof DailySplit === 'undefined' ? globalThis.DailySplit : DailySplit;

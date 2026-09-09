@@ -3,7 +3,11 @@
 // tab reads instead of its demo deck:
 //
 //   LIVE.enabled      flag: firebase configured AND VITE_V2_LIVE=true
-//   LIVE.ready        true once auth + first fetch have settled
+//   LIVE.ready        there is a deck to draw — off this device's caches
+//                     (the warm paint, D356) or off the network
+//   LIVE.attached     the network boot completed this session; what
+//                     `ready` meant before D356, and what re-entry keys on
+//   LIVE.stale        ready off disk and not yet attached
 //   LIVE.deck()       today's daily questions in the UI's "S" shape;
 //                     counts come from the k-floored public aggregates
 //                     and EXCLUDE the viewer's own vote (the UI adds
@@ -45,13 +49,14 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 25 `await getDb()` sites in this file did not change
+// deliberately: the 40 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
 let clearIndexedDbPersistence!: FsApi["clearIndexedDbPersistence"];
 let collection!: FsApi["collection"];
 let deleteDoc!: FsApi["deleteDoc"];
+let deleteField!: FsApi["deleteField"];
 let doc!: FsApi["doc"];
 let documentId!: FsApi["documentId"];
 let getDoc!: FsApi["getDoc"];
@@ -66,6 +71,7 @@ let startAfter!: FsApi["startAfter"];
 let terminate!: FsApi["terminate"];
 let Timestamp!: FsApi["Timestamp"];
 let updateDoc!: FsApi["updateDoc"];
+let waitForPendingWrites!: FsApi["waitForPendingWrites"];
 let where!: FsApi["where"];
 let getFunctions!: FnsApi["getFunctions"];
 let httpsCallable!: FnsApi["httpsCallable"];
@@ -77,6 +83,12 @@ import {
   getFirestoreApi,
   getFunctionsApi,
   googleSignOut,
+  emailCreate,
+  emailReset,
+  emailSignIn,
+  refreshVerification,
+  sendVerification,
+  linkApple,
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
@@ -91,24 +103,41 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
     getDbRaw(), getFirestoreApi(), getFunctionsApi(),
   ]);
   ({
-    clearIndexedDbPersistence, collection, deleteDoc, doc, documentId, getDoc,
-    getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
-    startAfter, terminate, Timestamp, updateDoc, where,
+    clearIndexedDbPersistence, collection, deleteDoc, deleteField, doc, documentId,
+    getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
+    startAfter, terminate, Timestamp, updateDoc, waitForPendingWrites, where,
   } = fs);
   ({ getFunctions, httpsCallable } = fns);
+  // NOTHING REACHES FIRESTORE WHILE THE UID IS THE MIRROR'S (D356). The
+  // warm paint puts a live deck on screen before Auth has restored the
+  // session, and every mutator here comes through this function — so
+  // this is the one choke point. It is not tidiness: a write handed to
+  // the SDK before its credential listener has fired is filed into the
+  // UNAUTHENTICATED user's mutation queue, and when the real user
+  // arrives the SDK swaps queues rather than re-signing the pending
+  // mutations, so that write's promise never settles — the vote stays
+  // inflight for the session, the cache never files it, the server never
+  // sees it. Waiting here costs the tap a few hundred milliseconds (the
+  // optimistic state is already on screen) and costs a failed sign-in
+  // nothing it was not losing anyway: the write waits for the session
+  // the next wake restores, which is the offline state's own shape.
+  if (state.uidProvisional) await authSettled;
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The fat caches' IndexedDB home (D312, docs/ANSWER-SCALE.md §2.2). Small
 // and dependency-free, so a static import here costs the entry chunk a few
 // hundred bytes — nothing like the SDK-import trap the note above is about.
+// (This branch's D318 built the same move as a single-blob bankStore.ts in
+// parallel; the merge converged on this store — see the D318 amendment.)
 import * as cacheStore from "./cacheStore";
 // No imports of its own, so reading it here closes no cycle back through
 // data/cityAnchor — which imports this module.
 import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -170,29 +199,45 @@ import { roundRobinBy } from "./feed-interleave";
 import { publishTestFeed } from "./testFeed";
 // The Learn engine's cards. Published by name for testFeed's reason, and
 // because the bundle stopped carrying the bank at D284.
-import { publishLearnBank, type LearnCard } from "./learnBank";
+import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBank";
+// Which paged cards a device actually fetches (learn at D320, the feed
+// tail at D321): pages against the published order instead of the whole
+// surface at boot. Pure arithmetic there; the I/O lives in the top-ups
+// below.
+import {
+  FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, pageSizesByInterest,
+  publishFeedTotals, topUpPages, type PageOrderDoc,
+} from "./bankPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
   buildS as buildSPure,
   computeDeckIds,
+  computeDeckSeqs,
+  DECK_DAYS,
   countsFor,
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
   hasPublishedCounts,
   isCore,
-  rankCrowdFor,
+  isDailyQid,
+  isFeedQid,
+  rankCrowd,
   CANON_BOARD_N,
   splitBanks,
-  utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import type { FeedAd } from "./sponsored";
-import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
+import { nearOptedIn, setNearOn } from "./near";
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
 import { patternsEligible, type PatternsSignal } from "./patternsReady";
+import { socialReadsPaused } from "./budgetMode";
 import { locateCell, locateSupported } from "./locate";
+import {
+  hasAnsweredPoliticalAsk, mayPublishPolitical, politicalConsentRecord,
+  POLITICAL_RESULT_KEY,
+} from "./politicalConsent";
 import { scrubPersonaAnchors } from "./personaResidue";
 import { FUNCTIONS_REGION } from "../../lib/region";
 
@@ -208,7 +253,24 @@ import { FUNCTIONS_REGION } from "../../lib/region";
 export type LivePathQ = QuestionDoc & { id: string; counts: number[] };
 
 const state = {
+  // The store can serve a deck. TWO things flip it, and the difference is
+  // D356: the WARM paint (everything below read off this device's own
+  // caches, before any network read) and the network attach. `attached`
+  // is the second alone — what `ready` used to mean — and it is the flag
+  // that gates re-entry (wake, resubscribe) and the stale label, because
+  // "there is a deck on screen" and "the server has been heard from this
+  // session" stopped being the same fact.
   ready: false,
+  attached: false,
+  // The deck on screen came off disk and the network has not confirmed it
+  // yet. Cleared by the attach; `LIVE.stale` reads it.
+  warm: false,
+  // `uid` is the profile mirror's, not yet auth's (D356): the warm paint
+  // runs before the SDK has restored the session, so the account it
+  // paints for is the one this device last confirmed. Cleared the moment
+  // sign-in resolves; while it stands, a null auth state means "not
+  // restored yet", not "session lost" — see the observer in initLive.
+  uidProvisional: false,
   // Why boot did not attach, in the user's own build. See LIVE.bootError.
   bootError: "",
   // Which await boot is sitting on, "" once attached. Separate from
@@ -224,6 +286,13 @@ const state = {
   sessionLost: false,
   uid: null as string | null,
   linked: false,
+  needsEmailVerify: false,
+  // The address the account signs in with, so the verify screen can name
+  // it after a relaunch — by then the component's own field is empty and
+  // "we sent a link to your address" is the sentence a stuck user least
+  // needs. Null for an anonymous session and for a provider that hands
+  // over none.
+  accountEmail: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
@@ -248,6 +317,15 @@ const state = {
   // reveal time, NOT a standing subscription — 96 snapshots for cards
   // mostly never seen is the wrong cost shape.
   learnAggs: {} as Record<string, AggDoc | null>,
+  // …and which of those reads is STILL IN THE AIR. Without this the cache
+  // was pre-filled with null on the first call, so "the fetch has not come
+  // back" and "there is nothing there" were one value — and two surfaces
+  // rendered the second sentence for the first: "Nobody else has answered
+  // this one yet", about a card thousands may have answered, on every
+  // card's first paint. Its neighbours in this block keep the distinction
+  // and say why (`callOutcomes`, `feedAds`); this pool was the one that
+  // did not.
+  learnAggPending: {} as Record<string, true>,
   // First-attempt sends already fired this session (belt to the rules'
   // braces: the create-only rule is the real enforcement).
   learnSent: {} as Record<string, true>,
@@ -262,6 +340,15 @@ const state = {
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
+  // The breakdown cap's tail (D400): the viewer's own city/country cell
+  // for each question whose hot map is at the cap without it, as read
+  // from `v2_agg_overflow` — qid → dim → { key, cell }. Kept beside
+  // `aggs` so a refreshed hot document (storeAgg) gets the cell merged
+  // back rather than losing it until the stop is opened again.
+  overflowCells: {} as Record<string, Record<string, { key: string; cell: OverflowCellCounts }>>,
+  // dim → the key the tail was loaded for this session, so a stop opened
+  // twice pays nothing and a changed city loads again.
+  overflowLoaded: {} as Record<string, string>,
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
   // Optimistic-vote tracking, split in two because the flags clear at
   // different moments (conflating them let a stranger's vote folding
@@ -293,26 +380,48 @@ const state = {
     // reading a second document — and so a later profile edit cannot
     // retroactively rewrite which cohort a past answer counted in.
     anchors: {} as Record<string, string>,
+    // The political consent record (D331). Held on the profile object
+    // because that is where it lives on the server — one document, one
+    // read, and every predicate in politicalConsent.ts takes the profile.
+    consent: {} as { political?: unknown },
   },
   // `patterns*` are written by the nightly fit rather than the seed
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
-  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
-  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
+  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, budgetMode: 0 },
+  // `dailySource` says which of D383's two paths served the daily: "deck"
+  // (seven documents against the published length) or "whole" (the
+  // pre-D383 surface fetch, taken whenever the shape cannot be trusted).
+  // A build silently falling back would look exactly like a working one.
+  stats: { bankSource: "none", dailySource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
+  // gid → the LATEST reveal (the round before the open one), live-subscribed,
+  // or null while none is readable. `revealKeys` is which reveal id each
+  // listener is on, so a round advancing re-points it.
   reveals: {} as Record<string, Record<string, unknown> | null>,
   groupsUnsub: null as null | (() => void),
   revealUnsubs: {} as Record<string, () => void>,
-  revealDay: "",
+  revealKeys: {} as Record<string, string>,
   // Reveal HISTORY, fetched on demand for the Mirror's Groups portrait —
-  // gid → day → doc, or null for a day that has no readable reveal
-  // (skipped day, or one revealed before this user joined; the rules
-  // return permission-denied for the latter and that is the rule working).
-  // In-memory only: ≤ REVEAL_HIST_DAYS doc reads per group per session,
-  // paid only when the portrait is opened, never at boot.
+  // gid → reveal id → doc. Only documents that exist: the query below
+  // returns nothing for a day nobody played, where the old per-key fan-out
+  // cached a null (and paid a read) for it. In-memory only: ONE ordered
+  // query of ≤ REVEAL_HIST_CAP documents per group per session, paid only
+  // when the portrait is opened, never at boot. `revealHistLoaded` is the
+  // settled flag — an empty history is still a settled one — and a failed
+  // query leaves it unset so a later call retries.
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
+  revealHistLoaded: {} as Record<string, boolean>,
+  // My CALL on each duel answer — answer id → guessIdx — kept beside the
+  // pick, which `votes` holds alone. The card's sealed list (request 12)
+  // says "you: Ignore · called Answer" for every round waiting on the
+  // others; the pick is on disk with the answers, the call is remembered
+  // for the session and re-read from the answer documents the boot's
+  // delta fetches. A round whose call this device no longer holds shows
+  // the pick alone — nothing invented.
+  duelCalls: {} as Record<string, number>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -367,6 +476,10 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // Whether the last kindred run asked for lists and got NONE — see
+  // kindredState(). Distinct from kindredAt being 0, which is also what a
+  // device with no votes yet looks like.
+  kindredFailed: false,
   // D278: the city-scoped half of the pool, kept SEPARATE from
   // state.voters rather than merged into it. The who-voted sheet draws
   // state.voters and means "who answered this" — a city-filtered list
@@ -374,11 +487,23 @@ const state = {
   // kindredPeople() unions the two; nothing else reads this.
   cityVoters: {} as Record<string, Voter[]>,
   cityVotersAt: "",
+  // The nightly voter SAMPLES (D397): the same rows the live lists hold,
+  // published by the fit one document per question, read by every fold
+  // that only counts — Kindred's world pass, the People lens, the pair
+  // card. The who-voted sheet keeps `voters` above, live. kindredPeople()
+  // unions this in too, live rows winning where both exist for a question.
+  voterSamples: {} as Record<string, Voter[]>,
   cityKindredLoading: false,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
   testAggsLoaded: false,
+  // Set when loadSimilarity throws. `testAggsLoaded` stays false on a
+  // throw, which is right — nothing was read — but it makes "failed"
+  // indistinguishable from "never asked", and a reader that treats either
+  // as "nobody has answered" states an absence it did not measure. Same
+  // distinction purchases.ts keeps, and for the same reason.
+  testAggsFailed: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says
   // different things for those two.
@@ -439,17 +564,52 @@ const AD_POOL_CAP = 200;
  * empty pool. `divisiveness` normalises by option count (cohort.ts), so a
  * 2-option daily and a 5-option scale item are comparable.
  */
-function divisivenessOf(qid: string): number {
+export function divisivenessOf(qid: string): number {
   const counts = state.aggs[qid]?.counts;
   if (!counts) return -1;
-  const dense: number[] = [];
-  for (let i = 0; i < 20; i++) {
-    const c = counts[String(i)];
-    if (typeof c !== "number") break;
-    dense.push(c);
-  }
-  if (dense.length < 2) return -1;
+  // HOW MANY OPTIONS THE QUESTION HAS, not how many the counts happen to
+  // name. The server mints a count key by incrementing and DELETES one
+  // that reaches zero (pure.ts: "a zero count never occurs on the create
+  // path"), so an option nobody picked simply has no key — and this used
+  // to stop at the first gap. A five-option question with option 2
+  // unpicked was scored on its first two options; a ten-point rating with
+  // option 0 unpicked scored as unmeasured.
+  //
+  // It is the selection key for loadKindred's twelve, so a wrong value
+  // spends twelve collection-group queries on a worse-chosen set — and
+  // `divisiveness` normalises by option COUNT, which is why a short
+  // vector is not merely missing zeros but rescaled.
+  //
+  // Every other densifier in the tree reads the bank's option count and
+  // fills with `|| 0` (cohort.ts, deck.ts, testNorms.ts, purchases.ts).
+  // This one now does too, with the highest key present as the fallback
+  // for a qid no bank on this device can name.
+  // The WIDER of the two, not the bank's alone. Taking the bank as the only
+  // authority fixes the gap-truncation above and introduces its mirror: a
+  // question whose published counts reach past the option list this device
+  // holds — a bank entry that changed after answers folded, or a device on
+  // a stale content revision — would have its tail dropped and be scored
+  // on a narrower vector, which is the same rescaling failure pointed the
+  // other way. Neither source is trustworthy alone; the union of them is.
+  const highestKey = Object.keys(counts)
+    .reduce((max, k) => (/^\d+$/.test(k) ? Math.max(max, Number(k) + 1) : max), 0);
+  const len = Math.max(optionCountOf(qid), highestKey);
+  if (len < 2) return -1;
+  const dense = Array.from({ length: Math.min(len, 20) }, (_, i) => counts[String(i)] || 0);
   return divisiveness(dense);
+}
+
+/** The bank's option count for a qid, or 0 when no bank on this device
+ *  holds it — the storesOptionIdx lookup, one question over. */
+function optionCountOf(qid: string): number {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return Array.isArray(q.options) ? q.options.length : 0;
+  }
+  return 0;
 }
 
 /**
@@ -512,9 +672,9 @@ export const TAKE_MAX_CHARS = 280;
 // The anchor keys firestore.rules accepts, with its per-field length caps
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
-const ANCHOR_FIELDS: Record<string, number> = {
+export const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
-  profession: 80, education: 80, relationship: 40, heightBand: 20,
+  profession: 80, jobField: 40, education: 80, relationship: 40, heightBand: 20,
 };
 
 // The snapshot written onto an answer. A copy, so a later profile edit
@@ -557,11 +717,18 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
-// How far back the Groups portrait reads. 14 days ≈ the window a weekly
-// group actually remembers, and its cost ceiling is 13 doc reads per group
-// per session (yesterday rides the existing reveal listener) — paid only
-// when the portrait is opened.
-const REVEAL_HIST_DAYS = 14;
+// How far back the Groups portrait and the Roles tab read: the newest N
+// reveals per room, ONE query returning at most this many documents per
+// room per session, paid only when a profile is opened. It was 14 while a
+// reveal was a day — "the window a weekly group actually remembers" — and
+// under rounds (D426) fourteen reveals is two days of a pair playing
+// eight a day. Thirty is the stopgap: a few days of an active pair, a
+// month of a slow one, at roughly double the Roles tab's cold cost
+// (COSTS.md's row). The fortnight ROLES-PLAN described would be 112
+// reveals per room at eight a day, which is not a per-session read; its
+// §3.3 ledger — server-written running totals that outlive any window —
+// is the dependency, and an owner row.
+const REVEAL_HIST_CAP = 30;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
 // against work already in flight: the post-vote refresh timer, the agg and
@@ -630,6 +797,295 @@ function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
   if (!state.uid || state.uid !== answersCacheOwner) return;
   void cacheStore.write("answers", [[aid, String(stored)]]);
+}
+
+// ── answers the server has not yet acknowledged, mirrored on disk (D357) ──
+//
+// The answers cache above mirrors ACKED documents only, and vote() is
+// careful about that: an optimistic row there would let a write the
+// server later refused come back on every boot with nothing left to
+// reconcile it. The other half of that discipline had a hole the warm
+// boot (D356) made reachable. An answer written offline lives in the
+// SDK's persisted mutation queue and in this process's memory; a relaunch
+// before the ack has the queue but not the memory — so the deck re-offered
+// a question the queue was about to answer, and the second tap was refused
+// by the create-only rule. Before D356 an offline relaunch showed the
+// demo deck, which hid the gap by showing nothing.
+//
+// So the unacked answers keep a small mirror of their own: written on
+// the tap, removed on the ack or the rollback, owner-stamped and inside
+// the namespace purgeLocalTrace sweeps. A relaunch folds them back as
+// votes that are still INFLIGHT — exactly the state they were in when
+// the process died — and the network phase settles each against the
+// server (`settlePending`): a delta that returns the document confirms
+// it; for the rest, the SDK's own signal that its queue has drained is
+// followed by one read of exactly those documents, which confirms them
+// or, for a write the rules refused, rolls them back the way the
+// in-process catch would have. Two tiny reads at most, and only on a
+// boot that has something unsettled.
+const PENDING_LS = "insight.pendingAnswers.v1";
+interface PendingAnswer {
+  // The answer in the cache's own string form (cacheVote has the shapes).
+  v: string;
+  // An edit of an existing answer (D86), where the document is expected
+  // to exist either way and only the VALUE says whether the write landed.
+  edit?: true;
+}
+function readPendingFile(): { uid: string; e: Record<string, PendingAnswer> } | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PENDING_LS) || "null");
+    return raw && typeof raw.uid === "string" && raw.e && typeof raw.e === "object" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+function markPending(aid: string, v: string, edit = false): void {
+  const uid = state.uid;
+  if (torndown || !uid) return;
+  const cur = readPendingFile();
+  const e = cur && cur.uid === uid ? cur.e : {};
+  e[aid] = edit ? { v, edit: true } : { v };
+  lsSet(PENDING_LS, JSON.stringify({ uid, e }));
+}
+function clearPending(aid: string): void {
+  const cur = readPendingFile();
+  if (!cur || !(aid in cur.e)) return;
+  delete cur.e[aid];
+  if (Object.keys(cur.e).length) {
+    lsSet(PENDING_LS, JSON.stringify(cur));
+  } else {
+    try {
+      localStorage.removeItem(PENDING_LS);
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+function loadPending(uid: string): Record<string, PendingAnswer> {
+  const cur = readPendingFile();
+  return cur && cur.uid === uid ? cur.e : {};
+}
+// The ids the restore brought back THIS process — the only ones the
+// settle may rule on. An answer tapped in this process has its own
+// promise, its own ack and its own catch; a settle that ruled on it too
+// would roll back a write still on its way (a document the read returns
+// with the mutation laid over it is skipped, and "pending" for a restored
+// id means refused) or count its ack twice.
+const restoredPending = new Set<string>();
+// Back into memory as the state they died in: voted, unconfirmed, and
+// not yet in the public aggregate (the display flag every create sets).
+function restorePending(uid: string): void {
+  for (const [aid, p] of Object.entries(loadPending(uid))) {
+    // On a re-run hydrate (a wake after a failed boot) the file also
+    // holds THIS process's own taps — inflight, with a live promise. They
+    // are not restored and not the settle's: their ack is theirs to
+    // count, once. An id inflight because an earlier run restored it is
+    // in the set already and stays.
+    if (aid in state.inflight && !restoredPending.has(aid)) continue;
+    state.votes[aid] = p.v;
+    state.inflight[aid] = true;
+    const n = Number(p.v);
+    state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    restoredPending.add(aid);
+  }
+}
+// The feed's own vote mirror, dropped or restored beside the store's.
+// rollbackPending below IS the rollback every optimistic write path runs
+// from its catch — one copy of what a refused answer has to undo.
+function dropFeedMirror(aid: string, restoreTo?: string): void {
+  try {
+    const WF_LS = "insight.feedVotes.v1";
+    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+    if (!(aid in wf)) return;
+    if (restoreTo === undefined) {
+      delete wf[aid];
+    } else {
+      const q = feedById(aid);
+      const mv = q ? mirrorVoteValue(q, restoreTo) : null;
+      wf[aid] = mv != null ? mv : Number(restoreTo);
+    }
+    lsSet(WF_LS, JSON.stringify(wf));
+  } catch {
+    /* best-effort */
+  }
+}
+// The ack, as the in-process ack would have done it: the cache row, the
+// counters the create counted on ITS ack (R2/D270, R4/D271), the passive
+// fold for a test answer (D277), and the delayed aggregate re-read that
+// clears `unaggregated` — without which a settled feed answer read one
+// high for the session, since only the daily deck is polled.
+function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: string, edit: boolean): void {
+  delete state.inflight[aid];
+  cacheVote(aid, v);
+  clearPending(aid);
+  const q = dailyById(aid) || feedById(aid) || state.callBank.find((x) => x.id === aid);
+  if (edit) {
+    engagement.note("edits");
+  } else if (q) {
+    engagement.noteAnswer(q.surface);
+    if (q.surface === "feed" || q.surface === "test" || q.surface === "learn" || q.surface === "call") {
+      engagement.noteQid(aid, "a");
+    }
+    if (q.surface === "test") LIVE.syncPassiveResults();
+  }
+  scheduleAggRefresh(db, aid);
+}
+function rollbackPending(aid: string, serverValue?: string): void {
+  if (serverValue === undefined) {
+    delete state.votes[aid];
+  } else {
+    state.votes[aid] = serverValue;
+  }
+  delete state.inflight[aid];
+  delete state.unaggregated[aid];
+  dropFeedMirror(aid, serverValue);
+  clearPending(aid);
+}
+// The answer a document carries, in the cache's string form — the one
+// vocabulary hydrate's fold and the settle below both speak.
+function answerValueOf(get: (f: string) => unknown): string | null {
+  const optionIdx = get("optionIdx");
+  const entity = get("entity");
+  const order = get("order");
+  return typeof optionIdx === "number" ? String(optionIdx)
+    : typeof entity === "number" ? String(entity)
+    : Array.isArray(order) ? order.join(",")
+    : null;
+}
+// One answer against the server's word: confirmed only when the document
+// carries the pending VALUE — for a create as much as for an edit. A
+// create the rules refused because another device answered first comes
+// back as a document with THAT device's value, and confirming it with
+// this one's would cache a value the server never held while the fold
+// had already put the server's on screen (found by the second review,
+// executed). The document's value stands, both on screen and in the
+// cache — at once for a create, because a document that exists with
+// another value means the create can only be refused; for an EDIT only
+// after the drain, because before it the document's old value says
+// nothing about a write still in the queue. Absent after the drain, the
+// create was refused or never reached the queue.
+function settleOne(
+  db: Awaited<ReturnType<typeof getDb>>,
+  aid: string,
+  p: PendingAnswer,
+  server: string | undefined,
+  afterDrain: boolean,
+): "confirmed" | "settled" | "pending" {
+  if (server === undefined) return "pending";
+  if (server === p.v) {
+    confirmPending(db, aid, p.v, !!p.edit);
+    restoredPending.delete(aid);
+    return "confirmed";
+  }
+  if (p.edit && !afterDrain) return "pending";
+  rollbackPending(aid, server);
+  restoredPending.delete(aid);
+  return "settled";
+}
+
+// Which uid a drain-wait is already parked for. Defensive: today no path
+// re-runs hydrate on an attached session (a wake on one resubscribes
+// instead), and a boot that fails before its answers block never gets
+// here — but a re-entered hydrate for the same account would otherwise
+// park a second waiter, and each would pay its own read of the same
+// documents when the queue finally drains. One waiter; it re-reads the
+// pending file after the drain, so it settles whatever is there by then,
+// not only what it was started for.
+let settleWaitingFor: string | null = null;
+
+// Settle what a relaunch restored, against what the boot just read and
+// then against the drained queue. `fetched` is what the answers reads
+// folded this boot, id → value — server-acknowledged documents only; the
+// fold leaves out a document that carries this device's own pending
+// mutation (see `hasPendingWrites` there), which is the one document
+// whose value proves nothing.
+async function settlePending(
+  db: Awaited<ReturnType<typeof getDb>>,
+  uid: string,
+  fetched: Array<[string, string]>,
+): Promise<void> {
+  const pending = loadPending(uid);
+  const ids = Object.keys(pending).filter((aid) => restoredPending.has(aid));
+  if (!ids.length) return;
+  const seen = new Map(fetched);
+  let unsettled = 0;
+  for (const aid of ids) {
+    const p = pending[aid];
+    if (settleOne(db, aid, p, seen.get(aid), false) === "pending") {
+      // Still pending, and still what is on screen: the fold above may
+      // have written the document's OLD value over an edit the queue is
+      // yet to deliver, and the newer intent is this one.
+      state.votes[aid] = p.v;
+      state.inflight[aid] = true;
+      unsettled += 1;
+    }
+  }
+  notify();
+  if (!unsettled || settleWaitingFor === uid) return;
+  settleWaitingFor = uid;
+  // The SDK's word that every mutation it held has been acknowledged or
+  // refused. Offline it never resolves, which is right: the answers are
+  // still pending, and the next online boot asks again. Rejects only
+  // when the user changes under it, which resetForNewUid has already
+  // dealt with.
+  try {
+    await waitForPendingWrites(db);
+  } catch {
+    settleWaitingFor = null;
+    return;
+  }
+  settleWaitingFor = null;
+  if (torndown || state.uid !== uid) return;
+  // Re-read: a later hydrate may have restored more (a restored id an
+  // in-process ack could not have settled — the process that made the
+  // tap is gone).
+  const still = Object.keys(loadPending(uid)).filter((aid) => restoredPending.has(aid));
+  if (!still.length) return;
+  try {
+    const found = new Map<string, string>();
+    // A document still carrying a local mutation: by this file's own
+    // rules none can be a restored id's — editVote refuses an inflight
+    // id and the creates refuse a voted one — so this is defence against
+    // the SDK alone, and a skipped id is simply settled on the next boot
+    // rather than read as absent.
+    const echoed = new Set<string>();
+    for (let i = 0; i < still.length; i += 30) {
+      const chunk = still.slice(i, i + 30);
+      const snap = await getDocs(query(
+        collection(db, "v2_users", uid, "answers"),
+        where(documentId(), "in", chunk),
+      ));
+      snap.docs.forEach((d) => {
+        if ((d as { metadata?: { hasPendingWrites?: boolean } }).metadata?.hasPendingWrites) {
+          echoed.add(d.id);
+          return;
+        }
+        const v = answerValueOf((f) => d.get(f));
+        if (v !== null) found.set(d.id, v);
+      });
+      state.stats.answersFetched += snap.size;
+    }
+    // The read was a round trip, and the account can have changed under
+    // it (a lost session re-minted, a link resolving to an existing
+    // account): these verdicts are the OLD account's and must not touch
+    // the new one's votes or its pending file.
+    if (torndown || state.uid !== uid) return;
+    const now = loadPending(uid);
+    for (const aid of still) {
+      const p = now[aid];
+      if (!p || echoed.has(aid)) continue;
+      if (settleOne(db, aid, p, found.get(aid), true) === "pending") {
+        // Absent after the drain: a create the rules refused, or a write
+        // that never reached the queue — the same rollback the in-process
+        // catch performs.
+        rollbackPending(aid);
+        restoredPending.delete(aid);
+      }
+    }
+    notify();
+  } catch (err) {
+    reportError(err, { where: "settlePending" });
+  }
 }
 
 // ── the profile cache, on disk (D129) ────────────────────────────
@@ -779,7 +1235,13 @@ let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 // cannot silently miss a site.
 const aggDirty = new Set<string>();
 function storeAgg(id: string, agg: AggDoc): void {
-  state.aggs[id] = agg;
+  // A hot document arriving over one whose tail cell this session already
+  // read keeps the cell (D400): the refresh replaces the document whole,
+  // and the tail is not in it by construction.
+  let next = agg;
+  const tail = state.overflowCells[id];
+  if (tail) for (const [dim, t] of Object.entries(tail)) next = withOverflowCell(next, dim, t.key, t.cell);
+  state.aggs[id] = next;
   aggDirty.add(id);
 }
 
@@ -907,8 +1369,8 @@ const listeners = new Set<() => void>();
 // carries the same note: derived on read rather than cached, so a
 // ranking cannot go stale against its own inputs. That reasoning is
 // right and it was being paid for on every render rather than on every
-// change. `kindredPeople()` walks every cached voter list and has six
-// call sites (LiveSimilarityField ×2, LiveMirrorLenses, typeMix ×2,
+// change. `kindredPeople()` walks every cached voter list and has 5
+// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2,
 // testNorms); each of those is inside a component that re-renders on
 // every notify(), and none of them memoises. So one Mirror stop folded
 // the same voter cache four to six times per render — 14 ms a fold in
@@ -1048,6 +1510,12 @@ function buildS(
 // cheaper.
 const AGG_POLL_MS = 60_000;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
+// Which start the armed interval belongs to. startAggPoll awaits the
+// deck's read before it arms, and a stop can land inside that await — a
+// hide, or (since D356, when the poll starts beside the boot's unguarded
+// answers reads) a boot that failed. Arming past such a stop would
+// resurrect the poll it dropped; the generation is how the start notices.
+let aggPollGen = 0;
 
 /**
  * Read the given aggregates once and fold them into the store.
@@ -1072,7 +1540,12 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // Same rule the snapshot handler applied: a fresh aggregate means the
       // trigger has (very likely) folded the vote in, so stop
       // double-counting it. A premature clear self-heals on the next read.
-      if (d.id in state.unaggregated && state.votes[d.id]) {
+      // …unless the write itself is still unacknowledged — a restored
+      // pending answer at boot (D357) — which this aggregate cannot hold
+      // yet. drainAggRefresh has carried the same guard since the
+      // optimistic split; here it was unreachable until restorePending
+      // put an inflight answer in front of the boot's deck read.
+      if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight)) {
         delete state.unaggregated[d.id];
       }
     });
@@ -1085,6 +1558,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
 }
 
 function stopAggPoll(): void {
+  aggPollGen += 1;
   if (aggPollTimer) {
     clearInterval(aggPollTimer);
     aggPollTimer = null;
@@ -1114,8 +1588,10 @@ async function startAggPoll(): Promise<void> {
   // `resubscribeForToday` keeps one because it is a re-entry point.
   if (torndown) return;
   stopAggPoll();
+  const gen = aggPollGen;
   await refreshAggs(state.deckIds);
-  if (torndown) return;
+  // A stop that landed during the read wins — see aggPollGen.
+  if (torndown || gen !== aggPollGen) return;
   aggPollTimer = setInterval(() => {
     // Today only — deckIds[0] is back=0 by computeDeckIds' construction.
     // Guarded on visibility as well as on the hide handler, because a tab
@@ -1127,276 +1603,342 @@ async function startAggPoll(): Promise<void> {
 }
 
 function computeDeck(): void {
+  const today = dayIndex();
+  // PAGED (D383): positions come from the published length and resolve
+  // through the rows this device fetched. `state.questions.length` is the
+  // count of what is HELD once the daily pages, and indexing by it would
+  // put this device on a different question from everyone else — the
+  // failure with no symptom.
+  if (dailyBankN != null && dailyBankN > 0) {
+    const bySeq = new Map(state.questions.map((q) => [q.seq, q.id]));
+    const ids = computeDeckSeqs(dailyBankN, today)
+      .map((seq) => bySeq.get(seq))
+      .filter((id): id is string => !!id);
+    // A miss means the rollover outran the fetch (tomorrow's card is in
+    // hand, the day after is not). Keep the standing deck rather than
+    // publishing a short one; the wake handler's refetch fills it.
+    if (!ids.length) return;
+    state.deckDay = today;
+    state.deckIds = ids;
+    return;
+  }
   const n = state.questions.length;
   if (!n) return;
-  const today = dayIndex();
   state.deckDay = today;
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
-async function hydrate(): Promise<void> {
-  const db = await getDb();
+// The daily bank's LENGTH as the server published it (D383), or null when
+// this device is holding the daily surface whole (an old build's cache, a
+// missing shape document, a bank that is not dense). The deck's positions
+// are computed against this number, never against how many daily rows
+// this device happens to hold — that is the whole difference between a
+// paged daily and a broken one.
+let dailyBankN: number | null = null;
 
-  // The viewer's own profile, STARTED HERE and awaited where it is read,
-  // some six round trips down.
-  //
-  // It depends on `db` and `state.uid` and on nothing else in this
-  // function — not the meta document, not `contentRev`, not the bank — so
-  // every trip between here and its `await` was the boot race waiting on
-  // work that had no reason to be behind them. `initLive` gives that race
-  // 2500 ms, and losing it puts a real user on the demo deck under a
-  // "still connecting" label; on a 200 ms mobile RTT this is most of a
-  // fifth of the budget, spent for nothing. No extra read either way.
-  //
-  // Rejections are captured to null rather than left floating: an
-  // in-flight promise nobody is awaiting yet would raise
-  // `unhandledrejection` on the way to its own catch. Null lands in the
-  // same branch a failed read already took — a missing display name is a
-  // cosmetic loss, not a reason to spend the session on demo data — and
-  // the reporting stays at the read site.
-  const uidEarly = state.uid;
-  const profileP = uidEarly
-    ? getDoc(doc(db, "v2_users", uidEarly)).catch((err) => {
-      reportError(err, { where: "hydrate.profile" });
-      return null;
-    })
-    : null;
+// The Scores lens's pool as the server published it (D384): scope → the
+// ids of active `rating` dailies naming that place, in seq order. Null
+// when the daily is not paged — then the device holds the whole surface
+// and `placeAsks` reads it directly, exactly as before D383.
+//
+// The device NEVER sends its answers anywhere to get this: it subtracts
+// its own votes locally, which is both D163's line and what makes the
+// remaining count exact without a per-person read.
+let dailyRatesPool: Record<string, string[]> | null = null;
 
-  // ── one meta read runs the whole cache story ──
-  // contentRev invalidates the local question-bank cache; latest/min
-  // build drive the in-app update prompts.
-  let contentRev = 0;
+/** Ask documents fetched per scope per boot. The lens draws three and
+ *  recomputes as votes land, so a page is a session's worth of runway
+ *  several times over — LEARN_PAGE's posture, one surface over. The
+ *  COUNT the lens prints comes from the id list, not from this, so a
+ *  bounded fetch never makes "N more after these" lie. */
+const PLACE_ASK_PAGE = 24;
+
+// The cached bank's ids, kept after hydrate returns so the pagers
+// (D320/D321) know what this device already holds. Ids rather than a
+// payload since the merge with D312: the rows themselves live in
+// cacheStore and the pagers append there directly. Null until a hydrate
+// has run.
+let bankIds: Set<string> | null = null;
+
+// The bank's learn slice in the ENGINE's vocabulary (D284):
+// `learn-cell1`/`prompt`/`options`/`topic` become `cell1`/`q`/`a`/`f`.
+// One translation for the boot publish and the pager's re-publish — two
+// spellings are real, and the translation belongs at one end rather than
+// at nine call sites. A doc with no `c` is unanswerable rather than thin
+// and is dropped, never defaulted: `c ?? 0` would mark option one correct
+// on every pre-D284 card and teach the wrong answer, silently, on the one
+// surface whose promise is that there is a right one.
+function toLearnCards(rows: Array<QuestionDoc & { id: string }>): LearnCard[] {
+  return rows.flatMap((q): LearnCard[] => {
+    if (typeof q.c !== "number" || typeof q.t !== "number") return [];
+    return [{
+      id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
+      f: q.topic || "",
+      q: q.prompt,
+      a: q.options,
+      c: q.c,
+      t: q.t,
+      p: typeof q.p === "number" ? q.p : 50,
+      k: q.k || "",
+      ...(q.w ? { w: q.w } : {}),
+    }];
+  });
+}
+
+// ── the warm paint (D356) ────────────────────────────────────────────
+//
+// A returning device holds, on its own disk, everything the first frame
+// draws: the bank (D312's rows), the account's answers, the aggregates it
+// last saw, and — since D356 — a mirror of the account's own profile. The
+// boot used to read all of that only AFTER the meta document had come
+// back from the server, and it published nothing until the last of five
+// or six serial round trips had landed; first paint waited on the whole
+// chain, and on a phone it lost `initLive`'s race often enough to have an
+// engagement counter (`slowBoots`) and a "still connecting" label of its
+// own. Nothing on that chain was needed to draw the deck a device had
+// drawn the night before.
+//
+// So the disk is read FIRST, all three stores at once, and if it holds a
+// bank AND this account's profile mirror, the deck is published and the
+// screen is released (`markWarmPaint`) before the meta read is even
+// issued. The network phase then runs exactly as it did, against the same
+// pre-read caches, and reconciles in place: a delta merges, a changed
+// contentRev replaces the bank whole, the profile document overwrites the
+// mirror, the deck's aggregates refresh. Every one of those already
+// arrived through notify() on the late-boot path, so the screen was
+// always able to take them; what changed is only that a real deck, not
+// the demo one, is what it takes them on top of.
+//
+// WHY THE PROFILE MIRROR IS A CONDITION and not a nicety: every answer
+// snapshots `state.profile.anchors` at write time (D8, D290), and the
+// anchors used to arrive with the profile read some way down the chain.
+// A vote cast on a warm-painted deck before that read lands would be
+// filed under NO cohort — a correct-looking answer that no breakdown can
+// ever count. The mirror is written whenever the profile is read or
+// changed, so a device that has booted once since D356 always paints
+// with the anchors it will stamp; a device that has not simply boots the
+// old way, once.
+interface BankEntry extends QuestionDoc {
+  id: string;
+}
+
+// The localStorage era's keys — migration sources only since D312, each
+// read once and removed after the rows land in IndexedDB, so an
+// upgrading device pays neither a refetch nor a second copy in the small
+// box. Named here because the warm read is what reads them now.
+const BANK_LS = "insight.bankCache.v2";
+const ANS_LS = "insight.answersCache.v1";
+const AGG_LS = "insight.aggsCache.v1";
+
+interface DiskCaches {
+  bank: { rows: BankEntry[]; rev: number; cursor: number; from: "idb" | "ls" } | null;
+  // Only ever this account's — the owner check is made here, once, so no
+  // reader can forget it. Null under any other uid.
+  answers: { votes: Record<string, string>; maxTs: number; maxEditTs: number; from: "idb" | "ls" } | null;
+  aggs: { rows: Record<string, AggDoc>; from: "idb" | "ls" } | null;
+}
+
+// Everything the boot can read without the network, in one place and in
+// parallel: five reads on one connection, and IndexedDB runs read-only
+// transactions concurrently. Each store tries the IndexedDB rows first and
+// the pre-D312 localStorage blob second; a corrupt medium reads as empty,
+// which the boot treats as "refetch", exactly as the inline reads did.
+async function readDiskCaches(uid: string | null): Promise<DiskCaches> {
+  const out: DiskCaches = { bank: null, answers: null, aggs: null };
+  const [bankMeta, bankRows, ansMeta, ansRows, aggRows] = await Promise.all([
+    cacheStore.readMeta<{ rev: number; cursor: number; dailyN?: number }>("bank"),
+    cacheStore.readAll<BankEntry>("bank"),
+    uid ? cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers") : null,
+    uid ? cacheStore.readAll<string>("answers") : new Map<string, string>(),
+    cacheStore.readAll<AggDoc>("aggs"),
+  ]);
   try {
-    const meta = await getDoc(doc(db, "v2_meta", "app"));
-    if (meta.exists()) {
-      const rev = meta.get("contentRev");
-      contentRev = rev && typeof rev.toMillis === "function" ? rev.toMillis() : 0;
-      state.meta.latestBuild = Number(meta.get("latestBuild") || 0);
-      state.meta.minBuild = Number(meta.get("minBuild") || 0);
-      state.meta.updateUrl = String(meta.get("updateUrl") || "");
-      state.meta.patternsPool = Number(meta.get("patternsPool") || 0);
-      state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
-    }
-  } catch {
-    /* meta is best-effort — absence just means no caching/update info */
-  }
-
-  // ── question bank: localStorage cache keyed by contentRev ──
-  // The bank is static content; a boot should cost 1 meta read, not
-  // ~190 bank reads. Single-field query (no composite index).
-  interface BankEntry extends QuestionDoc {
-    id: string;
-  }
-  // PAGE SIZE, not a ceiling — D161, and the difference is the whole point.
-  //
-  // This was `BANK_LIMIT = 1500`, a cap on one unpaginated fetch, with
-  // D30's rule recorded beside it: approach it with pagination, never
-  // another raise. The feed is going unbounded, so the approach happened
-  // and this is the pagination. The rule it existed to enforce is gone
-  // because the failure it guarded is gone: a query that hits its limit
-  // returns a short page and NO error, so a bank over the old cap served
-  // a truncated corpus with nothing failing anywhere.
-  //
-  // Round trips, not reads, are what the size trades. Firestore bills per
-  // document however they are paged, so a bigger page is fewer round trips
-  // at identical cost; 1000 is one round trip for any bank this app has,
-  // and a handful for one it might grow.
-  const BANK_PAGE = 1000;
-  // A loop bound, not a content limit. Nothing should ever reach it — but
-  // an unbounded `while` in the boot path is one cursor bug away from
-  // hanging the app before first paint, and the whole reason this code
-  // changed is that the previous failure mode was silent. If this trips,
-  // the bank is 100k documents (implausible) or the cursor stopped
-  // advancing (a bug), and BOTH are reported rather than truncated
-  // quietly.
-  const BANK_MAX_PAGES = 100;
-  // EVERY surface splitBanks can return, and that is the invariant rather
-  // than a list to extend by habit — this constant decides what the bank
-  // IS, and a lane missing here is a lane whose questions do not exist as
-  // far as the live app is concerned. `pulse` and `call` were absent from
-  // the day this fetch was written: splitBanks routed both, the seed
-  // shipped both (5 + 3 documents), the rules admitted both, and neither
-  // ever reached a device — LIVE.pulseQs() and LIVE.callQs() returned []
-  // for every live user while the demo build drew them from its own
-  // fixtures, which is why nothing looked broken anywhere it was looked
-  // at. Pinned in bank-cache.test.ts, on the query as well as the output.
-  //
-  // Firestore's `in` takes up to 30 values, so the ceiling is not near.
-  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
-  let all: BankEntry[] | null = null;
-  // The localStorage era's key — read once as a migration source (D312)
-  // and removed after the rows land in IndexedDB, so an upgrading device
-  // pays neither a refetch nor a second copy of the bank in the small box.
-  const BANK_LS = "insight.bankCache.v2";
-  let cursor = 0;
-  // Which medium the cache came from. "idb" is the steady state and gets
-  // only the DELTA written back — a warm boot with an empty delta writes
-  // nothing, where the blob shape re-serialized the whole bank every boot.
-  // Anything else (a legacy localStorage payload, a full fetch, an
-  // invalidated rev) rewrites the store whole so the next boot is "idb".
-  let bankCacheFrom: "idb" | null = null;
-  let deltaRows: BankEntry[] = [];
-  try {
-    const bankMeta = await cacheStore.readMeta<{ rev: number; cursor: number }>("bank");
-    if (bankMeta && bankMeta.rev === contentRev) {
-      const rows = await cacheStore.readAll<BankEntry>("bank");
-      if (rows.size) {
-        all = [...rows.values()];
-        cursor = Number(bankMeta.cursor || 0);
-        bankCacheFrom = "idb";
-        state.stats.bankSource = "cache";
-      }
-    }
-    if (!all) {
+    if (bankMeta && bankRows.size) {
+      // THE PAGED DAILY'S LENGTH COMES OFF DISK TOO (D383), and it has to.
+      // The warm paint draws the deck before any network read is
+      // answered, and a cache written by a paged boot holds eight daily
+      // rows — so a device that had forgotten `n` would index eight
+      // positions instead of the bank's and paint a different day's
+      // question than the rest of the world, on its own disk, silently.
+      // Absent means a pre-D383 cache or a whole-surface boot: null, and
+      // computeDeck falls back to counting what it holds, which for those
+      // caches is right.
+      dailyBankN = typeof bankMeta.dailyN === "number" && bankMeta.dailyN > 0
+        ? bankMeta.dailyN
+        : null;
+      out.bank = {
+        rows: [...bankRows.values()],
+        rev: Number(bankMeta.rev),
+        cursor: Number(bankMeta.cursor || 0),
+        from: "idb",
+      };
+    } else {
       const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
-      if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
-        all = cached.questions as BankEntry[];
-        cursor = Number(cached.cursor || 0);
-        state.stats.bankSource = "cache";
+      if (cached && Array.isArray(cached.questions) && cached.questions.length) {
+        out.bank = {
+          rows: cached.questions as BankEntry[],
+          rev: Number(cached.rev),
+          cursor: Number(cached.cursor || 0),
+          from: "ls",
+        };
       }
     }
   } catch {
-    /* corrupt cache — refetch below */
+    /* corrupt cache — refetch */
   }
-  // Rows are stored without `updatedAt`: it is a transport field, and a
-  // Timestamp does not survive JSON round-tripping as a Timestamp. Keeping
-  // it would leave a plain {seconds,nanoseconds} object on the cache path
-  // and a real Timestamp on the network path — the kind of difference that
-  // only shows up in whichever branch nobody tested.
-  const rowsOf = (snap: Awaited<ReturnType<typeof getDocs>>): BankEntry[] =>
-    snap.docs
-      .map((d) => {
-        // data() hands back a fresh object per call, so dropping the field
-        // in place is safe and keeps the cached row shape identical on both
-        // the delta and full-fetch paths.
-        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
-        delete row.updatedAt;
-        return { id: d.id, ...row };
-      })
-      .filter((q) => BANK_SURFACES.includes(q.surface));
-  const cursorOf = (snap: Awaited<ReturnType<typeof getDocs>>): number =>
-    snap.docs.reduce((mx, d) => {
-      const u = d.get("updatedAt");
-      return u && typeof u.toMillis === "function" ? Math.max(mx, u.toMillis()) : mx;
-    }, 0);
-
-  // ── the incremental path ──
-  // A weekly promotion changes ~7 documents out of 369. Re-reading the
-  // whole bank for that was the single largest read cost in the system
-  // (docs/COSTS.md): 369 reads per returning device per reseed, charged
-  // against monthly users, not daily ones. The seed now moves `updatedAt`
-  // only on documents it actually rewrote, so the delta is fetchable.
-  //
-  // The 5s rewind is not superstition: a batch commit stamps every doc in
-  // it with one server timestamp, so a strict `>` against the highest one
-  // we have seen can step over a doc committed in the same instant by a
-  // later batch. Re-reading a handful of rows we already hold is the
-  // cheaper mistake by far.
-  if (all && cursor > 0) {
+  if (uid) {
     try {
-      const dsnap = await getDocs(
-        query(
-          collection(db, "v2_questions"),
-          where("updatedAt", ">", Timestamp.fromMillis(cursor - 5000)),
-          limit(BANK_PAGE),
-        ),
-      );
-      if (dsnap.size >= BANK_PAGE) {
-        // A delta that fills the page is not a delta. Fall through to the
-        // full fetch rather than silently serving a truncated bank.
-        all = null;
+      if (ansMeta && ansMeta.uid === uid) {
+        const votes: Record<string, string> = {};
+        ansRows.forEach((v, k) => {
+          votes[k] = v;
+        });
+        out.answers = {
+          votes,
+          maxTs: Number(ansMeta.maxTs || 0),
+          maxEditTs: Number(ansMeta.maxEditTs || 0),
+          from: "idb",
+        };
       } else {
-        deltaRows = rowsOf(dsnap);
-        const byId = new Map(all.map((q) => [q.id, q]));
-        for (const row of deltaRows) byId.set(row.id, row);
-        all = [...byId.values()];
-        cursor = Math.max(cursor, cursorOf(dsnap));
-        if (dsnap.size) state.stats.bankSource = "delta";
+        const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
+        if (cached && cached.uid === uid && cached.votes) {
+          out.answers = {
+            votes: { ...(cached.votes as Record<string, string>) },
+            maxTs: Number(cached.maxTs || 0),
+            maxEditTs: Number(cached.maxEditTs || 0),
+            from: "ls",
+          };
+        }
       }
-    } catch (err) {
-      // A failed delta must not cost the session: fall back to the cached
-      // bank we already have. Worst case the user is one promotion behind
-      // until the next boot, which is invisible — the deck rotates over
-      // questions they already hold (D30's epoch makes growth pure
-      // extension).
-      reportError(err, { where: "hydrate.bankDelta" });
-    }
-  }
-  if (!all) {
-    // ── the full fetch, paged (D161) ──
-    //
-    // Ordered by document id because the cursor has to be on the ordering
-    // key and `__name__` is the one field every document is guaranteed to
-    // have. `seq` would read more naturally and is not safe: it is
-    // per-surface and contiguous, so it repeats across surfaces, and a
-    // cursor on a non-unique key can skip or repeat rows at a page
-    // boundary. The bank is sorted by `seq` a few lines below anyway, so
-    // fetch order costs nothing.
-    //
-    // TERMINATION IS ON A SHORT PAGE, never on a document count this code
-    // believes in advance. That is the entire correctness argument: the
-    // bug being designed out is a full page read as a complete result, so
-    // "fewer rows came back than I asked for" is the only signal that
-    // means the end, and any count-based check would reintroduce it.
-    const rows: BankEntry[] = [];
-    // The page's last DocumentSnapshot, handed straight back to startAfter.
-    let after: unknown = null;
-    let pages = 0;
-    let maxCursor = 0;
-    for (;;) {
-      const page = await getDocs(
-        query(
-          collection(db, "v2_questions"),
-          where("surface", "in", BANK_SURFACES),
-          orderBy(documentId()),
-          ...(after ? [startAfter(after)] : []),
-          limit(BANK_PAGE),
-        ),
-      );
-      rows.push(...rowsOf(page));
-      maxCursor = Math.max(maxCursor, cursorOf(page));
-      pages += 1;
-      if (page.size < BANK_PAGE) break;
-      if (pages >= BANK_MAX_PAGES) {
-        // Loud, because this is the exact shape of the failure the paging
-        // replaced. Serving what we have is still better than serving
-        // nothing — but it must never be indistinguishable from success.
-        reportError(new Error(
-          `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${rows.length} questions`,
-        ), { where: "hydrate.bankPaging" });
-        break;
-      }
-      after = page.docs[page.docs.length - 1];
-    }
-    all = rows;
-    cursor = maxCursor;
-    state.stats.bankSource = "network";
-    // Whatever the cache held (a delta can overflow into this path from an
-    // "idb" load), what stands now is the fetch — rewrite whole below.
-    bankCacheFrom = null;
-  }
-  // Awaited, and cheap to await: within a chunk the write is one atomic
-  // transaction, so a killed process leaves the old cache, never a torn
-  // one — and ordering the legacy key's removal AFTER the commit means an
-  // upgrading device always holds at least one complete copy.
-  if (bankCacheFrom === "idb") {
-    if (deltaRows.length) {
-      await cacheStore.write("bank", deltaRows.map((r) => [r.id, r]), {
-        meta: [["bank", { rev: contentRev, cursor }]],
-      });
-    }
-  } else {
-    await cacheStore.write("bank", all.map((r) => [r.id, r]), {
-      meta: [["bank", { rev: contentRev, cursor }]],
-      clearFirst: true,
-    });
-    try {
-      localStorage.removeItem(BANK_LS);
     } catch {
-      /* best-effort */
+      /* corrupt cache — refetch */
     }
   }
-  const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  try {
+    if (aggRows.size) {
+      const rows: Record<string, AggDoc> = {};
+      aggRows.forEach((v, k) => {
+        rows[k] = v;
+      });
+      out.aggs = { rows, from: "idb" };
+    } else {
+      const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
+      if (cached && typeof cached === "object") out.aggs = { rows: cached as Record<string, AggDoc>, from: "ls" };
+    }
+  } catch {
+    /* best-effort */
+  }
+  return out;
+}
+
+// ── the account's own profile, mirrored on this device (D356) ─────────
+//
+// The profile document is the source of truth; this is the copy the warm
+// paint reads so that the anchors an answer snapshots are on the device
+// before the first tap, not after the profile read. Stamped with its
+// owner and refused under any other uid — the same shape as the answers
+// store's meta row and the profile cache's `owner` — and it lives inside
+// the `insight.*` namespace purgeLocalTrace sweeps, so an account change
+// or a deletion takes it with everything else. Written wherever
+// `state.profile` changes: the boot's read, and each of the mutators.
+const OWN_PROFILE_LS = "insight.ownProfile.v1";
+
+function loadOwnProfile(uid: string): boolean {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OWN_PROFILE_LS) || "null");
+    if (!raw || raw.uid !== uid) return false;
+    const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+    state.profile.displayName = typeof raw.displayName === "string" ? raw.displayName : "";
+    state.profile.handle = typeof raw.handle === "string" ? raw.handle : "";
+    state.profile.testResults = obj(raw.testResults) as Record<string, unknown>;
+    state.profile.anchors = obj(raw.anchors) as Record<string, string>;
+    state.profile.consent = obj(raw.consent) as { political?: unknown };
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The mirror's owner, without loading it — what the pre-sign-in warm
+// paint trusts provisionally (refreshLive has the argument).
+function ownProfileUid(): string | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OWN_PROFILE_LS) || "null");
+    return raw && typeof raw.uid === "string" && raw.uid ? raw.uid : null;
+  } catch {
+    return null;
+  }
+}
+
+// The provisional window's gate (getDb has why). Armed when the uid is
+// taken from the mirror, released when the sign-in settles or a reset
+// replaces the account — never rejected: a failed sign-in keeps the gate
+// closed, and the writes queued behind it wait for the session the next
+// wake restores.
+let authSettled: Promise<void> = Promise.resolve();
+let settleAuth: () => void = () => {};
+let failAuth: (err: unknown) => void = () => {};
+function armAuthGate(): void {
+  authSettled = new Promise<void>((resolve, reject) => {
+    settleAuth = resolve;
+    failAuth = reject;
+  });
+  // Observed here, so a failure with no waiter is not an unhandled
+  // rejection; every waiter still sees it.
+  authSettled.catch(() => {});
+}
+function beginProvisional(uid: string): void {
+  state.uid = uid;
+  state.uidProvisional = true;
+  armAuthGate();
+}
+function endProvisional(): void {
+  state.uidProvisional = false;
+  settleAuth();
+}
+// The sign-in failed: the writes parked behind the gate fail with it —
+// LOUDLY, into their own catches (a vote rolls back on screen, the way a
+// refused write does), rather than dying with the process. A write parked
+// here lives only in this process, not in the SDK's persisted queue, and
+// there is no session to hand it to; holding it would be a promise the
+// next launch cannot keep. The uid stays provisional and a fresh gate is
+// armed for the next attempt (the next wake's refreshLive).
+function failProvisional(err: unknown): void {
+  failAuth(err);
+  armAuthGate();
+}
+
+function saveOwnProfile(): void {
+  const uid = state.uid;
+  if (torndown || !uid) return;
+  const { displayName, handle, testResults, anchors, consent } = state.profile;
+  lsSet(OWN_PROFILE_LS, JSON.stringify({ uid, displayName, handle, testResults, anchors, consent }));
+}
+// How many times the PERSON has moved state.profile this process — the
+// anchors, the name, the handle, the political consent. hydrate issues
+// its profile read at its top and applies it some round trips later; on
+// a warm-painted screen the person can edit the profile in between, and
+// applying "what the server said when the read was issued" over that
+// edit reverted it on screen AND in the mirror (the third review) —
+// every later answer would have snapshotted the old anchors. Not the
+// test results: the passive fold writes those on its own schedule, and a
+// fold that ran during the read is no reason to discard it.
+let profileDirty = 0;
+function profileChanged(): void {
+  profileDirty += 1;
+  saveOwnProfile();
+}
+
+// The bank, published: sorted by seq, the serving window applied, split
+// per surface (allowlists — deck.ts carries the why), the learn slice
+// handed to its engine. One function because it now runs twice per boot
+// — once on the disk copy for the warm paint, once on what the network
+// settled — and two copies of the split is how one of them drifts.
+// Returns whether anything deck-able came out; the empty-bank throw is
+// the network phase's to make, on the server's answer rather than the
+// disk's.
+function publishBank(rows: BankEntry[]): boolean {
+  const sorted = rows.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
   // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
   // §1): a feed entry past its UTC day stops being OFFERED — the answers
   // and the aggregate persist, the archive is the product. Feed-only by
@@ -1439,66 +1981,593 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
-  // The Learn bank (D284). Published HERE, beside the split, and not in
-  // buildFeedGlobals: that function opens `if (!state.feedBank.length)
-  // return`, so a bank with learn cards and no feed questions would have
-  // served none of them — Learn does not depend on the feed existing and
-  // must not start doing so. Caught by vote.test.ts's first learn case,
-  // which is exactly the bank that shape describes.
+  // The Learn bank (D284, paged at D320). Published HERE, beside the
+  // split, and not in buildFeedGlobals: that function opens `if
+  // (!state.feedBank.length) return`, so a bank with learn cards and no
+  // feed questions would have served none of them — Learn does not depend
+  // on the feed existing and must not start doing so. Caught by
+  // vote.test.ts's first learn case, which is exactly the bank that shape
+  // describes.
   //
-  // Translated from the bank's vocabulary into the
-  // engine's — `learn-cell1`/`prompt`/`options`/`topic` become
-  // `cell1`/`q`/`a`/`f` — because the two spellings are real and the
-  // translation belongs at one end rather than at nine call sites.
-  //
-  // Costs no read: `state.learnBank` is the slice `splitBanks` already cut
-  // out of the bank `hydrate()` fetched. What it replaces is the whole of
-  // `content/learn-questions.json` being compiled into the app.
-  //
-  // A doc seeded before D284 carries no `c`, and a card with no correct
-  // answer is unanswerable rather than merely thin — so those are dropped
-  // rather than defaulted. On a bank seeded before the change that empties
-  // Learn until the next seed run, which is the honest failure: the
-  // alternative is `c ?? 0`, which would mark option one correct on every
-  // card in the bank and teach the wrong answer, silently, on a surface
-  // whose entire promise is that there is a right one.
-  publishLearnBank(
-    state.learnBank.flatMap((q): LearnCard[] => {
-      if (typeof q.c !== "number" || typeof q.t !== "number") return [];
-      return [{
-        id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
-        f: q.topic || "",
-        q: q.prompt,
-        a: q.options,
-        c: q.c,
-        t: q.t,
-        p: typeof q.p === "number" ? q.p : 50,
-        k: q.k || "",
-        ...(q.w ? { w: q.w } : {}),
-      }];
-    }),
-  );
+  // Since D320 this slice is the CACHE's learn cards — everything this
+  // device was ever handed — not the whole surface; topUpLearnBank
+  // (kicked at the end of hydrate) pages fresh cards in against the
+  // published order and re-publishes. Publishing the cached slice first
+  // means a returning device's Learn works before any network answers.
+  publishLearnBank(toLearnCards(state.learnBank));
 
   state.callBank = banks.call;
   state.pulseBank = banks.pulse;
+  return !!(state.questions.length || state.feedBank.length || state.duelBank.length);
+}
+
+// Feed vote hydration: the spec's feed keeps its voted-state in
+// localStorage (WF_LS) — mirror the Firestore answers into it so
+// world-feed renders prior votes natively on any device. Run on the warm
+// paint and again once the network has spoken, for the same reason
+// publishBank is.
+function mirrorFeedVotes(): void {
+  try {
+    const WF_LS = "insight.feedVotes.v1";
+    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+    state.feedBank.forEach((q) => {
+      const v = state.votes[q.id];
+      if (v == null || wf[q.id] != null) return;
+      const mv = mirrorVoteValue(q, v);
+      if (mv != null) wf[q.id] = mv;
+    });
+    lsSet(WF_LS, JSON.stringify(wf));
+  } catch {
+    /* localStorage unavailable — feed falls back to store votes */
+  }
+}
+
+// Resolves the first time this process has a deck to draw — off disk or
+// off the network, whichever comes first. `initLive` races it beside the
+// boot and its deadline; resolved once and never reset, because a process
+// renders once (a uid change re-runs the boot under an app that is
+// already on screen).
+let markPaintable: () => void = () => {};
+const paintable = new Promise<void>((resolve) => {
+  markPaintable = resolve;
+});
+
+// The warm paint itself: the store answers `ready` and `enabled` off what
+// the disk held, and `warm` says so until the network confirms it (the
+// attach at the end of refreshLive clears it; `LIVE.stale` reads it). A
+// re-entered hydrate after the attach — a reconnect — has nothing to
+// flip and must not mark a live session stale.
+function markWarmPaint(): void {
+  if (torndown || state.attached) return;
+  state.warm = true;
+  state.ready = true;
+  LIVE.enabled = true;
+  notify();
+  markPaintable();
+}
+
+// The disk read handed from the pre-sign-in warm paint to the hydrate
+// that follows it, so a confirmed uid does not pay the same five reads
+// twice. Cleared by hydrate on pickup and by resetForNewUid: a read made
+// for one account must never seed another's network phase.
+let warmDisk: { uid: string; disk: DiskCaches } | null = null;
+
+// The warm phase itself: the disk, folded and — when it holds a bank and
+// this account's profile mirror — published and painted. Called before
+// the sign-in with the mirror's own uid (refreshLive), and by hydrate for
+// the confirmed one on every other path.
+//
+// THE GUARD AFTER THE AWAIT is the whole safety of the provisional case.
+// The reads take a few macrotasks, and the auth observer can reset the
+// account inside that window; what came back then belongs to a uid that
+// is no longer this session's and must fold into nothing. The check is
+// against `state.uid` rather than a flag because resetForNewUid is what
+// moves it, and that is the one event this has to notice.
+async function warmFromDisk(uid: string | null): Promise<DiskCaches> {
+  const disk = await readDiskCaches(uid);
+  if (torndown || state.uid !== uid) return disk;
+  if (disk.aggs) {
+    for (const [id, agg] of Object.entries(disk.aggs.rows)) state.aggs[id] = agg;
+    if (disk.aggs.from === "ls") {
+      // Migrate: mark every imported entry dirty so the flush the top-up
+      // schedules carries them into IndexedDB. Display cache, so losing
+      // the 1 s window to a kill costs a refetch at most — the two caches
+      // beside it order removal after commit because theirs cost more.
+      for (const id of Object.keys(disk.aggs.rows)) aggDirty.add(id);
+      try {
+        localStorage.removeItem(AGG_LS);
+      } catch {
+        /* best-effort */
+      }
+      saveAggCache();
+    }
+  }
+  // The answers, folded now rather than after the bank fetch: they are
+  // this account's (readDiskCaches made the owner check) and the network
+  // phase only ever ADDS to them. The cursors ride `disk.answers` down to
+  // the delta queries.
+  if (disk.answers) Object.assign(state.votes, disk.answers.votes);
+  // …and over them, the answers the server has not acknowledged (D357):
+  // newer than the disk copy, still inflight, and what the deck must not
+  // re-offer.
+  if (uid) restorePending(uid);
+  // The paint needs BOTH halves — a bank to draw and the profile mirror
+  // whose anchors the first tap will stamp (the header above has why).
+  // Without the mirror nothing is published here at all, and the boot is
+  // the pre-D356 boot: the feed globals in particular must not go out
+  // before `enabled` is true, or loadWorldFeed's demo join would land on
+  // top of the live pool.
+  const warmBank = disk.bank && uid && loadOwnProfile(uid) ? disk.bank : null;
+  if (warmBank && publishBank(warmBank.rows)) {
+    bankIds = new Set(warmBank.rows.map((q) => q.id));
+    state.stats.bankSource = "cache";
+    computeDeck();
+    publishTestResults();
+    loadProfileCache();
+    mirrorFeedVotes();
+    buildFeedGlobals();
+    markWarmPaint();
+  }
+  return disk;
+}
+
+async function hydrate(): Promise<void> {
+  const db = await getDb();
+
+  // The viewer's own profile, STARTED HERE and awaited where it is read,
+  // some six round trips down.
+  //
+  // It depends on `db` and `state.uid` and on nothing else in this
+  // function — not the meta document, not `contentRev`, not the bank — so
+  // every trip between here and its `await` was the boot race waiting on
+  // work that had no reason to be behind them. `initLive` gives that race
+  // 2500 ms, and losing it puts a real user on the demo deck under a
+  // "still connecting" label; on a 200 ms mobile RTT this is most of a
+  // fifth of the budget, spent for nothing. No extra read either way.
+  //
+  // Rejections are captured to null rather than left floating: an
+  // in-flight promise nobody is awaiting yet would raise
+  // `unhandledrejection` on the way to its own catch. Null lands in the
+  // same branch a failed read already took — a missing display name is a
+  // cosmetic loss, not a reason to spend the session on demo data — and
+  // the reporting stays at the read site.
+  const uidEarly = state.uid;
+  const profileP = uidEarly
+    ? getDoc(doc(db, "v2_users", uidEarly)).catch((err) => {
+      reportError(err, { where: "hydrate.profile" });
+      return null;
+    })
+    : null;
+  // Where the profile stood when that read went out — see profileChanged.
+  const profileDirtyAt = profileDirty;
+
+  // ── the disk first, and the warm paint (D356) ──
+  // Read before the meta document, not after it: nothing here depends on
+  // the server, and every millisecond between the sign-in and this point
+  // was first paint waiting. The rev check the cache used to be read
+  // BEHIND moves to the bank block below, where the answer to it decides
+  // delta-or-refetch exactly as before — the only difference is that the
+  // screen is not waiting on the question.
+  //
+  // On a first boot the read (and the paint) already happened BEFORE the
+  // sign-in, for the mirror's uid — refreshLive has why. If auth confirmed
+  // that uid, the read is reused here; on every other path (a reconnect,
+  // an account that had no mirror, a uid auth disagreed with) it is made
+  // now, for the confirmed account.
+  const pre = warmDisk;
+  warmDisk = null;
+  const disk = pre && pre.uid === uidEarly ? pre.disk : await warmFromDisk(uidEarly);
+
+  // ── one meta read runs the whole cache story ──
+  // contentRev invalidates the local question-bank cache; latest/min
+  // build drive the in-app update prompts.
+  let contentRev = 0;
+  try {
+    const meta = await getDoc(doc(db, "v2_meta", "app"));
+    if (meta.exists()) {
+      const rev = meta.get("contentRev");
+      contentRev = rev && typeof rev.toMillis === "function" ? rev.toMillis() : 0;
+      state.meta.latestBuild = Number(meta.get("latestBuild") || 0);
+      state.meta.minBuild = Number(meta.get("minBuild") || 0);
+      state.meta.updateUrl = String(meta.get("updateUrl") || "");
+      state.meta.patternsPool = Number(meta.get("patternsPool") || 0);
+      state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
+      // The read breaker (D332) rides the same one read — see budgetMode.ts.
+      state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
+    }
+  } catch {
+    /* meta is best-effort — absence just means no caching/update info */
+  }
+
+  // ── question bank: cached (cacheStore rows, D312/D318) keyed by contentRev ──
+  // The bank is static content; a boot should cost 1 meta read, not
+  // ~190 bank reads. Single-field query (no composite index).
+  // PAGE SIZE, not a ceiling — D161, and the difference is the whole point.
+  //
+  // This was `BANK_LIMIT = 1500`, a cap on one unpaginated fetch, with
+  // D30's rule recorded beside it: approach it with pagination, never
+  // another raise. The feed is going unbounded, so the approach happened
+  // and this is the pagination. The rule it existed to enforce is gone
+  // because the failure it guarded is gone: a query that hits its limit
+  // returns a short page and NO error, so a bank over the old cap served
+  // a truncated corpus with nothing failing anywhere.
+  //
+  // Round trips, not reads, are what the size trades. Firestore bills per
+  // document however they are paged, so a bigger page is fewer round trips
+  // at identical cost; 1000 is one round trip for any bank this app has,
+  // and a handful for one it might grow.
+  const BANK_PAGE = 1000;
+  // A loop bound, not a content limit. Nothing should ever reach it — but
+  // an unbounded `while` in the boot path is one cursor bug away from
+  // hanging the app before first paint, and the whole reason this code
+  // changed is that the previous failure mode was silent. If this trips,
+  // the bank is 100k documents (implausible) or the cursor stopped
+  // advancing (a bug), and BOTH are reported rather than truncated
+  // quietly.
+  const BANK_MAX_PAGES = 100;
+  // Every surface splitBanks can return EXCEPT the two paged ones, and
+  // each half of that sentence is load-bearing. The excepts are D320 and
+  // D321: learn and the feed's TAIL page against the published order
+  // (v2_rank/{learn,feed}, D319) instead of shipping whole at boot — the
+  // feed's CORE still ships whole via its own query below (the corpus
+  // the Mirror folds, D161), and a paged doc still reaches its bank
+  // slice, from the cache (everything this device was ever handed) and
+  // from the top-ups' pages, with the delta below keeping cached paged
+  // docs fresh BY ID. The rest is the pulse/call lesson: this constant
+  // decides what the boot fetch IS, and a surface missing by accident is
+  // a surface whose questions do not exist as far as the live app is
+  // concerned — `pulse` and `call` were absent from the day this fetch
+  // was written, and neither ever reached a device while everything
+  // looked green. Pinned in bank-cache.test.ts on the query as well as
+  // the output, in BOTH directions now: pulse/call in, learn and the
+  // tail out-but-served.
+  //
+  // Firestore's `in` takes up to 30 values, so the ceiling is not near.
+  // The daily left this list at D383 and did NOT become a ranked surface:
+  // it is positional by design, so what a device needs is the bank's
+  // LENGTH, not its order. `v2_rank/daily` publishes {n, maxSeq}; the
+  // device computes its seven positions locally (which keeps the midnight
+  // rollover working) and fetches those seven documents by `seq`. The
+  // whole daily bank was 130 documents of the 847 a cold boot read, and
+  // it is the one surface a scheduled lane appends to EVERY DAY — so it
+  // was the term that grew without bound. It is seven now, at any bank
+  // size.
+  //
+  // The two folds that DID need the whole daily bank — the Mirror's
+  // answered rows and the Scores lens's unanswered `rating` pool — are
+  // topped up after first paint (topUpBankPages), not fetched here.
+  const BANK_SURFACES = ["test", "group", "duo", "pulse", "call"];
+  // ISSUED HERE, awaited later. The shape is one small document and it
+  // depends on nothing, so it rides out with the bank's own reads rather
+  // than opening a round trip of its own — D356's argument for running
+  // the boot's three queries at once, applied to the fourth thing the
+  // boot now needs. Only the DECK's rows are a dependent trip, and only
+  // when the day has actually moved.
+  const dailyShapeRead = getDoc(doc(db, "v2_rank", "daily")).then(
+    (snap) => (snap.exists() ? (snap.data() as { n?: unknown; maxSeq?: unknown; rates?: unknown }) : null),
+    (err) => {
+      reportError(err, { where: "hydrate.dailyShape" });
+      return "failed" as const;
+    },
+  );
+  let all: BankEntry[] | null = null;
+  let cursor = 0;
+  // Which medium the cache came from. "idb" is the steady state and gets
+  // only the DELTA written back — a warm boot with an empty delta writes
+  // nothing, where the blob shape re-serialized the whole bank every boot.
+  // Anything else (a legacy localStorage payload, a full fetch, an
+  // invalidated rev) rewrites the store whole so the next boot is "idb".
+  let bankCacheFrom: "idb" | null = null;
+  // Whether the bank came off disk AT ALL — either medium. `bankCacheFrom`
+  // cannot answer that: it names the idb store specifically, because the
+  // write-back below treats a legacy localStorage payload as "rewrite
+  // whole". D383's daily needs the wider question ("does this device
+  // already hold the daily surface?"), and reading it off the narrow flag
+  // made a migrating device re-fetch every daily it already had.
+  let bankFromDisk = false;
+  let deltaRows: BankEntry[] = [];
+  // The rev check, where the cache read used to be. A cache under another
+  // contentRev is what the warm paint may already have drawn from — that
+  // is a deck one reseed old for the second or so the full fetch below
+  // takes, which is the trade D356 makes on purpose: the screen the lost
+  // race showed instead was the DEMO deck.
+  if (disk.bank && disk.bank.rev === contentRev) {
+    all = disk.bank.rows;
+    cursor = disk.bank.cursor;
+    if (disk.bank.from === "idb") bankCacheFrom = "idb";
+    bankFromDisk = true;
+    state.stats.bankSource = "cache";
+  }
+  // Rows are stored without `updatedAt`: it is a transport field, and a
+  // Timestamp does not survive JSON round-tripping as a Timestamp. Keeping
+  // it would leave a plain {seconds,nanoseconds} object on the cache path
+  // and a real Timestamp on the network path — the kind of difference that
+  // only shows up in whichever branch nobody tested.
+  // Unfiltered on purpose since D320 — the two fetch paths keep different
+  // rows. The full fetch keeps the boot surfaces (its query asked for
+  // exactly those anyway); the delta ALSO keeps a row this device already
+  // holds, whatever its surface, because that is an edit to a paged learn
+  // card arriving. Each call site filters.
+  const rowsOf = (snap: Awaited<ReturnType<typeof getDocs>>): BankEntry[] =>
+    snap.docs
+      .map((d) => {
+        // data() hands back a fresh object per call, so dropping the field
+        // in place is safe and keeps the cached row shape identical on both
+        // the delta and full-fetch paths.
+        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+        delete row.updatedAt;
+        return { id: d.id, ...row };
+      });
+  const cursorOf = (snap: Awaited<ReturnType<typeof getDocs>>): number =>
+    snap.docs.reduce((mx, d) => {
+      const u = d.get("updatedAt");
+      return u && typeof u.toMillis === "function" ? Math.max(mx, u.toMillis()) : mx;
+    }, 0);
+
+  // ── the incremental path ──
+  // A weekly promotion changes ~7 documents out of 369. Re-reading the
+  // whole bank for that was the single largest read cost in the system
+  // (docs/COSTS.md): 369 reads per returning device per reseed, charged
+  // against monthly users, not daily ones. The seed now moves `updatedAt`
+  // only on documents it actually rewrote, so the delta is fetchable.
+  //
+  // The 5s rewind is not superstition: a batch commit stamps every doc in
+  // it with one server timestamp, so a strict `>` against the highest one
+  // we have seen can step over a doc committed in the same instant by a
+  // later batch. Re-reading a handful of rows we already hold is the
+  // cheaper mistake by far.
+  if (all && cursor > 0) {
+    try {
+      const dsnap = await getDocs(
+        query(
+          collection(db, "v2_questions"),
+          where("updatedAt", ">", Timestamp.fromMillis(cursor - 5000)),
+          limit(BANK_PAGE),
+        ),
+      );
+      if (dsnap.size >= BANK_PAGE) {
+        // A delta that fills the page is not a delta. Fall through to the
+        // full fetch rather than silently serving a truncated bank.
+        //
+        // ADVANCE THE CURSOR ANYWAY, and this is the half that was
+        // missing. The query carries an inequality and no explicit
+        // ordering, so Firestore serves the OLDEST page past the cursor —
+        // these are real `updatedAt` values with nothing skipped over
+        // between them. Leaving the cursor where it was means the next
+        // boot asks the same question, gets the same full page, and falls
+        // through again: a permanent full-bank refetch on every boot,
+        // serving the right bank at full price with nothing to see it.
+        // The delta's own success path already advances past documents it
+        // deliberately drops, for the same reason.
+        cursor = Math.max(cursor, cursorOf(dsnap));
+        all = null;
+      } else {
+        const byId = new Map(all.map((q) => [q.id, q]));
+        // A boot surface merges as before, and so does a CORE feed row —
+        // a freshly promoted core question must reach every device, since
+        // core ships whole (D321). A row outside both merges only if this
+        // device already holds it — an edit to a paged card arriving. A
+        // NEW paged doc (learn, or a tail question) is dropped on
+        // purpose: which paged cards a device holds is the pager's
+        // decision (D320/D321), not the delta's. deltaRows is the KEPT
+        // set, because it is also what the idb write-back below persists.
+        deltaRows = rowsOf(dsnap).filter(
+          (row) =>
+            BANK_SURFACES.includes(row.surface)
+            // The daily is a BOOT surface while it is not paged (D383):
+            // with no usable shape document the device holds the surface
+            // whole, so a newly promoted daily has to merge here exactly
+            // as it did before. Once paged, `dailyBankN` is set and which
+            // dailies this device holds is the deck's decision, not the
+            // delta's — the same rule learn and the tail follow.
+            || (row.surface === "daily" && dailyBankN == null)
+            || (row.surface === "feed" && row.core === true)
+            // A bought question arriving mid-session is the same case as a
+            // freshly promoted core one: it has to reach the device, and
+            // no pager will ever offer it (see the third boot query).
+            || (row.surface === "feed" && row.paid === true)
+            || byId.has(row.id),
+        );
+        for (const row of deltaRows) byId.set(row.id, row);
+        all = [...byId.values()];
+        cursor = Math.max(cursor, cursorOf(dsnap));
+        if (dsnap.size) state.stats.bankSource = "delta";
+      }
+    } catch (err) {
+      // A failed delta must not cost the session: fall back to the cached
+      // bank we already have. Worst case the user is one promotion behind
+      // until the next boot, which is invisible — the deck rotates over
+      // questions they already hold (D30's epoch makes growth pure
+      // extension).
+      reportError(err, { where: "hydrate.bankDelta" });
+    }
+  }
+  if (!all) {
+    // ── the full fetch, paged (D161) ──
+    //
+    // Ordered by document id because the cursor has to be on the ordering
+    // key and `__name__` is the one field every document is guaranteed to
+    // have. `seq` would read more naturally and is not safe: it is
+    // per-surface and contiguous, so it repeats across surfaces, and a
+    // cursor on a non-unique key can skip or repeat rows at a page
+    // boundary. The bank is sorted by `seq` a few lines below anyway, so
+    // fetch order costs nothing.
+    //
+    // TERMINATION IS ON A SHORT PAGE, never on a document count this code
+    // believes in advance. That is the entire correctness argument: the
+    // bug being designed out is a full page read as a complete result, so
+    // "fewer rows came back than I asked for" is the only signal that
+    // means the end, and any count-based check would reintroduce it.
+    let maxCursor = 0;
+    // `lead` is the inequality's field, and it is not optional decoration:
+    // Firestore REJECTS a query whose first ordering is not the field it
+    // ranges over, and `orderBy(documentId())` alone makes `__name__` the
+    // first ordering. The rejection is `invalid-argument: order by clause
+    // cannot contain more fields after the key` — thrown at getDocs, not
+    // at query(), so nothing catches it in this block and nothing sees it
+    // in a test whose Firestore is a fake. The composite the ranged query
+    // needs is declared `(paid, until)`, which implicitly ends `__name__`
+    // ASC: the pair below is exactly what that index serves, so the cursor
+    // stays a total order and startAfter still cannot skip or repeat.
+    const fetchPaged = async (wheres: unknown[], lead?: string): Promise<BankEntry[]> => {
+      const out: BankEntry[] = [];
+      // The page's last DocumentSnapshot, handed straight to startAfter.
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(
+          query(
+            collection(db, "v2_questions"),
+            ...(wheres as never[]),
+            ...(lead ? [orderBy(lead)] : []),
+            orderBy(documentId()),
+            ...(after ? [startAfter(after)] : []),
+            limit(BANK_PAGE),
+          ),
+        );
+        out.push(...rowsOf(page));
+        maxCursor = Math.max(maxCursor, cursorOf(page));
+        pages += 1;
+        if (page.size < BANK_PAGE) break;
+        if (pages >= BANK_MAX_PAGES) {
+          // Loud, because this is the exact shape of the failure the
+          // paging replaced. Serving what we have is still better than
+          // serving nothing — but it must never be indistinguishable
+          // from success.
+          reportError(new Error(
+            `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${out.length} questions`,
+          ), { where: "hydrate.bankPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
+      }
+      return out;
+    };
+    // Two queries because Firestore cannot say "these surfaces, OR feed
+    // where core" in one: the boot surfaces whole, then the feed's CORE
+    // (D321) — the corpus the Mirror folds (D161) ships to every device
+    // always, while the tail pages behind the published order like learn
+    // does. Each query's rows are filtered by its own constraint's
+    // client-side mirror, the pulse/call lesson.
+    // THE THREE RUN AT ONCE (D356). They read disjoint slices of one
+    // collection and share nothing but `maxCursor`, which each page folds
+    // with Math.max — so a cold boot pays one round trip for the three
+    // rather than three in a row. Issue order is unchanged (the first page
+    // of each goes out in this order, synchronously), which is what
+    // bank-cache.test.ts's query pins read.
+    const [bootRows, coreRows, paidRows] = await Promise.all([
+      fetchPaged([where("surface", "in", BANK_SURFACES)])
+        .then((rows) => rows.filter((q) => BANK_SURFACES.includes(q.surface))),
+      fetchPaged([where("surface", "==", "feed"), where("core", "==", true)])
+        .then((rows) => rows.filter((q) => q.surface === "feed")),
+    // …and a third, for the questions no published order can carry.
+    //
+    // A BOUGHT question (D313) is written into `v2_questions` by the
+    // paying webhook at runtime, while `rankBankV2` builds the feed's
+    // order from the COMPILED bank — so a paid question is in no order,
+    // and the two queries above do not reach it either: it is not a boot
+    // surface, and it is not core (core is the Mirror's corpus, D161,
+    // which a bought question must not join). D313 and D316/D321 landed
+    // the same day in that sequence, and between them a buyer paid, the
+    // question was fetched by nobody, its aggregate stayed at zero, and
+    // the closer refunded the cap 29 days later.
+    //
+    // Bought reach ships WHOLE, like core, for exactly as long as it was
+    // bought for — which is why the window is in the query rather than
+    // left to `fresh()`: the set is the campaigns running today, not every
+    // one ever sold.
+      fetchPaged([
+        where("paid", "==", true),
+        where("until", ">=", utcDayKey(0)),
+      ], "until").then((rows) => rows.filter((q) => q.surface === "feed")),
+    ]);
+    all = [...bootRows, ...coreRows, ...paidRows];
+    // NEVER LOWER IT. `maxCursor` is the newest `updatedAt` across the
+    // three BOOT queries, and those do not cover the paged surfaces —
+    // `learn` is not a boot surface and a non-core feed row is not in the
+    // core query. So a bank whose newest documents are paged ones has a
+    // boot-only maximum BEHIND the cursor the device already holds, and
+    // assigning it walks the cursor backwards into the loop above.
+    cursor = Math.max(cursor, maxCursor);
+    state.stats.bankSource = "network";
+    // Whatever the cache held (a delta can overflow into this path from an
+    // "idb" load), what stands now is the fetch — rewrite whole below.
+    bankCacheFrom = null;
+    bankFromDisk = false;
+  }
+  // THE DAILY, on every path (D383). Outside the `if (!all)` above on
+  // purpose: a delta or warm boot must re-read the published length too,
+  // because it moves whenever the farm appends and the deck's positions
+  // are computed against it. A cold boot fetches eight documents here, a
+  // returning device usually one, a same-day relaunch none.
+  //
+  // Failure is survivable and must not cost the boot: the fallback inside
+  // returns the whole daily surface, and an outright throw leaves the
+  // device on its cached daily rows — which is a stale deck, not a wrong
+  // one, because `dailyBankN` only advances alongside rows that back it.
+  let dailyRows: Array<QuestionDoc & { id: string }> = [];
+  try {
+    const got = await resolveDailyBank(db, all, bankFromDisk, dailyShapeRead);
+    dailyRows = got.rows;
+    cursor = Math.max(cursor, got.cursor);
+  } catch (err) {
+    reportError(err, { where: "hydrate.dailyDeck" });
+  }
+  if (dailyRows.length) {
+    const byId = new Map(all.map((q) => [q.id, q]));
+    for (const row of dailyRows) byId.set(row.id, row);
+    all = [...byId.values()];
+    // Into the delta path's write-back too, or a warm boot's new day is
+    // fetched again on every launch until the next full fetch.
+    deltaRows = [...deltaRows, ...dailyRows];
+  }
+  // Awaited, and cheap to await: within a chunk the write is one atomic
+  // transaction, so a killed process leaves the old cache, never a torn
+  // one — and ordering the legacy key's removal AFTER the commit means an
+  // upgrading device always holds at least one complete copy.
+  if (bankCacheFrom === "idb") {
+    if (deltaRows.length) {
+      await cacheStore.write("bank", deltaRows.map((r) => [r.id, r]), {
+        meta: [["bank", { rev: contentRev, cursor, dailyN: dailyBankN }]],
+      });
+    }
+  } else {
+    await cacheStore.write("bank", all.map((r) => [r.id, r]), {
+      meta: [["bank", { rev: contentRev, cursor, dailyN: dailyBankN }]],
+      clearFirst: true,
+    });
+    try {
+      localStorage.removeItem(BANK_LS);
+    } catch {
+      /* best-effort */
+    }
+  }
+  // The pager's seen-set (D320/D321): ids only, at module scope, so the
+  // top-ups know what this device already holds — including killed and
+  // expired rows the serving filters drop, which must never be
+  // re-fetched every boot.
+  bankIds = new Set(all.map((q) => q.id));
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
   // "Fetching today's question…" forever with neither honesty banner up.
-  if (!state.questions.length && !state.feedBank.length && !state.duelBank.length) {
-    throw new Error("live bank is empty — project not seeded");
-  }
   // A bank with content but no *daily* question is different: the rest of
   // the app works, so stay live and let the daily surface say so.
+  if (!publishBank(all)) {
+    throw new Error("live bank is empty — project not seeded");
+  }
+  computeDeck();
+  // The deck's aggregates, started the moment there is a deck to ask
+  // about (D356) and awaited where the poll used to be started, past the
+  // profile block: they depend on the bank alone, so the round trip
+  // overlaps the answers below instead of following them.
+  const aggPollP = startAggPoll();
 
   // ── my answers: cached + incremental (created docs never refetch) ──
-  // The localStorage era's key — a migration source only (D312), removed
-  // once the rows land in IndexedDB. It CANNOT simply be dropped: losing
-  // the cache re-offers answered questions on the next boot only until
-  // the refetch heals it, but losing it silently was the answers side of
-  // the quota failure §2.1 instruments, and this account's archive is the
-  // biggest thing the old blob held.
-  const ANS_LS = "insight.answersCache.v1";
+  // The disk copy was folded into state.votes before the warm paint;
+  // here only its cursors matter — and only if it is still this
+  // account's, because the uid can flip under a running hydrate (the
+  // profile block below makes the same check against `uidEarly`).
   const uidA = state.uid;
   let maxTs = 0;
   let maxEditTs = 0;
@@ -1509,31 +2578,20 @@ async function hydrate(): Promise<void> {
     // last chunk, so a torn write reads as "no cache", never as a
     // complete one).
     let answersFrom: "idb" | null = null;
-    try {
-      const ansMeta = await cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers");
-      if (ansMeta && ansMeta.uid === uidA) {
-        const rows = await cacheStore.readAll<string>("answers");
-        rows.forEach((v, k) => {
-          state.votes[k] = v;
-        });
-        maxTs = Number(ansMeta.maxTs || 0);
-        maxEditTs = Number(ansMeta.maxEditTs || 0);
-        answersFrom = "idb";
-      } else {
-        const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
-        if (cached && cached.uid === uidA && cached.votes) {
-          Object.assign(state.votes, cached.votes);
-          maxTs = Number(cached.maxTs || 0);
-          maxEditTs = Number(cached.maxEditTs || 0);
-        }
-      }
-    } catch {
-      /* refetch below */
+    const diskAnswers = uidA === uidEarly ? disk.answers : null;
+    if (diskAnswers) {
+      maxTs = diskAnswers.maxTs;
+      maxEditTs = diskAnswers.maxEditTs;
+      if (diskAnswers.from === "idb") answersFrom = "idb";
     }
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
     const fetchedRows: Array<[string, string]> = [];
-    const fold = (d: { id: string; get: (f: string) => unknown }) => {
+    const fold = (
+      d: { id: string; get: (f: string) => unknown; metadata?: { hasPendingWrites?: boolean } },
+      raiseEdit = true,
+      raiseAnswered = true,
+    ) => {
       // Catalog answers carry `entity` and rank answers carry `order` —
       // never `optionIdx` (D14/D233). All three join the same map in
       // string form (the entity's digits; the order joined with commas) —
@@ -1542,21 +2600,70 @@ async function hydrate(): Promise<void> {
       // (mirrorVoteValue, buildFeedGlobals) — so skipping any here
       // would re-offer the card on a fresh device and the create-only
       // rule would then refuse the re-answer.
-      const optionIdx = d.get("optionIdx");
-      const entity = d.get("entity");
-      const order = d.get("order");
-      const val = typeof optionIdx === "number" ? String(optionIdx)
-        : typeof entity === "number" ? String(entity)
-        : Array.isArray(order) ? order.join(",")
-        : null;
+      const val = answerValueOf((f) => d.get(f));
       if (val !== null) {
         state.votes[d.id] = val;
-        fetchedRows.push([d.id, val]);
+        // A duel answer's CALL rides the same document (request 12's
+        // sealed list names it) — read here because the read is already
+        // paid, never fetched for its own sake.
+        if (d.id.startsWith("g_")) {
+          const gi = d.get("guessIdx");
+          if (typeof gi === "number") state.duelCalls[d.id] = gi;
+        }
+        // NOT the server's word when the SDK's persistent cache has laid
+        // this device's own unacknowledged mutation over the document
+        // (latency compensation: such a query result carries
+        // `hasPendingWrites`). Folding it into the cache, or letting the
+        // settle read it as proof, would confirm a write the rules may
+        // yet refuse — D357's second review, reasoned from the SDK's
+        // source. In memory it is harmless: it is the value the pending
+        // mirror restored anyway.
+        if (!d.metadata?.hasPendingWrites) fetchedRows.push([d.id, val]);
       }
-      const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
-      if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
-      const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
-      if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+      // AND THE ANSWERED WATERMARK IS NOT RAISED BY EVERY PAGE EITHER —
+      // the same rule as the edit watermark below, pointed the other way,
+      // and it was missing here for exactly as long as that one existed.
+      //
+      // A page may raise this only if it is a complete account of the
+      // CREATES in the range it covers. The cold pull is. The answered
+      // delta is (it asks for exactly this field, and when it truncates it
+      // truncates ASCENDING, which is why it self-heals across boots). The
+      // EDIT delta is not: it returns the docs whose editedAt moved, and
+      // their answeredAt can be far newer than the oldest create the
+      // answered delta had to defer.
+      //
+      // Raising from it therefore sealed real answers out. Answered delta
+      // truncates at 400 and leaves the cursor at the 400th create; the
+      // edit delta then returns one doc edited yesterday but created after
+      // that cutoff, lifts this past every deferred create, and persists
+      // it. Those answers are never fetched on that device again — the
+      // deck re-offers their questions and the create-only rule refuses
+      // every re-vote, so each card silently un-votes itself.
+      if (raiseAnswered) {
+        const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
+        if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
+      }
+      // THE EDIT WATERMARK IS NOT RAISED BY EVERY PAGE, and which pages
+      // may raise it is the whole correctness of the second delta below.
+      //
+      // A page raises it only if that page is a complete account of the
+      // edits in the range it covers. The cold pull is (it reads every
+      // doc). The edit delta is (it asks for exactly this field). The
+      // ANSWERED delta is not: it returns the docs whose answeredAt moved,
+      // and their editedAt can be far newer than edits on OTHER docs it
+      // never looked at.
+      //
+      // Raising from it therefore skipped real edits. Create N at 09:00,
+      // edit old answer O at 10:00, edit N at 10:05: a second device's
+      // answered delta returns N, lifts this to 10:05, and the edit query
+      // below then asks for `> 10:05` — O's edit is never fetched, 10:05
+      // is persisted, and O shows its pre-edit option on that device
+      // forever. The paragraph at the edit query reasons carefully about
+      // the mirror-image hazard and missed this direction.
+      if (raiseEdit) {
+        const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
+        if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+      }
     };
     // Deliberately UNGUARDED, unlike the reads below. Answers are not
     // decoration: proceeding with a partial vote set makes the app offer
@@ -1573,7 +2680,7 @@ async function hydrate(): Promise<void> {
     // everything past the 1000th was sealed out of that device
     // permanently, not merely deferred to the next boot.
     //
-    // Reachable well before any scale story: duel (`g_{gid}_{day}`) and
+    // Reachable well before any scale story: duel (`g_{gid}_r{n}`) and
     // pulse (`{qid}_{day}`) answers mint a document per day forever, so
     // an engaged account passes 1000 inside a year — and those day-docs,
     // being the newest, are exactly the ones that crowd the static world
@@ -1589,14 +2696,32 @@ async function hydrate(): Promise<void> {
     // so the watermark advances to the OLDEST unread answer rather than
     // past everything.
     let fetched = 0;
+    // The edit delta's page, when the warm path issues one. Fetched in the
+    // SAME round trip as the answered delta (D356): the two queries share
+    // no input — the answered delta does not raise `maxEditTs` (see
+    // `raiseEdit` above), and the edit delta does not read `maxTs` — so
+    // nothing the first returns can change what the second asks. They are
+    // still FOLDED in the old order, answered then edited, because an
+    // answer both created and edited since the last boot is in both pages
+    // and the edit is the newer option.
+    let editPage: Awaited<ReturnType<typeof getDocs>> | null = null;
     if (maxTs > 0) {
-      const asnap = await getDocs(query(
-        collection(db, "v2_users", uidA, "answers"),
-        where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
-        limit(400),
-      ));
-      asnap.docs.forEach(fold);
+      const [asnap, esnap] = await Promise.all([
+        getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+          limit(400),
+        )),
+        getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          where("editedAt", ">", Timestamp.fromMillis(maxEditTs)),
+          limit(400),
+        )),
+      ]);
+      // …but NOT the edit watermark: see `raiseEdit` in fold above.
+      asnap.docs.forEach((d) => fold(d, false));
       fetched = asnap.size;
+      editPage = esnap;
     } else {
       const ANS_PAGE = 1000;
       // A loop bound, not a content limit, and loud if it trips — the same
@@ -1611,7 +2736,7 @@ async function hydrate(): Promise<void> {
           ...(after ? [startAfter(after)] : []),
           limit(ANS_PAGE),
         ));
-        page.docs.forEach(fold);
+        page.docs.forEach((d) => fold(d));
         fetched += page.size;
         pages += 1;
         if (page.size < ANS_PAGE) break;
@@ -1633,17 +2758,23 @@ async function hydrate(): Promise<void> {
     // query to hear about it. The watermarks stay per-field on purpose —
     // folding editedAt into maxTs would let an edit's timestamp leap past
     // a concurrent create the answeredAt query has not read yet, and that
-    // answer would then never be fetched. Warm boots only: the cold-cache
+    // answer would then never be fetched.
+    //
+    // AND THE SAME HAZARD RUNS THE OTHER WAY, which the paragraph above
+    // missed: the answered delta above used to raise THIS watermark too,
+    // from the editedAt of whatever docs it happened to return — so an
+    // edit on a doc it did not return could be leapt over and lost for
+    // good. `raiseEdit` in fold is that fix; only a page that accounts
+    // for every edit in its range may move this number.
+    //
+    // Warm boots only: the cold-cache
     // full pull above already reads every doc's current optionIdx (and
-    // seeds this cursor through fold()).
-    if (maxTs > 0) {
-      const esnap = await getDocs(query(
-        collection(db, "v2_users", uidA, "answers"),
-        where("editedAt", ">", Timestamp.fromMillis(maxEditTs)),
-        limit(400),
-      ));
-      state.stats.answersFetched += esnap.size;
-      esnap.docs.forEach(fold);
+    // seeds this cursor through fold()). The page itself was fetched
+    // beside the answered delta above (D356); this is where it folds.
+    if (editPage) {
+      state.stats.answersFetched += editPage.size;
+      // …and NOT the answered watermark: see `raiseAnswered` in fold above.
+      editPage.docs.forEach((d) => fold(d, true, false));
     }
     const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
     if (answersFrom === "idb") {
@@ -1654,9 +2785,13 @@ async function hydrate(): Promise<void> {
       // Cold pull or legacy blob: everything in state.votes is current,
       // so rewrite the store whole and retire the localStorage copy only
       // after the commit (the bank cache above has the ordering argument).
+      // …minus what is still INFLIGHT (D357): a restored pending answer is
+      // in state.votes and not yet the server's, and a row for it here
+      // would be the phantom the ack-only cache exists to refuse — the
+      // settle caches it when the server confirms it.
       await cacheStore.write(
         "answers",
-        Object.entries(state.votes).map(([k, v]) => [k, v]),
+        Object.entries(state.votes).filter(([k]) => !(k in state.inflight)).map(([k, v]) => [k, v]),
         { meta: ansMeta, clearFirst: true },
       );
       try {
@@ -1669,10 +2804,15 @@ async function hydrate(): Promise<void> {
     // owner is this uid, or an ack racing hydrate could write into a
     // store whose meta still names the previous account.
     answersCacheOwner = uidA;
+    // What a relaunch restored, settled against what was just read and
+    // then against the drained queue (D357). Not awaited: the boot has
+    // nothing to learn from it, and offline it waits for the queue.
+    void settlePending(db, uidA, fetchedRows);
   }
 
-  // ── aggregates: cached; fetch answered questions' aggs that are
-  // missing OR still cached as too-small ──
+  // ── aggregates: fetch answered questions' aggs that are missing OR
+  // still cached as too-small (the cached rows themselves were folded in
+  // before the warm paint, above) ──
   // Feed cards are blind pre-vote (counts show only after answering), so
   // the old whole-collection scan bought nothing. Deck docs get live
   // snapshots below; everything else refreshes on vote. A cached agg with
@@ -1680,29 +2820,7 @@ async function hydrate(): Promise<void> {
   // listener, so a first voter's empty snapshot would otherwise be frozen
   // forever. Since D98 that window is one answer wide rather than the
   // whole climb to a k-floor, so this re-reads far less than it used to.
-  const AGG_LS = "insight.aggsCache.v1"; // legacy: migration source only (D312)
-  try {
-    const rows = await cacheStore.readAll<AggDoc>("aggs");
-    rows.forEach((v, k) => {
-      state.aggs[k] = v;
-    });
-    if (!rows.size) {
-      const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
-      if (cached && typeof cached === "object") {
-        Object.assign(state.aggs, cached);
-        // Migrate: mark every imported entry dirty so the flush the
-        // top-up below schedules carries them into IndexedDB. Display
-        // cache, so losing the 1 s window to a kill costs a refetch at
-        // most — the two caches above order removal after commit because
-        // theirs cost more.
-        for (const id of Object.keys(cached as Record<string, unknown>)) aggDirty.add(id);
-        localStorage.removeItem(AGG_LS);
-        saveAggCache();
-      }
-    }
-  } catch {
-    /* best-effort */
-  }
+  //
   // Aggregate top-up is a DISPLAY nicety — it decorates cards with counts.
   // It used to be unguarded, so one failed chunk query (a transient error,
   // a missing index) threw out of hydrate, rejected boot, and pinned the
@@ -1757,8 +2875,6 @@ async function hydrate(): Promise<void> {
     reportError(err, { where: "hydrate.aggs" });
   }
 
-  computeDeck();
-
   // my profile (display name + synced test results) — owner-only.
   // Guarded for the same reason: a missing display name is a cosmetic
   // loss, not a reason to spend the session on demo data.
@@ -1768,16 +2884,37 @@ async function hydrate(): Promise<void> {
       // Started at the top of hydrate — see the note there. Re-read here
       // only if the uid changed under us between then and now, which the
       // auth flip can do.
+      // The counter is read beside whichever read is USED: a fresh read
+      // for a uid that changed under the boot is issued now, and an edit
+      // made before it — the old account's, even — is not an edit made
+      // over it.
+      const dirtyAt = uid0 === uidEarly && profileP ? profileDirtyAt : profileDirty;
       const prof = uid0 === uidEarly && profileP
         ? await profileP
         : await getDoc(doc(db, "v2_users", uid0));
-      if (prof && prof.exists()) {
+      // A document that does not exist leaves state.profile ALONE — the
+      // pre-D356 behaviour, restored after a review: the read was issued
+      // at the top of hydrate, and on a warm-painted device the setup
+      // screen can have collected a name and anchors in the meantime.
+      // Wiping to "what the server said a second ago" threw those away
+      // and mirrored the empty object, so every later answer snapshotted
+      // no anchors — the exact fault the mirror exists to prevent.
+      // …and a document that DOES exist is applied only if nothing moved
+      // the profile while the read was in flight. An edit made on the
+      // warm-painted screen in that window is newer than the read; its
+      // own write carries it to the server, and the next boot's read
+      // returns it. Applying the read over it reverted the edit on screen
+      // and wrote the old anchors back over the mirror.
+      const edited = profileDirty !== dirtyAt;
+      if (prof && prof.exists() && !edited) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
         state.profile.testResults =
           (prof.get("testResults") as Record<string, unknown>) || {};
         state.profile.anchors =
           (prof.get("anchors") as Record<string, string>) || {};
+        state.profile.consent =
+          (prof.get("consent") as { political?: unknown }) || {};
         // A doc a pre-fix build polluted with the sample persona's job and
         // education (the baseFor merge leak — personaResidue.ts has the
         // history) heals HERE, not only on the next profile open: the Map's
@@ -1788,6 +2925,11 @@ async function hydrate(): Promise<void> {
         const scrubbed = scrubPersonaAnchors(state.profile.anchors);
         if (scrubbed) LIVE.saveAnchors(scrubbed);
       }
+      // `prof` is null only when the early read failed (captured to null
+      // at the top of hydrate) — then the mirror keeps what it had rather
+      // than recording a truth nobody read. Edited: the mutator already
+      // mirrored the newer state.
+      if (prof && !edited) saveOwnProfile();
     } catch (err) {
       reportError(err, { where: "hydrate.profile" });
     }
@@ -1808,26 +2950,412 @@ async function hydrate(): Promise<void> {
   // before the deck poll only because nothing here depends on the order.
   loadProfileCache();
 
-  await startAggPoll();
+  await aggPollP;
 
-  // Feed vote hydration: the spec's feed keeps its voted-state in
-  // localStorage (WF_LS) — mirror the Firestore answers into it so
-  // world-feed renders prior votes natively on any device.
-  try {
-    const WF_LS = "insight.feedVotes.v1";
-    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-    state.feedBank.forEach((q) => {
-      const v = state.votes[q.id];
-      if (v == null || wf[q.id] != null) return;
-      const mv = mirrorVoteValue(q, v);
-      if (mv != null) wf[q.id] = mv;
-    });
-    lsSet(WF_LS, JSON.stringify(wf));
-  } catch {
-    /* localStorage unavailable — feed falls back to store votes */
-  }
+  mirrorFeedVotes();
 
   buildFeedGlobals();
+
+  // The pages (learn D320, feed tail D321), deliberately not awaited: a
+  // few more round trips the surfaces need and first paint does not.
+  // Failure costs a session's fresh cards, never the boot — everything
+  // serves the cached slices published above until the top-ups land.
+  // Handed hydrate's own db rather than calling getDb() again: the
+  // members are already bound, and a second concurrent bind buys
+  // nothing (and lost a mocked-import race once — D320).
+  void topUpBankPages(db);
+}
+
+// The cache's ids — the pager's seen-set. From the raw cache, NOT the
+// active-filtered bank slices: a killed or expired card is still cached
+// (the archive rule), and a seen-set that forgot it would re-fetch it
+// every boot forever.
+function cachedBankIds(): Set<string> {
+  return new Set(bankIds ?? []);
+}
+
+// The serving filter, hydrate's own rule at page-arrival time: alive and
+// inside the from/until window today. Paged rows join the CACHE
+// unfiltered (the archive keeps expired docs — the n_closed rule) and
+// the serving pool filtered.
+function servableNow(q: QuestionDoc): boolean {
+  const today = utcDayKey(0);
+  return q.active !== false && (!q.until || q.until >= today) && (!q.from || q.from <= today);
+}
+
+// THE DAILY'S DECK (D383), resolved on EVERY boot — cold, delta and warm
+// alike, which is the half a cold-boot-only version would get wrong.
+// `n` moves whenever the farm appends a question, and the deck's
+// positions are computed against it: a device holding a warm cache and a
+// stale `n` would put its user on a different question from everyone
+// else, for as long as the cache lived, with nothing to show for it. The
+// daily is only worth comparing because it is the same question.
+//
+// Returns the rows this device is missing — usually one (yesterday
+// rolled off, tomorrow rolled in), none on a same-day relaunch, eight on
+// a first install.
+//
+// TOMORROW IS FETCHED TOO. `deck()` recomputes on the first render after
+// midnight, and a session open across it would otherwise ask for a
+// position that was never fetched and draw a short deck. `back` runs
+// -1..DECK_DAYS-1, so one extra document covers the rollover.
+//
+// THERE ARE TWO OUTCOMES, never a third: the deck, or the whole daily
+// surface exactly as every build before this one fetched it. A partial
+// deck is the failure with no symptom, so a shape document that is
+// missing, unreadable, or not dense from zero takes the fallback and
+// clears `dailyBankN` with it.
+async function resolveDailyBank(
+  db: Awaited<ReturnType<typeof getDb>>,
+  held: Array<QuestionDoc & { id: string }>,
+  fromCache: boolean,
+  shapeRead: Promise<{ n?: unknown; maxSeq?: unknown; rates?: unknown } | null | "failed">,
+): Promise<{ rows: Array<QuestionDoc & { id: string }>; cursor: number }> {
+  // THE CURSOR IS RETURNED, and only the FALLBACK's is non-zero. When the
+  // daily is served whole it is a boot surface like any other and its
+  // rows have to advance the delta cursor — without that a bank of
+  // nothing but dailies leaves the cursor at 0 and the delta never starts,
+  // so every boot re-reads the surface. When it is PAGED the opposite
+  // holds, for the reason the pagers' persist() gives: a deck row's
+  // updatedAt can be newer than an unfetched edit on another surface, and
+  // a cursor past that edit would seal it out of every delta.
+  let wholeCursor = 0;
+  // hydrate's BANK_PAGE is scoped to that function; the fallback reads
+  // one surface and pages it the same way.
+  const PAGE = 1000;
+  let seenCursor = 0;
+  const rowsFrom = (docs: Array<{ id: string; data: () => unknown }>) => {
+    const out: Array<QuestionDoc & { id: string }> = [];
+    for (const d of docs) {
+      const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+      const at = row.updatedAt as { toMillis?: () => number } | undefined;
+      const ms = typeof at?.toMillis === "function" ? at.toMillis() : 0;
+      delete row.updatedAt;
+      if (row.surface === "daily") {
+        out.push({ id: d.id, ...row });
+        seenCursor = Math.max(seenCursor, ms);
+      }
+    }
+    return out;
+  };
+  // The fallback's own pager. Deliberately not hydrate's `fetchPaged`,
+  // which closes over that function's cursor bookkeeping — the daily's
+  // fallback must not move the delta cursor, because it reads one surface
+  // and the cursor speaks for the whole bank.
+  const whole = async (): Promise<Array<QuestionDoc & { id: string }>> => {
+    // A DEVICE THAT ALREADY HOLDS DAILY ROWS FETCHES NOTHING, and it
+    // KEEPS WHAT IT KNEW. Two cases arrive here and they must not be
+    // collapsed:
+    //
+    //   Not paged — the cache is the whole surface (no shape document has
+    //   ever been readable). `dailyBankN` is already null, `placeAsks`
+    //   reads every ask there is, and re-reading the surface on every
+    //   launch would be worse than the pre-D383 tree rather than equal to
+    //   it. The delta keeps these rows current (the delta filter's
+    //   dailyBankN clause).
+    //
+    //   PAGED, and this boot could not read the shape — a network blip on
+    //   one small document. Clearing `dailyBankN` here would be the real
+    //   damage: the deck's positions would then be computed against the
+    //   EIGHT rows this device holds instead of the bank's length, and it
+    //   would paint a different day's question from everyone else, off its
+    //   own disk, silently. A stale length is a stale deck; a cleared one
+    //   is a wrong deck. So it is left exactly as the cache restored it.
+    if (fromCache && held.some((q) => q.surface === "daily")) return [];
+    dailyBankN = null;
+    // Cleared only on the path that actually takes the surface: holding
+    // it, `placeAsks` reads every ask there is and `placeAskTotal` counts
+    // those rows — the pre-D384 behaviour, correct exactly then.
+    dailyRatesPool = null;
+    state.stats.dailySource = "whole";
+    const out: Array<QuestionDoc & { id: string }> = [];
+    let after: unknown = null;
+    // Same bound and the same loudness as hydrate's own pager: an
+    // unbounded while in the boot path is one cursor bug away from
+    // hanging the app, and a truncation that reports nothing is
+    // indistinguishable from a complete read.
+    const MAX_PAGES = 100;
+    for (let page = 0; ; page += 1) {
+      const snap = await getDocs(query(
+        collection(db, "v2_questions"),
+        where("surface", "==", "daily"),
+        orderBy(documentId()),
+        ...(after ? [startAfter(after)] : []),
+        limit(PAGE),
+      ));
+      out.push(...rowsFrom(snap.docs));
+      if (snap.size < PAGE) break;
+      if (page + 1 >= MAX_PAGES) {
+        reportError(new Error(
+          `daily paging hit BANK_MAX_PAGES (${MAX_PAGES} x ${PAGE}) — truncated at ${out.length} questions`,
+        ), { where: "hydrate.dailyPaging" });
+        break;
+      }
+      after = snap.docs[snap.docs.length - 1];
+    }
+    wholeCursor = seenCursor;
+    return out;
+  };
+  const read = await shapeRead;
+  if (read === "failed") return { rows: await whole(), cursor: wholeCursor };
+  const shape = read;
+  const n = typeof shape?.n === "number" ? shape.n : 0;
+  const maxSeq = typeof shape?.maxSeq === "number" ? shape.maxSeq : -1;
+  // Dense from zero, or `seq` is not a position. The publisher states the
+  // max precisely so this can be a CHECK rather than a belief
+  // (functions/src/rank.ts, DailyShapeDoc).
+  if (n <= 0 || maxSeq !== n - 1) return { rows: await whole(), cursor: wholeCursor };
+  const want = computeDeckSeqs(n, dayIndex() + 1, DECK_DAYS + 1);
+  if (!want.length) return { rows: await whole(), cursor: wholeCursor };
+  const haveSeq = new Set(
+    held.filter((q) => q.surface === "daily").map((q) => q.seq),
+  );
+  const missing = want.filter((seq) => !haveSeq.has(seq));
+  if (!missing.length) {
+    dailyBankN = n;
+    dailyRatesPool = ratesOf(shape);
+    state.stats.dailySource = "deck";
+    return { rows: [], cursor: 0 };
+  }
+  // `seq` is safe as a key HERE where hydrate's paged fetch refuses it,
+  // and the difference is the query rather than the field: that one
+  // cursors through a range and needs a total order, this one asks for a
+  // few named positions on one surface. Equality on `surface` with an
+  // `in` over `seq` is equality-only, so it needs no composite index.
+  // `in` takes 30 values and this asks for at most DECK_DAYS + 1.
+  const snap = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "daily"),
+    where("seq", "in", missing),
+  ));
+  const rows = rowsFrom(snap.docs);
+  // Short means the bank disagrees with the published shape — a document
+  // deleted rather than retired, say. Serve the surface rather than a
+  // deck with a hole in it.
+  if (rows.length < missing.length) return { rows: await whole(), cursor: wholeCursor };
+  dailyBankN = n;
+  dailyRatesPool = ratesOf(shape);
+  state.stats.dailySource = "deck";
+  return { rows, cursor: 0 };
+}
+
+/** The published Scores pool, read defensively: this is a server document
+ *  and a malformed one must degrade to "no published pool" (the lens then
+ *  counts what it holds) rather than throw inside the boot. */
+function ratesOf(shape: { rates?: unknown } | null): Record<string, string[]> | null {
+  const raw = shape?.rates;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, string[]> = {};
+  for (const [scope, ids] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(ids)) continue;
+    out[scope] = ids.filter((id): id is string => typeof id === "string");
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+// One boot's top-ups (D320/D321): per paged surface, read the published
+// order (D319), fetch the first page per field/topic this device does
+// not already hold, plus any card the device has HISTORY with that fell
+// out of the cache — a rev bump refetches only the boot surfaces, and a
+// mastered card missing from the learn pool is a fact missing from the
+// map, an answered tail question missing from the cache is an answer
+// the Mirror cannot name. Fetched rows join their bank slice and the
+// persisted cache, so the next boot starts from them.
+async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+  const orderOf = async (surface: string): Promise<PageOrderDoc | null> => {
+    const snap = await getDoc(doc(db, "v2_rank", surface));
+    return snap.exists() ? (snap.data() as PageOrderDoc) : null;
+  };
+  const fetchByIds = async (
+    surface: string,
+    qids: string[],
+  ): Promise<Array<QuestionDoc & { id: string }>> => {
+    const out: Array<QuestionDoc & { id: string }> = [];
+    for (let i = 0; i < qids.length; i += 30) {
+      const chunk = qids.slice(i, i + 30);
+      const snap = await getDocs(
+        query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+      );
+      for (const d of snap.docs) {
+        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+        delete row.updatedAt;
+        if (row.surface === surface) out.push({ id: d.id, ...row });
+      }
+    }
+    return out;
+  };
+  const persist = async (rows: Array<QuestionDoc & { id: string }>): Promise<void> => {
+    if (!rows.length) return;
+    // Rows into the same store the boot reads (D312's cacheStore), NO
+    // meta: the cursor must not advance for a page — a paged row's
+    // updatedAt can be newer than an unfetched edit on another surface,
+    // and a cursor past that edit would seal it out of every delta.
+    await cacheStore.write("bank", rows.map((r) => [r.id, r] as [string, unknown]));
+    for (const row of rows) bankIds?.add(row.id);
+  };
+
+  // Each surface fails alone: a bad learn order must not cost the feed
+  // its pages, or the other way around. The next boot retries either.
+  try {
+    // What the device holds unanswered (D401): the learn cards in memory
+    // the mastery map has no history with. A field with a page of them
+    // fetches nothing; the page refills as they are mastered.
+    const learnHistory = learnHistoryIds();
+    const mastered = new Set(learnHistory);
+    const heldLearn = new Set(state.learnBank.map((q) => q.id).filter((id) => !mastered.has(id)));
+    const { rows, totals } = await topUpPages(
+      { order: () => orderOf("learn"), fetchByIds: (qids) => fetchByIds("learn", qids) },
+      cachedBankIds(),
+      followedFields(),
+      learnHistory,
+      LEARN_PAGE,
+      heldLearn,
+    );
+    publishLearnTotals(totals);
+    if (rows.length) {
+      const byId = new Map(state.learnBank.map((q) => [q.id, q]));
+      // The engine's pool takes only the servable (a card killed after
+      // the nightly fold can still be in the order); the cache takes all.
+      for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
+      state.learnBank = [...byId.values()];
+      publishLearnBank(toLearnCards(state.learnBank));
+      await persist(rows);
+    }
+  } catch (err) {
+    reportError(err, { where: "hydrate.learnPages" });
+  }
+
+  // THE DAILY'S TWO FOLDS (D383). The deck is seven documents now, and two
+  // readers wanted the whole surface:
+  //
+  //   `aggregated()` — the Mirror's Answers and Scores rows, which are
+  //   "every daily question you have ANSWERED", not "every daily
+  //   question". So the heal is the feed's, one surface over: fetch the
+  //   voted dailies this device does not hold. Bounded by the person's
+  //   own history and cached afterwards, so it converges to nothing.
+  //
+  //   `placeAsks()` — the Scores lens's pool, "every active `rating`
+  //   daily that names this place and I have not answered". History
+  //   cannot supply that one: its whole subject is what you have NOT
+  //   answered. D383 made it a query over the surface, which was honest
+  //   and still linear — 29 of 130 today and the same fraction of any
+  //   bank. D384 makes it a PAGE: the nightly fold publishes the ask ids
+  //   per scope (they are a night old and small), the device subtracts
+  //   its own votes locally, and only the first PLACE_ASK_PAGE it has not
+  //   met are fetched. The lens's "N more after these" reads the id list
+  //   rather than the fetched rows, so the page never makes it lie.
+  //
+  // Both AFTER first paint, like every other page: the daily tab draws
+  // from the deck, and the Mirror is a tab away. Skipped entirely when
+  // the daily did not page — then the device holds the surface already.
+  if (dailyBankN != null) {
+    try {
+      const held = cachedBankIds();
+      const answered = Object.keys(state.votes)
+        .filter(isDailyQid)
+        .filter((qid) => !held.has(qid));
+      // One page per scope, so a stop with a long pool cannot starve the
+      // others — the lens is per scope and so is the runway it needs.
+      const wantedAsks: string[] = [];
+      for (const ids of Object.values(dailyRatesPool || {})) {
+        let taken = 0;
+        for (const qid of ids) {
+          if (taken >= PLACE_ASK_PAGE) break;
+          if (held.has(qid) || state.votes[qid] !== undefined) continue;
+          wantedAsks.push(qid);
+          taken += 1;
+        }
+      }
+      const [historyRows, askRows] = await Promise.all([
+        answered.length ? fetchByIds("daily", answered) : Promise.resolve([]),
+        wantedAsks.length ? fetchByIds("daily", wantedAsks) : Promise.resolve([]),
+      ]);
+      const rows = [...historyRows, ...askRows];
+      if (rows.length) {
+        const byId = new Map(state.questions.map((q) => [q.id, q]));
+        // The daily lane keeps its tombstones (the note in publishBank),
+        // so no servableNow() filter here: `deck()` and the lenses each
+        // apply their own `active` rule, and dropping a retired row would
+        // cost the Mirror an answer the person really gave.
+        for (const row of rows) byId.set(row.id, row);
+        state.questions = [...byId.values()].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+        await persist(rows);
+        notify();
+      }
+    } catch (err) {
+      reportError(err, { where: "hydrate.dailyPages" });
+    }
+  }
+
+  try {
+    // The feed's history is its answers: every voted feed qid must
+    // resolve to a document whatever page it was on. Core needs no heal
+    // — it ships whole at boot by definition.
+    //
+    // BOTH LANES (isFeedQid, deck.ts). This read `startsWith("feed-")`,
+    // which is the feed's own lane and not the surface: a catalogue pick
+    // ships as `pick-<id>` on the SAME surface, so all 24 of them were
+    // excluded from the heal. A pick you answered that had since rotated
+    // off your cached pages was never fetched back, so the one place your
+    // own answer has to resolve to a question could not resolve it.
+    const answered = Object.keys(state.votes).filter(isFeedQid);
+    // The person's own interest profile (D317 phase 1, D322) — the one
+    // document in the system only its owner may read, and the pager is
+    // the one thing that reads it: topics this person actually answers
+    // get the full page, the rest a smaller one, never zero (the
+    // arithmetic and its floors live in bankPager.pageSizesByInterest).
+    // Absent — a new account, a fresh project, the fold not yet run —
+    // every topic gets the flat page, which is exactly the pre-profile
+    // feed.
+    const profile = await (async () => {
+      try {
+        if (!state.uid) return null;
+        const snap = await getDoc(doc(db, "v2_users", state.uid, "taste", "profile"));
+        return snap.exists()
+          ? (snap.data() as { t?: Record<string, number>; n?: number })
+          : null;
+      } catch {
+        // A failed profile read costs personalization for a session,
+        // never the pages themselves.
+        return null;
+      }
+    })();
+    // What the device holds unanswered in the TAIL (D401): core and bought
+    // rows ship whole and are not runway the pager owes, so they do not
+    // count — a fresh install with its core unanswered still gets its
+    // first tail page per topic, and a topic with a page of fresh tail
+    // cards fetches nothing until they are answered.
+    const heldTail = new Set(
+      state.feedBank
+        .filter((q) => q.core !== true && q.paid !== true && !(q.id in state.votes))
+        .map((q) => q.id),
+    );
+    const { rows, totals } = await topUpPages(
+      { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
+      cachedBankIds(),
+      null,
+      answered,
+      pageSizesByInterest(profile, FEED_PAGE),
+      heldTail,
+    );
+    // Before the `rows.length` gate, not inside it: a device whose cache
+    // already holds this boot's page fetches nothing and still has to be
+    // told what the bank holds, or the topic sheet counts the pool on
+    // exactly the boots where the pool is furthest behind the bank.
+    publishFeedTotals(totals);
+    if (rows.length) {
+      const byId = new Map(state.feedBank.map((q) => [q.id, q]));
+      for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
+      state.feedBank = [...byId.values()].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+      // The pool changed, so the feed's view of it rebuilds — the same
+      // call every vote already makes.
+      buildFeedGlobals();
+      await persist(rows);
+      notify();
+    }
+  } catch (err) {
+    reportError(err, { where: "hydrate.feedPages" });
+  }
 }
 
 // Counts shown by the feed exclude the viewer's own vote (wfPcts adds
@@ -1897,16 +3425,43 @@ function mirrorVoteValue(
 // from the published position sums).
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
-  // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
-  // a tree rather than a split, so none of renderCard's apparatus — option
-  // rows, who-voted, takes, the insight line — applies to it, and the
-  // prototype pins it at the head of the list rather than dealing it into
-  // the stream. It rides its own accessor below; everything else about it
-  // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && q.type !== "path"
+    .filter((q) => q.surface === "feed"
       && ((q.options || []).length >= 2 || q.type === "catalog"))
     .map((q) => {
+      // Crossroads (D136, dealt in at D341): a story is a feed question AND
+      // a feed card — a member of this pool like any other, so the stream's
+      // own ordering places it and several can ride at once. It keeps its
+      // own card shape (paths-card.jsx) because its reveal is a tree rather
+      // than a split — renderCard's apparatus has nothing to say about a
+      // walk — so what rides here is what that card and the feed mechanics
+      // read, and NOT the synthesized `options`: the endings-as-options
+      // trick is the vote path's business, and an options array on the item
+      // would invite every generic option consumer to treat a walk as a
+      // split. `cat` is the vote arm's own mapping (bank `topic`, default
+      // 'culture') — for the shipped stories that is 'dilemma', an
+      // always-on channel in both builds, so the chip row names and mutes
+      // them like anything else it carries.
+      if (q.type === "path") {
+        const counts = feedCounts(q);
+        return {
+          id: q.id,
+          cat: q.topic || "culture",
+          type: "path",
+          prompt: q.prompt,
+          title: q.title,
+          intro: q.intro,
+          hue: q.hue,
+          nodes: q.nodes,
+          endings: q.endings,
+          counts,
+          // wfVotes' sort key ("top" is most-answered), summed here the way
+          // pathQs' readers sum it — the card itself re-derives total from
+          // `counts` and never reads this.
+          n: counts.reduce((a, b) => a + b, 0),
+          live: true,
+        };
+      }
       // Catalogue picks (D14 gone live) keep their own card shape: no
       // options — the catalogue is the answer space — so none of the
       // option-counts apparatus below applies. The board itself is not
@@ -1936,13 +3491,19 @@ function buildFeedGlobals(): void {
       // arm below is precisely the wrong-shaped card D12 pulled.
       if (q.type === "rank") {
         const agg = state.aggs[q.id];
+        const rc = rankCrowd(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated);
         return {
           id: q.id,
           cat: q.topic || "culture",
           type: "rank",
           prompt: q.prompt,
           items: q.options,
-          crowd: rankCrowdFor(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated),
+          crowd: rc?.crowd ?? null,
+          // The crowd the order actually rests on, which is NOT `agg.total`
+          // — the viewer is subtracted out of it when their own fold has
+          // landed. The card states a match against this crowd, so this is
+          // the number it has to state the match against (D146).
+          crowdN: rc?.n ?? 0,
           votes: agg?.total ?? 0,
           ...(q.also && q.also.length ? { also: q.also } : {}),
           live: true,
@@ -1987,6 +3548,13 @@ function buildFeedGlobals(): void {
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.
         ...(q.also && q.also.length ? { also: q.also } : {}),
+        // The subtopic leaf (D425): world-feed.jsx's filter fast-paths on
+        // `q.sub` and SUBTOPICS.count reads it off this pool — so the day a
+        // bank doc carries the tag, the leaf is offered, which is exactly
+        // what world-subtopics.js's offers() comment says will happen
+        // ("leaves return by themselves the day live questions carry their
+        // tag"). Emit-when-set; a doc without one keeps its exact shape.
+        ...(q.sub ? { sub: q.sub } : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
@@ -2000,6 +3568,9 @@ function buildFeedGlobals(): void {
         cat: "test",
         type: "vote",
         test: q.test,
+        // A deep item's facet rides the card (D416) so the feed's passive
+        // tracker can tell it from a domain item — see PASSIVE.record.
+        ...(q.facet ? { facet: q.facet } : {}),
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,
@@ -2042,51 +3613,49 @@ function buildFeedGlobals(): void {
   LIVE.feedReady = true;
 }
 
-// (Re)subscribe every group's reveal doc for the CURRENT yesterday —
-// called from the groups snapshot and again on midnight rollover, so a
-// long-lived session (the reveal-push case) doesn't stay pinned to the
-// day it booted on.
+// (Re)subscribe every group's LATEST reveal — the round before the open
+// one (ROUNDS-PLAN, D426). Called from the groups snapshot, which fires on
+// every group-document change, so a round advancing (the reveal writes
+// `round` in the same commit) re-points the listener at the new reveal
+// within the same tick; and again on midnight rollover, harmlessly.
 function subscribeReveals(db: import("firebase/firestore").Firestore): void {
-  const yester = utcDayKey(-1);
-  const dayChanged = state.revealDay !== yester;
-  state.revealDay = yester;
-  const want = new Set(state.groups.map((g) => g.id));
+  const want = new Map<string, string | null>();
+  for (const g of state.groups) {
+    const open = openRoundOf(g);
+    want.set(g.id, open > 1 ? roundKey(open - 1) : null);
+  }
   for (const gid of Object.keys(state.revealUnsubs)) {
-    if (!want.has(gid) || dayChanged) {
+    const key = want.get(gid);
+    if (key === undefined || key === null || state.revealKeys[gid] !== key) {
       state.revealUnsubs[gid]();
       delete state.revealUnsubs[gid];
-      if (!want.has(gid)) delete state.reveals[gid];
+      delete state.revealKeys[gid];
+      if (key === undefined) delete state.reveals[gid];
     }
   }
   state.groups.forEach((g) => {
     if (state.revealUnsubs[g.id]) return;
+    const key = want.get(g.id);
+    if (!key) {
+      // Round 1 is open: nothing has revealed yet, and there is no r0.
+      if (state.reveals[g.id] !== null) { state.reveals[g.id] = null; notify(); }
+      return;
+    }
+    state.revealKeys[g.id] = key;
     state.revealUnsubs[g.id] = onSnapshot(
-      doc(db, "v2_groups", g.id, "reveals", yester),
+      doc(db, "v2_groups", g.id, "reveals", key),
       (rs) => {
         state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
         notify();
       },
       (err) => {
-        // permission-denied here is the RULE WORKING, not a fault: reveal
-        // reads gate on the reveal's own members snapshot, so a member who
-        // joined after this day was revealed is denied by design. It is the
-        // ordinary state of every late joiner's first day in a group, so
-        // reporting it would bury real listener faults in Sentry.
-        //
-        // Deliberately keeps the unsub entry rather than deleting it. The
-        // denial is permanent for this (group, day) pair — re-attaching
-        // would fail identically forever — and the midnight rollover above
-        // tears down every entry on dayChanged, so tomorrow still retries.
-        if ((err as { code?: string }).code === "permission-denied") {
-          state.reveals[g.id] = null;
-          notify();
-          return;
-        }
-        // Dead listener: drop the stale unsub so the next
-        // subscribeReveals pass (groups snapshot or midnight rollover)
-        // can re-attach instead of being blocked by the guard above.
+        // A reveal is world-readable since D98, so a refusal here is not
+        // the rule working any more; it is reported like any dead listener.
+        // Drop the stale unsub so the next subscribeReveals pass (groups
+        // snapshot or midnight rollover) can re-attach.
         reportError(err, { where: "revealListener", gid: g.id });
         delete state.revealUnsubs[g.id];
+        delete state.revealKeys[g.id];
         notify();
       },
     );
@@ -2127,69 +3696,198 @@ async function callable<T>(name: string, data: unknown): Promise<T> {
   return res.data as T;
 }
 
-function duelQFor(g: Record<string, unknown> & { id: string }, dayOffset = 0) {
-  return duelQForPure(g, state.duelBank, utcDayIndexPure(Date.now()), dayOffset);
+/**
+ * How far ahead of the open round a member may seal (ROUNDS-PLAN §5).
+ * The same literal as the rules' bound and functions/src/pure.ts's
+ * ROUND_LEAD; a client that believed a larger number would seal an answer
+ * the rules refuse, so this is the one place the client says it.
+ */
+const ROUND_LEAD = 5;
+const roundKey = (n: number): string => `r${n}`;
+const openRoundOf = (g: Record<string, unknown>): number => {
+  const r = g.round;
+  return typeof r === "number" && Number.isInteger(r) && r >= 1 ? r : 1;
+};
+function duelQFor(g: Record<string, unknown> & { id: string }, round: number) {
+  return duelQForPure(g, state.duelBank, round);
 }
+/**
+ * Where this account stands in a room's rounds: the OPEN round, the rounds
+ * it has sealed that have not revealed yet (the open one and any it ran
+ * ahead into), and the NEXT round it may answer — the lowest unsealed one
+ * inside the lead, or null at the lead's edge, which is "you have run as
+ * far ahead as you may; waiting on them".
+ */
+function roundsOf(g: Record<string, unknown> & { id: string }) {
+  const open = openRoundOf(g);
+  const sealed: number[] = [];
+  let next: number | null = null;
+  for (let n = open; n < open + ROUND_LEAD; n++) {
+    if (state.votes[`g_${g.id}_${roundKey(n)}`] != null) sealed.push(n);
+    else if (next == null) next = n;
+  }
+  return { open, next, sealed, lead: ROUND_LEAD };
+}
+
+/**
+ * A round's question BY ID — the duel bank, and behind it the one-day
+ * history below. The reveal card, the roles fold and the late-answer write
+ * all look it up by the same door; `SOCIAL.bankQ` is this function under
+ * its public name.
+ */
+function roundQById(qid: string) {
+  const q = state.duelBank.find((x) => x.id === qid);
+  if (q) {
+    // The cast's fields ride along (D434): the reveal card draws a role
+    // vote's pack and role and a rating's poles off this same door.
+    return {
+      id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic",
+      ...(q.scen ? { scen: q.scen } : {}),
+      ...(q.role ? { role: q.role } : {}),
+      ...(q.poles ? { poles: q.poles } : {}),
+      // …and a cast round's them forms and axes (D437).
+      ...(q.them ? { them: q.them } : {}),
+      ...(q.dims ? { dims: q.dims } : {}),
+    };
+  }
+  // HISTORY ONLY. For one day (2026-09-08, ROUNDS-PLAN §6.2) even rounds
+  // drew a feed question, and the reveals written that day name one. The
+  // owner retired the feature the same day (D426's third amendment) and
+  // nothing serves a world question as a round now — but a reveal has to
+  // draw the question it was about (D71), and with no lookup the card
+  // would label those rounds' options with the members' names, the
+  // catalog fall-through one surface over. So the door stays for what
+  // already exists, and the kind is the plain one.
+  const w = feedById(qid) || dailyById(qid);
+  return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "classic" } : null;
+}
+
+/** `revealHistory`'s last answer per room, keyed by the references it was
+ *  built from — see the member for why identity matters. */
+const revealHistCache: Record<string, {
+  hist: unknown; latest: unknown; key: unknown;
+  out: Array<Record<string, unknown> & { day: string }>;
+}> = {};
 
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
+  /** The account's standing in a room's rounds — see roundsOf. */
+  roundInfo(gid: string): { open: number; next: number | null; sealed: number[]; lead: number } | null {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? roundsOf(g) : null;
+  },
   bankQ(qid: string) {
-    const q = state.duelBank.find((x) => x.id === qid);
-    return q ? { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" } : null;
+    return roundQById(qid);
   },
   groups(mode?: string) {
     return mode ? state.groups.filter((g) => (g.mode || "group") === mode) : [...state.groups];
   },
+  /**
+   * The question this account should answer NEXT in this room — the lowest
+   * round it has not sealed, inside the lead — or null at the lead's edge.
+   * The name is from when a room had one question a day; every consumer
+   * and the surface pin still say it, and what it answers is the same
+   * question in the same place: what is in front of you.
+   */
   todayQ(gid: string) {
     const g = state.groups.find((x) => x.id === gid);
-    return g ? duelQFor(g) : null;
+    if (!g) return null;
+    const { next } = roundsOf(g);
+    return next == null ? null : duelQFor(g, next);
   },
+  /** The question of a given round in this room — the reveal card's, for a
+   *  round that has revealed, or a sealed one's prompt. */
+  roundQ(gid: string, round: number) {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? duelQFor(g, round) : null;
+  },
+  /** The bank's first role vote — what the first run's preview draws a
+   *  group round AS (D437), with nothing invented: a real prompt, pack and
+   *  role off the seeded bank. Null before the cast has reached this
+   *  device's bank, and the preview falls back to a World question
+   *  standing in, as it did before the cast. */
+  roleVotePreview(): { prompt: string; scen: { id: string; label: string; hue: number }; role: { id: string; label: string } } | null {
+    const q = state.duelBank.find((x) => x.surface === "group" && x.topic === "pick" && !!x.scen && !!x.role && x.active !== false);
+    return q && q.scen && q.role ? { prompt: q.prompt, scen: q.scen, role: q.role } : null;
+  },
+  /** How many roles the packs hold and how many ratings the bank asks —
+   *  the denominators the Groups stop prints its progress against
+   *  (D437: the identity ring is roles cast over all roles; the Scores
+   *  lens says "2 of 10 rated"). Active entries in this device's bank. */
+  groupBankCounts(): { roles: number; ratings: number } {
+    let roles = 0, ratings = 0;
+    for (const q of state.duelBank) {
+      if (q.surface !== "group" || q.active === false) continue;
+      if (q.topic === "pick" && q.role) roles += 1;
+      else if (q.topic === "rate") ratings += 1;
+    }
+    return { roles, ratings };
+  },
+  /** This account's sealed answer to the OPEN round, or null. */
   myDuelVote(gid: string): { optionIdx: number } | null {
-    const v = state.votes[`g_${gid}_${utcDayKey(0)}`];
+    const g = state.groups.find((x) => x.id === gid);
+    if (!g) return null;
+    const v = state.votes[`g_${gid}_${roundKey(openRoundOf(g))}`];
     return v != null ? { optionIdx: Number(v) } : null;
+  },
+  /**
+   * My answer to a given round, with my call when this device still holds
+   * it (request 12's sealed list: "you: Ignore · called Answer"). Null
+   * for a round I have not sealed; `guessIdx` null for a pick whose call
+   * is not remembered — the card then names the pick alone.
+   */
+  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null } | null {
+    const aid = `g_${gid}_${roundKey(round)}`;
+    const v = state.votes[aid];
+    if (v == null) return null;
+    const gi = state.duelCalls[aid];
+    return { optionIdx: Number(v), guessIdx: typeof gi === "number" ? gi : null };
   },
   revealFor(gid: string) {
     return state.reveals[gid] || null;
   },
   // ── reveal history — the Groups portrait's data source ──
-  // Direct doc gets by day key, never a collection query: the reveal read
-  // rule gates on each doc's own `members` snapshot, which a list query
-  // cannot prove, so a query would be denied wholesale while per-doc gets
-  // succeed exactly for the days this user played.
-  async loadRevealHistory(gid: string, days = REVEAL_HIST_DAYS): Promise<void> {
-    if (state.revealHistLoading[gid]) return;
-    const have = (state.revealHist[gid] = state.revealHist[gid] || {});
-    const wanted: string[] = [];
-    // -2 backwards: yesterday (-1) already has a live listener (reveals),
-    // and revealHistory() below merges it in — fetching it twice would
-    // just double the read.
-    for (let i = 2; i <= days; i++) {
-      const key = utcDayKey(-i);
-      if (!(key in have)) wanted.push(key);
-    }
-    if (!wanted.length) return;
+  // ONE ORDERED QUERY per room per session — the newest REVEAL_HIST_CAP
+  // reveal documents by `revealedAt` — not a getDoc per day key
+  // (ROUNDS-PLAN §7.1, 2026-09-08).
+  //
+  // It was a fan-out of up to 13 day-key gets, and the comment that stood
+  // here defended it: "the reveal read rule gates on each doc's own
+  // `members` snapshot, which a list query cannot prove, so a query would
+  // be denied wholesale while per-doc gets succeed". True before D98 and
+  // false since: the read rule is `request.auth != null` with no field
+  // condition, so a list is permitted (pinned in rules.test.ts), and the
+  // fan-out had gone on paying a billed read for every day that had NO
+  // reveal. Under rounds the ids stop being date keys altogether
+  // (`r0007`), so a per-key get could not survive anyway. The query reads
+  // only the documents that exist and reads both id shapes, because every
+  // reveal the pipeline writes carries `revealedAt`.
+  //
+  // Never throws, like the fan-out it replaces: two callers `void` it, and
+  // an unhandled rejection from a history read is not a price a portrait
+  // should charge. A failure is reported and leaves the room unsettled so
+  // a later call retries rather than freezing a gap into the portrait for
+  // the rest of the session.
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
+    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
     state.revealHistLoading[gid] = true;
     try {
       const db = await getDb();
-      await Promise.all(
-        wanted.map(async (key) => {
-          try {
-            const snap = await getDoc(doc(db, "v2_groups", gid, "reveals", key));
-            have[key] = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
-          } catch (err) {
-            // permission-denied = a day revealed before this user joined;
-            // the doc will never become readable, so cache the null.
-            if ((err as { code?: string }).code === "permission-denied") {
-              have[key] = null;
-              return;
-            }
-            // transient (offline, deadline): leave the key absent so a
-            // later call retries it rather than freezing a gap into the
-            // portrait for the rest of the session
-            reportError(err, { where: "revealHistory", gid });
-          }
-        }),
-      );
+      const snap = await getDocs(query(
+        collection(db, "v2_groups", gid, "reveals"),
+        orderBy("revealedAt", "desc"),
+        limit(take),
+      ));
+      const have: Record<string, Record<string, unknown> | null> = {};
+      snap.forEach((d) => { have[d.id] = d.data() as Record<string, unknown>; });
+      state.revealHist[gid] = have;
+      state.revealHistLoaded[gid] = true;
+    } catch (err) {
+      // A refusal cannot be "the rule working" any more — the read is
+      // unconditional since D98 — so it is reported, where the per-key
+      // version swallowed permission-denied as the ordinary late-joiner
+      // case. Transient (offline, deadline) is reported the same way.
+      reportError(err, { where: "revealHistory", gid });
     } finally {
       state.revealHistLoading[gid] = false;
       notify();
@@ -2198,15 +3896,53 @@ const SOCIAL = {
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what
   // groupPortrait.ts consumes.
+  /**
+   * Is this group's reveal history still being read?
+   *
+   * `revealHistory()` answers `[]` for "never fetched", "in flight" and
+   * "genuinely nothing revealed" alike, and the Groups Mirror stop opens
+   * on a fan-out of one getDoc per day — so the cold frame told a group
+   * with weeks of history that nothing had been revealed. The loader one
+   * function up is careful about exactly this distinction (a
+   * `permission-denied` caches null permanently; a transient error leaves
+   * the key absent "so a later call retries it rather than freezing a gap
+   * into the portrait") and the surface threw it away.
+   */
+  revealHistoryLoading(gid: string): boolean {
+    return !!state.revealHistLoading[gid];
+  },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
-    const out: Array<Record<string, unknown> & { day: string }> = [];
-    const yesterday = state.reveals[gid];
-    if (yesterday) out.push({ day: state.revealDay, ...yesterday } as Record<string, unknown> & { day: string });
-    const hist = state.revealHist[gid] || {};
-    for (const [day, docData] of Object.entries(hist)) {
-      if (docData) out.push({ day, ...docData } as Record<string, unknown> & { day: string });
+    type Row = Record<string, unknown> & { day: string; id: string };
+    // The SAME array while nothing changed. Every input below is replaced
+    // whole when it changes (the loader assigns the map, the listener the
+    // doc, the key its string), so three reference checks say whether the
+    // last answer still holds — and the Mirror's Groups stop memoizes its
+    // folds and the role map's layout on this array's identity, which a
+    // fresh array per store notify defeated (the second review of #456
+    // found that memo never hit).
+    const hist = state.revealHist[gid];
+    const latest = state.reveals[gid];
+    const latestKey = state.revealKeys[gid];
+    const cached = revealHistCache[gid];
+    if (cached && cached.hist === hist && cached.latest === latest && cached.key === latestKey) return cached.out;
+    // Keyed by DOCUMENT ID, because the query and yesterday's live listener
+    // both return yesterday: the fan-out skipped -1 to avoid the double,
+    // and a query has no day to skip. The live copy wins — it is fresher.
+    // `day` is the reveal's own field where it has one (a round-keyed
+    // reveal's is the calendar day it landed) and the id where it does not
+    // (every reveal before rounds was keyed by its day).
+    const byId: Record<string, Row> = {};
+    for (const [id, docData] of Object.entries(state.revealHist[gid] || {})) {
+      if (docData) byId[id] = { day: id, ...docData, id } as Row;
     }
-    out.sort((a, b) => (a.day < b.day ? 1 : -1));
+    if (latest && latestKey) byId[latestKey] = { day: latestKey, ...latest, id: latestKey } as Row;
+    const out = Object.values(byId);
+    // Newest first by day, then by round — two reveals on one day keep the
+    // order they landed in instead of the map's. A reveal from before rounds
+    // has no `round` and sorts by its day alone, as it always did.
+    const rnd = (r: Row): number => (typeof r.round === "number" ? r.round : 0);
+    out.sort((a, b) => (a.day === b.day ? rnd(b) - rnd(a) : (a.day < b.day ? 1 : -1)));
+    revealHistCache[gid] = { hist, latest, key: latestKey, out };
     return out;
   },
   async createGroup(name: string, mode: string, displayName?: string) {
@@ -2274,7 +4010,18 @@ const SOCIAL = {
    * keystrokes.
    */
   async searchPeople(raw: string): Promise<DirectoryPerson[]> {
-    const key = raw.trim().toLowerCase();
+    // ASCII-ONLY, and it must stay identical to `foldName` in
+    // ./socialFetch — the key it builds is compared against `nameKey`,
+    // which `firestore.rules` forces to equal `name.lower()`, and the
+    // rules engine's `.lower()` touches A-Z and nothing else.
+    // `toLowerCase()` here is full Unicode, so it lowered "Ó" to "ó"
+    // before socialFetch could fold anything, and the stored key still
+    // says "Ó": the prefix query matched nothing and the fold one layer
+    // down was dead code. Written out rather than imported because the
+    // line has to run BEFORE the dynamic import below — that import is
+    // what keeps socialFetch out of the entry chunk, and this is also
+    // the session cache's key, which is looked up without awaiting.
+    const key = raw.trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
     if (!key) return [];
     const hit = state.peopleSearch.get(key);
     if (hit) return hit;
@@ -2293,6 +4040,7 @@ const SOCIAL = {
   async claimHandle(handle: string) {
     const out = await callable<{ handle: string }>("claimHandleV2", { handle });
     state.profile.handle = out.handle;
+    profileChanged();
     notify();
     return out;
   },
@@ -2375,13 +4123,18 @@ const SOCIAL = {
   },
   voteDuel(gid: string, optionIdx: number, guessIdx?: number): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
-    const q = g && duelQFor(g);
     const uid = state.uid;
-    if (!g || !q || !uid) return Promise.resolve();
-    const day = utcDayKey(0);
-    const aid = `g_${gid}_${day}`;
+    if (!g || !uid) return Promise.resolve();
+    // The round this answer is to: the lowest one not yet sealed, inside
+    // the lead. At the lead's edge there is nothing to answer, and the
+    // rules would refuse the write anyway (ROUNDS-PLAN §2.2).
+    const { next: round } = roundsOf(g);
+    const q = round == null ? null : duelQFor(g, round);
+    if (round == null || !q) return Promise.resolve();
+    const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
     notify();
     return (async () => {
       try {
@@ -2391,7 +4144,7 @@ const SOCIAL = {
           surface: g.mode === "duo" ? "duo" : "group",
           optionIdx,
           gid,
-          day,
+          round,
           answeredAt: serverTimestamp(),
           anchors: answerAnchors(),
         };
@@ -2410,8 +4163,77 @@ const SOCIAL = {
         cacheVote(aid, optionIdx);
       } catch (err) {
         delete state.votes[aid];
+        delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
+        throw err;
+      }
+    })();
+  },
+
+  /**
+   * A LATE answer (ROUNDS-PLAN §4): to a round that has revealed and that
+   * this account did not play. The table is public, so it is not blind —
+   * the rules require `late: true` and refuse a guess, the trigger appends
+   * it to the reveal marked, and no fold counts it. Reaches back at most
+   * the lead. The card offers it under a reveal you have no vote in.
+   */
+  voteLate(gid: string, round: number, optionIdx: number, qid?: string): Promise<void> {
+    const g = state.groups.find((x) => x.id === gid);
+    const uid = state.uid;
+    if (!g || !uid) return Promise.resolve();
+    const open = openRoundOf(g);
+    if (!(round < open && round >= open - ROUND_LEAD)) return Promise.resolve();
+    // THE REVEAL'S OWN QID, not a recomputation. The card renders these
+    // buttons from `bankQ(reveal.qid)`, so `optionIdx` indexes THAT
+    // question's options — while this used to re-derive the round's
+    // question with `duelQFor`, which is a hash over the CURRENT bank and
+    // world pool: `(gHash + round + len * 1000) % len`. One question
+    // appended to either pool remaps every past round, and a late answer
+    // is by definition given after its round revealed, reaching back the
+    // whole lead. Measured: round 3 moved duo-037 → duo-023 on a bank
+    // that grew by one, and an unloaded world pool swapped an even
+    // round's kind outright.
+    //
+    // The consequence is silent. `optionIdx` names one question's option
+    // and `qid` another, the trigger stamps the mismatch as `vote.qid`
+    // (D71's shape), and the "Answered after the reveal" row draws the
+    // label off the DRIFTED question — so the room reads back a different
+    // option of a different prompt. If the drifted question is a `pick`,
+    // line below writes `pickUid: memberUids[optionIdx]`, publishing a
+    // pick of a person the user never chose.
+    //
+    // `duelQFor` stays the blind path's authority: it is right for a
+    // round nobody has revealed yet, which has no `qid` to carry.
+    const q = (qid ? roundQById(qid) : null) || duelQFor(g, round);
+    if (!q) return Promise.resolve();
+    const aid = `g_${gid}_${roundKey(round)}`;
+    if (state.votes[aid]) return Promise.resolve();
+    state.votes[aid] = String(optionIdx);
+    notify();
+    return (async () => {
+      try {
+        const db = await getDb();
+        const payload: Record<string, unknown> = {
+          qid: q.id,
+          surface: g.mode === "duo" ? "duo" : "group",
+          optionIdx,
+          gid,
+          round,
+          late: true,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(),
+        };
+        if (q.kind === "pick") {
+          const pickUid = ((g.memberUids || []) as string[])[optionIdx];
+          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+        }
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        cacheVote(aid, optionIdx);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        reportError(err, { where: "duelVoteLate", gid });
         throw err;
       }
     })();
@@ -2454,7 +4276,25 @@ const SOCIAL = {
     // list reads exactly like a circle that never wrote a take), so a
     // transient failure retries and a real empty result is kept.
     if (key == null || state.takesLoading[key] || state.takes[key]) return;
+    // The read breaker (D332): takes are the fourth D98 surface. Absent,
+    // not empty, for the reason the cache comment above gives.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO — the fourth loader, and the one whose bad frame is an
+    // INVITATION. The panel mounts this from an effect, so it has already
+    // painted by the time the read starts: without this notify the first
+    // frame — no data, no flag — stood for the whole of the query, and it
+    // reads "No takes yet. Say the first thing." That is a definite claim
+    // about a room that may be full, and it invites the reader to be first
+    // in it. Its three siblings carry the same two lines and the same
+    // reasoning (loadVoters, loadFollows, loadKindred's recorded
+    // exemption); this one was in neither the fix nor the block that pins
+    // them.
+    //
+    // Not visible from the mount tests: live-fixture stubs `takesLoading`
+    // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
+    // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    notify();
     try {
       const db = await getDb();
       const snap = await getDocs(
@@ -2491,6 +4331,26 @@ const SOCIAL = {
     if (key == null) return [];
     const all = state.takes[key] || [];
     return gid !== "world" && qid ? all.filter((t) => t.qid === qid) : [...all];
+  },
+  /**
+   * Is this scope's take list still being read?
+   *
+   * `takes()` answers `[]` for three different things — never fetched, in
+   * flight, and genuinely empty — and the panel could only tell the third
+   * one apart by having a flag to ask. Without it the takes panel printed
+   * "No takes yet. Say the first thing." over a query still running, and
+   * kept printing it for the life of that mount after a FAILED fetch,
+   * because `loadTakes`' catch deliberately leaves the key absent so a
+   * later open retries rather than caching an empty list.
+   *
+   * Every other on-demand D98 loader in this store already publishes one
+   * — votersLoading, kindredLoading, circleLoading, followsLoading,
+   * invitesLoading, near.roomLoading. `takesLoading` was the one that
+   * existed in state and never reached the surface.
+   */
+  takesLoading(gid: string, qid?: string): boolean {
+    const key = takeScopeKey(gid, qid);
+    return key == null ? false : !!state.takesLoading[key];
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -2655,6 +4515,14 @@ const PRESENCE_BEAT_MS = 4 * 60_000; // far inside the linger, so a foreground a
 // any `until` at the same 180 minutes — three copies of one number,
 // because rules cannot import and the server must not trust the client.
 const PRESENCE_LINGER_MS = 180 * 60_000;
+/**
+ * The margin subtracted from a presence `until` so an ordinary clock
+ * difference cannot have the write refused. See the beat below — the rules
+ * ceiling is measured on the server's clock and this value on the device's,
+ * and without a margin the comparison is between the two clocks rather than
+ * between two deadlines.
+ */
+const SKEW_MS = 60_000;
 
 const nearState = {
   count: null as number | null,   // null = never fetched this session
@@ -2720,13 +4588,33 @@ async function runBeat(cell?: string): Promise<void> {
     const db = await getDb();
     // `until` is when this position stops counting (D174). The linger is
     // what makes the feature work at all — a phone in a pocket has to keep
-    // standing in the room — and the session's deadline is what keeps the
-    // timed option honest: clamped here, so closing the app just before it
-    // cannot leave the position up for a further linger. firestore.rules
-    // caps how far out this may be pushed, so the promise does not rest on
-    // the client being ours.
-    const deadline = nearUntil();
-    const lingerTo = Date.now() + PRESENCE_LINGER_MS;
+    // standing in the room. Since D370 the switch has no timed state, so
+    // there is no session deadline to clamp to: every beat writes the
+    // linger, and firestore.rules caps how far out this may be pushed, so
+    // the promise does not rest on the client being ours.
+    //
+    // A MINUTE SHORT OF THE LINGER, AND THE MINUTE IS THE WHOLE POINT.
+    //
+    // firestore.rules caps `until` at `request.time + 180m` — the SERVER's
+    // clock — and this wrote `Date.now() + 180m` from the DEVICE's. With
+    // no deadline to clamp against, the two 180s cancelled and the rule
+    // reduced to `deviceNow <= serverNow`: the only slack was network
+    // latency, and any phone running more than a few hundred milliseconds
+    // fast had EVERY presence beat refused with permission-denied.
+    // `runBeat`'s catch reports "unavailable", the count stays null, and
+    // the card offers a retry that cannot succeed — for the life of the
+    // install, on a four-minute loop. That was D174's `always`; since D370
+    // it is the only on state there is, so this is every opted-in phone.
+    //
+    // Recorded at D181 and parked there because the obvious fix — widening
+    // the rules ceiling — moves the only bound that enforces "your position
+    // stops counting", on the presence cell, which is one of the three
+    // labelled denies. This costs a minute of a three-hour linger instead
+    // and moves no bound at all: the cap is still hand-matched to
+    // PRESENCE_LINGER_MIN, and every comment and document saying so stays
+    // true. A device more than a minute fast is a device with a broken
+    // clock, not ordinary skew.
+    const lingerTo = Date.now() + PRESENCE_LINGER_MS - SKEW_MS;
     // `type` is the viewer's OWN Big Five archetype name (D176), and the
     // device is what computes it — the archetype table lives here, so
     // writing the NAME means the server never joins a profile and never
@@ -2737,7 +4625,7 @@ async function runBeat(cell?: string): Promise<void> {
     await setDoc(doc(db, "v2_presence", uid), {
       cell: fix.cell,
       at: serverTimestamp(),
-      until: new Date(deadline ? Math.min(lingerTo, deadline) : lingerTo),
+      until: new Date(lingerTo),
       ...(myArchetype ? { type: myArchetype } : {}),
     });
     const res = await callable<{
@@ -2781,12 +4669,6 @@ async function runBeat(cell?: string): Promise<void> {
 // card's "Try again" stop when there is an answer instead of one tick after
 // the tap.
 function presenceBeat(cell?: string): Promise<void> {
-  // An expired session is OFF, and finding that out here is the point:
-  // `nearMode` re-reads the deadline at the moment of use, so an app that
-  // was shut for three hours comes back already expired rather than
-  // beating once more before a timer notices. Tear the loop down and
-  // delete the doc — "stop being visible" must not wait for the server's
-  // own expiry to catch up.
   // deleteAccount sets `torndown` as its first statement, and the server
   // deletes v2_presence/{uid} as part of the sweep. Without this guard a
   // beat already scheduled — the interval, or a visibilitychange — can
@@ -2794,7 +4676,10 @@ function presenceBeat(cell?: string): Promise<void> {
   // longer exists. Every other queued writer in this file already checks
   // it; presence was the one that did not.
   if (torndown) return Promise.resolve();
-  if (nearMode() === "off" && nearState.timer) { void LIVE.near.disable(); return Promise.resolve(); }
+  // The switch is the whole state since D370 (the expired-session teardown
+  // D174 needed here is gone with the timed option). A loop still running
+  // with the switch off can only be a beat queued across disable(); it
+  // writes nothing.
   if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
   if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
   if (nearState.inFlight) return nearState.inFlight;
@@ -2846,16 +4731,10 @@ const NEAR = {
   supported(): boolean {
     return locateSupported();
   },
+  // Off or on, and nothing between (D370): `mode()` and `until()` stood
+  // here for D174's timed state and left with it.
   on(): boolean {
     return nearOptedIn();
-  },
-  /** Which of the three states is set (D174) — `off` once a session ends. */
-  mode(): NearMode {
-    return nearMode();
-  },
-  /** Epoch ms the session ends, 0 when there is no deadline. */
-  until(): number {
-    return nearUntil();
   },
   // The count of OTHER fresh phones in the neighborhood: null when never
   // fetched, a number otherwise. `tooFew` used to distinguish
@@ -2960,10 +4839,10 @@ const NEAR = {
   // Opt in: one explicit tap. The first fix runs immediately, so the tap
   // also carries the OS permission prompt (D9's rule — location is never
   // requested until asked for).
-  async enable(mode: Exclude<NearMode, "off"> = "session"): Promise<{ ok: boolean; reason?: string }> {
+  async enable(): Promise<{ ok: boolean; reason?: string }> {
     const fix = await locateCell();
     if (!fix.ok) return { ok: false, reason: fix.reason };
-    setNearMode(mode);
+    setNearOn(true);
     // The fix just resolved goes straight into the first beat — see
     // presenceBeat's `cell` — and the tap WAITS for it. The button is
     // already spinning through the location fix; carrying it through the
@@ -2980,7 +4859,7 @@ const NEAR = {
   // Opt out: stop the loop AND delete the doc — "stop sharing" must not
   // wait for a freshness window to expire.
   async disable(): Promise<void> {
-    setNearMode("off");
+    setNearOn(false);
     stopPresence();
     notify();
     try {
@@ -3049,6 +4928,42 @@ const patternsMine = perRev((): number => {
   return mine;
 });
 
+/**
+ * The viewer's answers to every item the candidate engine's corpus can
+ * name (D395/D396): qid → option index, over the daily bank, the core
+ * feed and the instrument items. The Oracle's and the People lens's
+ * device solves read the viewer through this rather than through the
+ * two-option view models, so an ordinal or a pick answer counts as
+ * evidence about them on day one — the fit's `items` metadata says how
+ * each encodes.
+ *
+ * From the BANKS and the vote mirror, like `patternsMine` above and for
+ * the same reason: a question you answered is evidence about you whether
+ * or not its crowd counts have landed on this device, and the instrument
+ * items' aggregates are usually not cached on the Patterns tab. `vote()`
+ * stores the option index as a string and refuses anything else, so the
+ * parse below cannot invent an index; a stored value that is not one
+ * (a catalogue entity, a rank order) is skipped. Core only, D161's rule:
+ * the tail's answers are interest-selected and never enter either fold.
+ */
+const answeredIndex = perRev((): Record<string, number> => {
+  const out: Record<string, number> = {};
+  const take = (q: QuestionDoc & { id: string }): void => {
+    if (q.active === false) return;
+    const opts = q.options;
+    if (!Array.isArray(opts) || opts.length < 2) return;
+    if (!(q.surface === "daily" || q.surface === "test" || (q.surface === "feed" && isCore(q)))) return;
+    const v = state.votes[q.id];
+    if (v === undefined) return;
+    const idx = Number(v);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= opts.length) return;
+    out[q.id] = idx;
+  };
+  for (const q of state.questions) take(q);
+  for (const q of state.feedBank) take(q);
+  return out;
+});
+
 const LIVE = {
   social: SOCIAL,
   near: NEAR,
@@ -3072,6 +4987,12 @@ const LIVE = {
   },
   get updateUrl(): string {
     return state.meta.updateUrl;
+  },
+  /** The read breaker (D332): true while `v2_meta/app.budgetMode` holds
+   *  the social reads paused. The panels' paused branches read this so a
+   *  withheld crowd is never rendered as an absent one. */
+  get budgetPaused(): boolean {
+    return socialReadsPaused(state.meta.budgetMode);
   },
   get latestBuild(): number {
     return state.meta.latestBuild;
@@ -3115,9 +5036,10 @@ const LIVE = {
     }
     state.profile.displayName = name;
     saveLocalName(name);
+    profileChanged();
     notify();
   },
-  // The viewer's own anchors, as a plain map — the same seven keys an
+  // The viewer's own anchors, as a plain map — the same 10 keys an
   // answer snapshots (D8), read back. Empty until the Basics card is
   // filled in, and that emptiness is load-bearing: the Map's anchor ring
   // (spec/map-anchors.js) renders a row per anchor, so a missing value has
@@ -3158,7 +5080,23 @@ const LIVE = {
     // array now means "nobody answered" and is kept, which is what
     // distinguishing those two states was for.
     if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
+    // The read breaker (D332): level 1 pauses exactly this — reading other
+    // users' answer documents on demand. Refused BEFORE the loading flag,
+    // so the panels' loading states stay false and their paused branches
+    // (keyed on LIVE.budgetPaused) are what renders. The key stays absent:
+    // "we chose not to ask" is a kind of "we could not ask", never "nobody
+    // answered".
+    if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO. A loading flag nobody is told about is not a loading
+    // state: the panel that mounts this loader has already painted by the
+    // time its effect runs, so without this notify its FIRST frame — the
+    // one with no data and no flag — stands until the query lands. On the
+    // Friends cut that frame reads "Could not load how your friends
+    // answered", a network-failure claim about a read that is working.
+    // loadCircle and loadCityKindred have always notified here; these
+    // three had not.
     state.votersLoading[qid] = true;
+    notify();
     try {
       const db = await getDb();
       // SORTED HERE, once, rather than on every read. Both keys the
@@ -3179,6 +5117,87 @@ const LIVE = {
     } finally {
       state.votersLoading[qid] = false;
       notify();
+    }
+  },
+  /**
+   * The nightly voter sample for a question (D397) — the same rows the live
+   * list holds, one document instead of up to two hundred, for every fold
+   * that only COUNTS: Kindred's world pass, the People lens, the pair
+   * card. Same cache guards and the same absent-vs-empty rule as
+   * `loadVoters`, and the same loading flag, so a panel that asks
+   * `votersLoading(qid)` sees either loader. A question with no sample yet
+   * — the nightly run has not touched it since D397, or it is the tail —
+   * falls through to the live query rather than reading absence as an
+   * empty crowd. A live list already in hand is never re-read as a sample:
+   * the fresher rows win.
+   */
+  async loadVoterSample(qid: string): Promise<void> {
+    if (!qid || state.votersLoading[qid] || state.voters[qid] || state.voterSamples[qid]) return;
+    if (socialReadsPaused(state.meta.budgetMode)) return;
+    state.votersLoading[qid] = true;
+    notify();
+    let fallback = false;
+    try {
+      const db = await getDb();
+      const rows = await fetchVoterSample(db, qid, state.uid);
+      if (!rows) {
+        fallback = true;
+      } else {
+        await resolveNames(db, rows.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+        for (const r of rows) r.name = state.names[r.uid] || "";
+        state.voterSamples[qid] = sortVoters(rows);
+        saveProfileCache();
+      }
+    } catch (err) {
+      reportError(err, { where: "loadVoterSample", qid });
+    } finally {
+      state.votersLoading[qid] = false;
+      notify();
+    }
+    if (fallback) await this.loadVoters(qid);
+  },
+  /** A question's rows for a fold that only counts: the live list where
+   * one is in hand, else the nightly sample, else null (unfetched). */
+  votersOrSample(qid: string): Voter[] | null {
+    return state.voters[qid] || state.voterSamples[qid] || null;
+  },
+  /**
+   * The breakdown cap's tail for the viewer's own place (D400): for every
+   * cached aggregate whose hot map for `scope` is at the cap and lacks the
+   * viewer's key, read the one shard that key hashes to and merge the
+   * cell into the document every Mirror reader already folds. Kicked by
+   * the City and Country stops on mount; once per (scope, key) per
+   * session; nothing at all while no question has reached the cap, which
+   * is every question today — `overflowWanted` is the gate, and it is
+   * pinned in overflow.test.ts.
+   */
+  async loadOverflow(scope: "city" | "country"): Promise<void> {
+    if (!state.uid) return;
+    const key = this.anchors()[scope] || "";
+    if (!key || state.overflowLoaded[scope] === key) return;
+    state.overflowLoaded[scope] = key;
+    const wanted = overflowWanted(state.aggs, Object.keys(state.aggs), scope, key);
+    if (!wanted.length) return;
+    try {
+      const db = await getDb();
+      const { cells, read } = await fetchOverflowCells(db, wanted, scope, key);
+      state.stats.aggsFetched += read;
+      for (const c of cells) {
+        state.overflowCells[c.qid] = { ...(state.overflowCells[c.qid] ?? {}), [scope]: { key, cell: c.cell } };
+        const agg = state.aggs[c.qid];
+        if (agg) {
+          state.aggs[c.qid] = withOverflowCell(agg, scope, key, c.cell);
+          aggDirty.add(c.qid);
+        }
+      }
+      if (cells.length) {
+        saveAggCache();
+        notify();
+      }
+    } catch (err) {
+      // Retry on the next mount rather than remembering a failure as a load.
+      delete state.overflowLoaded[scope];
+      reportError(err, { where: "loadOverflow", scope });
     }
   },
   // uid → display name, from the shared session cache. Synchronous and
@@ -3283,10 +5302,13 @@ const LIVE = {
     const uid = state.uid;
     const takeId = `av_${target}`;
     if (!uid || !target || target === uid || state.myFlags[takeId]) return;
-    const db = await getDb();
     state.myFlags[takeId] = true;
     notify();
     try {
+      // Inside the try since D356: getDb() holds while the uid is the
+      // mirror's and FAILS if the sign-in does, and a failure there has
+      // to roll the optimistic flag back like any other.
+      const db = await getDb();
       await setDoc(doc(db, "v2_flags", `${takeId}_${uid}`), {
         takeId, gid: "avatar", uid, target, at: serverTimestamp(),
       });
@@ -3398,6 +5420,19 @@ const LIVE = {
   // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
+    // The read breaker (D332). loadVoters refuses on its own below, but
+    // without this the loop would still spin twelve no-op calls and hold
+    // kindredLoading long enough for the lens to say "Matching…" about a
+    // match that is not being attempted.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
+    // No notify here, deliberately, and it took removing one to see why:
+    // this body's only suspension point is `await this.loadVoters(qid)` in
+    // the loop below, and loadVoters notifies as it arms. When the loop
+    // has nothing to fetch — no votes, or every list already cached — the
+    // whole body runs to its `finally` synchronously and an arm notify
+    // could never be observed by anyone. So the People lens gets its
+    // re-render from loadVoters, one microtask later, and a line here
+    // would be one no test could hold.
     state.kindredLoading = true;
     try {
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
@@ -3406,13 +5441,24 @@ const LIVE = {
       // first surface has run, and firing twelve at once at boot-adjacent
       // moments is the shape that gets a client rate-limited.
       for (const qid of qids) {
-        if (!state.voters[qid]) await this.loadVoters(qid);
+        // the nightly sample (D397) — one document — with the live query
+        // as its own fallback for a question no sample exists for yet
+        if (!state.voters[qid] && !state.voterSamples[qid]) await this.loadVoterSample(qid);
       }
       // Counted from what actually LANDED, not from what was asked for:
       // loadVoters swallows its own failure (reportError, then the list
       // stays unset), so the old line reported twelve to the caption after
       // twelve failed queries.
-      state.kindredAt = qids.filter((id) => state.voters[id]).length;
+      state.kindredAt = qids.filter((id) => state.voters[id] || state.voterSamples[id]).length;
+      // ASKED FOR LISTS AND GOT NONE IS A FAILED READ, NOT AN EMPTY
+      // CROWD. loadVoters swallows its own failure and leaves the key
+      // absent — deliberately, so absent and empty stay distinguishable
+      // (its own comment says so) — but every caller downstream then sees
+      // the same thing a device with no votes sees, and the City field
+      // said "Nobody from {city} yet" about twelve queries that all threw.
+      // Zero asked is not a failure: that is a device that has not
+      // answered anything yet, and it has no crowd to fail to read.
+      state.kindredFailed = qids.length > 0 && state.kindredAt === 0;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
@@ -3436,9 +5482,15 @@ const LIVE = {
       const n = Number(opt);
       if (Number.isFinite(n)) mine[qid] = n;
     }
-    // uid -> their answers, assembled from the cached voter lists.
+    // uid -> their answers, assembled from the cached voter lists — the
+    // live ones, and the nightly samples (D397) where no live list was
+    // fetched for the question.
     const theirs: Record<string, Record<string, number>> = {};
-    for (const [qid, rows] of Object.entries(state.voters)) {
+    const lists = [
+      ...Object.entries(state.voters),
+      ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
+    ];
+    for (const [qid, rows] of lists) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
@@ -3502,6 +5554,9 @@ const LIVE = {
     // guarded by a boolean so the pool refetches for the new city instead
     // of serving the old one forever.
     if (state.cityVotersAt === city) return;
+    // The read breaker (D332): the city-scoped half of the same voter
+    // fan-out loadKindred pays, so it pauses with it.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.cityKindredLoading = true;
     notify();
     try {
@@ -3550,6 +5605,10 @@ const LIVE = {
     // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
     if (!force && state.circle) return;
+    // The read breaker (D332): a query per member is the most expensive of
+    // the four gated fetches. `force` does not override — setFollowing's
+    // write still lands, and the refreshed fold waits with the rest.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.circleLoading = true;
     notify();
     try {
@@ -3560,7 +5619,7 @@ const LIVE = {
         const n = Number(opt);
         if (Number.isFinite(n)) mine[qid] = n;
       }
-      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
+      const { members, following } = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
       // Names for anyone the shared cache did not already hold. Batched,
       // and after the fold rather than before it — the likeness is
       // computed from answers and does not wait on a display name.
@@ -3570,10 +5629,16 @@ const LIVE = {
         for (const m of members) m.name = state.names[m.uid] || "";
       }
       state.circle = members;
-      // The fold already knows the membership, so the cheap view rides
+      // The fold already read the membership, so the cheap view rides
       // along for free — a Friends chip opened after the Circle stop pays
-      // no read at all.
-      state.follows = members.map((m) => m.uid);
+      // no read at all. From `following`, NOT from `members`: the fold
+      // drops anyone whose answers could not be read, and rebuilding the
+      // follow cache from the survivors turned a refused read into an
+      // unfollow for the rest of the session. That is exactly the failure
+      // the note on `loadFollows` warns about — two caches that can
+      // disagree about who your friends are — arriving through the cache
+      // that was supposed to be free.
+      state.follows = following;
     } catch (err) {
       reportError(err, { where: "loadCircle" });
       // null, not [] — "could not ask" and "you follow nobody" are
@@ -3610,6 +5675,7 @@ const LIVE = {
     if (!this.enabled || !me || state.followsLoading) return;
     if (state.follows) return;
     state.followsLoading = true;
+    notify(); // see loadVoters: an unannounced flag paints as a failure
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       state.follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
@@ -3716,7 +5782,20 @@ const LIVE = {
 
   /** Whether the viewer follows `uid` — answered from the loaded list. */
   isFollowing(uid: string): boolean {
-    return !!state.circle?.some((m) => m.uid === uid);
+    // THE CIRCLE WHEN IT IS LOADED, and otherwise the follow SET — which
+    // is the cheap list D149 built for exactly this question.
+    //
+    // `state.circle` is filled by one component, the Circle stop's body.
+    // Three surfaces draw a follow button — the Kindred cards, the city
+    // constellation's person card, and people search — and not one of them
+    // loads it. So this read was FALSE for everyone you already follow: the
+    // button said Follow with `aria-pressed` false, and the first tap
+    // re-wrote a follow you already had, which reloads the circle, flips
+    // the label to Following, and leaves unfollowing to a second tap. Two
+    // of those hosts already load the follow set for other reasons, so the
+    // answer was in memory and this predicate would not look at it.
+    if (state.circle) return state.circle.some((m) => m.uid === uid);
+    return !!state.follows?.includes(uid);
   },
   /**
    * Follow or unfollow, then reload. Optimism is deliberately NOT applied
@@ -3730,7 +5809,25 @@ const LIVE = {
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       if (on) {
-        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        // THE FOLLOW SET, not the circle fold. `state.circle` is written
+        // by `loadCircle` alone, and `loadCircle` is mounted by exactly
+        // one component — the Circle stop, which only ever passes `false`
+        // here. Every surface that can ADD a follow (the People lens, the
+        // city constellation's person card, people search) loads
+        // `follows` and never `circle`, so `state.circle` was null at each
+        // of them and this read `0 >= 50`: the cap did not bind anywhere
+        // it could be reached. Measured — forcing the guard to fire on
+        // every follow, and swapping it to this cache, both left all 2806
+        // unit tests green.
+        //
+        // It also counted the wrong thing when `circle` WAS loaded:
+        // `loadCircle` drops a followed account whose answer read failed,
+        // so the fold's survivors are not the follow rows.
+        //
+        // Null means "not read yet", which must not block — the same
+        // shape as before, on the cache the callers actually fill.
+        const known = state.follows ?? state.circle;
+        if (known && known.length >= circleMod.FOLLOW_CAP) return;
         await circleMod.follow(db, me, uid);
       } else {
         await circleMod.unfollow(db, me, uid);
@@ -3749,6 +5846,21 @@ const LIVE = {
   kindredDepth(): number {
     return state.kindredAt;
   },
+  /**
+   * Has the kindred pool been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The people twin of `testAggsState`, and it exists for the same
+   * sentence: `kindredLoading` is false again the moment the run RETURNS,
+   * including when every query inside it threw, so a surface that branches
+   * on it alone tells the viewer nobody is there on the strength of a read
+   * that did not happen. 'failed' only where lists were asked for and none
+   * arrived — a partial pool is a real pool, as far as it goes, and a
+   * device with nothing answered yet has no crowd to fail to read.
+   */
+  kindredState(): "loading" | "ready" | "failed" {
+    if (state.kindredLoading || state.cityKindredLoading) return "loading";
+    return state.kindredFailed ? "failed" : "ready";
+  },
 
   // ── Similarity: you against people and places, by scores (D112) ──
   //
@@ -3765,6 +5877,8 @@ const LIVE = {
   async loadSimilarity(): Promise<void> {
     if (!this.enabled || state.similarityLoading) return;
     state.similarityLoading = true;
+    // A retry clears the previous failure before it starts.
+    state.testAggsFailed = false;
     notify();
     try {
       if (!state.testAggsLoaded) {
@@ -3816,8 +5930,29 @@ const LIVE = {
         // AGG_ID_CAP top-up re-fetching it next boot.
         saveAggCache();
       }
-      await this.loadKindred();
+      // NOT loadKindred(). It was awaited here, so opening Country or
+      // World paid the voter fan-out — twelve collection-group queries of
+      // up to 200 answers each, plus the profile reads that resolve their
+      // names — for data neither stop reads: the place fields draw from
+      // the test aggregates above.
+      //
+      // This said "Only City reads `kindredPeople()`" and that was wrong:
+      // `data/testNorms.ts` reads it too, for the result card's counted
+      // percentiles, and that card had no loader of its own — so scoping
+      // the fan-out here quietly stopped its numbers computing for anyone
+      // who opened World but never City. The card loads for itself now
+      // (spec/result-card.jsx), which is this comment's own rule applied
+      // to the reader it had missed. The city field and the People lens
+      // load for themselves the same way.
+      //
+      // The city half was already scoped this way, by the effect in
+      // LiveSimilarityField that calls `loadCityKindred()` under a comment
+      // saying Country and World "never filter on it, so paying a second
+      // fan-out there would buy nothing". The general one is scoped there
+      // too now. Same shape as the Near stop's fix three nights ago: the
+      // loader belongs to the surface that reads it.
     } catch (err) {
+      state.testAggsFailed = true;
       reportError(err, { where: "loadSimilarity" });
     } finally {
       state.similarityLoading = false;
@@ -3827,13 +5962,27 @@ const LIVE = {
   similarityLoading(): boolean {
     return state.similarityLoading;
   },
+  /**
+   * Have the test aggregates been read? 'loading' | 'ready' | 'failed'.
+   *
+   * For the surfaces that fold `agg.by` cells rather than people, where
+   * `similarityLoading` alone cannot tell "the read failed" from "nobody
+   * has answered" — the throw leaves `testAggsLoaded` false, so both look
+   * identical, and the Mirror's Compare lens stated the second about a
+   * whole city on the strength of the first.
+   */
+  testAggsState(): "loading" | "ready" | "failed" {
+    if (state.testAggsLoaded) return "ready";
+    return state.testAggsFailed ? "failed" : "loading";
+  },
   // The bank's core test items — the same filter that publishes
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
   // to IS_TESTS for scoring metadata without a bridge read.
   //
-  // perRev because the bank only changes at hydrate and this has five
-  // render-path callers (SimilaritySection, PlacesField, testNorms,
-  // result-card ×2), each feeding it straight into testItemMeta — and
+  // perRev because the bank only changes at hydrate and this has 6
+  // render-path callers (SimilaritySection, PlacesField, LiveCompareLens,
+  // testNorms, result-card ×2), each feeding it straight into
+  // testItemMeta — and
   // because docs/SCALE-PLAN.md makes `feedBank` the collection that grows
   // without bound, so a per-call filter over it is the wrong shape to
   // leave lying around.
@@ -3874,7 +6023,12 @@ const LIVE = {
     // overlap heavily — a city-mate near the top of a question's newest
     // 200 is in both — and the inner loop is idempotent per (uid, qid), so
     // the union needs no dedupe of its own.
-    const pools = [...Object.entries(state.voters), ...Object.entries(state.cityVoters)];
+    const pools = [
+      ...Object.entries(state.voters),
+      // the nightly samples (D397), where no live list was fetched for the question
+      ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
+      ...Object.entries(state.cityVoters),
+    ];
     for (const [qid, rows] of pools) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
@@ -3967,9 +6121,15 @@ const LIVE = {
   // into no breakdown cell (D8).
   saveAnchors(next: Record<string, string>): void {
     const clean: Record<string, string> = {};
-    // Only the seven keys firestore.rules validates, trimmed and capped to
-    // its per-field lengths. Sending anything else fails the whole write,
-    // so the client must not rely on the server to reject the extras.
+    // Only the keys firestore.rules validates, trimmed and capped to its
+    // per-field lengths. Sending anything else fails the whole write, so
+    // the client must not rely on the server to reject the extras — and
+    // "the whole write" is the point: the rules refuse the DOCUMENT, so
+    // one over-long value does not lose a city, it loses the profile save
+    // with the display name in it.
+    //
+    // This said "the seven keys" while ANCHOR_FIELDS held ten. The count
+    // is check:figures' now, off that table.
     for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
       const v = next[k];
       if (typeof v !== "string") continue;
@@ -3977,14 +6137,43 @@ const LIVE = {
       if (t) clean[k] = t.slice(0, max);
     }
     state.profile.anchors = clean;
+    profileChanged();
     void (async () => {
       try {
         const db = await getDb();
         const uid = state.uid;
         if (!uid) return;
-        // merge:false on the nested map would drop the other profile
-        // fields, so the anchors map is replaced wholesale under a merge.
-        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { merge: true });
+        // `mergeFields`, NOT `merge: true`, and the difference is the
+        // whole reason the persona-residue heal exists twice.
+        //
+        // `merge: true` DEEP-MERGES a nested map: a key absent from
+        // `clean` is left standing on the server. So this write could add
+        // an anchor and change one, and could never REMOVE one — while the
+        // comment that used to sit here said the map was "replaced
+        // wholesale". Its one caller that removes keys is hydrate's
+        // persona-residue heal, which believed its repair was durable; the
+        // fabricated `profession` and `education` a pre-fix build wrote
+        // stayed on the world-readable profile permanently, and the heal
+        // re-fired on every cold boot forever without converging.
+        //
+        // `mergeFields: ["anchors"]` replaces the named field entirely and
+        // leaves every other profile field alone — which is what the old
+        // comment described and the old call did not do. It still upserts,
+        // so a first save on a profile document that does not exist yet
+        // behaves as before. Verified against the emulator both ways.
+        //
+        // TWO GUARDS, because the first one alone was not what its own
+        // commit claimed. firestore-tests/rules.test.ts proves what
+        // FIRESTORE does with each option — it hand-writes the two calls
+        // and reads them back — and says nothing about what this caller
+        // asks for: reverting this line left every test green. The pin
+        // that bites is in data/vote.test.ts, on the options object this
+        // write passes.
+        //
+        // (setPoliticalConsent, a few lines down, already knew: it uses
+        // deleteField() precisely because a merge cannot take something
+        // away.)
+        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { mergeFields: ["anchors"] });
       } catch (err) {
         reportError(err, { where: "saveAnchors" });
       }
@@ -3993,18 +6182,130 @@ const LIVE = {
   },
   // Test results survive devices: mirrored onto the owner-only profile
   // doc whenever the local persistence runs (test-definitions.js).
+  /**
+   * Is the political coordinate allowed to be computed and published?
+   * The UI's read of the toggle; the fold's own check is in
+   * syncPassiveResults.
+   */
+  politicalConsented(): boolean {
+    return mayPublishPolitical(state.profile);
+  },
+  /**
+   * Has this account ANSWERED the ask — either way?
+   *
+   * Not the same question as `politicalConsented`, and the setup screen
+   * needs both. It seeded its two buttons from consent alone, so a person
+   * who tapped "Not these" came back to a screen with NEITHER marked:
+   * their refusal was invisible to the screen built to honour it, and the
+   * comment above that seed says exactly why that is wrong — "a refusal
+   * quietly becomes a nag".
+   *
+   * `false` means ask. A stale consent version means ask too, which is
+   * the other half `POLITICAL_CONSENT_VERSION` was written for.
+   */
+  politicalAnswered(): boolean {
+    return hasAnsweredPoliticalAsk(state.profile);
+  },
+  /**
+   * Set — or withdraw — the political consent (D331).
+   *
+   * TWO WRITES, AND THE SECOND IS THE POINT. Recording the decision is the
+   * easy half; turning it OFF has to also delete the coordinate already
+   * sitting on a world-readable profile, or the control is a lie about
+   * data that is still out there. `deleteField()` rather than writing
+   * null, because a null is a value a defensive reader could still parse
+   * and `parseTestResults` would rather see the key gone.
+   *
+   * One `setDoc(merge)` so a failure cannot land the record without the
+   * deletion — the state that would tell the user they are private while
+   * the compass is still published.
+   *
+   * Local state moves FIRST so the screen reflects the decision even if
+   * the network is down; the write is retried by nothing, deliberately —
+   * the next boot re-reads the server and the toggle shows the truth
+   * rather than an optimistic lie.
+   */
+  async setPoliticalConsent(on: boolean): Promise<void> {
+    const rec = politicalConsentRecord(on, Date.now());
+    state.profile.consent = { ...state.profile.consent, political: rec };
+    if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
+    profileChanged();
+    publishTestResults();
+    // A WITHDRAWAL IS ONE WRITE, STILL — it just runs on the server now.
+    // `testResults` became server-only (D431: rules cannot bound a nested
+    // map's size), and splitting this into a client consent merge plus a
+    // callable removal would have reintroduced exactly the state this
+    // method was built to make impossible: a profile still publishing the
+    // coordinate behind a switch reading "off". So the record travels WITH
+    // the removal and `saveTestResultV2` lands both in one `set`.
+    //
+    // Granting is unchanged and stays a client write: it touches no test
+    // result, so there is nothing to keep atomic with it.
+    if (!on) {
+      if (!state.uid) return;
+      await callable("saveTestResultV2", {
+        kind: POLITICAL_RESULT_KEY,
+        result: null,
+        politicalConsent: rec,
+      });
+      // No re-fold on the way out: the withdrawal's whole point is that
+      // nothing is computed from here. The grant arm below re-folds, for
+      // the D277 reason its own comment gives.
+      return;
+    }
+    const db = await getDb();
+    const uid = state.uid;
+    if (!uid) return;
+    await setDoc(
+      doc(db, "v2_users", uid),
+      {
+        // A MERGE ON A NESTED MAP MERGES ITS FIELDS. `off` is present-or-
+        // absent by design (politicalConsent.ts says why, and it is a good
+        // reason), so the record for a grant simply omits it — and omitting
+        // a field in a merge does not remove it. A withdrawal followed by a
+        // re-grant therefore left the earlier `off` sitting on the server;
+        // `mayPublishPolitical` reads it and returns false, so the consent
+        // could be withdrawn and never granted again. It LOOKED like it
+        // worked, because the local copy above replaces `political`
+        // wholesale — until the next hydrate read the stored record back.
+        //
+        // Removed explicitly, with the same `deleteField()` this write
+        // already uses one line down for the published coordinate.
+        consent: { political: on ? { ...rec, off: deleteField() } : rec },
+      },
+      { merge: true },
+    );
+    // Consenting does not wait for the next answer: the fold re-runs now,
+    // so an account that already cleared the threshold gets its coordinate
+    // on the tap rather than on the next card (the D277 argument, one
+    // gate over).
+    if (on) this.syncPassiveResults();
+  },
   saveTestResult(kind: string, result: unknown): void {
     state.profile.testResults[kind] = result;
+    // Mirrored, not counted as an edit (profileChanged): this is written
+    // by the passive fold as much as by a person, and a fold that ran
+    // while the boot's profile read was in flight must not make the boot
+    // discard the read.
+    saveOwnProfile();
+    // THROUGH THE SERVER, because rules cannot bound this field's SIZE.
+    // `v2_users` is world-readable and voters.ts fetches thirty of them
+    // whole per query, so a megabyte parked here is a megabyte every
+    // reader downloads — and rules have no quantifier over a list, so
+    // `dims[i].label` cannot be bounded by any `allow` clause. D429
+    // bounded which KEYS may appear and said the size was its own
+    // increment; this is that increment. `saveTestResultV2` validates
+    // every field and rebuilds the value, and the rules now refuse a
+    // client write to `testResults` outright.
+    //
+    // The local mirror above is written FIRST and unconditionally, so the
+    // screen does not wait on the network and an offline fold still shows
+    // its result. `syncPassiveResults` re-attempts on the next hydrate,
+    // which is what makes a dropped call recoverable rather than lost.
     void (async () => {
       try {
-        const db = await getDb();
-        const uid = state.uid;
-        if (!uid) return;
-        await setDoc(
-          doc(db, "v2_users", uid),
-          { testResults: { [kind]: result } },
-          { merge: true },
-        );
+        if (!state.uid) return;
+        await callable("saveTestResultV2", { kind, result });
       } catch (err) {
         reportError(err, { where: "saveTestResult" });
       }
@@ -4056,6 +6357,68 @@ const LIVE = {
       for (const kind of CORE_TEST_KINDS) {
         const def = defs[kind];
         if (!def) continue;
+        // D331. The political coordinate is COMPUTED only with consent —
+        // not computed and hidden. `passiveResult` writes to a profile any
+        // signed-in user can read, so a fold that ran and a screen that
+        // declined to draw it would publish the thing anyway, which is the
+        // D327 failure and is not what a toggle means.
+        //
+        // The default is off (politicalConsent.ts), so this also closes
+        // the window between install and the ask: an account that has not
+        // answered yet publishes no political position rather than a
+        // smaller one.
+        if (kind === POLITICAL_RESULT_KEY && !mayPublishPolitical(state.profile)) {
+          // …and REMOVE what a pre-gate build already published.
+          //
+          // Skipping the fold stops a new coordinate being computed. It
+          // does nothing about the one that is already sitting on the
+          // world-readable profile: `testResults.political` has published
+          // since D277, D331 added the gate, and consent defaults to OFF —
+          // so on upgrade every existing account read "Off. Your answers
+          // still count; no political profile is built from them" on the
+          // account row while its six-axis coordinate was still there, and
+          // still joined by voters.ts's parseTestResults.
+          //
+          // Nothing else could take it away. The only deleter is
+          // setPoliticalConsent(false), and the panel renders its "Turn
+          // off" control ONLY when consent is already on — so the sole
+          // route to removing the coordinate was to consent to it first.
+          //
+          // This is the failure the paragraph above names in its own
+          // words: "a fold that ran and a screen that declined to draw it
+          // would publish the thing anyway". The fold ran before the gate
+          // existed, which is the same state by a different route.
+          //
+          // Guarded on the key actually being present, so a boot with
+          // nothing to remove costs no write — this runs on every hydrate.
+          if (state.profile.testResults[POLITICAL_RESULT_KEY]) {
+            delete state.profile.testResults[POLITICAL_RESULT_KEY];
+            saveOwnProfile(); // the same rule as saveTestResult: not an edit
+            wrote = true;
+            // Through the callable, like every other write to this field
+            // (saveTestResult says why). `result: null` is its remove arm,
+            // and this site is the reason that arm exists: a coordinate a
+            // pre-gate build published has to come down, and the client can
+            // no longer take it down itself.
+            void (async () => {
+              try {
+                if (!state.uid) return;
+                await callable("saveTestResultV2", {
+                  kind: POLITICAL_RESULT_KEY,
+                  result: null,
+                });
+              } catch (err) {
+                // The local delete above stands either way, so the screen
+                // never shows a coordinate this account has not consented
+                // to. The next boot retries — this block runs on every
+                // hydrate — which is what makes a failed call a delay
+                // rather than a coordinate left standing.
+                reportError(err, { where: "syncPassiveResults.removePolitical" });
+              }
+            })();
+          }
+          continue;
+        }
         const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
         if (stored && !stored.passive) continue;
         const next = passiveResult(
@@ -4079,8 +6442,48 @@ const LIVE = {
       reportError(err, { where: "syncPassiveResults" });
     }
   },
+  // Apple's twin, and deliberately not a `provider` parameter on one
+  // method: the two differ only in which import they call, but a single
+  // entry point taking a string is one where a typo picks the wrong
+  // provider at runtime and the memo below still gets dropped. Two names,
+  // both pinned by vote.test.ts, is the cheaper shape.
+  // The email door. Three methods rather than one with a mode, for the
+  // reason linkApple gives above: a string parameter is a typo away from
+  // the wrong call, and these three differ in what they do to an existing
+  // session (create LINKS it, sign-in replaces it, reset touches nothing).
+  async emailSignIn(address: string, password: string): Promise<void> {
+    await emailSignIn(address, password);
+  },
+  async emailCreate(address: string, password: string): Promise<void> {
+    await emailCreate(address, password);
+    // Same reason as the two social doors: the account just gained an
+    // identity provider, which is what accountLevel.ts grades on.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
+  },
+  async emailReset(address: string): Promise<void> {
+    await emailReset(address);
+  },
+  async linkApple(): Promise<void> {
+    await linkApple();
+    // Same reason as linkGoogle below: the account just gained an identity
+    // provider, which is what accountLevel.ts's level 2 grades on, and the
+    // activation memo would otherwise never look again.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
+  },
   async linkGoogle(): Promise<void> {
-    return linkGoogle();
+    await linkGoogle();
+    // The account just gained an identity provider, which is the fact
+    // accountLevel.ts's level 2 is graded on. Activation memoizes per uid
+    // and would otherwise never look again, so drop the memo and let the
+    // next boot re-grade. Here rather than at the two call sites (the
+    // settings row and the first-launch gate) so neither can forget it.
+    //
+    // After the await: a failed link must not clear a settled memo, since
+    // nothing about the account changed.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
   },
   // The operator seed, reachable from a browser console.
   //
@@ -4198,6 +6601,27 @@ const LIVE = {
       /* session may already be invalid — reload handles the rest */
     }
   },
+  /**
+   * Drop the half-made account behind the wall and start the doors again.
+   *
+   * THE TRAP THIS EXISTS FOR. A password account is created before its
+   * address is confirmed, so a typo produces a real account, on a real
+   * uid, whose verification mail went to somebody else — and the reset
+   * link that is the only other way in goes to the same wrong inbox.
+   * Without this the gate is a locked room: relaunching keeps the session
+   * (there IS a user, so refreshLive does not sign in again), so the
+   * screen would come back forever.
+   *
+   * Signing out is the whole mechanism: the auth observer sees the null
+   * user and mints a fresh anonymous session (D3), which puts `linked`
+   * and `needsEmailVerify` back to false and the door back on screen.
+   * Nothing is deleted — the abandoned account still exists, unverified
+   * and unreachable, which is the correct outcome for an address its
+   * owner never confirmed.
+   */
+  async abandonSignIn(): Promise<void> {
+    await googleSignOut();
+  },
   // read-only views for the Map/Mirror hydration (daily-questions.js)
   dailyBank(): Array<{ id: string; prompt: string }> {
     return state.questions.map((q) => ({ id: q.id, prompt: q.prompt }));
@@ -4261,6 +6685,10 @@ const LIVE = {
    * does not belong in this walk.
    */
   placeAsks(scope: string): Array<{ id: string; text: string; optionCount: number }> {
+    // Over the rows this device HOLDS, which since D384 is a page of the
+    // pool rather than the surface. The document stays the authority on
+    // `active` and on whether it still names this scope: the published
+    // list is a night old and a console edit is not.
     return state.questions
       .filter((q) =>
         q.active !== false && q.type === "rating" && q.rates === scope
@@ -4270,6 +6698,27 @@ const LIVE = {
         text: q.prompt,
         optionCount: (q.options || []).length,
       }));
+  },
+  /**
+   * How many asks this scope still holds for this account — the number
+   * the lens prints as "N more after these" (D384).
+   *
+   * SEPARATE FROM `placeAsks` BECAUSE THE TWO ANSWER DIFFERENT QUESTIONS
+   * once the pool is paged: that one returns what can be DRAWN (documents
+   * in hand), this one what EXISTS (the published ids minus this
+   * account's votes). Before the split the lens counted the array and was
+   * right by accident, because the array was the whole surface; a bounded
+   * fetch would have quietly turned that sentence into an undercount —
+   * "2 more after these" on a stop holding forty.
+   *
+   * Falls back to the drawn rows when nothing is published (a demo build,
+   * a project whose nightly fold has not run), where they are the same
+   * thing.
+   */
+  placeAskTotal(scope: string): number {
+    const pool = dailyRatesPool?.[scope];
+    if (!pool) return LIVE.placeAsks(scope).length;
+    return pool.filter((qid) => state.votes[qid] === undefined).length;
   },
   /**
    * The core feed questions with a published aggregate, as the same view
@@ -4312,8 +6761,37 @@ const LIVE = {
    * data only (D166 §1), so a build with no fit behind it has no gate to
    * open.
    */
+  /** The viewer's answers as option indexes over the fit's whole corpus —
+   * the Oracle's and the People lens's evidence (D396). Empty in a demo
+   * build, like every other reading the Patterns tab takes. */
+  answeredIndex(): Record<string, number> {
+    if (!this.enabled || torndown) return {};
+    return answeredIndex();
+  },
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
+    // …and NOTHING once the account is going away. `torndown` is
+    // deleteAccount's first statement (and is unlatched again when the
+    // delete could not start), so this is exactly "there is no account
+    // here any more".
+    //
+    // Without it the purge undoes itself, in one turn and by design:
+    // deleteAccount calls purgeLocalTrace(), which removes the earned key
+    // and dispatches `insight:local-purge`; the shell's usePatternsTab
+    // hears that and setOpen(false); the effect re-runs on the changed
+    // `open` and immediately re-asks `patternsEarned(LIVE.patternsSignal())`
+    // — and the signal is still the DELETED account's, because
+    // `state.votes` is not emptied until the sign-out two statements later
+    // propagates to resetForNewUid. So the key is written straight back and
+    // the tab reopens, and the next fresh anonymous session on this device
+    // inherits a tab it never earned. That is the exact thing D265 says the
+    // purge is the only thing that closes, and has to be.
+    //
+    // patternsReady's own note reasons this cannot happen — correctly, but
+    // only about the UID-CHANGE path, where resetForNewUid empties the vote
+    // mirror before the event goes out. The two paths do not share that
+    // order; that note now says so.
+    if (torndown) return {};
     return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine: patternsMine() };
   },
   // ── Learn (D32) ──
@@ -4406,21 +6884,43 @@ const LIVE = {
   learnAgg(cardId: string): AggDoc | null {
     const qid = "learn-" + cardId;
     if (qid in state.learnAggs) return state.learnAggs[qid];
-    state.learnAggs[qid] = null;
+    // A read already in the air. Returning early is also what keeps one
+    // fetch per card: the cache used to be pre-filled with null for that
+    // job, which is what collapsed in-flight into fetched-absent.
+    if (state.learnAggPending[qid]) return null;
+    state.learnAggPending[qid] = true;
     void (async () => {
       try {
         const db = await getDb();
         const snap = await getDoc(doc(db, "v2_question_aggs", qid));
-        if (snap.exists()) {
-          state.learnAggs[qid] = snap.data() as AggDoc;
-          notify();
-        }
+        // A MISSING DOCUMENT IS AN ANSWER: nobody has answered this card.
+        // Caching that null is what lets the caller say so, and it is a
+        // different fact from the one above.
+        state.learnAggs[qid] = snap.exists() ? (snap.data() as AggDoc) : null;
       } catch (err) {
-        // Leave the null cache entry: the estimate stays up, labeled.
+        // Deliberately NOT cached: a read that failed is not a fact about
+        // the card, and leaving the key unset lets a later render try
+        // again. The comment here used to say "the estimate stays up,
+        // labeled" — D149 removed the estimate from live builds, so on
+        // error the card said nobody had answered, permanently.
         reportError(err, { where: "learnAgg", qid });
+      } finally {
+        delete state.learnAggPending[qid];
+        notify();
       }
     })();
     return null;
+  },
+
+  /**
+   * Is this card's aggregate still being read?
+   *
+   * The one thing a caller cannot tell from `learnAgg` alone, and the
+   * difference between "nobody has answered this" and "we have not looked
+   * yet". Callers render the first as a fact and the second as a wait.
+   */
+  learnAggLoading(cardId: string): boolean {
+    return !!state.learnAggPending["learn-" + cardId];
   },
   /**
    * The viewer's own first try on this card, and whether the cached
@@ -4452,29 +6952,52 @@ const LIVE = {
   async loadLearnAggs(cardIds: readonly string[]): Promise<void> {
     if (!this.enabled) return;
     const want = [...new Set(cardIds.map((id) => "learn-" + id))]
-      .filter((qid) => !(qid in state.learnAggs));
+      .filter((qid) => !(qid in state.learnAggs) && !state.learnAggPending[qid]);
     if (!want.length) return;
-    // Claimed before the await so a second plan build in the same tick
-    // does not re-request the same ids.
-    for (const qid of want) state.learnAggs[qid] = null;
+    // CLAIMED AS PENDING, NOT AS NULL — the same correction `learnAgg`
+    // above got, applied to the path the feed actually calls.
+    //
+    // This pre-filled the cache with null, exactly as `learnAgg` used to,
+    // and for the same stated reason: to stop a second plan build in the
+    // same tick re-requesting the same ids. That claim collapses "we have
+    // not looked yet" into "nobody has answered", and `learnAggLoading`
+    // stayed false throughout — so the fourth source `'loading'` that was
+    // added for this was unreachable on the feed's own route, which is
+    // the route every learn card is drawn on.
+    //
+    // The failure case is worse than the wait. The nulls used to STAND
+    // after a dropped request, so one failed batch made every card in it
+    // say nobody had answered — for the rest of the session, even once
+    // the network came back. A read that failed is not a fact about the
+    // card; the key is left unset so a later render tries again.
+    for (const qid of want) state.learnAggPending[qid] = true;
     try {
       const db = await getDb();
       const chunks: string[][] = [];
       for (let i = 0; i < want.length; i += 30) chunks.push(want.slice(i, i + 30));
       const snaps = await Promise.all(chunks.map((chunk) =>
         getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
-      let found = 0;
+      const seen = new Set<string>();
       for (const snap of snaps) {
         for (const d of snap.docs) {
           state.learnAggs[d.id] = d.data() as AggDoc;
-          found++;
+          seen.add(d.id);
         }
         state.stats.aggsFetched += snap.size;
       }
-      if (found) notify();
+      // A MISSING DOCUMENT IS AN ANSWER — nobody has answered this card —
+      // and it is a different fact from the read being in flight. Cached
+      // as null here, once the batch has come back, rather than before it
+      // went out.
+      for (const qid of want) if (!seen.has(qid)) state.learnAggs[qid] = null;
     } catch (err) {
-      // The null entries stand: the estimate renders, labeled as one.
+      // Deliberately NOT cached, `learnAgg`'s rule: a read that failed is
+      // not a fact about the card, and leaving the keys unset lets a later
+      // render try again.
       reportError(err, { where: "loadLearnAggs" });
+    } finally {
+      for (const qid of want) delete state.learnAggPending[qid];
+      notify();
     }
   },
   enabled: false,
@@ -4509,8 +7032,14 @@ const LIVE = {
   get bootError(): string {
     if (state.bootError) return state.bootError;
     // Composed at read time so the label tracks the stage instead of
-    // freezing at whatever was true when the render race ended.
-    if (state.raceLost) {
+    // freezing at whatever was true when the render race ended — and only
+    // while the network is still unheard from. `raceLost` is never cleared
+    // (a reconnect can still show what the first attempt hit), so without
+    // the `attached` half this read "still connecting" for the rest of a
+    // session that had long since attached; invisible while the only
+    // reader sat behind demoInProd, and wrong the moment the stale banner
+    // (D356) started reading it on a live screen.
+    if (state.raceLost && !state.attached) {
       return state.bootStage
         ? `still connecting — ${state.bootStage}`
         : "still connecting";
@@ -4520,6 +7049,17 @@ const LIVE = {
   get ready() {
     return state.ready;
   },
+  // The network boot has completed this session (D356). `ready` can be
+  // true before this on a device with a cache — see the state comment.
+  get attached() {
+    return state.attached;
+  },
+  // What is on screen came off this device's caches and the server has not
+  // confirmed it yet: a warm paint whose reconcile is still running, or
+  // failed. The daily's banner reads it together with `bootError`.
+  get stale() {
+    return state.warm && !state.attached;
+  },
   get uid() {
     return state.uid;
   },
@@ -4528,6 +7068,33 @@ const LIVE = {
   // opposite unconditionally.
   get linked() {
     return state.linked;
+  },
+  // The wall is passed when the session is linked AND nothing is waiting on
+  // an inbox. Two flags rather than one so the gate can say WHICH it is:
+  // "sign in" and "confirm your address" are different screens, and a
+  // single `passed` boolean would leave the screen guessing.
+  get needsEmailVerify() {
+    return state.needsEmailVerify;
+  },
+  get accountEmail() {
+    return state.accountEmail;
+  },
+  async sendVerification(): Promise<void> {
+    await sendVerification();
+  },
+  // Clicking a link in an inbox changes nothing on THIS device, so the only
+  // way to learn about it is to ask the server; `reload()` does. The flag
+  // is then written here rather than left to the auth observer: reload()
+  // notifying its listeners is an SDK implementation detail, and a gate
+  // that stayed up because it did not would be the bug this whole path
+  // exists to avoid.
+  async refreshVerification(): Promise<boolean> {
+    const verified = await refreshVerification();
+    if (verified && state.needsEmailVerify) {
+      state.needsEmailVerify = false;
+      notify();
+    }
+    return verified;
   },
   subscribe(fn: () => void): () => void {
     listeners.add(fn);
@@ -4549,9 +7116,11 @@ const LIVE = {
     return state.deckIds
       .map((qid, back) => {
         const q = dailyById(qid);
-        // `active` is checked HERE, not when the bank is split — see the
-        // tombstone note in hydrate(). A retired question drops out of the
-        // pager without moving the days around it.
+        // `active` is checked HERE, not when the daily lane is split — see
+        // the tombstone note in publishBank(). A retired question drops out
+        // of the pager without moving the days around it. Both halves are
+        // pinned together in warm-boot.test.ts: dropping either one is the
+        // cheapest way to satisfy the other.
         return q && q.active !== false ? buildS(q, back) : null;
       })
       .filter((s): s is LiveQuestion => !!s);
@@ -4561,16 +7130,21 @@ const LIVE = {
   },
   /**
    * Crossroads' stories with their folded ending counts (D136), or an empty
-   * list in a demo build — which is the signal spec/paths-card.jsx reads to
-   * fall back to its own authored pool.
+   * list in a demo build. Since D341 the CARD no longer reads this — a
+   * story rides WORLD_FEED_QS like any other feed question and the card
+   * receives it as a prop — so the one caller left is the Map's Walks
+   * branch (paths-card.jsx pathsMapTree), which needs every story whatever
+   * the feed's filters are showing.
    *
    * Folded ON CALL rather than precomputed into state by buildFeedGlobals,
    * which is where it started. The precomputed version cost ~1 KB of the
    * EAGER graph — this file is in the first-paint chunk — and check:bundle
-   * refused it, correctly: MAX_EAGER_KB has no headroom and is the constant
-   * keeping the Firestore SDK out of first paint, so it is not raiseable.
-   * There is one caller and it renders once per feed render, so the fold is
-   * cheaper here than the bytes were there.
+   * refused it at the time: MAX_EAGER_KB had no headroom then. D341's feed
+   * arm in buildFeedGlobals is not that trade re-taken: pool membership
+   * needs the mapped item either way, the ceiling has headroom today, and
+   * check:bundle graded it. THIS accessor stays on-call because its caller
+   * is a lazy tab that most sessions never open, and a fold nobody asked
+   * for is free only until it isn't.
    */
   pathQs(): LivePathQ[] {
     return state.feedBank
@@ -4779,6 +7353,19 @@ const LIVE = {
     const aid = `${baseQid}_${day}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // UNFOLDED UNTIL THE TRIGGER SAYS OTHERWISE — the store's own
+    // convention, and this was the ONE vote path that skipped it. `vote`,
+    // `editVote`, the catalog write and the rank write all set it; the
+    // pulse write set `state.votes` and stopped, so nothing downstream
+    // could tell that today's published aggregate predates your answer.
+    // The pulse card then read the raw document and reported a crowd you
+    // were not in — "0% of 4 answers today" under "you · Brisk", on the
+    // very answer it was reporting. The existing clears (the settle pass
+    // and the snapshot reconcile) key on the document id, and a pulse
+    // answer is an ordinary answer document, so nothing new has to unset
+    // it.
+    state.unaggregated[aid] = optionIdx;
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4793,12 +7380,73 @@ const LIVE = {
           anchors: answerAnchors(),
         });
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        // `rollbackPending` rather than the two lines this used to hold:
+        // it is, in its own comment, "the one copy of what a refused
+        // answer has to undo", and this path had drifted from it. Once
+        // this write started marking the answer unfolded — so today's
+        // crowd could count the reader in — the hand-rolled undo was
+        // incomplete, and nothing else clears a pulse id: the store's two
+        // clears iterate AGGREGATE documents fetched through its own
+        // drains, and pulse aggregates are fetched by `data/pulse`
+        // instead. So a refused write left the mark set for the session
+        // and the reveal added a vote nobody cast, to an option nobody
+        // chose. The extra deletes are no-ops here (this path never sets
+        // `inflight`, and a pulse id is not in the feed mirror), which is
+        // the argument for using the shared copy rather than curating a
+        // second list of what to undo.
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "votePulse", qid: aid });
       }
     })();
+  },
+  /**
+   * Today's pulse answer while it is NOT yet in the published aggregate —
+   * the option index, or null once the fold has counted it.
+   *
+   * Read by `data/pulse` so today's crowd can include the reader the same
+   * way `pickCanon` already includes an unfolded pick: once the trigger
+   * folds it the published document counts it, so only `unaggregated`
+   * adds. Null rather than -1 so a caller that forgets the check draws
+   * nothing readable and fails a test rather than shifting every share by
+   * one (the D72 shape).
+   */
+  pulsePending(baseQid: string): number | null {
+    const aid = `${baseQid}_${utcDayKey(0)}`;
+    return aid in state.unaggregated ? state.unaggregated[aid] : null;
+  },
+  /**
+   * Your own vote on ONE question while it is not yet in the published
+   * aggregate — the option index, or null once the fold has counted it.
+   *
+   * The general form of `pulsePending` above, which is this read against
+   * the pulse's day-keyed id; `pickCanon` does the same inline for a
+   * catalogue board. An ordinary feed or daily answer's id IS its qid, so
+   * there is nothing to derive.
+   *
+   * WHY A READER EXISTS AT ALL. `countsFor` (data/deck.ts) subtracts the
+   * viewer's own vote back out of `o.count` only `if (!ctx.pending)`, so
+   * in the seconds between the write and the fold, a consumer that adds
+   * its own `+1` has counted the viewer while the published breakdown
+   * cells have not. That is the D365 mismatch, and every surface that
+   * folds a cohort needs to know which side of the fold it is on.
+   *
+   * Null rather than -1, the D72 shape: a caller that forgets the check
+   * draws nothing readable and fails a test, rather than shifting a share
+   * by one and looking plausible.
+   *
+   * WHAT THE NUMBER IS NOT. `unaggregated` is keyed by question for every
+   * kind of answer, and only `vote()` and its edit arm store an option
+   * index in it: `voteRank` stores a placeholder `0` it documents as
+   * unread, and `votePick` stores a catalogue key. So the PRESENCE of a
+   * key is the reliable half — has the fold counted this answer yet — and
+   * a caller that needs an option index must either know the question is
+   * an ordinary vote or carry its own. `feed-read.js` does the latter.
+   */
+  votePending(qid: string): number | null {
+    return qid in state.unaggregated ? state.unaggregated[qid] : null;
   },
   /** Every pulse day this device knows it answered: day → optionIdx.
    * Derived from the hydrated vote mirror, so a second device's answers
@@ -4838,6 +7486,7 @@ const LIVE = {
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     state.unaggregated[qid] = optionIdx;
+    markPending(qid, optionId);
     notify();
     void (async () => {
       try {
@@ -4871,6 +7520,7 @@ const LIVE = {
         // future boot with nothing left to reconcile it away.
         delete state.inflight[qid];
         cacheVote(qid, optionIdx);
+        clearPending(qid);
         // Counted on the ACK, not the tap: a refused create rolls the
         // optimistic state back below, and the tally should agree with
         // the server about what was answered (R2/D270).
@@ -4896,19 +7546,7 @@ const LIVE = {
       } catch (err) {
         // Write refused (rules/network): roll the optimistic state back.
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
-        delete state.votes[qid];
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            delete wf[qid];
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        rollbackPending(qid);
         notify();
         reportError(err, { where: "vote", qid });
       }
@@ -4931,6 +7569,7 @@ const LIVE = {
     state.votes[qid] = String(entity);
     state.inflight[qid] = true;
     state.unaggregated[qid] = entity;
+    markPending(qid, String(entity));
     notify();
     void (async () => {
       try {
@@ -4950,6 +7589,7 @@ const LIVE = {
         // phantom pick on every future boot.
         delete state.inflight[qid];
         cacheVote(qid, entity);
+        clearPending(qid);
         // …and the same two seams vote() stamps on ITS ack (R2/D270,
         // R4/D271). They were missing here, and the shape of the gap is
         // what made it invisible: the world feed stamps `s` for every card
@@ -4963,19 +7603,7 @@ const LIVE = {
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {
-        delete state.votes[qid];
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            delete wf[qid];
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        rollbackPending(qid);
         notify();
         reportError(err, { where: "votePick", qid });
       }
@@ -5006,6 +7634,7 @@ const LIVE = {
     // counts array) — the KEY is the pending flag rankCrowdFor and the
     // agg refresh both key on, same lifecycle as every other vote.
     state.unaggregated[qid] = 0;
+    markPending(qid, order.join(","));
     notify();
     void (async () => {
       try {
@@ -5021,6 +7650,7 @@ const LIVE = {
         });
         delete state.inflight[qid];
         cacheVote(qid, order.join(","));
+        clearPending(qid);
         // The same two seams, for the same reason as votePick above — a
         // rank card is a feed card and is stamped `s` when it scrolls into
         // view, so without this its conversion reads as zero.
@@ -5029,19 +7659,7 @@ const LIVE = {
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {
-        delete state.votes[qid];
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            delete wf[qid];
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        rollbackPending(qid);
         notify();
         reportError(err, { where: "voteRank", qid });
       }
@@ -5079,6 +7697,7 @@ const LIVE = {
     // in the counts, no longer marked mine); the delayed refresh below
     // pulls the moved counts and settles it.
     state.unaggregated[qid] = optionIdx;
+    markPending(qid, optionId, true);
     notify();
     void (async () => {
       try {
@@ -5094,6 +7713,7 @@ const LIVE = {
         delete state.inflight[qid];
         state.editedAt[qid] = Date.now();
         cacheVote(qid, optionIdx); // keep the answers-cache mirror true to the doc
+        clearPending(qid);
         engagement.note("edits"); // acked, same rule as the create's count
         notify();
         scheduleAggRefresh(db, qid);
@@ -5101,26 +7721,13 @@ const LIVE = {
         // Refused (rules cooldown raced another device, network): restore
         // the previous option everywhere the optimistic flip reached. The
         // answers cache was never touched — it still mirrors the doc.
-        state.votes[qid] = prev;
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            // Through mirrorVoteValue, not Number(prev) directly: a dial's
-            // mirror entry is a VALUE, and restoring the bucket index here
-            // was D218's rarest door in. The raw drag the mirror held is
-            // gone (only the feed ever knew it) — the standing bucket's
-            // midpoint is the closest the doc can testify to.
-            const q = feedById(qid);
-            const mv = q ? mirrorVoteValue(q, prev) : null;
-            wf[qid] = mv != null ? mv : Number(prev);
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        // rollbackPending restores the feed mirror through mirrorVoteValue,
+        // not Number(prev) directly: a dial's mirror entry is a VALUE, and
+        // restoring the bucket index here was D218's rarest door in. The
+        // raw drag the mirror held is gone (only the feed ever knew it) —
+        // the standing bucket's midpoint is the closest the doc can
+        // testify to.
+        rollbackPending(qid, prev);
         notify();
         reportError(err, { where: "editVote", qid });
       }
@@ -5159,14 +7766,19 @@ function resetForNewUid(uid: string): void {
   state.unaggregated = {};
   state.editedAt = {};
   state.aggs = {};
+  state.overflowCells = {};
+  state.overflowLoaded = {};
   // Before the purge below: a vote ack still in flight must not file the
   // OLD account's answer into a store the new account's hydrate is about
   // to claim. hydrate re-sets it once the new uid's meta row is written.
   answersCacheOwner = null;
   state.groups = [];
   state.reveals = {};
+  state.revealKeys = {};
   state.revealHist = {};
   state.revealHistLoading = {};
+  state.revealHistLoaded = {};
+  state.duelCalls = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never
@@ -5181,6 +7793,7 @@ function resetForNewUid(uid: string): void {
   // held only to save reads, and nothing about it should outlive the
   // session that fetched it.
   state.voters = {};
+  state.voterSamples = {};
   state.votersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other
@@ -5210,6 +7823,7 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.kindredFailed = false;
   state.cityVoters = {};
   state.cityVotersAt = "";
   state.cityKindredLoading = false;
@@ -5217,6 +7831,7 @@ function resetForNewUid(uid: string): void {
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.
   state.testAggsLoaded = false;
+  state.testAggsFailed = false;
   state.circle = null;
   state.circleLoading = false;
   // The follow cache is the same graph one view over, and it is dropped
@@ -5239,12 +7854,19 @@ function resetForNewUid(uid: string): void {
   // class of leak resetForNewUid exists for.
   state.invites = [];
   state.invitesLoading = false;
-  state.profile = { displayName: "", handle: "", testResults: {}, anchors: {} };
+  state.profile = { displayName: "", handle: "", testResults: {}, anchors: {}, consent: {} };
   state.deckIds = [];
   state.deckDay = -1;
   state.ready = false;
+  state.attached = false;
+  state.warm = false;
+  warmDisk = null;
+  restoredPending.clear();
   state.sessionLost = false;
   state.uid = uid;
+  // After the uid: the gate's waiters proceed under the account they
+  // will be authenticated as.
+  endProvisional();
   purgeLocalTrace();
   // AFTER purgeLocalTrace: it reads the on-disk copy, which the purge has
   // just removed, so this publishes the empty state rather than re-seeding
@@ -5380,7 +8002,10 @@ function purgeLocalTrace(): void {
 // startAggPoll refreshes the whole deck and re-arms the timer on the new
 // day's question, so a rollover needs no separate teardown.
 async function resubscribeForToday(): Promise<void> {
-  if (torndown || !state.ready) return;
+  // `attached` rather than `ready` (D356): before the attach the boot
+  // itself is still the thing that will start the poll and the reveal
+  // listeners, and a second starter here would double them.
+  if (torndown || !state.attached) return;
   try {
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
@@ -5450,17 +8075,93 @@ export function refreshLive(): Promise<void> {
     // exotic one. Each stage is published before it is awaited.
     state.bootStage = "signing in";
     notify();
-    state.uid = await anonSignIn();
+    // THE WARM PAINT DOES NOT WAIT FOR THE SDK EITHER (D356). anonSignIn is
+    // the first thing that imports firebase — ~400 KB of Firestore and
+    // Auth to parse — and then the auth restore's own IndexedDB read; on a
+    // mid-range phone that pair is the longest LOCAL wait a warm boot has
+    // left, and none of it is needed to draw a deck the device already
+    // holds. So the sign-in is started, not awaited, and the disk is read
+    // beside it.
+    //
+    // The account the paint is for is the profile mirror's — the uid this
+    // device last confirmed — held PROVISIONALLY until auth speaks. Three
+    // ways that ends: auth restores the same uid (the common case; nothing
+    // to do), auth names a different one (the observer's existing reset
+    // path purges every trace and this boot continues cold for the new
+    // account — the one below is the belt for the ordering where the
+    // sign-in resolves before the observer has fired), or the sign-in
+    // fails (the deck stays, the last-sync pill says why, the next wake
+    // retries). What the mirror can name is only ever an account this
+    // device confirmed; a mismatch is a lost session, and the purge it
+    // now triggers is what D51 asks for and what the pre-D356 boot could
+    // not do, because it never knew the previous uid.
+    //
+    // First boot of the process only: a reconnect already has a confirmed
+    // uid and a deck on screen, and nothing here would add to either.
+    const signIn = anonSignIn();
+    // Observed at once: a rejection while the disk is still being read
+    // below would otherwise surface as an unhandled one before the
+    // `await` further down attaches. The await still rethrows.
+    signIn.catch(() => {});
+    if (!state.uid && !state.attached) {
+      const mirrorUid = ownProfileUid();
+      if (mirrorUid) {
+        beginProvisional(mirrorUid);
+        const disk = await warmFromDisk(mirrorUid);
+        if (state.uid === mirrorUid) warmDisk = { uid: mirrorUid, disk };
+      }
+    }
+    let uid: string;
+    try {
+      uid = await signIn;
+    } catch (err) {
+      if (state.uidProvisional) failProvisional(err);
+      throw err;
+    }
+    if (state.uid && state.uid !== uid) {
+      // The observer normally sees this first and resets; this is the
+      // same reset for the other ordering. resetForNewUid re-enters
+      // refreshLive, which joins THIS run — so the hydrate below is the
+      // new account's, over a purged disk.
+      resetForNewUid(uid);
+    }
+    state.uid = uid;
+    endProvisional();
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
     state.bootStage = "loading questions";
     notify();
-    await hydrate();
+    try {
+      await hydrate();
+    } catch (err) {
+      // The deck poll starts INSIDE hydrate since D356 — the moment there
+      // is a deck, beside the answers — so a boot that fails past that
+      // point (the answers reads are the unguarded ones) would otherwise
+      // leave a read-per-minute armed on a session that never attached.
+      // Before D356 the poll started after the answers block and this
+      // could not happen; the next successful refresh re-arms it.
+      stopAggPoll();
+      throw err;
+    }
     state.bootStage = "loading groups";
     notify();
     await hydrateSocial();
     state.bootStage = "";
     state.ready = true;
+    // The attach (D356): the network has been heard from this session. A
+    // warm paint that preceded it stops being stale here, and every
+    // re-entry point below (wake, resubscribe) keys on this rather than
+    // on `ready`, which the warm paint may have flipped an age ago.
+    state.attached = true;
+    state.warm = false;
+    // The deck poll, if nothing armed it: a hide during the boot's own
+    // deck read stops it before it arms (aggPollGen), and a foreground
+    // before the attach joins this boot instead of resubscribing — so
+    // without this the session attached with the counts frozen. Hidden,
+    // the next foreground's resubscribe arms it.
+    if (!aggPollTimer && !(typeof document !== "undefined" && document.hidden)) {
+      void startAggPoll();
+    }
     // fire-and-forget: reveal notifications on real devices (no-op on web).
     // Once per UID — re-registering on every reconnect would churn the
     // token array for no gain, but a new account needs its own.
@@ -5532,7 +8233,12 @@ function wake(): void {
   if (torndown) return;
   cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-  if (!state.ready) {
+  // `attached`, not `ready` (D356): a warm-painted session whose network
+  // phase failed — or is still running — is `ready` and must still get
+  // the full refresh here, which is the only path that retries the
+  // reconcile. refreshLive shares its in-flight promise, so a wake during
+  // a running boot joins it rather than starting a second.
+  if (!state.attached) {
     void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
     return;
   }
@@ -5605,6 +8311,24 @@ function detachIdleListeners(): void {
 // timer that is still armed looks identical to one that is not until
 // something asks. `tick()` runs exactly what the interval body runs, so a
 // test drives the real refresh path rather than a re-implementation of it.
+// For a test file's afterEach: every timer and every in-flight chain this
+// instance still holds becomes a no-op, the way deleteAccount's teardown
+// makes them. vi.resetModules() gives the next case a fresh instance but
+// does not stop the old one's 2.5 s aggregate re-read or a boot parked on
+// a gate — and those leaked into later cases' exact-set pins as reads
+// nobody issued (warm-boot.test.ts found it as a flake, D357).
+export function _teardownForTest(): void {
+  torndown = true;
+  stopAggPoll();
+  cancelIdleDetach();
+  cancelAggCache();
+  if (aggRefreshTimer) {
+    clearTimeout(aggRefreshTimer);
+    aggRefreshTimer = null;
+  }
+  pendingAggRefresh.clear();
+}
+
 export function _aggPollForTest(): { running: boolean; tick: () => Promise<void> } {
   return {
     running: aggPollTimer !== null,
@@ -5663,7 +8387,10 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       if (!uid) throw new Error("no session");
       await setDoc(doc(db, "v2_users", uid, "engagement", rollup.day), rollup);
     },
-    hasUid: () => !!state.uid,
+    // Confirmed, not provisional (D356): a rollup handed over while the
+    // uid is still the mirror's would clear its local copy on the way to
+    // a write the gate in getDb holds until the session is known.
+    hasUid: () => !!state.uid && !state.uidProvisional,
     build: typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0,
   });
   // A slow first paint is a boredom input like any other. Measured from
@@ -5693,8 +8420,9 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // so a Google-linked user was told "You're on an anonymous session" and
     // offered "Link Google", which then painted auth/provider-already-linked
     // into the panel. Fail-safe (it could only under-claim), but wrong on
-    // screen, and profile-overlay.jsx hardcodes the same sentence with no
-    // check at all.
+    // screen — and profile-overlay.jsx hardcoded the same sentence with no
+    // check at all until the D344 amendment wired its identity row to this
+    // flag.
     //
     // …and ANNOUNCE it when it changes (D134). The anonymous → Google
     // upgrade keeps the uid, so this callback set `linked` and then fell
@@ -5706,7 +8434,22 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // refreshes, and a notify per refresh is a re-render per refresh.
     const wasLinked = state.linked;
     state.linked = !!user && user.isAnonymous === false;
-    const linkedChanged = state.linked !== wasLinked;
+    // ONLY the password door needs this, and the condition says so rather
+    // than testing `!emailVerified` alone: Apple and Google both hand
+    // Firebase an address they have already verified, so a Google account
+    // whose flag is somehow false would otherwise be walled out of the app
+    // with no way to fix it — there is no verification mail to resend for
+    // a provider that does not use one. Someone who links BOTH keeps a
+    // verified address from the social side, and `emailVerified` is true,
+    // so this is false and they pass.
+    const wasNeeds = state.needsEmailVerify;
+    state.needsEmailVerify = !!user
+      && user.isAnonymous === false
+      && !user.emailVerified
+      && user.providerData.some((p) => p.providerId === "password");
+    state.accountEmail = (user && !user.isAnonymous && user.email) || null;
+    const linkedChanged = state.linked !== wasLinked
+      || state.needsEmailVerify !== wasNeeds;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);
@@ -5718,7 +8461,11 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       return;
     }
     if (linkedChanged) notify();
-    if (!next && state.uid) {
+    // While the uid is the mirror's (D356), a null state is the SDK
+    // reporting "no restored session yet" on the way to refreshLive's own
+    // sign-in — the recovery below would start a SECOND anonymous sign-in
+    // beside it and mint two accounts.
+    if (!next && state.uid && !state.uidProvisional) {
       // Session lost. Deliberately do NOT flip enabled=false: the deck and
       // the bank on screen are still valid, and blanking to demo data is a
       // worse lie than a stale-but-true view. Anonymous-first means we can
@@ -5730,6 +8477,13 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         void anonSignIn()
           .then((uid) => {
             state.sessionLost = false;
+            // One attempt per LOSS, not one per process. The latch is
+            // there so a session that dies the instant it is minted does
+            // not spin; clearing it on success restores the guarantee its
+            // comment claims — a second, later loss (a deliberate sign-out
+            // at the wall, a revoked token) was silently unrecoverable
+            // while this stayed true for the life of the app.
+            sessionRecoveryTried = false;
             if (uid !== state.uid) resetForNewUid(uid);
             else notify();
           })
@@ -5741,6 +8495,14 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // Guarded for the node-environment unit tests, which run without a DOM.
   if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
     window.addEventListener("online", wake);
+    // A push that arrived while the app was OPEN (data/push.ts, ROUNDS-PLAN
+    // §7.4): presented by nothing, handed here. A room's round and reveal
+    // are subscribed and need no help; an invitation is fetched, not
+    // subscribed, so the arrival is what refreshes it.
+    window.addEventListener("insight-push-received", (e) => {
+      const kind = String((e as CustomEvent<{ kind?: string }>).detail?.kind || "");
+      if (kind === "invite" || kind === "join-request" || kind === "join-approved") void SOCIAL.loadInvites();
+    });
   }
   if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
     document.addEventListener("visibilitychange", () => {
@@ -5788,15 +8550,18 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     notify();
     reportError(err, { where: "boot" });
   });
+  // THREE runners, not two (D356). The warm paint — hydrate publishing a
+  // deck off this device's caches — releases the render the moment it
+  // happens, which on a returning device is before the first network
+  // read has been issued. The deadline is a plain timer rather than a
+  // rejection because it now has a second job below.
+  const deadline = new Promise<void>((resolve) => {
+    setTimeout(resolve, timeoutMs);
+  });
   try {
-    await Promise.race([
-      boot,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("live init timeout")), timeoutMs),
-      ),
-    ]);
+    await Promise.race([boot, paintable, deadline]);
   } catch {
-    /* logged above; timeout case logs here via the race rejection */
+    /* logged above */
   }
   // The race above only decides when to RENDER — boot keeps running, and
   // may still be running now. Say so rather than leaving the label blank:
@@ -5809,10 +8574,20 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // every reader takes for how long it has been stuck. `bootError` now
   // composes the live stage at read time; this only records that the race
   // was lost.
-  if (!LIVE.enabled && !state.bootError) {
+  //
+  // On the DEADLINE'S clock rather than the race's, because a warm paint
+  // wins the race in a few hundred milliseconds and the label is not
+  // about when the render happened — it is about the network still being
+  // unheard from after the same budget it always had. So: the same
+  // timeoutMs, and the same question, asked when it expires, whichever
+  // runner released the render. Keyed on `attached` rather than
+  // `enabled` for D356's reason: a warm-painted session is enabled and can
+  // still be waiting on the server.
+  void deadline.then(() => {
+    if (torndown || state.attached || state.bootError) return;
     state.raceLost = true;
     notify();
-  }
+  });
 }
 
 declare global {

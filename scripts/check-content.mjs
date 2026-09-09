@@ -21,6 +21,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAds, buildEntries, generate, loadContent, CATALOG_FILES, CONTENT_SOURCES, LENS_SCALE, LIKERT, PICK_SEQ_BASE, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -68,7 +69,12 @@ const ID_SHAPE = {
   // `test-<key>-NN`, and the lens items' `lq-<lens>-<N>` — UNPADDED,
   // because the client minted those ids before the items had a backend
   // (lens-defs.js) and devices hold local state keyed by them (D91).
-  test: /^(test-[a-z0-9]+-\d{2}|lq-[a-z]+-\d{1,2})$/,
+  //
+  // Two OR THREE digits on the core instruments' family since D416: each
+  // instrument's deep items (its facets' or positions') continue its own
+  // numbering past the core items — big5 runs 00–24 then 25–144 — so the
+  // hundreds arrived with them. Widening the shape touches no shipped id.
+  test: /^(test-[a-z0-9]+-\d{2,3}|lq-[a-z]+-\d{1,2})$/,
   learn: /^learn-[a-z0-9]+$/,
   // The daily pulse's TEMPLATE ids (D139). Answers are keyed
   // {baseQid}_{day} against these, so the shape is forever like all of
@@ -110,6 +116,60 @@ if ((seqByLane.get("feed") ?? 0) >= PICK_SEQ_BASE) {
 // (members fill them client-side); everything else needs 2..10 choices.
 const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+// THE SCALES, READ OFF THE CLIENT — the half this rule was missing.
+//
+// `LENS_SCALE` and `LIKERT` are imported from the GENERATOR, and
+// `buildEntries` in that same module ASSIGNS those very arrays as the
+// options (`options: LENS_SCALE`). So the per-question check below compared
+// an object with itself: every scale entry matched by identity, and the
+// rule could not fail. The comment above it says "Either drifting fails
+// here", and two more comments — in `spec/lens-defs.js` and
+// `test/lens-live.test.ts` — tell readers this drift is "drift-gated by
+// check:content".
+//
+// It was not. Flipping LENS_SCALE to disagree-first and regenerating leaves
+// this gate at exit 0 and the whole unit suite green, while the client's
+// own copy stays agree-first — at which point every stored `optionIdx` on a
+// lens question labels the opposite answer, and `world-feed`'s `4 - val`
+// store inversion goes with it.
+//
+// The client's lists are the independent source, parsed the way
+// check-anchors.mjs parses profile-vitals.js. A parse that finds nothing is
+// an ERROR rather than a skip: a gate that goes quiet when its input moves
+// is the same defect one level up.
+const scaleFrom = (file, name) => {
+  // COMMENTS BLANKED FIRST, because this takes the FIRST match and a
+  // retune's natural shape is to leave the old line above the new one:
+  //
+  //   // was: const SCALE = ['Strongly agree', …, 'Neutral', …];
+  //   const SCALE = ['Strongly agree', …, 'Neither', …];
+  //
+  // Measured on both halves — `SCALE` in spec/lens-defs.js and `SCALE5` in
+  // spec/daily-questions.js — the commented copy is what this read, so the
+  // drift the gate exists to catch passed. Three comments in the tree point
+  // readers at this gate as the drift gate ("drift-gated by
+  // check:content"). It is the one file the 2026-09-05 comment-stripping
+  // sweep missed; check-anchors, account-level-lib, check-figures,
+  // check-fn-runtime and check-monitoring all carry the identical fix.
+  const src = stripComments(readFileSync(resolve(root, file), "utf8"));
+  const m = src.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([^\\]]*)\\]`));
+  if (!m) {
+    errors.push(`${file}: could not read \`${name}\` — the scale gate has nothing to compare against`);
+    return null;
+  }
+  return [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
+};
+const clientLens = scaleFrom("src/v2/spec/lens-defs.js", "SCALE");
+const clientLikert = scaleFrom("src/v2/spec/daily-questions.js", "SCALE5");
+if (clientLens && !same(LENS_SCALE, clientLens)) {
+  errors.push("LENS_SCALE (gen-v2content.mjs) and SCALE (spec/lens-defs.js) disagree — "
+    + "a stored optionIdx on every lens question now means the opposite answer");
+}
+if (clientLikert && !same(LIKERT, clientLikert)) {
+  errors.push("LIKERT (gen-v2content.mjs) and SCALE5 (spec/daily-questions.js) disagree — "
+    + "a stored optionIdx on every scale question now means the opposite answer");
+}
 for (const q of entries) {
   if (!q.prompt || !q.prompt.trim()) errors.push(`${q.id}: empty prompt`);
   // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231):
@@ -165,8 +225,17 @@ for (const q of entries) {
     if (!s || typeof s !== "object" || Array.isArray(s)) {
       errors.push(`${q.id}: sponsor must be an object`);
     } else {
-      const extra = Object.keys(s).filter((k) => !["buyer", "audience"].includes(k));
-      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer and audience. No colour, no logo, no link`);
+      const extra = Object.keys(s).filter((k) => !["buyer", "audience", "link"].includes(k));
+      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer, audience and link. No colour, no logo, no creative`);
+      // The buyer's one link (D378): an https address, shown as its bare
+      // domain after a person has answered. Shape only — a committed
+      // sponsored question is a hand contract, and its link was read by
+      // a person; the self-serve path's is read by the review.
+      if (s.link !== undefined) {
+        let ok = false;
+        try { const u = new URL(String(s.link)); ok = u.protocol === "https:" && !u.username && !u.password && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(u.hostname); } catch { ok = false; }
+        if (!ok) errors.push(`${q.id}: sponsor.link must be one https address with a real site name — got ${JSON.stringify(s.link)}`);
+      }
       // The buyer NAME is the buyer's choice since D228 — individuals may
       // buy a question, and printing a person's name on every serve is
       // theirs to want or to refuse. What stays non-optional is the PAID
@@ -378,9 +447,20 @@ for (const q of entries) {
 }
 
 // ---- duplicate prompts within a surface read as the same question twice.
+// A retired entry (`active: false`) is not read at all, and its REPLACEMENT
+// carries the same prompt by design: a shipped dial's range is frozen with
+// its bucket labels (D114), so widening one means retiring the id and
+// appending a new one with the prompt unchanged (D358 did fourteen). The
+// retired entry stays in the bank — the seed and the deck read the flag
+// there — and stays out of this rule; check:neighbors makes the same
+// exclusion for the same reason.
 const promptsBySurface = new Map();
 for (const q of entries) {
-  const key = `${q.surface}\u0000${q.prompt}`;
+  if (q.active === false) continue;
+  // A cast round exists once per 1v1 POOL with the same prompt by design
+  // (D437): the friends and romantic pools are disjoint (`mode`), and a
+  // pair only ever draws from one of them — so the key carries the mode.
+  const key = `${q.surface}\u0000${q.topic === "cast" ? `${q.mode ?? ""}\u0000` : ""}${q.prompt}`;
   if (promptsBySurface.has(key)) {
     errors.push(`${q.id}: duplicate prompt within ${q.surface} (also ${promptsBySurface.get(key)})`);
   }
@@ -410,10 +490,111 @@ for (const q of entries) {
   }
 }
 
+// The seats a role is cast in and the axes a cast round names (D437) — the
+// two instruments' dims, closed here so a bank entry cannot invent one the
+// fold does not know (data/roles.ts reads both literally).
+const SEATS = ["engine", "hands", "heart", "wild"];
+const AXES = ["trust", "spark", "judgement", "constancy"];
+
 // ---- group kinds are a closed set (the reveal renders each differently).
+// `rate` joined at D434 (the owner's 2026-09-08 design): a five-step scale
+// between two poles, asked of the group about itself every fourth round.
+// Its shape is held here because the card and the fold both read it
+// literally — five options, two poles, or the ballot has no ends to draw.
+// A `pick` may carry the scenario pack and the role it casts, and a pack
+// without a role (or the reverse) is a half-tagged question nothing can
+// draw a kicker or a verdict for.
 for (const q of entries) {
-  if (q.surface === "group" && !["us", "pick", "classic"].includes(q.topic)) {
-    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic`);
+  if (q.surface !== "group") continue;
+  if (!["us", "pick", "classic", "rate"].includes(q.topic)) {
+    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic/rate`);
+  }
+  if (q.topic === "rate") {
+    if (!Array.isArray(q.poles) || q.poles.length !== 2 || q.poles.some((p) => typeof p !== "string" || !p.trim())) {
+      errors.push(`${q.id}: a rate question needs exactly two poles`);
+    }
+    if (!Array.isArray(q.options) || q.options.length !== 5) {
+      errors.push(`${q.id}: a rate question has five step labels, not ${Array.isArray(q.options) ? q.options.length : "none"}`);
+    }
+  } else if (q.poles !== undefined) {
+    errors.push(`${q.id}: poles on a ${q.topic} question — only a rate question has ends`);
+  }
+  if ((q.scen && !q.role) || (q.role && !q.scen)) {
+    errors.push(`${q.id}: a role vote carries both its pack (scen) and its role, or neither`);
+  }
+  if (q.scen && q.topic !== "pick") {
+    errors.push(`${q.id}: a scenario pack on a ${q.topic} question — only a pick casts a role`);
+  }
+  if (q.scen && (typeof q.scen.id !== "string" || typeof q.scen.label !== "string" || typeof q.scen.hue !== "number")) {
+    errors.push(`${q.id}: scen needs id, label and a numeric hue`);
+  }
+  if (q.role && (typeof q.role.id !== "string" || typeof q.role.label !== "string")) {
+    errors.push(`${q.id}: role needs id and label`);
+  }
+  // The SEAT (D437): what a member's received votes cluster into, so a
+  // role without one is a vote the instrument cannot count.
+  if (q.role && !SEATS.includes(q.role.seat)) {
+    errors.push(`${q.id}: role seat ${JSON.stringify(q.role.seat)} not ${SEATS.join("/")}`);
+  }
+}
+
+// ---- every pack is ONE role per seat (D437): the seats are what the group
+// instrument measures, and a pack with two hands and no heart would cast
+// its members into a seat nobody can earn there — which is exactly the
+// dead-axis shape D204 spent a release refusing. Over ACTIVE role votes:
+// a retired role is not dealt and its replacement carries the seat.
+{
+  const byPack = new Map();
+  for (const q of entries) {
+    if (q.surface !== "group" || !q.scen || !q.role || q.active === false) continue;
+    if (!byPack.has(q.scen.id)) byPack.set(q.scen.id, []);
+    byPack.get(q.scen.id).push(q);
+  }
+  for (const [pack, roles] of byPack) {
+    for (const seat of SEATS) {
+      const n = roles.filter((q) => q.role.seat === seat).length;
+      if (n !== 1) errors.push(`pack ${pack}: ${n} active roles in the ${seat} seat, want exactly one`);
+    }
+    // …and an id names ONE role within its pack: the Groups stop keys a
+    // role by (pack, id) — `groupCast.ts` — so a repeated id would fold two
+    // roles into one row and one satellite. Across packs an id may repeat.
+    const seen = new Map();
+    for (const q of roles) {
+      const prev = seen.get(q.role.id);
+      if (prev) errors.push(`pack ${pack}: role id ${JSON.stringify(q.role.id)} on ${prev} and ${q.id} — one role per id within a pack`);
+      else seen.set(q.role.id, q.id);
+    }
+  }
+}
+
+// ---- 1v1 domains are a closed set too (D386). The roles fold reads the
+// day's kind off this field — a `mirror` day is a read of the OTHER person
+// and is held apart from likeness and insight — so a 1v1 question with no
+// domain, or a new word nobody taught the fold, would be scored as
+// something it is not. Both pools, since they share the surface.
+// `cast` joined at D437 (the owner's 2026-09-09 design): the round that asks
+// what the other person is to you, one entry per pool, dealt every fourth
+// round. Its shape is held here because the card, the fold and the roles
+// instrument all read it literally — four answers, four *them* forms, four
+// axes from the instrument's closed set, and a prompt that carries the
+// `{name}` the card substitutes.
+const DUO_DOMAINS = ["day", "heat", "mirror", "ahead", "cast"];
+for (const q of entries) {
+  if (q.surface !== "duo") continue;
+  if (!DUO_DOMAINS.includes(q.topic)) {
+    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead/cast`);
+  }
+  if (q.topic === "cast") {
+    if (!Array.isArray(q.options) || q.options.length !== 4) errors.push(`${q.id}: a cast round has four answers`);
+    if (!Array.isArray(q.them) || q.them.length !== 4 || q.them.some((t) => typeof t !== "string" || !t.trim())) {
+      errors.push(`${q.id}: a cast round needs four them forms`);
+    }
+    if (!Array.isArray(q.dims) || q.dims.length !== 4 || q.dims.some((d, i) => d !== AXES[i])) {
+      errors.push(`${q.id}: a cast round's dims are ${AXES.join(" · ")}, in that order`);
+    }
+    if (!/\{name\}/.test(q.prompt)) errors.push(`${q.id}: a cast prompt carries {name}`);
+  } else if (q.them !== undefined || q.dims !== undefined) {
+    errors.push(`${q.id}: them/dims on a ${q.topic} question — only a cast round has them`);
   }
 }
 
@@ -424,6 +605,25 @@ for (const [key, t] of Object.entries(content.tests)) {
     if (q.test === key && !dims.has(q.axis)) {
       errors.push(`${q.id}: axis ${JSON.stringify(q.axis)} not a ${key} dimension`);
     }
+  }
+}
+
+// ---- deep items (D416) must name a facet their test declares, under the
+// axis they score. tests.json declares `facets` for exactly this check, the
+// way `dims` exists for the one above: a facet id the device's fold does
+// not know is a scored answer nobody can read, and a facet filed under the
+// wrong axis would fold an Anxiety answer into Extraversion.
+for (const [key, t] of Object.entries(content.tests)) {
+  const facets = new Map((t.facets || []).map((f) => [f.id, f]));
+  const dims = new Set(t.dims.map((d) => d.id));
+  for (const f of t.facets || []) {
+    if (!dims.has(f.d)) errors.push(`${key} facet ${f.id}: axis ${JSON.stringify(f.d)} not a ${key} dimension`);
+  }
+  for (const q of entries) {
+    if (q.test !== key || q.facet === undefined) continue;
+    const f = facets.get(q.facet);
+    if (!f) errors.push(`${q.id}: facet ${JSON.stringify(q.facet)} not declared by ${key}`);
+    else if (f.d !== q.axis) errors.push(`${q.id}: facet ${q.facet} belongs to ${f.d}, the item scores ${q.axis}`);
   }
 }
 
@@ -502,6 +702,13 @@ const NOT_SEEDED = {
     + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "
     + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
     + "held to shape by check:pricing; never an input to the bank",
+  "topic-proposals.json":
+    "the taxonomy ledger, not content (D424) — questions a lane met that "
+    + "fit no existing category, parked with their run dates so "
+    + "scripts/topic-budget.mjs can rule on whether the gap has become a "
+    + "category. Read by that regulator and validated by check:taxonomy; "
+    + "a parked question is a CANDIDATE and reaches no bank until the "
+    + "category is created and it is written into one",
   "learn-sample.json":
     "generated OUTPUT, not an input — the fixed slice of learn-questions.json "
     + "the JS bundle carries (D284: the whole bank used to be compiled in, and "
@@ -509,6 +716,14 @@ const NOT_SEEDED = {
     + "scripts/gen-learn-sample.mjs, imported by src/v2/spec/learn-data.js so "
     + "the demo build has cards, and held equal to its source by "
     + "check:learn-sample. It is emphatically not a second bank to edit",
+  "duel-sample.json":
+    "generated OUTPUT, not an input — the fixed slice of duel-questions.json "
+    + "the JS bundle carries (D435: the whole bank used to be compiled in "
+    + "under the 24 KiB cap below, and the daily burst was one run from "
+    + "crossing it). Written by scripts/gen-duel-sample.mjs, imported by "
+    + "src/v2/spec/duels-data.js so the demo build has duel questions, and "
+    + "held equal to its source by check:duel-sample. It is emphatically "
+    + "not a second bank to edit",
 };
 
 // ---- content COMPILED INTO THE CLIENT, and how much of it there may be.
@@ -529,8 +744,9 @@ const NOT_SEEDED = {
 // its subjects.
 //
 // What is NOT here is the whole point: daily, feed, test, pick, pulse,
-// call and lens content reach the client only through Firestore, and must
-// keep doing so. Adding a line here is the decision, not the paperwork.
+// call, lens and — since D435 — duel content reach the client only through
+// Firestore, and must keep doing so. Adding a line here is the decision,
+// not the paperwork.
 const BUNDLED_CONTENT = {
   "learn-sample.json": {
     maxKiB: 32,
@@ -552,14 +768,17 @@ const BUNDLED_CONTENT = {
       + "cohort. Crossing this means the card grew a per-day series or a "
       + "fourth cohort — reshape it, don't raise the cap",
   },
-  "duel-questions.json": {
-    maxKiB: 24,
+  "duel-sample.json": {
+    maxKiB: 16,
     why:
-      "the duel pools, read by spec/duels-data.js — the last bank still "
-      + "compiled in whole (D284 moved learn and left this one: a weekly "
-      + "lane at 14.6 KiB has years of slack). Crossing this is the signal "
-      + "to give it learn's treatment, a generated sample plus a live read, "
-      + "rather than to raise the number",
+      "the fixed slice of the duel bank the demo build needs (D435) — "
+      + "generated at PER_KIND questions a group kind and PER_DOMAIN a 1v1 "
+      + "domain plus the packs those votes name, so it grows with the number "
+      + "of KINDS and DOMAINS and never with the bank. Crossing this means a "
+      + "count crept or a kind arrived: re-derive the counts against the "
+      + "demo's needs rather than raising the cap. (This entry replaced "
+      + "duel-questions.json at 24 KiB, the last bank compiled in whole — "
+      + "which the daily burst was one run from crossing)",
   },
 };
 

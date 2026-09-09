@@ -31,6 +31,7 @@
 // same argument D160 made for drawing an empty field.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY, BUDGET_PAUSED_HEAD } from "../data/budgetMode";
 // The rings-and-you drawing every other stop shows when it is empty (D172).
 import EmptyField from "./EmptyField";
 import MirrorLensTabs from "./MirrorLensTabs";
@@ -57,6 +58,10 @@ const PeopleField = React.lazy(() =>
 // tapped.
 const CircleCompare = React.lazy(() => import("./LiveCompareLens"));
 
+/** Divisive-question rows the Answers tab draws. Named rather than a bare
+ *  `12` in the slice, because the caption beside it has to say the same
+ *  number and a second literal is how the two drift apart. */
+const ANSWER_ROWS = 12;
 const CL_LINE = "1px solid var(--rule)";
 
 /**
@@ -111,6 +116,12 @@ function LiveCircleBody() {
   if (loading && !members) {
     return <ClNote title="Loading your circle…">Reading their answers.</ClNote>;
   }
+  // Paused before failed (D332): with the breaker on, loadCircle refused
+  // rather than tried, and "couldn't load / it retries" would promise a
+  // retry that will keep refusing.
+  if (!members && LIVE.budgetPaused) {
+    return <ClNote title={BUDGET_PAUSED_HEAD}>{BUDGET_PAUSED_BODY}</ClNote>;
+  }
   if (!members) {
     // null after a settled load means the read failed — not that the
     // circle is empty. Saying "empty" here would tell someone with
@@ -133,17 +144,42 @@ function LiveCircleBody() {
   // things everyone answers the same way everywhere.
   const qs = LIVE.aggregated();
   const splits = qs.map((q) => ({ q, split: circleSplit(members, q.id, q.options.length) }));
-  const rows = splits
+  const ranked = splits
     .filter((r) => r.split.n >= 2)
     // divisiveness computed once per surviving row rather than inside the
     // comparator, where it would re-run O(n log n) times per render —
     // same reasoning (and measurement) as LiveCohortBody's sort.
     .map((r) => ({ ...r, d: divisiveness(r.split.counts) }))
-    .sort((a, b) => b.d - a.d || b.split.n - a.split.n)
-    .slice(0, 12);
+    .sort((a, b) => b.d - a.d || b.split.n - a.split.n);
+  const rows = ranked.slice(0, ANSWER_ROWS);
+  // A CAP THAT SAYS SO, which every sibling in this family already does —
+  // LiveAnswerRows offers "Show N more", the places field says "N more …
+  // placed further out than this field draws", and LiveGroupsMirrorBody
+  // writes the rule out: "a cap that silently eats rows reads as that is
+  // all of them". This one was the exception. The tab is labelled
+  // "Answers", so a circle with forty aggregated questions saw twelve and
+  // had no cue that the other twenty-eight existed or that the twelve
+  // were the most divided rather than all of them.
+  const hidden = ranked.length - rows.length;
 
   const myVotes = LIVE.myVotes();
   const mutuals = members.filter((m) => m.mutual).length;
+  // `mutual` is null when the followers read was REFUSED, which is not the
+  // same fact as nobody following you back — and the sentence below stated
+  // the second on the strength of the first, about other people, on a
+  // screen that never got an answer. The badge above needs no change: a
+  // null is falsy and drawing no badge is the safe direction. The sentence
+  // does, because it is the only place that turns the absence into a claim.
+  const mutualsKnown = members.every((m) => m.mutual !== null);
+
+  // The circle's SIZE, and how much of it this render could actually read.
+  // `follows` is set by loadCircle itself from the same `following` list
+  // the fold walked, so the two are consistent within a load; it falls
+  // back to the members it has where no follow cache exists at all, which
+  // is the pre-D149 shape and can only under-count, never invent.
+  const following = LIVE.follows();
+  const size = following ? following.length : members.length;
+  const unread = Math.max(0, size - members.length);
 
   // The "so what" line under the field (2026-08-24): the picture's two
   // extremes, said once. Names only — the ranking is the pct the People
@@ -167,11 +203,23 @@ function LiveCircleBody() {
   // everyone sits at the same likeness the old guard still crowned one
   // named person and told another they mirror you least, on identical
   // figures. groupPortrait's sibling sentence carries the same guard.
+  //
+  // And the LOW end is not the end of this sort. `rankMembers` orders by the
+  // Wilson lower bound, which is right for the top — that is the whole point
+  // of the line above — and wrong read backwards, because a bound pushes a
+  // thin sample down whatever it agreed on. One member at 1 of 1 is 100% and
+  // sorts LAST, so the sentence told them they mirror you least beside a
+  // field that draws them at the far edge of agreement. The low end is the
+  // lowest PRINTED likeness, and there is none when that is the top: nobody
+  // in the circle is further from you than the person called closest.
   const placed = rankMembers(members.filter((m) => m.like.shared > 0 && m.name));
-  const soWhat = placed.length >= 2
-    && placed[0].uid !== placed[placed.length - 1].uid
-    && placed[0].like.rate !== placed[placed.length - 1].like.rate
-    ? { top: placed[0], low: placed[placed.length - 1] }
+  const least = placed.length
+    ? placed.reduce((a, b) => (b.like.pct < a.like.pct ? b : a), placed[0])
+    : null;
+  const soWhat = placed.length >= 2 && least
+    && placed[0].uid !== least.uid
+    && least.like.pct < placed[0].like.pct
+    ? { top: placed[0], low: least }
     : null;
 
   /**
@@ -227,16 +275,40 @@ function LiveCircleBody() {
         <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 2 }}>
           {/* An empty circle keeps its header rather than being replaced by
               one — the stop has a name and a size, and "nobody yet" is a
-              true size. */}
-          {members.length
-            ? <>{members.length} {members.length === 1 ? "person" : "people"}</>
+              true size.
+
+              THE SIZE IS WHO YOU FOLLOW, NOT WHO COULD BE READ. This drew
+              `members.length`, and the fold drops anyone whose answers
+              read was REFUSED (data/circle.ts: `if (!answers) return`) —
+              so a circle of nine with four refusals read "5 people", and
+              one where every read failed read "Nobody yet" over people
+              you follow. The store already keeps the two apart for
+              exactly this reason: `loadCircle` sets the follow cache from
+              `following` and not from the survivors, with a note saying
+              that rebuilding it from `members` "turned a refused read
+              into an unfollow". The header was the last place still
+              doing it. */}
+          {size
+            ? <>{size} {size === 1 ? "person" : "people"}</>
             : <>Nobody yet</>}
         </div>
+        {unread > 0 && (
+          <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
+            {/* Said, not silently subtracted: the picture below is missing
+                these people, and a reader counting the dots against the
+                header deserves the reason rather than a discrepancy. */}
+            {members.length
+              ? <>{members.length} placed · {unread} couldn&rsquo;t be read just now</>
+              : <>Couldn&rsquo;t read anyone&rsquo;s answers just now — it retries next time you open this stop.</>}
+          </div>
+        )}
         {!!members.length && (
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
             {mutuals > 0
               ? <>By likeness · {mutuals} {mutuals === 1 ? "follows" : "follow"} you back</>
-              : <>By likeness · following is one-way, nobody is told</>}
+              : mutualsKnown
+              ? <>By likeness · following is one-way, nobody is told</>
+              : <>By likeness</>}
           </div>
         )}
       </div>
@@ -341,7 +413,17 @@ function LiveCircleBody() {
                 ? <>Fills in once two of them answer the same question.</>
                 : <>Fills in once two people you follow answer the same question.</>}
             </ClEmpty>
-          ) : rows.map(({ q, split }) => {
+          ) : <>
+            {hidden > 0 && (
+              <div style={{
+                fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600,
+                color: "var(--ink-3)", paddingBottom: 11,
+              }}>
+                The {rows.length} your circle splits on most — {hidden} more
+                {" "}answered here.
+              </div>
+            )}
+            {rows.map(({ q, split }) => {
             const pct = pctFor(split.counts);
             const mine = myVotes[q.id];
             const mineIdx = mine == null ? -1 : Number(mine);
@@ -371,7 +453,8 @@ function LiveCircleBody() {
                 </span>
               </div>
             );
-          })}
+            })}
+          </>}
         </div>
       )}
 

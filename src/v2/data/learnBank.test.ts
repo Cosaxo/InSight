@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { learnCards, publishLearnBank, resetLearnBank, subscribeLearnBank } from "./learnBank";
+import {
+  learnCards, learnFieldTotal, publishLearnBank, publishLearnTotals,
+  resetLearnBank, subscribeLearnBank,
+} from "./learnBank";
 
 const card = (id: string, f = "cell") => ({
   id, f, q: `Q ${id}`, a: ["A", "B", "C", "D"], c: 0, t: 1, p: 55, k: `k ${id}`,
@@ -67,5 +70,50 @@ describe("subscribeLearnBank", () => {
     subscribeLearnBank(ok);
     expect(() => publishLearnBank(LIVE)).not.toThrow();
     expect(ok).toHaveBeenCalled();
+  });
+});
+
+// The per-field card counts, and what "no order published" has to look
+// like to the sheet that draws them.
+//
+// `pageTotals` builds its map from the published order and returns `{}`
+// when there is no order at all — a fresh project, the first night after
+// a deploy, a failed fold — and the pager publishes whatever it got. `{}`
+// is truthy, so every field answered 0, and the caller's `?? pool.length`
+// fallback never fired because `0 ?? x` is 0. Every Learn field sheet read
+// "0 cards" while cards were being served: a zero standing in for "no
+// data", which is what D1 refuses.
+describe("learnFieldTotal", () => {
+  afterEach(() => { resetLearnBank(); });
+
+  it("answers null before anything is published", () => {
+    expect(learnFieldTotal("cell")).toBeNull();
+  });
+
+  it("answers null for an EMPTY map — that is no order, not a bank of nothing", () => {
+    publishLearnTotals({});
+    expect(
+      learnFieldTotal("cell"),
+      "an empty totals map answered 0, so the sheet printed \"0 cards\" over a served pool",
+    ).toBeNull();
+  });
+
+  it("answers null when handed null", () => {
+    publishLearnTotals(null);
+    expect(learnFieldTotal("cell")).toBeNull();
+  });
+
+  it("answers the count for a field the order carries, and 0 for one it does not", () => {
+    // 0 is right HERE: an order that exists and does not name a field is
+    // a field with no cards, which is a fact rather than an absence.
+    publishLearnTotals({ cell: 12 });
+    expect(learnFieldTotal("cell")).toBe(12);
+    expect(learnFieldTotal("genetics")).toBe(0);
+  });
+
+  it("is cleared by the reset the fixtures use", () => {
+    publishLearnTotals({ cell: 12 });
+    resetLearnBank();
+    expect(learnFieldTotal("cell")).toBeNull();
   });
 });

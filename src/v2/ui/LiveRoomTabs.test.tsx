@@ -12,7 +12,7 @@
 // So: the three states of a read that can fail, and the two rules People
 // is built to keep.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => {
   const deck = [{
@@ -26,7 +26,15 @@ const LIVE = vi.hoisted(() => {
   return {
     enabled: true,
     uid: "u_me",
-    subscribe: () => () => {},
+    // Real, because two cases below drive a beat through it: the component
+    // re-renders on notify, which is how a new `updatedAt` reaches its
+    // effect.
+    listeners: [] as Array<() => void>,
+    subscribe(fn: () => void) {
+      this.listeners.push(fn);
+      return () => { this.listeners = this.listeners.filter((f) => f !== fn); };
+    },
+    notify() { for (const f of [...this.listeners]) f(); },
     deck: () => deck,
     myVotes: () => ({ a: "0" }) as Record<string, string>,
     myTestResults: () => ({}) as Record<string, unknown>,
@@ -47,6 +55,7 @@ const LIVE = vi.hoisted(() => {
         qs: Record<string, Record<string, number>> } | null,
       roomLoading: () => false as boolean,
       loadRoom: vi.fn(async () => {}),
+      updatedAt: () => 0 as number,
     },
   };
 });
@@ -105,7 +114,7 @@ describe("LiveRoomTabs · People, the one tab that discloses something new", () 
   beforeEach(() => {
     LIVE.near.room = () => ({
       // "The Host", not "Host": the presence doc carries what myType()
-      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // resolved (`myType`, data/typeMix), which is an IS_ARCHETYPES name verbatim.
       // The short form was fixture-only and quietly made the mark below
       // unresolvable, which is half of why it went four days undrawn.
       people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
@@ -221,7 +230,7 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
     expect(text).toMatch(/1 of 1 have taken one/);
   });
 
-  it("keeps your empty and theirs apart", () => {
+  it("keeps your empty, theirs, and not-read-yet apart", async () => {
     // Two different facts, and one "no data" would collapse them. You
     // first: nothing of yours to lay over anybody.
     render(<LiveRoomTabs tab="compare" />);
@@ -235,12 +244,46 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
       ] },
     });
     render(<LiveRoomTabs tab="compare" />);
+    // "Nobody has one" is a claim about people whose profiles have been
+    // READ. Until the profile fetch lands there is a fourth state, and it
+    // is the one on screen first: this case used to assert the absence on
+    // the first frame, which is exactly the collapse the lens now refuses.
+    expect(screen.getByText("Reading…")).toBeTruthy();
+    await act(async () => { await Promise.resolve(); });
     expect(screen.getByText(/Nobody here has finished a test yet/i)).toBeTruthy();
   });
 
   it("asks the store for exactly the deck it is about to draw", () => {
     render(<LiveRoomTabs tab="answers" />);
     expect(LIVE.near.loadRoom).toHaveBeenCalledWith(["a"]);
+  });
+
+  it("asks again when the beat moves the room underneath it", async () => {
+    // The room is per cell and the cell changes while this stays mounted.
+    // Keyed on the deck alone, nothing re-ran: the tabs went on naming the
+    // people from the block you walked out of, and the failure note's
+    // promise of a retry was a promise nothing kept.
+    LIVE.near.updatedAt = () => 1;
+    LIVE.near.loadRoom.mockClear();
+    render(<LiveRoomTabs tab="answers" />);
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    LIVE.near.updatedAt = () => 2;
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(2);
+    LIVE.near.updatedAt = () => 0;
+  });
+
+  it("costs nothing on a beat that did not move", async () => {
+    // The dep is the beat, so a re-render without one must not re-ask. (A
+    // beat that repeats the same cell is refused inside the store too, but
+    // this component should not be leaning on that.)
+    LIVE.near.updatedAt = () => 7;
+    LIVE.near.loadRoom.mockClear();
+    render(<LiveRoomTabs tab="answers" />);
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    LIVE.near.updatedAt = () => 0;
   });
 });
 
@@ -250,7 +293,7 @@ describe("LiveRoomTabs · People draws faces and can report one", () => {
   beforeEach(() => {
     LIVE.near.room = () => ({
       // "The Host", not "Host": the presence doc carries what myType()
-      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // resolved (`myType`, data/typeMix), which is an IS_ARCHETYPES name verbatim.
       // The short form was fixture-only and quietly made the mark below
       // unresolvable, which is half of why it went four days undrawn.
       people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
@@ -281,6 +324,41 @@ describe("LiveRoomTabs · People draws faces and can report one", () => {
     expect(LIVE.flagAvatar).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
     expect(LIVE.flagAvatar).toHaveBeenCalledWith("u1");
+  });
+
+  it("a refused report is not an unhandled rejection", async () => {
+    // The store rolls a refused report back and reports it, then rethrows
+    // for callers that await it. This one does not await — a `void` tap
+    // handler — so the rejection has to be caught here, or it surfaces
+    // as an unhandled one (and D356's gate gave the method a second way
+    // to reject: a failed sign-in). vitest fails the file on an unhandled
+    // rejection, which is the assertion.
+    // A PLAIN function, not a vi.fn: the mock wrapper records a returned
+    // promise's outcome, which attaches a handler to it — so through a
+    // vi.fn the rejection is never unhandled and the case cannot fail.
+    // Node reports a rejection nobody handled at its next checkpoint;
+    // listen for it directly rather than trusting the runner to notice.
+    const wrapped = LIVE.flagAvatar;
+    let reported = "";
+    (LIVE as { flagAvatar: unknown }).flagAvatar = (uid: string) => {
+      reported = uid;
+      return Promise.reject(new Error("permission-denied"));
+    };
+    const unhandled: unknown[] = [];
+    const onRejection = (reason: unknown) => { unhandled.push(reason); };
+    process.on("unhandledRejection", onRejection);
+    try {
+      render(<LiveRoomTabs tab="people" />);
+      fireEvent.click(screen.getByRole("button", { name: /Report this photo/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      expect(reported).toBe("u1");
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+      (LIVE as { flagAvatar: unknown }).flagAvatar = wrapped;
+    }
   });
 
   it("a hidden face reads exactly like no face at all", () => {

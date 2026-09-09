@@ -16,13 +16,18 @@
 //     if the user is shown it.
 //
 // Everything else here — the name, the handle-as-fact — is covered only as
-// far as "the control exists and reaches the store"; the last describe pins
-// the three controls D211 REMOVED (handle claim, Sign-in, Crash reports),
-// because a control that quietly returns re-offers what the server refuses
-// or what the release build already settled at the door.
+// far as "the control exists and reaches the store". Two describes near the
+// end carry the settings rows D211 removed: Crash reports is pinned ABSENT,
+// because a control that quietly returns re-offers what the server refuses;
+// Sign-in is pinned PRESENT, because D219 removed the wall that had been
+// D211's whole reason for dropping it and nothing went back for the row.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+
+/** Store subscribers, so a test can drive a notify the way hydrate does. */
+const subscribers = new Set<() => void>();
+const notifyAll = () => { for (const fn of [...subscribers]) fn(); };
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 // The claim list the CI gate reads, shared rather than re-typed (D183):
 // a second copy of these patterns is a second thing to forget to update.
 // @ts-expect-error TS7016 — plain .mjs gate script, no types
@@ -46,14 +51,37 @@ const LIVE = vi.hoisted(() => ({
   handle: "",
   deleteAccount: async () => {},
   saveDisplayName: async () => {},
-  subscribe: () => () => {},
+  // D331 — the compass row. Consented by default here so the row's ON
+  // copy is what the existing cases render past; the OFF copy and the
+  // withdrawal write have their own cases below.
+  // The sign-in row's two members. `linked` is false by default because
+  // that is what a store build produces: D219 took the wall down, so an
+  // account is anonymous until someone taps this row.
+  linked: false,
+  linkGoogle: vi.fn(async () => {}),
+  politicalConsented: vi.fn(() => true),
+  setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
+  // A REAL notifier, not a no-op. The panel re-renders on every store
+  // notify, and the case at the end of this file needs that path to exist
+  // — with `() => () => {}` the store could correct itself and no render
+  // would ever happen, so any "follows the store" assertion would be
+  // measuring nothing.
+  subscribe: (fn: () => void) => { subscribers.add(fn); return () => { subscribers.delete(fn); }; },
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
+// The walkthrough's mount (D393), reached from this panel by a dynamic
+// import: mocked so the case below can assert the row asks for a
+// RE-showing rather than mounting the real screen over the panel.
+const WT = vi.hoisted(() => ({ mountWalkthrough: vi.fn(async (opts?: { again?: boolean }) => { void opts; }) }));
+vi.mock("./walkthrough", () => ({ mountWalkthrough: WT.mountWalkthrough }));
 
 const { default: LivePrivacyPanel } = await import("./LivePrivacyPanel");
 
 beforeEach(() => {
   LIVE.enabled = true;
+  LIVE.linked = false;
+  LIVE.linkGoogle.mockReset();
+  LIVE.linkGoogle.mockResolvedValue(undefined);
   LIVE.deleteAccount = async () => {};
   // location.reload is called on a successful delete; jsdom throws "not
   // implemented" on the real one.
@@ -260,21 +288,140 @@ describe("LivePrivacyPanel · a handle is a fact here, never a form", () => {
   });
 });
 
-// ── two settings rows removed outright (D211) ─────────────────────────
+// ── one settings row still removed outright (D211) ────────────────────
 //
-// Sign-in: the D134 gate walls every release build behind Google before
-// the app opens, so the row could only ever read "Linked ✓" — a control
-// re-offering what the door already settled. Crash reports: the toggle is
-// gone and reporting is on by default (D76 amended by D211); the recorded
-// opt-outs of older builds stay honoured in sentry.ts, which
-// sentry.test.ts pins. What is pinned HERE is only that neither control
-// quietly returns.
-describe("LivePrivacyPanel · no Sign-in row, no Crash-reports toggle", () => {
-  it("renders neither row nor their controls", () => {
+// Crash reports: the toggle is gone and reporting is on by default (D76
+// amended by D211); the recorded opt-outs of older builds stay honoured in
+// sentry.ts, which sentry.test.ts pins. What is pinned HERE is only that
+// the control does not quietly return.
+describe("LivePrivacyPanel · no Crash-reports toggle", () => {
+  it("renders neither the row nor its control", () => {
     render(<LivePrivacyPanel />);
-    expect(screen.queryByText("Sign-in")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Link Google|Linked/ })).toBeNull();
     expect(screen.queryByText("Crash reports")).toBeNull();
     expect(screen.queryByRole("button", { name: /^(On|Off) ?✓?$/ })).toBeNull();
+  });
+});
+
+// ── the sign-in row, which D211 removed and D219 made necessary again ──
+//
+// THIS SUITE IS THE GUARD ON A STALE PREMISE, not on a widget. D211 took
+// this row out because the D134 wall meant "the row could only ever read
+// Linked ✓"; D219 removed the wall and left the row gone, so a store build
+// shipped with no way to link an account anywhere. An anonymous session
+// dies with the phone (D134's own words), so every reinstall minted a
+// second account — the diffuse duplication that D54's scan cannot see and
+// D28's correction cannot unwind, because neither has a uid list to work
+// from. The cases below pin the two things that failure needed: that the
+// offer EXISTS when the session is unlinked, and that taking it reaches
+// the linker rather than the sign-in that would strand the session.
+describe("LivePrivacyPanel · the sign-in row", () => {
+  it("offers the link when the session is anonymous, and says what is at stake", () => {
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText("Sign-in")).toBeTruthy();
+    expect(screen.getByText(/live on this phone only/)).toBeTruthy();
+  });
+
+  it("LINKS rather than signs in — the difference is the session's answers", async () => {
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    // linkGoogle keeps the uid and every answer already given; googleSignIn
+    // abandons them. Asserting on WHICH call is made is the only way to tell
+    // the two apart from outside — D134 pins the same distinction at the gate.
+    await waitFor(() => expect(LIVE.linkGoogle).toHaveBeenCalledTimes(1));
+  });
+
+  it("states the collision instead of abandoning the session", async () => {
+    // Firebase refuses to merge two histories. The gate answers this with
+    // "Sign in and leave this phone's answers" because it runs before there
+    // are any; from settings that same control is a wipe wearing a login, so
+    // this row must report and stop.
+    LIVE.linkGoogle.mockRejectedValueOnce(new Error("auth/credential-already-in-use"));
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/already has an InSight history/));
+    expect(screen.queryByRole("button", { name: /leave this phone/i })).toBeNull();
+  });
+
+  it("reads as a settled fact once linked, with no control", () => {
+    LIVE.linked = true;
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText("Linked ✓")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Continue with Google" })).toBeNull();
+    expect(screen.getByText(/survive a new phone/)).toBeTruthy();
+  });
+});
+
+// The political compass row (D331).
+//
+// WHY IT IS TESTED HERE AT ALL, given that vote.test.ts already pins the
+// gate and politicalConsent.test.ts the predicate: this row is the only
+// place a user is ever told the compass exists, and it makes a claim about
+// what turning it off DOES. A row whose button stopped calling the writer
+// would leave a switch that reads "off" over a coordinate still published
+// — the failure the whole record is about, wearing a working UI.
+describe("LivePrivacyPanel · the political compass row", () => {
+  it("says it is on, and does not withdraw on the first tap", () => {
+    LIVE.politicalConsented.mockReturnValue(true);
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText("Political compass")).toBeTruthy();
+    expect(screen.getByText(/Anyone signed in can read it/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Turn off…" }));
+    // Armed, not fired — the same two-tap shape Delete everything uses,
+    // and for the same reason: this one deletes something.
+    expect(LIVE.setPoliticalConsent).not.toHaveBeenCalled();
+    expect(screen.getByText(/Copies anyone\s+already made are beyond us/)).toBeTruthy();
+  });
+
+  it("withdraws on the confirm tap", async () => {
+    LIVE.politicalConsented.mockReturnValue(true);
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Turn off…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, turn off" }));
+    await waitFor(() => expect(LIVE.setPoliticalConsent).toHaveBeenCalledWith(false));
+  });
+
+  it("offers a one-tap turn-on when it is off, and says answers still count", () => {
+    // No confirm step in this direction: turning it ON destroys nothing,
+    // and a confirmation dialogue in front of a harmless action teaches
+    // people to tap through the one in front of a harmful one.
+    LIVE.politicalConsented.mockReturnValue(false);
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText(/Your answers still count/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Turn on" }));
+    expect(LIVE.setPoliticalConsent).toHaveBeenCalledWith(true);
+  });
+
+  it("follows the store when consent arrives after the panel is open", async () => {
+    // The row was a `useState` lazy initializer — read once per mount and
+    // never again — while the profile's consent field fills late, in
+    // hydrate. So an account that HAS consented, opening Account before
+    // the profile document landed, was told "Off … no political profile is
+    // built from them" while the coordinate was published.
+    //
+    // A claim about the server, made from a snapshot of what this device
+    // happened to know at mount, which is the failure this panel's own
+    // D327 note is written against.
+    LIVE.politicalConsented.mockReturnValue(false);
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText(/Your answers still count/)).toBeTruthy();
+    // …hydration lands and the store now knows better. The panel already
+    // re-renders on every notify; what it did not do was re-read.
+    LIVE.politicalConsented.mockReturnValue(true);
+    await act(async () => { notifyAll(); });
+    expect(screen.queryByText(/Your answers still count/),
+      "the row kept its mount-time snapshot after the store corrected it").toBeNull();
+  });
+});
+
+describe("LivePrivacyPanel · the walkthrough can be shown again (D393)", () => {
+  it("mounts it from its row as a re-showing, so the seen flag does not refuse it", async () => {
+    // The gate refuses a device that has seen the walkthrough — which is
+    // every device that has this panel open. `again` is what makes the
+    // row a row rather than a button that does nothing.
+    WT.mountWalkthrough.mockClear();
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /^Show again$/ }));
+    await vi.waitFor(() => expect(WT.mountWalkthrough).toHaveBeenCalledTimes(1));
+    expect(WT.mountWalkthrough).toHaveBeenCalledWith({ again: true });
   });
 });

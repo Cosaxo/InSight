@@ -4,26 +4,33 @@
 //   node scripts/record-purchase.mjs --project prvfire33 \
 //     --uid <buyerUid> --qid pd01 --scope city --place Oslo \
 //     --prompt "Should the night buses run all night?" --options "All night,The hours are fine" \
-//     --start 2026-08-24 --until 2026-09-21 --rate 0.16 --cap 4000 --cap-eur 640
+//     --start 2026-08-24 --until 2026-09-21 --rate 0.02 --cap 1000 --cap-eur 20
 //   node scripts/record-purchase.mjs --emulator --uid u1 --qid pd01 --scope world \
 //     --prompt "Sunrise or sunset?" --options "Sunrise,Sunset" \
-//     --start 2026-08-24 --until 2026-09-21 --rate 0.16 --cap 4000 --cap-eur 640
+//     --start 2026-08-24 --until 2026-09-21 --rate 0.02 --cap 1000 --cap-eur 20
 //
 // Needs admin credentials (GOOGLE_APPLICATION_CREDENTIALS or `gcloud auth
 // application-default login`), or --emulator with FIRESTORE_EMULATOR_HOST.
 //
-// This is the collection's ONLY pen. Selling is by hand today (PAID-PLAN
-// §9.2: "sell by hand at hand-set prices"), so there is deliberately no
-// callable and no client write arm — firestore.rules says `write: if
-// false` and rules.test.ts pins it. A deployed endpoint that can mint
-// contract records would be standing surface in exchange for nothing;
-// this script runs once per contract, by the human who signed it.
+// One of the collection's TWO pens since D313 — this script for
+// hand-arranged contracts, the Stripe payment webhook (functions/src/
+// paid.ts goLive) for the self-serve pipeline. Both are server-side:
+// firestore.rules still says `write: if false` and rules.test.ts pins
+// it, so there is no client write arm. The sentence that used to stand
+// here — "a deployed endpoint that can mint contract records would be
+// standing surface in exchange for nothing" — was true while selling
+// was by hand and was retired ON PURPOSE by D313: the webhook mints a
+// record only against a signature-verified Stripe payment, which is not
+// nothing. This script remains for sales the machinery does not carry
+// (reports sold standalone, subscriptions when they exist).
 //
-// The same sitting that records a purchase re-runs the pricing fold
-// (scripts/build-pricing.mjs) and commits the changed content/pricing.json
-// — the booked/open days and the demand index the door prints are read
-// from that committed file, never from other buyers' rows. The reminder
-// at the foot of a successful run says exactly that.
+// A recorded row moves the rate card at the next nightly fold — the
+// closer republishes `v2_meta/pricing` every day (D371) — or now, with
+// scripts/build-pricing.mjs, which runs the same fold by hand and also
+// refreshes the committed content/pricing.json snapshot. The booked/open
+// days and the demand index the door prints are read from that published
+// document (the committed file until it lands), never from other buyers'
+// rows. The reminder at the foot of a successful run says exactly that.
 //
 // What it validates, each bound a recorded rule rather than taste:
 //   - dims ≤ 3, each of the published vocabulary (D228's coarseness
@@ -37,8 +44,8 @@
 //     human means it — a contract is append-mostly, and a silent
 //     overwrite is how a signed cap would drift
 
-import { initializeApp, applicationDefault } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "./admin-db.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(`--${name}`);
@@ -101,8 +108,9 @@ if (days > 366) die(`${days}-day window — PAID-PLAN §8 caps a paid question a
 
 // No credential key at all against the emulator — firebase-admin rejects
 // an explicit `credential: undefined`, and the emulator wants none.
-initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });
-const db = getFirestore();
+// NAMES THE DATABASE. `getFirestore()` binds to `(default)`, which this
+// app does not use and which no longer exists — see scripts/admin-db.mjs.
+const db = adminDb({ projectId, emulator });
 
 const pid = `${uid}_${qid}`;
 const ref = db.collection("v2_purchases").doc(pid);
@@ -136,5 +144,5 @@ console.log(`${existing.exists ? "amended" : "recorded"} v2_purchases/${pid}`);
 console.log(`  ${kind} · ${scope}${place ? ` (${place})` : ""} · ${start} → ${until} (${days} days) · ${rate}/answer · cap ${cap} answers / €${capEur}`);
 if (dims.length) console.log(`  dims: ${dims.join(" · ")}`);
 console.log("\nSame sitting, before you stand up:");
-console.log("  node scripts/build-pricing.mjs   # refold the ledger into content/pricing.json");
-console.log("  …and commit the changed pricing.json — the door prints THAT file, never this row.");
+console.log("  node scripts/build-pricing.mjs   # publish the live rate card now, and refresh the committed snapshot");
+console.log("  …or wait for the nightly closer's fold (D371). Either way the door prints the published card, never this row.");

@@ -53,7 +53,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { bankArray } from "./v2content-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -136,6 +136,77 @@ const patternsEligibleCount = (() => {
     && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
 })();
 
+// WHAT A COLD BOOT ACTUALLY FETCHES, which stopped being "the whole
+// question bank" at D383 and was still pinned to the bank's size.
+//
+// `live.ts`'s boot reads five whole surfaces (BANK_SURFACES) plus the
+// FEED's core questions only; the daily left that list at D383, which
+// publishes a shape document and seven deck rows instead, and the tail
+// pages in after first paint. So the old pin — the bank's total document
+// count, beside prose reading "the whole question bank" — was enforcing a
+// number the app has not read since D383, and enforcing it FRESH: every
+// promotion cycle the gate rewrote it to the new bank size, so the row got
+// more wrong the more diligently the gate maintained it.
+//
+// The surfaces are listed here rather than parsed out of live.ts on
+// purpose: a regex over a source array would silently agree with itself if
+// the array were renamed. Listed, a change there fails this and someone
+// reads both.
+const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
+
+// …AND THE LIST IS HELD EQUAL TO live.ts's, which is what makes listing it
+// safe. The comment above says "a change there fails this and someone reads
+// both", and until this block that was not true: nothing here read live.ts,
+// so dropping a surface from BANK_SURFACES left the gate GREEN while the
+// boot fetched less and the row's number went quietly wrong. Measured, not
+// supposed — the probe was exactly that edit.
+//
+// This is the shape the argument above actually wants: the list stays
+// written out, so a reader sees it and a change cannot silently agree with
+// itself, and the equality check makes a divergence fail LOUDLY instead of
+// never. Not parsed-and-trusted, and not copied-and-hoped: copied, and
+// proved still equal.
+(() => {
+  // STRIPPED, and that is not decoration. `.match` returns the FIRST hit, so
+  // a superseded spelling parked in a comment above the live one is what
+  // this reads — and then the equality check compares the copy below
+  // against the comment and agrees with itself. Measured: dropping "test"
+  // from the real list while leaving the old list in a `// was:` line above
+  // it prints `check-figures OK` at exit 0, while the cold-boot row in
+  // docs/COSTS.md stays certified at a number 2.8x the truth. That is the
+  // D179/D197/D275 class — a script that CHECKS something breaking with
+  // nothing else going red — in the one gate whose whole job is to notice
+  // a figure that stopped being true. The same file already strips for its
+  // OTHER read of this same module, one screen down.
+  const live = stripComments(read("src/v2/data/live.ts"));
+  const m = live.match(/const BANK_SURFACES = \[([^\]]+)\]/);
+  if (!m) {
+    throw new Error(
+      "check-figures: could not find BANK_SURFACES in src/v2/data/live.ts. "
+      + "COLD_BOOT_SURFACES here is a deliberate second copy of it, and the "
+      + "only thing keeping that honest is this equality check — so a rename "
+      + "must be followed here rather than left to pass by default.",
+    );
+  }
+  const actual = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+  if ([...actual].sort().join(",") !== [...COLD_BOOT_SURFACES].sort().join(",")) {
+    throw new Error(
+      `check-figures: COLD_BOOT_SURFACES [${COLD_BOOT_SURFACES.join(", ")}] no `
+      + `longer matches BANK_SURFACES in live.ts [${actual.join(", ")}]. The `
+      + "boot fetches what live.ts says; this list only decides what the "
+      + "cold-boot row is checked against. Reconcile both, and check whether "
+      + "docs/COSTS.md's row still describes the surfaces by name.",
+    );
+  }
+})();
+
+const coldBootBankDocs = (() => {
+  const arr = bankArray(v2content);
+  const whole = arr.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
+  const coreFeed = arr.filter((q) => q.surface === "feed" && q.core === true).length;
+  return whole + coreFeed;
+})();
+
 if (!seededQuestions || !dailyQuestions) {
   console.error(
     "check-figures: found no questions in functions/src/v2content.ts.\n"
@@ -163,8 +234,17 @@ if (!seededQuestions || !dailyQuestions) {
 // manual can quote them. QUESTION-FARM.md is LIVE documentation — the
 // scheduled runs obey it verbatim — so a drifted budget figure there is
 // not a stale doc, it is a mis-instructed run.
+// COMMENTS ARE BLANKED BEFORE THE MATCH. This is a first-match regex over raw
+// source, so a retuned budget with its old line parked above it —
+//     // was: export const RUN_CAP = 8
+//     export const RUN_CAP = 20;
+// — made this gate certify QUESTION-FARM.md against the SUPERSEDED number and exit
+// 0. That document is live instruction: the scheduled lanes obey it verbatim, so a
+// figure drifting there is a mis-instructed run, not a stale doc. Measured on the
+// real tree 2026-09-05. (This file already imported the helper for its prose scan;
+// the constant scan is the half that never used it.)
 const constFrom = (rel) => {
-  const src = read(rel);
+  const src = stripComments(read(rel));
   return (name) => {
     const m = src.match(new RegExp(`export const ${name} = (\\d+)`));
     if (!m) {
@@ -186,6 +266,7 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+const nowConst = constFrom("scripts/now-budget.mjs");
 // The duel regulator's constants (D213), same reasoning as the other three
 // lanes': the duel section is what a scheduled run obeys.
 const duelConst = constFrom("scripts/duel-budget.mjs");
@@ -242,19 +323,18 @@ const appPrivacyRows = JSON.parse(read("design/store/app-privacy.json")).collect
 // digits and the diff says so plainly.
 const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
-const NUMBER_WORDS = {
-  1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
-  7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
-  114: "a hundred and fourteen", 120: "a hundred and twenty",
-  121: "a hundred and twenty-one", 122: "a hundred and twenty-two",
-  123: "a hundred and twenty-three", 124: "a hundred and twenty-four",
-  125: "a hundred and twenty-five", 126: "a hundred and twenty-six",
-  127: "a hundred and twenty-seven", 128: "a hundred and twenty-eight",
-  129: "a hundred and twenty-nine", 130: "a hundred and thirty",
-  131: "a hundred and thirty-one", 132: "a hundred and thirty-two",
-  133: "a hundred and thirty-three", 134: "a hundred and thirty-four",
-  135: "a hundred and thirty-five", 136: "a hundred and thirty-six",
-};
+// The number words this file's suggestions are written in — generated,
+// in their own module so the gate's own arithmetic can be tested without
+// importing (and therefore RUNNING) the gate.
+import { word } from "./number-words.mjs";
+import { stripComments } from "./strip-comments.mjs";
+// The cost model's own constants, so COSTS.md's prose is read against
+// the single copy rather than a second one. NOT the dollar figures —
+// those are outputs of scripts/cost-model.mjs and re-deriving one here
+// would be the duplicate model cost-arith.mjs exists to prevent (see the
+// COSTS.md block below). These two are inputs, exported from that file.
+import { RULE_READS, TRIGGER_READS, revealReadsPerMember } from "./cost-arith.mjs";
+
 
 // How many test runners this repo has, off package.json — the figure
 // CLAUDE.md §2's heading quotes and ORIENTATION §1 and §5 repeat.
@@ -281,6 +361,10 @@ const NOT_A_RUNNER = new Set([
   "test:e2e:moderation", // table's `test:e2e` row, not rows of their own
   "test:e2e:all",        // those three drivers on one emulator boot (D276)
   "test:coverage",       // test:unit again, instrumented
+  // test:rules again, with the coverage ratchet WRITING its baseline
+  // instead of asserting it. Not a suite: the same 179 tests, one flag on
+  // the step that follows them.
+  "test:rules:baseline",
 ]);
 const testRunners = (() => {
   const own = Object.keys(appPkg.scripts)
@@ -359,6 +443,44 @@ const feedCount = feedQs.length;
 const feedCoreCount = feedQs.filter((q) => q.core === true).length;
 const feedTailCount = feedQs.filter((q) => q.core === false).length;
 
+// EVERY QUESTION ONE ACCOUNT CAN ANSWER, across the six surfaces a Circle
+// member's answers are read from (WORLD_ANSWER_SURFACES, src/v2/data/voters.ts).
+//
+// CIRCLE_ANSWER_CAP's docstring does this arithmetic to argue that the cap
+// binds, and it did it by hand: "daily 130, feed 166, test 110, learn 156,
+// pulse 5, call 3 = 570" against banks that hold 737 between them today —
+// the feed alone had gone from 166 answerable cards to 309. The conclusion
+// never moved, which is exactly how a figure like this goes stale
+// unnoticed: the sentence stays persuasive while every number in it stops
+// being true. The nightly lane appends to these banks, so a hand-count
+// there is stale within days.
+//
+// ANSWERABLE, not "in the file": a feed card carrying `active: false` is
+// retired and nobody can answer it, and counting it would overstate the
+// very thing the cap is being argued about.
+const answerableTotal = (() => {
+  const j = (rel) => JSON.parse(read(rel));
+  const perSurface = {
+    daily: j("content/daily-questions.json").length,
+    feed: feedQs.filter((q) => q.active !== false).length,
+    test: Object.values(j("content/tests.json"))
+      // The deep items (D416) are answerable cards like the core ones.
+      .reduce((a, t) => a + (t.questions || []).length + (t.deep || []).length, 0),
+    learn: j("content/learn-questions.json").cards.length,
+    pulse: j("content/pulse-questions.json").questions.length,
+    call: j("content/call-questions.json").questions.length,
+  };
+  for (const [k, v] of Object.entries(perSurface)) {
+    if (!v) {
+      throw new Error(
+        `check-figures: the ${k} bank gave 0 answerable questions — its shape `
+        + "changed; fix this reader, do not delete the entry.",
+      );
+    }
+  }
+  return Object.values(perSurface).reduce((a, b) => a + b, 0);
+})();
+
 // Spec modules fully off the shared-global bridge: they export something and
 // assign nothing to window/globalThis, so an importer gets a binding and
 // there is no publication left behind. Read from the directory, never from a
@@ -368,13 +490,164 @@ const feedTailCount = feedQs.filter((q) => q.core === false).length;
 // reason as the shippedFunctions walk above.
 const convertedSpecModules = (() => {
   const dir = join(root, "src/v2/spec");
-  return readdirSync(dir)
+  // Recursive: this is the converted-module COUNT that CLAUDE.md's prose
+  // is held to, so a module one directory down would lower it silently.
+  return readdirSync(dir, { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => /\.(js|jsx)$/.test(f))
     .filter((f) => {
       const src = readFileSync(join(dir, f), "utf8");
       if (!/^\s*export\s/m.test(src)) return false;
       return !/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]|Object\.assign\(\s*(?:globalThis|window)\s*,/.test(src);
     }).length;
+})();
+
+// How far that hand-listed seven had drifted when D39's successor measured
+// it: 32 in the tree against 7 in the prose. A fixed fact about a past
+// state, so it is written down rather than computed — see the FIGURES entry
+// that quotes it.
+const SPEC_MIGRATION_DRIFT = 25;
+
+// The monitoring gate's own rule list, counted off its numbered header —
+// the list a reader trusts before they trust the gate.
+const monitoringRules = (() => {
+  const src = read("scripts/check-monitoring.mjs");
+  const head = src.slice(0, src.indexOf("import "));
+  // \d+ rather than \d: at a single digit the count silently stops at
+  // nine, so a tenth rule would leave the gate reporting NINE and passing
+  // a drifted heading straight through — the entry defending the drift it
+  // was added to catch.
+  return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
+})();
+
+// The anchor keys the client sends, off ANCHOR_FIELDS — the table
+// check:anchors already diffs against firestore.rules cap for cap.
+const anchorKeys = (() => {
+  const src = read("src/v2/data/live.ts");
+  const open = src.indexOf("export const ANCHOR_FIELDS");
+  const body = stripComments(src.slice(open, src.indexOf("};", open)));
+  return [...body.matchAll(/(\w+):\s*\d+/g)].length;
+})();
+
+/**
+ * Live call sites of a store accessor, across the app's own source.
+ *
+ * Comments stripped, tests and fixtures excluded: what the perRev
+ * comments count is folds paid for per RENDER, so a mention in prose and a
+ * stub in a fixture are both noise. Two of these figures had drifted, in
+ * the paragraphs that argue for the memoisation itself.
+ */
+/**
+ * The map's anchor ring, counted off the two array literals that build it:
+ * liveList()'s own rows plus the test rows it spreads in.
+ *
+ * The header said eight anchors and five test results, and had since D103
+ * retired the Thinking test — in a file that records the retirement twenty
+ * lines below the sentence contradicting it. Exactly the drift this gate
+ * exists for, in prose describing a data model a reader has no other
+ * summary of.
+ */
+const mapAnchors = (() => {
+  const src = stripComments(read("src/v2/spec/map-anchors.js"));
+  const rowsIn = (fn) => {
+    const open = src.indexOf(`function ${fn}()`);
+    if (open < 0) throw new Error(`check:figures: map-anchors.js has no ${fn}() — fix this scan`);
+    const start = src.indexOf("return [", open);
+    const end = src.indexOf("];", start);
+    return [...src.slice(start, end).matchAll(/\{\s*id:/g)].length;
+  };
+  const tests = rowsIn("testRows");
+  if (!tests) throw new Error("check:figures: no test anchor rows found — fix this scan");
+  return { tests, ring: rowsIn("liveList") + tests };
+})();
+
+const callSites = (call) => {
+  const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
+  let n = 0;
+  for (const dir of dirs) {
+    // Recursive, with the other walks in this file: this counts call
+    // sites, and a missed file is a count that reads as agreement.
+    for (const raw of readdirSync(join(root, dir), { recursive: true })) {
+      const f = String(raw).split(sep).join("/");
+      if (!/\.(ts|tsx|js|jsx)$/.test(f) || /\.test\./.test(f)) continue;
+      const src = stripComments(read(`${dir}/${f}`));
+      n += src.split(call).length - 1;
+    }
+  }
+  return n;
+};
+
+// The political marker's two figures, and the store header's own count of
+// the dynamic-import sites it points a reader at. All three sit in source
+// comments, which is where this repo's figure drift keeps surviving.
+const politicalQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.political === true && q.surface !== "test").length;
+})();
+const dailyFeedQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+})();
+const getDbSites = (() => {
+  const src = stripComments(read("src/v2/data/live.ts"));
+  return [...src.matchAll(/await getDb\(\)/g)].length;
+})();
+
+// The anchors MapStats can answer for — the keys of MAP_ANCHOR_DIM, which
+// is the table the refusal is decided by. Two files quote this count in
+// prose and neither is reachable any other way.
+const mapAnchorDims = (() => {
+  const src = read("src/v2/data/cohort.ts");
+  const open = src.indexOf("export const MAP_ANCHOR_DIM");
+  const body = src.slice(open, src.indexOf("};", open));
+  return [...stripComments(body).matchAll(/^\s{2}(\w+):/gm)].length;
+})();
+
+// The modules that define Cloud Functions, counted off the tree. ops.ts's
+// header prose said "nine" while there were fifteen — the hand-kept-figure
+// drift this script exists for, in the file whose whole subject is that a
+// value spelled out in many places is a value some edit will miss.
+const fnModules = (() => {
+  const dir = "functions/src";
+  // join(root, …) like every other block here. A bare relative read is the
+  // one thing in this file that depends on the caller's cwd, and it dies
+  // with ENOENT when the gate is run from scripts/ rather than the root.
+  // RECURSIVE, and it matters more here than in the gates that merely
+  // scan: this walk produces a COUNT that the tree's prose is held to. A
+  // module in a subdirectory would be missed and the figure would be
+  // wrong in the direction nobody checks — a gate under-reporting and
+  // calling it agreement.
+  return readdirSync(join(root, dir), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    // Through stripComments, for the reason two other gates adopted it
+    // tonight: a commented-out `onCall(` would count as a definition.
+    // Today raw and stripped both give 15, so this is a latent miscount
+    // rather than a live one — which is exactly when it is cheap to close.
+    .filter((f) => /\bonCall\(|\bonSchedule\(|\bonDocument/
+      .test(stripComments(read(`${dir}/${f}`))))
+    .length;
+})();
+
+// The instruments the app actually ships, counted off IS_TESTS' own keys.
+//
+// `passive-progress.js` opened with "progress for the five core tests"
+// while the object had held four since D103 retired the Thinking test —
+// the same hand-kept-figure drift this script exists for, in a file the
+// smoke suite has a whole describe block about ("the retired Thinking test
+// is gone from every surface"). A top-level key at four-space indent is a
+// test; the nested `dims` and `questions` sit deeper.
+const coreTests = (() => {
+  const src = read("src/v2/spec/test-definitions.js");
+  const open = src.indexOf("export const IS_TESTS = {");
+  if (open < 0) {
+    throw new Error(
+      "check-figures: src/v2/spec/test-definitions.js no longer declares\n"
+      + "    `export const IS_TESTS = {` — fix this scan rather than the count.\n"
+      + "    A figure gate that cannot find its subject reports zero.",
+    );
+  }
+  return [...src.slice(open).matchAll(/^ {4}([a-z][A-Za-z0-9_]*):\s*\{/gm)].length;
 })();
 
 // The mount smoke files, counted off the directory. CLAUDE.md §2 calls them
@@ -385,6 +658,140 @@ const convertedSpecModules = (() => {
 const smokeFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
 
+// …and the suites that actually SHARE that harness, which is a different
+// number and the one CLAUDE.md's sentence is about. The glob and the
+// harness parted company twice over: `dialog.test.jsx` has imported
+// mount-app for a long time, and the 2026-09-02 render-coverage files are
+// not named smoke-*. Until this entry the sentence read "these are the
+// only ones that execute a render", which by then was wrong about eighteen
+// suites in this one directory.
+// Counted by what they DO, not by how they spell an import. This asked for
+// `from "./mount-app.jsx"` with the extension, and fifteen suites import
+// that module — nine with the extension, six without — so normalising any
+// one import, a tidy-up nobody would think twice about, would have failed
+// the gate demanding CLAUDE.md say "fifteen" with nothing having changed.
+// It also counted two files that import the harness for its helpers and
+// never mount anything.
+//
+// `mountApp(` is the real predicate: it is the call that renders the whole
+// App, which is what the sentence is about.
+const harnessFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+
+// The same list split the way the sentence splits it. CLAUDE.md gives the
+// total, then "five of the six smoke files" and "N that go PAST first
+// paint" — three numbers that have to add up, and the third was the one
+// nothing held: the gate forced the total from nine to ten and grew the
+// list from four items to five, and the word "four" beside it never
+// moved. 5 + 4 = 9 against a stated total of 10, in the paragraph about
+// what mounts the whole App.
+const smokeMountFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /^smoke-.*\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+const pastFirstPaintFiles = harnessFiles - smokeMountFiles;
+
+// How many spec modules `loadWorldFeed()` actually awaits. CLAUDE.md said
+// "four" from the day it was written — exact then, and four modules'
+// worth of stale by the time the learn stack, pick-data, world-catalogs
+// and world-subtopics joined the loader. `spec-index.js`'s own comment
+// corrects itself in place; the prose never got the same edit, which is
+// the documentation error this repo keeps re-committing (D39).
+const worldFeedDeferred = (() => {
+  const src = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
+  const a = src.indexOf("export const loadWorldFeed");
+  if (a === -1) {
+    throw new Error(
+      "check-figures: no loadWorldFeed in spec-index.js — the loader was renamed "
+      + "or reshaped. Fix this derivation rather than dropping the figure.",
+    );
+  }
+  const b = src.indexOf("\n});", a);
+  const body = src.slice(a, b === -1 ? undefined : b);
+  return [...body.matchAll(/import\('\.\/spec\//g)].length;
+})();
+
+// How many notifications the product actually SENDS, off v2social.ts's own
+// call sites. web/privacy.html promises the token is "only used for" them
+// and names them, and that sentence said ONE for the nine days after D236
+// shipped three more — while the sender's own comment beside them said
+// "two". A promise in writing is the one thing CLAUDE.md says moves first,
+// so the number it quotes is derived here rather than typed.
+//
+// `validate` is excluded and named rather than filtered by a pattern: it
+// is a dryRun send that never reaches a phone (registerPushToken uses it
+// to test a token), so it is not a notification anyone receives.
+const pushKinds = (() => {
+  const src = readFileSync(join(root, "functions/src/v2social.ts"), "utf8");
+  const kinds = new Set([...src.matchAll(/\bkind:\s*"([a-z-]+)"/g)].map((m) => m[1]));
+  kinds.delete("validate");
+  if (!kinds.size) {
+    throw new Error(
+      "check-figures: no `kind: \"…\"` push sites in v2social.ts — the sender "
+      + "changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return kinds.size;
+})();
+
+// The content banks' own README, which is the file that DESCRIBES them and
+// carried five hand-typed counts. Four were stale at once — 10 topics
+// against 11, a group bank of 24 against 26, a 1v1 bank of 30 against 32
+// and a romantic pool of 20 against 24, with "50 together" for 56 — and
+// the learn card count said 106 against 166. `check:content` prints the
+// live numbers two lines away in the same terminal.
+//
+// The lane that adds questions moves these files nightly now, so a
+// hand-count here is stale within days rather than months. Read off the
+// JSON, which is what the sentences are about.
+const contentCounts = (() => {
+  const j = (rel) => JSON.parse(readFileSync(join(root, rel), "utf8"));
+  const n = (v) => (Array.isArray(v) ? v.length : Object.keys(v || {}).length);
+  const feed = j("content/feed-questions.json");
+  const duel = j("content/duel-questions.json");
+  const learn = j("content/learn-questions.json");
+  const out = {
+    topics: n(feed.topics),
+    channels: n(feed.channels),
+    group: n(duel.group),
+    duo: n(duel.oneVsOne),
+    romantic: n(duel.romantic),
+    learnCards: n(learn.cards),
+  };
+  out.duoTotal = out.duo + out.romantic;
+  for (const [k, v] of Object.entries(out)) {
+    if (!v) {
+      throw new Error(
+        `check-figures: content/*.json gave 0 for ${k} — the bank's shape changed; `
+        + "fix this reader, do not delete the entries.",
+      );
+    }
+  }
+  return out;
+})();
+
+// Storage's byte cap, read off storage.rules itself. The suite that pins
+// that rule described it as an "8MB cap" for as long as the number had
+// been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
+// sweep that removed the surface, while the file's own cases used 300 KB
+// and 200 KB against the real rule. Exactly this table's class: a number
+// beside a thing that moved.
+const storageCapKb = (() => {
+  const src = readFileSync(join(root, "storage.rules"), "utf8");
+  const m = /request\.resource\.size\s*<\s*(\d+)\s*\*\s*1024/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `request.resource.size < N * 1024` in storage.rules — "
+      + "the cap moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return Number(m[1]);
+})();
+
 // The city catalogue's size, read off the generated file's own header — the
 // same line check-cities.mjs parses. It is quoted exactly once in live
 // documentation and was quoted in seven code comments besides, none of them
@@ -394,6 +801,19 @@ const cityPlaces = Number(
   /# (\d+) places in \d+ countries/.exec(read("public/cities.txt"))?.[1] ?? 0,
 );
 
+/** The daily deck's audience list, counted off the array itself. Its
+ *  comment said "five" while the array held six — `country` was added and
+ *  the sentence was not — which is the hand-kept-figure error CLAUDE.md
+ *  names as the one this repo keeps re-committing, sitting one line above
+ *  the data that disproves it. Counted by `{ id:` inside the literal
+ *  rather than by commas, so a trailing comma or a wrapped entry cannot
+ *  move it. */
+const dailyAudiences = (() => {
+  const src = stripComments(read("src/v2/spec/daily-questions.js"));
+  const m = /const AUDIENCES = \[([\s\S]*?)\n\s*\];/.exec(src);
+  return m ? (m[1].match(/\{\s*id:/g) || []).length : 0;
+})();
+
 const FIGURES = [
   {
     file: "docs/SCALE-PLAN.md",
@@ -402,14 +822,14 @@ const FIGURES = [
     // breaks after "in", and a re-wrap must not silently stop matching.
     re: /(\d+) of the (?:\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
     actual: String(feedCoreCount),
-    fix: (n) => `"${n} of the ${feedCount} ... carry \`core: true\`"`,
+    fix: (n) => `"${n} of the ${feedCount} in \`content/feed-questions.json\` carry \`core: true\`"`,
   },
   {
     file: "docs/SCALE-PLAN.md",
     what: "feed questions in the bank",
     re: /(?:\d+) of the (\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
     actual: String(feedCount),
-    fix: (n) => `"... of the ${n} in content/feed-questions.json"`,
+    fix: (n) => `"${feedCoreCount} of the ${n} in \`content/feed-questions.json\` carry \`core: true\`"`,
   },
   {
     file: "docs/SCALE-PLAN.md",
@@ -420,11 +840,72 @@ const FIGURES = [
     fix: (n) => `"${n} declare \`core: false\`"`,
   },
   {
+    file: "src/v2/data/circle.ts",
+    what: "answerable questions across the six surfaces CIRCLE_ANSWER_CAP argues about",
+    // `\s+` across the wrap, as elsewhere in this table: the sentence
+    // breaks after "surfaces —" and a re-wrap must not stop matching.
+    // The `*` is this JSDoc block's continuation marker and only appears
+    // when the clause wraps, which a one-line remedy cannot reproduce —
+    // so the pattern tolerates its absence rather than the hint faking it.
+    re: /six surfaces — (\d+) answerable\s+\*? ?questions across the committed banks/,
+    actual: String(answerableTotal),
+    fix: (n) => `"six surfaces — ${n} answerable questions across the committed banks"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed topics defined in the bank",
+    re: /\+ topic \((\d+)\) and channel/,
+    actual: String(contentCounts.topics),
+    fix: (n) => `"+ topic (${n}) and channel"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed channels defined in the bank",
+    re: /and channel \((\d+)\) definitions/,
+    actual: String(contentCounts.channels),
+    fix: (n) => `"and channel (${n}) definitions"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the group daily duel bank",
+    re: /Group daily bank \((\d+):/,
+    actual: String(contentCounts.group),
+    fix: (n) => `"Group daily bank (${n}:"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the 1v1 duel bank",
+    re: /1v1 bank \((\d+)\)/,
+    actual: String(contentCounts.duo),
+    fix: (n) => `"1v1 bank (${n})"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the romantic 1v1 pool",
+    re: /romantic 1v1 pool \((\d+),/,
+    actual: String(contentCounts.romantic),
+    fix: (n) => `"romantic 1v1 pool (${n},"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the two duo banks together",
+    re: /share the `duo` surface, (\d+) together/,
+    actual: String(contentCounts.duoTotal),
+    fix: (n) => `"share the \`duo\` surface, ${n} together"`,
+  },
+  {
+    file: "content/README.md",
+    what: "learn cards in the bank",
+    re: /subjects, fields and cards \((\d+)\)/,
+    actual: String(contentCounts.learnCards),
+    fix: (n) => `"subjects, fields and cards (${n})"`,
+  },
+  {
     file: "content/README.md",
     what: "feed questions in the bank",
     re: /\| Feed questions \((\d+)\)/,
     actual: String(feedCount),
-    fix: (n) => `"Feed questions (${n})"`,
+    fix: (n) => `"| Feed questions (${n})"`,
   },
   {
     file: "docs/CATALOG-QUESTIONS.md",
@@ -434,11 +915,90 @@ const FIGURES = [
     fix: (n) => `"\`public/cities.txt\` (${n} places"`,
   },
   {
+    file: "scripts/check-monitoring.mjs",
+    what: "rules the monitoring gate's header enumerates",
+    re: /THE (\w+) RULES:/,
+    // Counted off the header's own numbered list, which is the thing that
+    // drifted: it said FOUR while enumerating eight, each of the last four
+    // added by a production failure the first four could not see.
+    actual: ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"][monitoringRules]
+      ?? String(monitoringRules),
+    fix: (n) => `"THE ${n} RULES:"`,
+  },
+  {
+    file: "functions/src/ops.ts",
+    what: "modules that define functions and import the region constant",
+    re: /imported by all (\w+) modules that define functions/,
+    actual: word(fnModules),
+    fix: (n) => `"imported by all ${n} modules that define functions"`,
+  },
+  {
+    file: "src/v2/spec/passive-progress.js",
+    what: "core tests the passive tracker follows",
+    re: /progress for the (\w+) core tests/,
+    // Through the shared speller like every other entry here. It shipped
+    // as a literal list because the two lines it had to survive spelled
+    // numbers differently — this file's own `NUMBER_WORDS` table on one
+    // side, `word()` on the other — and git merges those two changes
+    // without a conflict, leaving the gate dead on a name that no longer
+    // exists. Both lines are on main now and `word()` is the survivor, so
+    // the list has nothing left to protect against.
+    actual: word(coreTests),
+    fix: (n) => `"progress for the ${n} core tests"`,
+  },
+  {
     file: "CLAUDE.md",
-    what: "mount smoke files over one harness (§2)",
-    re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
-    actual: NUMBER_WORDS[smokeFiles] || String(smokeFiles),
-    fix: (n) => `"(${n} files over one harness"`,
+    what: "mount smoke files (§2)",
+    re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
+    actual: word(smokeFiles),
+    fix: (n) => `"five of the **${n}** \`smoke-*.test.jsx\`"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount PAST first paint (§2) — the third number in the sum",
+    re: /and (\w+) that go PAST first paint/,
+    actual: word(pastFirstPaintFiles),
+    fix: (n) => `"and ${n} that go PAST first paint"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "spec modules loadWorldFeed() defers (§1)",
+    re: /The feed's (\w+) are deferred past/,
+    actual: word(worldFeedDeferred),
+    fix: (n) => `"The feed's ${n} are deferred past first paint"`,
+  },
+  {
+    file: "scripts/apply-monitoring.mjs",
+    // The SECOND occurrence in that header, and the one the entry beside
+    // it does not reach. When the ninth policy landed, the edit on this
+    // line moved `five` to `seven` for the metrics and left `eight` for
+    // the policies — under a commit message saying "all corrected". Two
+    // numbers on one line is exactly where a hand-count survives a sweep.
+    what: "alert policies, in the applier's console-steps sentence",
+    re: /log-based metrics, and (\w+) policies/,
+    actual: word(monitoringPolicies),
+    fix: (n) => `"… log-based metrics, and ${n} policies"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "notifications the token is promised to be used for",
+    re: /only used for the (\w+) notifications this app/,
+    actual: word(pushKinds),
+    fix: (n) => `"only used for the ${n} notifications this app sends"`,
+  },
+  {
+    file: "firestore-tests/storage.rules.test.ts",
+    what: "the storage byte cap the suite says it pins",
+    re: /owner-only path match, (\d+) KB cap, image content-type/,
+    actual: String(storageCapKb),
+    fix: (n) => `"owner-only path match, ${n} KB cap, image content-type"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount the whole App through the harness (§2)",
+    re: /harness, and \*\*(\w+)\*\* suites mount\s+the whole `App`/,
+    actual: word(harnessFiles),
+    fix: (n) => `"harness, and **${n}** suites mount the whole \`App\`"`,
   },
   {
     file: "CLAUDE.md",
@@ -450,15 +1010,26 @@ const FIGURES = [
   {
     file: "CLAUDE.md",
     what: "how far that figure had drifted (§1)",
-    re: /understate the migration by (\d+)\n?modules/m,
-    actual: String(convertedSpecModules - 7),
+    // `\s+`, not `\n?`: the prose wraps today, so the pattern demanded a
+    // line break where the hint prints a space — following the remedy
+    // verbatim un-quoted the figure. Either shape is the same sentence.
+    re: /understate the migration by (\d+)\s+modules/m,
+    // A CONSTANT, not `convertedSpecModules - 7`. That subtraction read as
+    // the same recomputation as the entry above it and is not: the drift is
+    // history — the prose said seven while the tree held 32 — so it is 25
+    // whatever the tree holds today. Derived, it moved with every
+    // conversion, so the first person doing the "convert on touch" work
+    // CLAUDE.md asks for would have been told by a red gate to write a
+    // number that never happened. The one figure here the tree cannot
+    // answer, and the only one whose `actual` is a literal.
+    actual: String(SPEC_MIGRATION_DRIFT),
     fix: (n) => `"understate the migration by ${n} modules"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "monitoring alerts the operator step applies",
     re: /Apply the (\w+) monitoring alerts/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"Apply the ${n} monitoring alerts"`,
   },
   {
@@ -467,7 +1038,7 @@ const FIGURES = [
     // Capitalised: the figure opens the sentence, so the word in the prose
     // is "Four" and a lowercase `actual` would fail on a correct document.
     re: /\*\*What the environment gates\.\*\* (\w+) jobs/,
-    actual: cap(NUMBER_WORDS[gatedJobs] || String(gatedJobs)),
+    actual: cap(word(gatedJobs)),
     fix: (n) => `"**What the environment gates.** ${n} jobs"`,
   },
   {
@@ -477,7 +1048,7 @@ const FIGURES = [
     // all — byte-identical before and after that commit, at seven against a
     // tree of eight. Gated now for the reason the sweep exists.
     re: /\| `monitoring\/\*\.json` \| (\w+) alert policies/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"| \`monitoring/*.json\` | ${n} alert policies"`,
   },
   {
@@ -489,7 +1060,7 @@ const FIGURES = [
     // and priced against a retired premise, and apply-monitoring's header
     // had already been fixed at D291. See D303's own correction.)
     re: /`monitoring\/` holds\s+(\w+) policies/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"\`monitoring/\` holds ${n} policies"`,
   },
   {
@@ -501,29 +1072,133 @@ const FIGURES = [
     // check:monitoring holds the LISTS equal to the directory; nothing held
     // the prose to the lists.
     re: /## Alerting \((\w+) policies, \w+ log-based metrics\)/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
-    fix: (n) => `"## Alerting (${n} policies, ...)"`,
+    actual: word(monitoringPolicies),
+    fix: (n) => `"## Alerting (${n} policies, ${word(monitoringMetrics)} log-based metrics)"`,
   },
   {
     file: "docs/DEPLOYMENT.md",
     what: "log-based metrics the section documents",
     re: /## Alerting \(\w+ policies, (\w+) log-based metrics\)/,
-    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
-    fix: (n) => `"## Alerting (..., ${n} log-based metrics)"`,
+    actual: word(monitoringMetrics),
+    fix: (n) => `"## Alerting (${word(monitoringPolicies)} policies, ${n} log-based metrics)"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
     what: "alert policies this script puts in place",
     re: /put the (\w+) alert policies in place/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"put the ${n} alert policies in place"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
     what: "log-based metrics this script creates",
     re: /a notification channel, (\w+) log-based metrics/,
-    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
+    actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "anchor keys an answer snapshots, off ANCHOR_FIELDS",
+    re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
+    actual: String(anchorKeys),
+    fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchors in the map's centre ring",
+    // Sentence-initial, like the workflow-jobs entry above.
+    re: /(\w+) anchors — age, work, study/,
+    actual: cap(word(mapAnchors.ring)),
+    fix: (n) => `"${n} anchors — age, work, study"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "test-result anchors in that ring",
+    re: /plus the (\w+) test results/,
+    actual: word(mapAnchors.tests),
+    fix: (n) => `"plus the ${n} test results"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchor keys an answer snapshots, as map-anchors states them",
+    re: /three of the (\w+) fields an answer snapshots/,
+    actual: word(anchorKeys),
+    fix: (n) => `"three of the ${n} fields an answer snapshots"`,
+  },
+  {
+    file: "src/v2/ui/LiveProfileSetup.tsx",
+    what: "anchor keys the setup screen maps onto",
+    re: /fields onto the (\d+) anchor keys/,
+    // `check:anchors` holds the CAPS against firestore.rules and reports
+    // all ten agreeing; nothing held the prose, which said seven in one
+    // file and eight in the other.
+    actual: String(anchorKeys),
+    fix: (n) => `"fields onto the ${n} anchor keys"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "call sites of kindredPeople(), the fold perRev exists for",
+    re: /walks every cached voter list and has (\d+)\n\/\/ call sites/,
+    // The COUNT is the argument for the memoisation — how many folds per
+    // render are being paid for — so it is the sentence's load-bearing
+    // half. It said six with "LiveSimilarityField ×2"; that file has had
+    // one since the Near field was rewritten.
+    actual: String(callSites("kindredPeople()")),
+    fix: (n) => `"walks every cached voter list and has ${n}\n// call sites"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "render-path callers of testFeedItems()",
+    re: /and this has (\d+)\n {2}\/\/ render-path callers/,
+    actual: String(callSites("testFeedItems()") - 1),
+    // −1 for live.ts's own internal call, which is not a render path.
+    fix: (n) => `"and this has ${n}\n  // render-path callers"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "questions carrying the political marker",
+    re: /is (\d+) questions carrying the political marker/,
+    actual: String(politicalQuestions),
+    fix: (n) => `"is ${n} questions carrying the political marker"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "the daily+feed corpus that count is read against",
+    re: /out of the\n\/\/ (\d+) on the daily and the feed/,
+    // The RATIO is the sentence's whole point, so both halves have to
+    // follow the bank. This said "ten out of 278" — the first had moved
+    // and the second was wrong when it was written.
+    actual: String(dailyFeedQuestions),
+    fix: (n) => `"out of the\n// ${n} on the daily and the feed"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "the dynamic-import sites the store's header sends a reader to",
+    re: /the (\d+) `await getDb\(\)` sites in this file/,
+    actual: String(getDbSites),
+    fix: (n) => `"the ${n} \`await getDb()\` sites in this file"`,
+  },
+  {
+    file: "src/v2/spec/map-group-stats.js",
+    what: "the anchors MapStats answers for, off MAP_ANCHOR_DIM",
+    re: /REAL for the (\w+) anchors/,
+    // D328 moved `job` from refusing to real, and updated the paragraph
+    // thirteen lines down inside this same header while leaving the
+    // opening sentence at "two" — a file contradicting itself, in the
+    // direction that understates what the Map now draws. A second copy in
+    // world-feed.jsx said "five null anchors" for the same reason.
+    actual: word(mapAnchorDims),
+    fix: (n) => `"REAL for the ${n} anchors"`,
+  },
+  {
+    file: "functions/src/engagement.ts",
+    what: "the bank the day-document's qid fence is sized against",
+    re: /The bank is\n \* (\d+) questions today/,
+    // The whole point of the sentence is the HEADROOM — "the bank can
+    // double before this truncates anything real" — so the number it is
+    // measured against has to be the live one. It said 710 against 722.
+    actual: String(seededQuestions),
+    fix: (n) => `"The bank is\n * ${n} questions today"`,
   },
   {
     file: "src/v2/data/patternsReady.ts",
@@ -540,21 +1215,21 @@ const FIGURES = [
     file: "CLAUDE.md",
     what: "test runners (the §2 heading)",
     re: /There are (\w+) test runners, and they are not interchangeable/,
-    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    actual: word(testRunners),
     fix: (n) => `"There are ${n} test runners, and they are not interchangeable"`,
   },
   {
     file: "docs/ORIENTATION.md",
     what: "test runners (§1's reading order)",
     re: /global scope; (\w+) non-interchangeable test runners/,
-    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    actual: word(testRunners),
     fix: (n) => `"the spec layer's global scope; ${n} non-interchangeable test runners"`,
   },
   {
     file: "docs/ORIENTATION.md",
     what: "test runners (§5's gate map)",
     re: /There are (\w+) test runners, \*\*not interchangeable\*\*/,
-    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    actual: word(testRunners),
     fix: (n) => `"There are ${n} test runners, **not interchangeable**"`,
   },
   {
@@ -582,7 +1257,7 @@ const FIGURES = [
     file: "README.md",
     what: "callables exempt from App Check",
     re: /The\s+(\w+) that cannot are the operator and moderator instruments/,
-    actual: NUMBER_WORDS[appCheckExemptions] || String(appCheckExemptions),
+    actual: word(appCheckExemptions),
     fix: (n) => `"The ${n} that cannot are the operator and moderator instruments"`,
   },
   // MIRROR.md reasons from this ratio — "so a given week's deck serves at
@@ -594,7 +1269,7 @@ const FIGURES = [
     file: "docs/MIRROR.md",
     what: "the daily bank behind the place-rating ratio",
     re: /holds twenty-four in ([a-z- ]+), spread over three radii/,
-    actual: NUMBER_WORDS[dailyQuestions] || String(dailyQuestions),
+    actual: word(dailyQuestions),
     fix: (n) => `"holds twenty-four in ${n}, spread over three radii"`,
   },
   {
@@ -687,12 +1362,72 @@ const FIGURES = [
   // exists to prevent. These two are the INPUTS: they come from the tree
   // rather than from the model, they move on their own every promotion
   // cycle, and they are what the cold-boot row is computed from.
+  // The cold-boot row was ONE row quoting the bank twice — a read count and
+  // a `V2_QUESTIONS`, N docs half — and both said the boot fetched all of
+  // it. It is two rows now: what the boot fetches, and what the bank holds.
+  // The second half's entry went with the sentence rather than being
+  // retargeted, per this script's own advice when a figure stops being
+  // quoted; the bank's count is still held, by the bank row below.
+  {
+    file: "src/v2/spec/daily-questions.js",
+    what: "audiences on the daily deck",
+    re: /The (\w+) audiences, in tab order/,
+    actual: word(dailyAudiences),
+    fix: (n) => `"The ${n} audiences, in tab order"`,
+  },
+  // The two sentences D426's rounds work made false. Both were stale
+  // against constants in the same repo — `RULE_READS.duel` went 3 → 2 when
+  // the reveal-exists `exists()` left the rule, and the reveal pipeline's
+  // formula went `(4 + 3m)/m` → `(2 + 2m)/m` — while the same file's own
+  // TABLE ROWS were updated in the commit that changed them. Prose beside
+  // a corrected table is the shape this gate exists for.
   {
     file: "docs/COSTS.md",
-    what: "the question bank's document count (the cold-boot row)",
-    re: /\*\*\+(\d+) reads\*\* — the whole question bank/,
-    actual: seededQuestions,
-    fix: (n) => `"**+${n} reads** — the whole question bank"`,
+    what: "documents the aggregate transaction reads per world answer",
+    // The THIRD clause of the same sentence whose other two were gated on
+    // 2026-09-08. It said "two documents … the private aggregate" while
+    // the table row twelve screens up already said three and named the
+    // published one — the file contradicting itself, which is the shape
+    // that block's own header describes. D410 put the author's profile in
+    // the same `tx.getAll`.
+    re: /reads (\w+)\s+documents per world answer/,
+    actual: word(TRIGGER_READS.world),
+    fix: (n) => `"reads ${n} documents per world answer"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "distinct documents a duel answer's create rule reads",
+    // `\s+`, not `\n`: the sentence wraps in the file, and a pattern that
+    // REQUIRED the wrap made the printed remedy — a single line — one this
+    // gate could not then find. That is the loop check-figures.test.mjs's
+    // hint rule closes, and it caught this entry on the night it was added.
+    re: /a duel answer's\s+touches (\w+) distinct ones/,
+    actual: word(RULE_READS.duel),
+    fix: (n) => `"a duel answer's touches ${n} distinct ones"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "reveal-pipeline reads per member for a duo",
+    re: /which is (\d+) for a duo/,
+    actual: revealReadsPerMember(2),
+    fix: (n) => `"which is ${n} for a duo"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "the documents a cold boot reads from the bank (the cold-boot row)",
+    re: /\*\*\+(\d+) reads\*\* — five whole surfaces plus the feed's core/,
+    actual: coldBootBankDocs,
+    // The hint has to quote the sentence the PATTERN matches. It quoted
+    // "the whole question bank" — the wording D383 retired and this very
+    // entry was retargeted away from — so a maintainer who followed the
+    // printed remedy verbatim restored a claim the block above calls false,
+    // and the next run then told them the figure was no longer quoted and
+    // to DELETE this entry. Measured: bump the row to 493, run, apply the
+    // printed sentence, run again, and the second message is
+    // "could not find the sentence … delete its entry from FIGURES in this
+    // script rather than restoring the sentence". A remedy that walks a
+    // reader from a caught drift to a deleted gate in two steps.
+    fix: (n) => `"**+${n} reads** — five whole surfaces plus the feed's core questions"`,
   },
   {
     file: "docs/COSTS.md",
@@ -715,6 +1450,10 @@ const FIGURES = [
   // sentence to be noticed.
   {
     file: "docs/COSTS.md",
+    // Still a real figure and still worth stating — it is what the
+    // install and cache budgets are sized against. What changed is that
+    // it is no longer what a boot READS, so it now sits beside a sentence
+    // saying which of the two it is.
     what: "the question bank's document count (the cold-boot row, second half)",
     re: /`V2_QUESTIONS`, (\d+) docs/,
     actual: seededQuestions,
@@ -726,6 +1465,20 @@ const FIGURES = [
     re: /you copy it across: \*\*(\d+) data types\*\*/,
     actual: String(appPrivacyRows),
     fix: (n) => `"you copy it across: **${n} data types**"`,
+  },
+  {
+    // The SAME number one file over, and it drifted the same way for the
+    // same reason: the heading over the table said "declare these eight"
+    // while the table under it had eleven rows and check:store-forms
+    // printed "11 collected type(s)" beside it. It went stale at D200 and
+    // has since missed D203's Health row and D272's Product Interaction
+    // row — the two drifts the runbook's own entry above was added for.
+    // A word, not a digit, because that is how the heading reads.
+    file: "docs/STORE-FORMS.md",
+    what: "the collected-row count in the section heading",
+    re: /### Collected — declare these (\w+)/,
+    actual: word(appPrivacyRows),
+    fix: (n) => `"### Collected — declare these ${n}"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
@@ -803,6 +1556,29 @@ const FIGURES = [
     actual: budgetConst("PROMOTE_PACE"),
     fix: (n) => `"promotes up to **${n} pen questions per run**"`,
   },
+  // The daily lane's floor and its demand share's thresholds (D350) — the
+  // allocation § Picking topics quotes, computed by farm-budget.mjs.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily per-top floor (TOP_FLOOR)",
+    re: /\*\*(\d+) questions per top\*\*/,
+    actual: budgetConst("TOP_FLOOR"),
+    fix: (n) => `"**${n} questions per top**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited daily answers\*\*/,
+    actual: budgetConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited daily answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the daily lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: budgetConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the daily lane reads no scorecard older than **${n} days**"`,
+  },
   // The four D115 learn-lane figures, quoted in § The learn-card lane.
   {
     file: "docs/QUESTION-FARM.md",
@@ -813,9 +1589,9 @@ const FIGURES = [
   },
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the learn per-field depth target (FIELD_TARGET)",
+    what: "the learn per-field floor (FIELD_FLOOR)",
     re: /\*\*(\d+) cards per\s*\n?\s*field\*\*/,
-    actual: learnConst("FIELD_TARGET"),
+    actual: learnConst("FIELD_FLOOR"),
     fix: (n) => `"**${n} cards per field**"`,
   },
   {
@@ -832,6 +1608,21 @@ const FIGURES = [
     actual: learnConst("MIN_CHUNK"),
     fix: (n) => `"at least **${n} cards into any field it touches**"`,
   },
+  // The learn demand share's two thresholds (D350), same shape as the feed's.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited learn answers\*\*/,
+    actual: learnConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited learn answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the learn lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: learnConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the learn lane reads no scorecard older than **${n} days**"`,
+  },
   // The three feed-lane figures, quoted in § The feed lane. Same reasoning as
   // the other two lanes': the section is what a scheduled run obeys, so a cap
   // drifted there hands the run a budget feed-budget.mjs does not compute.
@@ -846,11 +1637,37 @@ const FIGURES = [
     actual: feedConst("RUN_CAP"),
     fix: (n) => `"**${n} feed questions per run**"`,
   },
+  // THE SAME CAP, TWICE MORE, IN THE SUBSECTIONS A RUN ACTUALLY READS.
+  // D350 raised RUN_CAP 6 → 60 and moved the headline sentence above; both
+  // of these were left at 6, ten times low, for three days. They are not
+  // decoration: the feed lane's prompt says the manual "outranks this
+  // prompt's summary", so on a conflict between `npm run feed:budget`
+  // printing 60 and a bullet saying ≤6/run, the bullet wins by the lane's
+  // own rule.
+  //
+  // TWO ENTRIES AND TWO PATTERNS, deliberately: this gate takes the FIRST
+  // match of each `re`, so one shared pattern would hold the first bullet
+  // and leave the second free to drift — which is the failure the entry
+  // above already carries a note about, one lane over.
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the feed per-topic breadth target (TOPIC_TARGET)",
+    what: "the feed lane's per-run cap, as § Continuum questions states it",
+    re: /continuum candidates count inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"continuum candidates count inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Crossroads stories states it",
+    re: /a story counts inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"a story counts inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed per-topic coverage floor (TOPIC_FLOOR)",
     re: /\*\*(\d+)\s*\n?\s*servable questions per\s*\n?\s*topic\*\*/,
-    actual: feedConst("TOPIC_TARGET"),
+    actual: feedConst("TOPIC_FLOOR"),
     fix: (n) => `"**${n} servable questions per topic**"`,
   },
   {
@@ -859,6 +1676,53 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
+  },
+  // The demand share's two thresholds (D350): the crowd it will not read a
+  // ranking off, and the scorecard age past which it goes blind. Quoted in
+  // the same section, for the same reason as the caps above.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited feed answers\*\*/,
+    actual: feedConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited feed answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /no older than \*\*(\d+) days\*\*/,
+    actual: feedConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"no older than **${n} days**"`,
+  },
+  // The now lane's four figures (D351), quoted in § The now lane: the cap,
+  // the open-PR ceiling, and the two halves of the source rule.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's per-run cap (NOW_CAP)",
+    re: /\*\*(\d+) current-events questions per run\*\*/,
+    actual: nowConst("NOW_CAP"),
+    fix: (n) => `"**${n} current-events questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's open-PR ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on the now lane's open PR/,
+    actual: nowConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on the now lane's open PR"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's corroboration bar (SOURCES_MIN)",
+    re: /at least \*\*(\d+) independent outlets\*\*/,
+    actual: nowConst("SOURCES_MIN"),
+    fix: (n) => `"at least **${n} independent outlets**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's freshness bound (FRESH_DAYS)",
+    re: /published within the last \*\*(\d+) days\*\*/,
+    actual: nowConst("FRESH_DAYS"),
+    fix: (n) => `"published within the last **${n} days**"`,
   },
   // The three duel-lane figures (D213), quoted in § The duel lane.
   {
@@ -952,7 +1816,20 @@ if (runnerRows !== testRunners) {
   );
 }
 
-if (errors.length) {
+// IMPORTABLE ABOVE, RUNNABLE BELOW — the shape scripts/spec-globals.mjs and
+// check-policy-claims.mjs already use, and for the same reason: a test that
+// imports FIGURES to hold a property of the entries must not also print a
+// report and call process.exit, which inside a test runner takes the whole
+// run with it. The COMPUTATION above is left unguarded on purpose — it is
+// pure, and the one thing that can throw at import (the BANK_SURFACES
+// equality check) throwing means the tree really is inconsistent, which a
+// test should see rather than skip.
+const isEntry = process.argv[1]
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+export { FIGURES };
+
+if (isEntry && errors.length) {
   console.error("\ncheck-figures: documented figures no longer match the tree:\n");
   for (const e of errors) console.error(`  ${e}\n`);
   console.error(
@@ -963,7 +1840,7 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(
+if (isEntry) console.log(
   `check-figures OK — ${FIGURES.length} documented figures across `
   + `${sources.size} files match the tree `
   + `(rules tests: ${rulesTests}; questions: ${seededQuestions}, `

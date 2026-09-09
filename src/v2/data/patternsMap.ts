@@ -9,8 +9,14 @@
 //             a perfect proxy — how much two answers predict each other
 //   hub       ‖L‖ normalised — how tied a question is to everything else
 //   edges     each question's own strongest few, deduped — the drawn web
-//   plane     position seeds from the first two factors, then springs on
-//             the drawn edges and a grid declutter — never all-pairs
+//
+// The PLANE this file also computed (position seeded from the first two
+// factors, springs on the drawn edges, a grid declutter) went with the
+// 2026-09-02 redesign: the Map is a RING now, so position is topic
+// membership and the chords carry every claim (VISION-2026-09-02 §1.2).
+// `planeOf` and `PATTERNS_MIN_GAP` were kept alive by their own tests
+// alone and are deleted rather than annotated — git history has them, and
+// a layout engine no surface draws is the residue this tree removes.
 //
 // Pure and deterministic given the loadings (no RNG anywhere — the
 // prototype's declutter jitter is index-parity, kept), so the layout is
@@ -19,10 +25,6 @@
 // orders of magnitude under the swap point; the exact pass IS the cheap
 // one here, and the ANN index can arrive with the corpus that needs it.
 export const PATTERNS_SIM_SHRINK = 0.92;
-/** Dots closer than this on the drawn plane get pushed apart. 17 until the
- * 2026-08-20 standalone tightened it: just enough to stay tappable — tight
- * clusters ARE the signal the archipelago pass below exists to show. */
-export const PATTERNS_MIN_GAP = 10.5;
 
 export interface MapNode {
   id: string;
@@ -33,7 +35,6 @@ export interface MapNode {
 }
 
 export interface MapEdge { i: number; j: number; r: number }
-export interface MapPoint { i: number; id: string; x: number; y: number }
 
 const norm = (v: readonly number[]): number => Math.sqrt(v.reduce((a, x) => a + x * x, 0));
 
@@ -84,172 +85,119 @@ export function edgesOf(U: readonly number[][], per = 3): MapEdge[] {
   return out;
 }
 
-/**
- * Positions: seed from the first two factors, fit to the box, then the
- * 2026-08-20 standalone's ARCHIPELAGO passes: communities of the drawn web
- * (label propagation over the same edges the map draws, O(n·k) per pass)
- * become islands — members pull toward their island's centre, centres push
- * out from the middle — the separation the raw factor plane refuses to
- * draw itself. Then springs on the drawn edges (strong tie → short rest
- * length) with each point held to its island, grid-declutter, clamp, fit,
- * settle. Deterministic throughout: same vectors, same picture.
- */
-export function planeOf(
-  nodes: readonly MapNode[],
-  edges: readonly MapEdge[],
-  W = 344, H = 330, P = 16,
-): MapPoint[] {
-  const pts: MapPoint[] = nodes.map((q, i) => ({ i, id: q.id, x: q.L[0] ?? 0, y: q.L[1] ?? 0 }));
-  const fit = () => {
-    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const sx = (W - P * 2) / (x1 - x0 || 1), sy = (H - P * 2) / (y1 - y0 || 1);
-    for (const p of pts) { p.x = P + (p.x - x0) * sx; p.y = P + (p.y - y0) * sy; }
-  };
-  if (!pts.length) return pts;
-  fit();
-  // communities of the drawn web → islands, then anchors that hold each
-  // point to its exaggerated island through the relax
-  const m = pts.length;
-  const lab = new Int32Array(m);
-  for (let i = 0; i < m; i++) lab[i] = i;
-  const adj: { j: number; w: number }[][] = Array.from({ length: m }, () => []);
-  for (const e of edges) {
-    const w = Math.abs(e.r);
-    adj[e.i].push({ j: e.j, w });
-    adj[e.j].push({ j: e.i, w });
-  }
-  for (let t = 0; t < 14; t++) {
-    let moved = 0;
-    for (let i = 0; i < m; i++) {
-      const sc = new Map<number, number>();
-      for (const x of adj[i]) sc.set(lab[x.j], (sc.get(lab[x.j]) || 0) + x.w);
-      let best = lab[i], bs = 0;
-      sc.forEach((s, k2) => { if (s > bs) { bs = s; best = k2; } });
-      if (best !== lab[i]) { lab[i] = best; moved++; }
-    }
-    if (!moved) break;
-  }
-  const isle = new Map<number, { x: number; y: number; n: number }>();
-  pts.forEach((p, i) => {
-    const k2 = lab[i];
-    let c = isle.get(k2);
-    if (!c) isle.set(k2, (c = { x: 0, y: 0, n: 0 }));
-    c.x += p.x; c.y += p.y; c.n++;
-  });
-  isle.forEach((c) => { c.x /= c.n; c.y /= c.n; });
-  let gx = 0, gy = 0;
-  for (const p of pts) { gx += p.x; gy += p.y; }
-  gx /= m; gy /= m;
-  // exaggerate once, then hold each point to its island through the relax
-  const anchor = pts.map((p, i) => {
-    const c = isle.get(lab[i]) as { x: number; y: number; n: number };
-    const cx2 = gx + (c.x - gx) * 1.55, cy2 = gy + (c.y - gy) * 1.55;
-    p.x = cx2 + (p.x - c.x) * 0.6; p.y = cy2 + (p.y - c.y) * 0.6;
-    return { x: cx2, y: cy2 };
-  });
-  const MIN = PATTERNS_MIN_GAP;
-  const relax = (
-    iters: number,
-    springs: { i: number; j: number; len: number }[] | null,
-    anch: { x: number; y: number }[] | null,
-  ) => {
-    for (let t = 0; t < iters; t++) {
-      if (anch) {
-        const g = 0.026;
-        pts.forEach((p, i2) => { p.x += (anch[i2].x - p.x) * g; p.y += (anch[i2].y - p.y) * g; });
-      }
-      if (springs) {
-        const k = 0.075 * (1 - t / (iters * 1.6));
-        for (const e of springs) {
-          const a = pts[e.i], b = pts[e.j];
-          const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
-          const s = ((d - e.len) / d) * k;
-          a.x += dx * s; a.y += dy * s; b.x -= dx * s; b.y -= dy * s;
-        }
-      }
-      const cell = new Map<number, MapPoint[]>();
-      const key = (cx: number, cy: number) => cx * 100003 + cy;
-      for (const p of pts) {
-        const c = key(Math.floor(p.x / MIN), Math.floor(p.y / MIN));
-        const bucket = cell.get(c);
-        if (bucket) bucket.push(p); else cell.set(c, [p]);
-      }
-      for (const a of pts) {
-        const cx = Math.floor(a.x / MIN), cy = Math.floor(a.y / MIN);
-        for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
-          const bucket = cell.get(key(cx + ox, cy + oy));
-          if (!bucket) continue;
-          for (const b of bucket) {
-            if (b === a || b.i < a.i) continue;
-            let dx = b.x - a.x, dy = b.y - a.y;
-            const d = Math.hypot(dx, dy);
-            if (d >= MIN) continue;
-            if (d < 0.001) { dx = (a.i % 2 ? 1 : -1) * 0.5; dy = 0.5; }
-            const s = ((MIN - d) / (d || 1)) * 0.24;
-            a.x -= dx * s; a.y -= dy * s; b.x += dx * s; b.y += dy * s;
-          }
-        }
-      }
-      for (const p of pts) {
-        p.x = Math.max(P * 0.6, Math.min(W - P * 0.6, p.x));
-        p.y = Math.max(P * 0.6, Math.min(H - P * 0.6, p.y));
-      }
-    }
-  };
-  // the same edges the map draws also do the tightening — a tie you can see
-  const rmax = Math.max(...edges.map((e) => Math.abs(e.r)), 0) || 1;
-  relax(150, edges.map((e) => ({ i: e.i, j: e.j, len: 19 + (1 - Math.abs(e.r) / rmax) * 66 })), anchor);
-  fit();
-  relax(30, null, null);
-  return pts;
-}
-
 // ── the Oracle's own arithmetic ─────────────────────────────────────────
 
+/** The device ridge the shipped `estimateTheta` was written at. The
+ * loadings doc publishes the ridge its scorecard was measured at as
+ * `lambdaU` (D395) and callers pass it through; this is the fallback for
+ * a document that predates the field. */
+export const DEFAULT_LAMBDA_U = 0.5;
+
 /**
- * The viewer's latent vector, estimated on the DEVICE from their own
- * answers and the published loadings: ridge regression, K×K, closed
- * form. Nothing leaves the phone — the guess is a fold over two things
- * the phone already holds.
+ * The viewer's latent vector AND the posterior precision it came with,
+ * estimated on the DEVICE from their own answers and the published
+ * loadings: ridge regression, K×K, closed form. Nothing leaves the phone
+ * — the solve is a fold over two things the phone already holds.
  *
- * obs.r is the centred encoded answer (±1 minus the question's marginal),
- * matching the server fit's own residual.
+ * `obs.r` is the centred encoded answer (±1 minus the question's marginal
+ * for a two-option item; the standardised index for an ordinal one; the
+ * centred pick for a one-hot pseudo-item — D395's `items` metadata says
+ * which), matching the server fit's own residual.
+ *
+ * `invA` is (Σ L Lᵀ + λI)⁻¹ — the posterior covariance up to the noise
+ * scale. `Lᵀ invA L` for a candidate loading is how much of that loading
+ * the viewer's answers leave UNDETERMINED, which is what the
+ * information rule (`mostInformative`) ranks by. Measured 2026-09-06
+ * before this shipped: using the same quantity to SHRINK the guess helps
+ * at λ = 0.5 (0.946 → 0.902 bits on the probe's world) and hurts once λ
+ * is tuned up (0.903 → 0.909 at λ = 2) — the two are one knob twice, and
+ * the nightly sweep already tunes λ by the scorecard — so the guess stays
+ * `marginal + θ·L` and the precision serves the question choice alone.
  */
-export function estimateTheta(
+export function ridgeSolve(
   obs: readonly { L: readonly number[]; r: number }[],
   k: number,
-  lambda = 0.5,
-): number[] {
-  // A = Σ L Lᵀ + λI ; b = Σ r·L ; θ = A⁻¹ b, by Gaussian elimination —
-  // K is 8, the solve is nothing.
-  const A: number[][] = Array.from({ length: k }, (_, i) =>
-    Array.from({ length: k }, (_, j) => (i === j ? lambda : 0)));
+  lambda = DEFAULT_LAMBDA_U,
+): { theta: number[]; invA: number[][] } {
+  // A = Σ L Lᵀ + λI ; b = Σ r·L ; θ = A⁻¹ b, and A⁻¹ itself by Gauss–Jordan
+  // on [A | I] — K is 8, the whole thing is a few hundred multiplies.
+  const M: number[][] = Array.from({ length: k }, (_, i) =>
+    Array.from({ length: 2 * k }, (_, j) => (j === i ? lambda : j === k + i ? 1 : 0)));
   const b: number[] = Array.from({ length: k }, () => 0);
   for (const o of obs) {
     for (let i = 0; i < k; i++) {
-      b[i] += o.r * (o.L[i] ?? 0);
-      for (let j = 0; j < k; j++) A[i][j] += (o.L[i] ?? 0) * (o.L[j] ?? 0);
+      const li = o.L[i] ?? 0;
+      b[i] += o.r * li;
+      for (let j = 0; j < k; j++) M[i][j] += li * (o.L[j] ?? 0);
     }
   }
   for (let col = 0; col < k; col++) {
     let piv = col;
-    for (let row = col + 1; row < k; row++) if (Math.abs(A[row][col]) > Math.abs(A[piv][col])) piv = row;
-    if (piv !== col) { [A[col], A[piv]] = [A[piv], A[col]]; [b[col], b[piv]] = [b[piv], b[col]]; }
-    const d = A[col][col] || 1e-9;
-    for (let row = col + 1; row < k; row++) {
-      const f = A[row][col] / d;
-      for (let j = col; j < k; j++) A[row][j] -= f * A[col][j];
-      b[row] -= f * b[col];
+    for (let row = col + 1; row < k; row++) if (Math.abs(M[row][col]) > Math.abs(M[piv][col])) piv = row;
+    if (piv !== col) [M[col], M[piv]] = [M[piv], M[col]];
+    const d = M[col][col] || 1e-9;
+    for (let j = 0; j < 2 * k; j++) M[col][j] /= d;
+    for (let row = 0; row < k; row++) {
+      if (row === col) continue;
+      const f = M[row][col];
+      if (f === 0) continue;
+      for (let j = 0; j < 2 * k; j++) M[row][j] -= f * M[col][j];
     }
   }
-  const theta = Array.from({ length: k }, () => 0);
-  for (let row = k - 1; row >= 0; row--) {
-    let s = b[row];
-    for (let j = row + 1; j < k; j++) s -= A[row][j] * theta[j];
-    theta[row] = s / (A[row][row] || 1e-9);
+  const invA = M.map((r) => r.slice(k));
+  const theta = Array.from({ length: k }, (_, i) => {
+    let s = 0;
+    for (let j = 0; j < k; j++) s += invA[i][j] * b[j];
+    return s;
+  });
+  return { theta, invA };
+}
+
+/** The viewer's latent vector alone — the shape every existing caller
+ * reads; `ridgeSolve` is the same solve with its precision kept. */
+export function estimateTheta(
+  obs: readonly { L: readonly number[]; r: number }[],
+  k: number,
+  lambda = DEFAULT_LAMBDA_U,
+): number[] {
+  return ridgeSolve(obs, k, lambda).theta;
+}
+
+/** How much of a loading the viewer's answers leave undetermined —
+ * `Lᵀ invA L`, the predictive variance of θ·L up to the noise scale.
+ * Large for a direction no answered question points along; small once
+ * the answers have pinned it. */
+export function undetermined(invA: readonly number[][], L: readonly number[]): number {
+  const k = invA.length;
+  let s = 0;
+  for (let i = 0; i < k; i++) {
+    let row = 0;
+    for (let j = 0; j < k; j++) row += invA[i][j] * (L[j] ?? 0);
+    s += (L[i] ?? 0) * row;
   }
-  return theta;
+  return s;
+}
+
+/**
+ * Which question to ask next: the one whose loading points where the
+ * viewer's vector is least determined — the information rule (the
+ * owner's call, 2026-09-06, on ALGORITHM-REFLECTION §5.3). Ties keep the
+ * candidates' order, so the choice is deterministic. Returns the index
+ * into `candidates`, or −1 for none.
+ *
+ * It makes the Oracle learn the viewer fastest and, for a while, look
+ * worst — it deliberately asks what it cannot yet call. The meter is
+ * honest about that either way; the opposite rule flatters the meter and
+ * learns slowly.
+ */
+export function mostInformative(invA: readonly number[][], candidates: readonly { L: readonly number[] }[]): number {
+  let best = -1;
+  let bestGain = -Infinity;
+  candidates.forEach((c, i) => {
+    const g = undetermined(invA, c.L);
+    if (g > bestGain + 1e-12) { bestGain = g; best = i; }
+  });
+  return best;
 }
 
 /** The sealed guess: P(option 0), from the question's own marginal plus

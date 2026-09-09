@@ -5,9 +5,9 @@
 > decision that was still open, which is how it should stay — the argument
 > is the useful part and re-tensing it would cost the reasoning. Read
 > "today" and "current" as *2026-08-13*, and `nam5` as the option not
-> taken. Only step 5 of the procedure is outstanding (deleting `(default)`),
-> and the tables below are therefore the counterfactual: what the app would
-> cost if this page had been ignored.
+> taken. Step 5 — deleting `(default)` — was executed 2026-08-27 (D333),
+> so the whole procedure is done and the tables below are the
+> counterfactual: what the app would cost if this page had been ignored.
 >
 > **The saving is real and was invisible for three days.** The cost model
 > kept pricing `nam5` until D200, because the region was a default
@@ -176,6 +176,22 @@ Deploy, then answer one question on a real device and watch the count move.
 
 Not before. It costs nothing to keep for a week and it is the only way
 back.
+
+> **Executed 2026-08-27 (D333), twelve days after the migration, and the
+> "satisfied" was measured rather than felt.** Two readings before the
+> delete: the `insight` database serving (710 questions, zero
+> `test-cognitive-*`, the nightly fit publishing onto `v2_meta/app` and
+> answers folding through the trigger the same day), and `(default)`'s
+> write history since 2026-08-15. The second reading FAILED as literally
+> stated — the per-database metric showed exactly six UPDATE ops per day
+> — and the attribution is why deletion still proceeded: all six landed
+> on the three inert `aggregates_*`/`taxonomies` documents D13's stranded
+> schedulers kept rewriting, the schedulers were deleted earlier the same
+> day, and `(default)`'s own v2 data had not moved since the migration
+> (newest ledger event 2026-08-15T11:42Z, plus the 20 retired
+> `test-cognitive-*` docs still in its bank — the pre-D165 fingerprint).
+> **D165's rollback is hereby retired**; `prvfire33` has one database,
+> `insight`, and the erasure caveat below about two databases is moot.
 
 ## The two silent failures
 

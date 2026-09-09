@@ -12,7 +12,7 @@
 //         · groups (an interest circle). Tuned, not random: your close ties
 // resemble you most, the world least. Big-Five / econ-social numbers stay in
 // step with IS_DATA.aggregates so the rest of the app agrees.
-window.IS_COMPARE_POP = {
+export const IS_COMPARE_POP = {
   around: {
     label: 'near you', n: 312,
     big5:       { O: 70, C: 60, E: 50, A: 68, N: 40 },

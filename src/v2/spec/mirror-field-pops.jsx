@@ -13,6 +13,22 @@ import { Av, TabSection, MatchRing } from './primitives.jsx';
 // coupling count, and both modules are eager so the ESM graph carries it
 // into the same chunk for free.
 import { TypeMark } from './type-marks.jsx';
+// The Mirror's own parts and the feed's memory, as imports (D354's sweep).
+// Every `window.X &&` beside these reads was a load-order guard; each of
+// these modules evaluates before this one (mirror-tab.jsx's import order,
+// or the eager list), and an imported binding cannot be unset. The two
+// cross-group cards — CircleReadCard from the Map's family, PlaceStatsCard
+// from the feed's — are pulled into this chunk by the import, which is the
+// point: their guard was the one frame in which they might not have
+// landed, and now there is no such frame.
+import { FEEDREAD } from './feed-read.js';
+import { CompareBreakdown } from './compare-breakdown.jsx';
+import { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses } from './mirror-field.jsx';
+import { SegmentExplorer } from './segment-explorer.jsx';
+import { MirrorAnswers } from './mirror-answers.jsx';
+import { DemographicsCard } from './demographics.jsx';
+import { CircleReadCard } from './map-people.jsx';
+import { PlaceStatsCard } from './place-stats.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -77,7 +93,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
                   {/* v28 §7.9: the type, as the chip the LIVE KindredCard already
                       wears (ui/LiveMirrorLenses.tsx, D156) — mark + name, one
                       shape for demo and live so a badge on a person always
@@ -87,7 +103,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                     <span style={{
                       marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
                       border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 999, padding: '2px 9px 2px 4px',
-                      fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)',
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)',
                       background: 'var(--surface-2)', whiteSpace: 'nowrap',
                     }}>
                       <TypeMark testKey="big5" name={p.type} size={16}></TypeMark>
@@ -98,7 +114,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                   {p.shared.map(s => (
                     <span key={s} style={{
-                      fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500,
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
                       color: `oklch(0.34 0.13 ${p.hue})`,
                       padding: '2px 9px', borderRadius: 99,
                       background: `oklch(0.95 0.03 ${p.hue})`, border: `0.5px solid oklch(0.85 0.05 ${p.hue})`,
@@ -157,7 +173,12 @@ function MFSoWhat({ pop, cfg }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   useEffectMFP(() => DAILYQ.subscribe(bump), []);
   const parts = mfpSoWhat(pop, cfg);
-  if (!parts.length) return null; // too thin to say anything — say nothing
+  // circle refuses even when it has something (2026-09-06, §6.3): "X mirrors
+  // you closest; Y least" ranks the nine people the reader knows BY NAME
+  // under the figure that already draws the same ranking — the one so-what
+  // that repeats its own field, and the one where least reads as a verdict
+  // on a friend. The other populations keep theirs.
+  if (pop === 'circle' || !parts.length) return null; // too thin to say anything — say nothing
   return (
     <div style={{ padding: '7px 26px 0', textAlign: 'center' }}>
       <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'balance' }}>
@@ -281,7 +302,7 @@ function mfpConfig(pop, zoom, mine) {
 // (see the note below). The prototype kept both the dangling branch and the
 // props; taking its parameter list would have re-declared two arguments
 // nothing can read.
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
+export function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   const D = IS_DATA;
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(SCENES.list()));
@@ -353,8 +374,8 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   lenses.push({ id: 'answers', label: 'Answers', render: () => <MirrorAnswers audId={cfg.answersAud}></MirrorAnswers> });
   // Kindred + Mix travel together — one "People" lens
   const hasKindred = pop === 'near' || pop === 'world';
-  const hasMix = !!(cfg.makeupAud && window.DemographicsCard);
-  const hasRead = pop === 'circle' && !!window.CircleReadCard;
+  const hasMix = !!cfg.makeupAud;
+  const hasRead = pop === 'circle';
   // A GroupLevelBreakdown lens was guarded here on the same pattern as the
   // GroupCompare one below — and on the same broken premise: nothing in the
   // tree has ever defined GroupLevelBreakdown, so the guard could not pass.
@@ -374,22 +395,22 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   }
   // the member scorecard — city / country / world, fed by rate questions in the feed
   const rateScope = pop === 'world' ? (worldZoom === 'city' ? 'city' : worldZoom === 'country' ? 'country' : 'world') : null;
-  if (rateScope && window.PlaceStatsCard) {
+  if (rateScope) {
     lenses.push({ id: 'scores', label: 'Scores', render: () => <PlaceStatsCard scope={rateScope} accent="var(--accent)"></PlaceStatsCard> });
   }
-  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country' && window.SegmentExplorer) {
+  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country') {
     lenses.push({ id: 'explore', label: 'Explore', render: () => <SegmentExplorer></SegmentExplorer> });
   }
   // The prototype guarded a GroupCompare lens here, but its module
   // (legacy-tabs) is gone in v15 — the guard could never pass, so the
   // branch is gone rather than dead (check:globals would flag it).
-  if (cfg.compare && window.CompareBreakdown) {
+  if (cfg.compare) {
     lenses.push({ id: 'compare', label: 'Compare', render: () => <CompareBreakdown scope={cfg.compare.scope} accent="var(--accent)" label={cfg.compare.label}></CompareBreakdown> });
   }
 
   // Sparse mirror: the population is real, the likeness isn't yet. Field keeps
   // you, the rings and the crowd's mist; the placed dots and every lens wait.
-  const readN = window.FEEDREAD ? (window.FEEDREAD.stats().n || 0) : 0;
+  const readN = FEEDREAD.stats().n || 0;
   const sparse = !!firstRun;
 
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
@@ -424,7 +445,5 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   );
 }
 
-Object.assign(window, { MirrorFieldBody });
 
-;globalThis.MirrorFieldBody = typeof MirrorFieldBody === 'undefined' ? globalThis.MirrorFieldBody : MirrorFieldBody;
 ;globalThis.MFP_SECTORS = typeof MFP_SECTORS === 'undefined' ? globalThis.MFP_SECTORS : MFP_SECTORS;

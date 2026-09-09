@@ -137,6 +137,10 @@ export const CATALOG_FILES = {
   pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
   countries: "countries.txt", dogs: "dogs.txt", colors: "colors.txt",
   films: "films.txt", artists: "artists.txt", athletes: "athletes.txt",
+  // languages was absent from this map from its commit (#344) until
+  // 2026-09-06 — exactly the one-transcription drift the paragraph above
+  // exists to prevent: its cards (pk32/pk33/pk35) could never promote.
+  languages: "languages.txt", videogames: "videogames.txt",
 };
 
 // Catalogue picks run their own seq lane from here (D232, amended at
@@ -305,6 +309,13 @@ export function buildEntries(content = loadContent()) {
       // disjoint from the home) so an unknown door — which fails silently,
       // the card just never matches it — cannot reach the bank.
       ...(Array.isArray(q.also) && q.also.length ? { also: q.also.map(String) } : {}),
+      // The subtopic leaf this card belongs to (D425) — the second level of
+      // the feed's tree, read by the client's filter fast path and the
+      // discover sheet's stock count. Emit-when-set like `also`; validated
+      // at check:quality (a committed leaf, under this card's own home).
+      // Same wire field the daily uses for its sub-branch NAME — the
+      // surface tells the two apart, and deck.ts's comment says so.
+      ...(typeof q.sub === "string" && q.sub ? { sub: q.sub } : {}),
       // The range/plane copy the client renders from — emit-when-set, like
       // flags: only continuum entries carry these.
       ...(typeof q.lo === "number" ? { lo: q.lo } : {}),
@@ -426,24 +437,80 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
-  // Group array order is deliberately interleaved (us/pick/classic) — it is
-  // the rotation order. Never sort it. `pick` questions have no options
-  // (the group's members are the options, filled in client-side).
+  // Group array order is deliberately interleaved — it is the demo's
+  // rotation order. Never sort it. `pick` questions have no options (the
+  // group's members are the options, filled in client-side).
+  //
+  // The group is a CAST since the owner's 2026-09-08 design (D434,
+  // docs/VISION-2026-09-08.md): a `pick` may carry the scenario PACK it
+  // belongs to (`scen` — Bank Heist, Desert Island…) and the ROLE it casts
+  // (`role` — "the mastermind"), and a `rate` question asks the group
+  // about itself on a five-step scale between two `poles`, its `options`
+  // being the five step labels so the answer stays an option index for
+  // the rules and the fold. Emit-when-set, like `flags`: the older
+  // us/classic/untagged picks carry none of the three.
+  // The packs are written ONCE, in `duel.scenarios`, and a role vote
+  // names its pack by id; the seeded document carries the pack whole
+  // (id, label, hue) so the card draws it without a second lookup. A
+  // rating carries its two `poles` in the source and the five step labels
+  // are derived here — `[a, mostly a, in between, mostly b, b]`, the
+  // design's `stepLabel` — so the file stays under its bundle cap and the
+  // labels cannot drift from the poles. The demo layer derives them the
+  // same way (spec/duels-data.js).
+  const packs = new Map((duel.scenarios ?? []).map((s) => [s.id, s]));
+  const stepLabels = (poles) => [poles[0], `mostly ${poles[0]}`, "in between", `mostly ${poles[1]}`, poles[1]];
   duel.group.forEach((q, i) => {
+    const id = `group-${requireId(q, `duel-questions.json group[${i}]`)}`;
+    if (q.scen !== undefined && !packs.has(q.scen)) {
+      throw new Error(`${id}: scenario pack ${JSON.stringify(q.scen)} is not in duel-questions.json scenarios`);
+    }
+    if (q.kind === "rate" && (!Array.isArray(q.poles) || q.poles.length !== 2)) {
+      throw new Error(`${id}: a rate question needs exactly two poles`);
+    }
+    const pack = q.scen !== undefined ? packs.get(q.scen) : null;
     entries.push({
-      id: `group-${requireId(q, `duel-questions.json group[${i}]`)}`,
+      id,
       surface: "group",
       seq: i,
       type: "choice",
       domain: null,
       prompt: q.prompt,
-      options: q.options ?? [],
+      options: q.kind === "rate" ? stepLabels(q.poles.map(String)) : (q.options ?? []),
       topic: q.kind ?? "classic",
       axis: null,
       test: null,
+      ...(pack ? { scen: { id: String(pack.id), label: String(pack.label), hue: Number(pack.hue) } } : {}),
+      // The role's SEAT (D437, the owner's 2026-09-09 design): engine ·
+      // hands · heart · wild — what a member's received votes cluster into.
+      // Every role vote carries one; check:content holds each pack to one
+      // role per seat.
+      ...(q.role ? { role: { id: String(q.role.id), label: String(q.role.label), seat: String(q.role.seat) } } : {}),
+      ...(Array.isArray(q.poles) ? { poles: q.poles.map(String) } : {}),
+      ...flags(q),
     });
   });
 
+  // A 1v1 question's DOMAIN rides `topic` (D386) — `day` (everyday),
+  // `heat` (under pressure), `mirror` (a read of the other person), `ahead`
+  // (the future, romantic only) — the way a group question's kind does.
+  // The source has always carried it as `d` and the demo layer read it
+  // there; the seed dropped it, so the live roles fold could not tell a
+  // mirror day ("The word that fits them best?") from an ordinary one and
+  // scored knowing how you are seen as reading their preferences, and the
+  // same word about each other as likeness. `check:content` holds the set
+  // closed like the group kinds; `duelQFor` carries it to the card as
+  // `kind`, which only ever asked "pick".
+  // THE CAST ROUND (D437, the owner's 2026-09-09 design): one entry per
+  // pool with `kind: "cast"` and domain `cast` — *Most days, {name} is…*,
+  // four plain answers each carrying an axis (`dims`) and a *them* form
+  // (`them`: *the one {name} tells first*) for whenever the fact is said
+  // about the other side. Every fourth 1v1 round deals it (duelQFor). The
+  // `{name}` placeholder is substituted where the card renders it; the
+  // bank keeps the template because the question is the same for every
+  // pair and the rules need one active document to point an answer at.
+  const castFields = (q) => (q.kind === "cast"
+    ? { them: q.them.map(String), dims: q.dims.map(String) }
+    : {});
   duel.oneVsOne.forEach((q, i) => {
     entries.push({
       id: `duo-${requireId(q, `duel-questions.json oneVsOne[${i}]`)}`,
@@ -455,9 +522,11 @@ export function buildEntries(content = loadContent()) {
       domain: null,
       prompt: q.prompt,
       options: q.options,
-      topic: null,
+      topic: q.d ?? null,
       axis: null,
       test: null,
+      ...castFields(q),
+      ...flags(q),
     });
   });
 
@@ -480,10 +549,11 @@ export function buildEntries(content = loadContent()) {
       domain: null,
       prompt: q.prompt,
       options: q.options,
-      topic: null,
+      topic: q.d ?? null,
       axis: null,
       test: null,
       mode: "romantic",
+      ...castFields(q),
       ...flags(q),
     });
   });
@@ -530,6 +600,36 @@ export function buildEntries(content = loadContent()) {
         axis: q.d,
         test: null,
         ...flags(q),
+      });
+    });
+  }
+
+  // The instruments' DEEP items (D416 — the Big Five's thirty facets and
+  // the compass's eighteen positions): each core test's `deep` array,
+  // emitted AFTER the lens loop so the counter continues past every
+  // standing test and lens doc — no shipped seq moves — and so, inside an
+  // instrument's round-robin stream (live.ts), the domain items keep
+  // coming first. `facet` names the sub-scale and `invert` its keying, ON
+  // THE DOCUMENT: the device joins these by id (data/similarity.ts
+  // testDeepMeta) instead of by prompt text against IS_TESTS, which is
+  // what keeps 156 prompts out of the eager graph (check:eager-content,
+  // docs/VISION-2026-09-07.md §2.5). `invert` is emit-when-set, like the
+  // flags: a plainly keyed item carries no key.
+  for (const [key, t] of Object.entries(tests)) {
+    (t.deep || []).forEach((q, i) => {
+      entries.push({
+        id: `test-${key}-${requireId(q, `tests.json ${key}.deep[${i}]`)}`,
+        surface: "test",
+        seq: testSeq++,
+        type: "scale",
+        domain: null,
+        prompt: q.q,
+        options: LIKERT,
+        topic: "test",
+        axis: q.d,
+        test: key,
+        facet: q.facet,
+        ...(q.invert === true ? { invert: true } : {}),
       });
     });
   }
@@ -650,7 +750,8 @@ const HEADER =
   "// `core` is feed-only (docs/SCALE-PLAN.md §1) and absent means TAIL — a\n" +
   "// question is in the Mirror's corpus only if it says so. Other surfaces do\n" +
   "// not carry the key because they are core by construction.\n" +
-  "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
+  "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path;\n" +
+  "// on a feed doc `sub` is instead the subtopic LEAF id it belongs to (D425)\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
   "// `tag` is the daily bank's short label for a question — the Mirror's\n" +
   "// Scores card is a column of nouns, not of sentences (D187).\n" +
@@ -670,7 +771,7 @@ const HEADER =
   "// question ALSO belongs to beside its `topic` home. Reach, never\n" +
   "// placement — the client's filter/stock/search read topic ∪ also, the\n" +
   "// Map and grouping stay on `topic`. Emit-when-set; never on sponsored.\n" +
-  "// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question\n" +
+  "// `sponsor` is feed-only (D195): `{ buyer, audience?, link? }` on a question\n" +
   "// somebody paid to ask. The WINDOW is `until`, not a field here, so the\n" +
   "// label the card prints and the filter that stops serving it are one\n" +
   "// value. A sponsored question is never `core` — paid questions inside\n" +
@@ -679,8 +780,29 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
-  "export const V2_QUESTIONS: V2SeedQuestion[] = ";
+  "// `facet`/`invert` are the instruments' DEEP items' only (D416): the\n" +
+  "// facet or position an item scores and whether it is keyed against it,\n" +
+  "// on the document so the device joins by id and the prompts stay out\n" +
+  "// of first paint. The core items and the lens items carry neither.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string; seat: string }; poles?: string[]; them?: string[]; dims?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "// THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather\n" +
+  "// than a taste. `tsc` checks an array literal against its annotation by\n" +
+  "// forming the union of the element types, and V2SeedQuestion has ~45\n" +
+  "// optional members, so the union grows with the bank: at 1085 questions\n" +
+  "// `npm run build --prefix functions` passed and at 1145 it failed with\n" +
+  "// TS2590, \"expression produces a union type that is too complex to\n" +
+  "// represent\" — pointing at the `= [` and naming no question. Slicing\n" +
+  "// bounds that union at BANK_SLICE regardless of how big the bank gets,\n" +
+  "// and every entry is still checked against V2SeedQuestion: a cast would\n" +
+  "// also have compiled and would have stopped checking the content, which\n" +
+  "// is the whole reason this file is typed rather than JSON.\n" +
+  "// Consumers see one array. `scripts/v2content-lib.mjs` is the one thing\n" +
+  "// that reads this file as data and it reads the slices, not the export.\n";
+
+// How many questions per emitted slice. 1145 in one literal is over the
+// limit and 573 was under it, measured; 200 leaves the margin where it
+// cannot be eaten by growth, since the slice count rises instead.
+export const BANK_SLICE = 200;
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the
 // questions, and separate is the whole point: an ad takes no answer, folds
@@ -711,7 +833,18 @@ const ADS_HEADER =
   "export const V2_ADS: V2SeedAd[] = ";
 
 export function generate(content = loadContent()) {
-  return HEADER + JSON.stringify(buildEntries(content), null, 1) + ";\n"
+  const entries = buildEntries(content);
+  const slices = [];
+  for (let i = 0; i < entries.length; i += BANK_SLICE) {
+    slices.push(entries.slice(i, i + BANK_SLICE));
+  }
+  const bank = slices
+    .map((s, i) => `const BANK_${i}: V2SeedQuestion[] = ${JSON.stringify(s, null, 1)};\n`)
+    .join("")
+    + `export const V2_QUESTIONS: V2SeedQuestion[] = [${
+      slices.map((_, i) => `...BANK_${i}`).join(", ")
+    }];\n`;
+  return HEADER + bank
     + ADS_HEADER + JSON.stringify(buildAds(content), null, 1) + ";\n";
 }
 

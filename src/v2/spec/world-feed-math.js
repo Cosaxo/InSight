@@ -40,7 +40,23 @@ export function wfPcts(counts, mineIdx) {
   // which is what kept them agreeing before and is not a thing to trust
   // twice. What stays HERE is the +1 above: adding the viewer's own vote is
   // this surface's convention, not the rounding's.
-  return { p: sharePcts(c), total };
+  // `c` comes back too, and it is not a convenience. Whether YOUR side won
+  // is a question about COUNTS, and it was being answered off `p`:
+  // sharePcts guarantees no inversion — a smaller count never draws
+  // larger — but it does not guarantee distinctness, so two different
+  // counts can print the same integer. [449, 451, 100] draws [45, 45, 10],
+  // and the voter on 449 was told they were "with the majority". Measured
+  // over 400k random vectors: 3.5% of cards carried at least one wrong
+  // reading, 1.0% of readings claimed a majority that was not one.
+  // Returning the counts is what lets every caller that makes that claim
+  // ask the right vector. It said "the two callers" and there were more
+  // than two even then: the sentence (renderMeta) was converted and the
+  // three that decide the winner's STYLING — the feed's tiles, bars and
+  // duel — were not, so a near tie drew both sides as the winner under a
+  // sentence that named one. Deliberately not a number here; a count in a
+  // comment is the documentation error this repo keeps re-committing, and
+  // feed-near-tie.test.jsx holds the real one off the tree.
+  return { p: sharePcts(c), c, total };
 }
 
 // image placeholder tile art — topic-tinted, pattern varies per card so the
@@ -92,6 +108,97 @@ export function wfCatArt(color, seed) {
 // grouping) stays on `cat` alone, which is why this helper exists instead of
 // a `cats` field: the two reads must not be confusable at a call site.
 export function wfCarried(q) { return [q.cat, ...(q.also || [])]; }
+
+/**
+ * Has this person answered the question, counting an answer that exists
+ * only on the server?
+ *
+ * ONE COPY, for the reason `wfVotesOf` below is one: the search overlay
+ * kept a fork of this that was the feed's TAIL with the live branch cut
+ * off. A continuum or catalogue answer given on another device — or on a
+ * page fetched after boot — has no local raw value, so search read it as
+ * unanswered: it went into the "five open questions" round-robin, sorted
+ * as unanswered in the result tiebreak, and its row offered the question
+ * again instead of showing the share meter.
+ *
+ * `getServer` is a THUNK rather than a map, so the caller's server-side
+ * read only happens on the branch that needs it — which is what the
+ * feed's own version did by having the call inside the `if`.
+ */
+export function wfAnsweredOf(q, votes, getServer) {
+  const v = votes[q.id];
+  if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank')
+      && v == null && q.live && getServer) {
+    const server = getServer();
+    return !!server && server[q.id] != null;
+  }
+  return q.type === 'rank' ? !!(v && v.order) : v != null;
+}
+
+/**
+ * How many people have answered a question, whatever shape it is.
+ *
+ * ONE COPY, and the reason is a live bug rather than tidiness. The search
+ * overlay kept its own `srchQVotes`, forked from this one and never caught
+ * up: it handled `rank` and `rate` and then fell through to summing
+ * `q.options`. Continuum and catalogue questions carry NO options, so
+ * `dial`, `field` and `pick` all scored 0 — in both of the overlay's
+ * orderings, the no-query round-robin and the result tiebreak. The
+ * highest-traffic questions of three whole types sorted as if nobody had
+ * answered them.
+ *
+ * `catalogPicks` is the pick fallback the caller looks up (WF_CATALOGS),
+ * passed in rather than imported so this module stays arithmetic over its
+ * arguments. Pass 0 where there is no table to consult.
+ *
+ * The `|| 0` inside the reduce is not decoration either: the fork omitted
+ * it, so one option row without a `count` turned the whole total into NaN,
+ * which sorts unpredictably rather than low.
+ */
+export function wfVotesOf(q, catalogPicks = 0) {
+  if (q.type === 'rank') return q.votes || 0;
+  // `path` (D341's Crossroads) counts like the other continuum types, and
+  // it is here as a MERGE resolution rather than as new work: D341 landed
+  // on main after this function was extracted from the feed, so the
+  // extraction never carried it. Both sides merged cleanly on this line —
+  // the feed's caller conflicted, this did not — and taking either side
+  // whole would have scored every Crossroads story zero, in the feed and
+  // in the search overlay at once, with no gate able to see it.
+  if (q.type === 'rate' || q.type === 'dial' || q.type === 'field' || q.type === 'path') return q.n || 0;
+  if (q.type === 'pick') return q.n || catalogPicks || 0;
+  return q.options ? q.options.reduce((a, o) => a + (o.count || 0), 0) : 0;
+}
+
+/**
+ * The feed's stream interleave — round-robin across streams so the list
+ * reads as a mix rather than as blocks.
+ *
+ * HERE, RATHER THAN INLINE IN THE COMPONENT, because it carries
+ * docs/TAGS-PLAN.md §1: "a card appears once; `also` multiplies the ways to
+ * reach it, never the copies of it". `wfFeedMatch` decides whether a card
+ * is in, over every door it carries; this decides which stream it lands in,
+ * and it keys on the card's HOME topic alone. A key that learned about
+ * `also` would put a straddler in two streams and render it twice.
+ *
+ * The test for that invariant used to compute the key expression inside
+ * itself and assert on its own copy, which passes for any source. It runs
+ * this now, so breaking the rule in the component breaks the case.
+ */
+export function wfStreamMix(qs) {
+  const byKey = {};
+  const keys = [];
+  for (const q of qs) {
+    const k = q.scene || q.sub || q.cat;
+    if (!byKey[k]) { byKey[k] = []; keys.push(k); }
+    byKey[k].push(q);
+  }
+  const lists = keys.map((k) => byKey[k]);
+  const mixed = [];
+  for (let i = 0; lists.some((l) => i < l.length); i++) {
+    for (const l of lists) if (i < l.length) mixed.push(l[i]);
+  }
+  return mixed;
+}
 
 // The feed's topic filter over one card. Pure so it is testable — the filter
 // shipped inside a 2,350-line class component, which is how the single-cat

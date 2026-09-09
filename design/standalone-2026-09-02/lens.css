@@ -1,0 +1,42 @@
+/* lens.css — the Patterns lenses share one instrument: a round dusk field
+   inside a light card, a title and one plain sentence above it, a legend in
+   words below. The field's palette lives on --ln-* so the three lenses (and
+   the SVG they draw) read one set of tokens. .app.lens-paper swaps the field
+   to paper for anyone who wants the light version. */
+.ln-card{padding:8px 8px 4px}
+.ln-head{padding:6px 8px 10px}
+.ln-title{font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.ln-sub{margin-top:3px;font-size:12px;font-weight:500;line-height:1.45;color:var(--ink-3);text-wrap:pretty}
+.ln-field{position:relative;width:100%;aspect-ratio:1;--ln-ink:oklch(0.88 0.03 282);--ln-sub:oklch(0.72 0.04 282);--ln-line:oklch(0.88 0.04 282);--ln-hub:oklch(0.34 0.05 282);--ln-ring:oklch(0.46 0.06 282);--ln-halo:oklch(0.27 0.045 282);--ln-beacon:oklch(0.84 0.11 282);--ln-me:oklch(0.99 0.005 80)}
+.ln-field::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 46%,oklch(0.31 0.05 282),oklch(0.225 0.035 282) 74%)}
+.app.lens-paper .ln-field{--ln-ink:var(--ink);--ln-sub:var(--ink-3);--ln-line:var(--ink);--ln-hub:var(--surface-2);--ln-ring:var(--rule);--ln-halo:oklch(0.975 0.004 78);--ln-beacon:var(--accent);--ln-me:var(--ink)}
+.app.lens-paper .ln-field::before{background:radial-gradient(circle at 50% 46%,oklch(0.992 0.003 80),oklch(0.955 0.006 75) 80%);box-shadow:inset 0 0 0 1px var(--rule)}
+.ln-svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible;touch-action:manipulation}
+.ln-svg text{font-family:var(--sans)}
+.ln-key{display:flex;flex-wrap:wrap;gap:5px 14px;padding:10px 8px 4px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.ln-key>span{display:inline-flex;align-items:center;gap:6px}
+.ln-key i{display:inline-block;flex:none;box-sizing:border-box}
+.ln-key .k-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
+.ln-key .k-ring{width:8px;height:8px;border-radius:50%;border:1.3px solid var(--ink-3)}
+.ln-key .k-line{width:14px;height:0;border-top:1.5px solid var(--ink-3)}
+.ln-key .k-dash{width:14px;height:0;border-top:1.5px dashed var(--ink-3)}
+.ln-hint{padding:2px 8px 8px;font-size:11.5px;font-weight:700;color:var(--accent-ink)}
+.ln-rail{display:flex;align-items:center;gap:6px;padding:4px 2px 8px;overflow-x:auto;scrollbar-width:none}
+.ln-rail::-webkit-scrollbar{display:none}
+.ln-rail-lab{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 4px 0 6px}
+.ln-chip{flex:none;display:flex;align-items:center;gap:7px;height:32px;padding:0 10px 0 4px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;-webkit-appearance:none}
+.ln-chip.is-on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ln-chip .c-av{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800}
+.ln-chip .c-name{font-size:12.5px;font-weight:700}
+.ln-chip .c-sub{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+@keyframes lnPulse{0%{r:6px;opacity:.85}100%{r:19px;opacity:0}}
+.ln-pulse{animation:lnPulse 1.9s ease-out infinite}
+@media (prefers-reduced-motion:reduce){.ln-pulse{animation:none;opacity:.5}}
+/* the oracle's lens: the guess disc travels on a transform so the move is one
+   spring, and the called half fills behind it */
+.or2-disc{transition:transform .62s var(--ease-spring)}
+.or2-fill{animation:or2Fill .9s .1s cubic-bezier(.22,.76,.2,1) both}
+@keyframes or2Fill{from{opacity:0}to{opacity:.18}}
+.or2-half{cursor:pointer}
+.or2-verdict{font-size:14px;font-weight:500;line-height:1.5;color:var(--ink-2);text-wrap:pretty}
+.or2-verdict b{font-weight:800;color:var(--ink)}

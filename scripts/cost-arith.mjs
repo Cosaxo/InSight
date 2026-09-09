@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { stripComments } from "./strip-comments.mjs";
 import { bankArrayFrom } from "./v2content-lib.mjs";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -58,8 +59,23 @@ export function bankDocs() {
 // whatever was true in August. The scan is narrow on purpose — it matches
 // the exact declaration, so a changed VALUE is picked up and a changed SHAPE
 // is an error. Same trade bankDocs() below already takes.
+//
+// AND OVER COMMENT-STRIPPED SOURCE, which it was not until now. `.match`
+// returns the FIRST hit, so a superseded value parked in a comment above
+// the live declaration is what the whole cost model prices from. Measured,
+// not supposed: one line reading ``// Was `export const DECK_DAYS = 3;`
+// until the pager widened.`` above the real declaration repriced boot 21 →
+// 15 reads, reattach 28 → 12, the Hit scenario's Firestore bill $2,568 →
+// $2,462 and total daily reads 205 → 183 — with `test:scripts` 855/855
+// green, because the tripwire that pins DECK_DAYS re-implements the same
+// blind regex against the same file.
+//
+// This is the class swept out of check-anchors, check-cities,
+// account-level-lib and check-figures on 2026-09-05, and this file was
+// missed — the file whose header cites D47 and D200 for exactly this
+// failure. Ten pins read through here.
 function readNum(rel, re, what) {
-  const src = readFileSync(join(ROOT, rel), "utf8");
+  const src = stripComments(readFileSync(join(ROOT, rel), "utf8"));
   const m = src.match(re);
   if (!m) {
     throw new Error(
@@ -79,7 +95,7 @@ function readNum(rel, re, what) {
 // The string form of the same trade, for the one input that is a place
 // rather than a count.
 function readStr(rel, re, what) {
-  const src = readFileSync(join(ROOT, rel), "utf8");
+  const src = stripComments(readFileSync(join(ROOT, rel), "utf8"));
   const m = src.match(re);
   if (!m) {
     throw new Error(
@@ -282,7 +298,7 @@ export const TRIG = {
 // can be written and charging it would model traffic that cannot exist.
 // Recorded here rather than omitted so that re-enabling the surface is one
 // term rather than a recount.
-export const RULE_READS = { world: 1, duel: 3, call: 2 };
+export const RULE_READS = { world: 1, duel: 2, call: 2 };
 
 // Reads issued by Cloud Functions, per answer.
 //
@@ -299,35 +315,64 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 // If the mix ever tilts toward catalogue/rank-heavy feeds, split the
 // volume assumption before touching this constant.
 //
-// The duel branch of the same trigger does ZERO — it is one blind
-// arrayUnion onto the group, deliberately ("one blind write, no read").
-export const TRIGGER_READS = { world: 2, duel: 0 };
+// The duel branch of the same trigger does ONE since ROUNDS-PLAN / D426:
+// a transaction on the group document that marks who played the round,
+// starts the open round's clock on its first answer, and asks whether the
+// answer completed the round — in which case the reveal runs right there
+// (its reads are the reveal's, below). The day's branch did zero, one
+// blind arrayUnion, because nothing about it depended on the document.
+// THREE on the world path since D410, not two. The fold reads the AUTHOR'S
+// PROFILE alongside the ledger event and the published aggregate, because
+// the anchors on an answer are the client's claim about its own cohort and
+// firestore.rules can only check they are plausible, never that they are
+// the author's — honestAnchors() in functions/src/pure.ts has why the rule
+// that would check it cannot exist. It rides the existing `tx.getAll`, so
+// the cost is one billed read and NOT a second round trip: the lock window
+// on v2_question_aggs/{qid}, which is what D7's ~1-write/sec ceiling is
+// about, is unchanged.
+export const TRIGGER_READS = { world: 3, duel: 1 };
 
 // The daily velocity scan (D54) reads every ledger entry written since its
 // last run. One entry per world answer, so this is worldAnswers per user per
 // day — a flat term the size of the boot's top-up and reseed combined, and
 // invisible in the model until now. `.select()` narrows egress, not reads.
 export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
+// THE NIGHTLY PASS (D399): one read of the day's ledger entries serving
+// the engagement digest, the Patterns fit and the taste fold together
+// (functions/src/nightly.ts). Until D399 this was two constants of 1 —
+// PATTERNS_READS_PER_LEDGER_ENTRY and ENGAGEMENT_READS_PER_LEDGER_ENTRY,
+// the fit and the digest each paging the same day as its own scheduled
+// function — and the taste fold's third read of the same entries was
+// never in the model at all. So the true term went 3 → 1 while the
+// modelled one goes 2 → 1; the difference is the read this model had
+// been under-counting since D322, stated rather than smoothed. The named
+// lever if even the one read ever matters at scale: flag eligible entries
+// at write time and query the flag (a composite index), which drops the
+// term by the ineligible share.
+export const LEDGER_PASS_READS_PER_ENTRY = 1;
 // The Patterns fit (v28 §2, trial D166 §1), measured BEFORE the fold
-// shipped per VISION-V28 §11.4: the nightly sweep re-reads the day's
-// ledger as its vote log — the velocity scan's own shape, a second reader
-// of the same entries — and carries each active answerer's latent vector,
-// one state read and one state write per active user per day. The model
-// doc itself is one read and one write per PROJECT per night, under any
-// rounding here. The named lever if the ledger re-read ever matters at
-// scale: flag eligible entries at write time and query the flag (a
-// composite index), which drops the term by the ineligible share.
-export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
+// shipped per VISION-V28 §11.4: the fit carries each active answerer's
+// latent vector, one state read and one state write per active user per
+// day. The model doc itself is one read and one write per PROJECT per
+// night, under any rounding here.
 export const PATTERNS_USER_STATE_OPS = 1;
-// The engagement digest (R1/D268): a THIRD nightly reader of the same
-// ledger entries. ENGAGEMENT-RUNBOOK 1.1's named decision, taken as a
-// separate scan because velocity's cursor window and the digest's
-// calendar days are different windowing semantics, and the coupling
-// would cost more than the read this constant charges. Plus one
-// bookkeeping state read+write per active answerer per night (the
-// patterns shape — v2_users/{uid}/engagement/_state), and one public
-// day doc per PROJECT per night, under any rounding here.
-export const ENGAGEMENT_READS_PER_LEDGER_ENTRY = 1;
+// The candidate engine (D395) re-solves nightly over EVERY fitted person's
+// answer map — one state read per person who has ever answered a core
+// item, which the model charges as one read per MAU per night
+// (`B.mauMultiple` per DAU-day). Counted separately from the online fit's
+// active-user read above so the two terms can be told apart on the bill:
+// at 50 k DAU that is 150 k reads a night, $0.045, against the ledger
+// re-read's 200 k.
+export const PATTERNS_SCAN_READS_PER_MAU = 1;
+// The engagement digest (R1/D268): its ledger read is the pass's
+// (LEDGER_PASS_READS_PER_ENTRY above) since D399. ENGAGEMENT-RUNBOOK
+// 1.1's named decision kept it separate from VELOCITY's scan — cursor
+// window against calendar day — and that separation stands: the pass
+// shares the read with the two other CALENDAR-DAY folds, not with
+// velocity. What is left here is one bookkeeping state read+write per
+// active answerer per night (the patterns shape —
+// v2_users/{uid}/engagement/_state), and one public day doc per PROJECT
+// per night, under any rounding here.
 export const ENGAGEMENT_USER_STATE_OPS = 1;
 // Rung 1's attention shards (R2/D270): one anonymous device shard per
 // SAMPLED device per day — the client's own sampling constant, read from
@@ -348,15 +393,18 @@ export const ENGAGEMENT_ROLLUP_CLIENT_WRITES = 1;
 export const ENGAGEMENT_ROLLUP_FOLD_READS = 2;
 export const ENGAGEMENT_ROLLUP_FOLD_WRITES = 2;
 
-// The reveal pipeline (revealGroupDay), per group-day actually revealed, for
-// a group of M members:
-//   1  the scan's own page read for the group document
-//   1  revealRef.get() — the already-revealed short circuit
-//   M  getAll(answers)
-//   M  getAll(profiles, fieldMask)
+// The reveal pipeline (revealRound), per ROUND actually revealed, for a
+// group of M members:
+//   M  getAll(profiles, fieldMask) — the names, past the verdict
 // 2+M  the committing transaction: tx.getAll(revealRef, group, ...answers)
-// = 4 + 3M, shared across M members.
-export const revealReadsPerMember = (m) => (4 + 3 * m) / m;
+// = 2 + 2M, shared across M members. The day's pipeline was 4 + 3M: a
+// standalone reveal-exists get and a pre-read of every answer, both made
+// unnecessary by `played` on the group document (ROUNDS-PLAN §3.1), and
+// the scan's page read, which the indexed deadline query now spends only
+// on groups whose round is actually due. Charged per duel answer in the
+// model, which under rounds is exactly right: every answer is one of a
+// round that reveals.
+export const revealReadsPerMember = (m) => (2 + 2 * m) / m;
 
 // ── behaviour assumptions ───────────────────────────────────────
 // The soft numbers. Every one of these is a guess about humans, not a fact
@@ -388,6 +436,30 @@ export const B = {
   // break, rather than in a commit message.
   worldAnswers: 4,
   duelAnswers: 1,
+  // The share of world answers whose city or country the hot aggregate
+  // document cannot hold, so they pay the tail (D400): one shard read and
+  // one merge write each, on top of the trigger's two reads and one write.
+  // ZERO TODAY and honestly so — no question has answers from 25 cities,
+  // so the trigger never reads a shard — and the number to move the first
+  // time monitoring/onV2AnswerCreated-evictions.json fires. What it
+  // would cost is small at any plausible value: at 0.3 that is
+  // 0.3 × 4 × (1 read + 1 write) per user-day, about $2 a month at 50 k
+  // DAU on the regional sheet. Named here rather than folded into
+  // TRIGGER_READS so the assumption is visible next to the ones it
+  // depends on.
+  tailShare: 0,
+  // The share of a person's world answers that are PAGED cards — feed tail
+  // and learn, against the daily and the feed's core, which ship whole.
+  // Half is a guess about humans, stated as one. What it prices (D401):
+  // since a top-up fills a topic TO a page, each paged card answered is
+  // one card fetched on the next boot, so the page reads a boot pays are
+  // the paged answers since the last boot — `worldAnswers × pagedShare`
+  // per user-day, in `boot` below. Before D401 the same reads were a
+  // fresh page per topic per boot (FEED_PAGE × twelve topics ≈ 144 a
+  // boot) and were in this model NOWHERE: at 50 k DAU that was ~10 M
+  // reads a day, about $90 a month, unpriced. Stated so the saving is
+  // on the record rather than invisible twice over.
+  pagedShare: 0.5,
   boots: 1.4,          // app opens per active user per day
   // Minutes per user per day with a snapshot LISTENER ATTACHED — not, as
   // this comment said until the idle detach shipped, "minutes with the app
@@ -570,7 +642,13 @@ export function socialTerms(dau, mature, o = {}) {
   const crowd = Math.min(voterCap, dau);
   return {
     whoVoted: B.sheetOpens * crowd * names,
-    kindred: B.kindredViews * kindredQs * crowd * names,
+    // Kindred reads the nightly voter SAMPLE (D397): one document per
+    // question in place of `crowd` answer documents, and the same profile
+    // reads for names as before — `names − 1` of them per row, because the
+    // ×2 above was "answers plus profiles" and the answers half is now the
+    // one document. The People lens and the pair card ride the same
+    // documents; the who-voted sheet above keeps the live query.
+    kindred: B.kindredViews * kindredQs * (1 + crowd * (names - 1)),
     // A member's answer set grows with account AGE, not DAU.
     circle: B.circleOpens * B.circleFollows
       * Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10)),
@@ -600,7 +678,10 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     mature, staticBank = false, streamAggs = false,
     publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
   }) {
-    const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
+    // …plus the page refill (D401): one paged card fetched per paged card
+    // answered since the last boot, whatever the boot count — see
+    // B.pagedShare for what this replaces.
+    const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots + B.worldAnswers * B.pagedShare;
     // A question under the floor is re-read at most once per 6 h, so roughly
     // one boot in four pays for it. Mature communities have few left.
     const topUp = ((mature ? 5 : AGG_CAP) / 4) * B.boots;
@@ -665,18 +746,19 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
-    // Reads the SERVER issues: the aggregate transaction, the three
-    // nightly ledger readers (velocity scan, Patterns fit, engagement
-    // digest — each re-reads the day's entries, the fit and the digest
-    // each adding one state read per active user), and the reveal
-    // pipeline.
+    // Reads the SERVER issues: the aggregate transaction, the two
+    // nightly ledger reads (the velocity scan's own, and the one pass
+    // that serves the digest, the Patterns fit and the taste fold —
+    // D399; the fit and the digest each add one state read per active
+    // user), and the reveal pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
+      + B.worldAnswers * B.tailShare // the tail's shard read (D400)
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
-      + B.worldAnswers * PATTERNS_READS_PER_LEDGER_ENTRY
+      + B.worldAnswers * LEDGER_PASS_READS_PER_ENTRY
       + PATTERNS_USER_STATE_OPS
-      + B.worldAnswers * ENGAGEMENT_READS_PER_LEDGER_ENTRY
+      + B.mauMultiple * PATTERNS_SCAN_READS_PER_MAU
       + ENGAGEMENT_USER_STATE_OPS
       + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
       + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
@@ -730,7 +812,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);

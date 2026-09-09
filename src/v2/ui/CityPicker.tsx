@@ -281,7 +281,4 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
   );
 }
 
-// Render-time lookup bridge for the spec layer (profile-general.jsx).
-Object.assign(globalThis, { CityPicker });
-
 export default CityPicker;

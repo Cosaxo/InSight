@@ -7,18 +7,20 @@ import React from 'react';
 import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
 import { LEARN } from './learn-progress.js';
+import { LEARN_TYP } from './learn-data.js';
 import { list as anchorList } from './map-anchors.js';
 // The Map's own family, imported (v28 §5): until the Map went lazy,
 // spec-index's eager list carried these six and their order. Now the ESM
 // graph does — imports evaluate before this module's body — and one
 // dynamic import of THIS file (mirror-tab's lazy body, spec-index's
-// loadMapTab) brings the whole family in one deferred chunk. Three arrive
-// as named bindings (convert-on-touch); the first three still talk
-// through globals this file reads at render time, so their imports are
-// for the side effect.
-import './map-bottom-card.jsx';
-import './map-learn-card.jsx';
-import './map-people.jsx';
+// loadMapTab) brings the whole family in one deferred chunk. All six
+// arrive as named bindings since D354's sweep; the cards' `window.X ?`
+// guards went with the bridge reads.
+import { MTRootCard, MTAnchorCard, MTBranchCard, MTSubCard, MTAnswerCard } from './map-bottom-card.jsx';
+import { MTLearnCard, MTLearnSubCard } from './map-learn-card.jsx';
+import { MTPeopleCard, MTPersonCard } from './map-people.jsx';
+import { MapStats } from './map-group-stats.js';
+import { MapLens } from './map-branches.js';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
@@ -136,9 +138,36 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       counts[meta.catId] = (counts[meta.catId] || 0) + 1;
       // how typical your answer is among everyone — drives layout + dot style
       const nOpt = Math.max(2, q.options ? q.options.length : 10);
-      const gd = window.MapStats ? window.MapStats.dist(q.id, 'all', nOpt, idx) : null;
+      // Bound once — the coupling ratchet counts references, and this
+      // block asks MapStats two things.
+      // `q.liveId`, not `q.id` — see daily-questions.js's liveSync. In a
+      // live build MapStats reads LIVE.aggFor, which is keyed by the
+      // seeded bank id; this file's `q.id` is the demo calendar's. Passing
+      // the wrong one returns null for EVERY answered question, which is
+      // how the paragraph below came to describe the empty-question case
+      // while still being every question on every live build. Falls back
+      // on a demo build, where the demo id is the only id there is.
+      // (MapStats is the imported binding since D354's sweep; the `MS ?`
+      // existence guard that stood here was a load-order guard.)
+      const qid = q.liveId || q.id;
+      const gd = MapStats.dist(qid, 'all', nOpt, idx);
+      // The residue, and it is a real absence rather than the old one: a
+      // question NOBODY has answered yet has no typicality to read, so the
+      // dot takes the neutral radius and is not called rare. What changed
+      // is that this is now the empty-question case only — it used to be
+      // every question on every live build, because MapStats refused
+      // 'all' outright.
       const typ = gd ? gd[idx] / 100 : 0.5;
-      const maj = gd ? gd.indexOf(Math.max(...gd)) === idx : true;
+      // ASK for the mode. `gd` is rounded, and two different counts can
+      // round to the same integer, so `indexOf(max)` breaks a real tie by
+      // INDEX — and `maj` decides whether this dot is marked a rare take.
+      // While 'all' refused, `gd` was always null here and this line was
+      // dead; teaching MapStats to answer 'all' brought it to life WITH
+      // the tie defect, in the same commit and the same block. MapStats
+      // reads the counts, so it is the one that can answer.
+      const asked = MapStats.mode(qid, 'all', nOpt, idx);
+      const maj = asked != null ? asked === idx
+        : gd ? gd.indexOf(Math.max(...gd)) === idx : true;
       let parent = meta.catId;
       if (path[1]) {
         const key = meta.catId + '|' + path[1];
@@ -149,8 +178,16 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         parent = sub.id;
       }
       out.push({
-        id: 'dq-' + q.id, parentId: parent, qid: q.id, top: path[0], daily: true,
-        label: prompt + ' → ' + ans, tag: q.tag || prompt, ans, prompt, note: q.dateLabel, age: q.idx,
+        id: 'dq-' + q.id, parentId: parent, qid, top: path[0], daily: true,
+        // `D.dateOf`, not `q.dateLabel`: the label is the demo calendar's
+        // and says nothing about when THIS account answered, so it is null
+        // on a live build (daily-questions.js has the argument). `today`
+        // rides along for the same reason — the is-today ring is a claim
+        // about a day, and `idx === 0` is the demo bank's position, not
+        // this morning.
+        label: prompt + ' → ' + ans, tag: q.tag || prompt, ans, prompt,
+        note: D.dateOf ? D.dateOf(q) : q.dateLabel,
+        age: q.idx, today: (D.datesAreReal ? D.datesAreReal() : true) && q.idx === 0,
         qtype: q.type, opts: q.options || null, aidx: idx, typ, maj,
       });
     });
@@ -182,7 +219,23 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         out.push({
           id: 'lrn-' + c.id, parentId: subId, cid: c.id, qid: c.id, top: sj.label,
           daily: true, learn: true, label: c.k, tag: c.k, ans: c.a[c.c], prompt: c.q,
-          note: 'known', age, typ: c.p / 100, maj: true,
+          // TYPICALITY IS A MEASUREMENT, and this read the AUTHORING
+          // HINT. `c.p` is documented in data/learnBank.ts as "the % of
+          // the crowd expected to get it right" — a number the question
+          // writer chose — and map-layout turns `typ` into a ±80px radial
+          // push, so the dot's distance from You was that guess. On a live
+          // build the card that opens on tapping this very dot refuses the
+          // same number in words: LEARN_RATE returns `estimate` only when
+          // LIVE is off, so the card says "Nobody else has answered this
+          // one yet" while the dot sits where the hint put it. A position
+          // IS a claim (LiveSimilarityField says so in as many words), and
+          // this is the one Mirror stop that wears no Preview tag.
+          //
+          // The daily branch two dozen lines up already does this — real
+          // distribution or the neutral radius — and carries the comment
+          // explaining why. `estimate` is kept because it occurs ONLY when
+          // LIVE is off, where every number on the map is the demo's own.
+          note: 'known', age, typ: LEARN_TYP(c), maj: true,
         });
       });
     }
@@ -231,7 +284,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
 
   // active branches: any that hold at least one answer — renames applied
   const allCats = useMemo(() => {
-    const base = window.MapLens.CATS.concat(built.tops);
+    const base = MapLens.CATS.concat(built.tops);
     const seen = new Set(); const out = [];
     base.forEach((c) => {
       if (seen.has(c.id) || !(built.counts[c.id] > 0)) return;
@@ -256,7 +309,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     if (cue0.current && cue0.current.group) return cue0.current.group;
     // Learn's “See it” hands the map the group to land on
     const g = typeof window !== 'undefined' ? window.MAP_OPEN_GROUP : null;
-    if (g) { try { delete window.MAP_OPEN_GROUP; } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } return g; }
+    if (g) { try { delete window.MAP_OPEN_GROUP; } catch (e) { /* a non-configurable global throws on delete in strict mode; the value was already read into `g` above, so the cue is delivered either way. NOT storage — this comment said localStorage and nothing here touches it. */ } return g; }
     return null;
   });
 
@@ -360,13 +413,33 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const [hlCat, setHlCat] = useState(null); // spotlit branch id
   const [pairA, setPairA] = useState(null); // active group filter on the answer card
 
+  // Whether `age` means "days ago" at all — see the two readings below
+  // that used to draw it as though it always did.
+  const datesReal = DAILYQ.datesAreReal ? DAILYQ.datesAreReal() : true;
   const selCat = cats.find((c) => c.id === sel) || null;
   const selAnchor = sel && String(sel).indexOf('ax-') === 0 ? anchors.find((a) => 'ax-' + a.id === sel) : null;
   const selNode = sel && sel !== 'root' && !selCat && !selAnchor ? byId[sel] : null;
   const selIsSub = selNode && selNode.sub;
   // the answer card's active group filter — sticky across answers
   const effFilter = selNode && selNode.daily && !selNode.learn ? (pairA || (anchors[0] && anchors[0].id)) : null;
-  const anchorRows = selAnchor ? allAnswers.slice().sort((a, b) => a.age - b.age) : [];
+  // A MASTERED FACT IS AN ANSWER, BUT IT IS NOT AN OPINION — and the
+  // anchor card is a comparison against people who share an anchor.
+  //
+  // `allAnswers` keeps learn nodes on purpose: you did answer them, so
+  // they belong in the count and in the time scrub. This row list is the
+  // other thing it feeds, and there they are wrong twice over. In demo
+  // mode the card lists them under "where you differ" — "The capital of
+  // Brazil is… · you Brasília · them —" — a fact you got RIGHT, filed as
+  // a disagreement, with a dash where the crowd should be, each one
+  // dragging the match headline down. In live mode a learn id has no
+  // question aggregate at all, so one mastered fact makes `noCohort` true
+  // and replaces the whole card with "isn't measured yet", where the same
+  // card without it reads a real percentage.
+  //
+  // The rest of this file already knows: `effFilter` above, `ringOpen`,
+  // and the node's own class list all say `daily && !learn`. This was the
+  // one place that did not.
+  const anchorRows = selAnchor ? allAnswers.filter((n) => !n.learn).sort((a, b) => a.age - b.age) : [];
 
   const hlSet = useMemo(() => {
     if (hlCat) {
@@ -921,10 +994,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               if (hidden && hidden.has(e.to)) op = 0;
               if (e.spoke) op *= 0.7; // gravity lines stay quieter than trunks
               return (
+                // the constellation draws itself in (2026-09-06,
+                // VISION-2026-09-06 §6.3): every limb arrives as an ink
+                // stroke on a small stagger, spokes just behind the
+                // trunks — the delay rides inline so no re-layout runs
                 <path
                   key={i}
-                  className={e.spoke ? 'mmt-limb mmt-spoke' : 'mmt-limb'}
-                  style={{ '--hue': e.hue }}
+                  className={e.spoke ? 'mmt-limb mmt-spoke mmt-ink' : 'mmt-limb mmt-ink'}
+                  pathLength={1}
+                  style={{ '--hue': e.hue, animationDelay: `${(e.spoke ? 0.05 : 0.22) + (i % 7) * 0.04}s` }}
                   d={`M ${pos[e.from].x} ${pos[e.from].y} L ${pos[e.to].x} ${pos[e.to].y}`}
                   fill="none"
                   opacity={op}
@@ -1038,21 +1116,64 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             const cat = cats.find((c) => c.id === catId);
             const dim = hlSet && !hlSet.has(n.id);
             const age = n.age ?? 30;
-            const fresh = recency && n.daily && age <= 7;
+            // RECENCY IS A CLAIM ABOUT WHEN, AND `age` IS ONLY A POSITION.
+            //
+            // `daily-questions.js` added `datesAreReal()` for exactly this
+            // and says so in its own docstring — "in a live build it is
+            // the demo bank's fixed position, which is not the order this
+            // account answered in". The node builder consults it for
+            // `today`, one field along from where it sets `age`, and the
+            // two readings drawn FROM age never asked: on a live build the
+            // first eight questions of the demo bank were drawn enlarged
+            // and marked fresh whatever order you actually answered in.
+            //
+            // The Mirror's Answers lens refuses "newest" for this same
+            // reason (docs/MIRROR.md §339). Ordering by position is still
+            // deterministic and is left alone; what stops is DRAWING a
+            // position as a date.
+            //
+            // EXCEPT for learn nodes, and this gate caught them for six
+            // minutes before anyone noticed. They carry `daily: true` like a
+            // daily answer, but their `age` is not `q.idx` at all — it is
+            // `n - 1 - i` over `LEARN.mastered()`, which is `S.order`, the
+            // order this device actually mastered them in (learn-progress.js
+            // pushes on mastery). That IS a real recency, identical in live
+            // and demo, and `datesAreReal()` — a fact about the daily bank's
+            // dates — says nothing about it. Gating it here silently stopped
+            // marking and enlarging recently-learned facts on every live
+            // build: a true signal removed for a reason that does not reach
+            // it. The rest of the file already keeps the two apart with
+            // `daily && !learn`; this is that distinction, once more.
+            const dated = recency && (n.learn ? true : datesReal);
+            const fresh = dated && n.daily && age <= 7;
             const off = hidden && hidden.has(n.id);
             // strict size ladder — hub > answer > topic; new dots land large and settle
-            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
+            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (dated && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
             const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
+            // `is-rare` is "you answered against the crowd", so it may only
+            // be drawn where a crowd majority was actually folded. It read
+            // `n.daily && !n.learn && !n.maj` and therefore rang every
+            // Crossroads walk and every pulse leaf — neither fold computes a
+            // majority at all; a pulse's `typ` is your own consistency — and
+            // every SEALED Foresight call, whose `maj` is false because
+            // nothing has been judged yet, not because the reader was wrong.
+            // `fore` is deliberately NOT excluded: foreTree computes `maj` on
+            // purpose for reads and for graded calls, so a blind-spot read
+            // and a genuinely missed call keep their ring.
+            // mapTrees.test.ts holds this line.
             return (
               <button
                 type="button"
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (n.person ? ' is-person' : '') + (sel === n.id ? ' is-sel' : '')
                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
-                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.age === 0 ? ' is-today' : '')}
+                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
+                  // ink-in, delayed by distance from the hub — the map
+                  // grows outward (2026-09-06)
+                  animationDelay: `${0.12 + Math.min(0.45, Math.hypot(p.x, p.y) / 1500)}s`,
                   width: sz, height: sz,
                   transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}
@@ -1130,7 +1251,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
           ) : selAnchor ? (
             <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} anchors={anchors} onAnchor={selectAnchor} key={selAnchor.id}></MTAnchorCard>
           ) : selCat ? (
-            selCat.id === 'circle-read' && window.MTPeopleCard ? (
+            selCat.id === 'circle-read' ? (
               <MTPeopleCard onPick={selectItem} key="people"></MTPeopleCard>
             ) : (
             <MTBranchCard
@@ -1140,7 +1261,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             ></MTBranchCard>
             )
           ) : selIsSub ? (
-            selNode.learn && window.MTLearnSubCard ? (
+            selNode.learn ? (
               <MTLearnSubCard
                 node={selNode}
                 rows={answers.filter((n) => n.parentId === selNode.id).sort((a, b) => a.age - b.age)}
@@ -1164,9 +1285,9 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               <MTForeLeaf node={selNode} key={selNode.id}></MTForeLeaf>
             ) : selNode.walk ? (
               <MTPathsCard node={selNode} key={selNode.id}></MTPathsCard>
-            ) : selNode.learn && window.MTLearnCard ? (
+            ) : selNode.learn ? (
               <MTLearnCard node={selNode} key={selNode.id}></MTLearnCard>
-            ) : selNode.person && window.MTPersonCard ? (
+            ) : selNode.person ? (
               <MTPersonCard node={selNode} key={selNode.id}></MTPersonCard>
             ) : (
             <MTAnswerCard

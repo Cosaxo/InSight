@@ -7,7 +7,7 @@
 // Reusable journal-style data viz primitives
 
 // ─── Hand-drawn radar / spider chart ───
-function RadarChart({ values, labels, max = 100, size = 240, color = 'var(--sienna)', compareValues, compareColor = 'var(--ink)' }) {
+export function RadarChart({ values, labels, max = 100, size = 240, color = 'var(--sienna)', compareValues, compareColor = 'var(--ink)' }) {
   const cx = size / 2, cy = size / 2, r = size / 2 - 28;
   const n = values.length;
   // labels sit at radius 1.18·r; pad the viewBox so side/top labels never clip.
@@ -58,7 +58,7 @@ function RadarChart({ values, labels, max = 100, size = 240, color = 'var(--sien
 }
 
 // ─── Donut ───
-function Donut({ value, max = 100, size = 80, color = 'var(--sienna)', label }) {
+export function Donut({ value, max = 100, size = 80, color = 'var(--sienna)', label }) {
   const C = 2 * Math.PI * 28;
   const dash = (value / max) * C;
   return (
@@ -72,7 +72,4 @@ function Donut({ value, max = 100, size = 80, color = 'var(--sienna)', label }) 
   );
 }
 
-Object.assign(window, { RadarChart, Donut });
 
-;globalThis.RadarChart = typeof RadarChart === 'undefined' ? globalThis.RadarChart : RadarChart;
-;globalThis.Donut = typeof Donut === 'undefined' ? globalThis.Donut : Donut;

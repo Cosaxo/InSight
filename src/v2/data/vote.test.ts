@@ -22,6 +22,8 @@ import { IDBFactory, IDBDatabase } from "fake-indexeddb";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
+import { FOLLOW_CAP } from "./circle";
+import { OVERFLOW_HOT_CAP, overflowDocId } from "./overflow";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -32,6 +34,19 @@ interface CapturedListener {
   path: string | undefined;
   next: (snap: unknown) => void;
   error?: (err: unknown) => void;
+}
+
+// The four fields live.ts's auth observer reads, and no more. `uid` alone
+// was enough while `linked` was the only thing derived from the user; the
+// verify wall (D414) derives a second flag from three more, and a mock
+// that cannot express "linked, but the address is unconfirmed" cannot test
+// the rule that keeps a Google account out of that state.
+interface AuthUser {
+  uid: string;
+  isAnonymous?: boolean;
+  emailVerified?: boolean;
+  email?: string | null;
+  providerData?: Array<{ providerId: string }>;
 }
 
 const h = vi.hoisted(() => ({
@@ -45,7 +60,23 @@ const h = vi.hoisted(() => ({
   // the reveal has to add it back in. Default null keeps every other case
   // on the "document does not exist" answer they were written against.
   getDocImpl: null as null | ((path: string) => Record<string, unknown> | null),
-  setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // OPTIONS TOO. The third argument decides whether a write can REMOVE a
+  // field, and dropping it here is why nothing could pin `saveAnchors`
+  // passing `mergeFields` — a fix landed with a comment claiming the
+  // rules suite guarded it, and reverting the fix left every test green.
+  setDocCalls: [] as Array<{
+    path: string;
+    data: Record<string, unknown>;
+    opts?: Record<string, unknown>;
+  }>,
+  // CALLABLE INVOCATIONS, for the writes that are no longer setDoc.
+  // `testResults` became server-only on 2026-09-09 (D431) because rules
+  // cannot bound a nested map's size, so the political coordinate reaches
+  // other people through `saveTestResultV2` rather than through a profile
+  // write. The cases below still assert on THE WRITE — that reasoning is
+  // unchanged and is the whole point of the block — the write just has a
+  // different shape now.
+  callableCalls: [] as Array<{ name: string; data: unknown }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
@@ -59,6 +90,8 @@ const h = vi.hoisted(() => ({
   // carried. What proves the `where` reached Firestore rather than being
   // applied on the device afterwards.
   voterQueries: [] as Array<Record<string, unknown>>,
+  /** qids whose voter query rejects — see the fan-out handler below. */
+  voterFailQids: new Set<string>(),
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -69,6 +102,8 @@ const h = vi.hoisted(() => ({
   // listener the tests used to push into, so its fixtures are a document set
   // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
+  /** The viewer's `following` rows — the set every follow button reads. */
+  followDocs: [] as FakeSnapshotDoc[],
   // Documents the my-answers query resolves to (empty = the fresh-account
   // boot every earlier case was written against). Added for the catalog
   // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
@@ -81,14 +116,28 @@ const h = vi.hoisted(() => ({
   answerPageSize: 0,
   answerServed: 0,
   aggIdQueries: [] as string[][],
+  // The breakdown tail's shard reads (D400), by the document ids each
+  // query asked for, and a switch that makes the next one fail. Both are
+  // additive: nothing else on this path was observable, so `loadOverflow`
+  // could neither be counted nor made to fail from a case.
+  overflowIdQueries: [] as string[][],
+  overflowFail: false,
+  // Shard documents the tail query resolves to, by document id. Empty
+  // (the default) is a tree where no shard exists, which is what every
+  // memo/retry case wants; a case that puts a cell here is the only way
+  // to reach the MERGE half of loadOverflow at all.
+  overflowDocs: {} as Record<string, Record<string, unknown>>,
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
   // it exists for is a partial one: several chunked `in` queries fire and
   // only some come back (D169's loadSimilarity).
   aggFailIds: [] as string[],
   // live.ts observes auth for the whole session; capture the callback so a
-  // test can drive a uid change or a revoked session.
-  authCb: null as null | ((u: { uid: string } | null) => void),
+  // test can drive a uid change, a revoked session, or an account whose
+  // address is not confirmed yet. The shape is the SDK's User narrowed to
+  // the fields the observer reads — widening it further would invite a
+  // test to assert on something live.ts never looks at.
+  authCb: null as null | ((u: AuthUser | null) => void),
   snapshots: [] as CapturedListener[],
   // The offline-cache teardown deleteAccount owes the privacy policy. Named
   // rather than counted so the ORDER is assertable: clearIndexedDbPersistence
@@ -133,9 +182,15 @@ vi.mock("../../lib/firebase", () => {
   // every case in it now also exercises the bind step.
   getFirestoreApi: () => fsApi,
   getFunctionsApi: () => fnsApi,
+  emailCreate: () => Promise.resolve(),
+  refreshVerification: () => Promise.resolve(true),
+  sendVerification: () => Promise.resolve(),
+  emailReset: () => Promise.resolve(),
+  emailSignIn: () => Promise.resolve(),
+  linkApple: () => Promise.resolve(),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+  subscribeToAuth: (cb: (u: AuthUser | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
@@ -165,7 +220,17 @@ vi.mock("./engagement", async (importActual) => {
 
 vi.mock("firebase/functions", () => ({
   getFunctions: vi.fn(),
-  httpsCallable: vi.fn(),
+  // A vi.fn WITH A DEFAULT, not a plain one, and not a plain function.
+  // It has to stay a vi.fn because several cases below drive it through
+  // `vi.mocked(...).mockReturnValue(...)`. But a bare vi.fn() returns
+  // undefined, which `callable()` then awaits as `.data` — so any call
+  // would throw into the caller's catch and a case could pass because
+  // nothing happened. The default records and resolves; a case that wants
+  // its own invoke still overrides it.
+  httpsCallable: vi.fn((_fns: unknown, name: string) => (data: unknown) => {
+    h.callableCalls.push({ name, data });
+    return Promise.resolve({ data: {} });
+  }),
 }));
 
 vi.mock("firebase/firestore", () => {
@@ -211,14 +276,61 @@ vi.mock("firebase/firestore", () => {
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
-      if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      if (q?.path === "v2_questions") {
+        // THE BOOT IS THREE QUERIES since D321/D313 — the boot surfaces,
+        // `feed && core`, and the bought questions (`paid == true` with
+        // the window open). This stub deliberately serves the whole bank
+        // to the first two, which is why every feed fixture below reaches
+        // the deck without saying `core`; making it faithful is a bigger
+        // change than it looks and is on the night list.
+        //
+        // The PAID query is filtered, because it is the one this file
+        // would otherwise break: unfiltered it hands back the whole bank
+        // a third time, and hydrate concatenates the copies — which is
+        // how the patterns-gate count read three where the fixture holds
+        // one, with the duplication invisible while there were two.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as unknown as Array<{ field: string; value: unknown }>;
+        const paid = wheres.find((w) => w.field === "paid");
+        if (!paid) return Promise.resolve(snapOf(h.bankDocs));
+        const floor = String(wheres.find((w) => w.field === "until")?.value ?? "");
+        return Promise.resolve(snapOf(h.bankDocs.filter((d) =>
+          d.data.paid === paid.value
+          // Firestore drops a document that lacks the field an inequality
+          // names — which is what keeps the seeded bank out of this query.
+          && typeof d.data.until === "string" && (d.data.until as string) >= floor)));
+      }
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
       if (q?.path === "v2_users/uid_test/answers") {
-        if (!h.answerPageSize) return Promise.resolve(snapOf(h.answerDocs));
+        // THE WARM BOOT IS TWO DELTAS on this path — `answeredAt >` and
+        // `editedAt >` — and this stub used to serve the whole fixture to
+        // both, so the two cursors were indistinguishable from here. That
+        // is precisely what the watermark case below has to tell apart,
+        // and a stub that ignores the filter cannot: it would pass on a
+        // pair of queries that in production return different documents.
+        //
+        // Applied only when a fixture carries the field, so every existing
+        // case — none of which stamps one — is served exactly as before.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as unknown as Array<{ field: string; value: unknown }>;
+        const ineq = wheres.find((w) => w.field === "answeredAt" || w.field === "editedAt");
+        const since = (ineq?.value as { ms?: number } | undefined)?.ms;
+        const filtered = ineq && typeof since === "number"
+          // Firestore drops a document that lacks the field an inequality
+          // names, which is what keeps an unedited answer out of the edit
+          // delta — so the stub has to drop it too.
+          ? h.answerDocs.filter((d) => {
+            const v = (d.data as Record<string, unknown>)[ineq.field] as { toMillis?: () => number } | undefined;
+            return v && typeof v.toMillis === "function" && v.toMillis() > since;
+          })
+          : h.answerDocs;
+        if (!h.answerPageSize) return Promise.resolve(snapOf(filtered));
         const start = h.answerServed;
         h.answerServed += h.answerPageSize;
-        return Promise.resolve(snapOf(h.answerDocs.slice(start, start + h.answerPageSize)));
+        return Promise.resolve(snapOf(filtered.slice(start, start + h.answerPageSize)));
       }
       // main's version, kept whole: it records the id list and returns only
       // the matching documents, which the learn-split cases below assert on.
@@ -234,8 +346,35 @@ vi.mock("firebase/firestore", () => {
           if (w && w.__kind === "where" && typeof w.field === "string") wheres[w.field] = w.value;
         }
         h.voterQueries.push(wheres);
+        // A per-qid failure hook. `loadVoters` swallows its own error and
+        // leaves the list unset, which is the state `kindredAt` has to
+        // count around — and no fixture could produce it before this.
+        if (h.voterFailQids.has(String(wheres.qid ?? ""))) {
+          return Promise.reject(new Error("voter query refused"));
+        }
         const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
         return Promise.resolve(snapOf(h.voterDocs[city] || []));
+      }
+      // The viewer's own follow rows. Served because `isFollowing` reads
+      // this set when the circle is not loaded, and every follow button
+      // outside the Circle stop is in exactly that state — with the path
+      // unserved, the store could only ever answer "not following".
+      if (q?.path === "v2_users/uid_test/following") {
+        return Promise.resolve(snapOf(h.followDocs));
+      }
+      if (q?.path === "v2_agg_overflow") {
+        const ids = (q.parts || [])
+          .filter((pt) => pt && pt.__kind === "where" && Array.isArray(pt.value))
+          .flatMap((pt) => pt.value as string[]);
+        h.overflowIdQueries.push(ids);
+        if (h.overflowFail) return Promise.reject(new Error("offline"));
+        // Serves only the ids the query named, like the agg arm above: a
+        // fake that returned everything would pass a read that asked for
+        // the wrong shard, which is the one thing the hash has to get right.
+        return Promise.resolve(snapOf(
+          ids.filter((id) => id in h.overflowDocs)
+            .map((id) => ({ id, data: h.overflowDocs[id] as Record<string, unknown> })),
+        ));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -257,8 +396,12 @@ vi.mock("firebase/firestore", () => {
       h.snapshots.push({ path: target?.path, next, error });
       return vi.fn();
     },
-    setDoc: (target: { path: string }, data: Record<string, unknown>) => {
-      h.setDocCalls.push({ path: target.path, data });
+    setDoc: (
+      target: { path: string },
+      data: Record<string, unknown>,
+      opts?: Record<string, unknown>,
+    ) => {
+      h.setDocCalls.push({ path: target.path, data, opts });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
     updateDoc: (target: { path: string }, data: Record<string, unknown>) => {
@@ -279,6 +422,14 @@ vi.mock("firebase/firestore", () => {
     // same kind of pin as the "window.LIVE public surface" case below —
     // adding a Firestore call to the store now forces this list to move.
     deleteDoc: () => Promise.resolve(),
+    // D331: setPoliticalConsent removes the published compass with the
+    // consent record, in one merge — a sentinel here, asserted in
+    // political-consent.test.ts rather than in these boot fixtures.
+    deleteField: () => "__delete__",
+    // D357: the queue-drained signal settlePending awaits. Resolved at
+    // once here — no case in this file relaunches with an unacked answer;
+    // those live in warm-boot.test.ts, whose mock gates it.
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
@@ -330,8 +481,10 @@ async function bootLive() {
   // A 1 ms race budget keeps no long-lived boot timer around; boot is
   // pure microtasks with these mocks, so just wait for it to settle.
   await mod.initLive(1);
+  // `attached` (D356): boot complete — the network phase done — rather
+  // than `ready`, which a cached device answers off disk first.
   await vi.waitFor(() => {
-    expect(LIVE.ready).toBe(true);
+    expect(LIVE.attached).toBe(true);
   });
   return LIVE;
 }
@@ -390,6 +543,7 @@ beforeEach(() => {
   h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
+  h.callableCalls.length = 0;
   h.updateDocImpl = null;
   h.updateDocCalls.length = 0;
   h.snapshots.length = 0;
@@ -402,8 +556,13 @@ beforeEach(() => {
   h.answerServed = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.overflowIdQueries.length = 0;
+  h.overflowFail = false;
+  h.overflowDocs = {};
   h.voterDocs = {};
   h.voterQueries.length = 0;
+  h.voterFailQids.clear();
+  h.followDocs.length = 0;
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -532,6 +691,643 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
     vi.stubEnv("VITE_V2_LIVE", "false");
     const mod = await import("./live");
     expect(mod.default.patternsSignal()).toEqual({});
+  });
+});
+
+// ── how divisive a question was, over the options it HAS ────────────
+//
+// The selection key for the twelve questions Kindred, the City
+// constellation and the People lens are computed over. It densified the
+// published counts by walking "0".."19" and BREAKING at the first missing
+// key — but the server mints a key by incrementing and deletes one that
+// reaches zero, so an option nobody picked simply has no key. A gapped
+// vector was therefore scored on its leading run, and `divisiveness`
+// normalises by option COUNT, so the short vector is not merely missing
+// zeros: it is rescaled.
+// ── the rounds a duel answer is written for ─────────────────────────
+//
+// NOTHING EXECUTED THIS CODE. `test/live-fixture.ts` stubs every
+// `LIVE.social` rounds member and `live-surface.ts` pins only the NAMES,
+// so `roundKey` changed to `r${n + 1}` — which moves every duel answer's
+// document id, the reveal listener's target and which rounds count as
+// sealed — left the whole client suite at 201 files / 2951 tests, exit
+// 0. Two separate reviews measured it the same way on the same night,
+// and it is why two live defects in this file shipped past tsc, eslint,
+// check:globals and the window.LIVE pin: all four are name-level.
+//
+// So this drives the real store: a group document through the store's
+// own listener, a duel question through the bank, and the assertion is
+// on the DOCUMENT THAT GETS WRITTEN.
+describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
+  const duelDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "duo", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true,
+    },
+  });
+
+  /** The group listener's own snapshot shape: `snap.docs.map(d => ({ id,
+   *  ...d.data() }))`. */
+  const groupSnap = (docs: Array<{ id: string; data: Record<string, unknown> }>) => ({
+    size: docs.length,
+    docs: docs.map((d) => ({ id: d.id, data: () => d.data, get: (k: string) => d.data[k] })),
+  });
+
+  const withRoom = async (room: Record<string, unknown>) => {
+    h.bankDocs.push(duelDoc("duo-t1", ["Tea", "Coffee"]), duelDoc("duo-t2", ["Cats", "Dogs"]));
+    const LIVE = await bootLive();
+    const sub = h.snapshots.find((x) => x.path === "v2_groups");
+    expect(sub, "no v2_groups listener — this fixture cannot reach the store").toBeTruthy();
+    sub!.next(groupSnap([{ id: "g1", data: room }]));
+    return LIVE;
+  };
+
+  it("writes the open round's answer at its own id, carrying the round and the question", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info, "the room never reached the store").toBeTruthy();
+    expect(info.open).toBe(3);
+    expect(info.next, "the open round is the one to answer").toBe(3);
+    expect(info.sealed).toEqual([]);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const wrote = h.setDocCalls.find((c) => c.path.includes("/answers/g_g1_"));
+    expect(wrote, "no duel answer was written at all").toBeTruthy();
+    // THE ID IS THE ASSERTION. It is what the reveal listener reads back
+    // and what `roundsOf` calls sealed, so an off-by-one here is silent
+    // everywhere else.
+    expect(wrote!.path).toBe("v2_users/uid_test/answers/g_g1_r3");
+    expect(wrote!.data).toMatchObject({ gid: "g1", round: 3, optionIdx: 1, surface: "duo" });
+    expect(typeof wrote!.data.qid).toBe("string");
+    expect(String(wrote!.data.qid), "the answer names no question").toMatch(/^duo-t[12]$/);
+  });
+
+  it("…and the next round is the next one, sealed behind it", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    await LIVE.social.voteDuel("g1", 0);
+    const info = LIVE.social.roundInfo("g1")!;
+    expect(info.sealed, "the answered round is not sealed").toEqual([3]);
+    expect(info.next, "the lead did not advance").toBe(4);
+
+    await LIVE.social.voteDuel("g1", 1);
+    const ids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.path);
+    expect(ids).toEqual([
+      "v2_users/uid_test/answers/g_g1_r3",
+      "v2_users/uid_test/answers/g_g1_r4",
+    ]);
+    // Two rounds, two questions: the round is part of the pick, so the
+    // same room does not ask the same thing twice in a row.
+    const qids = h.setDocCalls.filter((c) => c.path.includes("/answers/g_g1_")).map((c) => c.data.qid);
+    expect(new Set(qids).size, "both rounds drew the same question").toBe(2);
+  });
+
+  it("a LATE answer names the question it was GIVEN, not one re-derived from today's bank", async () => {
+    // The defect this closes (fixed earlier tonight, and until now held by
+    // nothing that runs `voteLate`): the card renders a revealed round's
+    // buttons from the reveal's own qid, while `voteLate` re-derived the
+    // round's question with `duelQFor` — a hash over the CURRENT bank and
+    // world pool. One question appended to either remaps every past round,
+    // and a late answer is by definition given after its round revealed.
+    //
+    // Asserted by handing it a qid `duelQFor` would NOT have chosen and
+    // checking the write carries that one. A test that passed the derived
+    // qid would pass with the fix reverted.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 4, played: {} });
+    // What the round would resolve to on today's bank, so the case can
+    // assert it is NOT what gets written.
+    await LIVE.social.voteDuel("g1", 0);       // seals round 4 and names its question
+    const sealedQid = String(h.setDocCalls.find((c) => c.path.endsWith("g_g1_r4"))!.data.qid);
+    const other = sealedQid === "duo-t1" ? "duo-t2" : "duo-t1";
+
+    await LIVE.social.voteLate("g1", 2, 1, other);
+    const late = h.setDocCalls.find((c) => c.path.endsWith("g_g1_r2"));
+    expect(late, "no late answer was written").toBeTruthy();
+    expect(late!.data).toMatchObject({ gid: "g1", round: 2, optionIdx: 1, late: true });
+    expect(late!.data.qid, "the late answer was filed under a re-derived question").toBe(other);
+  });
+
+  it("a late answer stays inside the lead behind the open round, and never overwrites", async () => {
+    // The window the rules enforce, checked on the client so the tap does
+    // not become a refused write. `open - ROUND_LEAD` is the floor.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 9, played: {} });
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteLate("g1", 3, 0, "duo-t1");   // 9 - 5 = 4, so 3 is out
+    expect(h.setDocCalls.length, "a late answer past the lead was written").toBe(before);
+    await LIVE.social.voteLate("g1", 9, 0, "duo-t1");   // the open round is not late
+    expect(h.setDocCalls.length, "the open round was answered through the late door").toBe(before);
+
+    await LIVE.social.voteLate("g1", 5, 0, "duo-t1");
+    expect(h.setDocCalls.length, "a legal late answer was refused").toBe(before + 1);
+    // …and a second tap on the same round writes nothing: the seal is the
+    // product, and a late answer is still an answer.
+    await LIVE.social.voteLate("g1", 5, 1, "duo-t1");
+    expect(h.setDocCalls.length, "a late answer was overwritten").toBe(before + 1);
+  });
+
+  it("myDuelCall reports the vote and the call it was sealed with", async () => {
+    // The reveal card reads this to decide whether it can say "you read
+    // them" — a guess that silently stopped being remembered would make
+    // the row vanish with nothing red.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
+    await LIVE.social.voteDuel("g1", 1, 0);
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // A vote with no call reads as a pick alone, not as a missing vote.
+    await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
+  });
+
+  it("refuses past the lead rather than writing an answer nothing will accept", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 1, played: {} });
+    const info = LIVE.social.roundInfo("g1")!;
+    for (let i = 0; i < info.lead; i++) await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.roundInfo("g1")!.sealed).toHaveLength(info.lead);
+    expect(LIVE.social.roundInfo("g1")!.next, "the lead's edge is not the end of the road").toBeNull();
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteDuel("g1", 0);
+    expect(h.setDocCalls.length, "a write past the lead the rules would refuse").toBe(before);
+  });
+});
+
+describe("divisivenessOf reads the whole question, not its leading run", () => {
+  const bankDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "feed", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true, core: true,
+    },
+  });
+
+  /** Boot with the question in the bank, then land the published counts
+   *  through the store's own refresh — the only path that fills
+   *  `state.aggs`, which is what divisivenessOf reads. */
+  const withCounts = async (
+    qid: string, options: string[] | null, counts: Record<string, number> | null,
+  ) => {
+    if (options) h.bankDocs.push(bankDoc(qid, options));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote(qid, "0");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain(qid);
+    });
+    h.aggDocs = counts ? [{ id: qid, data: { total: 0, counts } }] : [];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    return mod;
+  };
+
+  it("fills an unpicked option with zero instead of stopping there", async () => {
+    const mod = await withCounts("q_gap", ["A", "B", "C", "D", "E"],
+      { "0": 2, "1": 3, "3": 3, "4": 1 });
+    // Five options, lead 3 of 9 → (1 − 1/3) / (1 − 1/5). Truncated at the
+    // gap it was three options wide and scored 0.6667.
+    expect(mod.divisivenessOf("q_gap")).toBeCloseTo((1 - 3 / 9) / (1 - 1 / 5), 6);
+  });
+
+  it("scores a landslide as zero rather than as unmeasured", async () => {
+    // Option 0 unpicked on a two-option question truncated the vector to
+    // nothing, and −1 means "this device holds no counts" — a claim about
+    // missing data, made over data that was present.
+    const mod = await withCounts("q_slide", ["A", "B"], { "1": 7 });
+    expect(mod.divisivenessOf("q_slide")).toBe(0);
+  });
+
+  it("does not drop counts that reach past the option list it holds", async () => {
+    // The mirror of the gap bug. Reading the bank as the only authority
+    // truncates a vector whose published counts go further than this
+    // device's option list does — a bank entry that changed after answers
+    // folded, or a device on a stale content revision — and that is the
+    // same rescaling failure pointed the other way.
+    const mod = await withCounts("q_wide", ["A", "B"], { "0": 2, "1": 2, "2": 4 });
+    // Three options, lead 4 of 8 → (1 − 1/2) / (1 − 1/3). Truncated to the
+    // bank's two it would have been (1 − 1/2) / (1 − 1/2) = 1: a perfect
+    // split, which is the most divisive a question can be.
+    expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
+  });
+
+  it("fills the TRAILING options nobody has picked yet", async () => {
+    // The bank's half of the union, which nothing reached. Every case
+    // above happens to have `highestKey === options.length`, so
+    // `optionCountOf` could return 0 for every question and all of them
+    // still passed — while the bank half is the one that matters in the
+    // ORDINARY early state of a multi-option question: counts that stop
+    // before the option list ends, because the last options have no votes
+    // yet.
+    //
+    // Divisiveness normalises by the vector's length, so a short vector is
+    // RESCALED rather than merely missing zeros — and the value is the
+    // selection key for `pickKindredQids`, so it decides which twelve
+    // collection-group queries the Kindred fetch spends.
+    const mod = await withCounts("q_tail", ["A", "B", "C", "D", "E"], { "0": 2, "1": 3 });
+    // Five options, lead 3 of 5 → (1 − 3/5) / (1 − 1/5) = 0.5. Truncated
+    // to the two that have counts it is (1 − 3/5) / (1 − 1/2) = 0.8.
+    expect(mod.divisivenessOf("q_tail")).toBeCloseTo((1 - 3 / 5) / (1 - 1 / 5), 6);
+  });
+
+  it("still answers −1 when the device holds no counts at all", async () => {
+    const mod = await withCounts("q_none", ["A", "B"], null);
+    expect(mod.divisivenessOf("q_none")).toBe(-1);
+  });
+});
+
+// ── arming a loader is a state change (the "could not load" frame) ──
+//
+// A loading flag nobody is told about is not a loading state. The panels
+// that own these loaders call them from an effect, which runs AFTER the
+// first paint — so the frame with no data and no flag is already on
+// screen, and without a notify on arm it stays there until the query
+// lands. On the Friends cut that frame reads "Could not load how your
+// friends answered", which is a network-failure claim about a read that
+// is working; on the People lens it reads "Fills in as you answer more."
+//
+// These assert the NOTIFY, not the flag: the flag was always set on arm,
+// and setting it changed nothing anybody could see.
+describe("a loader that starts tells its subscribers it started", () => {
+  const armed = async (start: (l: Awaited<ReturnType<typeof bootLive>>) => void) => {
+    const LIVE = await bootLive();
+    const listener = vi.fn();
+    LIVE.subscribe(listener);
+    start(LIVE);                       // deliberately NOT awaited
+    return { LIVE, calls: listener.mock.calls.length };
+  };
+
+  it("loadVoters", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadVoters("q_1"));
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.votersLoading("q_1")).toBe(true);
+    await flush();
+  });
+
+  it("isFollowing answers from the follow set, not only from the circle", async () => {
+    // `state.circle` is filled by ONE component, the Circle stop's body,
+    // and three surfaces draw a follow button without ever loading it: the
+    // Kindred cards, the city constellation's person card, and people
+    // search. So this predicate returned false for everyone you already
+    // follow — the button read Follow with aria-pressed false, and the
+    // first tap re-wrote a follow you already had before the label could
+    // flip. Two of those hosts already load the set for other reasons, so
+    // the answer was in memory and the predicate would not look at it.
+    h.followDocs = [{ id: "u_friend", data: { to: "u_friend", at: { seconds: 1 } } }];
+    const LIVE = await bootLive();
+    expect(LIVE.isFollowing("u_friend"), "before the set is asked for").toBe(false);
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).toContain("u_friend");
+    expect(LIVE.isFollowing("u_friend"), "the set was loaded and ignored").toBe(true);
+    expect(LIVE.isFollowing("u_stranger")).toBe(false);
+  });
+
+  it("loadFollows", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadFollows());
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.followsLoading()).toBe(true);
+    await flush();
+  });
+
+  it("loadTakes — the one whose bad frame invites you to write", async () => {
+    // "No takes yet. Say the first thing." is what the panel says with no
+    // data and no flag, and it stood for the whole read. The flag was
+    // always armed; nobody was told.
+    const { LIVE, calls } = await armed((l) => void l.social.loadTakes("world", "q_1"));
+    expect(LIVE.social.takesLoading("world", "q_1"), "the flag was not even armed").toBe(true);
+    expect(calls, "the takes panel was not told the read started").toBeGreaterThan(0);
+    await flush();
+  });
+
+  it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
+    // Recorded rather than left implicit: loadKindred's only suspension
+    // point is the loadVoters call in its loop, so the People lens's
+    // re-render comes from there. A notify on its own arm would be
+    // unobservable — measured by adding one and finding no test could
+    // fail without it.
+    const src = readFileSync(resolve(process.cwd(), "src/v2/data/live.ts"), "utf8");
+    const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
+    expect(body).toBeTruthy();
+    expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
+// ── the follow cap binds where a follow can be MADE ─────────────────
+//
+// FOLLOW_CAP is a bound on a fan-out, not a product limit: the Circle
+// stop reads every followed account's whole answer set. Past the cap
+// `fetchFollowing` keeps the oldest fifty rows and the rest of a circle
+// stops existing with nothing saying so — the follow button on a dropped
+// account reads "Follow" again, and the tap re-writes a follow that is
+// already there, forever.
+//
+// The guard read `state.circle`, which `loadCircle` alone writes, and
+// `loadCircle` is mounted by exactly one component — the Circle stop,
+// which never adds a follow. Every surface that CAN add one (the People
+// lens, the city constellation's person card, people search) loads
+// `follows` instead. So at every reachable call site the guard read
+// `null` and the cap bound nowhere. Nothing pinned that: forcing the
+// guard to fire on every follow, and swapping the cache under it, both
+// left the whole unit suite green.
+describe("the follow cap binds on the cache the follow buttons fill", () => {
+  const followRows = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `u_${i}`,
+      data: { to: `u_${i}`, at: { seconds: i + 1 } },
+    }));
+  const writesTo = (uid: string) =>
+    h.setDocCalls.filter((c) => c.path === `v2_users/uid_test/following/${uid}`);
+
+  it("refuses the follow that would pass the cap", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    expect(LIVE.follows()?.length, "the fixture did not fill the set").toBe(FOLLOW_CAP);
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new"), "a follow past the cap was written anyway").toEqual([]);
+  });
+
+  // THE CONTROL. Every assertion above is an absence, and an absence
+  // passes just as happily when this path writes nothing at all — so the
+  // same mount, one row under the cap, has to write.
+  it("…and makes the one that fills it", async () => {
+    h.followDocs = followRows(FOLLOW_CAP - 1);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "a follow under the cap was refused").toBe(1);
+  });
+
+  // AND THE OTHER DIRECTION. `null` means "not asked for yet", not
+  // "nobody followed" — a guard that counted it as zero-known would be
+  // fine here and refuse every follow made before the set had loaded,
+  // which is the same bug pointing the other way.
+  it("does not refuse a follow made before the set has been read", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "refused on a set nobody had asked for").toBe(1);
+  });
+});
+
+// ── the read breaker (D332) ─────────────────────────────────────────
+//
+// `budgetMode` on v2_meta/app is the graded breaker docs/COSTS.md designed:
+// level 1 pauses the D98 social fetches. These cases are the lever's only
+// executing proof — the panel suites pin what a paused surface SAYS, but
+// only here does a gated loader run against a store that could issue the
+// read, so only here can "paused" be measured as zero queries rather than
+// as a sentence. The absent-field case matters as much as the set one: a
+// meta doc without the field must read as level 0 (the lever fails open),
+// or every device pauses the day the field is misspelled.
+describe("budgetMode (D332): level 1 pauses the social reads", () => {
+  const metaAt = (level: number) => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { budgetMode: level } : null);
+  };
+
+  it("reads the mode off v2_meta/app", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    expect(LIVE.budgetPaused).toBe(true);
+  });
+
+  it("stays unpaused when the field is absent", async () => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { contentRev: null } : null);
+    const LIVE = await bootLive();
+    expect(LIVE.budgetPaused).toBe(false);
+  });
+
+  it("loadVoters issues no query and leaves the key ABSENT, not empty", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadVoters("q_1");
+    expect(h.voterQueries).toHaveLength(0);
+    // Absent is "we could not ask" — the sheet's paused branch renders,
+    // never "nobody answered".
+    expect(LIVE.voters("q_1")).toBeNull();
+    expect(LIVE.votersLoading("q_1")).toBe(false);
+  });
+
+  it("loadKindred spins nothing — no queries, no loading flag", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries).toHaveLength(0);
+    expect(LIVE.kindredLoading()).toBe(false);
+  });
+
+  it("a run that asked for NOTHING is not a failed read", async () => {
+    // The mirror image of the emptiness `kindredState` exists to stop: an
+    // account with no votes has no crowd to fail to read, so telling it
+    // "couldn't read the crowd" invents a failure. It has to be measured
+    // with the breaker OFF — under the breaker loadKindred returns before
+    // the line that decides this, so a case at level 1 passes whatever the
+    // rule says. That is how the first draft of this assertion was
+    // vacuous.
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries, "nothing to ask for, so nothing asked").toHaveLength(0);
+    expect(LIVE.kindredState()).toBe("ready");
+  });
+
+  it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
+    // The case above cannot see this gate. Delete it and loadKindred runs
+    // its loop: every loadVoters refuses on its own gate, so no query is
+    // issued and the flag is back to false by the time the await returns —
+    // both assertions above still pass. What the gate buys is the interval
+    // BETWEEN, which is where the lens reads the flag and says "Matching…"
+    // about a match nobody is attempting. So look before awaiting.
+    //
+    // It needs a vote to be worth gating: with an empty vote map the loop
+    // has nothing to iterate, so the whole body — flag up, flag down —
+    // runs synchronously and never suspends, and the gate's absence would
+    // be invisible however you looked. So seed one and assert it landed.
+    metaAt(1);
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+    });
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(1);
+    const pending = LIVE.loadKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("counts the questions that LANDED, not the ones it asked about", async () => {
+    // `kindredDepth()` is printed as the Mirror's own basis — "across N
+    // questions" under the People lens — and `loadVoters` swallows its
+    // failures (reportError, then the list stays unset). So the line this
+    // asserts, `qids.filter((id) => state.voters[id]).length`, is what
+    // stops the caption claiming twelve after twelve refused queries.
+    //
+    // Nothing reached it: every consumer of kindredDepth is stubbed in the
+    // UI suites, and no test drove the real loadKindred with a failure —
+    // there was no way to produce one until the fixture grew the hook
+    // above.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran at all").toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(),
+      "the caption counted questions whose voter query failed").toBe(1);
+  });
+
+  // ── ASKED AND GOT NOTHING IS A FAILURE, NOT AN EMPTY CROWD ───────
+  //
+  // `kindredFailed` is assigned in exactly one place and only the
+  // NOT-a-failure direction was tested. Forcing it to `false` left EVERY
+  // runner in the tree green while the City field says "Nobody from Oslo
+  // yet — fills in as the city answers" after twelve collection-group
+  // queries that all threw.
+  //
+  // (This said "285 files, 4548 tests" and neither number reproduced —
+  // the surface was nearer 292 and 4898 the night it was written. The
+  // claim is "nothing anywhere went red", which does not need a count,
+  // and a hand-maintained count is the one documentation error this repo
+  // keeps re-committing. Run the suites for the live figure.)
+  //
+  // The lens has the arm for it: LiveSimilarityField reads
+  // `LIVE.kindredState()` and draws "Couldn't read the crowd here" on
+  // 'failed'. Nothing could reach that arm from the store, because every
+  // UI suite stubs the getter — so the sentence existed and the state that
+  // produces it was never produced.
+  //
+  // `loadVoters` swallows each failure and leaves its key ABSENT rather
+  // than empty, deliberately, so that absent and empty stay
+  // distinguishable — and this is the line that makes that distinction
+  // mean something downstream.
+  it("says the read FAILED when it asked for lists and got none", async () => {
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+      h.voterFailQids.add(qid);
+    }
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran, so nothing could have failed")
+      .toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(), "a query landed after all").toBe(0);
+    expect(
+      LIVE.kindredState(),
+      "twelve refused queries were reported to the Mirror as an empty city",
+    ).toBe("failed");
+  });
+
+  it("…and reports 'ready' the moment ONE of them lands", async () => {
+    // THE CONTROL, and the rule it pins is deliberate: a partial pool is a
+    // real pool as far as it goes, so one surviving list is a crowd and not
+    // a failure. Without this, "failed" would also be what a flag stuck on
+    // looks like.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(LIVE.kindredDepth()).toBe(1);
+    expect(LIVE.kindredState(), "one list landed and the crowd was called unreadable")
+      .toBe("ready");
+  });
+
+  it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
+    // The city half of the same fan-out (D278) — a second twelve queries,
+    // behind its own copy of the gate, and until now behind no test at
+    // all. Same shape: the flag must never rise.
+    h.getDocImpl = (path) => (path === "v2_meta/app"
+      ? { budgetMode: 1 }
+      : path === "v2_users/uid_test"
+        ? { anchors: { city: "Oslo, NO", country: "NO" } }
+        : null);
+    const LIVE = await bootLive();
+    // The precondition, asserted rather than assumed: with no city the
+    // loader returns at its first line and this test would prove nothing.
+    expect(LIVE.myCity).toBe("Oslo, NO");
+    const pending = LIVE.loadCityKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("loadCircle leaves the circle null rather than folding an empty one", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadCircle();
+    // null is the stop's "could not ask"; [] would be a settled fold —
+    // the two arms LiveCircleBody renders differently, and the gate must
+    // produce the first.
+    expect(LIVE.circle()).toBeNull();
+    expect(LIVE.circleLoading()).toBe(false);
+  });
+
+  it("level 0 keeps the reads working — the contrast that proves the gate gates", async () => {
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadVoters("q_1");
+    expect(h.voterQueries.length).toBeGreaterThan(0);
+    expect(LIVE.voters("q_1")).not.toBeNull();
+  });
+});
+
+describe("votePulse() rolls back everything it set", () => {
+  // ADDED 2026-09-05 BY THE FIX ABOVE IT, which is the point.
+  //
+  // `votePulse` was the only vote path that did not mark its answer
+  // unfolded, so today's pulse crowd was read off a document written
+  // before you answered. Marking it fixed that — and made this path's
+  // hand-rolled catch incomplete, because there was now something in
+  // `unaggregated` for it to undo and it only deleted `votes`.
+  //
+  // Nothing else clears a pulse id. Both of the store's clears iterate
+  // AGGREGATE documents fetched through live.ts's own drains, and pulse
+  // aggregates are fetched by `data/pulse` instead — so a leak here is
+  // permanent for the session: `pulsePending` keeps answering, and the
+  // card keeps adding a vote nobody cast to an option nobody chose.
+  it("leaves no pending mark when the write is refused", async () => {
+    const LIVE = await bootLive();
+    h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
+
+    await LIVE.votePulse("pulse-pace", 3);
+    await flush();
+
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "a refused pulse write left its unfolded mark set, so the reveal counts an answer that does not exist",
+    ).toBeNull();
+    expect(LIVE.myVotes()).not.toHaveProperty("pulse-pace");
+  });
+
+  it("keeps the mark while the write is in flight — the control", async () => {
+    // Without this, "never mark anything" would satisfy the case above and
+    // put back the bug the mark was added to fix.
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+
+    void LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "the unfolded mark was not set, so the reveal reads a crowd written before this answer",
+    ).toBe(3);
+
+    d.resolve();
+    await flush();
   });
 });
 
@@ -880,6 +1676,40 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // switching clocks underneath a pending real timer leaks it into whatever
   // test runs next. Each case waits out the window instead.
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // THE MARGIN, and why it is not 200ms any more. The coalescing window is
+  // AGG_CACHE_MS (1000, data/live.ts) and every wait below used to be 1200
+  // — a fifth of a second of headroom, on a real clock, in a suite that
+  // runs 150-odd files in parallel. Two of these cases failed together in
+  // one full run on 2026-08-30 and passed alone and on the three runs
+  // after; a sibling audit saw the same shape in a mount suite's 3s lazy
+  // timeout the same night. Nothing here asserts a flush is FAST, so a wait
+  // that must happen can afford to be generous.
+  //
+  // WHAT IT COSTS, measured rather than waved at: this file ran 13.8s
+  // before and 17.7s after — three waits that must happen went from 1200ms
+  // to 2500ms, and the two that could be watched for stopped waiting at
+  // all. `41e06f71`'s message said the time was "unchanged within a
+  // second", which was never measured against the old file and is wrong by
+  // about four. Four seconds inside a suite that runs its files in
+  // parallel, against a red check that costs somebody a morning chasing a
+  // cache bug that never happened.
+  const PAST_WINDOW_MS = 2500;
+  /**
+   * Wait until the write has landed, rather than waiting out the clock.
+   *
+   * For the POSITIVE assertions only: "the flush happened" is a condition a
+   * test can watch for, so those cases now finish as soon as it is true and
+   * fail loudly if it never is. The negative ones — nothing wrote, or wrote
+   * exactly once — have no condition to watch and still wait the margin
+   * out.
+   */
+  const waitFor = async (done: () => Promise<boolean> | boolean) => {
+    for (let waited = 0; waited < PAST_WINDOW_MS; waited += 25) {
+      if (await done()) return;
+      await sleep(25);
+    }
+    throw new Error("waitFor: the coalescing window closed with nothing written");
+  };
   const spyAggTx = () => {
     const spy = vi.spyOn(IDBDatabase.prototype, "transaction");
     return {
@@ -906,7 +1736,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
   it("coalesces a burst of agg snapshots into one cache write, carrying the last state", async () => {
     await bootLive();
-    await sleep(1200); // let boot's own flush land, so the spy counts only ours
+    await sleep(PAST_WINDOW_MS); // let boot's own flush land, so the spy counts only ours
     const spy = spyAggTx();
 
     for (let i = 1; i <= 5; i++) await emitAgg(i);
@@ -916,7 +1746,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(spy.count()).toBe(0);
     expect(await readAggCache()).not.toHaveProperty("q_1");
 
-    await sleep(1200);
+    await waitFor(() => spy.count() === 1);
     expect(spy.count()).toBe(1);
     // Leading-schedule/trailing-write: the flush happens a beat after the
     // FIRST snapshot but reads state at write time, so it carries the
@@ -938,7 +1768,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // so it is said here).
     await bootLive();
     await emitAgg(3); // a persisted aggregate from the outgoing account
-    await sleep(1200);
+    await waitFor(async () => "q_1" in (await readAggCache()));
     expect(await readAggCache()).toHaveProperty("q_1");
 
     await emitAgg(9); // schedules a write…
@@ -958,16 +1788,20 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Past the window the pending write would have fired in: the store may
     // fill again (the new uid's own poll writes it), but never carrying
     // the counts the previous account's in-flight write was holding.
-    await sleep(1200);
+    await sleep(PAST_WINDOW_MS);
     expect(await readAggCache()).not.toHaveProperty("q_1");
   });
 
+  // Two full windows waited out, on purpose: one to clear boot's own flush
+  // and one to prove the timer really was dropped. That is past vitest's
+  // 5s default, so the budget is stated rather than left to be discovered
+  // as a timeout — the case is slow by design, not stuck.
   it("hiding the app flushes the pending agg write rather than losing it", async () => {
     // Hiding is the last callback a mobile WebView is guaranteed before the
     // OS may kill it. Before coalescing, the write was already on disk by
     // then; now it can be up to a second in the future.
     await bootLive();
-    await sleep(1200);
+    await sleep(PAST_WINDOW_MS);
     const spy = spyAggTx();
 
     await emitAgg(7);
@@ -985,11 +1819,11 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
     // …and exactly once: the flush drops the timer and drains the dirty
     // set, so the window expiring afterwards must not write again.
-    await sleep(1200);
+    await sleep(PAST_WINDOW_MS);
     expect(spy.count()).toBe(1);
     (document as unknown as { hidden: boolean }).hidden = false;
     spy.restore();
-  });
+  }, PAST_WINDOW_MS * 4);
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
     const LIVE = await bootLive();
@@ -999,6 +1833,82 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Blanking to the demo deck would be a worse lie than a stale-but-true
     // view, so enabled must survive while a new anon session is fetched.
     expect(LIVE.enabled).toBe(true);
+  });
+
+  // ── the verify flag (D414) ────────────────────────────────────────
+  //
+  // The wall reads `linked && !needsEmailVerify`, so an over-broad rule
+  // here locks a perfectly good account out of the app with no control on
+  // screen that can fix it — there is no verification mail to resend for a
+  // provider that does not send one. That failure is invisible to every
+  // other suite, which is why the rule is pinned at the observer rather
+  // than through the screen.
+  it("only the password door needs a confirmed address", async () => {
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+
+    // Anonymous: not linked, and nothing to confirm.
+    h.authCb!({ uid, isAnonymous: true });
+    expect(LIVE.linked).toBe(false);
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // Google/Apple hand over an address they have already verified.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "a@b.co",
+      providerData: [{ providerId: "google.com" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(false);
+    expect(LIVE.accountEmail).toBe("a@b.co");
+
+    // …and even if the flag were somehow false, a provider with no
+    // verification mail must not be walled: the screen would offer a
+    // Resend that can never resolve.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "apple.com" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // The case the wall exists for.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(true);
+    expect(LIVE.accountEmail).toBe("typo@b.co");
+
+    // Confirmed — and a password account that ALSO linked a social door
+    // is verified from that side, which is the same branch.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+  });
+
+  it("refreshVerification lowers the wall itself rather than waiting on the SDK", async () => {
+    // reload() notifying its listeners is an implementation detail of the
+    // Firebase SDK. If the store trusted it and it changed, the screen
+    // would sit on "Confirm your address" after a successful confirm with
+    // no way forward — so the store writes the flag on the answer it got.
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(true);
+    let told = 0;
+    const off = LIVE.subscribe(() => { told += 1; });
+    // The module mock's refreshVerification resolves true (the address was
+    // confirmed in a mail app), and no auth callback follows it.
+    await expect(LIVE.refreshVerification()).resolves.toBe(true);
+    off();
+    expect(LIVE.needsEmailVerify).toBe(false);
+    // …and the subscribers heard, or a gate already mounted stays up.
+    expect(told).toBe(1);
   });
 
   it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {
@@ -1159,6 +2069,33 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
+  it("a feed doc's subtopic leaf reaches the mapped card, and absence stays absent (D425)", async () => {
+    // `sub` is how a card belongs to a leaf: world-feed.jsx's filter
+    // fast-paths on it and SUBTOPICS.count reads it off this pool — so the
+    // day a bank doc carries the tag, the leaf is offered ("leaves return
+    // by themselves the day live questions carry their tag",
+    // world-subtopics.js). A mapper that dropped it here would leave every
+    // live leaf at zero stock forever, silently. Emit-when-set, as `also`.
+    h.bankDocs.push(
+      {
+        id: "q_feed_leaf",
+        data: { surface: "feed", seq: 7, type: "vote", prompt: "Best-of-five belongs in the past.",
+          options: ["Keep five", "Three is enough"], topic: "sport", sub: "sub_tennis", test: null, active: true },
+      },
+      {
+        id: "q_feed_noleaf",
+        data: { surface: "feed", seq: 8, type: "vote", prompt: "Vote three",
+          options: ["A", "B"], topic: "sport", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; sub?: string }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_leaf")?.sub).toBe("sub_tennis");
+    expect("sub" in (feed.find((q) => q.id === "q_feed_noleaf") || {})).toBe(false);
+  });
+
   // ── background, the card's `i` (D281) ────────────────────────────
   //
   // Emit-when-set in both directions, and the absent half is the half
@@ -1197,9 +2134,22 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // is real work rather than a pass-through — the bank speaks
   // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
   // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
+  // Learn left the boot fetch at D320 — a live device meets cards through
+  // the pager (order pages + history heal). These cases ride the HISTORY
+  // path: seeding `insight.learn.v3` with the card marks it as one this
+  // device has answered, so the pager fetches it by id with no order doc
+  // published — which is also exactly the no-fold world a fresh project
+  // is in. The publication under test is unchanged; only the road in is.
+  const seedLearnHistory = (...cardIds: string[]) => {
+    const c: Record<string, unknown> = {};
+    for (const id of cardIds) c[id] = { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 };
+    storage.setItem("insight.learn.v3", JSON.stringify({ c, lvl: {}, pos: 1, order: [] }));
+  };
+
   it("publishes the bank's learn cards in the engine's own vocabulary", async () => {
     const { learnCards, resetLearnBank } = await import("./learnBank");
     resetLearnBank();
+    seedLearnHistory("cell1");
     h.bankDocs.push({
       id: "learn-cell1",
       data: {
@@ -1212,7 +2162,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     });
     await bootLive();
     // A sentinel sample, so "fell through to the caller's array" and
-    // "published nothing" cannot pass as each other.
+    // "published nothing" cannot pass as each other. Waited for: the
+    // pager is deliberately not part of boot (D320), so the page lands
+    // just after ready.
+    await vi.waitFor(() => {
+      expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toHaveLength(1);
+    });
     const cards = learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }]);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toEqual({
@@ -1241,15 +2196,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // wrong answer, silently, on the one surface whose whole promise is
     // that there is a right one. An empty Learn until the next seed run is
     // the honest failure.
-    h.bankDocs.push({
-      id: "learn-old1",
-      data: {
-        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
-        prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+    // The keyed sibling is the positive signal: when IT has landed, the
+    // pager pass is complete, so old1's absence is the drop and not a
+    // page that never arrived — without it this case passes on an empty
+    // bank, which proves nothing.
+    seedLearnHistory("old1", "cell1");
+    h.bankDocs.push(
+      {
+        id: "learn-old1",
+        data: {
+          surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+          prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+        },
       },
-    });
+      {
+        id: "learn-cell1",
+        data: {
+          surface: "learn", seq: 1, type: "choice", topic: "cell", test: null, active: true,
+          prompt: "A keyed card", options: ["A", "B", "C", "D"], c: 0, t: 1, p: 50, k: "Keyed",
+        },
+      },
+    );
     await bootLive();
-    expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toEqual([]);
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell1");
+    });
+    expect(learnCards([]).map((c) => c.id)).not.toContain("old1");
     resetLearnBank();
   });
 
@@ -1707,6 +2679,307 @@ describe("window.LIVE public surface", () => {
   const EXPECTED_SOCIAL = LIVE_SOCIAL_MEMBERS;
   const EXPECTED_NEAR = LIVE_NEAR_MEMBERS;
 
+  // ── the political consent gate (D331) ──────────────────────────
+  //
+  // WHY HERE AND NOT ONLY IN politicalConsent.test.ts. That file holds the
+  // PREDICATE and cannot see whether anything calls it. The gate lives
+  // inside syncPassiveResults, which writes to a world-readable profile —
+  // so a predicate that is correct and unwired publishes a political
+  // coordinate for every account, with every test still green and nothing
+  // on any screen to show it. The D258/D285 silence, one field over.
+  //
+  // Asserted on the WRITE rather than on the returned state, because the
+  // write is what reaches other people.
+  describe("the political compass is computed only with consent", () => {
+    // THE WRITE, WHEREVER IT LIVES. This read `h.setDocCalls` until
+    // 2026-09-09, when `testResults` became server-only (D431) because
+    // rules cannot bound a nested map's size. The block's reasoning is
+    // untouched — assert on what reaches other people, not on returned
+    // state — so this follows the write to the callable rather than the
+    // cases being weakened to match the new plumbing.
+    const politicalWrites = () =>
+      h.callableCalls.filter((c) => c.name === "saveTestResultV2"
+        && (c.data as { kind?: string }).kind === "political"
+        && (c.data as { result?: unknown }).result !== null);
+
+    // REAL prompts off the same axis, and this is what makes the cases
+    // below bite. `testItemMeta` joins a bank item to an instrument BY
+    // PROMPT and refuses anything that is not a 5-option scale, so an
+    // invented string folds to nothing and every assertion here passes
+    // whether the gate exists or not — which is exactly what the first
+    // draft of this block did. Two items on one axis clears
+    // MIN_AXIS_ITEMS, so an ungated fold really would publish.
+    // TWO PER AXIS, ALL SIX, and that is the bar rather than a generous
+    // fixture: `passiveResult` refuses an instrument whose axes are not
+    // all behind MIN_AXIS_ITEMS, so a partial seed folds to null and every
+    // case below passes with the gate deleted — which is what the first
+    // two drafts of this block did. Verified by removing the gate and
+    // watching these fail.
+    const POL_PROMPTS = [
+      "Markets, left to themselves, distribute fairly.",
+      "Essential services belong in public hands, not markets.",
+      "Some speech is harmful enough to restrict.",
+      "The state should keep out of private life.",
+      "My country should help others before its own poor.",
+      "Borders should be more open than they are now.",
+      "Climate action is worth real economic cost.",
+      "Green rules should hold even when jobs are on the line.",
+      "New technology, on balance, makes life better.",
+      "Some technologies should be slowed down on purpose.",
+      "Strong leaders matter more than strong institutions.",
+      "The system is rigged against ordinary people.",
+    ];
+    const SCALE = ["1", "2", "3", "4", "5"];
+    const seedPolitical = () => {
+      POL_PROMPTS.forEach((prompt, i) => {
+        h.bankDocs.push({
+          id: `q_pol${i}`,
+          data: { surface: "test", seq: 200 + i, type: "vote", prompt,
+            options: SCALE, topic: null, test: "political", active: true },
+        });
+        h.answerDocs.push({
+          id: `q_pol${i}`,
+          data: { qid: `q_pol${i}`, surface: "test", optionIdx: 4, answeredAt: { toMillis: () => 5 } },
+        });
+      });
+    };
+
+    // THE POSITIVE CONTROL, and it is the load-bearing case in this block.
+    // Every other assertion here is an absence, and an absence proves the
+    // gate only if the fold could have produced the thing. Without this,
+    // a harness that simply cannot fold a political result makes all four
+    // negatives pass with the gate deleted — which is precisely what the
+    // first three drafts of this block did.
+    it("DOES write one for a consented account — the control the absences rest on", async () => {
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { consent: { political: { v: 1, at: 1 } } } : null);
+      const LIVE = await bootLive();
+      await flush();
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      expect(politicalWrites().length).toBeGreaterThan(0);
+    });
+
+    it("writes NO political result for an account that has not been asked", async () => {
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      // Explicit, like the control: at hydrate time the answers have not
+      // landed, so the boot-time fold produces nothing whatever the gate
+      // says. Asserting on that would be asserting on the ordering, not on
+      // the consent — the exact false pass this block was rewritten for.
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      expect(politicalWrites()).toHaveLength(0);
+    });
+
+    it("writes none for an account that declined, and none after withdrawal", async () => {
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { consent: { political: { v: 1, at: 1, off: 1 } } } : null);
+      const LIVE = await bootLive();
+      await flush();
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      expect(politicalWrites()).toHaveLength(0);
+    });
+
+    it("still writes the OTHER instruments — the gate is political-only", async () => {
+      // The failure this catches is a gate placed one level too high:
+      // `continue`-ing the whole loop rather than the one kind would take
+      // big5, values and attachment down with it, and every one of those
+      // is a feature nobody asked to lose.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const kinds = new Set<string>();
+      for (const c of h.callableCalls) {
+        if (c.name !== "saveTestResultV2") continue;
+        const k = (c.data as { kind?: string }).kind;
+        if (k) kinds.add(k);
+      }
+      expect(kinds.has("political")).toBe(false);
+      // WHAT THIS CASE DOES NOT PROVE, found on 2026-09-09 (D431) by adding
+      // `expect(kinds.size).toBeGreaterThan(0)` and watching it fail: the
+      // set is EMPTY here, so the "still writes the OTHER instruments" half
+      // of the name is not checked by this fixture and never was. Only
+      // political prompts are seeded, and `passiveResult` refuses an
+      // instrument whose axes are not all behind MIN_AXIS_ITEMS — so big5,
+      // values and attachment fold to null whatever the gate does, and a
+      // gate placed one level too high would pass here.
+      //
+      // The assertion above is still real: it is another absence case, and
+      // the block's positive control carries the weight. Closing the other
+      // half needs two real prompts per axis for a second instrument (ten
+      // for the Big Five, matched BY PROMPT — `testItemMeta` refuses
+      // anything else), which is a fixture rather than a line, and it is
+      // not this change's to build. Left named as it is, with the gap
+      // written down, rather than renamed to hide it.
+    });
+
+    it("setPoliticalConsent(false) deletes the published compass in the SAME write", async () => {
+      // The half a display toggle skips. A record written without the
+      // deletion is a profile that still carries the coordinate behind a
+      // switch reading "off" — worse than no switch, because it is a
+      // claim. One write, so a partial failure cannot land that state.
+      //
+      // STILL ONE WRITE, on the server since D431. `testResults` became
+      // server-only because rules cannot bound a nested map's size, and
+      // the obvious port — a client consent merge plus a callable removal
+      // — would have reintroduced exactly the window this case exists to
+      // forbid, most of all offline, where the old Firestore write simply
+      // queued. So the record rides WITH the removal in one call and one
+      // `set`. This case is what stops anyone splitting them again: it
+      // asserts both halves are in the SAME invocation, not merely that
+      // both happened.
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { consent: { political: { v: 1, at: 1 } } } : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      h.callableCalls.length = 0;
+      await LIVE.setPoliticalConsent(false);
+      const call = h.callableCalls.find((c) => c.name === "saveTestResultV2");
+      expect(call, "no withdrawal write at all").toBeTruthy();
+      const data = call!.data as Record<string, unknown>;
+      expect(data.kind).toBe("political");
+      expect(data.result, "the coordinate was not removed").toBe(null);
+      expect(data.politicalConsent, "the consent record did not ride along, so a "
+        + "failed call leaves the coordinate published behind an off switch",
+      ).toMatchObject({ off: expect.any(Number) });
+      // And nothing wrote `testResults` straight to the profile, which the
+      // rules would refuse — a client that still tried would take the
+      // whole withdrawal down with it.
+      const direct = h.setDocCalls.find((c) => c.path === "v2_users/uid_test"
+        && !!(c.data as Record<string, unknown>).testResults);
+      expect(direct, "a client profile write still carried testResults").toBeFalsy();
+    });
+
+    it("purges a compass a pre-gate build already published, with no consent on file", async () => {
+      // THE UPGRADE CASE, and the one the gate alone does not cover.
+      // `testResults.political` has published since D277; D331 added the
+      // gate; consent defaults to OFF. So every account that used the app
+      // before the gate landed had a six-axis coordinate sitting on a
+      // world-readable profile while the account row read "Off. Your
+      // answers still count; no political profile is built from them."
+      //
+      // Skipping the fold does not remove it, and nothing else did: the
+      // only deleter is setPoliticalConsent(false), and the panel offers
+      // "Turn off" only when consent is already ON — so the sole route to
+      // removing the coordinate was to consent to it first.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { testResults: { political: { dims: [{ id: "econ", label: "Economy", value: 0.4 }] } } }
+        : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      h.callableCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      // Through the callable's remove arm since D431 — see politicalWrites
+      // above for why the assertion followed the write.
+      const call = h.callableCalls.find((c) => c.name === "saveTestResultV2"
+        && (c.data as { kind?: string }).kind === "political"
+        && (c.data as { result?: unknown }).result === null);
+      expect(call, "the stored compass was left on the profile — the gate "
+        + "stops a NEW one being computed and says nothing about the one "
+        + "already published").toBeTruthy();
+      // …and no real coordinate is written back in the same breath.
+      // `politicalWrites()` already excludes the removal arm, so this is
+      // the sharp question on its own: did any call carry a result object?
+      expect(politicalWrites()).toHaveLength(0);
+      // The consent record does NOT ride along here, and that is the
+      // difference between this case and the withdrawal above: there is no
+      // consent on file to withdraw, so the callable is asked to remove a
+      // coordinate and nothing else.
+      expect((call!.data as Record<string, unknown>).politicalConsent).toBeUndefined();
+    });
+
+    it("purging costs no write when there is nothing to purge", async () => {
+      // This runs on every hydrate, so an account that never had a
+      // coordinate must not buy a profile write on every boot forever —
+      // which is the shape of the persona-residue heal this same night
+      // found looping.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const deletes = h.setDocCalls.filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return c.path === "v2_users/uid_test" && d.testResults?.political === "__delete__";
+      });
+      expect(deletes).toHaveLength(0);
+    });
+
+    it("setPoliticalConsent(true) records it, clears any withdrawal, deletes no result", async () => {
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(true);
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      const data = call!.data as Record<string, Record<string, Record<string, unknown>>>;
+      // REMOVED, not omitted — this write is a `merge`, and a merge on a
+      // nested map merges its FIELDS. `off` is present-or-absent by design
+      // (politicalConsent.ts says why), so a grant's record simply leaves
+      // it out, and leaving it out of a merge does not take it off the
+      // server. This case asserted `undefined` here and passed for exactly
+      // that reason while a withdrawal could never be undone.
+      expect(data.consent.political.off, "a re-grant must remove the earlier withdrawal, not omit it")
+        .toBe("__delete__");
+      // "deletes nothing" is about the PUBLISHED COORDINATE: consenting
+      // must not take one away.
+      expect(data.testResults).toBeUndefined();
+      expect(LIVE.politicalConsented()).toBe(true);
+    });
+
+    it("survives a withdraw → re-grant round trip, which it could not before", async () => {
+      // The failure end to end: withdraw, then grant again, then read the
+      // stored record back the way a hydrate would. The merge is applied
+      // here the way Firestore applies it — field by field over the map
+      // that is already there — because that is the step the bug lived in.
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(false);
+      await LIVE.setPoliticalConsent(true);
+      // THE TWO HALVES TRAVEL DIFFERENTLY SINCE D431, and the replay has to
+      // follow both or it reads only half the history. A withdrawal is one
+      // server-side write (`saveTestResultV2` carries the record with the
+      // coordinate removal, so a partial failure cannot leave the switch
+      // lying); a grant touches no test result and stays a client write.
+      // Withdrawal first, then grant — the order this case performs them —
+      // so concatenating in that order replays exactly what Firestore saw.
+      const withdrawals = h.callableCalls
+        .filter((c) => c.name === "saveTestResultV2"
+          && (c.data as { politicalConsent?: unknown }).politicalConsent !== undefined)
+        .map((c) => (c.data as { politicalConsent: Record<string, unknown> }).politicalConsent);
+      const grants = h.setDocCalls
+        .filter((c) => c.path === "v2_users/uid_test")
+        .map((c) => ((c.data as Record<string, Record<string, unknown>>).consent || {}).political)
+        .filter(Boolean) as unknown as Array<Record<string, unknown>>;
+      expect(withdrawals.length, "the withdrawal did not land").toBeGreaterThanOrEqual(1);
+      expect(grants.length, "the re-grant did not land").toBeGreaterThanOrEqual(1);
+      const stored: Record<string, unknown> = {};
+      for (const pol of [...withdrawals, ...grants]) {
+        for (const [k, v] of Object.entries(pol)) {
+          if (v === "__delete__") delete stored[k];
+          else stored[k] = v;
+        }
+      }
+      const { mayPublishPolitical } = await import("./politicalConsent");
+      expect(mayPublishPolitical({ consent: { political: stored } }),
+        "the withdrawal survived the re-grant, so consent could never be given again").toBe(true);
+    });
+  });
+
   it("exposes exactly the members the spec layer looks up by name", async () => {
     const LIVE = await bootLive();
     const actual = Object.keys(LIVE).sort();
@@ -1854,6 +3127,46 @@ describe("loadSimilarity — parallel chunks keep partial progress (D169)", () =
       expect.objectContaining({ where: "loadSimilarity" }),
     );
   });
+
+  it("fetches the place aggregates and NOT the voter lists", async () => {
+    // This awaited `loadKindred` — twelve collection-group queries of up
+    // to 200 answers each, plus the profile reads that resolve their
+    // names — and every stop that draws a constellation called it. Only
+    // City reads those rows; Country and World draw places from the test
+    // aggregates fetched above, so the fan-out was bought for nothing on
+    // two stops out of three. It is the city field's own loader now.
+    h.bankDocs.push({
+      id: "q_t00",
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: "q_t00", data: { total: 4, counts: { "2": 4 } } });
+    // A vote of the viewer's own, because the fan-out picks its questions
+    // from those: with none, `loadKindred` returns without asking anybody
+    // anything and the assertion below would hold for the wrong reason.
+    // The control at the end of the case is what proves it does not.
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", optionIdx: 0, surface: "daily", answeredAt: { seconds: 1 } },
+    });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+
+    await LIVE.loadSimilarity();
+
+    expect(LIVE.aggFor("q_t00"), "the place profiles' own aggregates did not land").not.toBeNull();
+    expect(h.voterQueries, "the constellation fold paid the voter fan-out again").toHaveLength(0);
+
+    // THE CONTROL, and without it the assertion above is worth nothing:
+    // this fixture must be one where the fan-out really would fire. Asking
+    // for it directly — which is what the city field now does — issues the
+    // queries the loader used to issue for every stop.
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "this fixture never fans out, so the case above proves nothing")
+      .toBeGreaterThan(0);
+  });
 });
 
 // The learn crowd split, warmed before the tap (D125).
@@ -1896,6 +3209,42 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     expect(LIVE.learnAgg("cap6")).toBeNull();
   });
 
+  // THE THIRD STATE, and the two sentences it used to collapse into one.
+  //
+  // An unwarmed read returns null — the case above — and so does a card
+  // nobody has answered. Two surfaces printed "Nobody else has answered
+  // this one yet" for both, so on every learn card's first paint the app
+  // stated a falsehood about a question thousands may have answered, and
+  // then quietly replaced it with a number a beat later.
+  it("says a cold read is IN FLIGHT, not that nobody has answered", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.learnAgg("cap6"), "the cold read still has nothing to hand back").toBeNull();
+    expect(LIVE.learnAggLoading("cap6"), "…but it is a read in the air, not an empty card").toBe(true);
+    // …and it stops saying so once the read settles. Bounded rather than
+    // a fixed tick: the chain is a getDb plus a getDoc.
+    for (let i = 0; i < 50 && LIVE.learnAggLoading("cap6"); i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(LIVE.learnAggLoading("cap6"), "a settled read must not still look pending").toBe(false);
+    // The single-document read finds nothing in this harness — `aggDocs`
+    // feeds the WARM-UP query, which is the whole point of the D125 case
+    // above — so what is cached now is a fetched absence. That is the
+    // second sentence, and the surfaces may state it.
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+  });
+
+  it("…and a warmed card is neither null nor pending", async () => {
+    // The control. Every assertion above is about a flag being SET or a
+    // value being null, which a store that always answered "pending" or
+    // always answered null would satisfy.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAgg("cap6")).toEqual({ total: 40, counts: { "0": 30, "1": 10 } });
+    expect(LIVE.learnAggLoading("cap6"), "a warmed card was never in flight here").toBe(false);
+  });
+
   it("warms only what it was asked for", async () => {
     h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30 } } }];
     const LIVE = await bootLive();
@@ -1913,16 +3262,57 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     expect(h.aggIdQueries).toEqual([["learn-cap6"], ["learn-cap7"]]);
   });
 
-  it("leaves the estimate standing when the fetch fails", async () => {
-    // A failed warm-up must cost the measurement, never the reveal: the
-    // cache keeps its null, LEARN_SPLIT falls back to the authored model,
-    // and the footer says so. Silence here would be the honest outcome
-    // rendered as a crash.
+  it("reports a warm-up in flight as a wait, not as nobody having answered", async () => {
+    // THE FOURTH SOURCE, MADE REACHABLE ON THE ROUTE THAT USES IT. This
+    // path claimed its ids by pre-filling the cache with NULL — the same
+    // shape `learnAgg` was corrected out of, for the same stated reason
+    // (one read per card) — so `learnAggLoading` stayed false throughout
+    // and `'loading'` could not occur on the feed's own route, which is
+    // where every learn card is drawn.
     const LIVE = await bootLive();
+    const p = LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAggLoading("cap6"),
+      "a read in flight was indistinguishable from a settled absence").toBe(true);
+    await p;
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+  });
+
+  it("caches a missing document as an answer once the batch is back", async () => {
+    // The control for the case above, and the fact it must not lose: a
+    // document that is not there means nobody has answered this card, and
+    // caching that is what lets the reveal say so. Cached AFTER the batch
+    // returns rather than before it goes out.
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    // …and it is settled, so nothing asks again.
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries).toEqual([]);
+  });
+
+  it("does not turn a failed warm-up into a permanent 'nobody has answered'", async () => {
+    // A read that FAILED is not a fact about the card. The nulls used to
+    // stand for the session, so one dropped batch made every card in it
+    // report an empty crowd — even after the network came back. `learnAgg`
+    // carries this rule already; this path did not.
+    //
+    // (The case here asserted the old behaviour as correct, under a
+    // comment about the authored estimate falling back — which D149
+    // removed from live builds a month ago.)
+    const LIVE = await bootLive();
+    h.aggDocs.push({ id: "learn-cap6", data: { total: 40, counts: { 0: 30, 1: 10 } } } as never);
     h.getDocsImpl = () => new Error("offline");
     await expect(LIVE.loadLearnAggs(["cap6"])).resolves.toBeUndefined();
-    expect(LIVE.learnAgg("cap6")).toBeNull();
     expect(h.reportError).toHaveBeenCalled();
+    expect(LIVE.learnAggLoading("cap6"), "the pending claim outlived the failure").toBe(false);
+    // The network comes back. The card must be readable again.
+    h.getDocsImpl = null;
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries, "the failure was cached, so nothing ever asked again").toEqual([["learn-cap6"]]);
+    expect(LIVE.learnAgg("cap6"), "the measurement never came back after one dropped request").toEqual({ total: 40, counts: { 0: 30, 1: 10 } });
   });
 
   it("does nothing at all in demo mode", async () => {
@@ -1952,17 +3342,40 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     data: {
       surface: "learn", seq: 1, type: "choice", prompt: "Learn cell1",
       options: ["A", "B", "C", "D"], topic: null, test: null, active: true,
+      // Keyed since D320: cardLanded() watches the engine pool, and the
+      // publication drops an unkeyed card — the answer-key fields are
+      // load-bearing for the fixture reaching it, not for these cases.
+      c: 0, t: 1, p: 50, k: "Learn cell1",
     },
   };
   const aggPath = "v2_question_aggs/learn-cell1";
+  // Learn pages since D320: the card reaches state.learnBank through the
+  // pager's history heal, just after ready — so each case seeds the
+  // history and waits for the card before answering it, the same order a
+  // real session imposes (the engine only serves cards already in the
+  // pool, so learnAnswer cannot fire before the card exists).
+  const seedLearnMineHistory = () => {
+    storage.setItem("insight.learn.v3", JSON.stringify({
+      c: { cell1: { s: "learning", k: 1, seen: 1, miss: 0, pos: 0, at: 1 } },
+      lvl: {}, pos: 1, order: [],
+    }));
+  };
+  const cardLanded = async () => {
+    const { learnCards } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell1");
+    });
+  };
 
   it("marks the answer pending when the re-read does not contain it", async () => {
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     // One stranger's answer on option 1, and the trigger has not run for
     // ours. This is the overwhelmingly common case: a Firestore trigger
     // cannot fold and commit inside one client round-trip.
     h.getDocImpl = (path) => (path === aggPath ? { total: 1, counts: { "1": 1 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
       expect(LIVE.learnMine("cell1")).toEqual({ idx: 0, folded: false });
@@ -1970,11 +3383,13 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
   });
 
   it("marks it folded when the trigger won the race", async () => {
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     // The count on OUR option went up between the cached copy and the
     // re-read, so the published document already has us.
     h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 1, "1": 1 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     await LIVE.loadLearnAggs(["cell1"]);
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
@@ -1987,10 +3402,12 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     // the count moved without us in it. Erring toward "folded" undercounts
     // by one against a document that is right; erring the other way
     // double-counts the reader, which is what the fix exists to prevent.
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     h.aggDocs = [{ id: "learn-cell1", data: { total: 1, counts: { "0": 1 } } }];
     h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 2 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     await LIVE.loadLearnAggs(["cell1"]);
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
@@ -2006,9 +3423,11 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
   it("records nothing when the write itself failed", async () => {
     // A refused write leaves no answer on the server, so adding one to the
     // reveal would be inventing a person.
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
     const LIVE = await bootLive();
+    await cardLanded();
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
       expect(h.reportError).toHaveBeenCalled();
@@ -2058,6 +3477,38 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     // deleteAccount, not left to the purge event, because the privacy
     // page's claim is about the device, not about a dispatch (D312).
     expect((await readAnsCache()).votes).toEqual({});
+  });
+
+  it("stops answering the patterns gate, so the purge cannot undo itself", async () => {
+    // The gate the Patterns tab mounts on (D265) is REMEMBERED in an
+    // insight.* key, and `patternsEarned` re-writes that key whenever the
+    // live signal still passes. deleteAccount purges local trace and only
+    // THEN signs out, so between the two the in-memory vote mirror is
+    // still the deleted account's — and the shell's own purge listener
+    // shuts the tab, which re-runs its effect, which re-asks the gate. The
+    // key went straight back and the tab reopened, mid-deletion, and the
+    // next fresh anonymous session on this device inherited it.
+    //
+    // patternsReady's arm cannot close this: it drops the key on the same
+    // event, and the re-write happens after. What closes it is the SIGNAL
+    // going empty for every reader at once, which is what teardown means.
+    const LIVE = await bootLive();
+    await captureCallable();
+    LIVE.vote("q_1", "0");
+    await flush();
+    // Populated before, or the assertion after would pass on an empty
+    // fixture rather than on the guard.
+    expect(
+      LIVE.patternsSignal(),
+      "the fixture never had a signal, so this case proves nothing",
+    ).not.toEqual({});
+
+    await LIVE.deleteAccount();
+
+    expect(
+      LIVE.patternsSignal(),
+      "the signal still answers after teardown — patternsEarned will re-write the key the purge just removed",
+    ).toEqual({});
   });
 
   it("unlatches teardown when the wipe is refused, so the session survives", async () => {
@@ -2340,6 +3791,78 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
   });
 });
 
+// The WRITE SHAPE `saveAnchors` uses, pinned at the caller.
+//
+// A commit landed the fix for this — `merge: true` deep-merges a nested
+// map, so the anchors write could add and change a key and never REMOVE
+// one, and the persona-residue heal that removes keys therefore never
+// converged — under a comment saying "firestore-tests/rules.test.ts holds
+// the semantics so a future 'simplification' back to merge:true cannot
+// pass." It did not. That case hand-writes its own `setDoc` with
+// `mergeFields` and never calls `saveAnchors`, so it proves what
+// Firestore does and nothing about what this caller asks for: reverting
+// the fix left all 2228 tests green.
+//
+// The reason nothing could pin it is one line up in this file — the
+// harness's `setDoc` dropped its third argument, so the option that
+// decides whether a write can remove a field was invisible to every test.
+describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
+  it("passes mergeFields naming anchors, not a plain merge", async () => {
+    const LIVE = await bootLive();
+    h.setDocCalls.length = 0;
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await flush();
+    const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+    expect(call, "saveAnchors wrote no profile document at all").toBeTruthy();
+    expect(
+      call!.opts,
+      "a plain `{ merge: true }` DEEP-MERGES the anchors map, so a key the "
+      + "caller left out survives on the server and the persona-residue "
+      + "heal re-fires on every boot forever without converging",
+    ).toEqual({ mergeFields: ["anchors"] });
+    // …and it names ONLY anchors: naming more would drop the rest of the
+    // profile, which is the failure the original `merge: true` was there
+    // to avoid.
+    expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
+  });
+
+  it("trims and CAPS each field, because one long one loses the whole write", async () => {
+    // `isValidV2Anchors` bounds every anchor, and firestore.rules refuses
+    // the DOCUMENT rather than the field — so one over-long value does not
+    // lose a city, it loses the profile write, display name included. The
+    // comment above `saveAnchors` says exactly that ("Sending anything
+    // else fails the whole write, so the client must not rely on the
+    // server to reject the extras") and nothing held it: every test that
+    // touches saveAnchors mocks it, so the real body's caps ran under
+    // nothing and could be deleted with the whole suite green.
+    //
+    // Asserted against ANCHOR_FIELDS itself rather than against numbers
+    // typed here, so the day a cap moves in the rules and in that table
+    // this case follows instead of arguing.
+    // Imported HERE, not at the top of the file: this suite sets `window`
+    // up per case and evaluates the store through a dynamic import, so a
+    // static import of anything in it runs before that and dies on
+    // `window is not defined`.
+    const { ANCHOR_FIELDS } = await import("./live");
+    const LIVE2 = await bootLive();
+    const anchorsFor = async (next: Record<string, string>) => {
+      h.setDocCalls.length = 0;
+      LIVE2.saveAnchors(next);
+      await flush();
+      const c = h.setDocCalls.find((x) => x.path === "v2_users/uid_test");
+      return ((c?.data as { anchors?: Record<string, string> })?.anchors) || {};
+    };
+    for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
+      const out = await anchorsFor({ [k]: `   ${"x".repeat(max + 25)}  ` });
+      expect(out[k]?.length, `${k} was written past its ${max}-character cap`).toBe(max);
+    }
+    // …and the trim is a trim, not a side effect of the slice.
+    expect((await anchorsFor({ city: "  Oslo, NO  " })).city).toBe("Oslo, NO");
+    // A key the rules do not accept never reaches the write at all.
+    expect((await anchorsFor({ ssn: "123" })).ssn).toBeUndefined();
+  });
+});
+
 // ── the cold answer fetch is PAGED, not capped ─────────────────────────
 //
 // The cold path was one `orderBy("answeredAt","desc") limit(1000)`, and
@@ -2381,5 +3904,288 @@ describe("hydrate pages the viewer's own answers", () => {
     // descending single read discarded.
     const last = `q_${String(TOTAL - 1).padStart(5, "0")}`;
     expect(LIVE.myVotes()[last], `${last} is on the final page`).toBeDefined();
+  });
+});
+
+// The two warm-boot deltas, and the watermark one of them may not move.
+//
+// An edit changes `optionIdx` and stamps `editedAt`; it does NOT move
+// `answeredAt`, which is frozen because the cohort snapshot rides on it.
+// So a warm boot runs two queries — `answeredAt >` for new answers,
+// `editedAt >` for edits — with a cursor each.
+//
+// Both cursors were raised by BOTH pages. The answered page returns the
+// docs whose answeredAt moved, and their editedAt can be far newer than
+// edits on other docs it never looked at — so it lifted the edit cursor
+// past those edits and they were never fetched. The cursor is then
+// persisted, so it is not a boot's bad luck: that device shows the
+// pre-edit option for good.
+//
+// The comment at the edit query reasons carefully about the mirror-image
+// hazard (folding editedAt into the ANSWER cursor) and missed this one.
+describe("hydrate's edit-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("fetches an edit older than an edit on a newly-created answer", async () => {
+    // The sequence, in the order it happens on device A:
+    //   09:00 answer N created
+    //   10:00 answer O edited      ← device B must see this
+    //   10:05 answer N edited
+    // Device B's stored cursors are from 08:00.
+    h.answerDocs.push(
+      {
+        id: "q_new",
+        data: {
+          qid: "q_new", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(10_05),
+        },
+      },
+      {
+        id: "q_old",
+        data: {
+          qid: "q_old", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(1_00), editedAt: stamp(10_00),
+        },
+      },
+    );
+    await seedAnsCache({
+      uid: "uid_test",
+      // The stale option for the edited answer, and nothing for the new
+      // one — exactly what a device that last synced at 08:00 holds.
+      votes: { q_old: "0" },
+      maxTs: 8_00, maxEditTs: 8_00,
+    });
+
+    const LIVE = await bootLive();
+
+    expect(
+      LIVE.myVotes().q_new,
+      "the new answer never arrived — the answered delta is broken, not the edit one",
+    ).toBe("1");
+    expect(
+      LIVE.myVotes().q_old,
+      "the edit was leapt over: the answered delta lifted the EDIT cursor past it, "
+        + "so this device keeps the pre-edit option forever",
+    ).toBe("1");
+  });
+
+  it("persists a cursor no higher than what the edit page accounted for", async () => {
+    // The other half of the same rule. A cursor raised from documents the
+    // edit query never returned is a cursor that will skip whatever falls
+    // between them on the NEXT boot, which is how one bad boot becomes a
+    // permanent hole.
+    h.answerDocs.push({
+      id: "q_new",
+      data: {
+        qid: "q_new", surface: "daily", optionIdx: 1,
+        answeredAt: stamp(9_00), editedAt: stamp(10_05),
+      },
+    });
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+    await bootLive();
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxEditTs,
+      "the edit cursor was raised to an edit no edit query returned",
+    ).toBeLessThanOrEqual(10_05);
+  });
+});
+
+// The SAME rule, pointed the other way, and it was missing for exactly as
+// long as the one above existed.
+//
+// A page may raise the ANSWERED cursor only if it is a complete account of
+// the creates in the range it covers. The answered delta is: it truncates
+// ascending, so the cursor lands on the oldest unread create and the next
+// boot picks up where this one stopped. The EDIT delta is not — it returns
+// the docs whose editedAt moved, and their answeredAt can be far newer
+// than the creates the answered page had to defer.
+//
+// Raising from it seals those creates out permanently: the deck re-offers
+// their questions, the create-only rule refuses every re-vote, and each
+// card silently un-votes itself.
+describe("hydrate's answered-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("does not let the edit page carry the answered cursor past a deferred create", async () => {
+    // The stub serves one document per query and shares its cursor across
+    // both, so this fixture is built to that: the answered query takes the
+    // first matching row, the edit query the second.
+    //
+    //   q_seen     created 09:00, edited 08:50  -> the answered page's one row
+    //   q_deferred created 20:00, never edited  -> truncated away, the victim
+    //   q_edited   created 30:00, edited 40:00  -> the edit page's one row
+    h.answerPageSize = 1;
+    h.answerDocs.push(
+      {
+        id: "q_seen",
+        data: {
+          qid: "q_seen", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(8_50),
+        },
+      },
+      {
+        id: "q_deferred",
+        data: {
+          qid: "q_deferred", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(20_00),
+        },
+      },
+      {
+        id: "q_edited",
+        data: {
+          qid: "q_edited", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(30_00), editedAt: stamp(40_00),
+        },
+      },
+    );
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+
+    await bootLive();
+
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxTs,
+      "the edit page carried the ANSWERED cursor past a create the answered page "
+        + "deferred — that answer is now unreachable on this device forever",
+    ).toBeLessThan(20_00);
+  });
+});
+
+// ── THE BREAKDOWN TAIL RETRIES A FAILURE (D400) ─────────────────────
+//
+// `loadOverflow` marks a (scope, key) as loaded BEFORE it fetches, so a
+// stop opened twice costs one read, and it un-marks the pair in its catch
+// so a transient failure is not remembered as a load. That second half is
+// one line, and until now nothing in any runner reached this method at
+// all: the only other mention of it in the tree is a `async () => {}`
+// double in LiveCohortBody.test.tsx and one in live-fixture.ts.
+//
+// What the missing line costs, on a device: the tail is the viewer's OWN
+// city or country cell for every question whose hot map is at the
+// 24-bucket cap without it (docs/MIRROR.md, D400). One dropped fetch and
+// the pair stays marked for the rest of the session — so every Mirror
+// number about the viewer's own place under-reports by their city's own
+// share, on the stop the viewer opened to read about their own place,
+// with nothing on screen saying a read failed. The next mount, which is
+// the one chance to recover, does nothing because the memo says loaded.
+//
+// The memo and the retry are the same variable read in two directions, so
+// both are asserted: a case that only checked the retry would also pass on
+// a method that had simply stopped memoising and re-read on every mount.
+describe("loadOverflow — a failed shard read is not remembered as a load (D400)", () => {
+  const CITY = "Oslo, NO";
+  const QID = "q_t00";
+
+  // A hot map exactly at the cap that does NOT hold the viewer's city —
+  // the one shape `overflowWanted` says is worth a read. One bucket fewer
+  // and the tail is not consulted at all, which is every question today.
+  const cappedByCity = () => {
+    const by: Record<string, Record<string, number>> = {};
+    for (let i = 0; i < OVERFLOW_HOT_CAP; i++) by[`Other${i}, XX`] = { "0": 1 };
+    return by;
+  };
+
+  async function bootAtTheCap() {
+    h.bankDocs.push({
+      id: QID,
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item 0",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: QID, data: { total: 24, counts: { "2": 24 }, by: { city: cappedByCity() } } });
+    const LIVE = await bootLive();
+    LIVE.saveAnchors({ city: CITY });
+    // loadSimilarity is the route that files the test-surface aggregates
+    // into the store, which is what `overflowWanted` reads.
+    await LIVE.loadSimilarity();
+    expect(
+      LIVE.aggFor(QID),
+      "the fixture aggregate never landed, so nothing below is about the tail",
+    ).not.toBeNull();
+    h.overflowIdQueries.length = 0;
+    return LIVE;
+  }
+
+  it("re-reads on the next mount after the shard query fails", async () => {
+    const LIVE = await bootAtTheCap();
+
+    h.overflowFail = true;
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries, "the tail was never asked for").toHaveLength(1);
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ where: "loadOverflow", scope: "city" }),
+    );
+
+    // The next mount of the City stop. Without the catch's un-marking this
+    // asks for nothing, for the life of the session.
+    h.overflowFail = false;
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a failed read was remembered as a load — the viewer's own city cell is missing for the session",
+    ).toHaveLength(2);
+    // The read it retried is the right one: the shard the viewer's city
+    // hashes to, for the question at the cap.
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, CITY)]);
+  });
+
+  it("merges the shard's cell into the cached aggregate, which is the whole point", async () => {
+    // THE HALF THE FIRST THREE CASES COULD NOT SEE. They drive the memo
+    // and the retry, and the fake served no shard, so `cells` was empty
+    // by construction: the entire success body — the overflowCells
+    // record, `withOverflowCell`, the dirty mark, the save and the notify
+    // — could be deleted and 77 files / 1382 tests stayed green.
+    //
+    // What it costs is the sentence the fix's own commit uses: every
+    // Mirror number about the viewer's own place under-reports by that
+    // place's own share. The hot map at the cap does not hold the
+    // viewer's city; the tail does; unless this merge happens `aggFor`
+    // keeps answering with the hot document and the city reads as zero.
+    const LIVE = await bootAtTheCap();
+    h.overflowDocs[overflowDocId(QID, CITY)] = { city: { [CITY]: { "2": 7 }, "Elsewhere, XX": { "0": 3 } } };
+
+    await LIVE.loadOverflow("city");
+
+    const agg = LIVE.aggFor(QID) as { by?: Record<string, Record<string, Record<string, number>>> } | null;
+    expect(
+      agg?.by?.city?.[CITY],
+      "the tail cell never reached the cached aggregate — the viewer's own city still reads as zero",
+    ).toEqual({ "2": 7 });
+    // Only the viewer's key. The shard carries other cities' cells too,
+    // and merging them would put back the buckets the cap evicted.
+    expect(agg?.by?.city?.["Elsewhere, XX"]).toBeUndefined();
+    // …and the rows the hot map already held are still there.
+    expect(Object.keys(agg?.by?.city ?? {}).length).toBe(OVERFLOW_HOT_CAP + 1);
+  });
+
+  it("…and a SUCCESSFUL read is remembered, so a re-opened stop costs nothing", async () => {
+    // THE CONTROL. Without it, "asks twice" would also be what a method
+    // that had stopped memoising altogether looks like — and that method
+    // bills a read every time the viewer moves between Mirror stops.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(1);
+    await LIVE.loadOverflow("city");
+    expect(
+      h.overflowIdQueries,
+      "a successful tail read was re-issued on the next mount — the once-per-session memo is gone",
+    ).toHaveLength(1);
+  });
+
+  it("re-reads when the anchor moves, failure or not", async () => {
+    // The memo is keyed on the KEY, not on a boolean, for the same reason
+    // loadCityKindred's is: a viewer who corrects their city must not be
+    // served the old city's tail — or no tail — for the session.
+    const LIVE = await bootAtTheCap();
+
+    await LIVE.loadOverflow("city");
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await LIVE.loadOverflow("city");
+    expect(h.overflowIdQueries).toHaveLength(2);
+    expect(h.overflowIdQueries[1]).toEqual([overflowDocId(QID, "Bergen, NO")]);
   });
 });

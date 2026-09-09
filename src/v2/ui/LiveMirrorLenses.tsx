@@ -46,15 +46,28 @@
 // opened. That one is behind its own tab and fetches on first view.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import { cityIsConfirmed } from "../data/cityConfirm";
 import {
   COHORT_DIMS, DIM_LABEL, divergenceFor, meanScore, mixFor, pctFor,
   type Score,
 } from "../data/cohort";
+import { sharePcts } from "../data/pct";
 // D125: these two lenses printed the raw bucket KEY, so a country row read
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
+
+/**
+ * The smallest cell Explore will rank.
+ *
+ * TWO, and not a larger number chosen here: below two answers a split does
+ * not exist to be measured — one answer is 100/0 by construction rather
+ * than by disagreement — which is the same reasoning `MIN_SHARED` carries
+ * in `data/groupPortrait.ts`. Cells above it are handled the way both
+ * sibling surfaces handle them: by stating what the claim rests on.
+ */
+const EXPLORE_MIN_N = 2;
 import TypeMixCard from "./TypeMixCard";
 // The People lens draws people rather than listing them (D152): the
 // prototype's match ring, a per-person hue, and the place name behind a
@@ -186,8 +199,23 @@ function PlKicker({ children }: { children: React.ReactNode }) {
  * than qualifying every number: someone who answered ten questions is in
  * these bars ten times, and calling that a headcount would be the small
  * lie this app is built not to tell.
+ *
+ * AND IT IS EVERYONE'S SHAPE, on every stop. `by` is one dimension deep —
+ * `dim → bucket → counts`, BREAKDOWN_DIMS in functions/src/pure.ts — so
+ * there is no age×city cross to fold and an age histogram for Oslo is not
+ * in the published data at all. Summing `mixFor(by, "ageBand")` sums every
+ * bucket, which is the world. The card drew those numbers under "in Oslo"
+ * on the City and Country stops: not a rounding error, a different
+ * population, presented as the one the reader is standing in.
+ *
+ * So the subtitle names what the numbers are rather than what the stop is.
+ * That sentence is a claim and not furniture — COPY.md §3, the clause the
+ * word-count rule does not reach. The alternative was drawing the card at
+ * World only, which would spend two stops to avoid one line.
  */
-function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+function WhosHere({ qs, shortName, scope }: {
+  qs: LensQuestion[]; shortName: string; scope: "city" | "country" | "world";
+}) {
   const tallyOf = (dim: string): Record<string, number> => {
     const t: Record<string, number> = {};
     for (const q of qs) {
@@ -225,9 +253,18 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
 
   const genderRows = Object.keys(gender).map((b) => ({ b, n: gender[b] })).sort((x, y) => y.n - x.n);
   const genderTotal = genderRows.reduce((a, r) => a + r.n, 0);
+  // `sharePcts` (data/pct.ts), the one rounding rule, because this bar is
+  // a 100%-STACKED one: the same number is the segment's width and the
+  // label printed inside it, so a set that does not sum to 100 is visible
+  // as well as wrong. Rounding each bucket on its own summed to 99 or 101
+  // on about a fifth of real mixes, and `[1, 1, 1]` drew three segments
+  // all labelled 33% with a one-percent gap at the end of the track —
+  // the container clips and paints no background, so the card showed
+  // through it.
+  const genderPcts = sharePcts(genderRows.map((r) => r.n));
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>No ages or genders here yet.</LlEmpty>;
+    return <LlEmpty>Nobody has filled in an age or gender yet.</LlEmpty>;
   }
 
   return (
@@ -237,7 +274,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           Who&rsquo;s here
         </div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
-          in {shortName}
+          {scope === "world" ? <>in {shortName}</> : <>everyone, not just {shortName}</>}
         </div>
       </div>
 
@@ -303,7 +340,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           <PlKicker>Gender</PlKicker>
           <div style={{ display: "flex", height: 26, borderRadius: 7, overflow: "hidden", marginTop: 8 }}>
             {genderRows.map((r, i) => {
-              const pct = Math.round((r.n / genderTotal) * 100);
+              const pct = genderPcts[i];
               return (
                 <span key={r.b} title={`${r.b} · ${pct}%`} style={{
                   width: `${pct}%`, display: "flex", alignItems: "center", justifyContent: "center",
@@ -444,6 +481,10 @@ function PeopleLens({ qs, scope, shortName }: {
   qs: LensQuestion[]; scope: "city" | "country" | "world"; shortName: string;
 }) {
   React.useEffect(() => { void LIVE.loadKindred(); }, []);
+  // The follow buttons on these cards read the follow set when the circle
+  // is not loaded, and this lens is one of the surfaces that never loads
+  // it. One query, session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
 
@@ -469,7 +510,7 @@ function PeopleLens({ qs, scope, shortName }: {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-      <WhosHere qs={qs} shortName={shortName} />
+      <WhosHere qs={qs} shortName={shortName} scope={scope} />
 
       <div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
@@ -484,7 +525,9 @@ function PeopleLens({ qs, scope, shortName }: {
         {loading && !ranked.length ? (
           <LlEmpty>Matching…</LlEmpty>
         ) : !ranked.length ? (
-          <LlEmpty>Fills in as you answer more.</LlEmpty>
+          // Paused before empty (D332): "fills in as you answer more" is a
+          // promise the refused fetch cannot keep.
+          <LlEmpty>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Fills in as you answer more."}</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {shown.map((p) => <KindredCard key={p.uid} p={p} />)}
@@ -543,10 +586,13 @@ function CohortCompare({ scope, shortName }: {
   // reads are the constellation's, and the constellation is the permanent
   // head of all three of these stops (D136) — it asks for them on arrival
   // and never unmounts, so they are in flight before this tab can be
-  // tapped. Asking again would not be free either: `loadSimilarity`
-  // early-returns on the agg sweep but still awaits `loadKindred`, which
-  // is the People lens's own cost gate — so a courtesy call here would
-  // charge Compare for voter lists nobody asked for
+  // tapped. A courtesy `loadSimilarity()` here would now be REDUNDANT
+  // rather than expensive, and the difference is worth stating because
+  // this note used to argue the second one: it said the call "still
+  // awaits `loadKindred`, which is the People lens's own cost gate", and
+  // that stopped being true on 2026-08-31, when the fan-out moved out of
+  // `loadSimilarity` to the two surfaces that actually read it. The
+  // conclusion survives its own reason — nothing here needs asking twice
   // (LiveCohortBody.test.tsx pins that the row costs nothing to navigate).
   const city = LIVE.myCity;
   const country = city ? (PLACES.parse(city)?.country || "") : "";
@@ -577,11 +623,43 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   const [bucket, setBucket] = React.useState<string>("");
 
   // Buckets available across the questions in view, biggest first.
-  const tally: Record<string, number> = {};
-  for (const q of qs) {
-    for (const b of mixFor(q.by, dim, q.options.length)) tally[b.bucket] = (tally[b.bucket] || 0) + b.n;
-  }
-  const buckets = Object.keys(tally).sort((a, b) => tally[b] - tally[a]);
+  //
+  // Memoised on its inputs (D398). `qs` is rebuilt by the stop on every
+  // store notify — which is when an aggregate can have moved, so that is
+  // not the render being saved. The one being saved is this lens's OWN:
+  // a bucket chip tapped below re-ranks the rows and used to re-tally the
+  // whole archive first, for a `dim` that had not changed.
+  //
+  // THE LARGEST SINGLE-QUESTION COUNT, NOT THE SUM, and the chip prints
+  // this number. Summing across questions counts the same person once per
+  // question they answered — LiveCohortBody writes that out in full for
+  // the hero figure directly above this lens ("Summing across questions
+  // would not be [people] — it would count the same person once per
+  // question they answered, which is the mistake this is written out to
+  // avoid") and takes the max for exactly this reason: one person answers
+  // a question at most once, so the biggest single-question count is a
+  // number of PEOPLE.
+  //
+  // The chip was the sum. So the World stop read "25 people have answered
+  // somewhere" and the Age chips under it read "35-44 · 26" and
+  // "25-34 · 24" — two buckets each larger than the whole population
+  // stated one line above, with no word on the chip saying what it
+  // counted. Measured: twenty people answering three questions each gave
+  // "25-34 · 30" while every row underneath still said "from 10 answers".
+  //
+  // A floor rather than a total, like the hero: somebody who answered only
+  // a question this device holds no aggregate for is not in it. That is
+  // the right direction to be wrong in, and it keeps the chip a number the
+  // reader can put beside the sentence above it.
+  const { tally, buckets } = React.useMemo(() => {
+    const t: Record<string, number> = {};
+    for (const q of qs) {
+      for (const b of mixFor(q.by, dim, q.options.length)) {
+        t[b.bucket] = Math.max(t[b.bucket] || 0, b.n);
+      }
+    }
+    return { tally: t, buckets: Object.keys(t).sort((a, b) => t[b] - t[a]) };
+  }, [qs, dim]);
   const picked = buckets.includes(bucket) ? bucket : buckets[0] || "";
   // The name for the sentences below. `picked` stays the KEY — it is what
   // indexes the fold — and only the copy is resolved (D125).
@@ -601,13 +679,42 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   // `divergenceFor` is that expression with the discarded work removed;
   // it goes null on exactly the condition `sliceSplit` did, and its `pct`
   // is the split.
-  const rows = picked
+  // THE FLOOR `divergenceFor` ASKS ITS CALLER TO CHOOSE. Its docstring
+  // says why, and this caller had not chosen: "a one-answer bucket is
+  // 100/0 and would top every ranking forever while saying nothing. It
+  // defaults to 0 so the caller has to choose."
+  //
+  // It did exactly that. A question where the picked bucket held ONE
+  // answer scored the largest possible gap and headed the list, above a
+  // fifty-answer question at 10 pts, with no count anywhere near the
+  // sentence — the chip's number is about the BUCKET across every question
+  // in view, never about the question the row is describing, so it can
+  // neither confirm nor contradict what the row says.
+  //
+  // (That last clause used to read "the bucket's total across ALL
+  // questions, which is a different denominator", and it was quoted as
+  // evidence by the commit that then stopped it being a total: the chip is
+  // the largest single-question count now, so it is a number of people
+  // rather than of answers. Still a different denominator from the row's,
+  // which is why the row states its own basis either way — but a comment
+  // cited as proof and left saying the old thing is the documentation
+  // error this repo keeps re-committing, arriving inside the fix for it.)
+  //
+  // Two, not a bigger number invented here: below two answers a "split"
+  // does not exist to be measured — one answer is 100/0 by construction,
+  // not by disagreement — and that is the same reasoning `MIN_SHARED`
+  // carries in groupPortrait. Everything above two is handled the way
+  // both sibling surfaces handle it, by SAYING what it rests on
+  // (LiveBreakdownPanel prints "{n} answers", LiveCircleBody "{n} of your
+  // circle answered"). Whether the bar should be higher than "a split can
+  // exist" is a product judgement, and it has not been taken here.
+  const rows = React.useMemo(() => (picked
     ? qs.map((q) => {
-      const d = divergenceFor(q.by, dim, picked, q.all, q.options.length);
+      const d = divergenceFor(q.by, dim, picked, q.all, q.options.length, EXPLORE_MIN_N);
       if (!d) return null;
-      return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx };
-    }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
-    : [];
+      return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx, n: d.n };
+    }).filter(Boolean).sort((a, b) => b!.gap - a!.gap || b!.n - a!.n)
+    : []), [qs, dim, picked]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -648,6 +755,12 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
                 {r!.gap > 0
                   ? <><strong style={{ color: "var(--ink-2)" }}>{r!.gap} pts</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
                   : <>Same as everyone.</>}
+                {/* The basis, on the row that makes the claim (D146). The
+                    chip above carries the bucket's total across every
+                    question, which is not this row's denominator — so
+                    until now the one number near the sentence was the
+                    wrong one. */}
+                {" · from " + r!.n + (r!.n === 1 ? " answer" : " answers")}
               </span>
             </div>
           ))}
@@ -706,8 +819,13 @@ const awayCounts = (all: number[], counts: number[]): number[] =>
 // this lens whether or not they answer — so an ask beside them leaks
 // nothing the card did not already say. The scale is D305's ramp row,
 // one tap, same stored optionIdx as everywhere else.
-function PlaceAsks({ asks }: {
+function PlaceAsks({ asks, total }: {
   asks: Array<{ id: string; text: string; optionCount: number }>;
+  /** How many asks the scope still holds for this account — the pool,
+   *  not the page. Since D384 the device fetches a bounded page of ask
+   *  DOCUMENTS but knows every ask ID, so the line below counts the pool
+   *  and stays true on a stop whose pool is larger than the page. */
+  total: number;
 }) {
   // A cap, not a queue: three at a time keeps the card a card, and the
   // list recomputes as votes land, so the tail arrives by itself.
@@ -740,9 +858,9 @@ function PlaceAsks({ asks }: {
           </div>
         </div>
       ))}
-      {asks.length > show.length && (
+      {total > show.length && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          {asks.length - show.length} more after these.
+          {total - show.length} more after these.
         </span>
       )}
     </div>
@@ -765,6 +883,10 @@ function ScoresLens({ qs, shortName, scope }: {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
   const asks = LIVE.enabled ? LIVE.placeAsks(scope) : [];
+  // The pool's size, which is not `asks.length` once the pool is paged
+  // (D384) — the asks are the page this device holds, the total is what
+  // the scope still has for this account.
+  const askTotal = LIVE.enabled ? LIVE.placeAskTotal(scope) : 0;
   // Which crowd the numbers and the sort describe (D288 §2): a viewing
   // lens, not a claim about the viewer — the viewer's own crowd is their
   // anchor's fact, and their tick draws the same either way. Transient on
@@ -792,9 +914,19 @@ function ScoresLens({ qs, shortName, scope }: {
   // then the card is exactly the single-crowd card it has always been
   const anyAway = scored.some((r) => r.away);
 
+  // Whether YOU are one of the people the empty sentence is about to say
+  // do not exist. Mirrors `scored`'s own filter — a question that rates
+  // this stop, ordinal, and answered by you — because the sentence below
+  // is about exactly the rows that filter dropped.
+  const mineOnly = rates.some((q) => ORDINAL_TYPES.has(q.type || "") && q.mine >= 0);
+
   if (!scored.length) {
-    // Two different emptinesses, and collapsing them would hide which one
-    // this is. Neither is "withheld" — that category is gone (D98).
+    // THREE different emptinesses. `scored` drops a row when neither crowd
+    // has a mean, and your own score is not a crowd — so rating a place
+    // nobody else has rated yet, or rating one in the seconds before the
+    // fold lands, emptied this card and printed "Nobody here has scored
+    // Oslo yet." over a score you had just given it. Neither is
+    // "withheld" — that category is gone (D98).
     //
     // The first is now also the shape a pre-D187 bank takes: the questions
     // exist in `content/` and the seeded docs carry no `rates` until an
@@ -806,11 +938,19 @@ function ScoresLens({ qs, shortName, scope }: {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
         <LlEmpty>
-          {rates.length
-            ? <>Nobody here has scored {shortName} yet.</>
-            : <>Nothing scored yet — questions that rate {shortName} land here.</>}
+          {/* Before the network boot completes this card has read nothing,
+              so "nobody has scored it" is an assertion about the world made
+              by a device that has not looked — the same hole the cohort
+              hero closed with `LIVE.attached` and this lens did not. */}
+          {!LIVE.attached
+            ? <>Counting who has scored {shortName}…</>
+            : rates.length
+              ? (mineOnly
+                ? <>Just your score so far.</>
+                : <>Nobody here has scored {shortName} yet.</>)
+              : <>Nothing scored yet — questions that rate {shortName} land here.</>}
         </LlEmpty>
-        {!!asks.length && <PlaceAsks asks={asks} />}
+        {!!asks.length && <PlaceAsks asks={asks} total={askTotal} />}
       </div>
     );
   }
@@ -819,11 +959,25 @@ function ScoresLens({ qs, shortName, scope }: {
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         {/* The one thing the ruler, the tab and the rows do not already
-            say: who the raters are. With one crowd they ARE the subject
-            ("rates itself"); the moment the elsewhere ring draws, that
-            claim would be false for half the marks, so the line widens
-            with the card (docs/COPY.md — a claim, not a caption). */}
-        {anyAway ? <>How {shortName} is rated · best first</> : <>How {shortName} rates itself · best first</>}
+            say: who the raters are — and WHAT THEY RATED, which is the
+            half this line used to get wrong.
+            
+            It flipped to "How {shortName} IS RATED" the moment the ring
+            drew, on the reasoning that with two crowds the raters are no
+            longer the subject. True about who they are; false about what
+            they answered. Every `rates` question in the bank is written
+            SELF-REFERENTIALLY — "Rate the food where you live", "How safe
+            do you feel walking home at night" — deliberately, so one
+            question serves every city on earth and the cohort cell does
+            the scoping (docs/MIRROR.md §3). Nobody outside this place has
+            ever rated THIS place; the app never asks them to. So the ring
+            is a BASELINE — everywhere else answering the same question
+            about their own home — and "how Oslo is rated" was a claim
+            about Oslo that nothing measured (D146).
+            
+            The header now describes the dot, which is the card's subject
+            in both states, and the ring says what it is one line down. */}
+        How {shortName} rates itself · best first
       </div>
       {unconfirmed && (
         // The one sentence this card owes a reader whose scores are not in
@@ -849,7 +1003,17 @@ function ScoresLens({ qs, shortName, scope }: {
              instead: true whoever the answer belongs to, which
              matters because a vote carries the city it was cast
              from (D8) and this stop shows the city you are in now. */
-          : lead.n === 1
+          /* …and only for the crowd that CONTAINS your answer. `lead`
+             follows the fore toggle, so at "from elsewhere" this printed
+             "the only answer here so far" beside a line that had just
+             counted the answers here — your vote is never in the away
+             crowd at your own stop, and one answer from elsewhere is one
+             answer to be above or below, which the arm underneath already
+             says correctly. Tested against `here` itself rather than
+             against the toggle, because `lead` falls back to the here
+             crowd for a row that has no away scores at all, and that row's
+             sentence is the true one. */
+          : lead.n === 1 && lead === here
             ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
             : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
               {mine === lead.mean ? <> — exactly the average</>
@@ -935,7 +1099,7 @@ function ScoresLens({ qs, shortName, scope }: {
                 : <>
                   {here ? <>{here.n.toLocaleString()} live there</> : <>none live there</>}
                   {" · "}
-                  {away ? <>{away.n.toLocaleString()} from elsewhere</> : <>none from elsewhere</>}
+                  {away ? <>{away.n.toLocaleString()} elsewhere</> : <>none elsewhere</>}
                   {yourLine ? <> · {yourLine}</> : <> · you have not rated it</>}
                 </>}
             </span>
@@ -947,8 +1111,18 @@ function ScoresLens({ qs, shortName, scope }: {
         // about the viewer (D288 §2): your anchors decide your crowd, and
         // at your own stop your marks land with the locals whatever is
         // fore. The glyphs double as the key, so no legend line.
-        <div style={{ display: "flex", gap: 7, paddingTop: 2 }}>
-          {([["here", "live there", false], ["away", "from elsewhere", true]] as const).map(([id, label, ring]) => {
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, paddingTop: 2 }}>
+          {/* WHAT THE RING MEASURED. A claim, not a caption — docs/COPY.md
+              §3 — and the only thing on this card that a reader cannot
+              work out from the shapes: the ring's people answered the same
+              question about THEIR OWN home, so it is a benchmark and not a
+              second opinion about this place. Drawn only when the ring is,
+              because with one crowd there is nothing to mistake. */}
+          <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.45 }}>
+            The ring is everywhere else rating their own place, not this one.
+          </div>
+          <div style={{ display: "flex", gap: 7 }}>
+          {([["here", "live there", false], ["away", "everywhere else", true]] as const).map(([id, label, ring]) => {
             const on = fore === id;
             return (
               <button key={id} className="press" onClick={() => setFore(id)} aria-pressed={on}
@@ -965,6 +1139,7 @@ function ScoresLens({ qs, shortName, scope }: {
               </button>
             );
           })}
+          </div>
         </div>
       )}
       {/* The unanswered rest, under a hairline (D307) — the scale rows
@@ -972,7 +1147,7 @@ function ScoresLens({ qs, shortName, scope }: {
           (docs/COPY.md). */}
       {!!asks.length && (
         <div style={{ borderTop: "0.5px solid var(--rule)", paddingTop: 13 }}>
-          <PlaceAsks asks={asks} />
+          <PlaceAsks asks={asks} total={askTotal} />
         </div>
       )}
     </div>

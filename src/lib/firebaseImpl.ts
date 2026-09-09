@@ -7,7 +7,14 @@
 
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
+  OAuthProvider,
+  createUserWithEmailAndPassword,
+  reload,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   connectAuthEmulator,
   getAuth,
   indexedDBLocalPersistence,
@@ -15,6 +22,7 @@ import {
   linkWithCredential,
   linkWithPopup,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInAnonymously,
   signInWithCredential,
   signInWithPopup,
@@ -30,6 +38,7 @@ import {
   collectionGroup,
   connectFirestoreEmulator,
   deleteDoc,
+  deleteField,
   doc,
   documentId,
   getDoc,
@@ -46,6 +55,7 @@ import {
   terminate,
   Timestamp,
   updateDoc,
+  waitForPendingWrites,
   where,
   type Firestore,
 } from "firebase/firestore";
@@ -81,9 +91,12 @@ import { FUNCTIONS_REGION } from "./region";
 export const FIRESTORE_DB_ID = import.meta.env.VITE_FIRESTORE_DB_ID || "insight";
 
 export const fsApi = {
-  clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, doc,
-  documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
-  serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc, where,
+  clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, deleteField,
+  doc, documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
+  serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc,
+  // D357: the SDK's own word that its persisted mutation queue has
+  // drained — what settles an answer a relaunch restored unacknowledged.
+  waitForPendingWrites, where,
 };
 export const fnsApi = { getFunctions, httpsCallable };
 
@@ -147,8 +160,23 @@ export function init(config: FirebaseConfig): void {
   // The third argument is the DATABASE ID (D165). The app moved off
   // `(default)` to a single EU region; omit this and the client talks to a
   // database the backend no longer writes to — which looks like an app with
-  // no data rather than like an error. Emulator runs override it through
-  // the same env var the functions read, so both halves cannot disagree.
+  // no data rather than like an error.
+  //
+  // THE TWO HALVES CAN DISAGREE, and this comment used to say they could
+  // not — "emulator runs override it through the same env var the
+  // functions read". It is not the same variable. The client reads
+  // `VITE_FIRESTORE_DB_ID` (line 91); the functions, the three e2e suites
+  // and every admin script read `FIRESTORE_DB_ID`. `vite.config.ts` sets
+  // no `envPrefix`, so Vite's default `VITE_` applies and the server's
+  // name is not visible to this bundle at all.
+  //
+  // Nothing is broken today: both default to "insight", so they agree by
+  // coincidence rather than by mechanism. What the old sentence invited is
+  // the split-brain D165 exists to prevent — export `FIRESTORE_DB_ID` for
+  // an emulator session and the backend, the e2e loop and the scripts all
+  // move while the client stays on "insight": the app writes and nothing
+  // ever folds. Moving the database means setting BOTH, and `.env.example`
+  // lists only the client's.
   dbInstance = initializeFirestore(app, {
     localCache: persistentLocalCache(),
   }, FIRESTORE_DB_ID);
@@ -291,26 +319,61 @@ export async function anonSignIn(): Promise<string> {
 // instead — a wrong config should look like a bug, not a hang.
 const NATIVE_AUTH_TIMEOUT_MS = 90_000;
 
-async function nativeGoogleIdToken(): Promise<string> {
+// One race, two providers. This was Google's alone and is factored here
+// rather than copied for Apple, because the subtle half is the `finally`
+// that clears the timer: a second copy is a second place for that to go
+// missing, and the symptom (a process kept alive by a stray timer, only
+// in the failure path) is one nobody reads a stack trace for.
+async function nativeSignIn(
+  provider: "Google" | "Apple",
+  run: () => Promise<{ credential?: { idToken?: string; nonce?: string } | null }>,
+): Promise<{ idToken: string; rawNonce?: string }> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
-      FirebaseAuthentication.signInWithGoogle(),
+      run(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error(
-            "Native Google sign-in did not respond. Check that the app has its "
-            + "Firebase config file and that Google is enabled for this build.")),
+            `Native ${provider} sign-in did not respond. Check that the app has its `
+            + `Firebase config file and that ${provider} is enabled for this build.`)),
           NATIVE_AUTH_TIMEOUT_MS,
         );
       }),
     ]);
     const idToken = result.credential?.idToken;
-    if (!idToken) throw new Error("Native Google sign-in returned no idToken");
-    return idToken;
+    if (!idToken) throw new Error(`Native ${provider} sign-in returned no idToken`);
+    // Google's exchange ignores this; Apple's cannot — see appleCredential.
+    return { idToken, rawNonce: result.credential?.nonce };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function nativeGoogleIdToken(): Promise<string> {
+  const { idToken } = await nativeSignIn(
+    "Google", () => FirebaseAuthentication.signInWithGoogle(),
+  );
+  return idToken;
+}
+
+// APPLE'S CREDENTIAL IS NOT GOOGLE'S WITH A DIFFERENT NAME, and the
+// difference is the nonce. Apple binds the identity token to a nonce so a
+// token captured once cannot be replayed: the plugin generates one, sends
+// its SHA-256 to Apple, and hands back the RAW value. Firebase re-hashes
+// the raw value and compares. Pass the token without it and the exchange
+// fails `auth/invalid-credential` — a message that says nothing about
+// nonces and sends you looking at the provider config instead.
+//
+// `rawNonce` and not `nonce`: the JS SDK's field name is the raw one
+// precisely because it does the hashing itself, and the two are one
+// letter apart in a shape TypeScript will not check for you (the
+// provider's credential() takes a loose object).
+async function appleCredential() {
+  const { idToken, rawNonce } = await nativeSignIn(
+    "Apple", () => FirebaseAuthentication.signInWithApple(),
+  );
+  return new OAuthProvider("apple.com").credential({ idToken, rawNonce });
 }
 
 // Upgrade the current (anonymous) account to Google, keeping the uid —
@@ -344,6 +407,175 @@ export async function googleSignIn(): Promise<void> {
   await signInWithPopup(auth(), new GoogleAuthProvider());
 }
 
+// The Apple pair, mirroring linkGoogle/googleSignIn above — same rule:
+// LINK when there is a session to keep, sign in fresh when there is not.
+//
+// The web branch exists for symmetry and is close to dead in practice:
+// Apple's web flow needs a Services ID and a private key registered
+// separately from the native app, and D337 records that this app has no
+// public web client — the browser paths serve developers and CI. It is a
+// popup rather than a thrown "native only" because a developer meeting a
+// Firebase config error learns more than one meeting our refusal.
+export async function linkApple(): Promise<void> {
+  const user = auth().currentUser;
+  if (!user) return appleSignIn();
+  if (Capacitor.isNativePlatform()) {
+    await linkWithCredential(user, await appleCredential());
+    return;
+  }
+  await linkWithPopup(user, new OAuthProvider("apple.com"));
+}
+
+export async function appleSignIn(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await signInWithCredential(auth(), await appleCredential());
+    return;
+  }
+  await signInWithPopup(auth(), new OAuthProvider("apple.com"));
+}
+
+// ── the email door ──────────────────────────────────────────────────
+//
+// Firebase holds the password, hashed, and this app never sees it: the
+// three calls below hand it straight to the SDK and keep no copy. That is
+// the sentence web/privacy.html makes, and the reason it can.
+//
+// WHY THE ERRORS ARE TRANSLATED HERE rather than in the screen. Firebase
+// codes are stable and its messages are not — "Firebase: Error
+// (auth/wrong-password)." is what a user would otherwise read — and the
+// design (design/front-door-2026-09-07) gives each failure a way out
+// rather than a description. Mapping in one place keeps the screen about
+// layout and keeps this list reviewable.
+export type EmailFailure =
+  | "offline"        // the network, not the credentials
+  | "wrong-password" // this address exists, that password does not match
+  | "no-account"     // nothing uses this address yet
+  | "taken"          // creating, and it already exists
+  | "weak"           // creating, and the password is too short
+  | "bad-address"    // not an address at all
+  | "other";
+
+export class EmailAuthError extends Error {
+  readonly failure: EmailFailure;
+  constructor(failure: EmailFailure, cause: unknown) {
+    super(String((cause instanceof Error && cause.message) || cause));
+    this.failure = failure;
+  }
+}
+
+function emailFailure(err: unknown): EmailFailure {
+  const code = String((err as { code?: string })?.code || (err as Error)?.message || "");
+  if (/network-request-failed/.test(code)) return "offline";
+  if (/email-already-in-use/.test(code)) return "taken";
+  if (/weak-password/.test(code)) return "weak";
+  if (/invalid-email|missing-email/.test(code)) return "bad-address";
+  if (/user-not-found/.test(code)) return "no-account";
+  if (/wrong-password/.test(code)) return "wrong-password";
+  // EMAIL ENUMERATION PROTECTION COLLAPSES THE TWO, and this is the line
+  // to read before "improving" the screen's copy. Firebase projects
+  // created recently default it ON, which is correct — it stops an
+  // attacker learning which addresses have accounts — and the cost is
+  // that a wrong password and an unknown address BOTH answer
+  // `auth/invalid-credential`. So the honest mapping is the password
+  // message, which offers Forgot password? and is true of the case a real
+  // person is overwhelmingly more likely to be in; the design's separate
+  // "no account uses this address yet" survives on the CREATE path, where
+  // `email-already-in-use` is unambiguous, and its "Create one" way out
+  // stays reachable through the toggle. Guessing which of the two it was
+  // is exactly the guess the protection exists to prevent.
+  if (/invalid-credential|invalid-login/.test(code)) return "wrong-password";
+  return "other";
+}
+
+async function emailAttempt<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    throw new EmailAuthError(emailFailure(err), err);
+  }
+}
+
+/** Sign in to an account that exists. */
+export async function emailSignIn(address: string, password: string): Promise<void> {
+  await emailAttempt(() => signInWithEmailAndPassword(auth(), address, password));
+}
+
+/**
+ * Create an account — LINKING the anonymous session when there is one, so
+ * the answers given before the wall appeared survive. Same rule the Google
+ * and Apple doors follow, and the reason the gate is affordable at all.
+ */
+export async function emailCreate(address: string, password: string): Promise<void> {
+  const user = auth().currentUser;
+  if (user?.isAnonymous) {
+    await emailAttempt(() =>
+      linkWithCredential(user, EmailAuthProvider.credential(address, password)));
+  } else {
+    await emailAttempt(() => createUserWithEmailAndPassword(auth(), address, password));
+  }
+  // After the account exists, never before: a verification mail for an
+  // address that failed to register is a mail about nothing.
+  await sendVerification();
+}
+
+/**
+ * Send the address a link that proves it is theirs.
+ *
+ * WHY ONLY THE PASSWORD DOOR NEEDS THIS. Apple and Google both hand
+ * Firebase an address they have already verified, so `emailVerified` is
+ * true the moment those links complete. A password account's address is
+ * whatever someone typed, which is the case this exists for: a typo locks
+ * the account out of its own reset, and a stranger's address gets reset
+ * mail it never asked for.
+ *
+ * Best-effort by design. A create that succeeded and a verification mail
+ * that did not send is a person with an account, and the gate's verify
+ * screen carries a Resend for exactly that; throwing here would instead
+ * report the whole sign-up as failed, which is worse and untrue.
+ */
+export async function sendVerification(): Promise<void> {
+  const user = auth().currentUser;
+  if (!user) return;
+  try {
+    await sendEmailVerification(user);
+  } catch (err) {
+    // console, not reportError: this module does not import the Sentry
+    // helper, and the bare name resolves to the DOM's one-argument
+    // global — which tsc caught. Same shape as appcheck.ts's warning.
+    console.warn("[auth] verification mail failed to send:", err);
+  }
+}
+
+/**
+ * Ask the server again whether the address has been confirmed.
+ *
+ * `reload` and not a cached read: `emailVerified` is a property of the
+ * local user object, and following the link happens in a MAIL APP — no
+ * token refresh reaches this process on its own, so a person who verified
+ * correctly would sit on the screen forever waiting for a flag that only
+ * a round trip can move.
+ */
+export async function refreshVerification(): Promise<boolean> {
+  const user = auth().currentUser;
+  if (!user) return false;
+  await reload(user);
+  return !!auth().currentUser?.emailVerified;
+}
+
+/**
+ * Send a reset link.
+ *
+ * Resolves even when nothing uses the address, and that is Firebase's
+ * choice rather than ours: answering "no such account" here would hand an
+ * attacker the enumeration the protection above denies them. The screen
+ * says a link was sent, because that is what was attempted, and the
+ * design's confirmation is deliberately about the inbox rather than about
+ * the account.
+ */
+export async function emailReset(address: string): Promise<void> {
+  await emailAttempt(() => sendPasswordResetEmail(auth(), address));
+}
+
 export async function googleSignOut(): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     // Sign out of both sides so the native account picker forgets the
@@ -353,9 +585,48 @@ export async function googleSignOut(): Promise<void> {
   await signOut(auth());
 }
 
+/**
+ * The app's one view of who is signed in.
+ *
+ * `onIdTokenChanged`, NOT `onAuthStateChanged`, and the difference is a
+ * bug that shipped in build 33: after a successful Google sign-in the
+ * account wall stayed up until the app was force-quit and relaunched.
+ *
+ * READ OUT OF THE SDK, not reasoned about
+ * (`@firebase/auth` → `notifyAuthListeners`):
+ *
+ *     this.idTokenSubscription.next(this.currentUser);      // always
+ *     const currentUid = this.currentUser?.uid ?? null;
+ *     if (this.lastNotifiedUid !== currentUid) {            // only on a
+ *       this.lastNotifiedUid = currentUid;                  // UID CHANGE
+ *       this.authStateSubscription.next(this.currentUser);
+ *     }
+ *
+ * Linking an anonymous session KEEPS THE UID — that is the whole point of
+ * linking, and D3's reason the wall is affordable at all — so
+ * `authStateSubscription` never fires for it. The user object flips
+ * `isAnonymous` to false and nothing tells the app. A relaunch then
+ * restores a non-anonymous user as a fresh sign-in, the uid goes null →
+ * value, and the wall finally drops. Hence "close and reopen to advance".
+ *
+ * D134's own comment one file over describes half of this — "the
+ * anonymous → Google upgrade keeps the uid, so this callback set `linked`
+ * and then fell past every branch below without a notify()" — and fixed
+ * the notify. It could not have fixed the callback, because with
+ * `onAuthStateChanged` the callback does not run at all. Every test
+ * stayed green because the store's tests drive this subscription directly
+ * and the gate's tests stub `LIVE.linked`: nothing anywhere exercised the
+ * REAL SDK's choice about when to call us.
+ *
+ * The cost of the wider subscription is one callback per hourly token
+ * refresh and per `reload()`. live.ts's observer was already written for
+ * exactly that ("only on a CHANGE") and notifies nobody unless a flag
+ * moved — so the guard that existed for a condition that could not happen
+ * is what makes the fix free.
+ */
 export function subscribeToAuth(
   cb: (user: User | null) => void,
 ): () => void {
-  return onAuthStateChanged(auth(), cb);
+  return onIdTokenChanged(auth(), cb);
 }
 

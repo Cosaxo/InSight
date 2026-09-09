@@ -3,6 +3,12 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
+import { sharePcts } from '../data/pct';
+// The store (D354): `feedInsight` below reads the aggregate through it at
+// call time. Imported rather than `window.LIVE` — the load-order guard
+// that read carried is unreachable on an import.
+import LIVE from '../data/live';
+import PLACES from '../data/places';
 
 // feed-read.js — the feed's memory.
 //
@@ -80,34 +86,152 @@ export let feedInsight;
   // of the line is that it cuts AGAINST the overall result.
   const MIN_GAP = 12;
 
+  // The smallest cell this line will describe.
+  //
+  // WHY IT EXISTS: there was no floor at all — `if (!n) continue` — so a
+  // card a thousand people had answered could carry "25-34 flips it to
+  // Agree — 100%" resting on ONE answer, with nothing on the line saying
+  // so. A flip is the highest-scoring shape there is (`+1000`), and a
+  // one-answer cell flips whenever that one person disagreed with the
+  // room, so the thinnest cut on the card was also the likeliest to win
+  // the line.
+  //
+  // THREE, because that is what the two sibling lines on this same card
+  // family already require — `renderDialInsight` and `renderFieldInsight`
+  // both `continue` on `r.n < 3` (world-feed.jsx). This was the only one
+  // of the three for ordinary option questions and the only one without a
+  // floor. Whether three is high ENOUGH for a percentage is the open
+  // question Explore's floor asks too; it is the owner's, and it is not a
+  // reason to leave this at one.
+  const MIN_CELL = 3;
+
   // The one published cut that disagrees most with the room.
   //
-  // Reads only `agg.by`, which the server has already floored per cell with
-  // complementary suppression (functions/src/pure.ts) — so anything visible
-  // here is publishable by construction, and this adds no disclosure of its
-  // own. Returns null for anything it cannot say honestly: a demo card, a
-  // question below the floor, a breakdown with nothing surprising in it.
-  feedInsight = function feedInsightImpl(q) {
+  // Reads only `agg.by`. This said the server had "already floored per cell
+  // with complementary suppression", and D98 removed every floor from that
+  // path — `functions/src/pure.ts` now says so in as many words: "there is
+  // no other floor left in this path — every cell folded here is
+  // published." That is correct and deliberate for DISCLOSURE, which is
+  // what the sentence was about; what it was read as, for as long as it
+  // stood, was that a cell arriving here had a size worth talking about.
+  // It does not. `MIN_CELL` below is this line's own floor, and it is an
+  // honesty floor, not a privacy one.
+  //
+  // Returns null for anything it cannot say honestly: a demo card, a cell
+  // too small to describe, a breakdown with nothing surprising in it.
+  //
+  // `mine` is the viewer's own option index, third in the demo signature
+  // the call site still uses (`feedInsight(q, counts, mine, …)`) and the
+  // one demo argument this live implementation cannot ignore. Reason
+  // below, where the room baseline is built.
+  feedInsight = function feedInsightImpl(q, _counts, mine) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
-    const L = window.LIVE;
-    const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
+    const agg = LIVE.enabled ? LIVE.aggFor(q.id) : null;
     const by = agg && agg.by;
     if (!by) return null;
 
-    const counts = q.options.map((o) => o.count || 0);
+    // THE VIEWER'S OWN VOTE GOES BACK IN, because the room this line talks
+    // about has to be the room the card above it drew. `o.count` comes from
+    // `countsFor` (data/deck.ts), which SUBTRACTS the viewer's vote once the
+    // trigger has folded it — the UI layer adds its own +1. So the card
+    // renders `wfPcts(counts, mine)`, which puts it back. Without this line
+    // the baseline was the only population on the screen that nobody was
+    // counted in, and it decided both `roomWin` and `gap`.
+    //
+    // AND THE COHORT CELLS BELOW DO NOT AGREE WITH IT FOR THE FIRST FEW
+    // SECONDS. This said they "contain it too", flatly, and that is true
+    // only after the trigger has folded your vote. `countsFor`
+    // (data/deck.ts) subtracts the viewer's vote back out `if (!ctx.pending
+    // && …)` — so while the write is unfolded there is nothing to subtract,
+    // `o.count` is the crowd without you, this line's `+ 1` puts you in the
+    // ROOM, and `agg.by`'s cells still do not have you. Your own cohort is
+    // short by one against a baseline that counts you, in the window
+    // immediately after you vote, which is the window this line renders in.
+    //
+    // What it cost was bounded but real: one vote inside a cell of
+    // MIN_CELL..n shifts that cell's share by up to 1/n, which can create
+    // or erase a `flip` against `roomWin` — and `FEEDREAD.log`'s majority
+    // bit is written to a permanent per-device record that feeds the
+    // Mirror's sparse gate and its with-the-crowd rate.
+    //
+    // FIXED BELOW, three nights after it was written down. The reader it
+    // needed is `LIVE.votePending`, the general form of `pulsePending`;
+    // adding it moves the surface `data/vote.test.ts` pins, which is why
+    // it waited for a night when no other branch was rewriting that file.
+    // Fourth site of the D365 +1 mismatch, after `bins`/`todayN`,
+    // `scope()`'s day series, and the two above — and the last of the ones
+    // that are a COUNT computed over the wrong population.
+    //
+    // This said "and the last of them" flatly, and a fifth arrived the
+    // same night: `wfNoCrowd`/`floored` (world-feed.jsx, daily-split.jsx),
+    // where the wrong population decides a PREDICATE — whether the counts
+    // are drawn at all — rather than a count. Same mismatch, one level up.
+    // The correction is here rather than in a decision record because the
+    // sentence that was wrong is this one.
+    //
+    // What that produced: whenever your own vote made or changed the
+    // leader — routine at the counts a question has in its first hours —
+    // the line under the card announced that a cohort "flips it" to the
+    // option the card was already showing as the winner. The third site of
+    // this same +1 mismatch; the other two are recorded at
+    // world-feed.jsx's answers-sheet total and daily-split's.
+    const counts = q.options.map((o, i) => (o.count || 0) + (mine === i ? 1 : 0));
     const roomTotal = counts.reduce((a, b) => a + b, 0);
     if (!roomTotal) return null;
     const roomPct = counts.map((c) => (c / roomTotal) * 100);
     const roomWin = roomPct.indexOf(Math.max(...roomPct));
 
+    // YOUR OWN UNFOLDED VOTE, joined into the cell you are in — the other
+    // half of the `+ 1` above, and what makes the two populations one.
+    // `votePending` answers only while the write is unfolded, which is
+    // exactly when `o.count` has not had you subtracted back out and the
+    // published cells do not have you either. THE INDEX, though, comes
+    // from `mine`, and that is deliberate twice over.
+    //
+    // It keeps the two populations moving together: the room baseline a
+    // few lines up decided the viewer's option with `mine === i`, and a
+    // join that decided it differently would re-create the mismatch this
+    // exists to close.
+    //
+    // And it is the only safe reading. `state.unaggregated` is keyed by
+    // question for every kind of answer, but its VALUE is an option index
+    // only for the ones written through `vote()` and its edit arm.
+    // `voteRank` stores a placeholder `0` its own comment calls unread —
+    // and a rank question HAS `q.options`, so it passes the guard at the
+    // top of this function and arrives here. Trusting the stored value
+    // would have put a phantom vote in option 0's cell of a rank card's
+    // cohort, which is inventing a cohort: the thing the header above
+    // promises this never does. `mine` is null for a rank (world-feed's
+    // call site takes it only `typeof … === 'number'`, and a rank's vote
+    // is a joined order string), so both populations correctly get
+    // nothing. `votePick` stores a catalogue key for the same map; a pick
+    // has no `q.options` and never reaches here at all.
+    //
+    // Membership is the ANCHOR's call, the shape `pendingIdx` uses in
+    // data/pulse.ts: a viewer with no anchor for a dim is in no cell of
+    // it, and counting them would state a cohort of one about a bucket
+    // the app cannot name. Current anchors rather than the answer's
+    // snapshot (D8) — for a vote cast seconds ago they are the same, and
+    // the snapshot is not readable from here.
+    const unfolded = LIVE.votePending(q.id) != null;
+    const pendingIdx = unfolded && typeof mine === 'number' ? mine : null;
+    const mineAnchors = pendingIdx == null ? {} : (LIVE.anchors() || {});
+
     let best = null;
     for (const dim of Object.keys(by)) {
       const buckets = by[dim] || {};
+      const myBucket = mineAnchors[dim];
       for (const bucket of Object.keys(buckets)) {
         const cell = buckets[bucket];
-        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
-        if (!n) continue;
-        const pct = q.options.map((_, i) => ((cell[String(i)] || 0) / n) * 100);
+        // Counted into the floor too, not just the shares: being the third
+        // in your own cohort is what makes the cell describable, and the
+        // room baseline already counts you.
+        const mineHere = pendingIdx != null && myBucket === bucket;
+        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0) + (mineHere ? 1 : 0);
+        if (n < MIN_CELL) continue;
+        const cellCounts = q.options.map((_, i) =>
+          (cell[String(i)] || 0) + (mineHere && i === pendingIdx ? 1 : 0));
+        const pct = cellCounts.map((c) => (c / n) * 100);
         const win = pct.indexOf(Math.max(...pct));
         // a flip — this cohort's winner is not the room's — outranks a lean,
         // however wide the lean is: "X flips to Y" is the more surprising fact
@@ -116,7 +240,20 @@ export let feedInsight;
         if (!flip && gap < MIN_GAP) continue;
         const score = (flip ? 1000 : 0) + gap;
         if (!best || score > best.score) {
-          best = { score, dim, group: bucket, kind: flip ? 'flip' : 'lean', sideIdx: win, pct: Math.round(pct[win]) };
+          // The COUNTS ride along, not a rounded share. The share this
+          // line prints has to be the one the breakdown sheet prints for
+          // the same cell, and the sheet rounds with `sharePcts`
+          // (data/pct.ts) — the largest-remainder rule this app has one
+          // of. `Math.round` per option is the rule that was replaced,
+          // and the two disagree on about one in eleven cells at three to
+          // five options, always by a point: the card said "25–34 flips
+          // it to Agree · 57%" and the sheet it opens said 56%.
+          //
+          // The float `pct` above still does the RANKING. That is D277's
+          // distinction and it is the right way round here too: a sort
+          // key wants precision, a printed number wants the app's one
+          // rounding rule.
+          best = { score, dim, group: bucket, kind: flip ? 'flip' : 'lean', sideIdx: win, counts: cellCounts };
         }
       }
     }
@@ -124,13 +261,13 @@ export let feedInsight;
     // City and country are stored canonically ("Oslo, NO", "NO") so one
     // cohort is one key worldwide; they read as names only after PLACES
     // turns them back (D9).
-    const P = window.PLACES;
     let label = best.group;
-    if (P) {
-      if (best.dim === 'country') label = P.countryName(best.group);
-      else if (best.dim === 'city') { const pl = P.parse(best.group); if (pl) label = pl.name; }
-    }
-    return { kind: best.kind, group: label, sideIdx: best.sideIdx, pct: best.pct, dim: best.dim };
+    if (best.dim === 'country') label = PLACES.countryName(best.group);
+    else if (best.dim === 'city') { const pl = PLACES.parse(best.group); if (pl) label = pl.name; }
+    return {
+      kind: best.kind, group: label, sideIdx: best.sideIdx, dim: best.dim,
+      // Rounded once, at the end, and only for the cell that won.
+      pct: sharePcts(best.counts)[best.sideIdx],
+    };
   };
 })();
-window.FEEDREAD = FEEDREAD;

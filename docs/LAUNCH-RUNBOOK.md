@@ -16,13 +16,17 @@ reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
 State verified 2026-08-05: `npm run check:store-copy` reports **1**
-unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
-permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
-the count is zero**, which is a change from 2026-08-04: the Team ID and the
+unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256`.
+**It stopped being permanent at D345**: it was a non-blocker only while
+Play was parked, and it is now a real value that Play Console mints at
+App signing — which nothing can produce until something has been
+uploaded, so `--first-upload` excuses it for that one run and `--ios`
+still excuses it for an iOS build. **For an iOS launch the count is
+zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 694 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 138
+questions of 1342 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -42,10 +46,12 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69). Waiting on a *bostedsattest* as the
-  address document — and the wait has two exits (4.3b, measured
-  2026-08-20): Skatteetaten issues it digitally to the Altinn inbox in
-  ~3 days, and pending verification gates only the EU-27 storefronts.
+- **Trader status: VERIFIED** (D69; closed 2026-09-06,
+  owner-confirmed). The *bostedsattest* arrived 23 days after the
+  declaration, went up the same day (2026-08-30), and Apple's
+  verification has since come back. The EU-27 storefronts are
+  unblocked; only the D69 address swap (home → ENK, once D345's
+  registration lands) remains, and it blocks nothing.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -58,19 +64,46 @@ Those two question counts are held by `npm run check:figures` against
 current by intention is the one documentation error this repo keeps
 re-committing (D39).
 
-> ## iOS only, as of 2026-08-04 (D42)
+> ## BOTH STORES, as of 2026-09-01 (D345) — this file said iOS only for three days after it stopped being true
 >
-> **Google Play is deferred**, and revisited after iOS has users rather
-> than on a date. Every Android step below is marked **[PARKED]** — left
-> in place, not deleted, because the shell still builds in CI and the work
-> is real when it is picked up.
+> **Play is un-parked**, onto D41's organization route: an ENK, a D-U-N-S,
+> and a Play Console organization account, which is exempt from the
+> closed-testing gate. The owner's word was *"yes, do both and i will go
+> for a ENK"*. The two code items that blocked any Android artifact at all
+> — release signing in `android/app/build.gradle` and
+> `.github/workflows/play-release.yml` — were built in the same decision,
+> so the Android steps below are **work, not backlog**.
 >
-> The reason is not only cost. The two routes onto Play move in opposite
-> directions over time: the organization account (D41) costs the same
-> whenever it is taken, while the 12-testers × 14-days route is brutal
-> cold and easy once you have users with Android phones. Deferring may
-> convert the expensive option into the cheap one, and retire D41 unused.
-> **Re-read D41 and D42 together at that moment; assume neither half.**
+> **Every step the park covered now reads `[UN-PARKED — D345]`**, so the
+> lift has a scope rather than a mood. They are: 1.1b, 1.2, 2.1, 2.6, 3.1,
+> 6.3, the Android half of 1.4, the Play half of 2.7, and Play's Data
+> Safety form.
+>
+> **This is the documentation error the tree keeps re-committing (D39),
+> in the file whose whole job is to say what is left.** D345 merged
+> 2026-09-01 and named neither this file nor `SHIP-CHECKLIST.md`, which is
+> canonical — so for three days the owner's ordered list understated the
+> remaining launch work by an entire platform, in the direction that looks
+> like progress. No gate could see it: `check:docs` proves the map names
+> every document, `check:figures` proves a listed number equals the tree,
+> and neither reads whether a sentence is still true. That gap is
+> `docs/DOC-SWEEP.md`'s subject, and this is the shape it exists to catch.
+>
+> **What D42's reasoning bought is still worth keeping**, because it is
+> why the route taken is the right one: the two paths onto Play move in
+> opposite directions over time — the organization account (D41) costs the
+> same whenever it is taken, while the 12-testers × 14-days route is
+> brutal cold and easy once you have users with Android phones. Choosing
+> the ENK **before** an installed base is choosing the branch D42 said was
+> right in exactly that case, so **D41 stands in full and nothing in it
+> needs re-deriving**. Two of its numbers are stale in the direction that
+> favours this choice: the gate is 12 testers rather than the 20 D41
+> launched at, and tester *engagement* is now checked as well as count.
+>
+> **The one thing still unverified is the one that costs money:** whether
+> Google's organization verification accepts an Enhetsregisteret-only ENK
+> or wants what Foretaksregisteret provides (~3,000 kr). **Check it in the
+> Play Console account-type flow before paying for a D-U-N-S expedite.**
 
 ## One clock you cannot compress
 
@@ -121,28 +154,36 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.0 Decide the Firestore region — the only item here with a
-      DEADLINE.** Not a task so much as a fork, and it sits above the seed
-      because every day it is not decided makes it more expensive.
-      A database's location is fixed at creation, so this stops being a
-      setting and becomes a migration the moment real answers accumulate.
-      Worth roughly half of every Firestore line, forever, with no
-      user-visible change — and worth ~$20/month at the traction this app
-      is actually planning for, so the money is not the argument. The
-      deadline is.
+- [x] **0.0 The Firestore region — TAKEN 2026-08-15 (D165), and the
+      procedure finished 2026-08-27 (D333).** Production is `insight` /
+      `europe-west1`, a single region; `nam5` is the option not taken,
+      and deleting `(default)` was the last step. This carried the only
+      DEADLINE in the file, because a database's location is fixed at
+      creation and becomes a migration the moment real answers
+      accumulate — which is exactly why it was taken before they did.
 
-      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the arithmetic, the
-      three options, the ordered procedure, and the two ways the migration
-      fails **silently** (a deploy sub-target that prints "Deploy
-      complete!" and ships nothing, and a Firestore trigger that binds to
-      the wrong database and simply never fires). Read it before touching
-      anything; staying on `nam5` is a legitimate answer and the point of
-      the page is that it be an answer rather than a default.
+      **The box stayed unticked for two weeks after the fact**, and that
+      is the documentation error this repo keeps re-committing (D39): the
+      tree said `europe-west1` the whole time — `FIRESTORE_LOCATION` in
+      `functions/src/db.ts`, `FUNCTIONS_REGION` in `functions/src/ops.ts`
+      — and only the checkbox lagged. It read as the largest open item on
+      the list while being the most finished thing on it.
+
+      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) keeps its argument in
+      the present tense of a decision that was still open, on purpose:
+      the arithmetic, the three options, the ordered procedure, and the
+      two ways the migration fails **silently** (a deploy sub-target that
+      prints "Deploy complete!" and ships nothing, and a Firestore
+      trigger that binds to the wrong database and simply never fires).
+      Read it before touching a database region again, here or anywhere.
 
       **DONE 2026-08-15 (D165): `insight` / `europe-west1` is live** —
-      created, rules + functions deployed, bank seeded and verified. Only
-      the `(default)` deletion remains, and it waits a week on purpose.
-      Original decision note below.
+      created, rules + functions deployed, bank seeded and verified. The
+      `(default)` deletion it left waiting **happened 2026-08-27 (D333)**,
+      twelve days later, after measuring that `insight` serves and that
+      nothing but D13's stranded schedulers had written to `(default)`
+      since the move — so the whole of 0.0 is closed and the project has
+      one database. Original decision note below.
 
       **DECIDED 2026-08-15 (D165): option A — a new regional database in
       the same project, recommended region `europe-west1`.** The existing
@@ -168,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      694 questions land in `v2_questions` — idempotent and, since D34,
+      1342 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **694** after the K=5 test expansion, D103's
+      and the bank is **1342** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -311,13 +352,13 @@ arithmetic.
       entitlement the App ID lacks, so a missing capability fails the
       *archive*, not just the feature — and an unused one is an entitlement
       to carry and a question to answer at review.
-- [ ] **1.1b [PARKED — D42] Register the ENK and apply for the D-U-N-S.**
+- [ ] **1.1b [UN-PARKED — D345] Register the ENK and apply for the D-U-N-S.**
       *Not being done: Play is deferred until iOS has users.* Notify Brønnøysundregistrene via Altinn; registration in
       Enhetsregisteret is free and yields the organisasjonsnummer a D-U-N-S
       application needs. The D-U-N-S itself is free from D&B, usually ~1–2
       weeks, quoted up to ~30 business days. Everything else on this list
       runs while it waits. `D41`.
-- [ ] **1.2 [PARKED — D42] Google Play Console account — as an
+- [ ] **1.2 [UN-PARKED — D345] Google Play Console account — as an
       *organization*, not personal** ($25 one-time, identity check). The organization type
       is exempt from the 12-testers × 14-days closed-testing gate; a
       personal account created after 2023-11-13 is not, and that is a 3–4
@@ -342,15 +383,37 @@ arithmetic.
       is alive, and the scorecard fetch (`QUESTION-FARM.md` Phase A) is
       unblocked. `SHIP-CHECKLIST §2`.
 
-      **Google is enabled but UNVERIFIED.** The project-config endpoint
-      returns only `authorizedDomains` to an unauthenticated caller, no
-      `idpConfig`, so there is no remote probe for it. It is verified by
-      tapping *Link Google* in the app — which 0.1 requires anyway, since
-      the seed gate matches a Google-account uid. Treat 0.1 succeeding as
-      the proof.
+      **THERE IS A REMOTE PROBE AFTER ALL, and everything here is on.**
+      This said Google was *"enabled but UNVERIFIED"* because *"the
+      project-config endpoint returns only `authorizedDomains` to an
+      unauthenticated caller, no `idpConfig`, so there is no remote probe
+      for it"*. True about an unauthenticated caller, and false about this
+      repo: the deploy service account already in `FIREBASE_SERVICE_ACCOUNT`
+      reads the Identity Platform admin API, which returns exactly that
+      missing `idpConfig`. Measured 2026-09-09 against `prvfire33`
+      (HTTP 200): **apple.com on, google.com on, anonymous on, email on.**
+      `node scripts/check-auth-providers.mjs` re-runs it and fails if any
+      door the app offers is off — not a CI gate, because it needs a
+      production credential the PR path does not have.
+
+      So Google is verified, and so is Apple, which this item never named.
+      Tapping *Link Google* in the app is still the end-to-end proof and
+      0.1 requires it anyway; what changed is that a wrong answer no longer
+      waits for a handset to reveal it.
+
+      **APPLE IS A THIRD PROVIDER THIS ITEM NEVER NAMED, and it is on.**
+      The tick above is left as it is because it is honest about what it
+      says — Anonymous and Google. D414 added Apple's door, night shift A
+      wired the native provider list to reach it (`capacitor.config.ts`,
+      previously `["google.com"]` only), and nothing in the tree recorded
+      whether the provider itself was enabled — so it went to the owner as
+      a click. It was already on: the probe above reads
+      `apple.com enabled=true`. The gap was the paper trail rather than the
+      console, which is why the probe is the fix and the click was not
+      needed.
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
-      Integrity) is **[PARKED — D42]**. Do this on day 1 so the soak
+      Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak
       overlaps the rest of the work. **Register, do not enforce yet** —
       enforcement is step 3.4. Registering the web app is separate from
       setting the site key in the build; having one without the other
@@ -372,12 +435,77 @@ arithmetic.
       same console page, and having one without the other looks identical
       to having neither.
 
+      **The soak clock did not start on 2026-08-05 (D388).** Registering
+      the DeviceCheck provider was necessary and not sufficient: the app
+      configured the native SDK and never bridged its token into the
+      JavaScript SDK that makes the requests, so the metrics this row was
+      meant to start accruing read 0% verified from that day to
+      2026-09-06, and every reading of them was explained away as the
+      browsers. 3.4 has the consequence; the clock starts with the first
+      build after #414.
+
+      **AND THE REMAINING HALF IS NOT BEING DONE (D337, 2026-08-30).**
+      The owner's reading, checked against the tree and correct: there is
+      no public web client and none is planned. `web/` is seven static
+      pages, none of which loads Firebase — `web/home.html` says so in its
+      own comment, *"Deliberately NOT the app: InSight is a native
+      product"* — and the shipping product is configured to attest
+      through DeviceCheck (and does from the first build after #414; until
+      then it never had — D388). So the web reCAPTCHA provider was never
+      for users. It is for the two
+      browsers that read production Firestore: **a developer's, and the
+      screenshot job's**, both of which stop working the moment 3.4 flips.
+      This step never said that, which is why it read as a launch item.
+
+      **The supported answer for both is a debug token, not reCAPTCHA** —
+      Firebase's own debug-provider documentation says so for CI, and the
+      reason is that reCAPTCHA v3 scores behaviour and a headless browser
+      is what it is built to score low. `src/lib/appcheck.ts` takes one in
+      `VITE_APPCHECK_DEBUG`: `true` mints a token and prints it for you to
+      register once, any other value IS a registered token, which is the
+      only form a job can use.
+
+      **The three actions, in order. Two tokens, not one** — a token is a
+      credential, and one shared between a laptop and a public CI log is
+      revoked in both places at once when either leaks:
+
+      1. **Mint yours.** Put `VITE_APPCHECK_DEBUG=true` in `.env` and run
+         the app locally. The browser console prints the token.
+      2. **Register it.** Firebase Console → **App Check** → **Apps** →
+         the web app → the three-dot menu → **Manage debug tokens** →
+         paste it in.
+      3. **Repeat for CI**, with its own token, and put that one in
+         GitHub → Settings → Secrets and variables → Actions as
+         **`APPCHECK_DEBUG_TOKEN`**. That is the name
+         `.github/workflows/screenshots.yml` already reads.
+
+      All three before 3.4, not after — the flip is what makes them
+      load-bearing.
+
+      **Steps 2 and 3 no longer need the console (D367).** Actions →
+      **App Check** → `register-debug-token`, with the value already in the
+      `APPCHECK_DEBUG_TOKEN` secret: `scripts/appcheck.mjs` registers what
+      it is handed and deliberately cannot mint or echo one, so no token
+      passes through a run log. Step 1 — deciding the value — stays yours,
+      and that is the right split: a secret should be born where it is
+      going to live. Dispatch `report` first; it is read-only and prints
+      the app ids, the debug tokens by display name, and every service's
+      enforcement mode, which is the same reading this step used to need
+      two console pages for.
+
+      **A debug token is a bypass, not an attestation.** Whoever holds it
+      is past App Check. One per environment, in secrets, never in a build
+      that reaches users — `shipsDebugToken` in `scripts/appcheck-guard.ts`
+      refuses a production build carrying one, which is why the screenshot
+      job builds `--mode capture`. Provision reCAPTCHA only if a public
+      web build ever ships.
+
       DeviceCheck needs a `.p8` key, not a toggle — an earlier note in
       this conversation said "one click, no keys" and that was wrong.
 
 ## Phase 2 — Wire the native builds (needs Phase 1 accounts)
 
-- [ ] **2.1 [PARKED — D42] Android config.** Firebase Console → Project settings → Add app
+- [ ] **2.1 [UN-PARKED — D345] Android config.** Firebase Console → Project settings → Add app
       → Android, package `com.cosaxo.insight`. **Add the debug keystore
       SHA-1 first**, then download `google-services.json` → drop into
       `android/app/`. This also activates FCM for reveal pushes.
@@ -460,6 +588,21 @@ arithmetic.
       `skipped` did not — rather than to read this file. Runs 15 and 16
       are the worked example: same commit `2933dc0`, eight minutes apart,
       `skipped` then `success`, so only one of the two spent a build.
+
+      **BUILD 34 UPLOADED 2026-09-07** (run 57, `9069f62`, upload step
+      `success`) — the first submittable build. The bump after it did not
+      happen: run 58 on 2026-09-09 (a dry run, upload `skipped`) and the
+      tree that merged #456 still carried 34, so the release for #456's
+      rules deploy (the group guess refused from 17:16 UTC that day, every
+      installed build affected until it updates) was dispatched from a
+      branch carrying the bump to 35.
+
+      **BUILD 35 UPLOADED 2026-09-09** (run 59, `2d286f8`, upload step
+      `success` at 17:29 UTC, 94 s) — the first build whose group card
+      sends no guess, dispatched thirteen minutes after the rules that
+      refuse one went live. **`appBuild` is now 36**, bumped off run 59's
+      step 17 in the same session, before the run's record was written —
+      the convention's second half, done in the order it asks for.
 
       **BUILD 12 UPLOADED 2026-08-13** (run 18, `d0cf435`, 5m 32s, upload
       step `success`). Builds 11 and 12 went up a day apart — run 17
@@ -903,7 +1046,7 @@ arithmetic.
       applies entitlements at signing time. Nothing else in the build said
       a word. The one time this gate has fired, it fired on this repo's own
       workflow rather than on a mistake from outside.
-- [ ] **2.6 [PARKED — D42] Android signing.** Generate the upload keystore **outside the
+- [ ] **2.6 [UN-PARKED — D345] Android signing.** Generate the upload keystore **outside the
       repo**, and **enrol in Play App Signing** so a lost upload key is
       recoverable. Before the first release commit run `git status
       --ignored` and confirm nothing sensitive is tracked — a `git add -A`
@@ -914,9 +1057,11 @@ arithmetic.
       remains.** `web/.well-known/apple-app-site-association` carries the real
       Team ID as of 2026-08-05 (`U2LVW456S7.com.cosaxo.insight`). The
       `assetlinks.json` SHA-256 comes from Play Console → Setup → App
-      signing and is **[PARKED — D42]**, so `check:store-copy` will keep
-      reporting that one placeholder: a known permanent non-blocker, not
-      an unfinished task.
+      signing. **[UN-PARKED — D345]**, so this is now an unfinished task
+      rather than the permanent non-blocker it was while Play was
+      deferred: `check:store-copy` reports it until the Play Console
+      issues the fingerprint, and `--first-upload` is the flag that
+      excuses it for the upload that mints it.
 
       **The hosting redeploy this step shared with 0.2 and 0.3 landed**
       (2026-08-20 — see 0.2), so the live AASA carries the Team ID and
@@ -934,7 +1079,7 @@ satisfying a gate. The App Check soak (3.4) is the one clock still in this
 phase. On the personal-account fallback, 3.1 is also where the 14 days
 start.
 
-- [ ] **3.1 [PARKED — D42] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
+- [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
       gate — no tester minimum, no 14-day clock, and no reason to wait for
       a headcount before uploading. Use it the way TestFlight is used in
       3.2: real installs on real Android hardware, duels first.
@@ -943,11 +1088,28 @@ start.
       upload is what starts the 14 days, and it needs **12+ testers who
       actually install** — churn mid-window resets nothing, but a drop
       below 12 pauses progress.
-- [ ] **3.2 TestFlight with ten testers, not five.** The public mirror
-      publishes once per 5 answers (D7), so a group of 6–9 watches the
-      world count sit on "5+" and never move — accurate, and it reads as
-      broken. Test **duels first**: they work at N=2, need no crowd, and
-      are the most distinctive surface in the product. `SHIP-CHECKLIST §3`.
+- [ ] **3.2 TestFlight — two testers is enough to start. THE "TEN" WAS
+      PRE-D98 AND IS RETIRED HERE.** This step read *"ten testers, not
+      five"* and gave the reason in its own next clause: *"the public
+      mirror publishes once per 5 answers (D7), so a group of 6–9 watches
+      the world count sit on '5+' and never move — accurate, and it reads
+      as broken."* **That machinery no longer exists.** D98 removed the
+      k-floor outright on 2026-08-11 — `AGG_MIN_N` and `PUBLISH_EVERY` are
+      gone, and `functions/src/v2.ts` says so where they used to live —
+      so a count of 1 is published as 1. The step even carried the
+      correction further down (*"There is no k-floor since D98: the first
+      answer publishes exactly"*) while its heading still demanded a
+      crowd the removed cadence needed. One step, two answers; D98's is
+      the live one.
+
+      **So the tester count is a bug-finding decision, not a threshold.**
+      Test **duels first**: they work at N=2, need no crowd, and are the
+      most distinctive surface in the product. Two phones exercise
+      everything that needs more than one person — the sealed duel and
+      its next-day reveal, cross-device push, a second name in the
+      who-voted sheet. Add testers to widen device and iOS coverage,
+      which is a real reason; do not wait on a headcount to start.
+      `SHIP-CHECKLIST §3`.
 
       **Build 1 is in TestFlight and an external group was submitted for
       Beta App Review 2026-08-07.** What is left here is people, not setup.
@@ -982,7 +1144,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 694 seeded questions are live regardless.
+      working, not a leak — the 1342 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -997,12 +1159,46 @@ start.
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
 
+      **THE SOAK NEVER STARTED, AND THE 0% WAS THE SHIPPING BUILD (D388,
+      2026-09-06).** Every reading of these metrics — 2026-08-27's ~3,750
+      requests all MISSING, the console on 2026-09-06 at 0% verified —
+      was explained as browsers and CI, and was in fact every phone too:
+      `src/lib/appcheck.ts` initialised the NATIVE App Check SDK and never
+      registered an instance on the JavaScript SDK that makes every
+      request, so no build has ever sent a token. The bridge the plugin
+      documents is in the tree from #414; the first build carrying it is
+      the one that starts this row's 24–48h, and "near 100%" is then read
+      off phones rather than off nothing. Flipping on the old reading
+      would have refused every phone. The callables that already enforce
+      have been refusing every phone the whole time — the 2026-09-06
+      deploy log shows `APPCHECK_ENFORCE:` empty, so the switch is not
+      set — and D388 has the list and the interim choice
+      (`APPCHECK_ENFORCE=false` until that build is on phones, or wait),
+      which is the owner's.
+
+      **The flip is Actions → App Check → `enforce` (D367)**, service by
+      service, `apply` off first: the dry run prints the current mode and
+      the transition without touching anything. It is dispatch-only behind
+      the `production` environment, so it can only run from `main` — which
+      is the protection this step wants, given that the flip is the
+      irreversible direction. Read the soak metrics before, not after.
+
+      **Two browsers break on this flip, and both are yours.** A dev
+      browser and the screenshot job read production Firestore without
+      attesting, which is fine only while enforcement is off. Register
+      the debug tokens 1.4 describes BEFORE flipping: afterwards a
+      screenshot run fails at the size gate with nothing in its output
+      about why, and `npm run dev` against real data simply stops
+      returning rows.
+
 ## Phase 4 — Build the listings (do this while the clocks run)
 
 The harness, the graphic and the copy all landed 2026-08-03. **The copy is
 pushed as of 2026-08-08** and so is the age rating; what is left here is a
-**recapture against live data**, the privacy form, and the trader document
-in the post.
+**recapture against live data** and the privacy form. (This sentence
+also named "the trader document in the post" until 2026-09-06; that
+document arrived, went up and verified — 4.3b — and the clause outlived
+the fact, the D39 shape one sentence wide.)
 
 The recapture is the one with a real precondition: it wants real answers
 on screen. Under D81's pause one answer per question is enough (counts
@@ -1011,11 +1207,27 @@ empty bank puts *"You're first"* where every crowd figure should be
 (there is no floor since D98 — the first answer publishes exactly).
 That is a tester-count problem, not a workflow problem.
 
-- [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
-      *Screenshots* → Run workflow.** Capture with upload unticked, download
-      the `store-screenshots` artifact, **look at them**, then re-run with
+- [x] **4.1 Recapture the screenshots in LIVE mode — UPLOADED 2026-09-06
+      (run 10, six to App Store Connect).** Actions → *Screenshots* → Run
+      workflow. Capture with upload unticked, download the
+      `store-screenshots` artifact, **look at them**, then re-run with
       upload ticked. Six scenes × both store sizes (1320×2868 and
       1080×1920), asserted against the store specs at generation.
+
+      **How it closed.** Run 8 (#414's head) captured `mode = LIVE`,
+      12/12, after two harness regressions were fixed on the same branch
+      — the reveal's `sd-opt` marker and D356's paint-before-attach (the
+      commit on `scripts/gen-screenshots.mjs` has both). The owner held
+      the upload that morning for the new visuals being made in Claude
+      Design, then chose the release over the wait — *"current look,
+      upload the screenshots"* — so the visuals ship with a later version
+      and this row runs again from capture when they do. Run 9 with
+      upload on lost the Play-size profiles scene to a click that never
+      found the chip still (the drive is bounded now; its commit says
+      why); run 10 captured 12/12 and `asc-push` uploaded the six 6.9"
+      captures into a new en-US `APP_IPHONE_67` set — Apple files the
+      1320×2868 size under that display type, which is why the workflow
+      defaults to it. The Play set stays local until 3.1.
 
       **The committed captures are a demo preview, not the shipping set.**
       The harness names the one that must not ship: the reveal shows
@@ -1097,8 +1309,8 @@ That is a tester-count problem, not a workflow problem.
 
       `whatsNew` is sent separately and refused on a first release (D74),
       which is expected and reported as a skip rather than a failure.
-- [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
-      this repo knew about.** App Store Connect → **Business** → *Trader
+- [x] **4.3b EU trader status (Digital Services Act) — VERIFIED, closed
+      2026-09-06 (owner-confirmed).** App Store Connect → **Business** → *Trader
       Status*, or via the banner on the Apps list. Apple's wording: *"your
       trader status must be provided or your apps will be removed from the
       App Store in the EU."*
@@ -1128,32 +1340,60 @@ That is a tester-count problem, not a workflow problem.
       that can replace it, which is a second and independent reason to want
       the ENK that D42 parked.
 
-      **Declared 2026-08-07. Waiting on the address document.** Apple asks
-      for proof of address; a Norwegian *bostedsattest* from Skatteetaten
-      is the one that fits and it arrives by post. This step is open only
-      until that envelope does — it is waiting, not work, so do not let it
-      block anything below it.
+      **Declared 2026-08-07. The document arrived 2026-08-30**, 23 days
+      later — the *bostedsattest* from Skatteetaten, which is the
+      Norwegian record that fits Apple's ask for proof of address. The
+      wait this step was open for is over, and both of the exits it
+      carried are spent.
 
-      **The envelope is the slow path, and it is not the only one
-      (researched 2026-08-20, still unarrived at ~2 weeks).** Two exits,
-      independent of each other:
+      **It is not in this repo, and it must not be.** The page carries a
+      fødselsnummer and a date of birth next to the address, and a git
+      history is the wrong place for any of the three — irrevocable by
+      construction, and mirrored by every clone. What is recorded here is
+      that the document arrived, not what it says.
 
-      - **Order the attest digitally.** Skatteetaten issues the
-        bostedsattest to the Altinn inbox in about three days; the
-        stamped paper copy is the one that costs up to two weeks plus
-        postage, and Apple never sees the stamp — the upload takes a
-        PDF, and Apple's wording asks only for "business or legal
-        records" that verify name and address. Ordering the digital one
-        now does not conflict with the paper order already in flight.
-      - **Ship without the EU 27, add them on verification.** Pending
-        trader verification gates ONLY EU distribution — Norway is EEA
-        (D69), and submission, TestFlight and every non-EU storefront
-        are untouched. Pricing and Availability can exclude the EU 27 at
-        launch and add them later without a new review. That order also
-        buys time to register the ENK (D69's way out) before the home
-        address publishes on any listing.
-- [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
-      Mandatory; Apple accepts no submission without it.
+      **Uploaded 2026-08-30**, through App Store Connect → **Business**
+      → *Trader Status*. **The step stayed open anyway, and D74 was why:**
+      the upload is a fact, EU distribution being unblocked is not one
+      yet. It closes when the console reports the status verified — that
+      is Apple's to run, not work in this file.
+
+      **CLOSED 2026-09-06: the console reports the status verified**
+      (owner-confirmed on the release thread — "verified a long time
+      ago"; the exact console date was not captured, so this records
+      when the file learned it, per D74's tick-after-the-fact rule).
+      The EU-27 storefronts are unblocked; nothing about trader status
+      remains open. What D69 left live is only the address SWAP: the
+      listing publishes the home address until the ENK's business
+      address (now in motion — D345 un-parked Play onto the ENK route)
+      replaces it in this same console form. If the document comes
+      back instead, the open question is whether to send the
+      fødselsnummer unmasked: Apple's wording asks only for records
+      verifying **name and address**, so no part of the form needs it,
+      and that is the owner's call rather than this file's.
+
+      **Nothing below waits on it.** Verification gates ONLY EU
+      distribution — Norway is EEA (D69), so submission (6.2),
+      TestFlight and every non-EU storefront are untouched while it
+      runs. Pricing and Availability can still exclude the EU 27 at
+      launch and add them on verification without a new review, which
+      stays the way to register the ENK (D69's way out) before the home
+      address publishes on any listing.
+- [x] **4.4 The privacy nutrition label — PUBLISHED 2026-09-06.** The
+      last form, and it is manual; Apple accepts no submission without it.
+
+      **How it closed.** Eleven data types, typed by the owner from App
+      Store metadata run 13's `privacy (report only)` summary into the
+      App Privacy form and published the same afternoon: ten with App
+      Functionality (Other User Content also Product Personalization),
+      Product Interaction with Analytics, every row linked to identity,
+      tracking off — `app-privacy.json` as it stands, `check:store-forms`
+      green. One transcription slip was caught on the review pass before
+      Publish: Product Personalization had landed on Photos or Videos
+      instead of Other User Content. Eleven near-identical dialogs with
+      the two that differ side by side is exactly why the printout ends
+      *"read docs/STORE-FORMS.md before ticking anything"*, and why the
+      pass was worth the minutes.
 
       **NINE ROWS SINCE D175 AND D178, AND THIS STEP SAID SEVEN UNTIL
       BUILD 18's PRE-FLIGHT.** Precise Location and Photos or Videos are
@@ -1232,7 +1472,7 @@ That is a tester-count problem, not a workflow problem.
       D79; the reason used to be "no live free-text surface" and D78 part 1
       ended that).
 
-      *Play's Data Safety form is **[PARKED — D42]**.*
+      *Play's Data Safety form is **[UN-PARKED — D345]**.*
 
 - [x] **4.5 The age rating — pushed 2026-08-08, `messagingAndChat`
       re-pushed 08-09, and CONFIRMED in sync 2026-08-12.** All 22
@@ -1284,18 +1524,34 @@ That is a tester-count problem, not a workflow problem.
       against all five banks rather than assumed.
 ## Phase 5 — Production hygiene before the app is public
 
-- [ ] **5.1 Enable TTL on all THREE collection groups that stamp
-      `expireAt`** (one-time each):
+- [x] **5.1 Enable TTL on all THREE collection groups that stamp
+      `expireAt` — DONE 2026-08-27 (D333), all three `ACTIVE` on the
+      `insight` database.** Set through the Firestore Admin REST API with
+      the deploy credential and read back the same way:
+      `ttlConfig.state=ACTIVE` for `v2_agg_events`, `engagement` and
+      `v2_ratelimits`. The privacy page's 90-day rolling-window sentence
+      is now held by a real setting.
+
+      **The command below was wrong in one silent way, and it is kept as
+      the record:** it names no `--database`, and gcloud defaults that to
+      `(default)` — which on 2026-08-27 still existed. All three
+      collection groups live in `insight` (`functions/src/db.ts`), so the
+      command as written would have configured TTL on a database none of
+      them are in, reported success, and left all three policies exactly
+      as unverifiable as this step complained. Add
+      `--database=insight` if it is ever re-run:
       ```bash
       for cg in v2_agg_events engagement v2_ratelimits; do
         gcloud firestore fields ttls update expireAt \
-          --collection-group="$cg" --enable-ttl --project=prvfire33
+          --collection-group="$cg" --enable-ttl --project=prvfire33 \
+          --database=insight
       done
       ```
       Stamping `expireAt` does nothing on its own — a TTL policy is a
       per-collection-group setting on the database, and the field is inert
       until somebody turns it on. Nothing in this repository can read
-      whether one is enabled, so all three are unverifiable from here.
+      whether one is enabled, so the verification above lives in D333
+      rather than in a gate.
 
       This step named `v2_agg_events` alone until 2026-08-26, which
       under-counted the console work by two and left out the half with a
@@ -1319,29 +1575,86 @@ That is a tester-count problem, not a workflow problem.
         so the residue is bounded per account rather than per request. Slow
         growth, not runaway, and listed here because the comment asserting
         the sweep should not be the only place it is asserted.
-- [ ] **5.2 Confirm the Authentication billing edition** — 30 seconds in
-      the console, and the largest unknown on the bill. Anonymous-first
+- [x] **5.2 Confirm the Authentication billing edition — ANSWERED
+      2026-08-27 (D333): Firebase Authentication, the free edition.**
+      Read off the API rather than a console: the Identity Toolkit admin
+      config reports `subtype: FIREBASE_AUTH`, and
+      `identityplatform.googleapis.com` is not activated on the project.
+      Recorded next to `SHIP-CHECKLIST §5` as that item asks. 5.12's
+      BigQuery export is what turns this from a checked answer into a
+      standing one. Original stakes: anonymous-first
       means every install becomes an authenticated identity: free forever
       on Firebase Authentication, MAU-priced on Identity Platform. At 1.5M
-      MAU that is $0 vs ~$6,015/month for zero code difference. Cloud
-      Console → Billing → Reports grouped by service is the unambiguous
-      check. Record the answer next to `SHIP-CHECKLIST §5`.
-- [ ] **5.3 Scrub the dead v1 collection:**
+      MAU that is $0 vs ~$6,015/month for zero code difference.
+- [x] **5.3 Scrub the dead v1 collection — RUN 2026-08-27 (D333), and it
+      measured ZERO documents.** The report pass found `insight_discoverable`
+      already empty, so there was nothing to `--apply` to: the exposure this
+      step guards — Big Five, politics, age, bio, display names with no
+      writer and no reader — was already gone, and the script's own text
+      names 0 as the expected end state whose precondition the store
+      privacy answers need. That precondition is met, measured rather than
+      assumed. The same day's `(default)` deletion (step 5 of
+      FIRESTORE-REGION) removed the collection's very container, so the
+      scrub can never be needed again. `SHIP-CHECKLIST § hardening`.
       ```bash
       node scripts/scrub-v1-discoverable.mjs --project prvfire33          # report
       node scripts/scrub-v1-discoverable.mjs --project prvfire33 --apply  # delete
       ```
-      It holds Big Five, politics, age, bio and display names with no
-      writer and no reader. The store privacy answers are gated on this
-      having run. `SHIP-CHECKLIST § hardening`.
-- [ ] **5.4 Storage bucket: check, empty, then lock down.** Firebase
-      Console → Storage. If objects exist under `users/{uid}/dailyPhotos/`,
-      delete them **before** reducing `storage.rules` to a catch-all deny —
-      `deleteAccount` does not touch Storage, so revoking access while
-      objects remain converts a dead feature into an erasure gap. Update
-      `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the eight monitoring alerts** (`monitoring/*.json`):
-      dispatch **Arm monitoring** with `apply` off to see what is missing,
+- [x] **5.4 Storage bucket: check, empty, then lock down — DONE
+      2026-08-27 (D333), in that order.** Checked: `prvfire33.appspot.com`
+      held **117 objects, none of them under the path the rules kept
+      open** — 115 under `users/{uid}/uploads/` (6 uids, ~60 MB, the old
+      app's) and 2 under `users/{uid}/daily_snaps/`, newest 2026-02-08;
+      zero under `users/{uid}/dailyPhotos/` and zero under `avatars/`.
+      Those paths were already denied by the catch-all, which means the
+      erasure gap this step exists to avoid ALREADY existed for them —
+      personal photos no owner could reach or remove. Emptied: all 117
+      deleted, bucket read back at 0 objects. Locked down: the
+      `dailyPhotos` read/delete block is out of `storage.rules` (the
+      avatars path stays — it is D178's live feature, not the legacy one),
+      `firestore-tests/storage.rules.test.ts` updated in the same commit,
+      153/153 rules tests green. The rules deploy rides the next pipeline
+      run, as every rules change does. Original ordering rule, still the
+      reason it went this way: delete the objects **before** reducing the
+      rules — `deleteAccount` does not touch this path, so revoking access
+      while objects remain converts a dead feature into an erasure gap.
+- [x] **5.5 The first nine monitoring alerts, applied — ALL NINE VERIFIED
+      ARMED 2026-09-06; eight of them armed and wired 2026-08-27 (D333).
+      The tenth is 5.5b.**
+      **CLOSED 2026-09-06.** The ninth, `monitoring/paid-refund-stuck.json`,
+      went up in two dispatches of **Arm monitoring**, and the gap between
+      them is the thing to know before the next new policy: run 9 created
+      the two log-based metrics it selects on and then failed creating
+      the policy — `404 … Cannot find metric … up to 10 minutes` — because
+      a freshly created log-based metric is not selectable by a policy
+      until it has propagated. Run 10, dispatched after that window,
+      reported `✓ policy "A campaign refund is stuck and needs an
+      operator" — created` (`done, 1 created`) under the `InSight oncall`
+      channel the applier names in its first line. Then the instrument:
+      **Observe production** run 16 reads `alertPolicies 9 live, 9
+      enabled; ALL committed policies are armed`, which is the sentence
+      this box is done on. What nobody has yet read is a page that has
+      ARRIVED — the applier's own closing line asks for a test page from
+      the console, and that is the owner's hand, not a workflow's.
+      **REOPENED 2026-09-02 (D349).** `monitoring/paid-refund-stuck.json`
+      landed with the paid pipeline's first alert of any kind, and with
+      the two log-based metrics it selects on. Nothing in this tree arms
+      a policy — `monitoring:apply` does, and it had not been run since —
+      so the money alert was committed, gated by `check:monitoring`, and
+      silent. The 2026-08-27 verification below stands for the eight it
+      names and said nothing about the ninth, which is why moving this
+      heading's count from eight to nine was not an edit that could be
+      made on its own — and why it moved only with run 16's line.
+      Found already applied on 2026-08-27 (the D303 path had run):
+      the dry run reports every object `already exists`, `observe` reads
+      `armed: true`, and — the half a green count cannot see — a direct
+      policy read shows **all eight policies carry the `InSight oncall`
+      email channel**, which points at the owner's address and is enabled.
+      A policy with no channel is enabled, visible, green and pages
+      nobody; that is the state this box existed to rule out, and it is
+      ruled out by reading the channel id off each policy rather than by
+      counting policies. Original instructions kept below.
+      Dispatch **Arm monitoring** with `apply` off to see what is missing,
       then again with it on. It runs behind the `production` environment
       gate on `FIREBASE_SERVICE_ACCOUNT`, needs nothing on your machine, and
       is idempotent. Locally it is the same script:
@@ -1395,7 +1708,19 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
+- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
+      committed and not applied.** The breakdown cap's `agg_evict`
+      metric and its policy landed after run 16 verified the nine, so
+      **Arm monitoring** owes one more dispatch, and 5.5's own lesson
+      applies to it: a freshly created log-based metric is not selectable
+      by a policy for up to ten minutes (run 9's `404 … Cannot find
+      metric`), so expect two dispatches, or one after the window. Since
+      D400 the line the alert counts means the cap's tail is live for a
+      question, not that a count was lost — its runbook says what to do,
+      which is to move one number in the cost model. *Source:* D398, D400;
+      `docs/DEPLOYMENT.md` § The cap alert.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 36.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -1448,7 +1773,22 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
-- [ ] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1`.**
+- [x] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1` —
+      DONE 2026-08-27 (D333), in this box's own order.** `onUserDeleted`
+      first and alone, verified by generation/runtime at both ends (the
+      census read GEN_1 · nodejs18 · `user.delete` on
+      `resource=projects/prvfire33` · last deployed 2024-12-12, and the
+      CLI's delete line itself said "Node.js 18 (1st Gen)") — so account
+      deletion no longer executes foreign code. Then the other eleven in
+      one command, each confirmed 1st Gen as it went. The Cloud Scheduler
+      leftover this box warns about did NOT materialize: the shared
+      `firebase-schedule-scheduledDeletePastEvents-us-central1` job and
+      topic were both removed with their functions, and no orphaned job
+      remained. One inert residue was left in place: the topic
+      `firebase-schedule-scheduledUpdateNewStatus-us-central1` (the deploy
+      collision's other name), with no job, no subscription and no
+      publisher — clutter, not billed work. Verified with the instrument:
+      `strayCount` fell by exactly twelve. Original text below.
       Read out of production by `npm run observe -- --functions` on
       2026-08-26 (D301). These are **not this project's code** — Gen-1,
       nodejs10/18/20, last deployed 2024–2025, from an app that shared the
@@ -1499,8 +1839,32 @@ That is a tester-count problem, not a workflow problem.
       `npm run observe -- --functions`. `strayCount` should fall by twelve
       and no `us-central1` line should name a Gen-1 function.
 
-- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALL, do not
-      delete.** Two functions there are
+- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALLED
+      2026-08-27 (D333), and the box stays open because `ext:list` found
+      FOUR MORE.** The `-6ct7` instance was confirmed by id via
+      `ext:list` and by the Extensions API (params:
+      `COLLECTION_PATH=Cities`, `INDEX_NAME=Cities`,
+      `LOCATION=europe-west3`), then uninstalled by calling
+      `deleteInstance` on the Extensions API directly — the same call the
+      Console's Uninstall button makes, and the one the pinned CLI's
+      `ext:uninstall` never reaches (see below). The operation completed
+      and took both `europe-west3` functions with it.
+
+      **What `ext:list` surfaced that the function census could not:**
+      four MORE `algolia/firestore-algolia-search` instances —
+      `firestore-algolia-search`, `-stream`, `-intrests`, `-courts`,
+      created 2023-09 → 2024-07 — all ACTIVE **with no deployed functions
+      anywhere**, i.e. already in exactly the "installed and broken" state
+      this box warns hand-deleting creates; the old project evidently did
+      it four times. They index nothing (their source collections lived in
+      `(default)`, deleted the same day), cost nothing here, and belong to
+      the old app — left for the owner to uninstall the same way, which is
+      why this box keeps its tick open. The Algolia-side warning below
+      still stands for all five: uninstalling does not delete the Algolia
+      indexes or revoke their API keys, and an Algolia plan may still be
+      billing outside this project.
+
+      Original record: two functions there were
       `ext-firestore-algolia-search-6ct7-*`, installed 2024-06-03, indexing
       a `Cities/{documentID}` collection in `(default)` into Algolia. No
       document in this repository mentions it.
@@ -1541,8 +1905,16 @@ That is a tester-count problem, not a workflow problem.
       It may also still be costing an Algolia plan outside this bill, and
       uninstalling does not delete the Algolia index or revoke its API key.
 
-- [ ] **5.9d The nine stranded `us-central1` copies — THIS project's, and
-      a different decision.** `rebuildAreaAggregates`,
+- [x] **5.9d The nine stranded `us-central1` copies — DELETED 2026-08-27
+      (D333), with DEPLOYMENT.md's command as written.** All nine
+      confirmed GEN_2 · nodejs22 · last deployed 2026-07-29 before the
+      command ran, and 2nd Gen again in each delete line. Their four Cloud
+      Scheduler jobs went with them, so the nightly billed work that
+      produced nothing — and that was the only thing still WRITING to
+      `(default)` (see D333's attribution) — is over. `us-central1` now
+      holds **zero functions and zero scheduler jobs**; D13's one-off
+      cleanup is finally not owed. THIS project's, and
+      a different decision from 5.9b's: `rebuildAreaAggregates`,
       `rebuildCityAggregates`, `rebuildWorldAggregates`,
       `scheduledAreaAggregates`, `scheduledCityAggregates`,
       `scheduledWorldAggregates`, `scheduledTaxonomies`, `seedTaxonomies`,
@@ -1570,8 +1942,17 @@ That is a tester-count problem, not a workflow problem.
       leftovers" step would have been one command over two unrelated
       decisions.
 
-- [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
-      the old region is empty.** The code is merged and every gate is
+- [x] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
+      the old region is empty — CLOSED 2026-08-27 (D333).** The three
+      halves closed on three different days: the deploy half on D300's
+      reading (all live functions in `europe-west1`), the build half when
+      builds 22+ shipped calling the new region (21 and earlier are
+      superseded — build 26 is in TestFlight, D324), and the confirmation
+      half today: **`us-central1` reads zero functions and zero Cloud
+      Scheduler jobs**, measured by `observe` after 5.9b and 5.9d ran.
+      The census that replaced this box's sweep clause is those two items
+      plus 5.9c, and all three are executed. Original text below.
+      The code is merged and every gate is
       green; this is the operator half, and it is the one deploy here that
       can corrupt data rather than just fail.
 
@@ -1843,7 +2224,222 @@ That is a tester-count problem, not a workflow problem.
       wishing the app served it live, that is the migration signal — and by
       then there is data worth migrating.
 
+- [ ] **5.14 The paid loop's three secrets and the Stripe webhook — the
+      whole self-serve money path, and it was on no list until D367.**
+      D313 and D315 shipped `functions/src/paid.ts` end to end: a buyer
+      composes in the app, an automated review rules on the ask, the price
+      comes off the committed rate card server-side, payment runs through
+      Stripe Checkout, and the paying webhook writes the purchase record
+      and the live question in one transaction. **Every one of those hops
+      is deployed and none of them can complete**, because three secrets
+      are unset. `DEPLOYMENT.md` § Environment has the table; what was
+      missing is any step that says to fill them in.
+
+      **The failure is deliberately quiet, which is why it needs a box.**
+      The deploy succeeds and logs a warning; bookings and reviews still
+      run. `createPaidCheckoutV2` answers `unavailable`, `stripeWebhookV2`
+      answers 503, and the closer records refund arithmetic without
+      executing it — so a buyer gets as far as an approved quote and then
+      into a dead end, and nothing pages anybody.
+
+      1. **`STRIPE_SECRET_KEY`** (GitHub → Secrets) — `sk_test_…` while
+         rehearsing, `sk_live_…` after. Checkout sessions and the closer's
+         refunds.
+      2. **`STRIPE_WEBHOOK_SECRET`** — and this one has an order to it.
+         Deploy first so `stripeWebhookV2` has a URL, add the Stripe
+         dashboard endpoint pointed at it, then store the `whsec_…` and
+         **re-run the deploy**, because the value only reaches the runtime
+         through the dotenv the deploy writes.
+
+         **Subscribe to all THREE events**, not just the obvious one:
+         `checkout.session.completed`,
+         `checkout.session.async_payment_succeeded` and
+         `checkout.session.async_payment_failed`. The checkout is created
+         without `payment_method_types`, so Stripe's dynamic methods
+         apply, and EUR's delayed ones (SEPA Direct Debit, bank transfer)
+         deliver `completed` with `payment_status: "unpaid"` and settle
+         hours or days later. Subscribing to `completed` alone leaves
+         every delayed-method buyer stuck at approved, having paid.
+      3. **`ANTHROPIC_API_KEY`** — the automated paid-question review.
+         Unset is **fail-open past the deterministic gates**, logged as
+         `paid_review_gates_only`: bookings still get approved, just
+         without the judgement half. That is the one of the three whose
+         absence does not stop the loop, which makes it the one to check
+         rather than assume.
+
+      **Rehearse on test keys before live ones.** The path has never run
+      against real Stripe. The one alert that watches it
+      (`monitoring/paid-refund-stuck.json`, 5.5) has been armed since
+      2026-09-06, so a stuck refund would now page — which says nothing
+      about whether the path works, only that its one known failure is
+      no longer silent. (Until that day it was silent twice over.)
+
+      **This step does not decide WHETHER the door ships** — that is 6.0,
+      and it comes first. If 6.0 takes shape A the door leaves the binary
+      and these secrets are still needed, because the web side is what
+      keeps selling.
+
+- [ ] **5.15 Ads need no switch of their own, and that is the design.**
+      Recorded here because its absence reads like an omission. An ad is a
+      CARD that takes no answer and produces no data; a sponsored question
+      is a QUESTION that folds into the same public aggregate everyone
+      reads (D196 keeps the two apart on purpose).
+
+      **The self-serve half of this row is gone, and this sentence said
+      otherwise for two days (D375, 2026-09-05).** It read *"since D315 a
+      self-serve ad is written by the payment webhook straight into
+      `v2_ads` at `paidad-*` ids — so turning on ads is 5.14 and nothing
+      else"*, which stopped being true when the sponsored question became
+      the one paid product: `validatePaidBooking` now refuses `kind: "ad"`
+      by name. **The ad CARD is untouched** and ships in every build —
+      `ui/AdCard.tsx`, `runSeedAds`, `v2_ads`, its rules, and
+      `check:content`'s five authoring rules. What an ad needs is a
+      CONTRACT and a row in `content/ads.json`, which is 5.14-independent:
+      no Stripe key is involved in a hand-sold card, and turning on ads is
+      therefore not 5.14 at all. D412 holds ad-network tracking deferred
+      with a trigger, and names what is not deferred (aggregate counting,
+      which `v2_attention` already does).
+
+      `content/ads.json` is the committed pen for hand contracts and is
+      **empty deliberately**: writing a row there without a contract would
+      print a company's name on a card nobody bought, which is D1's
+      no-fabrication rule pointed at money. `check:content` holds the five
+      authoring rules — text only, no tap-through, a `until` window, at
+      most one audience tag matched on the device, and the app's own
+      disclosure band. Nothing here is a launch step; it is the answer to
+      "why is there no ads step".
+
+- [ ] **5.16 The two Firebase auth emails now stand between a user and
+      the app (D414).** Ten minutes, one console, and it is not cosmetic:
+      since the wall reads `linked && !needsEmailVerify`, someone who
+      creates an account with an address **cannot open InSight at all**
+      until the confirmation mail arrives and is opened. The mail is the
+      product's front door for that door.
+
+      **THIS IS NOW A WORKFLOW, not a console visit.** Actions → **Auth
+      config** → run with `what = report only` and apply unticked. It
+      prints the live sender name and says whether it needs changing;
+      re-run with `what = sender name` and apply ticked to set it. The
+      run pauses for your approval before it touches anything, because
+      the `production` environment has required reviewers.
+
+      Written this way for the reason `asc-metadata.yml` records for the
+      store listing: the work was already decided, and what was missing
+      was a way to do it without putting a credential on a laptop.
+      `scripts/auth-config.mjs` is dry-run by default and
+      `scripts/auth-config.test.mjs` pins that a run without apply makes
+      zero writes.
+
+      **The claim this step was written on is now MEASURED rather than
+      asserted.** It said the sender name "defaults to the PROJECT ID",
+      which was read from documentation, not from the project — the exact
+      shape of the three `check:policy-claims` assertions that were stale
+      when D183 opened them. The report prints the field as it finds it,
+      so the run tells you the truth even if this paragraph is wrong.
+
+      What the workflow does NOT do, deliberately: the subject and body
+      of either mail. Those are copy, and copy goes through
+      `docs/COPY.md` and a review rather than through a flag on an
+      operator script. The sender ADDRESS
+      (`noreply@prvfire33.firebaseapp.com`) needs a verified custom domain
+      and is not worth one before launch.
+
+      **Still yours, and worth two minutes:** send yourself one of each
+      and read them on a phone. A link that 404s or an action URL
+      pointing at a renamed project is invisible from every other side
+      and total from the user's.
+
+      **What does NOT need doing.** No template edit is required for the
+      app to work, no new data is collected (Contact Info → Email Address
+      is already on the published label), and the address is verified by
+      Firebase rather than by anything in this repo — the app only asks
+      `reload()` whether the flag moved. `web/privacy.html` already says
+      the link is sent and that the app waits for it.
+
+      **The typo escape is in the app, not here.** An account created on
+      a mistyped address can never be verified and its reset mail goes to
+      the same wrong inbox, so the verify screen carries *"Use a
+      different address"*, which signs out and lets D3's anonymous
+      recovery hand the device a fresh session. Test it once on a build
+      before submitting: type a wrong address, create, and check that the
+      doors come back.
+
 ## Phase 6 — Submit
+
+- [x] **6.0 THE PAID DOOR'S SHAPE — DECIDED 2026-09-05 (D368): shape A,
+      and the door is already out of the binary.** This was the step whose
+      window closes when you submit, and it was on no list until D367.
+      [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is **ADOPTED**, not plan —
+      the owner chose A on the arithmetic below, and the removal shipped
+      the same day.
+
+      **What the code did.** The plan named one entry point
+      (`PaidMineCard`); reading the tree found **five**, so following it
+      literally would have left four live purchase calls to action in the
+      binary — the header `"+"`, the daily's footer link, a feed sheet
+      button and the overlay itself. All five are gone, with both
+      `spec/suggestions.*`, `data/suggestions.ts` and `data/paidBookings.ts`;
+      two `smoke-live` assertions are inverted from present to absent, so
+      the door cannot come back without a red suite. `AskedByYouOverlay`
+      and `CurSwitch` are kept for the web page. Three callables now have
+      no caller — retiring them is an `OWNER-LIST.md` row, not free.
+
+      **What is still owed:** the web page itself. The design is extracted
+      at `design/ask-2026-09-05/`, and its README carries the adapter
+      contract — eight names differ from `content/pricing.json`, and
+      `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
+      never from `trailingDays`. Not a submission blocker: the app ships
+      without a door either way, and the page is what turns the decision
+      into revenue.
+
+      **The reasoning is kept below as it was written**, per D106 — a
+      decision that stops being visible is one the next reader re-opens.
+      It recommends **shape A: the door is not in the app** — buying lives
+      on the web, the app keeps the results room — and gives two reasons
+      that are about timing rather than about money:
+
+      **Zero sales.** Every `booked` array in `content/pricing.json` is
+      still all zeros across city, country and world (verified 2026-09-04,
+      not assumed), so nothing migrates and no revenue is lost.
+
+      **The app has not been submitted.** The door has never been reviewed,
+      so under shape A it never has to be *removed*. Doing this after a
+      rejection costs a review cycle and a flag on the account.
+
+      **The risk it prices is a 3.1.1 anti-steering one, and it lands in
+      6.2.** The whole purchase funnel is in the binary today —
+      `SuggestOverlay` in `src/v2/spec/suggestions.jsx` is the rate card,
+      the scope ruler, the composer and the pay tap, entered from
+      `PaidMineCard` in the profile. D313's *"commerce stays on the web
+      side"* is true about where the payment form renders; the store rules
+      are about where the call to action lives, and that is the profile
+      tab. The category argument (3.1.3(e) forbids IAP for campaign
+      purchases; Play has never required its billing for ad spend) is
+      strong, and the app-shape argument is weak — a consumer app with a
+      €320 B2B door is Meta's "Boost Post" shape, and Meta lost it. **The
+      app shape is what gets reviewed.**
+
+      **And the link-out entitlement does not save it here**, which is the
+      load-bearing fact: Norway is EEA, not EU, so the DMA's link-out
+      permission likely does not apply to the first market this product
+      prices in. §7 of that plan flags it for verification and it is not
+      verified.
+
+      Shape A's build is small and scoped in §4 there — the overlay leaves
+      whole, `paidBookings.ts` goes with it, `AskedByYouOverlay` is
+      untouched because it already carries no purchase CTA. **It is a
+      decision, not a build**: record it in `DECISIONS.md` per
+      MONETIZATION.md's own rule, and the code follows in an afternoon.
+      Deciding to keep the door (shape C) is a legitimate answer and needs
+      the same record — what is not legitimate is arriving at 6.2 without
+      having chosen, because that is choosing C by default at the moment
+      it is most expensive.
+
+      *(§4's estimate held on the two counts it could check and missed the
+      one it could not: the overlay did leave whole and the code did take
+      an afternoon, but "the overlay" was four entry points short of the
+      door. A plan written from a module outwards cannot see what grew
+      inwards toward it — D368's third amendment.)*
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash
@@ -1866,7 +2462,63 @@ That is a tester-count problem, not a workflow problem.
       workflow runs it too: the privacy panel is compiled into the binary,
       so a false claim about who can read an answer ships to the phone
       rather than staying in the repo.
-- [ ] **6.2 Submit to App Store review.** Budget one rejection round on
+- [ ] **6.1b App Review Information — a demo account is now MANDATORY
+      (D414).** Ten minutes, and skipping it costs a full review round on
+      guideline 2.1 rather than on anything about the app. App Store
+      Connect → the version → **App Review Information**:
+
+      - **Sign-in required: YES.** It was NO for every build before 32,
+        truthfully. It is a lie now, and a reviewer who opens the app to
+        a wall with that box unticked files "we were unable to review"
+        without reading further.
+      - **Username / password.** A console-made user is NOT usable here:
+        it has `emailVerified: false`, so the wall holds Apple's reviewer
+        exactly where it holds everyone else, and the Firebase console
+        exposes no toggle for that flag — only the Admin SDK can set it.
+        This step therefore used to read "install the build, create an
+        account on an address you can read, open the confirmation link".
+      - **Notes**, and the 5.1.1(v) answer with them.
+
+      **ALL OF IT IS NOW ONE WORKFLOW RUN.** Actions → **Auth config** →
+      `what = demo account` (or `both`), apply ticked, and
+      `attach_build` set to the build number if it has finished
+      processing. One job mints a verified demo account through the Admin
+      SDK and hands the credential straight to App Store Connect —
+      contact fields, notes, `demoAccountRequired: true`, and the build
+      attachment.
+
+      **The password is never seen by anyone**, including you: it is
+      generated on the runner, written to a file the next step reads, and
+      gone when the runner is reclaimed. Both scripts have a test
+      asserting it never reaches a log line, the discipline `appcheck.yml`
+      applies to debug tokens. To rotate it, run the workflow again — the
+      account is reused and Apple is updated in the same run.
+
+      The four contact fields live in `design/store/listing.json` under
+      `shared.appReview`, beside the support address, for the reason every
+      other field in that file does: a diff is a better review surface
+      than a web form. `demoAccountRequired` is set from the WALL rather
+      than from whether credentials were passed, so forgetting the file
+      cannot quietly tell Apple the app opens without a sign-in — that
+      value was `false` for every build up to 32, truthfully, which is
+      exactly what makes it easy to leave alone.
+
+      **What the workflow will not do is SUBMIT.** That stays a
+      deliberate act: `asc-review.mjs` touches no `reviewSubmission`
+      resource on any path, and a test pins that it does not.
+
+- [ ] **6.2 Submit to App Store review.**
+
+      > **DO NOT SUBMIT BUILD 33.** It is uploaded and it carries the
+      > account wall, which is what it was cut to prove — and it also
+      > carries D419's sign-in defect: a user who signs in with Google is
+      > left staring at the gate until they force-quit and relaunch,
+      > because `subscribeToAuth` watched `onAuthStateChanged` and a LINK
+      > keeps the uid, so the SDK never called back. A reviewer meeting
+      > that files "the app does not work", and they would be right.
+      > **Build 34 is the first submittable build.** Anyone handed 33 on
+      > TestFlight hits the same wall — say so when you hand it over.
+ Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
       primary path is anonymous, no account is required, and Google is an
@@ -1905,6 +2557,36 @@ That is a tester-count problem, not a workflow problem.
       ships walled on purpose. The flag becomes a blocker at exactly one
       moment, which is this step.
 
+      **REVERSED 2026-09-07 (D414): the wall goes back up, and every
+      paragraph above about the drop is now history rather than
+      instruction.** D219's own condition — everyone has an account,
+      answers attributed, duplicates hard — was tested by the owner on
+      2026-09-07 by deleting their account inside the app and answering
+      again as a fresh anonymous session, one tap. It had never held.
+      `ios-release.yml` defaults `VITE_REQUIRE_SIGNIN` to `'true'` again.
+
+      So **the 4.8 answer drafted in `SHIP-CHECKLIST § hardening` is
+      retired, not deferred**: it rested on "no account is required",
+      which is false of every build this workflow now makes. Sign in with
+      Apple is BUILT and leads the gate — the exemption for an app using
+      exclusively its own account system does not apply once Google is
+      offered, so pre-building it was the cheap side of the round D219
+      told you to budget.
+
+      **5.1.1(v) is still the expensive half and is still unbudgeted.**
+      The reply, if it is asked for: the account is not gatekeeping a
+      feature, it is the unit the product is about — a daily question
+      answered by nobody in particular produces nothing the app can show
+      you back. D414 §5 has it written out, including what a wall costs
+      in installs, which is unknown here because the app has never had
+      one under measurement.
+
+      **The wall now has TWO conditions, and the second is 5.16's.** It
+      passes on `linked && !needsEmailVerify`, so an email account that
+      never opens its confirmation mail never reaches the app. Read 5.16
+      before submitting: the mail is a real dependency of the wall, and
+      the one test worth doing by hand is the mistyped-address escape.
+
       **This step used to end "…and no email or name is collected through
       it". It is deleted, and do not say it.** Google's default scopes put
       an email and a display name on the Firebase Auth record, so the
@@ -1913,7 +2595,7 @@ That is a tester-count problem, not a workflow problem.
       one it was trying to solve. `STORE-FORMS.md` has the reasoning; this
       was the third copy of the claim, after `SHIP-CHECKLIST` and the
       forms doc.
-- [ ] **6.3 [PARKED — D42] Apply for Play production access** — a three-section
+- [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — a three-section
       application, reviewed in up to ~7 days, then submit the production
       release. On the organization account (D41) nothing gates this but the
       application itself; on the personal fallback it cannot be filed until

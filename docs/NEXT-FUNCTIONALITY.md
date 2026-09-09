@@ -33,7 +33,7 @@ Two discoveries reshaped the owner's list more than any opinion could:
 | Idea | Verdict | Size | The constraint that shapes it |
 | --- | --- | --- | --- |
 | Current events | **BUILT (D231)** | S–M | Daily questions cannot retire (positional deck; D97 records the gap). The feed already has `active:false` and a topic taxonomy. |
-| Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' day-keyed id (`g_{gid}_{day}`) is the working precedent to copy. |
+| Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' composite id (`g_{gid}_{day}` when this was written; `g_{gid}_r{n}` since D426) is the working precedent to copy. |
 | Mood as the first pulse question | **Decide separately** | S on top | Mood tracking moves the store forms (Health is "not collected" today) and makes a public per-person series — both are owner decisions, not engineering. |
 | Types focus | **Build tier 1 now; tier 2 is a real decision** | M / L | Tier 1 rides data that is already public. Tier 2 (type as a breakdown dim) amends the standing "a test result is never a breakdown dim" claim (D8, `docs/data-inventory.md`). |
 | Height | **Build** — a banded anchor, the age-band pattern | M | Bands, never centimetres, server-side; the device folds and discards the number the way `locate.ts` folds coordinates. |
@@ -612,9 +612,10 @@ ordinary question, arriving through a human contract path with
 invoicing outside the repo. So: sell contract-path deals as soon as
 there is traffic worth buying; the disclosure mark + `sponsor`
 provenance + window/tag fields are the first real build (S, mostly §1's
-machinery); a self-serve in-app purchase flow is the last build (L), and
-commerce should stay on the web/contract side regardless — the app
-displays disclosed content, it does not run a checkout.
+machinery); a self-serve purchase flow is the last build (L) — **built
+at D313 (2026-08-26)**, and exactly on this note's own terms: commerce
+stayed on the web side (Stripe Checkout in the system browser; the app
+displays disclosed content and opens a URL, it still runs no checkout).
 
 ## 7 · Order of work
 
@@ -641,8 +642,10 @@ displays disclosed content, it does not run a checkout.
 
 **Not doing, restated:** facial symmetry; genetics under the current
 posture; weight/BMI without its own record; current events on the daily
-surface (blocked on an epoch-safe retire design D97 already names);
-farm-authored current events.
+surface (blocked on an epoch-safe retire design D97 already names).
+~~Farm-authored current events~~ — reversed at D351: the now lane
+writes them, from stories found by searching and corroborated across
+outlets, never from memory.
 
 ## 8 · The design handoff — what needs a designed visual, what does not
 
@@ -726,8 +729,11 @@ ratchet).
 
 **Status: design settled with the owner 2026-08-15. Step 1 of the build
 order below is SHIPPED — see [D174](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
-for the three-state control, the three-hour linger and the `until` cap.
-Everything else here is still design.** It began
+for the three-state control, the three-hour linger and the `until` cap —
+and the control has since gone back to two states on the owner's word
+([D370](DECISIONS.md#d370--near-is-a-switch-again-off-or-on-and-the-timed-option-retires)):
+off or on, the linger and the cap unchanged. Everything else here is
+still design.** It began
 as *"when you are at a party or some sort of social event you can see what
 type of persons are around you"* and was worked out over a long exchange;
 what follows is where it landed, including the two places the owner
@@ -792,16 +798,23 @@ Bands to draw, tightest first: **same room · same block · a few streets
 away.** Recency gets bands too — **"here now" · "here in the last hour"** —
 and that second one is doing real work, see the linger below.
 
-### Visibility: off · 2 hours · always
+### Visibility: off · on
 
-The owner's three-state control, and the shape that makes the always
-option safe enough to offer honestly rather than grudgingly:
+**As built.** This section said *off · 2 hours · always* from
+2026-08-15, and D174 shipped it that way; on 2026-09-05 the owner
+retired the middle state (D370 — *"near should only have off and on
+option"*). What stands is the switch, and "on" is exactly what the
+always row below described:
 
 | State | What it means |
 | --- | --- |
 | **Off** (default) | No presence doc. Turning off **deletes it immediately** — that promise may never be on a timer. |
-| **On, 2 hours** | Default when first enabled. The beat stops at the deadline. |
-| **On, always** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+| **On** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+
+The two-hour row is gone, not folded in: a timed promise was a promise
+about when you stop being visible, and the owner had already pushed
+back on time-boxing at all (D174 §1). The linger below is what bounds
+the position now, and it always was.
 
 Two properties hold in every state:
 
@@ -822,11 +835,16 @@ would open Near at a party and see an empty room, because everyone else's
 app is shut. The feature would be dead on arrival. Find My and Snap Map
 keep a last-known position for exactly this reason.
 
-The machinery exists: `PRESENCE_TTL_MIN` (10 today) is the server's
-freshness window, so the linger is **one constant**.
+The machinery exists, and the linger is **one constant**. **Done at
+D174**, like the subsection beside it and like this section's own build
+order says at step 1 — this paragraph alone kept the pre-D174 wording.
+The constant is `PRESENCE_LINGER_MIN = 180` (`functions/src/pure.ts`);
+`PRESENCE_TTL_MIN`, named here as "10 today", was renamed in the same
+record and does not exist.
 
-**Set it to about 3 hours**, per the owner's "slightly longer" — long
-enough that a venue stays populated between pocket-checks, short enough
+What it asked for, and what shipped: **about 3 hours**, per the owner's
+"slightly longer" — long enough that a venue stays populated between
+pocket-checks, short enough
 that closing the app in bed does not leave you at home all night. It is
 one number and should be re-tuned from real use rather than defended.
 
@@ -891,6 +909,7 @@ of strangers.
    `presenceBeat` returns early on `document.hidden`. What shipped beside
    the control and the linger is `until` on the presence doc, so the timed
    option is exact rather than approximate, capped in `firestore.rules`.
+   The control went back to two states at D370; `until` and its cap stay.
 2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
    ([D175](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
    It was not a constant: the old ~1 km cell was the ceiling of the COARSE

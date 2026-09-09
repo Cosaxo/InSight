@@ -60,18 +60,20 @@ thread has to belong to one question.
 **World takes (D83, adopting D78 part 2) mount behind a post-vote
 toggle** on live world cards and the live daily — after your own blind
 vote, never before, because reading the discourse before answering is
-the same leak at world scale. They are anonymous (no author names
-rendered; the sentinel gid "world", one take per person per question via
-the `qid_uid` doc id), flaggable by any signed-in user, and carry the
-local mute control (`data/mutes.ts`) guideline 1.2 expects of a
-world-scale UGC surface.
+the same leak at world scale. They carry the sentinel gid "world" and one
+take per person per question via the `qid_uid` doc id, they are flaggable
+by any signed-in user, and they carry the local mute control
+(`data/mutes.ts`) guideline 1.2 expects of a world-scale UGC surface.
+They are NAMED — this sentence called them anonymous until 2026-08-31,
+which stopped being true at D98.
 
 **The client is done.** What remains is neither a screen nor a callable:
 the low-privilege Routine and the maintainer's answers to the open
 questions at the end. Until the Routine lands, the only verdict source
 is a MOD_UIDS operator acting by hand — with enforcement live, that hand
-now really hides, bounded per run by `MOD_RUN_CAP`. The policy and
-threat model below remain the contract.
+now really hides, bounded by one verdict per invocation and one verdict
+per take per queue generation. The policy and threat model below remain
+the contract.
 
 ## The job in one sentence
 
@@ -125,11 +127,13 @@ npm run mod:queue -- --escalate <takeId>
 npm run mod:queue -- --remove <takeId> --line H3
 ```
 
-**One verdict per invocation, deliberately.** `MOD_RUN_CAP` bounds a run's
-blast radius on the server and the caller keeps the matching shape — there
-is no bulk mode and no "remove everything over N flags", because a tool
-that can clear the queue in one command is a tool that eventually will, and
-confinement is the whole of D22's design. The `runId` is generated per
+**One verdict per invocation, deliberately.** This IS the blast-radius
+bound — there is no bulk mode and no "remove everything over N flags",
+because a tool that can clear the queue in one command is a tool that
+eventually will, and confinement is the whole of D22's design. (`MOD_RUN_CAP`
+was described here as the bound and is not: the per-invocation `runId`
+below means the server's per-run counter always reads zero. See the cap's
+own note in `functions/src/moderation.ts`.) The `runId` is generated per
 invocation rather than accepted as a flag: one somebody can choose is one
 somebody can reuse.
 

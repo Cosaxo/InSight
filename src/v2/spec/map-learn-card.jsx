@@ -3,9 +3,15 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import LIVE from '../data/live.ts';
-import { LEARN_RATE } from './learn-data.js';
+// The LIVE import went with the dead `est && LIVE.enabled` conjunction:
+// this file asks LEARN_RATE what kind of number it has, and the store has
+// already answered that inside it. Not kept as a side-effect edge —
+// live.ts is in the entry graph regardless, so this import ordered
+// nothing (check:globals refuses an unused binding, which is how the
+// removal got asked for).
+import { LEARN_COUNTS, LEARN_RATE } from './learn-data.js';
 import { LEARN } from './learn-progress.js';
+import { LMStreak } from './learn-bits.jsx';
 
 // map-learn-card.jsx — the two cards the map shows for knowledge, as opposed to
 // opinion. An opinion node answers "what do you think, and who agrees"; a
@@ -13,7 +19,7 @@ import { LEARN } from './learn-progress.js';
 // card carries one bar — the share of the crowd who get this right — and nothing
 // else. If you had to earn it back from a miss, three filled dots say so.
 
-function MTLearnCard({ node }) {
+export function MTLearnCard({ node }) {
   const card = node.cid ? LEARN.card(node.cid) : null;
   if (!card) return null;
   const f = LEARN.field(card.f);
@@ -31,13 +37,25 @@ function MTLearnCard({ node }) {
   // card has been answered by somebody, and this card draws no bar and
   // makes no claim until then — the fact is on your map either way, which
   // is what this card is actually for.
-  const none = rate.pct == null;
+  // Three states behind one missing number, and only two had copy. A
+  // read still in the air is not a fact about the card — see LEARN_RATE.
+  const loading = rate.src === 'loading';
+  // A SINGLE FIRST TRY IS NOT A CROWD, and on this card it is YOUR OWN: a
+  // learn card only reaches the Map once you have mastered it, and
+  // LEARN_COUNTS folds in your own pending answer. So "100% of people get
+  // this right" was one person, about themselves, in the sentence this
+  // card exists to print. The feed's reveal footer already refuses at this
+  // exact number; these consumers came in at D133 and never got that
+  // guard. Folded into `none`, whose copy — "Nobody else has answered this
+  // one yet." — is already the true sentence here.
+  const thin = rate.src === 'measured' && ((LEARN_COUNTS(card) || {}).total || 0) < 2;
+  const none = (rate.pct == null || thin) && !loading;
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>
       <div className="mmt-kicker"><span className="mmt-dot"></span>{(s ? s.label + ' \u00b7 ' : '') + (f ? f.label : '')}</div>
       <div className="mmt-title" style={{ marginTop: 4 }}>{card.k}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 12 }}>
-        {!none ? (
+        {!none && !loading ? (
           <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'color-mix(in oklch, var(--surface-3), transparent 25%)', overflow: 'hidden' }}>
             <i style={{ position: 'absolute', inset: '0 auto 0 0', width: rate.pct + '%', borderRadius: 99, background: 'oklch(0.52 0.14 var(--hue))', opacity: est ? 0.55 : 1 }}></i>
           </div>
@@ -46,15 +64,25 @@ function MTLearnCard({ node }) {
           {/* "about" carries the hedge in the sentence itself, so the number
               is never alone on the screen making a claim it cannot support.
               Only in the DEMO now: a live build has no estimate to hedge
-              (D149), and says plainly that nobody else has answered yet. */}
+              (D149), and says plainly that nobody else has answered yet.
+
+              …AND `est` ALONE IS WHAT SAYS "demo". This read
+              `est && LIVE.enabled`, which is never both: LEARN_RATE
+              returns src 'estimate' ONLY where `learnLive()` is false, so
+              the conjunction was unreachable and the demo fell through to
+              the unhedged arm — printing the bank's authoring difficulty
+              hint as "71% of people get this right", which is the one
+              thing the comment above says it never does. */}
           <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-            {none
+            {loading
+              ? 'Counting\u2026'
+              : none
               ? 'Nobody else has answered this one yet.'
-              : est && LIVE.enabled
+              : est
                 ? 'about ' + rate.pct + '% get this right \u2014 our estimate'
                 : rate.pct + '% of people get this right'}
           </span>
-          {earned && window.LMStreak ? <window.LMStreak k={3} of={3} col={'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')'}></window.LMStreak> : null}
+          {earned ? <LMStreak k={3} of={3} col={'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')'}></LMStreak> : null}
         </div>
       </div>
     </div>
@@ -62,7 +90,7 @@ function MTLearnCard({ node }) {
 }
 
 // a field you hold part of — the arc, then the facts themselves
-function MTLearnSubCard({ node, rows, onPick }) {
+export function MTLearnSubCard({ node, rows, onPick }) {
   const f = node.fid ? LEARN.field(node.fid) : null;
   const s = f ? LEARN.subject(f.subject) : null;
   const stats = f ? LEARN.stats(f.id) : { known: 0, total: 0 };
@@ -89,7 +117,4 @@ function MTLearnSubCard({ node, rows, onPick }) {
   );
 }
 
-Object.assign(window, { MTLearnCard, MTLearnSubCard });
 
-;globalThis.MTLearnCard = typeof MTLearnCard === 'undefined' ? globalThis.MTLearnCard : MTLearnCard;
-;globalThis.MTLearnSubCard = typeof MTLearnSubCard === 'undefined' ? globalThis.MTLearnSubCard : MTLearnSubCard;

@@ -40,7 +40,7 @@
 // is the real module — the README's rule: mock the store, never the pure
 // folds, or the test stops proving the panel reads them correctly.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { KindredPerson, ParsedResults } from "../data/similarity";
 import { agreementOf } from "../data/cohort";
 
@@ -48,7 +48,16 @@ interface RoomRead { people: Array<{ uid: string; type?: string }>; qs: Record<s
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
-  subscribe: () => () => {},
+  budgetPaused: false as boolean,
+  // Real, because the re-fold case below drives a beat through it: the
+  // field re-renders on notify, which is how a new `updatedAt` reaches its
+  // effect.
+  listeners: [] as Array<() => void>,
+  subscribe(fn: () => void) {
+    this.listeners.push(fn);
+    return () => { this.listeners = this.listeners.filter((f) => f !== fn); };
+  },
+  notify() { for (const f of [...this.listeners]) f(); },
   loadSimilarity: vi.fn(() => Promise.resolve()),
   // D278: the City stop asks for its own city-scoped pass beside the
   // unscoped one. Stubbed rather than exercised here — this file is about
@@ -56,6 +65,8 @@ const LIVE = vi.hoisted(() => ({
   loadCityKindred: vi.fn(() => Promise.resolve()),
   loadNames: vi.fn(() => Promise.resolve()),
   similarityLoading: (): boolean => false,
+  testAggsState: (): "loading" | "ready" | "failed" => "ready",
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
   kindredLoading: (): boolean => false,
   kindredPeople: (): KindredPerson[] => [],
   myCity: "Oslo, NO",
@@ -65,12 +76,22 @@ const LIVE = vi.hoisted(() => ({
   aggFor: (() => null) as (qid: string) => unknown,
   scoresFor: (() => null) as (uid: string) => ParsedResults | null,
   isFollowing: (() => false) as (uid: string) => boolean,
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  // The city scope loads BOTH halves of the kindred pool now — the
+  // general fan-out moved here out of `loadSimilarity`, which was paying
+  // it for Country and World too.
+  loadKindred: vi.fn(async () => {}),
+  follows: () => null as string[] | null,
   setFollowing: vi.fn(() => Promise.resolve()),
   near: {
     on: (): boolean => true,
     room: (): RoomRead | null => null,
     roomLoading: (): boolean => false,
     loadRoom: vi.fn(() => Promise.resolve()),
+    updatedAt: (): number => 0,
   },
 }));
 
@@ -149,7 +170,10 @@ function tightestGap(pts: Array<{ a: number }>): number {
 
 beforeEach(() => {
   LIVE.enabled = true;
+  LIVE.budgetPaused = false;
   LIVE.similarityLoading = () => false;
+  LIVE.testAggsState = () => "ready";
+  LIVE.kindredState = () => "ready";
   LIVE.kindredLoading = () => false;
   LIVE.kindredPeople = () => [];
   LIVE.myCity = "Oslo, NO";
@@ -162,6 +186,11 @@ beforeEach(() => {
   LIVE.near.on = () => true;
   LIVE.near.room = () => null;
   LIVE.near.roomLoading = () => false;
+  // Restored per case because the read-in-flight case below replaces it
+  // with a promise it holds open; leaving that in place made the NEXT
+  // case's field wait forever for names, which is a fixture leak rather
+  // than a finding about the component.
+  LIVE.loadNames = vi.fn(() => Promise.resolve());
 });
 afterEach(cleanup);
 
@@ -317,13 +346,118 @@ describe("the Near field is a crowd, never a directory", () => {
     }
   });
 
-  it("counts who it could place against who is there, rather than quietly dropping them", () => {
+  it("does not pay the similarity load for data it never reads", () => {
+    // The loader was right while this field drew the city's crowd. D181
+    // replaced the body with the presence roster and left the effect: ~110
+    // test aggregates plus twelve collection-group answer reads, charged
+    // to a viewer who opened Near and may never open the stops that read
+    // them. Everything this component draws comes from the room call and
+    // loadNames.
+    (LIVE.loadSimilarity as ReturnType<typeof vi.fn>).mockClear();
+    render(<NearField />);
+    expect(LIVE.loadSimilarity).not.toHaveBeenCalled();
+    // …and the two loads it DOES need are still made, or this would pass
+    // on a component that fetched nothing at all.
+    expect(LIVE.near.loadRoom).toHaveBeenCalled();
+    expect(LIVE.loadNames).toHaveBeenCalled();
+  });
+
+  it("counts who it could place against who is there, rather than quietly dropping them", async () => {
     render(<NearField />);
     // "2 of 3 here" — the person with no test is missing from the ring and
     // the caption is where that is admitted (D112 honesty rule 2: a number
     // stays attached to what it counts).
-    expect(screen.getByText(/2 of 3 here/)).toBeTruthy();
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    //
+    // AWAITED, because the caption is a claim about people whose profiles
+    // are still being fetched on the first frame. `untested` is held at 0
+    // until the roster's names resolve, so this reads the settled frame —
+    // which is the one a reader sees for anything but an instant.
+    expect(await screen.findByText(/2 of 3 here/)).toBeTruthy();
+    expect(screen.getByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
+  });
+
+  it("says Matching, not 'nobody has taken the test', while the room is being read", async () => {
+    // THE FLAG ITSELF. `scoresFor` answers null for "fetched, has none" and
+    // "never fetched" alike, and the roster's profiles are fetched after
+    // first paint — so before this the stop's LANDING surface told a room
+    // of six that none of them had taken a test, for the length of one
+    // round trip, when all six may have.
+    const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => null;
+    let release: () => void = () => {};
+    LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
+    render(<NearField />);
+    expect(screen.getByText(/Matching/), "the room was blamed before it was read").toBeTruthy();
+    expect(screen.queryByText(/Nobody here has taken a test yet/)).toBeNull();
+    // …and once the fetch lands, the absence is a real one and is stated.
+    await act(async () => { release(); });
+    expect(screen.getByText(/Nobody here has taken a test yet/)).toBeTruthy();
+  });
+
+  it("does not tell a room that people who took the test have not", async () => {
+    // The field draws the closest fourteen; the server hands back up to
+    // twenty-four. The caption gave ONE reason for both — "the rest have
+    // not taken it" — so a room of twenty people who had all taken it drew
+    // fourteen and said the other six had not. About six people standing
+    // next to the reader.
+    const room = Array.from({ length: 20 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => big5(50, 50, 50, 52, 48);
+    render(<NearField />);
+    // Settle FIRST. While the profile read is in flight the caption is
+    // silent by design, so asserting its absence before that would pass
+    // on the loading state rather than on the fix.
+    expect(await screen.findByText(/closest 14 of 20 who have/)).toBeTruthy();
+    expect(screen.queryByText(/have not taken it/)).toBeNull();
+  });
+
+  it("does not count people still being fetched as people without a test", async () => {
+    // The caption half of the same conflation, and it needs a room that
+    // DRAWS — the arm above only fires when nobody is placeable, so a
+    // partially-read room is where the "the rest…" clause appears
+    // while the rest are simply not back yet.
+    const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    let release: () => void = () => {};
+    LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
+    render(<NearField />);
+    expect(screen.queryByText(/the rest have not taken one, or share too few axes with yours/),
+      "four people were called untested while their profiles were in flight").toBeNull();
+    await act(async () => { release(); });
+    expect(screen.getByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
+  });
+
+  it("still says so when people really have not taken it", async () => {
+    // The contrast, or the case above would pass on a caption that simply
+    // stopped mentioning the untested. Awaited for the same reason.
+    const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    render(<NearField />);
+    expect(await screen.findByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
+    expect(screen.queryByText(/closest/)).toBeNull();
+  });
+
+  it("asks for the room again when the beat moves it underneath the field", async () => {
+    // The other half of the same defect the room TABS were fixed for, on
+    // the surface that matters more: the tab bodies exist only once a tab
+    // is tapped, and this is what the stop opens on. Mounted with an empty
+    // dep list it drew the block you had walked out of, under a headcount
+    // that moved with every beat.
+    LIVE.near.updatedAt = () => 1;
+    LIVE.near.loadRoom.mockClear();
+    render(<NearField />);
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    LIVE.near.updatedAt = () => 2;
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(2);
+    // …and a beat that did not move must not re-ask, or the dep is a call
+    // per beat wearing a dep.
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(2);
+    LIVE.near.updatedAt = () => 0;
   });
 
   it("places nobody at all when the viewer has no scores to place them against", () => {
@@ -333,6 +467,62 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.myTestResults = () => null;
     const { container } = render(<NearField />);
     expect(nodes(container)).toHaveLength(0);
+  });
+
+  it("does not say nobody has taken a test to a room where everybody has", async () => {
+    // THE THIRD REASON. `scoreMatch` returns null below MIN_PLACE_AXES (3)
+    // shared axes, and `flattenAxes` keys an axis `${kind}:${dim}` — so
+    // the four instruments share NO axis id. A viewer who has taken only
+    // Big Five overlaps a Politics-only room on nothing, every one of them
+    // drops out of `placeable`, and the stop's landing surface said none
+    // of them had taken a test. All three here have.
+    //
+    // Not a fixture curiosity: it is what a reader meets whenever the room
+    // took a different instrument than they did, which the app never asks
+    // anyone to avoid.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => ({ political: { econ: 40, soc: 60, env: 50, glob: 45, auth: 55, trad: 35 } });
+    LIVE.myTestResults = () => rawBig5(50, 50, 50, 50, 50);
+    render(<NearField />);
+    expect(
+      await screen.findByText(/shares enough axes with your tests yet/),
+      "a room that has all taken a test was told nobody had",
+    ).toBeTruthy();
+    expect(screen.queryByText(/has taken a test yet/)).toBeNull();
+    // The room is still offered, because the people are the product even
+    // when the likeness is not computable.
+    expect(screen.getByText(/3 in the room/)).toBeTruthy();
+  });
+
+  it("…and DOES say it when the room genuinely has no scores", async () => {
+    // THE CONTROL. Without it, the case above passes just as well on a
+    // component that had stopped saying "has taken a test" at all.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => null;
+    LIVE.myTestResults = () => rawBig5(50, 50, 50, 50, 50);
+    render(<NearField />);
+    // Awaited for the same reason its sibling above is: the first frame is
+    // "Matching…" until the roster's profiles resolve, and the claim about
+    // the room is only made once the room has been read.
+    expect(await screen.findByText(/Nobody here has taken a test yet/)).toBeTruthy();
+    expect(screen.queryByText(/shares enough axes/)).toBeNull();
+  });
+
+  it("and says whose turn it is — the room is not to blame for the viewer's own state", () => {
+    // The case above never looked at the sentence, and the sentence blamed
+    // the room: "Nobody here has taken a test yet", in a room where two of
+    // the three had, to a reader who simply has not taken it yet. That is
+    // the state every account is in before its first instrument, so it is
+    // the most common thing this field has ever said.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    LIVE.myTestResults = () => null;
+    render(<NearField />);
+    expect(screen.getByText(/Finish a test/)).toBeTruthy();
+    expect(screen.queryByText(/Nobody here has taken a test yet/)).toBeNull();
   });
 });
 
@@ -389,6 +579,89 @@ describe("a position is a claim", () => {
     expect(screen.getByText(/1 more country answered/)).toBeTruthy();
   });
 
+  it("says how many countries the chip list is not showing", () => {
+    // THE BRANCH EVERY ACCOUNT IS IN BEFORE ITS FIRST TEST RESULT. With no
+    // scores of your own, nothing can be POSITIONED — so the field falls
+    // back to a row of chips, capped at PLACE_FIELD_CAP (24). Both
+    // disclosure lines are gated off here: `thin`'s on
+    // `positioned.length > 0`, and `capped` is 0 by construction, because
+    // reaching this branch means nothing was placeable at all.
+    //
+    // So thirty countries answered, twenty-four chips were drawn, and the
+    // list read as all of them — which is precisely what the comment above
+    // the `capped` line forbids, two lines from where it happened: "a cap
+    // that silently eats rows reads as 'that is all of them'."
+    LIVE.myTestResults = () => null;
+    LIVE.myVotes = () => ({});
+    const many = ["US", "GB", "NO", "SE", "DK", "FI", "DE", "FR", "ES", "IT",
+      "NL", "BE", "PL", "CZ", "AT", "CH", "IE", "PT", "GR", "CA",
+      "AU", "NZ", "JP", "KR", "BR", "AR", "MX", "ZA", "IN", "CN"];
+    LIVE.aggFor = () => ({
+      by: { country: Object.fromEntries(many.map((c) => [c, { "2": 5 }])) },
+    });
+    render(<SimilaritySection scope="world" />);
+
+    // The precondition, asserted rather than assumed: this is the chip
+    // fallback, not the positioned field.
+    expect(
+      screen.getByText(/Finish a test and these take their places/),
+      "the field positioned them — this case is about the branch that cannot",
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/6 more countries answered, not shown here/),
+      "six countries were dropped from the list with nothing saying so",
+    ).toBeTruthy();
+  });
+
+  it("…and says nothing when the list is complete", () => {
+    // THE CONTROL. A line that always draws is as wrong as one that never
+    // does — under the cap there is no overflow to disclose.
+    LIVE.myTestResults = () => null;
+    LIVE.myVotes = () => ({});
+    LIVE.aggFor = () => ({ by: { country: { NO: { "2": 5 }, SE: { "2": 5 } } } });
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Finish a test and these take their places/)).toBeTruthy();
+    expect(
+      screen.queryByText(/not shown here/),
+      "a complete list claimed to be hiding something",
+    ).toBeNull();
+  });
+
+  it("says the read FAILED rather than that no country has answered", () => {
+    // The largest population claim the app makes, and it was being made
+    // out of an error: `similarityLoading()` is false again the moment
+    // `loadSimilarity()` returns — including when it threw — so a failed
+    // read drew "No country has answered a score question yet" as a
+    // finding, for the life of the mount.
+    LIVE.similarityLoading = () => false;
+    LIVE.testAggsState = () => "failed";
+    LIVE.aggFor = () => null;
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Couldn’t read the scores here/)).toBeTruthy();
+    expect(screen.queryByText(/No country has answered/)).toBeNull();
+  });
+
+  it("still says nobody has answered when the read SUCCEEDED and found nothing", () => {
+    // THE CONTROL. Without it, drawing the failure sentence unconditionally
+    // passes the case above — and a real empty world would be reported as
+    // a broken read, which is the same lie pointed the other way.
+    LIVE.similarityLoading = () => false;
+    LIVE.testAggsState = () => "ready";
+    LIVE.aggFor = () => null;
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/No country has answered a score question yet/)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read the scores/)).toBeNull();
+  });
+
+  it("says it is still reading while the read is in flight", () => {
+    LIVE.similarityLoading = () => false;
+    LIVE.testAggsState = () => "loading";
+    LIVE.aggFor = () => null;
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Reading profiles…/)).toBeTruthy();
+    expect(screen.queryByText(/No country has answered/)).toBeNull();
+  });
+
   it("lists every place as a chip, unpositioned, when the viewer has no axes", () => {
     LIVE.myVotes = () => ({});
     LIVE.aggFor = () => ({ by: { country: { NO: { "2": 5 } } } });
@@ -410,6 +683,51 @@ describe("an empty field draws the ring anyway (D160)", () => {
     expect(screen.getByText("you")).toBeTruthy();
     expect(nodes(container)).toHaveLength(0);
     expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
+  });
+
+  it("says the READ FAILED, not 'Nobody from Oslo yet'", () => {
+    // `kindredLoading` is false again the moment the run RETURNS, and
+    // loadVoters swallows each query's failure and leaves the list
+    // absent — so twelve queries that all threw look exactly like a city
+    // nobody has answered from. The Country and World fields were fixed
+    // for this one fold over; those read published cells, this one reads
+    // people, so it takes the people twin of that reader.
+    LIVE.kindredLoading = () => false;
+    LIVE.kindredState = () => "failed";
+    render(<SimilaritySection scope="city" />);
+    expect(screen.getByText(/Couldn’t read the crowd here/)).toBeTruthy();
+    expect(screen.queryByText(/Nobody from Oslo yet/)).toBeNull();
+  });
+
+  it("still says nobody is here when the read SUCCEEDED and found nobody", () => {
+    // THE CONTROL. Drawing the failure sentence unconditionally passes the
+    // case above while telling a genuinely quiet city that the app is
+    // broken — the same lie pointed the other way.
+    LIVE.kindredLoading = () => false;
+    LIVE.kindredState = () => "ready";
+    render(<SimilaritySection scope="city" />);
+    expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read the crowd/)).toBeNull();
+  });
+
+  it("says PAUSED before it says the read failed — the breaker did not try", () => {
+    // Order matters between the two refusals: under the breaker nothing
+    // was attempted, so "couldn't read" would name a failure that never
+    // happened. Paused wins.
+    LIVE.budgetPaused = true;
+    LIVE.kindredState = () => "failed";
+    render(<SimilaritySection scope="city" />);
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read the crowd/)).toBeNull();
+  });
+
+  it("says PAUSED, not 'Nobody from Oslo yet', under the read breaker (D332)", () => {
+    // The kindred pool this row folds was refused, so the city sentence
+    // would claim an emptiness nothing measured.
+    LIVE.budgetPaused = true;
+    render(<SimilaritySection scope="city" />);
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/Nobody from Oslo yet/)).toBeNull();
   });
 
   it("names nothing to a screen reader while there is nobody on it (D244)", () => {

@@ -18,6 +18,11 @@ const LIVE = vi.hoisted(() => ({
   circle: () => null as Array<{ uid: string; name: string }> | null,
   loadCircle: vi.fn(async () => {}),
   isFollowing: (uid: string) => { void uid; return false; },
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  follows: () => null as string[] | null,
   setFollowing: vi.fn(async (uid: string, on: boolean) => { void uid; void on; }),
   nameFor: (uid: string) => ({ u_ada: "Ada Lovelace", u_me: "Me" }[uid] || ""),
   faceFor: (uid: string) => { void uid; return ""; },

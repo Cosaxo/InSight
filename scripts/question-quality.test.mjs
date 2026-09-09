@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
+  loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom, installDocs,
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
   windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit, BG_MIN, BG_MAX,
@@ -178,6 +178,26 @@ describe("checkQuestion (Crossroads shape and axes)", () => {
     expect(flatWalks(live.find((q) => q.id === "pt2"))).toBe(8);
     expect([...PATH_AXIS_LEGACY.keys()]).toEqual(["pt1", "pt2"]);
   });
+
+  it("the waived stories are retired, and every story still served turns three axes on every walk", () => {
+    // D413: the owner retired the two flat stories rather than keep
+    // serving them under the waiver. Pinned both ways — a retired row must
+    // stay in the bank (the seed and the deck read the flag there, and the
+    // genre ratchet still counts it as a predecessor), and the waiver must
+    // not quietly widen to cover a story a reader can actually meet.
+    const live = corpus.feed.questions.filter((q) => q.type === "path");
+    for (const id of PATH_AXIS_LEGACY.keys()) {
+      const q = live.find((x) => x.id === id);
+      expect(q, `${id} left the bank — retire with active:false, never delete`).toBeTruthy();
+      expect(q.active, `${id} is served under the axis waiver`).toBe(false);
+    }
+    const served = live.filter((q) => q.active !== false);
+    expect(served.length).toBeGreaterThanOrEqual(3);
+    for (const q of served) {
+      expect(PATH_AXIS_LEGACY.has(q.id), `${q.id} is served AND waived`).toBe(false);
+      expect(checkQuestion(q, "feed", corpus).errs.filter((e) => e.rule === "axis-spread"), q.id).toEqual([]);
+    }
+  });
 });
 
 describe("the Crossroads genre ratchet", () => {
@@ -244,6 +264,21 @@ describe("checkQuestion (feed continuum shapes)", () => {
     expect(checkQuestion(dial({ dist: [1, 2, 3] }), "feed", corpus, TEX).errs.some((e) => e.rule === "dist")).toBe(true);
     expect(checkQuestion(dial({ dist: Array(DIAL_BUCKETS).fill(0) }), "feed", corpus, TEX).errs.some((e) => e.rule === "dist")).toBe(true);
     expect(checkQuestion(dial({ options: ["Low", "High"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "type-shape")).toBe(true);
+  });
+
+  it("holds a dial to a whole unit per bucket, and lets a retired one stand (D358)", () => {
+    // 17–23 h is the dinner dial that shipped: a half-hour step whose
+    // synthesized labels read "18–18 h". 1–4 hrs is the concert dial —
+    // a quarter-hour step nothing integer can print.
+    expect(checkQuestion(dial({ lo: 17, hi: 23, unit: "h", med: 19 }), "feed", corpus, TEX).errs.some((e) => e.rule === "step")).toBe(true);
+    expect(checkQuestion(dial({ lo: 1, hi: 4, unit: "hrs", med: 2 }), "feed", corpus, TEX).errs.some((e) => e.rule === "step")).toBe(true);
+    // Exactly one unit per bucket is the floor, not a failure.
+    expect(checkQuestion(dial({ lo: 12, hi: 24, unit: "h", med: 19 }), "feed", corpus, TEX).errs).toEqual([]);
+    // The rule is what retired the cramped ones; they stay in the bank
+    // with active:false so the seed reads the flag, and stay green here.
+    expect(checkQuestion(dial({ lo: 17, hi: 23, unit: "h", med: 19, active: false }), "feed", corpus, TEX).errs).toEqual([]);
+    // A lo ≥ hi range is the `range` rule's, not this one's.
+    expect(checkQuestion(dial({ lo: 90, hi: 40 }), "feed", corpus, TEX).errs.some((e) => e.rule === "step")).toBe(false);
   });
 
   it("demands the scale be labelled — a unit or two end labels", () => {
@@ -423,6 +458,40 @@ describe("the corpus itself", () => {
     // failure IS the tripwire asking for the recorded decision (id scheme,
     // or D30's bank pagination).
     expect(checkHeadroom(corpus).errs).toEqual([]);
+  });
+
+  // …AND A PARSER THAT REFUSES MUST SAY SO, not read zero.
+  //
+  // `install` was 0 when `bankArray` threw, so `0 >= INSTALL_WARN` was
+  // false and the one tripwire watching the first fetch could not fire on
+  // the very path where the numbers are least trustworthy. The wire-size
+  // estimate beside it kept a regex fallback and carried on regardless —
+  // and that asymmetry is precisely what the retired BANK_FAIL/BANK_WARN
+  // pair did not have: they counted a size that survived a parse failure,
+  // so they still fired through one. D197's shape, one function over.
+  it("says the install count could not be computed when the bank will not parse", () => {
+    const { warn } = checkHeadroom(corpus, { contentSrc: "export const V2_QUESTIONS = [ this is not typescript" });
+    expect(warn.join(" ")).toMatch(/install-fetch count could not be computed/);
+  });
+
+  it("…and says nothing of the kind on a bank that parses — the control", () => {
+    const { warn } = checkHeadroom(corpus);
+    expect(warn.join(" ")).not.toMatch(/could not be computed/);
+  });
+
+  it("no bank size can fail the gate — the install fetch only warns (D350 amendment)", () => {
+    // "Does youtube have a limit to how many videos can exist?" A seeded
+    // bank of any size is not a failure. What a fresh device is handed
+    // WHOLE warns at INSTALL_WARN; the paged surfaces never count.
+    const rows = [
+      ...Array.from({ length: 50000 }, (_, i) => ({ id: `feed-x${i}`, surface: "feed", core: false })),
+      ...Array.from({ length: 50000 }, (_, i) => ({ id: `learn-x${i}`, surface: "learn" })),
+      { id: "daily-001", surface: "daily" },
+      { id: "feed-c1", surface: "feed", core: true },
+    ];
+    expect(installDocs(rows)).toBe(2);
+    const { errs } = checkHeadroom(corpus);
+    expect(errs.filter((e) => /bank|install|MB/.test(e))).toEqual([]);
   });
 });
 
@@ -910,5 +979,28 @@ describe("the background field", () => {
     for (const q of withBg) {
       expect(bgErrs(q), q.id).toEqual([]);
     }
+  });
+});
+
+describe("the subtopic tag (D425)", () => {
+  const sport = (over = {}) => ({ surface: "feed", type: "vote", cat: "sport", prompt: "Best surface for tennis?", options: ["Clay", "Grass"], ...over });
+
+  it("accepts a committed leaf under the question's own home", () => {
+    expect(checkQuestion(sport({ sub: "sub_tennis" }), "feed", corpus).errs.filter((e) => e.rule === "sub")).toEqual([]);
+  });
+
+  it("refuses a leaf that is not committed — the vocabulary is closed", () => {
+    const { errs } = checkQuestion(sport({ sub: "sub_padel" }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "sub" && /not a committed subtopic leaf/.test(e.msg))).toBe(true);
+  });
+
+  it("refuses a leaf under another parent — a leaf is a part of its parent", () => {
+    const { errs } = checkQuestion(sport({ cat: "food", prompt: "Best pre-match meal?", sub: "sub_tennis" }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "sub" && /not of this question's home/.test(e.msg))).toBe(true);
+  });
+
+  it("refuses the tag repeated as a door", () => {
+    const { errs } = checkQuestion(sport({ sub: "sub_tennis", also: ["sub_tennis"] }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "sub" && /repeats in `also`/.test(e.msg))).toBe(true);
   });
 });

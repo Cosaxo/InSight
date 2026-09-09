@@ -16,8 +16,11 @@
 // below that reached a surface through the picker now reaches it through the
 // profile, which is where those surfaces live.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { cwd } from "node:process";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
 import { openHeaderOverlay,
   expectOpened, mountApp, openVia, registerSmokeHooks, SMOKE_TIMEOUT_MS,
@@ -79,43 +82,11 @@ describe("the overlays with no button — opened through the nav registry", () =
     }
   });
 
-  it("opens the ask-a-question door", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    // "ask a question" since D288 §1 retired the community board — the
-    // door is the paid path alone, and the title says what the room is.
-    expectOpened(/ask a\s*question/i, "suggest overlay");
-    expectNoBoundary("suggest overlay");
-  });
-
-  // The door's honesty arithmetic (D288 §3, D167): everything it prints
-  // comes from the COMMITTED content/pricing.json, and the committed card
-  // is the empty-ledger fold — every idx at floor, every day open, no
-  // completed campaign. So the board must say "tomorrow" three times and
-  // never the design's mocked demand, and the composer must state the
-  // no-forecast line and a contract sheet without the estimate clause.
-  // This is the only test that executes the composer path at all.
-  it("the composer prints the committed card and withholds every forecast", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    expect(screen.getAllByText(/next open tomorrow/i)).toHaveLength(3);
-    expect(document.body.textContent).not.toMatch(/contested|12 Sep/);
-    // into the composer — the accessible name needs the "+", because the
-    // header's compose icon answers to the bare phrase too
-    fireEvent.click(screen.getByRole("button", { name: /^\+ Ask a question$/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Sunrise or sunset/i), { target: { value: "Ferry or bridge?" } });
-    fireEvent.change(screen.getByPlaceholderText("Option 1"), { target: { value: "Ferry" } });
-    fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
-    expect(screen.getByText(/No completed campaign here yet — no forecast/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
-    // the contract sheet: rate at the floor index, the honest channel, and
-    // no make-good clause — that promise needs an estimate to exist
-    expect(screen.getByText(/per answer · ×0\.9 · locked/)).toBeTruthy();
-    expect(screen.getByText(/Arranged directly for now — no self-serve yet\./)).toBeTruthy();
-    expect(screen.getByText("Locked rate · the claim never shrinks.")).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/under 80% of the estimate/);
-    expectNoBoundary("the composer and its contract sheet");
-  });
+  // "opens the ask-a-question door" and the composer's committed-card case
+  // stood here until D368. Shape A took the purchase funnel out of the
+  // binary, so there is no door to open and no composer to print a card:
+  // what replaces them is smoke-live's inverted pair, which asserts that
+  // NO ask-a-question control exists anywhere in the app.
 
   it("opens a person's profile", async () => {
     const expectNoBoundary = mountApp();
@@ -145,10 +116,28 @@ describe("the overlays with no button — opened through the nav registry", () =
   // ── the other half: the chunk that never arrives ────────────────────
   //
   // Everything above runs with loadOverlays() already resolved, so it only ever
-  // exercises the happy path. These five components ship in a chunk that loads
+  // exercises the happy path. These four components ship in a chunk that loads
   // after first paint, and app-shell reads each off `window` rather than as a
   // bare identifier precisely so a failed load degrades to a blank instead of a
   // ReferenceError that takes the whole shell down.
+  //
+  // THE TABLE BELOW IS THE LIST, and it is no longer a hand-maintained
+  // count. This comment said FIVE while the table held four, was corrected
+  // to FOUR, and then said four while the table held THREE — SuggestOverlay
+  // was dropped on 2026-09-05 and the number was not moved with it. A
+  // figure in the coverage claim itself is the one this repo keeps
+  // re-committing (D39), so the case below now DERIVES the list from
+  // app-shell's own render guards and fails if the two disagree. The two
+  // overlays in that chunk NOT here are the two
+  // app-shell renders as bare identifiers: relmap, whose own note gives the
+  // reason, and search. Neither can be reached with its name unbound —
+  // openOverlay awaits the chunk and returns on failure, so `ov` never
+  // becomes theirs — and neither can gain the guard cheaply: `window.X &&
+  // <window.X>` is two shared-global references where a bare tag is one, so
+  // check:globals rule 4 refuses it as new coupling. Measured, not assumed:
+  // guarding the search site takes app-shell.jsx from 39 to 40 and fails the
+  // ratchet. The day either name becomes a real import, the guard comes with
+  // it and this table grows a row.
   //
   // Nothing else in this repo can catch that. `check:globals` and eslint's
   // no-undef are name-level and see a legitimately-defined global either way;
@@ -156,16 +145,63 @@ describe("the overlays with no button — opened through the nav registry", () =
   // loaded. Deleting the global is the only way to render the frame a broken
   // chunk produces.
   //
-  // Mutation-checked: restoring any of these five to a bare identifier in
+  // Mutation-checked: restoring any of these four to a bare identifier in
   // app-shell.jsx fails exactly its own row here on the boundary assertion, and
   // passes again on revert.
+  // The overlay chunk landing is not the only thing a search hit needs. The
+  // expanded row renders the FEED's card, and the feed is a different
+  // deferred chunk — main.jsx starts both loaders without either awaiting
+  // the other, and a failed chunk is never retried. Unguarded, the tap
+  // rendered undefined as an element type and the boundary took the whole
+  // search overlay. This is the one case in the file where the missing name
+  // belongs to a chunk other than the one under test.
+  it("expands a search hit with the feed chunk missing — a collapsed row, not a snag", async () => {
+    const WorldFeed = window.WorldFeed;
+    expect(WorldFeed, "the feed never registered — this case would prove nothing").toBeTruthy();
+    delete window.WorldFeed;
+    try {
+      const expectNoBoundary = mountApp();
+      await openVia("openOverlay", "search");
+      const field = screen.getByPlaceholderText(/questions, topics, people/i);
+      await act(async () => {
+        fireEvent.change(field, { target: { value: "a" } });
+      });
+      const hit = document.querySelector("button.search-hit");
+      expect(hit, "no search hit to tap — the query matched nothing").toBeTruthy();
+      await act(async () => {
+        fireEvent.click(hit);
+      });
+      expectNoBoundary("search hit, feed chunk missing");
+    } finally {
+      window.WorldFeed = WorldFeed;
+    }
+  });
+
   describe("a failed overlay chunk degrades rather than crashing", () => {
     const GUARDED = [
-      ["SuggestOverlay", "openSuggestions", []],
       ["LogicOverlay", "openLogicTest", []],
       ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
       ["CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],
     ];
+
+    // The table is the coverage claim, so it is checked against the thing
+    // it claims to cover rather than against a number in a comment. A new
+    // `&& <window.X` render guard in app-shell reddens this until it has a
+    // row here; removing one reddens it until the row goes.
+    it("covers every `window.X &&` render guard app-shell actually has", () => {
+      // `cwd()` off an explicit `node:process` import rather than
+      // `import.meta.url`, which vitest's jsdom transform does not hand
+      // back as a file: URL. vote.test.ts reads live.ts the same way, but
+      // it takes `process` as a bare global — which it can, because it is
+      // a .ts file under data/. `no-undef` is ON for the spec layer and
+      // for the mount suites (CLAUDE.md: the seeded scanner), so here the
+      // global does not exist and the import is the fix. Adding an eslint
+      // exception would be the wrong direction: the rule is right.
+      const shell = readFileSync(resolve(cwd(), "src/v2/spec/app-shell.jsx"), "utf8");
+      const guards = [...shell.matchAll(/&&\s*<window\.(\w+)/g)].map((m) => m[1]);
+      expect(guards.length, "no render guards found — the pattern stopped matching").toBeGreaterThan(0);
+      expect([...guards].sort()).toEqual(GUARDED.map(([g]) => g).sort());
+    });
 
     for (const [global, opener, argsFor] of GUARDED) {
       it(`${opener} with ${global} missing renders nothing and does not trip the boundary`, async () => {
@@ -242,5 +278,24 @@ describe("the retired Thinking test is gone from every surface", () => {
       "attachment",
     ]);
     expectNoBoundary("profile with the four surviving tests");
+  });
+});
+
+// D344 put Account & privacy behind a gear in the profile's corner — and
+// the gear is live-only, because the panel it opens states facts about a
+// real account and renders nothing in demo. A gear whose sheet can only
+// ever open empty is D167's rule one control down, so the button itself
+// must be absent, not just inert. The live half — the gear exists and its
+// sheet holds the panel — is in smoke-live; what a demo mount can prove
+// is the absence.
+describe("the profile's account gear (D344)", () => {
+  it("is not offered in a demo build", async () => {
+    const expectNoBoundary = mountApp();
+    await openHeaderOverlay("profile");
+    expect(
+      screen.queryByRole("button", { name: "Account & privacy" }),
+      "a demo profile offers the gear, whose sheet can only open empty",
+    ).toBeNull();
+    expectNoBoundary("profile without the account gear");
   });
 });

@@ -33,6 +33,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GoogleAuth } from "google-auth-library";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+import { levelFor, levelDef } from "./accountLevel";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -51,6 +52,50 @@ export interface TwoBits {
   // Apple returns "YYYY-MM". Absent on some responses; treated as
   // "not this month", which fails open by at most one activation.
   last_update_time?: string;
+}
+
+/**
+ * What Apple's 200 actually said.
+ *
+ * A DEVICE APPLE HAS NEVER SEEN answers 200 with the literal string
+ * "Failed to find bit state" rather than JSON — one documented body, and
+ * the only one that means "never seen". The caller used to `JSON.parse`
+ * the body and fold EVERY failure into `bits = null`, which
+ * `decideDeviceCheck` reads as never-seen and allows. So a captive portal
+ * page, or a changed Apple error format, or anything else that comes back
+ * 200 and is not JSON, published the fact "this device has not activated
+ * this month" and opened the monthly cooldown (D29).
+ *
+ * `JSON.parse("123")` reached the same place by a second route: it
+ * succeeds, `bits.bit0` is undefined, and `!bits.bit0` allows.
+ *
+ * Exported and pure for the reason `volumeFlagged` in velocity.ts is: the
+ * decision lived inline in a callable no test reaches, so both halves
+ * could be reverted with every suite green.
+ *
+ * A failed READ is not a fact about the device — the 401/403 arm beside
+ * the call site already throws rather than granting, and this is the same
+ * rule for the body.
+ */
+export type TwoBitsRead =
+  | { kind: "never-seen" }
+  | { kind: "bits"; bits: TwoBits }
+  | { kind: "unreadable" };
+
+export function readTwoBits(text: string): TwoBitsRead {
+  if (/Failed to find bit state/i.test(text)) return { kind: "never-seen" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { kind: "unreadable" };
+  }
+  // A number, a string, a bare `null` and an array are all valid JSON and
+  // none of them is a bit state.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { kind: "unreadable" };
+  }
+  return { kind: "bits", bits: parsed as TwoBits };
 }
 
 // iOS rule: allow unless this device already activated this calendar
@@ -82,10 +127,27 @@ export interface RecallValues {
   bitSecond: boolean;
   bitThird: boolean;
 }
+/**
+ * Play's own write-date shape, confirmed against the live discovery
+ * document and not invented.
+ *
+ * This declared `bitFirstWriteDate?: string` and friends. Google sends
+ * `yyyymmFirst` / `yyyymmSecond` / `yyyymmThird` as int32 — "Write time in
+ * YYYYMM format (in UTC, e.g. 202402) … won't be set if the bit is false".
+ * Different keys AND a different type, so the old `typeof d === "string"`
+ * filter emptied the list on every real verdict and `decideRecall` always
+ * fell through to the epoch fallback, while its docstring said write
+ * dates give the month-exact rule. The test built the invented shape
+ * itself and called it "Google's date format", so nothing could notice.
+ *
+ * A numeric string is accepted alongside the number: this shape has been
+ * guessed wrong once already, and the normaliser below strips non-digits
+ * either way.
+ */
 export interface RecallWriteDates {
-  bitFirstWriteDate?: string;
-  bitSecondWriteDate?: string;
-  bitThirdWriteDate?: string;
+  yyyymmFirst?: number | string;
+  yyyymmSecond?: number | string;
+  yyyymmThird?: number | string;
 }
 
 // Android epoch fallback (D29): when the verdict carries recall values but
@@ -123,13 +185,15 @@ export function decideRecall(
   const next = encodeRecall(recallEpoch(now));
   if (!values || decodeRecall(values) === 0) return { allow: true, next };
   const dates = [
-    values.bitFirst ? writeDates?.bitFirstWriteDate : undefined,
-    values.bitSecond ? writeDates?.bitSecondWriteDate : undefined,
-    values.bitThird ? writeDates?.bitThirdWriteDate : undefined,
-  ].filter((d): d is string => typeof d === "string" && d.length > 0);
+    values.bitFirst ? writeDates?.yyyymmFirst : undefined,
+    values.bitSecond ? writeDates?.yyyymmSecond : undefined,
+    values.bitThird ? writeDates?.yyyymmThird : undefined,
+  ]
+    .map((d) => normalizeMonth(typeof d === "number" ? String(d) : d))
+    .filter((d) => d.length === 6);
   if (dates.length > 0) {
     const nowMonth = normalizeMonth(monthKey(now));
-    return { allow: !dates.some((d) => normalizeMonth(d) === nowMonth), next };
+    return { allow: !dates.some((d) => d === nowMonth), next };
   }
   return { allow: decodeRecall(values) !== recallEpoch(now), next };
 }
@@ -211,14 +275,15 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
   });
   let bits: TwoBits | null = null;
   if (query.ok) {
-    // A device Apple has never stored bits for answers 200 with the
-    // literal string "Failed to find bit state" instead of JSON.
-    const text = await query.text();
-    try {
-      bits = JSON.parse(text) as TwoBits;
-    } catch {
-      bits = null;
+    // `readTwoBits` has the argument: only Apple's one documented
+    // non-JSON body means "never seen", and everything else unreadable is
+    // a failed read rather than a fact about the device.
+    const read = readTwoBits(await query.text());
+    if (read.kind === "unreadable") {
+      logger.warn("[deviceBind] DeviceCheck answered 200 with a body that is not a bit state");
+      throw new HttpsError("unavailable", "attestation service unreadable");
     }
+    bits = read.kind === "bits" ? read.bits : null;
   } else if (query.status === 401 || query.status === 403) {
     logger.error(`[deviceBind] DeviceCheck auth rejected (${query.status}) — key misconfigured?`);
     throw new HttpsError("failed-precondition", "DeviceCheck credentials rejected");
@@ -243,12 +308,39 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
   return true;
 }
 
-async function androidActivate(integrityToken: string, now: Date): Promise<boolean> {
+/**
+ * What the signed payload has to say about the request before any verdict
+ * in it is worth reading. Pure and exported so the two refusals are pinned
+ * by unit tests — neither can be reached from the emulator, and both are
+ * the kind of check that is easy to write inverted.
+ *
+ * The nonce arm is REQUIRED on Android rather than best-effort. Play
+ * refuses to build a request without a nonce, so a token that carries none
+ * did not come from this app's bridge; treating that as acceptable would
+ * make the check decorative, which is the failure mode this whole area
+ * already had once (D342).
+ */
+export function requestDetailsProblem(
+  details: { requestPackageName?: string; nonce?: string } | undefined,
+  pkg: string,
+  nonce: string | undefined,
+): string | null {
+  if (details?.requestPackageName !== pkg) return "token is for a different app";
+  if (!nonce) return "missing integrity nonce";
+  if (details?.nonce !== nonce) return "integrity nonce does not match";
+  return null;
+}
+
+async function androidActivate(
+  integrityToken: string,
+  nonce: string | undefined,
+  now: Date,
+): Promise<boolean> {
   const pkg = process.env.PLAY_PACKAGE_NAME || "com.cosaxo.insight";
   const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/playintegrity"] });
   const client = await auth.getClient();
   let payload: {
-    requestDetails?: { requestPackageName?: string };
+    requestDetails?: { requestPackageName?: string; nonce?: string };
     deviceIntegrity?: { deviceRecognitionVerdict?: string[] };
     deviceRecall?: { values?: RecallValues; writeDates?: RecallWriteDates };
   };
@@ -263,8 +355,10 @@ async function androidActivate(integrityToken: string, now: Date): Promise<boole
     logger.warn("[deviceBind] Play Integrity decode failed:", err);
     throw new HttpsError("unavailable", "attestation service unreachable");
   }
-  if (payload.requestDetails?.requestPackageName !== pkg) {
-    throw new HttpsError("failed-precondition", "token is for a different app");
+  const problem = requestDetailsProblem(payload.requestDetails, pkg, nonce);
+  if (problem) {
+    logger.warn(`[deviceBind] Play Integrity request rejected: ${problem}`);
+    throw new HttpsError("failed-precondition", problem);
   }
   const verdict = payload.deviceIntegrity?.deviceRecognitionVerdict || [];
   if (!verdict.includes("MEETS_DEVICE_INTEGRITY")) {
@@ -284,10 +378,30 @@ async function androidActivate(integrityToken: string, now: Date): Promise<boole
   const { allow, next } = decideRecall(recall.values, recall.writeDates, now);
   if (!allow) return false;
   try {
+    // THE ENDPOINT AND THE FIELD NAME, both confirmed against Google's
+    // live discovery document and on the wire.
+    //
+    // This posted to `v1/{pkg}:writeDeviceRecall` with `{ values }`. The
+    // method is `deviceRecall:write` under `v1/{+packageName}`, and the
+    // request field is `newValues`. Measured: the old URL answers 404 and
+    // this one answers 401 (auth required), while the decode call beside
+    // it — which is correct — also answers 401, so the difference is the
+    // path and not the sandbox.
+    //
+    // What that cost: every Android activation reaching a device with
+    // recall bits threw, the catch below turned it into `unavailable`, and
+    // no Android account ever earned the device rung. Enforcement is off
+    // (`deviceBindEnforced()` is false), so nobody was refused — but D29's
+    // month bound was inert on Android, and the readiness metric could not
+    // see it, because that log line fires on the OTHER branch. Turning
+    // enforcement on with the old call would have locked Android out.
+    //
+    // docs/DEVICE-BIND.md asks for exactly this confirmation before
+    // relying on staging results.
     await client.request({
-      url: `https://playintegrity.googleapis.com/v1/${pkg}:writeDeviceRecall`,
+      url: `https://playintegrity.googleapis.com/v1/${pkg}/deviceRecall:write`,
       method: "POST",
-      data: { integrityToken, values: next },
+      data: { integrityToken, newValues: next },
     });
   } catch (err) {
     // Same rule as iOS: no write, no claim.
@@ -299,11 +413,80 @@ async function androidActivate(integrityToken: string, now: Date): Promise<boole
 
 // ── the callable ────────────────────────────────────────────────
 
-async function grant(uid: string): Promise<void> {
-  const user = await getAuth().getUser(uid);
+/**
+ * Compute this account's level from what is true NOW, and ratchet the claim
+ * to it. Returns the resulting level.
+ *
+ * ONE FETCH. The user record carries both halves — the prior claim and
+ * `providerData`, which firebase-admin documents as "providers linked to
+ * the user". That is the authoritative source for the identity rung, and
+ * the reason this does not read the token's `sign_in_provider`: that field
+ * is the provider used to SIGN IN, and this app links rather than signs in
+ * (D134), so it says "anonymous" for the life of a linked account.
+ *
+ * `deviceBoundNow` is false on a cooldown, and the `|| prior >= 1` below is
+ * what makes the identity rung reachable at all. Activation runs once, at
+ * boot; linking happens later, from settings. Without this, an account that
+ * links after activating could never be re-graded — every later call is a
+ * cooldown, and a cooldown that refused to look would freeze the account at
+ * level 1 forever.
+ *
+ * A cooldown for an account with prior 0 is a DIFFERENT account on a device
+ * that already spent its month, and it gets nothing: the device rung is
+ * earned per account, and `prior >= 1` is the record that THIS account
+ * earned it.
+ *
+ * NEVER LOWERS. An account whose providerData momentarily reads empty must
+ * not be demoted, because a demotion silently stops that person's votes
+ * counting with nothing on screen to explain it. Levels ratchet up.
+ */
+/** The auth surface `regrade` needs, so its arithmetic can be tested
+ *  without an emulator. `regrade` below is the one-line binding to the
+ *  real thing; `regradeWith` is what every case drives. */
+export interface RegradeAuth {
+  getUser(uid: string): Promise<{
+    customClaims?: Record<string, unknown> | undefined;
+    providerData: Array<{ providerId: string }>;
+  }>;
+  setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
+}
+
+/**
+ * EXPORTED and seam-taking, because nothing reached this.
+ *
+ * Both invariants in the docblock above could be inverted with the whole
+ * functions suite green: dropping the `Math.max` ratchet, and dropping
+ * `prior >= 1` so a cooldown re-grade can no longer see the device rung —
+ * which makes level 2 unreachable, the exact bug D343 records fixing. The
+ * e2e calls the callable once on a fresh account and asserts only that it
+ * returned ok, so it reaches neither arm either.
+ *
+ * This is the code that decides whether a real person's votes count once
+ * `deviceBindEnforced()` flips. It should not be the untested part.
+ */
+export async function regradeWith(
+  auth: RegradeAuth, uid: string, deviceBoundNow: boolean,
+): Promise<number> {
+  const user = await auth.getUser(uid);
+  const raw = user.customClaims?.db;
+  // An integer only, matching what firestore.rules accepts — its `>=`
+  // errors on a string or a boolean and denies. Coercing would read
+  // `db: true` as level 1.
+  const prior = typeof raw === "number" && Number.isInteger(raw) ? raw : 0;
+  const level = levelFor({
+    deviceBound: deviceBoundNow || prior >= 1,
+    linkedProviders: user.providerData.map((p) => p.providerId),
+  });
+  const next = Math.max(prior, level);
+  if (next === prior) return prior;
   // Merge, not replace: setCustomUserClaims overwrites the whole map, and
   // a future claim added elsewhere must survive activation re-runs.
-  await getAuth().setCustomUserClaims(uid, { ...(user.customClaims || {}), db: 1 });
+  await auth.setCustomUserClaims(uid, { ...(user.customClaims || {}), db: next });
+  return next;
+}
+
+async function regrade(uid: string, deviceBoundNow: boolean): Promise<number> {
+  return regradeWith(getAuth() as unknown as RegradeAuth, uid, deviceBoundNow);
 }
 
 export const activateDeviceV2 = onCall(
@@ -319,8 +502,8 @@ export const activateDeviceV2 = onCall(
     // path, and dev-in-a-browser all work without Apple/Google — the
     // seedContentV2 gating pattern.
     if (process.env.FUNCTIONS_EMULATOR === "true") {
-      await grant(uid);
-      return { ok: true };
+      const level = await regrade(uid, true);
+      return { ok: true, level };
     }
     if (platform === "web") {
       // Production has no web build (hosting serves only the legal pages
@@ -331,17 +514,35 @@ export const activateDeviceV2 = onCall(
     if (typeof token !== "string" || !token || token.length > 65536) {
       throw new HttpsError("invalid-argument", "missing attestation token");
     }
+    // Android's Play Integrity nonce, echoed back by the platform inside
+    // the signed payload. Length-bounded like the token for the same
+    // reason: this is an unauthenticated-shaped input on an App
+    // Check-enforced callable, and neither field is ever long.
+    const nonce = request.data?.nonce;
+    if (nonce !== undefined && (typeof nonce !== "string" || nonce.length > 1024)) {
+      throw new HttpsError("invalid-argument", "bad nonce");
+    }
     const now = new Date();
     const allow =
-      platform === "ios" ? await iosActivate(token, now) : await androidActivate(token, now);
+      platform === "ios" ? await iosActivate(token, now) : await androidActivate(token, nonce, now);
     if (!allow) {
       // Expected outcome, not an error: this device already bought its
       // account this month. The client memoizes and retries next month.
-      logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform}`);
-      return { ok: false, reason: "cooldown" };
+      //
+      // STILL RE-GRADE. For the account that bought it, a cooldown carries
+      // no new device fact but the IDENTITY fact may have moved since —
+      // this is the only path by which an account that links after
+      // activating ever reaches level 2. For any other account on this
+      // device, prior is 0 and regrade returns 0.
+      const level = await regrade(uid, false);
+      logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform} level=${level}`);
+      return { ok: false, reason: "cooldown", level };
     }
-    await grant(uid);
-    logger.info(`[deviceBind] activated uid=${uid} platform=${platform}`);
-    return { ok: true };
+    const level = await regrade(uid, true);
+    logger.info(
+      `[deviceBind] activated uid=${uid} platform=${platform} level=${level} (${levelDef(level).key})`,
+      { metric: "device_activated", platform, level },
+    );
+    return { ok: true, level };
   },
 );

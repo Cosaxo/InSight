@@ -8,10 +8,16 @@ import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // InSight — Map anchors: the profile facts every daily answer reads against.
-// Eight anchors — age, work, study, plus the five test results — sit in a ring
+// Seven anchors — age, work, study, plus the four test results — sit in a ring
 // at the map's centre. Each answered question relates to 1–3 of them with a
 // strength (1–3) and one short, hedged line. Curated, deterministic, no fake
 // percentages.
+//
+// Both counts are check:figures' now, off the two array literals below. They
+// said eight and five, and had since D103 retired the Thinking test twenty
+// lines down — where this file already records that a retired test leaves no
+// anchor behind. CLAUDE.md's own line ("real for three anchors and refuses
+// for four") sums to seven.
 let listExport, relateExport;
 (function () {
   // ── anchor definitions ─────────────────────────────────────────────────────
@@ -39,8 +45,12 @@ let listExport, relateExport;
       { id: 'attachment', label: 'Social',   hue: 320, value: topDims('attachment'), sub: tTaken('attachment') },
     ];
   }
-  // Live mode: the viewer's OWN anchors (D8), the same seven fields an
-  // answer snapshots, read back from the store.
+  // Live mode: the viewer's OWN anchors (D8), read back from the store —
+  // three of the ten fields an answer snapshots (count held by
+  // check:figures, off ANCHOR_FIELDS in data/live.ts). It said the same
+  // SEVEN fields, which is the drift live.ts:5206 already records having
+  // fixed in its own copy: "This said 'the seven keys' while ANCHOR_FIELDS
+  // held ten.".
   //
   // The `||` defaults the prototype carried here were the sample persona's
   // — `s.age || 34`, `me.job || 'Editor'`, `me.education || 'MA Literature'`
@@ -62,7 +72,18 @@ let listExport, relateExport;
     const a = LIVE.anchors() || {};
     return [
       { id: 'age', label: 'Age',   hue: 265, value: a.ageBand ? 'age ' + a.ageBand : '', sub: 'from your profile' },
-      { id: 'job', label: 'Work',  hue: 85,  value: a.profession || '',                  sub: 'from your profile' },
+      // `self` is the COHORT's value where it differs from the profile's,
+      // which for Work it does: the pick is a profession and the dim is
+      // the derived `jobField` (D328), so "6 people in your line of work
+      // chose the same · you: Carpenter" named a cohort of carpenters when
+      // the six are the whole trades-and-construction field. Age solved
+      // the same problem by publishing the BAND as its value; Work keeps
+      // the profession as its headline — that is who you are, and it
+      // claims no cohort — and carries the field for the sentence that
+      // does. Absent falls back to the profession, which is the shape a
+      // profile written before D328 has.
+      { id: 'job', label: 'Work',  hue: 85,  value: a.profession || '',
+        self: a.jobField || a.profession || '',                          sub: 'from your profile' },
       { id: 'edu', label: 'Study', hue: 190, value: a.education || '',                   sub: 'from your profile' },
       ...testRows(),
     ];

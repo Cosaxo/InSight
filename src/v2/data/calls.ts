@@ -11,6 +11,7 @@
 // the copy inside the deploy. This module is the part that is only ever
 // the client's: presentation state, and the re-grade.
 import { evalRubric, type CallRubric, type CallSnapshot } from "./callRubric";
+import { sharePcts } from "./pct";
 import type { CallOutcome, QuestionDoc } from "./deck";
 
 /** One call as the card needs it: the question, the crowd, the grade, you. */
@@ -149,12 +150,19 @@ export function daysUntil(resolvesAt: string, now: number): number {
 export function callPcts(counts: readonly number[]): number[] | null {
   const total = counts.reduce((a, b) => a + b, 0);
   if (total <= 0) return null;
-  const ps = counts.map((c) => Math.round((100 * c) / total));
-  // Whole percentages do not sum to 100; give the remainder to the leader,
-  // the same repair every other split in this app makes.
-  const lead = ps.indexOf(Math.max(...ps));
-  ps[lead] += 100 - ps.reduce((a, b) => a + b, 0);
-  return ps;
+  // `sharePcts` — the app's ONE rounding rule (pct.ts). This used to round
+  // each share and dump the whole residue on the leader, under a comment
+  // calling it "the same repair every other split in this app makes". It
+  // was not: every other split had already moved to the shared rule, and
+  // largest-remainder differs from round-then-dump on 160 of the
+  // two-option count pairs from 0 to 200. It always shaves the WINNER —
+  // 5 against 3 drew 62/38 here and 63/37 everywhere else — and it is
+  // asymmetric, so [3,5] agreed while [5,3] did not.
+  //
+  // That matters beyond tidiness because a call question is core, so the
+  // same question is drawn again by the Mirror's answer rows through
+  // `pctFor`, which is `sharePcts`. One tab apart, two numbers.
+  return sharePcts([...counts]);
 }
 
 /** Build the card view models from the bank, the votes and the outcomes. */

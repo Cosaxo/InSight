@@ -61,6 +61,31 @@ export function activationPlan(
   return memo.until === monthKey(now) ? "skip" : "attempt";
 }
 
+/**
+ * Drop the activation memo so the NEXT BOOT re-runs activation.
+ *
+ * WHY THIS IS NEEDED AT ALL. Activation runs once, at boot, and memoizes —
+ * `activationPlan` returns "skip" for a settled account forever after.
+ * Linking happens later, from the account panel. Without this, an account
+ * that links after activating would keep the level it was graded at, and
+ * the identity rung (accountLevel.ts level 2) would be unreachable by the
+ * only path the app actually offers.
+ *
+ * NEXT BOOT rather than immediately, deliberately: re-running now would
+ * mean a DeviceCheck / Play Integrity round trip inside a settings tap,
+ * whose answer is a foregone `cooldown` — this device already activated
+ * this month. The server re-grades on that cooldown (deviceBind.ts
+ * `regrade`), so the level lands on the next launch, which is soon enough
+ * for a claim that only matters when the bar moves.
+ */
+export function forgetDeviceBind(): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(KEY);
+  } catch {
+    /* best-effort: a boot that cannot read the memo re-attempts anyway */
+  }
+}
+
 export function memoAfter(
   uid: string,
   res: { ok?: boolean; reason?: string } | null,
@@ -75,7 +100,11 @@ interface DeviceBindPlugin {
   // iOS: DCDevice.generateToken() — the ephemeral token Apple's two-bits
   // API consumes. Android: a Play Integrity token.
   generateToken(): Promise<{ token: string }>;
-  requestIntegrityToken(options?: { cloudProjectNumber?: string }): Promise<{ token: string }>;
+  // `nonce` is the value the native side put in the Play Integrity
+  // request; Play echoes it inside the signed payload, so the server can
+  // refuse a token minted for some other request. Optional in the type
+  // because the iOS arm never produces one.
+  requestIntegrityToken(options?: { cloudProjectNumber?: string }): Promise<{ token: string; nonce?: string }>;
 }
 
 let plugin: DeviceBindPlugin | null = null;
@@ -88,6 +117,11 @@ export async function ensureDeviceBound(uid: string): Promise<void> {
 
     const platform = Capacitor.getPlatform(); // 'web' | 'ios' | 'android'
     let token: string | null = null;
+    // Android only. Carried alongside the token rather than derived from
+    // it: the server compares this against the nonce Play signed into the
+    // payload, and a token whose two copies disagree is one minted for a
+    // different request.
+    let nonce: string | undefined;
     if (platform !== "web") {
       // The bridge is ~30 lines of native code per platform, added by hand
       // in Xcode / Android Studio (docs/DEVICE-BIND.md). Until it lands,
@@ -101,10 +135,13 @@ export async function ensureDeviceBound(uid: string): Promise<void> {
         return;
       }
       plugin = plugin || registerPlugin<DeviceBindPlugin>("DeviceBind");
-      token =
-        platform === "ios"
-          ? (await plugin.generateToken()).token
-          : (await plugin.requestIntegrityToken()).token;
+      if (platform === "ios") {
+        token = (await plugin.generateToken()).token;
+      } else {
+        const res = await plugin.requestIntegrityToken();
+        token = res.token;
+        nonce = res.nonce;
+      }
     }
     // On web this sends no token: the emulator grants (dev loop), and
     // production refuses — production has no web build, so a web caller
@@ -115,6 +152,7 @@ export async function ensureDeviceBound(uid: string): Promise<void> {
       await httpsCallable(fns, "activateDeviceV2")({
         platform,
         ...(token ? { token } : {}),
+        ...(nonce ? { nonce } : {}),
       })
     ).data as { ok?: boolean; reason?: string } | null;
     if (res?.ok) {

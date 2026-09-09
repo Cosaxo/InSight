@@ -12,7 +12,8 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { generateKeyPairSync } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -250,5 +251,26 @@ describe("the region reading, which runbook 5.9b exists for", () => {
     const out = await observe();
     expect(out).not.toContain("outside");
     expect((await asJson()).readings.functions.strayCount).toBe(0);
+  });
+});
+
+// --json-out exists so the production reader can be a workflow rather than a
+// scheduled Claude session (docs/USAGE-REDUCTION.md): a reader that parses
+// the padded `✓ alertPolicies  5 live` lines is the one-parser-in-three-
+// copies failure D197 recorded. The two properties worth pinning are that
+// the file matches what `--json` prints, and that asking for it does not
+// change what a human run prints — this probe reports on production and is
+// the last place to accept a reporting flag with side effects.
+describe("--json-out, for the workflow reader", () => {
+  it("writes the same payload --json prints, and leaves stdout human", async () => {
+    const path = join(tmpdir(), `observe-json-out-${process.pid}.json`);
+    const stdout = await observe(["--json-out", path]);
+    const written = JSON.parse(readFileSync(path, "utf8"));
+    rmSync(path, { force: true });
+
+    expect(written).toEqual(await asJson());
+    // stdout stayed the human report, not JSON.
+    expect(stdout).toContain("readings available");
+    expect(stdout.trimStart().startsWith("{")).toBe(false);
   });
 });

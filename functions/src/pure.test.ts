@@ -11,16 +11,30 @@ import {
   RESERVED_HANDLES,
   utcDayKey,
   prevDayKey,
-  shouldReveal,
   movesPresentState,
   nextStreak,
-  PENDING_DAYS_KEEP,
-  prunePendingDays,
-  scanDays,
   revealMembersFor,
+  ROUND_LEAD,
+  ROUND_DEADLINE_MS,
+  roundKey,
+  openRound,
+  playedIn,
+  prunePlayed,
+  mergePlayed,
+  roundsWaitingFor,
+  turnRecipients,
+  isStamped,
+  roundComplete,
+  roundReveals,
   breakdownBucket,
   foldAnchors,
+  honestAnchors,
   BREAKDOWN_MAX_BUCKETS,
+  OVERFLOW_SHARDS,
+  overflowShard,
+  capBoundShards,
+  overflowTail,
+  retargetTail,
   catalogEntityKey,
   buildModQueueFrom,
   tallyFirstFlagInto,
@@ -31,6 +45,7 @@ import {
   modVerdictId,
   seedDocMatches,
   seedOptionConflict,
+  seedMapClears,
   describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
@@ -143,205 +158,143 @@ describe("utcDayKey / prevDayKey", () => {
 
 // ── reveal conditions ───────────────────────────────────────────
 
-describe("shouldReveal", () => {
-  it("duo is both-or-nothing", () => {
-    expect(shouldReveal("duo", 0)).toBe(false);
-    expect(shouldReveal("duo", 1)).toBe(false);
-    expect(shouldReveal("duo", 2)).toBe(true);
+describe("rounds (ROUNDS-PLAN, D426)", () => {
+  it("the lead and the deadline are the plan's numbers", () => {
+    // ONE constant each. firestore.rules carries the lead as a literal and
+    // rules.test.ts pins the two equal; the deadline is the day's
+    // replacement and is two days long — the owner's 2026-09-09 design
+    // (D437), over the day it had been.
+    expect(ROUND_LEAD).toBe(5);
+    expect(ROUND_DEADLINE_MS).toBe(48 * 60 * 60 * 1000);
   });
 
-  it("group reveals from one answer", () => {
-    expect(shouldReveal("group", 0)).toBe(false);
-    expect(shouldReveal("group", 1)).toBe(true);
-    expect(shouldReveal("group", 5)).toBe(true);
+  it("roundKey is r{n}, unpadded — nothing orders by id", () => {
+    expect(roundKey(1)).toBe("r1");
+    expect(roundKey(12)).toBe("r12");
   });
 
-  it("unknown modes behave like group (the pipeline's default)", () => {
-    expect(shouldReveal("", 1)).toBe(true);
-    expect(shouldReveal("", 0)).toBe(false);
-  });
-});
-
-// ── the pending-day marker ──────────────────────────────────────
-
-describe("prunePendingDays", () => {
-  // 6 days back from 2026-07-27, i.e. what revealGroupDay computes as the
-  // oldest day a duel answer could still legally arrive for.
-  const OLDEST = "2026-07-21";
-
-  it("drops the settled day and keeps the rest", () => {
-    expect(prunePendingDays(["2026-07-25", "2026-07-26", "2026-07-27"], "2026-07-26", OLDEST))
-      .toEqual(["2026-07-25", "2026-07-27"]);
+  it("openRound reads absent, null and junk as round 1", () => {
+    expect(openRound(undefined)).toBe(1);
+    expect(openRound(null)).toBe(1);
+    expect(openRound(0)).toBe(1);
+    expect(openRound(-3)).toBe(1);
+    expect(openRound(2.5)).toBe(1);
+    expect(openRound("7")).toBe(1);
+    expect(openRound(7)).toBe(7);
   });
 
-  it("drops days older than the cutoff, so the array cannot grow forever", () => {
-    // The case this exists for: a duo whose partner never plays leaves one
-    // unsettled day per day played. Without the cutoff that is one string
-    // per day on the group document, permanently.
-    const year = Array.from({ length: 365 }, (_, i) => {
-      const d = new Date(Date.UTC(2025, 6, 27) + i * 86400000);
-      return d.toISOString().slice(0, 10);
-    });
-    const out = prunePendingDays(year, "2026-07-27", OLDEST);
-    expect(out).toEqual(["2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24",
-      "2026-07-25", "2026-07-26"]);
-    expect(out.length).toBeLessThanOrEqual(PENDING_DAYS_KEEP);
+  it("playedIn reads one round's uids off the map, strings only, deduplicated", () => {
+    const played = { r7: ["a", "b", "a", 3, null, ""], r8: "nope" };
+    expect(playedIn(played, "r7")).toEqual(["a", "b"]);
+    expect(playedIn(played, "r8")).toEqual([]);
+    expect(playedIn(played, "r9")).toEqual([]);
+    expect(playedIn(undefined, "r7")).toEqual([]);
+    expect(playedIn("r7", "r7")).toEqual([]);
   });
 
-  it("keeps the cutoff day itself — the bound is inclusive", () => {
-    expect(prunePendingDays([OLDEST], "2026-07-27", OLDEST)).toEqual([OLDEST]);
-    expect(prunePendingDays(["2026-07-20"], "2026-07-27", OLDEST)).toEqual([]);
+  it("prunePlayed keeps the new open round and everything sealed ahead of it, drops the rest", () => {
+    // Round 6 just revealed: 7 opens. r6 and r5 go; r7 and r9 (sealed
+    // ahead) stay; a key that is not a round key, or an empty list, goes.
+    const played = { r5: ["a"], r6: ["a", "b"], r7: ["a"], r9: ["b"], rx: ["a"], r8: [] };
+    expect(prunePlayed(played, 7)).toEqual({ r7: ["a"], r9: ["b"] });
+    expect(prunePlayed(undefined, 7)).toEqual({});
+    expect(prunePlayed({ r1: ["a"] }, 2)).toEqual({});
   });
 
-  it("survives a missing, malformed or duplicated field", () => {
-    // A group that has never played has no pendingDays at all, and that is
-    // the normal state — it must read as "nothing pending", not throw.
-    expect(prunePendingDays(undefined, "2026-07-27", OLDEST)).toEqual([]);
-    expect(prunePendingDays(null, "2026-07-27", OLDEST)).toEqual([]);
-    expect(prunePendingDays("2026-07-26", "2026-07-27", OLDEST)).toEqual([]);
-    expect(prunePendingDays([1, null, {}, "2026-07-26"], "2026-07-27", OLDEST))
-      .toEqual(["2026-07-26"]);
-    // arrayUnion cannot produce duplicates, but a hand-repaired document can.
-    expect(prunePendingDays(["2026-07-26", "2026-07-26"], "2026-07-27", OLDEST))
-      .toEqual(["2026-07-26"]);
+  it("roundComplete is every member, and never a room of nobody", () => {
+    expect(roundComplete(2, 2)).toBe(true);
+    expect(roundComplete(1, 2)).toBe(false);
+    expect(roundComplete(3, 2)).toBe(true); // a member who left after playing
+    expect(roundComplete(0, 0)).toBe(false);
   });
 
-  it("compares day keys lexicographically, which is chronological for ISO", () => {
-    // The whole cutoff rests on this, and it is the assumption that breaks
-    // first if the key format ever changes.
-    expect("2026-01-02" < "2026-01-10").toBe(true);
-    expect("2025-12-31" < "2026-01-01").toBe(true);
-    expect(prunePendingDays(["2025-12-31", "2026-01-05"], "x", "2026-01-01"))
-      .toEqual(["2026-01-05"]);
+  it("roundReveals: an answer in it, and complete OR due OR forced", () => {
+    // Nobody's answer: never, whatever else is true — there is nothing to
+    // show and advancing would burn the question for no one.
+    expect(roundReveals(0, 2, true, true)).toBe(false);
+    // A 1v1: the second answer completes it.
+    expect(roundReveals(1, 2, false)).toBe(false);
+    expect(roundReveals(2, 2, false)).toBe(true);
+    // A group of five with one answer: not until the deadline…
+    expect(roundReveals(1, 5, false)).toBe(false);
+    // …at which it reveals for whoever played (the owner's rule).
+    expect(roundReveals(1, 5, true)).toBe(true);
+    // The operator's lever reveals any round with an answer in it.
+    expect(roundReveals(1, 5, false, true)).toBe(true);
   });
 });
-
-// ── which days a reveal run asks about ──────────────────────────
-
-describe("scanDays", () => {
-  const T = Date.UTC(2026, 6, 27, 12, 0, 0); // 2026-07-27T12:00Z
-
-  it("covers the whole pending window, not just yesterday", () => {
-    // The bug: the scan asked about utcDayKey(-1) and the schedule never
-    // passed a day, so a group-day was revealable during the single UTC day
-    // after it and never again — while rules accept a duel answer four days
-    // late and onV2AnswerCreated re-adds the day to pendingDays whenever one
-    // arrives. An answer syncing on D+2 re-opened a day nothing would ask
-    // about again. Both members had answered; the day sat pending forever.
-    expect(scanDays(undefined, T)).toEqual([
-      "2026-07-26", "2026-07-25", "2026-07-24",
-      "2026-07-23", "2026-07-22", "2026-07-21",
-    ]);
-  });
-
-  it("matches the pruning window exactly", () => {
-    // prunePendingDays drops anything older than PENDING_DAYS_KEEP, so a day
-    // outside this window can never gain another answer. Asking about
-    // exactly the days that can still change is the definition pendingDays
-    // was given; the two drifting apart is how the gap reopens.
-    expect(scanDays(undefined, T)).toHaveLength(PENDING_DAYS_KEEP);
-    const oldest = scanDays(undefined, T)[PENDING_DAYS_KEEP - 1];
-    expect(prunePendingDays([oldest], "x", oldest)).toEqual([oldest]);
-    expect(prunePendingDays([prevDayKey(oldest)], "x", oldest)).toEqual([]);
-  });
-
-  it("an explicit day still means that day alone", () => {
-    // The operator lever and every e2e leg pass one, and narrowing is what
-    // an operator reaching for it during an incident usually wants.
-    expect(scanDays("2026-01-01", T)).toEqual(["2026-01-01"]);
-  });
-
-  it("crosses a month boundary", () => {
-    expect(scanDays(undefined, Date.UTC(2026, 7, 2, 3, 0, 0))).toEqual([
-      "2026-08-01", "2026-07-31", "2026-07-30",
-      "2026-07-29", "2026-07-28", "2026-07-27",
-    ]);
-  });
-});
-
-// ── who a day's reveal belongs to ───────────────────────────────
 
 describe("revealMembersFor", () => {
-  const DAY = "2026-07-27";
   const at = (iso: string) => Date.parse(iso);
+  const OPENED = at("2026-07-27T12:00:00Z"); // the round's first answer
 
-  it("excludes someone who joined after the day ended", () => {
-    // The leak, exactly: day D is revealed by the D+1 scan, which runs every
-    // 120 minutes, so a 00:05 joiner was a current member when the snapshot
-    // was taken and read a day they were not in the group for.
+  it("excludes someone who joined after the round opened and did not play", () => {
     const members = ["old", "latecomer"];
     const joined = {
       old: at("2026-07-20T09:00:00Z"),
-      latecomer: at("2026-07-28T00:05:00Z"),
+      latecomer: at("2026-07-27T12:00:01Z"),
     };
-    expect(revealMembersFor(members, joined, DAY)).toEqual(["old"]);
+    expect(revealMembersFor(members, joined, OPENED)).toEqual(["old"]);
   });
 
-  it("includes someone who joined partway through the day", () => {
-    // The bound is the END of the day, not its start — they were there for
-    // it, and duel answers stay writable while the day is unrevealed, so
-    // they may well have played it.
-    const joined = { mid: at("2026-07-27T18:30:00Z") };
-    expect(revealMembersFor(["mid"], joined, DAY)).toEqual(["mid"]);
+  it("includes someone who joined before the round opened", () => {
+    const joined = { mid: at("2026-07-27T11:59:59.999Z") };
+    expect(revealMembersFor(["mid"], joined, OPENED)).toEqual(["mid"]);
   });
 
-  it("includes a member joining in the last second, and excludes the first second after", () => {
-    const joined = {
-      justIn: at("2026-07-27T23:59:59.999Z"),
-      justOut: at("2026-07-28T00:00:00.000Z"),
-    };
-    expect(revealMembersFor(["justIn", "justOut"], joined, DAY)).toEqual(["justIn"]);
+  it("the bound is strict: joining at the opening instant is after it", () => {
+    const joined = { justIn: OPENED - 1, justOut: OPENED };
+    expect(revealMembersFor(["justIn", "justOut"], joined, OPENED)).toEqual(["justIn"]);
   });
 
   it("includes members who predate the field", () => {
-    // Not a fallback — the correct answer. createGroupV2/joinGroupV2 write
-    // this from the day it shipped, so absence means the member joined
-    // before that, which is before any day this is ever asked about.
-    // Reading absence as "exclude" would blank every reveal for every group
-    // that existed on deploy day.
-    expect(revealMembersFor(["a", "b"], {}, DAY)).toEqual(["a", "b"]);
-    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, DAY))
+    // Not a fallback — the correct answer. createGroupV2 and the join paths
+    // write this from the day it shipped, so absence means the member
+    // joined before that, which is before any round this is ever asked
+    // about. Reading absence as "exclude" would blank every reveal for
+    // every group that existed on deploy day.
+    expect(revealMembersFor(["a", "b"], {}, OPENED)).toEqual(["a", "b"]);
+    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, OPENED))
       .toEqual(["a", "b"]);
   });
 
   it("includes a member whose recorded time is unusable", () => {
-    // Same permissive direction, and for the same reason: a reveal its own
-    // members cannot read is a worse failure than one scoped too widely.
+    // Same permissive direction, and for the same reason: a reveal that
+    // credits nobody is a worse failure than one scoped too widely.
     for (const bad of [null, undefined, "2026-07-01", NaN, {}, 0 / 0]) {
-      expect(revealMembersFor(["a"], { a: bad }, DAY)).toEqual(["a"]);
+      expect(revealMembersFor(["a"], { a: bad }, OPENED)).toEqual(["a"]);
     }
   });
 
-  it("includes anyone who played the day, whatever their join time says", () => {
-    // Duel answers are accepted up to four days late, so a member can
-    // legitimately land a vote for a day preceding their join — an offline
-    // client flushing a queue, or a fresh group playing a recent day.
-    // Excluding them would publish a reveal holding their own vote that they
-    // alone could not read.
+  it("includes anyone who played the round, whatever their join time says", () => {
+    // The rules admit an answer from any current member, so somebody who
+    // joined mid-round and sealed one belongs in the reveal that publishes
+    // it — excluding them would publish their own vote naming them nowhere.
     const joined = { player: at("2026-08-01T00:00:00Z"), lurker: at("2026-08-01T00:00:00Z") };
-    expect(revealMembersFor(["player", "lurker"], joined, DAY, ["player"]))
+    expect(revealMembersFor(["player", "lurker"], joined, OPENED, ["player"]))
       .toEqual(["player"]);
   });
 
+  it("a round with no open time includes everyone", () => {
+    // A force-reveal before any answer stamped a clock. Too wide beats
+    // crediting nobody.
+    const joined = { newA: at("2026-08-01T00:00:00Z") };
+    expect(revealMembersFor(["newA"], joined, null)).toEqual(["newA"]);
+    expect(revealMembersFor(["newA"], joined, undefined)).toEqual(["newA"]);
+  });
+
   it("can return an empty array, and says so rather than falling back", () => {
-    // Everyone who played the day has left; everyone now in the group joined
-    // after it. Nobody was there, so nobody may read it — the reveal still
-    // writes, which settles the day for the scan.
+    // Everyone who played has left; everyone now in the group joined after
+    // the round opened. Nobody was there.
     const joined = { newA: at("2026-08-01T00:00:00Z"), newB: at("2026-08-02T00:00:00Z") };
-    expect(revealMembersFor(["newA", "newB"], joined, DAY)).toEqual([]);
+    expect(revealMembersFor(["newA", "newB"], joined, OPENED)).toEqual([]);
   });
 
   it("does not read join times off the prototype", () => {
     // The group document's maps are keyed by uid, and D47 is the record of
     // what a prototype lookup does to a uid-keyed map read from Firestore.
-    expect(revealMembersFor(["constructor"], {}, DAY)).toEqual(["constructor"]);
-    expect(revealMembersFor(["toString"], {}, DAY)).toEqual(["toString"]);
-  });
-
-  it("degrades to the previous behaviour on a malformed day key", () => {
-    // Server-generated (utcDayKey), so unreachable in the pipeline.
-    const joined = { late: at("2030-01-01T00:00:00Z") };
-    expect(revealMembersFor(["late"], joined, "not-a-day")).toEqual(["late"]);
+    expect(revealMembersFor(["constructor"], {}, OPENED)).toEqual(["constructor"]);
+    expect(revealMembersFor(["toString"], {}, OPENED)).toEqual(["toString"]);
   });
 });
 
@@ -354,7 +307,7 @@ describe("movesPresentState — which day may claim to be the present", () => {
   });
 
   it("refuses a day the group has already moved past", () => {
-    // THE regression. scanDays() walks the pending window newest-first and
+    // THE regression, from the day: the scan walked the pending window newest-first and
     // revealDuelsNowV2 defaults to `full` over six days, so a run routinely
     // reveals yesterday and THEN reaches an older day still pending. That
     // older reveal used to write lastRevealDay backwards and recompute the
@@ -425,15 +378,23 @@ describe("per-anchor breakdowns", () => {
 
   it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
     const by = {};
-    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1);
-    // `profession` is still free text up to 80 chars and must never mint a
-    // key. `city` may, since D9 — it comes from a fixed catalogue whose
-    // every entry check-cities.mjs verifies against these same rules.
-    expect(Object.keys(by).sort()).toEqual(["ageBand", "city", "country", "gender"]);
+    foldAnchors(by, anchors({
+      city: "Oslo, NO", profession: "Carpenter", jobField: "Trades, construction & manufacturing",
+    }), 1);
+    // `profession` must never mint a key, and since D328 the reason is no
+    // longer "it is free text" — the profile has offered a <select> for a
+    // long time. It is that the pick list is LONGER than
+    // BREAKDOWN_MAX_BUCKETS, so it is exhaustible; `jobField` is the
+    // derived 20-value bucket that is not, and it is the one that folds.
+    // `city` may mint a key too, since D9 — it comes from a fixed
+    // catalogue whose every entry check-cities.mjs verifies against these
+    // same rules.
+    expect(Object.keys(by).sort()).toEqual(["ageBand", "city", "country", "gender", "jobField"]);
     expect(by).toMatchObject({
       ageBand: { "25-34": { "1": 1 } },
       city: { "Oslo, NO": { "1": 1 } },
       country: { NO: { "1": 1 } },
+      jobField: { "Trades, construction & manufacturing": { "1": 1 } },
     });
 
     // empty, over-long and field-path-hostile values are skipped, not stored
@@ -472,10 +433,23 @@ describe("per-anchor breakdowns", () => {
     expect(breakdownBucket("Women", "gender")).toBeNull();
     expect(breakdownBucket("Doctorate", "education")).toBe("Doctorate");
     expect(breakdownBucket("PhD", "education")).toBeNull();
+    // D328. The near-miss that matters here is a value from the PICK list:
+    // "Retail" is a real thing a user selects, and it is not a bucket —
+    // it maps to "Service & hospitality" on the device before the anchor
+    // is written. A jobField carrying a pick means the derivation was
+    // skipped, and it must fold into nothing rather than mint a 21st
+    // bucket the server never agreed to.
+    expect(breakdownBucket("Service & hospitality", "jobField")).toBe("Service & hospitality");
+    expect(breakdownBucket("Retail", "jobField")).toBeNull();
+    // …including the one pick that could never have been a bucket anyway:
+    // the slash is in the rejected character class (the `Vocational /
+    // trade` bug), which is why it maps to "Self-employed" rather than
+    // being respelled.
+    expect(breakdownBucket("Entrepreneur / self-employed", "jobField")).toBeNull();
   });
 
   it("refuses bucket labels that are keys on Object.prototype", () => {
-    // Four of the six dimensions have no closed vocabulary, and
+    // Two of the eight dimensions have no closed vocabulary, and
     // firestore.rules can only bound an anchor's LENGTH — verified against
     // the real ruleset in the emulator, where an anonymous account creates
     // an answer carrying `anchors: { gender: "__proto__" }` and is allowed.
@@ -595,6 +569,50 @@ describe("per-anchor breakdowns", () => {
     expect(by.city["Newcomer, NO"], "a publishable bucket was evicted for a newcomer")
       .toBeUndefined();
     expect(by.city).toEqual(before);
+  });
+
+  it("reports what the cap discarded — an eviction with its victim, a refusal with the newcomer — and nothing while slots are free (D398)", () => {
+    // Pure code has no logger, so the fold REPORTS through a callback and
+    // the trigger turns each call into the `agg_evict` line the alert chain
+    // counts. Three things pinned: silence while the cap is not binding
+    // (a metric that fired on ordinary folds would page on every answer),
+    // the eviction naming the victim and the count it lost, and the
+    // refusal — the outcome the old eviction test could not see — naming
+    // the newcomer that never got a cell.
+    const seen: Array<[string, string, string, number]> = [];
+    const onCap = (kind: string, dim: string, bucket: string, total: number) => {
+      seen.push([kind, dim, bucket, total]);
+    };
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0, onCap);
+    }
+    expect(seen, "reported while slots were still free").toEqual([]);
+
+    // The 25th city evicts the smallest sub-floor bucket — the first junk
+    // value, one answer — and the report says which and how many.
+    foldAnchors(by, { city: "Oslo, NO" }, 1, onCap);
+    expect(seen).toEqual([["evicted", "city", "Junk0, NO", 1]]);
+
+    // Every slot published: the newcomer is refused, and the report says
+    // so with a zero — it never held a count to lose.
+    const full: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(full, { city: `Full${i}, NO` }, 0, onCap);
+    }
+    seen.length = 0;
+    foldAnchors(full, { city: "Newcomer, NO" }, 0, onCap);
+    expect(seen).toEqual([["refused", "city", "Newcomer, NO", 0]]);
+    expect(full.city["Newcomer, NO"]).toBeUndefined();
+
+    // The catalog fold shares the rule and the report (pure.ts admitBucket
+    // is the one place both go through).
+    seen.length = 0;
+    foldCanonAnchors(full, { city: "Another, NO" }, "pikachu", onCap);
+    expect(seen).toEqual([["refused", "city", "Another, NO", 0]]);
+
+    // …and a fold with no callback is the fold it always was.
+    expect(() => foldAnchors(full, { city: "Quiet, NO" }, 0)).not.toThrow();
   });
 
   // The five publishableBreakdown cases that stood here — sub-floor
@@ -1395,6 +1413,18 @@ describe("the duel question-level signal (D40 part 3)", () => {
     }
   });
 
+  it("scores nothing for a group — nothing in a group is called (D437)", () => {
+    // Four votes, three on option 0, three of them carrying a guess the
+    // rules no longer admit (an older client's). D386 scored these against
+    // the room; the owner's 2026-09-09 brief removed the call, and a stray
+    // field must not revive it — guessTotal stays zero by construction, so
+    // the scorecard's guess-rate retirement never fires on a group.
+    const d = duelAggDelta([v(0, 0), v(0, 0), v(0, 1), v(1)], "group", 4);
+    expect(d).toMatchObject({ total: 4, counts: { "0": 3, "1": 1 }, guessTotal: 0, guessMatches: 0 });
+    // …including the 1–1 room that used to score a perfect read of nobody
+    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
+  });
+
   it("scores duo guesses against the partner's actual pick", () => {
     // A picked 0 and guessed 1 — B did pick 1, so A called it. B picked 1
     // and guessed 1 — A picked 0, so B missed. Two guesses, one match.
@@ -1464,6 +1494,57 @@ describe("the duel question-level signal (D40 part 3)", () => {
 });
 
 // ── D52: shipped option sets are immutable ──────────────────────
+
+describe("seedMapClears — the map key `merge: true` cannot remove", () => {
+  // Verified against the emulator rather than reasoned about: storing
+  // `{a:1,b:2}` and then `set({nodes:{a:1}}, {merge:true})` reads back
+  // `{a:1,b:2}` — the key survives — while an ARRAY in the same write is
+  // replaced wholesale. So without a clear pass the story keeps the node,
+  // `seedDocMatches` keeps seeing the difference, and the seed rewrites
+  // that document on every run, churning the `updatedAt` cursor every
+  // returning device reads the bank with.
+  const story = (nodes: Record<string, unknown>) => ({
+    surface: "feed", type: "path", prompt: "?", options: [],
+    nodes, endings: { good: "x" },
+  });
+
+  it("names a field that lost a key", () => {
+    const prior = story({ a: 1, b: 2 });
+    expect(seedMapClears(prior, story({ a: 1 }))).toEqual(["nodes"]);
+  });
+
+  it("says nothing when the map only GAINED a key — merge handles that", () => {
+    // The whole point of the narrow shape: an added node needs no clear,
+    // and clearing anyway would make every growth a two-write no-op.
+    expect(seedMapClears(story({ a: 1 }), story({ a: 1, b: 2 }))).toEqual([]);
+  });
+
+  it("says nothing when a key's VALUE changed but none was removed", () => {
+    expect(seedMapClears(story({ a: 1 }), story({ a: 9 }))).toEqual([]);
+  });
+
+  it("ignores arrays, which merge already replaces", () => {
+    const a = { surface: "feed", type: "vote", options: ["x", "y"], prompt: "?" };
+    const b = { surface: "feed", type: "vote", options: ["x"], prompt: "?" };
+    expect(seedMapClears(a, b)).toEqual([]);
+  });
+
+  it("ignores a field that is absent or changing type — the caller owns those", () => {
+    expect(seedMapClears(story({ a: 1 }), { surface: "feed", type: "path", prompt: "?" }))
+      .toEqual([]);
+    expect(seedMapClears({ nodes: "a string" }, story({ a: 1 }))).toEqual([]);
+  });
+
+  it("names every affected field, not just the first", () => {
+    const prior = { ...story({ a: 1, b: 2 }), endings: { good: "x", bad: "y" } };
+    expect(seedMapClears(prior, story({ a: 1 })).sort()).toEqual(["endings", "nodes"]);
+  });
+
+  it("is empty for a doc that does not exist yet", () => {
+    expect(seedMapClears(null, story({ a: 1 }))).toEqual([]);
+    expect(seedMapClears(undefined, story({ a: 1 }))).toEqual([]);
+  });
+});
 
 describe("seedOptionConflict — the edit the seed must refuse", () => {
   const desired = {
@@ -1554,6 +1635,50 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(seedOptionConflict("daily-003", noField, { ...noField, domain: "dogs" })).not.toBeNull();
   });
 
+  it("refuses a retype, where neither options nor domain can say so", () => {
+    // `type` decides what a stored answer IS — `optionIdx` for
+    // vote/binary/choice, an order string for rank, `entity` for catalog.
+    // Change it under people who have answered and every stored answer is
+    // re-read under the new rule, and the published aggregate is folded
+    // from then on as though it had always been the new form.
+    //
+    // The two existing freezes are both blind to it: a vote question
+    // emptied to a catalog one has `options: []` on both sides, and
+    // `domain` agrees whenever neither side is a catalogue.
+    const vote = { type: "vote", options: [], domain: null, prompt: "Favourite?" };
+    const c = seedOptionConflict("f-42", vote, { ...vote, type: "catalog" });
+    expect(c).not.toBeNull();
+    expect(c?.field).toBe("type");
+    expect(c?.stored).toEqual(["vote"]);
+    expect(c?.desired).toEqual(["catalog"]);
+
+    // It reaches the rules, which is why this is not merely a fold
+    // question: `isCatalogAnswer` gates on `type == "catalog"`, so a
+    // retyped question changes which answer shapes production accepts.
+    const rank = { type: "rank", options: ["a", "b"], domain: null };
+    expect(seedOptionConflict("f-43", rank, { ...rank, type: "vote" })?.field).toBe("type");
+  });
+
+  it("leaves an unchanged type alone, however it is spelled", () => {
+    // The freeze must not wedge the seed for the other ~490 docs. Absent
+    // and "" are one value here, as they are for `domain`.
+    const q = { type: "binary", options: ["Messi", "Ronaldo"], domain: null };
+    expect(seedOptionConflict("daily-003", q, { ...q })).toBeNull();
+    const noType = { options: ["Messi", "Ronaldo"], domain: null };
+    expect(seedOptionConflict("daily-003", noType, { ...noType })).toBeNull();
+    // …and ACQUIRING one is a change, same as domain.
+    expect(seedOptionConflict("daily-003", noType, { ...noType, type: "binary" })?.field).toBe("type");
+  });
+
+  it("reports the options conflict first when both moved", () => {
+    // Ordering is deliberate: the options line is the one an operator has
+    // read a hundred times, and the new arm sits behind it rather than
+    // displacing it.
+    const a = { type: "vote", options: ["Yes", "No"], domain: null };
+    const c = seedOptionConflict("f-44", a, { ...a, type: "choice", options: ["No", "Yes"] });
+    expect(c?.field).toBe("options");
+  });
+
   it("describes conflicts in a form an operator can act on", () => {
     const line = describeSeedOptionConflicts([
       { qid: "daily-003", stored: ["Messi", "Ronaldo"], desired: ["Ronaldo", "Messi"] },
@@ -1566,6 +1691,9 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(describeSeedOptionConflicts([
       { qid: "pick-pk04", field: "domain", stored: ["pokemon"], desired: ["dogs"] },
     ])).toContain("pick-pk04 (domain): [pokemon] -> [dogs]");
+    expect(describeSeedOptionConflicts([
+      { qid: "f-42", field: "type", stored: ["vote"], desired: ["catalog"] },
+    ])).toContain("f-42 (type): [vote] -> [catalog]");
   });
 });
 
@@ -1919,6 +2047,28 @@ describe("roomQids", () => {
     expect(roomQids(["a", "b"])).toEqual(["a", "b"]);
   });
 
+  it("drops an id the bank does not hold, when a bank is given", () => {
+    // The shape checks are not a cost bound. Each id the room has not
+    // already folded costs a getAll over ROOM_PEOPLE_CAP answer refs — and
+    // Firestore bills a MISSING document in a batchGet — so eight unknown
+    // ids are ~192 billed reads. A folded id is cached, which is exactly
+    // what makes an honest caller cheap and an inventive one unbounded:
+    // eight fresh invented ids every call never hit the cache. The same
+    // strings become field names on the shared room document, which every
+    // caller in that cell reads, so invented ids also grow it until the
+    // write fails into a swallowing catch.
+    const known = (q: string) => q === "daily-000" || q === "feed-x";
+    expect(roomQids(["daily-000", "made-up", "feed-x", "also-invented"], undefined, known))
+      .toEqual(["daily-000", "feed-x"]);
+    expect(roomQids(["nothing-real"], undefined, known)).toEqual([]);
+  });
+
+  it("still takes everything shape-legal when no bank is given", () => {
+    // The predicate is optional, and its absence must not quietly become a
+    // refusal — every other caller of this helper passes nothing.
+    expect(roomQids(["a", "b"])).toEqual(["a", "b"]);
+  });
+
   it("de-duplicates, because a repeated qid folds and pays twice", () => {
     expect(roomQids(["a", "a", "b", "a"])).toEqual(["a", "b"]);
   });
@@ -1998,6 +2148,14 @@ describe("fcmBatches", () => {
     const batches = fcmBatches(tokens);
     expect(batches).toHaveLength(2);
     expect(batches[0]).toHaveLength(FCM_BATCH);
+    // THE CEILING ITSELF, which is not ours to tune: the constant's own
+    // comment names it "FCM's own per-call ceiling for
+    // sendEachForMulticast". Every use here derives its fixture from the
+    // constant, so 500 -> 900 passes — and above 500 every push batch is
+    // rejected by FCM, for every reveal, invite, join request and
+    // approval, inside a `try { … } catch { logger.warn }` that makes the
+    // failure silent.
+    expect(FCM_BATCH, "FCM's per-call ceiling is 500 — this is their limit, not a dial").toBe(500);
     expect(batches[1]).toHaveLength(7);
     expect(batches.flat()).toEqual(tokens);
   });
@@ -2038,5 +2196,198 @@ describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D2
     // Ascending mean position = the published crowd order: 2, 0, 1, 3.
     const rank = [...pos.keys()].sort((a, b) => pos[a] - pos[b] || a - b);
     expect(rank).toEqual([2, 0, 1, 3]);
+  });
+});
+
+// ── the tail (D400) ──────────────────────────────────────────────
+
+describe("the breakdown cap's tail (D400)", () => {
+  type By = Record<string, Record<string, Record<string, number>>>;
+  const sum = (cell: Record<string, number>) => Object.values(cell).reduce((a, b) => a + b, 0);
+  /** hot ∪ tail for one dim, as a reader who summed both would see it. */
+  const union = (hot: By, pending: Map<number, By>, dim: string) => {
+    const out: Record<string, Record<string, number>> = {};
+    const take = (buckets: Record<string, Record<string, number>> | undefined) => {
+      for (const [b, cell] of Object.entries(buckets ?? {})) {
+        const t = out[b] || (out[b] = {});
+        for (const [k, n] of Object.entries(cell)) t[k] = (t[k] || 0) + n;
+      }
+    };
+    take(hot[dim]);
+    for (const shard of pending.values()) take(shard[dim]);
+    return out;
+  };
+
+  it("hashes a bucket to its shard the way the client does — the vectors are pinned on both sides", () => {
+    // src/v2/data/overflow.test.ts pins the same literals against the
+    // client's copy; a divergence means a device opens the wrong shard and
+    // reads its own city as absent.
+    expect(OVERFLOW_SHARDS).toBe(8);
+    expect(["Oslo, NO", "Bergen, NO", "Trondheim, NO", "NO", "PT", "Tail01, NO", "São Paulo, BR"].map(overflowShard))
+      .toEqual([5, 7, 4, 2, 1, 3, 7]);
+    for (const b of ["", "x", "a".repeat(40)]) expect(overflowShard(b)).toBeGreaterThanOrEqual(0);
+    for (const b of ["", "x", "a".repeat(40)]) expect(overflowShard(b)).toBeLessThan(OVERFLOW_SHARDS);
+  });
+
+  it("an eviction moves the victim's whole cell to the tail and a refusal starts the newcomer there — hot ∪ tail is exact", () => {
+    const by: By = {};
+    const { tail, pending } = overflowTail(new Map());
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) foldAnchors(by, { city: `Junk${i}, NO` }, i % 2, undefined, tail);
+    expect(pending.size, "nothing reaches the tail while slots are free").toBe(0);
+    // The 25th evicts Junk0 (one answer, option 0) — into the tail, whole.
+    foldAnchors(by, { city: "Oslo, NO" }, 1, undefined, tail);
+    expect(by.city["Junk0, NO"]).toBeUndefined();
+    expect(by.city["Oslo, NO"]).toEqual({ "1": 1 });
+    expect(pending.get(overflowShard("Junk0, NO"))?.city["Junk0, NO"]).toEqual({ "0": 1 });
+    // Every slot published: the newcomer is refused from the hot map and
+    // counted in the tail instead of nowhere.
+    const full: By = {};
+    const flow = overflowTail(new Map());
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(full, { city: `Full${i}, NO` }, 0, undefined, flow.tail);
+    }
+    foldAnchors(full, { city: "Newcomer, NO" }, 1, undefined, flow.tail);
+    expect(full.city["Newcomer, NO"]).toBeUndefined();
+    expect(flow.pending.get(overflowShard("Newcomer, NO"))?.city["Newcomer, NO"]).toEqual({ "1": 1 });
+    expect(sum(union(full, flow.pending, "city")["Newcomer, NO"])).toBe(1);
+    expect(Object.values(union(full, flow.pending, "city")).reduce((a, c) => a + sum(c), 0))
+      .toBe(BREAKDOWN_MAX_BUCKETS * FLOOR + 1);
+  });
+
+  it("a bucket the tail holds STAYS there — counted where it is, never split across the two", () => {
+    // The shards as the trigger would have read them: Newcomer already in
+    // the tail with one answer, and a sub-floor hot slot it COULD evict.
+    const hot: By = { city: {} };
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) hot.city[`Junk${i}, NO`] = { "0": 1 };
+    const shards = new Map([[overflowShard("Newcomer, NO"), { city: { "Newcomer, NO": { "1": 1 } } }]]);
+    const { tail, pending } = overflowTail(shards);
+    foldAnchors(hot, { city: "Newcomer, NO" }, 0, undefined, tail);
+    expect(hot.city["Newcomer, NO"], "re-admitted to the hot map beside its tail cell").toBeUndefined();
+    expect(Object.keys(hot.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    expect(pending.get(overflowShard("Newcomer, NO"))?.city["Newcomer, NO"]).toEqual({ "0": 1 });
+  });
+
+  it("capBoundShards names a shard only for a dimension AT the cap that lacks the bucket", () => {
+    const under: By = { city: { "Oslo, NO": { "0": 1 } }, country: { NO: { "0": 1 } } };
+    expect(capBoundShards(under, { city: "Bergen, NO", country: "PT" })).toEqual([]);
+    const at: By = { city: {}, country: {} };
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) { at.city[`C${i}, NO`] = { "0": 1 }; at.country[`X${i}`] = { "0": 1 }; }
+    // present in the hot map → no read; absent → its shard
+    expect(capBoundShards(at, { city: "C3, NO" })).toEqual([]);
+    expect(capBoundShards(at, { city: "Oslo, NO" })).toEqual([overflowShard("Oslo, NO")]);
+    // two capped dims → both shards, sorted and deduped; a dim the answer
+    // does not carry is not read; a dim with no hot map is not at the cap
+    const both = capBoundShards(at, { city: "Oslo, NO", country: "NO", ageBand: "25-34" });
+    expect(both).toEqual([...new Set([overflowShard("Oslo, NO"), overflowShard("NO")])].sort((a, b) => a - b));
+    expect(capBoundShards(null, { city: "Oslo, NO" })).toEqual([]);
+    expect(capBoundShards(at, null)).toEqual([]);
+  });
+
+  it("retargetTail moves the edit inside the tail under retargetAnchors' own skip rule", () => {
+    const s = overflowShard("Tail01, NO");
+    const shards = new Map([[s, { city: { "Tail01, NO": { "0": 2 } } }]]);
+    expect([...retargetTail(shards, { city: "Tail01, NO" }, 0, 1).entries()])
+      .toEqual([[s, { city: { "Tail01, NO": { "0": -1, "1": 1 } } }]]);
+    // the cell does not hold the old option → left alone, increment included
+    expect(retargetTail(shards, { city: "Tail01, NO" }, 1, 0).size).toBe(0);
+    // a bucket the tail does not hold → nothing to move (the hot map's job)
+    expect(retargetTail(shards, { city: "Oslo, NO" }, 0, 1).size).toBe(0);
+    expect(retargetTail(shards, null, 0, 1).size).toBe(0);
+  });
+});
+
+describe("honestAnchors (D410): you may withhold, you may not invent", () => {
+  const PROFILE = { city: "Oslo", country: "NO", ageBand: "25-34", profession: "Ceramicist" };
+
+  it("passes an honest claim through unchanged", () => {
+    expect(honestAnchors({ city: "Oslo", ageBand: "25-34" }, PROFILE))
+      .toEqual({ city: "Oslo", ageBand: "25-34" });
+  });
+
+  it("REPLACES an invented value with the profile's", () => {
+    // The whole point. A hand-written client filing its own answer under a
+    // cohort it liked is the only way this data can lie, and every Mirror
+    // cut is folded from it.
+    expect(honestAnchors({ city: "Tokyo", profession: "Surgeon" }, PROFILE))
+      .toEqual({ city: "Oslo", profession: "Ceramicist" });
+  });
+
+  it("KEEPS a withheld anchor withheld — the city-blanking the app does on purpose", () => {
+    // answerAnchors(rates) blanks the city on a question that rates one
+    // when the city is unconfirmed. Overwriting "" with the profile's city
+    // would undo a deliberate decision and rate a place on an unconfirmed
+    // claim, which is the thing that blanking exists to stop.
+    expect(honestAnchors({ city: "", country: "NO" }, PROFILE))
+      .toEqual({ city: "", country: "NO" });
+  });
+
+  it("treats null and undefined as withheld too", () => {
+    expect(honestAnchors({ city: null, country: undefined }, PROFILE))
+      .toEqual({ city: null, country: undefined });
+  });
+
+  it("DROPS a field the profile does not carry at all", () => {
+    // Inventing a whole anchor is the same act as changing one — and a key
+    // the profile has never held cannot be corrected to anything, so it
+    // goes rather than staying as the client wrote it.
+    expect(honestAnchors({ city: "Oslo", heightBand: "180-189" }, PROFILE))
+      .toEqual({ city: "Oslo" });
+  });
+
+  it("says nothing when there is no profile, and keeps withheld values", () => {
+    // A first answer written before any profile exists is legal and carries
+    // {} (D8). Anything non-empty claimed against no profile is invention.
+    expect(honestAnchors({}, null)).toEqual({});
+    expect(honestAnchors({ city: "Tokyo" }, null)).toEqual({});
+    expect(honestAnchors({ city: "" }, null)).toEqual({ city: "" });
+  });
+
+  it("survives junk on either side rather than throwing in the hot trigger", () => {
+    expect(honestAnchors(null, PROFILE)).toEqual({});
+    expect(honestAnchors("nope", PROFILE)).toEqual({});
+    expect(honestAnchors({ city: "Oslo" }, "nope")).toEqual({});
+  });
+});
+
+describe("turns — who is told 'your turn' (ROUNDS-PLAN §7.4)", () => {
+  it("mergePlayed seals the answer being written into the map the trigger read", () => {
+    expect(mergePlayed({ r2: ["b"] }, "r2", "a")).toEqual({ r2: ["b", "a"] });
+    expect(mergePlayed({ r2: ["a"] }, "r2", "a")).toEqual({ r2: ["a"] });
+    expect(mergePlayed(undefined, "r3", "a")).toEqual({ r3: ["a"] });
+    expect(mergePlayed({ r2: "junk" }, "r2", "a")).toEqual({ r2: ["a"] });
+  });
+
+  it("roundsWaitingFor counts the rounds somebody else sealed and you did not, inside the lead", () => {
+    const played = { r2: ["leo"], r3: ["leo"], r4: ["leo", "me"], r5: ["leo"], r9: ["leo"] };
+    expect(roundsWaitingFor(played, 2, "me")).toBe(3);   // r2, r3, r5 — r4 is mine, r9 past the lead
+    expect(roundsWaitingFor(played, 2, "leo")).toBe(0);
+    expect(roundsWaitingFor({}, 2, "me")).toBe(0);
+  });
+
+  it("a first answer tells the partner once, naming one round", () => {
+    expect(turnRecipients({ r2: ["leo"] }, 2, ["leo", "me"], undefined, "leo"))
+      .toEqual([{ uid: "me", waiting: 1 }]);
+  });
+
+  it("a partner who runs ahead sends ONE nudge — the stamp holds the rest, and the count grows silently", () => {
+    // Told at round 2; Leo has since sealed 3, 4 and 5.
+    const played = { r2: ["leo"], r3: ["leo"], r4: ["leo"], r5: ["leo"] };
+    expect(turnRecipients(played, 2, ["leo", "me"], { me: 1 }, "leo")).toEqual([]);
+    // …and once their own answer cleared the stamp, the next nudge names them all.
+    expect(turnRecipients(played, 2, ["leo", "me"], {}, "leo")).toEqual([{ uid: "me", waiting: 4 }]);
+  });
+
+  it("a room is nudged once per member per round: whoever has played the open round, or was told, is skipped", () => {
+    const played = { r7: ["ada", "bo"] };
+    expect(turnRecipients(played, 7, ["ada", "bo", "cy", "di"], { di: 1 }, "bo"))
+      .toEqual([{ uid: "cy", waiting: 1 }]);
+  });
+
+  it("never nudges the sender, and nobody when nothing waits", () => {
+    expect(turnRecipients({ r2: ["me"] }, 2, ["me"], undefined, "me")).toEqual([]);
+    expect(turnRecipients({}, 2, ["leo", "me"], undefined, "leo")).toEqual([]);
+    expect(isStamped({ me: 1 }, "me")).toBe(true);
+    expect(isStamped({ me: 1 }, "leo")).toBe(false);
+    expect(isStamped(null, "me")).toBe(false);
   });
 });

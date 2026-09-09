@@ -11,15 +11,18 @@
 //      the ACTUAL answer against the sealed posterior.
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_LAMBDA_U,
   PATTERNS_SIM_SHRINK,
   edgesOf,
   estimateTheta,
   mapGeometry,
+  mostInformative,
   nearOf,
   oracleGuess,
-  planeOf,
+  ridgeSolve,
   simOf,
   surprisalBits,
+  undetermined,
   type MapNode,
 } from "./patternsMap";
 
@@ -58,6 +61,53 @@ describe("sim and the web", () => {
     expect(hub[POOL.findIndex((q) => q.id === "weak")]).toBeLessThan(0.2);
   });
 
+  // THE SCAN HAS TO REACH INDEX 0, and nothing asked it to. The case
+  // above takes index 0 as the SUBJECT (`nearOf(U, 0, 2)`), where `j = 0`
+  // is skipped as self anyway; the edge case below asserts uniqueness and
+  // sort order, never endpoints. So `for (let j = 1; …)` — one character
+  // — left the whole client suite green while the first question became
+  // nobody's neighbour: a dot with no chords on the Patterns map, and a
+  // missing row in the selected question's strongest ties.
+  //
+  // This module is the worst-covered in the fold slice: 42 of 84 mutants
+  // survive its own suite. Its sibling on the next line IS caught (making
+  // every edge a self-loop reddens the UI suite), which is what makes the
+  // scan bound a real gap rather than a blanket one.
+  it("finds index 0 as somebody else's neighbour, not only as a subject", () => {
+    // "a2" is (0.9, 0.1); "a" at index 0 is (1, 0) — its strongest tie by
+    // a wide margin, and the only question in the pool it should name
+    // first.
+    const near = nearOf(U, 1, 1);
+    expect(
+      near.map((x) => x.j),
+      "the scan never reached index 0, so the first question is nobody's neighbour",
+    ).toEqual([0]);
+  });
+
+  it("scans the whole pool — every question is reachable as a neighbour", () => {
+    // BOTH ENDS, and the middle. The case above catches `j = 1` and was
+    // silent on `j < U.length - 1`, which drops the LAST question instead
+    // — the same defect, the same invisible symptom, one character away.
+    // Asked as a property so no bound can be trimmed at either end: over
+    // the whole pool, with k as wide as the pool, every index must turn up
+    // as somebody's neighbour.
+    const seen = new Set<number>();
+    for (let i = 0; i < U.length; i++) for (const x of nearOf(U, i, U.length)) seen.add(x.j);
+    expect(
+      [...seen].sort((a, b) => a - b),
+      "some question is never anyone's neighbour — the scan does not cover the pool",
+    ).toEqual(U.map((_, i) => i));
+  });
+
+  it("draws at least one edge touching the first question", () => {
+    // The same hole seen through the web the Map actually renders.
+    const edges = edgesOf(U, 3);
+    expect(
+      edges.some((e) => e.i === 0 || e.j === 0),
+      "no edge touches question 0 — it would draw as a dot with no chords",
+    ).toBe(true);
+  });
+
   it("dedupes the web and sorts it strongest first", () => {
     const edges = edgesOf(U, 3);
     const keys = edges.map((e) => `${e.i}:${e.j}`);
@@ -68,30 +118,6 @@ describe("sim and the web", () => {
   });
 });
 
-describe("the plane", () => {
-  const { U } = mapGeometry(POOL);
-  const edges = edgesOf(U, 3);
-
-  it("is deterministic and stays inside the box", () => {
-    const a = planeOf(POOL, edges);
-    const b = planeOf(POOL, edges);
-    expect(a).toEqual(b);
-    for (const p of a) {
-      expect(p.x).toBeGreaterThanOrEqual(16 * 0.6 - 1e-9);
-      expect(p.x).toBeLessThanOrEqual(344 - 16 * 0.6 + 1e-9);
-      expect(p.y).toBeGreaterThanOrEqual(16 * 0.6 - 1e-9);
-      expect(p.y).toBeLessThanOrEqual(330 - 16 * 0.6 + 1e-9);
-    }
-  });
-
-  it("keeps no two dots on top of each other", () => {
-    const pts = planeOf(POOL, edges);
-    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-      const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
-      expect(d).toBeGreaterThan(2);
-    }
-  });
-});
 
 describe("the Oracle's arithmetic", () => {
   it("recovers a planted trait from the viewer's own answers", () => {
@@ -127,5 +153,50 @@ describe("the Oracle's arithmetic", () => {
     for (const t of theta) expect(t).toBe(0);
     const g = oracleGuess(theta, vec(1, 0), 0.4);
     expect(g.p0).toBeCloseTo(0.7, 6);
+  });
+});
+
+// ── the solve's precision, and the question it chooses (D396) ─────────
+describe("the ridge solve keeps its precision", () => {
+  it("returns the inverse it solved with, and the same θ estimateTheta gives", () => {
+    const obs = [
+      { L: vec(1, 0), r: 0.8 },
+      { L: vec(0.6, 0.8), r: -0.4 },
+      { L: vec(0, 0, 1), r: 0.3 },
+    ];
+    const { theta, invA } = ridgeSolve(obs, K, 0.5);
+    expect(theta).toEqual(estimateTheta(obs, K, 0.5));
+    // A · invA = I, with A = Σ L Lᵀ + λI
+    const A = Array.from({ length: K }, (_, i) => Array.from({ length: K }, (_, j) => (i === j ? 0.5 : 0)));
+    for (const o of obs) for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) A[i][j] += o.L[i] * o.L[j];
+    for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
+      let s = 0;
+      for (let l = 0; l < K; l++) s += A[i][l] * invA[l][j];
+      expect(s).toBeCloseTo(i === j ? 1 : 0, 9);
+    }
+    // the shipped default still holds where nothing is passed
+    expect(DEFAULT_LAMBDA_U).toBe(0.5);
+    expect(estimateTheta(obs, K)).toEqual(estimateTheta(obs, K, 0.5));
+  });
+
+  it("an unanswered direction is undetermined, an answered one is pinned", () => {
+    const { invA } = ridgeSolve([{ L: vec(1, 0), r: 1 }, { L: vec(1, 0), r: 1 }, { L: vec(1, 0), r: -1 }], K, 0.5);
+    // three answers along axis 0: variance 1/(3 + 0.5); nothing along axis 1: 1/0.5
+    expect(undetermined(invA, vec(1, 0))).toBeCloseTo(1 / 3.5, 9);
+    expect(undetermined(invA, vec(0, 1))).toBeCloseTo(2, 9);
+    // a norm-scaled loading is scaled twice — it is a variance
+    expect(undetermined(invA, vec(0, 2))).toBeCloseTo(8, 9);
+  });
+
+  it("asks about what it knows least: the loading along the unpinned axis, ties to the first", () => {
+    const { invA } = ridgeSolve([{ L: vec(1, 0), r: 1 }], K, 0.5);
+    const cands = [{ L: vec(0.9, 0.1) }, { L: vec(0, 1) }, { L: vec(0, 1) }];
+    expect(mostInformative(invA, cands)).toBe(1);
+    expect(mostInformative(invA, [cands[0]])).toBe(0);
+    expect(mostInformative(invA, [])).toBe(-1);
+    // and once axis 1 is answered too, the strong axis-0 loading is what is
+    // left to learn about
+    const after = ridgeSolve([{ L: vec(1, 0), r: 1 }, { L: vec(0, 1), r: 1 }, { L: vec(0, 1), r: -1 }, { L: vec(0, 1), r: 1 }], K, 0.5);
+    expect(mostInformative(after.invA, cands)).toBe(0);
   });
 });

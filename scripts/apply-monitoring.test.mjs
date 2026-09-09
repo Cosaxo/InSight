@@ -19,12 +19,33 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { generateKeyPairSync } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const run = promisify(execFile);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * How many metrics and policies the applier lists, read off its own source.
+ *
+ * Three cases here hardcoded `5` and `8`, so adding one alert failed them
+ * with a number instead of a reason — the hand-kept-figure error, inside
+ * the suite that guards the applier. `check:figures` holds the applier's
+ * PROSE against the same lists; this holds its behaviour against them.
+ */
+const listedMetricNames = () => {
+  const src = readFileSync(resolve(root, "scripts/apply-monitoring.mjs"), "utf8");
+  return [...src.matchAll(/^ {4}name: "([^"]+)"/gm)].map((m) => m[1]);
+};
+
+const listed = () => {
+  const src = readFileSync(resolve(root, "scripts/apply-monitoring.mjs"), "utf8");
+  return {
+    metrics: [...src.matchAll(/^ {4}name: "/gm)].length,
+    policies: [...src.matchAll(/^ {2}"monitoring\/[^"]+\.json",$/gm)].length,
+  };
+};
 const SCRIPT = join(root, "scripts/apply-monitoring.mjs");
 
 const { privateKey } = generateKeyPairSync("rsa", {
@@ -171,10 +192,19 @@ describe("dry run", () => {
     expect(posts()).toEqual([]);
   });
 
-  it("names every object it would create — one channel, five metrics, eight policies", async () => {
+  it("names every object it would create — one channel, and every metric and policy the applier lists", async () => {
+    // COUNTED OFF THE APPLIER, not typed here. This read "one channel,
+    // five metrics, eight policies" with `1 + 5 + 8` under it, so adding a
+    // policy failed this case with a number rather than with a reason —
+    // the hand-kept-figure error, inside the suite that guards the applier.
+    const { metrics, policies } = listed();
+    expect(metrics, "could not read the METRICS list — has apply-monitoring been restructured?")
+      .toBeGreaterThan(0);
+    expect(policies, "could not read the POLICIES list — has apply-monitoring been restructured?")
+      .toBeGreaterThan(0);
     const out = await apply();
     const would = out.split("\n").filter((l) => l.includes("would create"));
-    expect(would).toHaveLength(1 + 5 + 8);
+    expect(would).toHaveLength(1 + metrics + policies);
     expect(out).toContain('+ notification channel "InSight oncall" — would create');
     expect(out).toContain("+ log-based metric agg_contention — would create");
     expect(out).toContain('+ policy "onV2AnswerCreated is erroring" — would create');
@@ -186,8 +216,9 @@ describe("--apply", () => {
     await apply(["--apply"]);
     const order = posts().map((c) => c.url);
     expect(order.filter((u) => u === CHANNELS)).toHaveLength(1);
-    expect(order.filter((u) => u === METRICS)).toHaveLength(5);
-    expect(order.filter((u) => u === POLICIES)).toHaveLength(8);
+    // Counted off the applier for the reason the dry-run case above states.
+    expect(order.filter((u) => u === METRICS)).toHaveLength(listed().metrics);
+    expect(order.filter((u) => u === POLICIES)).toHaveLength(listed().policies);
     // Not just "all present" — every metric POST must precede every policy
     // POST, because two policies read metrics created in that step.
     expect(order.lastIndexOf(METRICS)).toBeLessThan(order.indexOf(POLICIES));
@@ -197,7 +228,7 @@ describe("--apply", () => {
   it("fills the channel id into every policy — the committed files say []", async () => {
     await apply(["--apply"]);
     const policyPosts = posts().filter((c) => c.url === POLICIES);
-    expect(policyPosts).toHaveLength(8);
+    expect(policyPosts).toHaveLength(listed().policies);
     for (const p of policyPosts) {
       expect(p.body.notificationChannels).toEqual([CHANNEL_ID]);
     }
@@ -214,6 +245,51 @@ describe("--apply", () => {
   });
 });
 
+describe("what the operator is told after arming", () => {
+  // This text prints at the exact moment somebody arms alerting and then
+  // goes to verify, and it said all four silence policies watch an ABSENCE
+  // and cannot fire until each job has run once in production. Since
+  // D303's amendment that is the inverse for three of them: they are
+  // trailing-24h thresholds with evaluationMissingData ACTIVE, chosen
+  // precisely so a never-emitting series reads as a breach. Nothing pinned
+  // the sentence, so it went stale with the shape change.
+  //
+  // Held against the committed policy files, which are the shape itself.
+  const shapes = () => {
+    const absent = [];
+    const armed = [];
+    for (const f of readdirSync(join(root, "monitoring")).filter((f) => f.endsWith(".json"))) {
+      let body;
+      try { body = JSON.parse(readFileSync(join(root, "monitoring", f), "utf8")); } catch { continue; }
+      if (!Array.isArray(body.conditions) || !body.displayName) continue;
+      (body.conditions.some((c) => c.conditionAbsent) ? absent : armed).push(body.displayName);
+    }
+    return { absent, armed };
+  };
+
+  it("names the absence policies it actually has, and no others", async () => {
+    const { absent, armed } = shapes();
+    // Vacuity guards: the split has to be a real split, or the assertions
+    // below would hold over an empty set.
+    expect(absent.length).toBeGreaterThan(0);
+    expect(armed.length).toBeGreaterThan(0);
+    const out = await apply(["--apply"]);
+    for (const name of absent) {
+      expect(out, `${name} is an absence policy and the caveat does not name it`).toContain(name);
+    }
+    for (const name of armed) {
+      expect(out, `${name} is a threshold and the caveat calls it an absence`)
+        .not.toContain(`"${name}" is a metric-ABSENCE policy`);
+    }
+  });
+
+  it("says the rest fire from the first evaluation", async () => {
+    const out = await apply(["--apply"]);
+    expect(out).toMatch(/fire from the first evaluation/);
+    expect(out).toMatch(/evaluationMissingData ACTIVE/);
+  });
+});
+
 describe("idempotence", () => {
   it("creates nothing on a second run", async () => {
     reply[key("GET", CHANNELS)] = {
@@ -222,7 +298,11 @@ describe("idempotence", () => {
     };
     reply[key("GET", METRICS)] = {
       status: 200,
-      body: { metrics: ["agg_contention", "duel_reveal_run", "patterns_fit", "velocity_scan", "engagement_digest"].map((name) => ({ name })) },
+      // The NAMES from the applier, not a copy of them: seeded by hand,
+      // this case reported "already exists" for five and then created the
+      // two it had never heard of, which is a failure about the fixture
+      // rather than about idempotence.
+      body: { metrics: listedMetricNames().map((name) => ({ name })) },
     };
     reply[key("GET", POLICIES)] = {
       status: 200,
@@ -231,7 +311,8 @@ describe("idempotence", () => {
     const out = await apply(["--apply"]);
     expect(posts()).toEqual([]);
     expect(out).toContain("done, 0 created");
-    expect(out.split("\n").filter((l) => l.includes("already exists"))).toHaveLength(1 + 5 + 8);
+    const { metrics, policies } = listed();
+    expect(out.split("\n").filter((l) => l.includes("already exists"))).toHaveLength(1 + metrics + policies);
   });
 });
 

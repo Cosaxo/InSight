@@ -2,9 +2,10 @@
 // script survives; THIS file is the live source now, hand-edits and all).
 //
 // CONVERTED off the shared-global bridge (D39): `PASSIVE` is a named export
-// and this file publishes nothing to globalThis. `window.LIVE` stays a
-// global read — data/live.ts's published surface, which is the convention
-// working as intended.
+// and this file publishes nothing to globalThis. The store is an import too
+// since D354 (`LIVE` below): the SEED proxy reads `.enabled` on each
+// property access, which is call time, so nothing here reads the binding
+// while the module evaluates.
 //
 // This module was the real half of src/v2/README.md's cycle warning, and it
 // was a multi-writer artifact rather than a dependency: its one reference
@@ -13,8 +14,9 @@
 // not loaded. Importing the name from its real owner removed the edge, and
 // converting test-definitions.js made that fallback dead code, so it went too.
 import { IS_TESTS, IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
+import LIVE from '../data/live';
 
-// passive-progress.js — progress for the five core tests. Only a test's OWN
+// passive-progress.js — progress for the four core tests. Only a test's OWN
 // questions count: they surface as marked cards in the World feed (TEST_FEED_QS)
 // or get answered in the test itself. Regular feed questions carry no signal.
 // Staggered demo seeds included. Plain script.
@@ -39,7 +41,7 @@ export const PASSIVE = (function () {
   // live mode starts every test at its real zero — the stagger exists
   // only so the demo shows all progress states at once
   const SEED = new Proxy(DEMO_SEED, {
-    get(t, k) { return (window.LIVE && window.LIVE.enabled) ? 0 : t[k]; },
+    get(t, k) { return LIVE.enabled ? 0 : t[k]; },
   });
   let st = load();
   const subs = [];
@@ -71,7 +73,13 @@ export const PASSIVE = (function () {
   // a test question in the feed was answered — one more of that test done
   function record(q) {
     const k = testFor(q);
-    if (!k || !META[k] || !q.id) return null;
+    // A DEEP item (D416 — a facet's or a position's card, `q.facet` on the
+    // feed card) is the instrument's question and still stays out of the
+    // ring: needed() counts the domain-level set IS_TESTS carries, and a
+    // facet answer counted here would fill a ring whose denominator never
+    // included it. testFor() itself still says yes to it, because the feed
+    // filters its test stream through testFor and the card must be served.
+    if (!k || !META[k] || !q.id || q.facet) return null;
     if (st.seen[q.id] != null) return null;
     st.seen[q.id] = k; save(); notify();
     return k;

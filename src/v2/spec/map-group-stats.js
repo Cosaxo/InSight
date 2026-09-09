@@ -10,8 +10,8 @@ import { sharePcts } from '../data/pct';
 // InSight — group statistics for the Map tab.
 //
 // For a (question × anchor-group) pair: how did people who share that
-// anchor with you answer? Since D99 this is REAL for the two anchors that
-// map onto a breakdown dim, and still refuses for the rest.
+// anchor with you answer? Since D99 this is REAL for the three anchors
+// that map onto a breakdown dim, and still refuses for the rest.
 //
 // THE HISTORY MATTERS, because the refusal is what made the fix findable.
 // Every number here used to be a hash of the question id — plausible,
@@ -24,22 +24,30 @@ import { sharePcts } from '../data/pct';
 //
 // D98 published the per-anchor breakdown exactly, so `age` and `edu` now
 // have an arithmetic answer and take it (see data/cohort.ts, typicality).
+// `job` joined them at D328 — through the profession's derived FIELD, the
+// indirection `age` already takes through `ageBand`. The reason it had
+// refused ("free text") had quietly stopped being true: the profile has
+// offered a 31-option select for a long time, and the real blocker was
+// that 31 is longer than BREAKDOWN_MAX_BUCKETS.
 //
-// THE OTHER FIVE STILL REFUSE, and not for want of a floor:
-//   job         is `profession` — free text, deliberately never a
-//               breakdown dim (D8), so nothing aggregates it.
+// THE OTHER FOUR STILL REFUSE, and not for want of a floor:
 //   big5, political, values, attachment
 //               are test RESULTS. No cohort aggregate exists for them at
 //               all, so "how did similar personalities answer" has no
 //               source rather than a withheld one. (Six until D103
-//               retired `cognitive` — one fewer refusal, not one more
-//               answer.)
+//               retired `cognitive`, five until D328 — each time one fewer
+//               refusal, not one more thing withheld.)
 // A live build therefore still gets null from those, through the same
 // fail-loud path — the demo keeps the hash, because in a demo the hash
 // IS the content.
 //
 // `groupLabel` answers in both modes either way: it is a noun for the
 // cohort, not a claim about it.
+// The export the Map's cards and the person map import (D354's sweep);
+// assigned inside the IIFE below, the DAILYQ shape. The window copy stays
+// beside it: smoke-live.test.jsx reads `window.MapStats` directly to pin
+// the cohort gate, and a test is a reader like any other.
+export let MapStats;
 (function () {
   // The demo's hash may run whenever we are not live. In live mode an
   // anchor answers only if it maps to a breakdown dim AND the viewer has
@@ -65,33 +73,41 @@ import { sharePcts } from '../data/pct';
     return x / 9973;
   }
 
+  // The COUNT vector behind a live reading, or null. The two branches of
+  // `dist` below both build one and then throw it away; `mode` needs it
+  // kept, so it lives here and both callers share it.
+  function liveCounts(qid, anchorId, nOpts, myIdx) {
+    const width = Math.max(2, nOpts);
+    const pick = (cell) => {
+      const counts = Array.from({ length: width }, (_, i) => cell[String(i)] || 0);
+      return counts.reduce((a, b) => a + b, 0) ? counts : null;
+    };
+    // 'all' is EVERYONE — not a cohort, so no anchor and no dim lookup.
+    if (anchorId === 'all') return pick((LIVE.aggFor(qid) || {}).counts || {});
+    if (!liveTypicality(qid, anchorId, width, myIdx)) return null;
+    const dim = MAP_ANCHOR_DIM[anchorId];
+    return pick(byOf(LIVE.aggFor(qid))[dim][(LIVE.anchors() || {})[dim]]);
+  }
+
   // % per option, integers summing to 100. Biased so the group's most common
   // answer matches YOURS roughly 60% of the time — agreement, not an echo.
   function dist(qid, anchorId, nOpts, myIdx) {
     if (refuses()) {
-      // Live: the published cell, as percentages. Same shape the hash
-      // returned, so every call site is unchanged.
-      const t = liveTypicality(qid, anchorId, nOpts, myIdx);
-      if (!t) return null;
-      const cell = byOf(LIVE.aggFor(qid))[MAP_ANCHOR_DIM[anchorId]][(LIVE.anchors() || {})[MAP_ANCHOR_DIM[anchorId]]];
-      const counts = Array.from({ length: Math.max(2, nOpts) }, (_, i) => cell[String(i)] || 0);
-      // `sharePcts` (data/pct.ts), the one rounding rule — NOT the
+      // Live: the published counts, as percentages, through `sharePcts`
+      // (data/pct.ts) — the one rounding rule, NOT the
       // round-then-dump-the-residue-on-the-leader shape that used to be
       // here. That shape can hand a bucket a point it did not earn and
-      // hand another one fewer, and `mode()` right below reads
-      // indexOf(max) off this array: the Map card's "you're with the
-      // majority" / "a minority take", its peak label and its
-      // where-you-differ list all rest on which bucket comes out largest.
-      // Measured over 200k random count vectors at ten options — a rating
-      // question's width — the expression this replaces drew the leading
-      // option below the top percentage 15826 times and drew a smaller
-      // count at a larger percentage 12500 times. sharePcts: 0 and 0, at
-      // every width tried.
+      // another one fewer. Measured over 200k random count vectors at ten
+      // options — a rating question's width — the expression it replaced
+      // drew the leading option below the top percentage 15826 times and
+      // drew a smaller count at a larger percentage 12500 times.
+      // sharePcts: 0 and 0, at every width tried.
       //
       // The demo branch below keeps its own arithmetic: its numbers are
       // invented from a hash, so their rounding is not a claim about
       // anybody.
-      return sharePcts(counts);
+      const counts = liveCounts(qid, anchorId, nOpts, myIdx);
+      return counts ? sharePcts(counts) : null;
     }
     const n = Math.max(2, nOpts);
     const w = [];
@@ -109,7 +125,24 @@ import { sharePcts } from '../data/pct';
     return pct;
   }
 
+  // WHICH OPTION THE GROUP CHOSE — off the COUNTS in live mode, not off
+  // the percentages.
+  //
+  // `sharePcts` guarantees no inversion (a smaller count never draws
+  // larger) and that is what the ridge's bar heights rest on. It does not
+  // guarantee distinctness: two different counts can print the same
+  // integer, and `indexOf(max)` then resolves the tie by INDEX. That made
+  // the Map card's "most chose 4" and its "you're with the majority" /
+  // "a minority take" verdict answerable by rounding rather than by
+  // votes — the same defect the feed's own with-the-majority line had.
+  //
+  // The demo keeps reading its percentages, because in a demo the hash IS
+  // the content and there are no counts behind it.
   function mode(qid, anchorId, nOpts, myIdx) {
+    if (refuses()) {
+      const counts = liveCounts(qid, anchorId, nOpts, myIdx);
+      return counts ? counts.indexOf(Math.max(...counts)) : null;
+    }
     const d = dist(qid, anchorId, nOpts, myIdx);
     return d ? d.indexOf(Math.max(...d)) : null;
   }
@@ -144,6 +177,6 @@ import { sharePcts } from '../data/pct';
     return Math.max(3, Math.min(97, Math.round(v)));
   }
 
-  window.MapStats = { dist, mode, groupLabel, dimVal, cohortN };
+  MapStats = window.MapStats = { dist, mode, groupLabel, dimVal, cohortN };
 })();
 

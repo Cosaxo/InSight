@@ -28,6 +28,36 @@
 // tokenizer is a much larger thing to get wrong.
 
 /**
+ * The XML/HTML half of the same job, for the gates that read `Info.plist`,
+ * `web/*.html` and the store forms.
+ *
+ * IT IS THE SAME DEFECT IN A SECOND SYNTAX, and this tree has now met it
+ * on both sides. `check-policy-claims` records finding it in 2026 — "a
+ * disclosure wrapped in `<!-- … -->` still counted as present" — and
+ * `check-public-copy` strips for the same reason. The two gates that read
+ * the iOS plist did not: `check-ios-location`'s `plistValue` scanned for
+ * `<key>NAME</key>` with `indexOf` over raw bytes, so a key inside a
+ * comment read exactly like a live one, and `check-store-forms` allowed a
+ * comment BETWEEN key and value while reading the first `<key>` wherever
+ * it was. Commenting out a location purpose string left both green — one
+ * of them the gate that exists because omitting it returns ITMS-90683 by
+ * email a build number later, the other a store attestation.
+ *
+ * Blanking rather than deleting, for the reason the JS stripper gives:
+ * every caller reports an offset back to a human.
+ *
+ * Not a parser, same trade as its sibling. `<!--` inside a CDATA section or
+ * an attribute value would be treated as a comment; neither occurs in the
+ * files these gates read, and an exact answer needs a real XML parser.
+ *
+ * @param {string} src source text
+ * @returns {string} the same text, same length, comments replaced by spaces
+ */
+export function stripXmlComments(src) {
+  return src.replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, " "));
+}
+
+/**
  * @param {string} src source text
  * @returns {string} the same text, same length, comments replaced by spaces
  */

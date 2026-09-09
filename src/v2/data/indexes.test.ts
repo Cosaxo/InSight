@@ -57,6 +57,27 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     ).toBe(true);
   });
 
+  it("circle.ts fetchAnswersOf: the (surface, answeredAt DESC) COLLECTION-scope composite exists (D398)", () => {
+    // The query gained `orderBy("answeredAt", "desc")` at D398 so the
+    // 300-cap keeps a member's newest answers instead of their
+    // alphabetically-first question ids. An `in` filter ordered by another
+    // field needs a composite at the query's own scope — COLLECTION, not
+    // COLLECTION_GROUP: the voter sheet's group-scope composites do not
+    // serve a single-collection query, and the failure is the header's
+    // (FAILED_PRECONDITION in production only, swallowed per member into
+    // an emptier stop).
+    const hit = cfg.indexes.find(
+      (ix) =>
+        ix.collectionGroup === "answers"
+        && ix.queryScope === "COLLECTION"
+        && JSON.stringify(ix.fields) === JSON.stringify([
+          { fieldPath: "surface", order: "ASCENDING" },
+          { fieldPath: "answeredAt", order: "DESCENDING" },
+        ]),
+    );
+    expect(hit, "the answers (surface, answeredAt DESC) COLLECTION-scope composite is missing or reshaped — fetchAnswersOf's orderBy has no index").toBeDefined();
+  });
+
   it("voters.ts fetchVoters: the collection-group composite exists, fields in query order", () => {
     // where qid ==, where surface in, orderBy answeredAt desc, at
     // COLLECTION_GROUP scope. Equality fields first, the orderBy field
@@ -120,6 +141,30 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     )).toBe(true);
   });
 
+  it("live.ts's bought-question boot query has its (paid, until) composite", () => {
+    // D313's questions are written into the bank at runtime, so no
+    // published order can carry them (rankBankV2 builds from the compiled
+    // bank) and the two other boot queries do not reach them — they are
+    // not a boot surface and they are not core. The third boot query is
+    // their whole route to a device, and it pairs an equality with an
+    // inequality, which needs a composite.
+    //
+    // Missing, this fails FAILED_PRECONDITION in production and NOWHERE
+    // else: the emulator creates composites on demand, so the unit suite,
+    // the rules tests and the e2e all pass without it — and the symptom
+    // is the one this index exists to end, a paid question reaching
+    // nobody.
+    const hit = cfg.indexes.find((ix) =>
+      ix.collectionGroup === "v2_questions"
+      && ix.queryScope === "COLLECTION"
+      && JSON.stringify(ix.fields) === JSON.stringify([
+        { fieldPath: "paid", order: "ASCENDING" },
+        { fieldPath: "until", order: "ASCENDING" },
+      ]),
+    );
+    expect(hit, "the v2_questions (paid, until) composite is missing or reshaped — bought questions reach nobody").toBeDefined();
+  });
+
   it("engagement.ts rollupPage: the (folded, day) collection-group composite exists", () => {
     // rollupPage orders by `day` so the nightly queue is FIFO. Without an
     // orderBy Firestore falls back to `__name__`, which for this group is
@@ -142,6 +187,34 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
         ]),
     );
     expect(hit, "the engagement (folded, day) collection-group composite is missing or reshaped — rollupPage fails FAILED_PRECONDITION in production").toBeDefined();
+  });
+
+  it("engagement.ts rollupPage: …and the query still ASKS for that order", () => {
+    // The other end of the same claim. The case above says the index
+    // exists; its own comment calls itself "the only thing standing
+    // between that and a silent nightly outage", and it is not — it reads
+    // the JSON only. Delete the `.orderBy("day")` from the query and the
+    // starvation the comment describes comes straight back while the now
+    // unused index sits in the file and every test stays green.
+    //
+    // Read off the source, the way check-anchors reads BREAKDOWN_DIMS out
+    // of pure.ts: the query is inside `firestoreEngagementStore`, behind
+    // an interface every unit test replaces, so nothing that runs can
+    // reach it. A parse that finds nothing is an error rather than an
+    // empty pass, which is what the first two assertions are for.
+    const src = readFileSync(resolve(__dirname, "../../../functions/src/engagement.ts"), "utf8");
+    const call = src.slice(src.indexOf('db.collectionGroup("engagement")'));
+    expect(call, "rollupPage's collection-group query is gone or renamed — this case is now vacuous").not.toBe("");
+    const query = call.slice(0, call.indexOf(".get()"));
+    expect(query, "the query no longer filters on `folded`").toContain('.where("folded", "==", false)');
+    expect(
+      query,
+      "rollupPage stopped ordering by `day`. Firestore then falls back to "
+      + "`__name__`, which for this group is uid-major, so above the fold "
+      + "cap the same low-sorting accounts are taken every night and the "
+      + "rest die unfolded at the 90-day TTL — with the composite index "
+      + "still declared and nothing red.",
+    ).toContain('.orderBy("day")');
   });
 
   it("live.ts's own-answer delta cursors: answeredAt and editedAt stay unexempted", () => {
@@ -175,6 +248,210 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
       o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING"),
       "engagement.folded has no COLLECTION_GROUP ascending index",
     ).toBe(true);
+  });
+
+  // deleteAccount's cross-user sweeps, as ONE case, because they share one
+  // failure and it is the worst one in this file.
+  //
+  // Phases 3–4 of deleteAccount reach documents that live under OTHER
+  // people's subtrees — an invitation this account sent sits in a
+  // stranger's inbox and carries this account's display name — so each is
+  // a collection-group query filtered on a uid field, with no ordering.
+  // A collection-group query needs its single-field index declared
+  // EXPLICITLY: automatic indexing is collection-scope only, so the
+  // absence of a line here is FAILED_PRECONDITION on that sweep.
+  //
+  // And a sweep that throws is not a partial erasure. Every failure is
+  // pushed onto `failed[]`, and a non-empty `failed[]` throws BEFORE
+  // getAuth().deleteUser — deliberately, so nothing is orphaned behind a
+  // deleted auth user. The consequence is that ONE missing line here means
+  // NOBODY CAN DELETE THEIR ACCOUNT, ever, and the message they get is
+  // "nothing was lost, please retry" on every attempt.
+  //
+  // `invites` was the line that was missing. The file declared the two
+  // composites `(to, at DESC)` and `(from, at DESC)` — added for the
+  // client's inbox, which orders by `at` — and a commit message reasoned
+  // that a composite covers the filter-only query "as a prefix". A
+  // composite ending `at DESC` carries an implicit trailing `__name__
+  // DESC`, and a filter-only query's implicit ordering is `__name__ ASC`,
+  // so the prefix argument is at best unproven. It cannot be settled from
+  // here — this file's header says why: the emulator does not enforce
+  // index configuration, so every local suite is green either way, and
+  // only production can answer it.
+  //
+  // The fix does not need the answer. Declaring the two single-field
+  // overrides makes the query served whichever way the composite question
+  // resolves, matches what every OTHER sweep in this list already has, and
+  // costs one index entry per invite on a collection that holds unanswered
+  // invitations. Cheap to add, and the thing it insures against is total.
+  // ── the five server-side composites nothing pinned ──────────────────
+  //
+  // Every composite above backs a query in `src/v2/data`, which is what
+  // this file grew up watching. Five more back queries in `functions/src`
+  // and one in the takes path, and each of them could be DELETED from the
+  // config with every runner in the repository green — measured. The
+  // emulator never enforces index configuration, so no suite can see it;
+  // the first symptom is production-only, and in four of the five cases it
+  // is a whole surface that quietly returns nothing.
+  //
+  // A helper rather than six copies: the assertion is the same each time —
+  // a composite exists at the right scope whose fields are the query's
+  // filters and order, in order.
+  const composite = (group: string, scope: string, want: Array<[string, string]>) =>
+    cfg.indexes.find((i) => i.collectionGroup === group
+      && i.queryScope === scope
+      && i.fields.length === want.length
+      && i.fields.every((f, n) => f.fieldPath === want[n][0] && f.order === want[n][1]));
+
+  it("live.ts loadTakes: both takes threads have their composite", () => {
+    // The world thread filters gid, qid and hidden and orders by createdAt
+    // desc; a circle's filters gid and hidden and orders the same way.
+    // Without either index the thread is empty in production and the
+    // catch below it leaves the key absent, so the reader sees no takes and
+    // no error.
+    expect(
+      composite("v2_takes", "COLLECTION",
+        [["gid", "ASCENDING"], ["qid", "ASCENDING"], ["hidden", "ASCENDING"], ["createdAt", "DESCENDING"]]),
+      "the world takes thread has no (gid, qid, hidden, createdAt DESC) composite",
+    ).toBeDefined();
+    expect(
+      composite("v2_takes", "COLLECTION",
+        [["gid", "ASCENDING"], ["hidden", "ASCENDING"], ["createdAt", "DESCENDING"]]),
+      "a circle's takes thread has no (gid, hidden, createdAt DESC) composite",
+    ).toBeDefined();
+  });
+
+  it("v2social.ts nearbyCount/nearbyRoom: presence has its (cell, until) composite", () => {
+    // `where cell in [...] where until > now`, as a count() and twice more
+    // for the mix and the roster. All three die together without it, so
+    // Near reports nobody rather than reporting a failure.
+    expect(
+      composite("v2_presence", "COLLECTION", [["cell", "ASCENDING"], ["until", "ASCENDING"]]),
+      "presence has no (cell, until) composite — Near's count, mix and roster all fail",
+    ).toBeDefined();
+  });
+
+  it("paid.ts's review sweep has its (status, createdAt) composite", () => {
+    // The 30-minute sweep pages bookings still in review past a cutoff. It
+    // is the only thing that moves a booking a human never got to, so its
+    // silent death is a buyer waiting forever on a decision.
+    expect(
+      composite("v2_paid_bookings", "COLLECTION", [["status", "ASCENDING"], ["createdAt", "ASCENDING"]]),
+      "the paid review sweep has no (status, createdAt) composite",
+    ).toBeDefined();
+  });
+
+  it("suggestions.ts's review board has its (status, at) composite", () => {
+    expect(
+      composite("v2_suggestions", "COLLECTION", [["status", "ASCENDING"], ["at", "ASCENDING"]]),
+      "the suggestion review board has no (status, at) composite",
+    ).toBeDefined();
+  });
+
+  it("replay.ts's aggregate rebuild has its (qid, answeredAt ASC) composite", () => {
+    // The rebuild walks every answer to one question in write order. It is
+    // the repair tool for a fold that went wrong, which is exactly when
+    // nobody wants to discover the index is missing.
+    expect(
+      composite("answers", "COLLECTION_GROUP", [["qid", "ASCENDING"], ["answeredAt", "ASCENDING"]]),
+      "the aggregate rebuild has no (qid, answeredAt ASC) collection-group composite",
+    ).toBeDefined();
+  });
+
+  it("report-lib.mjs getAnswersFor: the (qid, surface) COLLECTION-scope composite exists", () => {
+    // The paid report joins each voter's own answers to the candidate
+    // questions: collection(v2_users/{uid}/answers), where qid in chunk,
+    // where surface == "daily"|"feed" — COLLECTION scope, no orderBy. Every
+    // OTHER qid query in this tree is a collection-group one carried by a
+    // composite; this one is not, and `answers.qid` carries a FULL
+    // exemption (`"indexes": []`, asserted below), so nothing automatic
+    // stands behind it. Without the composite the query is
+    // FAILED_PRECONDITION in production and the report ships with an empty
+    // neighbour join — and no local run can catch that, because the
+    // emulator does not enforce index configuration.
+    expect(
+      composite("answers", "COLLECTION", [["qid", "ASCENDING"], ["surface", "ASCENDING"]]),
+      "report-lib.mjs's per-voter answer join has no (qid, surface) COLLECTION-scope composite",
+    ).toBeDefined();
+    // The half that makes the composite load-bearing rather than an
+    // optimisation. If the exemption is ever lifted, single-field indexing
+    // returns and this case can be relaxed — but it must be relaxed on
+    // purpose, not by the composite quietly going away.
+    expect(
+      override("answers", "qid")?.indexes,
+      "answers.qid is no longer fully exempted — re-read whether the composite above is still the only thing carrying getAnswersFor",
+    ).toEqual([]);
+  });
+
+  it("carries no composite for a query nobody makes: invites (from, at)", () => {
+    // The file declared BOTH `(to, at DESC)` and `(from, at DESC)`, added
+    // together for the client's inbox. Only the first is a query: the
+    // inbox is `where("to","==",me), orderBy("at","desc")`
+    // (data/socialFetch.ts). The only `from` query in the tree is
+    // deleteAccount's erasure sweep (functions/src/index.ts), which has no
+    // `orderBy` at all and is served by the single-field override pinned
+    // in the case below.
+    //
+    // So `(from, at DESC)` served nothing and cost an index entry on every
+    // invitation written. Removed — and asserted absent, so bringing it
+    // back is a decision rather than a copy of its neighbour. The day a
+    // real `from` + `orderBy("at")` query appears, this case is the one
+    // that has to be edited, which is the point.
+    const dead = cfg.indexes.filter((ix) =>
+      ix.collectionGroup === "invites"
+      && ix.fields.map((f) => f.fieldPath).join(",") === "from,at");
+    expect(dead, "invites (from, at) is back — which query orders invites by sender?")
+      .toHaveLength(0);
+    // The one that IS a query, so this case cannot pass by the whole
+    // collection group having been dropped.
+    const live = cfg.indexes.filter((ix) =>
+      ix.collectionGroup === "invites"
+      && ix.fields.map((f) => f.fieldPath).join(",") === "to,at");
+    expect(live, "the inbox's own (to, at DESC) composite went with it").toHaveLength(1);
+  });
+
+  it("deleteAccount's cross-user sweeps each have their collection-group index", () => {
+    const sweeps: Array<[string, string, "order" | "arrayConfig", string]> = [
+      // functions/src/index.ts phase 3c — both directions of a circle
+      // invitation (D122).
+      ["invites", "to", "order", "ASCENDING"],
+      ["invites", "from", "order", "ASCENDING"],
+      // phase 3b — inbound follows sitting in other people's circles.
+      // Also pinned above for circle.ts's own read; kept here because the
+      // reason differs and either one going missing is this failure.
+      ["following", "to", "order", "ASCENDING"],
+      // phase 4 — v1 relations pointing back at this uid.
+      ["relations", "linkedUid", "order", "ASCENDING"],
+      // phase 3a — v1 impressions this account sent.
+      ["insight_inbound_impressions", "senderUid", "order", "ASCENDING"],
+      // phase 2 — reveal documents this account is a member of.
+      ["reveals", "members", "arrayConfig", "CONTAINS"],
+      // phase 2b — reveal documents this account is NAMED IN BY SOMEONE
+      // ELSE'S PICK. Its own sibling, added by the same fix and walked by
+      // the same phase, and it was missing from this list: dropping the
+      // override left every runner green (measured — 12/12 here, and the
+      // unit, functions and scripts suites too), while deleteAccount's
+      // second pass would throw FAILED_PRECONDITION in production. The
+      // failure this case's message describes is not hypothetical for
+      // this one: it is the pass that removes an erased person's uid from
+      // reveals where only a groupmate's pick names them, and
+      // `web/privacy.html` promises that removal in writing.
+      ["reveals", "pickedUids", "arrayConfig", "CONTAINS"],
+    ];
+    for (const [group, field, kind, want] of sweeps) {
+      const o = override(group, field);
+      expect(
+        o,
+        `${group}.${field} has no fieldOverride at all — deleteAccount's `
+        + `sweep over it throws FAILED_PRECONDITION in production, and a `
+        + `failed sweep aborts before the auth delete, so NO account can `
+        + `be deleted until it is restored.`,
+      ).toBeDefined();
+      expect(
+        o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i[kind] === want),
+        `${group}.${field} has no COLLECTION_GROUP ${want} index`,
+      ).toBe(true);
+    }
   });
 
   it("the file declares each top-level key exactly once", () => {

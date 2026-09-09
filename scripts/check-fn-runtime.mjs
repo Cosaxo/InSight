@@ -21,6 +21,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
+import { isExplicit } from "./fn-runtime-lib.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -30,7 +32,14 @@ function clientRegionFiles(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const full = resolve(dir, e.name);
     if (e.isDirectory()) out.push(...clientRegionFiles(full));
-    else if (/\.tsx?$/.test(e.name)) out.push(full);
+    // EVERY CLIENT SOURCE, not just the typed ones. This read `.ts`/`.tsx`
+    // while `src/` holds 145 `.js`/`.jsx` files — the spec layer is almost
+    // all of them — so `getFunctions(app, "europe-west1")` in any of those
+    // was invisible to the one rule that exists to stop a second copy of
+    // this value. Measured: the same line fails the gate in a `.ts` and
+    // passes in a `.jsx`. Every call site is typed today, which is what
+    // made the hole survivable and not what makes it safe.
+    else if (/\.(tsx?|jsx?)$/.test(e.name)) out.push(full);
   }
   return out;
 }
@@ -92,7 +101,12 @@ if (!rows.length) {
   process.exit(1);
 }
 
-const bare = rows.filter((r) => r.mem == null || r.timeout == null || r.maxInst == null);
+// NUMBERS, not merely "not null" — and the difference is the whole gate.
+// The predicate and the reasoning behind it live in ./fn-runtime-lib.mjs,
+// which exists so both can be tested: this file reads functions/lib at
+// module scope, so importing it to test anything runs the whole check,
+// which is why the assertion went untested and stayed unreachable.
+const bare = rows.filter((r) => !isExplicit(r.mem) || !isExplicit(r.timeout) || !isExplicit(r.maxInst));
 for (const r of rows) {
   console.log(
     `  ${r.name.padEnd(26)} mem=${String(r.mem).padStart(5)}MiB `
@@ -171,8 +185,15 @@ if (served.length !== 1) {
 }
 
 const REGION_TS = resolve(root, "src/lib/region.ts");
+// Comment-stripped: `.match` takes the first hit, so a superseded region
+// parked in a comment above the live declaration is what this compares
+// against the deploy — and it would compare it to the RIGHT answer while
+// the client called the wrong one. Same class as the two catalogue
+// ceilings, and the same deploy path. Measured: with the old line parked
+// above `us-central1` this gate exited 0.
 const clientRegion = (() => {
-  const m = readFileSync(REGION_TS, "utf8").match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  const m = stripComments(readFileSync(REGION_TS, "utf8"))
+    .match(/export const FUNCTIONS_REGION = "([^"]+)"/);
   return m ? m[1] : null;
 })();
 if (!clientRegion) {

@@ -3,8 +3,13 @@
 //
 // CONVERTED off the shared-global bridge (D39): the four names below are
 // plain named exports and this file publishes nothing to globalThis.
-// `window.LIVE` stays a global read — that one is data/live.ts's published
-// surface, which is the convention working as intended, not legacy.
+// `window.LIVE` stays a global read HERE, and here alone: D354 converted
+// every other reader to `import LIVE from '../data/live'`. This module
+// also loads under plain node — scripts/report-lib.mjs imports it, and
+// archetype-data.js imports IS_TEST_AVG — and data/live.ts cannot follow
+// it there: it publishes `window.LIVE` at module scope and binds the
+// Firebase SDK. So persistTestResult keeps its guarded window read until
+// the store's write half has a node-safe seam.
 //
 // It was listed in src/v2/README.md's "what NOT to start with" as half of a
 // `test-definitions.js ↔ daily-split.jsx` cycle. That cycle did not exist:
@@ -116,20 +121,17 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
-  // The role instruments (D204). These are the baselines the matcher
-  // centres BOTH sides on before comparing, and they are authored like the
-  // four above rather than measured — deliberately, and for the reason
-  // D157 gave when it moved everything else onto measured folds: which
+  // The role instruments (D204; the owner's 2026-09-09 design's dims since
+  // D437). Authored, like the four above, and for the same reason: which
   // type you ARE must not drift with whoever the app happened to fetch
-  // this session. A duel record is also the thinnest sample in the app
-  // (14 readable reveal days), so a measured baseline here would be a
-  // handful of people wide.
-  //
-  // Not 50s: reading a partner is easier than being unreadable, and most
-  // people sit with their group more often than against it, so a neutral
-  // baseline would call an ordinary run remarkable.
-  duo:        { read: 62, seen: 62, like: 54, steady: 58 },
-  group:      { own: 34, pull: 58, settle: 58 },
+  // this session. Both instruments are SHARES now — a 1v1's four dims are
+  // the share of cast rounds in which they said you are each of four
+  // things, a group's the share of your received votes per seat — so the
+  // neutral is a quarter each, and 25 is the line a type is extreme
+  // against (the tables in archetype-data.js sit at 76/8 and 42/42 around
+  // it; data/roles.ts is the fold).
+  duo:        { trust: 25, spark: 25, judgement: 25, constancy: 25 },
+  group:      { engine: 25, hands: 25, heart: 25, wild: 25 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──

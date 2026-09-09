@@ -50,6 +50,15 @@ jobs:
       # ENFORCE_APP_CHECK is false under FUNCTIONS_EMULATOR and that is what
       # check:fn-runtime sets.
       - run: npm run check:appcheck
+      # firestore.rules' account bar equals accountLevel.ts's REQUIRED_LEVEL.
+      # The two numbers must agree, cannot import each other, and disagree
+      # SILENTLY in both directions: rules ahead of the source means reports
+      # say accounts qualify while their votes are refused; source ahead of
+      # rules means the bar you believe you set is not the one enforced.
+      # Neither shows in any test — the rules tests mint their own claims,
+      # and the callable's tests never open firestore.rules. On the deploy
+      # path because it is a statement about what production refuses.
+      - run: npm run check:account-level
       # Every exported function must appear in firebase-deploy.yml's --only
       # list, or it builds, passes every test, goes green — and is never
       # deployed. This gate existed and ran nowhere for its whole life: it
@@ -89,6 +98,27 @@ jobs:
       # does not have, which the demo build is by definition unable to
       # notice. Node stdlib only, no root node_modules.
       - run: npm run check:learn-sample
+      # The slice of the duel bank the JS bundle carries (D435) — the same
+      # gate one bank over, and the same silent failure if it drifts.
+      - run: npm run check:duel-sample
+      # The rate card the SERVER charges from (D313). Same shape as the two
+      # above and the same reason: functions/src/pricing.ts is a generated
+      # embed of content/pricing.json, and check:pricing byte-compares them
+      # so "the price the server charges and the price the door prints
+      # cannot drift".
+      #
+      # It sat on ci.yml alone under a comment calling it client content —
+      # true when it only validated the card's own clamps, and false since
+      # D313 gave it a server copy to compare. firebase-deploy.yml calls
+      # THIS workflow and does not wait on ci.yml, so a push to main
+      # deployed the stale card while ci.yml went red beside it, in
+      # parallel, too late. Measured: bump content/pricing.json without a
+      # regen and every gate on this path stays green.
+      #
+      # priceQuote() is what invoices a buyer, which makes this the one
+      # derived-copy gate whose silent failure charges somebody the wrong
+      # money. Node stdlib only, no root node_modules.
+      - run: npm run check:pricing
       # The seed's field whitelist against what the generator emits (D285).
       # Deploy-path, and the most deploy-path of them all: a field the seed
       # does not name never reaches Firestore, and every other gate stays

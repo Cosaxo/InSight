@@ -63,8 +63,9 @@
 // a dial's track has nothing honest to draw over a scale of zeros.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import { VOTER_FETCH_CAP } from "../data/voters";
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
 import {
   COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, meanScore, mixFor, pctFor, byOf, vocabMix,
   type ByMap, type Bucket,
@@ -417,11 +418,16 @@ function LbFriends({ qid, options, mine }: {
   const loading = LIVE.followsLoading() || LIVE.votersLoading(qid);
 
   if (!follows || !voters) {
+    // Paused before failed (D332): with the breaker on, the voter fetch
+    // was refused rather than attempted, and "could not load" would blame
+    // the network for a choice.
     return (
       <LbNote>
         {loading
           ? "Loading how your friends answered…"
-          : "Could not load how your friends answered."}
+          : LIVE.budgetPaused
+            ? BUDGET_PAUSED_BODY
+            : "Could not load how your friends answered."}
       </LbNote>
     );
   }
@@ -451,7 +457,18 @@ function LbFriends({ qid, options, mine }: {
     });
 
   if (!rows.length) {
-    return <LbNote>None of the people you follow has answered this yet.</LbNote>;
+    // "In what this session read", not "at all". `voters` is the newest
+    // VOTER_FETCH_CAP answers, so a friend who answered early on a busy
+    // question is not in the list — and the type and logic cuts in this
+    // same file already say "Of the N answers this session has read" for
+    // exactly that reason. A census claim over a truncated sample is the
+    // one thing this panel's other cuts are careful not to make.
+    return (
+      <LbNote>
+        None of the people you follow is in the {voters.length.toLocaleString()}
+        {" "}answers this session has read.
+      </LbNote>
+    );
   }
 
   const same = mine >= 0 ? rows.filter((v) => v.optionIdx === mine).length : 0;
@@ -465,6 +482,13 @@ function LbFriends({ qid, options, mine }: {
           ? `${same} of ${rows.length} ${rows.length === 1 ? "friend is" : "friends are"} on your side`
           : `How your ${rows.length === 1 ? "friend" : "friends"} answered`}
       </div>
+      {/* The denominator is what this session READ, not how many of your
+          friends answered — the same caveat the type and logic cuts carry,
+          and for the same reason: `voters` is capped at the newest
+          VOTER_FETCH_CAP. Said once, under the headline it qualifies. */}
+      <LbNote>
+        Of the {voters.length.toLocaleString()} answers this session has read.
+      </LbNote>
       {rows.map((v) => {
         const fill = sideFill(v.optionIdx, options.length);
         return (
@@ -657,6 +681,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   // are first to answer can still have friends on it a moment later, and
   // the chip row is how you find that out — but there is no split to draw,
   // and a header claiming a count of zero is worse than saying so.
+  //
+  // AND THE NOTE ASKS WHETHER YOU ARE IN IT. `overallN` is the published
+  // aggregate's total and nothing else, so it is zero both when the
+  // question really is unanswered and in the seconds after YOUR answer
+  // before the trigger folds it — and the comment three lines up says this
+  // sheet's whole job is telling the empty states apart. "Nobody has
+  // answered this yet" over your own vote is the one reading it cannot
+  // afford to get wrong: the sentence directly contradicts the row above
+  // it, which is drawing your pick.
   if (!overallN) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
@@ -666,7 +699,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
         </div>
         {friendsOpen
           ? <LbFriends qid={qid} options={options} mine={mine} />
-          : <LbNote>Nobody has answered this yet.</LbNote>}
+          : <LbNote>{mine >= 0 ? "Just you so far." : "Nobody has answered this yet."}</LbNote>}
       </div>
     );
   }
@@ -703,13 +736,22 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
           // The cohort cuts are arithmetic on a document the card already
           // holds; this one waits on the roster's fetch. Distinguished
           // from "nobody is typed" because they are different facts and
-          // the second one is permanent.
-          ? <LbNote>Reading who answered…</LbNote>
+          // the second one is permanent. Under the breaker (D332) the
+          // fetch was refused, so "Reading…" would describe a read that
+          // is not happening.
+          ? <LbNote>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Reading who answered…"}</LbNote>
           : !typeRows.length
             ? (
               <LbNote>
-                None of the {split.sampleN.toLocaleString()} answers here carries a Big Five yet —
-                it fills in as people answer test cards.
+                {/* "this session has read", not "here" — `sampleN` is
+                    `voters.length`, the bounded newest page, and on a
+                    question with thousands of answers this note sat under
+                    a header printing the real total. The populated arm
+                    below has always said it the honest way; the note is
+                    gated on there BEING rows, so the empty branch was
+                    exactly the one that lost it (D146). */}
+                None of the {split.sampleN.toLocaleString()} answers this session has read
+                {" "}carries a Big Five yet — it fills in as people answer test cards.
               </LbNote>
             )
             : (
@@ -725,12 +767,16 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
 
       {logicOpen && (
         lsplit === null
-          ? <LbNote>Reading who answered…</LbNote>
+          ? <LbNote>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Reading who answered…"}</LbNote>
           : !logicRows.length
             ? (
               <LbNote>
-                None of the {lsplit.sampleN.toLocaleString()} answers here carries a verified
-                logic score yet — it fills in as people take the logic test.
+                {/* Same basis as the Big Five note above, for the same
+                    reason: `sampleN` is the session's page, not the
+                    question's answers. */}
+                None of the {lsplit.sampleN.toLocaleString()} answers this session has read
+                {" "}carries a verified logic score yet — it fills in as people take the
+                logic test.
               </LbNote>
             )
             : (
@@ -834,6 +880,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
               const bMean = rating ? meanScore(b.counts) : null;
               const oMean = rating ? meanScore(overall) : null;
               const meanGap = bMean && oMean ? bMean.mean - oMean.mean : 0;
+              // DECIDE ON THE NUMBER THIS PRINTS, not on the one behind
+              // it. The sentence below draws the gap to one decimal and
+              // used to gate on the raw float at `>= 0.1`, so a gap of
+              // 0.06 — which draws as "0.1" — fell into the other arm and
+              // said "land right where everyone lands". Half of every gap
+              // that rounds to a tenth said it, and the reader has no way
+              // to tell those apart from the ones that print 0.1 and are
+              // called a difference.
+              const gapShown = Math.abs(meanGap).toFixed(1);
               return (
                 <>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -852,10 +907,10 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
                       reader has to interpret. */}
                   <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
                     {rating ? (
-                      bMean && oMean && Math.abs(meanGap) >= 0.1
+                      bMean && oMean && gapShown !== "0.0"
                         ? <>
                           {label} average <strong style={{ color: "var(--ink-2)" }}>{bMean.mean.toFixed(1)}</strong>
-                          {" "}— {Math.abs(meanGap).toFixed(1)} {meanGap > 0 ? "above" : "below"} everyone.
+                          {" "}— {gapShown} {meanGap > 0 ? "above" : "below"} everyone.
                         </>
                         : <>{label} land right where everyone lands.</>
                     ) : d && d.gap > 0

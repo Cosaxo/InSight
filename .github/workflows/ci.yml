@@ -44,6 +44,16 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
+      # Question content may not be in the static first-paint graph. The
+      # class this catches is the one that stopped the farm lane on
+      # 2026-09-05: `daily-questions.js` — a file a scheduled lane appends
+      # to EVERY DAY — was fetched before the app could paint, so the bank's
+      # size was the app's start-up cost and enough questions made a content
+      # lane unmergeable. check:bundle could not see the worst edge (a
+      # module inlined into the entry chunk has no chunk of its own to
+      # name), and the answer twice was to raise its ceiling. Client-only
+      # and off backend-checks.yml by the same rule as check:figures above.
+      - run: npm run check:eager-content
       # D290's invariant: the answer document is the source of truth and
       # every aggregate is a projection rebuilt from it, which holds only
       # while the answer keeps carrying its `anchors` snapshot. Trim that to
@@ -141,11 +151,6 @@ jobs:
       # out of D106's own rewrite calling world takes nameless. Same
       # placement rule as check:store-forms above: client/docs-only, and
       # deliberately off backend-checks.yml.
-      # The committed rate card (content/pricing.json, PAID-PLAN §6, D288
-      # §3) stays inside its own clamps — edited by script AND by hand, so
-      # both authors get the same referee. Client content: the door prints
-      # this file, so the gate sits here and stays OFF backend-checks.yml.
-      - run: npm run check:pricing
       - run: npm run check:public-copy
       # The other half of the same discipline, and the newer half (D183).
       # check:public-copy catches a retired promise that REAPPEARS; this
@@ -155,6 +160,22 @@ jobs:
       # deleted from that page is a claim deleted from the product.
       # Client/docs-only, same placement rule as the checks around it.
       - run: npm run check:policy-claims
+      # Every page under web/ is covered by a hosting headers rule. The
+      # commit that enumerated those rules named this gate as its own
+      # missing half and left it on the night's list; four pages were added
+      # without headers in the week that followed, the GDPR erasure route
+      # among them. Reads firebase.json only — client config, so it belongs
+      # here and not on backend-checks.yml.
+      - run: npm run check:web-headers
+      # The hash half, which check:web-headers deliberately does not do —
+      # it reads header KEYS, not values. A drifted script hash is silent:
+      # the browser refuses the script and the page renders as a form that
+      # does nothing, with every other gate green.
+      - run: npm run check:csp-hashes
+      # The web ask door's price card is generated from content/pricing.json
+      # and paid.ts's WINDOW_DAYS, so a refold that does not regenerate it
+      # leaves the door quoting a price the ledger has moved past.
+      - run: npm run check:ask-pricing
       # Every collection the rules grant access to is named in
       # data-inventory.md — the document app-privacy.json derives the App
       # Store privacy label from (D130). A name check, like check:globals.
@@ -195,6 +216,15 @@ jobs:
       # headroom tripwires. Content QUALITY again — same placement rule as
       # check:neighbors above, deliberately off the deploy path.
       - run: npm run check:quality
+      # A category is written at EVERY site or not at all (D424). The lanes
+      # create categories now, which made half-creation reachable on a
+      # schedule: a feed topic lives in world-feed-topics.js AND
+      # content/feed-questions.json, the daily's hues in CAT_META AND
+      # map-branches.js, and nothing compared either pair — the failure is
+      # silent in both directions (a chip that matches nothing, or a
+      # question no chip can reach). Client + content only, so the same
+      # placement rule as check:quality above.
+      - run: npm run check:taxonomy
       # The city catalogue is parsed at runtime and its names become
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
@@ -215,6 +245,14 @@ jobs:
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
+      # The pictures on the pick tiles (D420): every image under
+      # web/catalog-art/ has its credits row and vice versa, every key is in
+      # its catalogue, every licence is one the policy admits, the generated
+      # index agrees with the directories, and firebase.json serves the path
+      # with CORS and an hour's cache — the takedown's other half. Reads
+      # web/, src/ and firebase.json, so it belongs here and not on
+      # backend-checks.yml: nothing it says bears on a rules fix.
+      - run: npm run check:catalog-art
       # The logic generator ships in two byte-identical copies (client +
       # functions, D57) — drift means the server scores forms the client
       # never rendered. backend-checks.yml runs it on the deploy path too.
@@ -238,6 +276,14 @@ jobs:
       # names, reported by email after the upload transferred and the build
       # number was spent. Same side of the line as the two above.
       - run: npm run check:ios-location
+      # D29's device-bind bridge is WIRED, not merely present. Its whole
+      # failure mode is silence: an unregistered plugin leaves a green
+      # build, a passing suite and an app that behaves identically, because
+      # enforcement is soft. That is how the gate sat inert from D29 to
+      # D342. Registration hangs off Main.storyboard's customClass, which
+      # `npx cap sync` may rewrite — a red line here is the only way that
+      # gets noticed.
+      - run: npm run check:devicebind
 
   typecheck-build:
     runs-on: ubuntu-latest
