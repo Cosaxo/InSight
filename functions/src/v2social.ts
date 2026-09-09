@@ -2,9 +2,17 @@
 // server-materialized reveals (decision D5).
 //
 // A duo IS a group with mode "duo" and a 2-member cap — one collection,
-// one reveal pipeline, two reveal conditions:
-//   group  · next UTC day, if at least one member answered
-//   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
+// one reveal pipeline, and since D426 ONE reveal condition for both,
+// because the round replaced the day (`roundReveals`, pure.ts):
+//   never  · with nobody's answer in the round — nothing to show
+//   else   · when every member has answered (a 1v1: both; a group: all)
+//   or     · at the round's deadline, for whoever played
+//   or     · when an operator forces it (revealDuelsNowV2, the e2e)
+//
+// The both-or-nothing duo clause this header used to state is exactly what
+// D426 retired: a partner who stopped playing used to seal the other's
+// answer with no reveal, ever, while the calendar handed out a fresh
+// question anyway.
 //
 // Sealed answers live under composite ids (g_{gid}_r{n} — one per ROUND,
 // ROUNDS-PLAN / D426). Since D98 a

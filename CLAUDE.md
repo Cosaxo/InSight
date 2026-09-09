@@ -125,7 +125,7 @@ Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
-Duel answers stay sealed until the next-day reveal, enforced as a
+Duel answers stay sealed until their round's reveal, enforced as a
 `surface` test: that is game timing, not privacy.
 
 **A privacy constraint is an ASK, not a stop (D334).** Where a privacy
@@ -457,11 +457,20 @@ an emergency rules fix.
   (`state.testAggsLoaded`), and since it no longer unmounts, row
   navigation costs nothing; both pinned. The fields load behind one
   bounded, session-cached loader (docs/MIRROR.md §2–3). **Circle and
-  Groups carry a row too since D190** — `Answers · People · Compare`, the
-  three the prototype gives both, folded out of what each stop already
-  computes and drawn even when the stop is empty. Scores and Explore are
-  not theirs: one needs questions that rate a place, the other needs
-  "everyone" as a baseline, and a circle of nine has neither.
+  Groups carry a row too since D190**, folded out of what each stop
+  already computes and drawn even when the stop is empty — but they no
+  longer carry the SAME row. Circle is still D190's three
+  (`Answers · People · Compare`, `CIRCLE_TABS`); Groups became
+  `Votes · People · Scores · Compare` at D437 (`GROUP_TABS`), when the
+  room became a cast. D190's argument survives for both halves of what
+  is still refused: Explore is on neither stop, because it needs
+  "everyone" as a baseline and a circle of nine is not one, and Scores
+  is not Circle's, because the D187 place scorecard needs questions that
+  rate a place. The Groups **Scores** lens is a different thing wearing
+  that word — the room rating ITSELF between two poles, one row per
+  rating with the members' marks on it — and reading it as the place
+  scorecard returning would be reading D187's refusal as lifted, which
+  it is not.
 - **`window.MapStats` is real for three anchors and refuses for four, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` joined them

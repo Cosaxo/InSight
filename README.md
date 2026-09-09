@@ -56,8 +56,10 @@ A live stop is not one reading. City, Country and World carry a tab row —
 only** (D152) — under a similarity
 field that draws above it always: your city's people ranked by test-score
 match, and cities and countries placed by their real average-score
-profiles (decisions D112, D136). Circle and Groups carry the three of
-those a circle of nine can answer (D190). Every one of them is a fold
+profiles (decisions D112, D136). Circle and Groups carry a row of their own
+(D190), and since D437 not the same one: Circle is
+`Answers · People · Compare`, Groups is
+`Votes · People · Scores · Compare`. Every one of them is a fold
 over aggregates that were publishing anyway.
 
 The slicing is the whole trick, and it costs one write. An answer is
@@ -95,9 +97,11 @@ enforces is the opposite of what it used to (decision **D98**):
 - **Every question slices, including the political ones.** D44's
   special-category carve-out is gone; there is no category held back.
 - **Reveals are materialized server-side.** Group/duo answers stay sealed
-  until a Cloud Function writes the reveal doc the next day — that is the
-  *game*, not a privacy promise, and rules deny answering a day that is
-  already revealed so nobody peeks then plays.
+  until a Cloud Function writes the round's reveal doc — when everyone has
+  answered, or at the round's deadline for whoever played (D426 replaced
+  the calendar with the round). That is the *game*, not a privacy promise,
+  and rules deny answering a round that is already revealed so nobody
+  peeks then plays.
 - **No fake anything.** Still binding, and now the only reason anything
   is ever hidden: no seeded comments, no synthetic users, no demo
   progress in live mode (decision D1). Passive tests start at zero. Where

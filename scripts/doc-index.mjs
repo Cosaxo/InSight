@@ -438,7 +438,7 @@ if (orientation) {
 
   // Rule 7 — the Status column, against each document's own declaration.
   //
-  // This is the column a reader gets hurt by. Four of these files are
+  // This is the column a reader gets hurt by. Several of these files are
   // proposals with no code behind them, and reading one as a description of
   // the tree is the most expensive mistake this page can cause — so where a
   // document declares its own status in its opening lines, that declaration

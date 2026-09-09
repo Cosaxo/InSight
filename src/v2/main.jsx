@@ -1,7 +1,8 @@
 // InSight v2 entry — the ported standalone_9 spec running under Vite.
 // The spec modules communicate through the shared global scope (a faithful
 // stand-in for the prototype's babel-standalone script tags); spec-index.js
-// loads them in the original order, then App is picked up from globalThis.
+// loads them in the original order, and the root is a real import — see
+// the D354 note at the import site below.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';

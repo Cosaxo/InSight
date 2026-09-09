@@ -74,7 +74,7 @@ who decides:
 | `src/v2/ui/` | The hand-written TSX panels — the live Mirror bodies, the duel, privacy, city and search panels. One test suite each, mutation-checked | `src/v2/README.md` § Panel tests |
 | `src/v2/test/` | The mount smoke tests over `src/v2/test/mount-app.jsx`. The only gate that renders the whole app — the spec layer's other three are all name-level | `src/v2/README.md` § Mount tests |
 | `src/v2/styles.css` | The design system, verbatim from the spec | — |
-| `src/v2/main.jsx` | Styles + spec-index, then renders `globalThis.App` | `src/v2/README.md` |
+| `src/v2/main.jsx` | Styles + spec-index, then renders the imported `App` inside `SignInGate`; the `globalThis.App` publication survives for the mount suites alone (D354) | `src/v2/README.md` |
 | `src/lib/` | Firebase init, anonymous-first auth, emulator wiring, Sentry | `docs/LOCAL-TESTING.md` |
 | `src/dev/` | `TweaksPanel.jsx`, the host-era design-time panel. Behind `import.meta.env.DEV` and a dynamic import, so a production build has no reference to this directory at all and rolldown drops it whole (D223) | `src/v2/README.md` |
 | `functions/src/` | `v2.ts` (seed + aggregates) · `v2social.ts` (groups, duos, reveals, push) · `moderation.ts` · `index.ts` (account deletion) · `ops.ts` (**where `setGlobalOptions` lives**) · `pure.ts` (the fold arithmetic) | `functions/README.md`, `docs/SCHEMA-V2.md` |
@@ -97,12 +97,18 @@ who decides:
 ## 4 · The documents
 
 **Status** is the column to read first: `tree` describes the app as it
-exists, `plan` is proposed and **not built** — do not read it as a
-description — `mixed` is partly built and says which half, and `past` is
-kept for its method or its record while its conclusion has moved. Four of
-these files declare "plan only" or "plan notes" in their own opening
-lines, and `check:docs` holds this column to that declaration in both
-directions.
+exists, `mixed` is partly built and says which half, `past` is kept for
+its method or its record while its conclusion has moved, and `plan` means
+**read that page's own Status line before you read its body**. `plan`
+used to be glossed as "proposed and not built", and that gloss is now
+narrower than the column: `check:docs` rule 7 pins this cell to `plan` for
+every page whose own opening lines still call itself a plan, and several
+of those were built and kept as the reasoning behind what shipped
+(ROUNDS-PLAN, RULES-BUDGET-PLAN, SPONSORED-PLAN and VISION-2026-09-09 are
+all built, all still declared plans by their own heads). The rule holds
+this column to that declaration in both directions — which is why the
+number of such files is not written here: it was "Four" while the gate's
+own regex found sixteen.
 
 | Document | What it answers | Status |
 | --- | --- | --- |
@@ -176,8 +182,8 @@ directions.
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
-| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | decided |
-| [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md) | The account wall and its three doors — Apple, Google and email/password, all BUILT 2026-09-07 and adopted as D414, on the owner's decision that the app should require an account. Why D219's condition was not met, what Apple guideline 4.8 binds the moment the wall goes up, why address verification stopped being deferrable, and what each of the five steps actually cost | describes |
+| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | mixed |
+| [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md) | The account wall and its three doors — Apple, Google and email/password, all BUILT 2026-09-07 and adopted as D414, on the owner's decision that the app should require an account. Why D219's condition was not met, what Apple guideline 4.8 binds the moment the wall goes up, why address verification stopped being deferrable, and what each of the five steps actually cost | tree |
 | [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md) | The paid system remade around one product — the sponsored question with its own places in the feed, a menu price by reach with the per-answer refund as the guarantee, a shareable results page and one reviewed link after answering; the self-serve ad lane retired. Five steps, each sized as a PR, the three decisions it reverses named, and the owner's four calls listed; built in full on the owner's go — §2.1 (D375), §2.3 (D376), §2.2 (D377), §2.4 (D378) and §2.5 (D379); the page stays as the reasoning behind the five records | plan |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |

@@ -451,15 +451,23 @@ that looks broken.
 **Every stop with a population has the row now (D190).** D188 measured its
 geometry on the five that had one and recorded the gap it did not close —
 "Circle and Groups have no row at all in live mode… a missing feature, not
-a misplaced one". They have one: `Answers · People · Compare`, the three
-`group-mirror.jsx` gives the demo twins, drawn under the same
-`marginTop: auto` frame so the row lands at the same height on all seven.
-Neither stop invents a source for it — each tab is a different cut of the
-fold that stop was already computing, and Compare is the shared lens in
-both (`CompareLens` at D190; `LiveCompareLens` since D193, over each
-stop's own basis). The two ends of the row are still the stop's own
-business: **Scores** and **Explore** need a published breakdown and a
-"everyone" baseline, and a circle of nine has neither.
+a misplaced one". They have one, and since D437 the two rows differ.
+Circle keeps D190's three (`Answers · People · Compare`, `CIRCLE_TABS`),
+the three `group-mirror.jsx` gives the demo twins; Groups is
+`Votes · People · Scores · Compare` (`GROUP_TABS`) — § Groups above is
+the description of what each of those four draws. Both are drawn under
+the same `marginTop: auto` frame, so the row lands at the same height on
+all seven. Neither stop invents a source for it — each tab is a different
+cut of the fold that stop was already computing, and Compare is the
+shared lens in both (`CompareLens` at D190; `LiveCompareLens` since D193,
+over each stop's own basis).
+
+D190's refusals both survive the change: **Explore** is on neither stop,
+because it needs an "everyone" baseline and a circle of nine is not one,
+and the D187 place **Scores** lens is on neither, because it needs
+questions that rate a place. What Groups gained is a different lens
+wearing that word — the room rating ITSELF between two poles — so a
+reader meeting it here should not read D187's refusal as lifted.
 
 Where a row is refused, it is still refused for a reason: a **failed**
 circle read draws the retry sentence and no tabs (three empty readings of
