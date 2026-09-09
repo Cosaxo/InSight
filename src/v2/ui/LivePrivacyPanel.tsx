@@ -71,6 +71,7 @@ function LivePrivacyPanel() {
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
   const [linkMsg, setLinkMsg] = React.useState<string | null>(null);
+  const [exportMsg, setExportMsg] = React.useState<string | null>(null);
   // D331. READ, not mirrored. This was
   // `useState(() => LIVE.politicalConsented())`, and a lazy initializer
   // runs once per component instance: the panel re-renders on every store
@@ -156,6 +157,26 @@ function LivePrivacyPanel() {
       setLinkMsg(LP_IN_USE.test(msg)
         ? "That Google account already has an InSight history, and two histories can’t be merged. Try another."
         : "Couldn’t sign in just now.");
+    }
+    setBusy(false);
+  };
+  // The data export (D443) — deleteAccount's read-only twin. The JSON is
+  // built on the server and handed to the device by data/exportFile.ts,
+  // fetched on the tap so this panel's chunk carries none of it (the
+  // walkthrough's shape). The sentence afterwards names the ROUTE, because
+  // "Saved" (a file in Downloads), "Shared" (a sheet just used) and
+  // "Copied" (text to paste somewhere) are three different next steps.
+  // A refusal — the server's byte bound, a network failure — lands in
+  // `err` below like a refused delete does, and reloads nothing.
+  const exportNow = async () => {
+    setBusy(true); setErr(null); setExportMsg("Preparing…");
+    try {
+      const [bundle, file] = await Promise.all([LIVE.exportAccount(), import("../data/exportFile")]);
+      const route = await file.handOffJson(JSON.stringify(bundle, null, 2), file.exportFilename());
+      setExportMsg({ saved: "Saved ✓", shared: "Shared ✓", copied: "Copied to the clipboard ✓" }[route]);
+    } catch (e) {
+      setExportMsg(null);
+      setErr(String((e instanceof Error && e.message) || e));
     }
     setBusy(false);
   };
@@ -382,9 +403,10 @@ function LivePrivacyPanel() {
           the coordinate world-readable behind a screen claiming otherwise:
           the D327 failure, and not what a toggle means to anyone.
 
-          Directly above Delete everything because they are the same kind
-          of row — the two places this panel lets you take something back —
-          and this is the smaller one, so it goes first. */}
+          Directly above the download and the delete because they are the
+          same kind of row — the places this panel lets you take something
+          back, or take it with you — and this is the smallest one, so it
+          goes first. */}
       <LpRow title="Political compass"
         sub={pol
           ? "Built from your answers and shown on your profile. Anyone signed in can read it."
@@ -402,6 +424,23 @@ function LivePrivacyPanel() {
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
           This deletes the compass from your profile now. Copies anyone
           already made are beyond us.
+        </div>
+      )}
+
+      {/* THE EXPORT (D443), directly above the delete, in the order the
+          terms put them: web/terms.html has said "a chance to download
+          your data first" since it was written, and until this row there
+          was no download anywhere in the app. One JSON file of everything
+          the account holds — the erasure's graph, read instead of removed
+          (functions/src/exportAccount.ts) — handed over by whichever route
+          the platform has (data/exportFile.ts). No confirm step: nothing
+          here is irreversible, and the file is the person's own. */}
+      <LpRow title="Download your data" sub="Everything the account holds, as one JSON file.">
+        {btn("Download", () => void exportNow())}
+      </LpRow>
+      {exportMsg && (
+        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
+          {exportMsg}
         </div>
       )}
 
