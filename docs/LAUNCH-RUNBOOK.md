@@ -2114,6 +2114,14 @@ That is a tester-count problem, not a workflow problem.
       dataset, and the `production` environment's approval in front of any
       workflow that uses it.
 
+      **Whether it is ON is now a reading.** Actions → **Observe
+      production** lists every BigQuery dataset with its location and says
+      whether a `gcp_billing_export_*` table exists in any of them. Keyed
+      on the TABLE names rather than the dataset's, because this step lets
+      you choose the dataset name — so a reader keyed on the name would
+      report any dataset as the export. The location is printed beside it,
+      which is the half D165's residency argument is actually about.
+
       **Not built yet, deliberately.** The collector that reads this is
       worth writing against the real dataset rather than against an assumed
       schema — this session has already spent one round on a workflow that
@@ -2216,6 +2224,13 @@ That is a tester-count problem, not a workflow problem.
       at `answersCounted: 0`, and an extension streaming an empty
       collection is a monthly line item and a thing to forget about.
 
+      **Whether it is installed is now a reading**, and it is answered by
+      the extension's own FUNCTIONS (`ext-firestore-bigquery-export-*`) in
+      Actions → **Observe production** — authoritative in a way a dataset
+      name is not, since anyone can create a dataset called
+      `firestore_export`. The line also carries this step's timing
+      argument, so the box cannot be read as *install it now*.
+
       **What it buys:** SQL over the archive without touching the app. It is
       what answers "which questions bore people" and the rest of
       `ENGAGEMENT-PLAN.md`'s rungs 1–2 without building either, and it is
@@ -2267,12 +2282,41 @@ That is a tester-count problem, not a workflow problem.
          absence does not stop the loop, which makes it the one to check
          rather than assume.
 
+      **You no longer have to hunt for any of this.** Actions → **Observe
+      production** prints, from the deployment itself: which of the three
+      names are present in the runtime, the verdict *A sale can complete
+      today: YES/NO*, whether reviews have Claude's judgement or only the
+      gates, and **`stripeWebhookV2`'s URL** — which is step 2's whole
+      input, and used to read *run `gcloud functions describe`*, a laptop
+      with a credential on it. Presence only: the value never leaves the
+      probe, and `scripts/observe.test.mjs` plants a fake `sk_live_` and
+      asserts it reaches no line of any output mode. An Actions log is
+      readable by everyone with repo read and kept for months.
+
+      A name the API cannot report reads **UNREADABLE**, never *unset* —
+      the two have opposite fixes, and folding them is how an instrument
+      invents a measurement (D296).
+
       **Rehearse on test keys before live ones.** The path has never run
       against real Stripe. The one alert that watches it
       (`monitoring/paid-refund-stuck.json`, 5.5) has been armed since
       2026-09-06, so a stuck refund would now page — which says nothing
       about whether the path works, only that its one known failure is
       no longer silent. (Until that day it was silent twice over.)
+
+      **THE SECRETS ALONE DO NOT PRODUCE A SALE, and the second half is a
+      different box.** Under D368's shape A the door is on the web, and
+      `bookPaidQuestionV2` and `createPaidCheckoutV2` both demand App
+      Check — which a browser can only satisfy with a provider this
+      project has never provisioned (D337 declined it on the premise that
+      there was no public web client, and shape A is what created one).
+      So a buyer on a fully-keyed deployment still cannot pay. That is
+      the `OWNER-LIST.md` row *"The web ask door needs App Check to accept
+      a browser"*, it recommends reCAPTCHA over exempting the two
+      callables, and it is ordered WITH this step rather than after it.
+      Observe production says nothing about it — App Check enforcement is
+      not an environment variable — so this is the one part of the money
+      path still checked by reading, not by running.
 
       **This step does not decide WHETHER the door ships** — that is 6.0,
       and it comes first. If 6.0 takes shape A the door leaves the binary

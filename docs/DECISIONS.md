@@ -48635,3 +48635,103 @@ At the `europe-west1` read price of $0.03 per 100 k (D200):
 `patternsSamples.test.ts`, two in `answerSurfaces.test.ts`, two more
 rows in `store-projection.test.ts`), `tsc` clean; the rest of the gates
 are in the PR body.
+
+## D443 · The money path and the two BigQuery steps become readings: whether a sale can complete today is an API call, and had been all along
+
+**2026-09-09.** **Status:** binding. The owner asked *"is bigquerry and
+stripe setup if not lets do that"*. The answer to the first half is **no,
+neither is**, and the answer to the second half is that neither can be
+done from a session: Stripe needs a Stripe account and BigQuery needs a
+console toggle and an extension install. What could be done, and is done
+here, is the part that made the question hard to answer at all.
+
+### The question could not be answered, and that was written down as a fact
+
+`OWNER-LIST.md` carried this, verbatim, about the paid loop's three
+secrets:
+
+> A session cannot read the deployed environment, so whether a sale can
+> go through TODAY is a fact only you can check.
+
+It is false, and it is false in the exact shape D292 already recorded
+once. That decision found the read-only observer's every reading to be
+an ordinary Google API call that `fn-log.mjs` had been making since
+D179 — the six `gcloud` commands of runbook 5.13 buy LEAST PRIVILEGE,
+not access — and the cost of having treated them as a prerequisite was
+that nobody could see production's own state for as long as they went
+unrun, which on 2026-08-26 was long enough for every instrument in the
+repo to report zero answers over 108 real ones for fifteen days (D296).
+
+The same thing had happened again, one credential over. The Cloud
+Functions v2 list response carries `serviceConfig.environmentVariables`
+and `serviceConfig.uri`. `observe.mjs` was already fetching it, already
+reading `.uri` from it for the stray-function reading, and already
+running daily on `FIREBASE_SERVICE_ACCOUNT`. Three secrets whose absence
+D367 called *"a shipped pipeline with no step that turns it on"* were
+one field away from the reader that had been looking at them since it
+was written.
+
+### What is read now
+
+All of it derived from calls the run already made, except one list:
+
+| Reading | Answers | From |
+| --- | --- | --- |
+| `paidPath.secrets` | which of the three names are in the deployed runtime | the functions list already fetched |
+| `paidPath.canSell` | *A sale can complete today: YES/NO* | the two that stop a sale |
+| `paidPath.reviewJudged` | judgement, or the deterministic gates alone | `ANTHROPIC_API_KEY` |
+| `paidPath.webhookUrl` | runbook 5.14 step 2's whole input | `serviceConfig.uri` |
+| `bqMirror.installed` | runbook 5.11 | `ext-firestore-bigquery-export-*` functions |
+| `billingExport.on` | runbook 5.12 | `gcp_billing_export_*` tables |
+| `bigquery.datasets` | D165's residency question | one new datasets list |
+
+Three of those readings were chosen against the easier version of
+themselves:
+
+**The secret is read by PRESENCE, never by value.** This project's
+secrets reach the runtime through the dotenv the deploy writes rather
+than through Secret Manager — deliberately, so a missing Secret Manager
+entry can never make `firebase deploy` refuse an emergency rules fix
+(`DEPLOYMENT.md`). The consequence is that `sk_live_…` is *inside the
+body this probe parses*. Only the key set crosses out of the pick
+function, and `observe.test.mjs` plants a fake key and asserts it reaches
+no line of `--json`, `--functions` or the default output. An Actions log
+is readable by everyone with repo read and kept for months; this is the
+discipline `auth-config.yml` already applies to the demo password.
+
+**An absent env map is UNREADABLE, not unset.** The two look identical to
+a reader that folds them and have opposite fixes — one is a secret to
+set, the other is a reading that did not come back. Folding them would
+be D296's failure rebuilt: an instrument reporting a number it did not
+measure. The derived readings carry the parent probe's refusal for the
+same reason, pinned by its own test.
+
+**The mirror and the export are detected by what they BUILD, not by what
+they are called.** A dataset named `firestore_export` can be created by
+anyone; an `ext-firestore-bigquery-export-*` function is the extension.
+Runbook 5.12 explicitly lets the operator name the billing dataset, so a
+name-keyed reader would report any dataset as the export — it is keyed on
+the `gcp_billing_export_*` tables instead.
+
+### What this does NOT do
+
+It does not turn anything on. Stripe needs an account nobody here can
+create; 5.12 is a billing-console toggle on a permission the deploy
+service account does not have and should not be given; and 5.11 is
+**deliberately timed** — the extension streams from the moment it is
+installed, so installing it before the first real users mirrors an empty
+collection and installing it after loses the rows of accounts erased in
+the interim. The reader prints that argument beside the box so the line
+cannot be read as *install it now*. All three stay owner actions on
+`OWNER-LIST.md`; what changed is that their state is a line in a workflow
+run instead of a fact the repository could not see.
+
+### The gate that caught the defect in this change
+
+`source-pins.test.mjs` failed on the first version: both new readers of
+`functions/src/paid.ts` matched against the raw file with nothing
+stripping comments, which is how a superseded name parked in a comment
+above the live declaration gets read as live. `paid.ts` has a 45-line
+header comment naming `createPaidCheckoutV2` and `stripeWebhookV2`. The
+fix was `stripComments()`, not a raised ceiling.
+
