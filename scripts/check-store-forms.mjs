@@ -25,6 +25,12 @@
 //      an ATT prompt; it should never change as a side effect.
 //   5. Every age-rating answer agrees with the prose, KEY AND VALUE.
 //   6. Play's Data Safety form agrees with STORE-FORMS.md §3, row for row.
+//   7. The two STORES are told the same thing. Rules 1-6 each hold ONE
+//      store's form against its own prose twin; nothing held the two
+//      forms against each other, and they are two legal attestations
+//      about one app in two vocabularies. A claim can be true on one and
+//      absent from the other with every rule above green — which is the
+//      state this rule found on the day it was added (see STANDING).
 //
 // Rule 6 was added 2026-09-01, and what it caught on the way in is the
 // argument for it: §3's Precise location row had its columns TRANSPOSED
@@ -45,6 +51,15 @@
 // column, App activity, Purchases — and this rule deliberately does not
 // arbitrate them; it holds the two copies equal so that whatever is
 // decided is decided once.
+//
+// Rule 7 is a RATCHET rather than a pass/fail sweep, and the reason is
+// authority rather than convenience: a store form is one of the four
+// things CLAUDE.md puts OUTSIDE the D334 ask, so a routine may not
+// rewrite a legal attestation on its own reading of the app. The
+// divergences that stand are named in STANDING with what closing each
+// would cost, a FOURTH one fails, and docs/OWNER-LIST.md carries the
+// decision. The green line prints them, so a passing run still says out
+// loud that the two filings disagree.
 //
 // Rule 5 was added after the age rating failed to push at all. The privacy
 // half of app-privacy.json was gated by rules 1-4 from the day it was
@@ -80,6 +95,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripXmlComments } from "./strip-comments.mjs";
+import { compareSets, findingsOf } from "./lib/compare.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The idiom check-policy-claims.mjs already uses: run as a gate, import as
@@ -498,6 +514,134 @@ if (!playProse.length) {
   }
 }
 
+// ── rule 7: the two STORES must be told the same thing (D-2026-09-09-c) ──
+//
+// Rules 1-6 hold each store's form against its own prose twin. Nothing
+// held the two FORMS against each other, and that is a different property:
+// app-privacy.json and play-data-safety.json are two legal attestations
+// about one app, filed with two companies, in two vocabularies. A claim
+// can be true on one and absent from the other and every gate stays green
+// — which is the state this rule found on the day it was written.
+//
+// THE VOCABULARIES DO NOT MATCH, so the mapping below is a judgement and
+// is written out rather than inferred. Apple names a data TYPE; Play names
+// a category and splits Apple's single SENSITIVE_INFO across several rows.
+// Only Apple types that have a Play counterpart are compared; a type with
+// no counterpart is listed in NO_PLAY_ROW with the reason, so "we decided
+// this does not map" and "we forgot" stay distinguishable.
+//
+// AND IT IS A RATCHET, NOT A PASS/FAIL SWEEP, for a reason that is about
+// authority rather than convenience: the divergences it found are real,
+// and a store form is one of the four things CLAUDE.md puts OUTSIDE the
+// D334 ask — a routine may not rewrite a legal attestation on its own
+// reading of the app. So the three standing divergences are named here
+// with what each one would cost to close, the gate refuses a FOURTH, and
+// docs/OWNER-LIST.md carries the decision. Closing one is deleting its
+// line from this list; the gate then holds it closed.
+const APPLE_TO_PLAY = {
+  USER_ID: "Personal info → User IDs",
+  EMAIL_ADDRESS: "Personal info → Email address",
+  NAME: "Personal info → Name",
+  COARSE_LOCATION: "Location → Approximate location",
+  PRECISE_LOCATION: "Location → Precise location",
+  PHOTOS_OR_VIDEOS: "Photos and videos → Photos",
+  CRASH_DATA: "App info & performance → Crash logs",
+  // Apple has ONE sensitive bucket; Play enumerates. The political/
+  // religious row is the one D330/D331 built the consent for, so it is
+  // the counterpart that must exist.
+  SENSITIVE_INFO: "Personal info → Political or religious beliefs",
+};
+
+/** Apple types with no Play counterpart, and why — so a missing mapping
+ *  reads as a decision rather than as an oversight. */
+const NO_PLAY_ROW = {
+  // Play files user-generated content and in-app interaction under its
+  // "App activity" family, which this form answers as one combined row.
+  // That row is the second standing divergence below, so the types are
+  // excluded from the name-level map and handled there explicitly.
+  OTHER_USER_CONTENT: "Play folds it into the App activity family (see the standing divergence)",
+  PRODUCT_INTERACTION: "same — Play's App activity family",
+};
+
+/**
+ * The divergences that stand today, each with what closing it costs.
+ * SHRINK-ONLY: a new one fails this gate. Every line is an owner decision
+ * about a filing, not a code change.
+ */
+const STANDING = new Set([
+  // 1. Apple's collected list carries HEALTH_AND_FITNESS/HEALTH; the Play
+  //    form has no "Health and fitness" row at all. One of the two
+  //    filings is wrong about the same app. Closing it is either a Play
+  //    row (if the height band and the wellbeing items are health data)
+  //    or removing the Apple type (if they are not) — a reading of the
+  //    app that belongs to the owner, not to a gate.
+  "HEALTH",
+  // 2. Apple is told OTHER_USER_CONTENT and PRODUCT_INTERACTION are
+  //    collected — answers, takes, and the interest profile that sizes
+  //    the feed's topic pages (D322). The Play form answers its combined
+  //    App-activity row as NOT collected. These are the same facts about
+  //    the same app in two vocabularies, and they contradict.
+  //
+  //    This is the wider of the two and the one that reads worst: "App
+  //    activity — not collected" is a strong claim about an app whose
+  //    product IS the activity. Closing it means splitting the Play form's
+  //    combined row so App activity can answer Yes while Web browsing,
+  //    Contacts, Financial and Purchases stay No.
+  "APP_ACTIVITY",
+]);
+
+{
+  const appleTypes = new Set(privacy.collected.map((r) => r.type));
+  const playCategories = new Set(
+    (playJson.rows ?? []).filter((r) => r.collected === true).map((r) => r.category),
+  );
+
+  // (a) name-level: every mapped Apple type has its Play row collected.
+  const mappedApple = [...appleTypes]
+    .filter((t) => APPLE_TO_PLAY[t])
+    .map((t) => APPLE_TO_PLAY[t]);
+  const cross = compareSets(
+    { name: "app-privacy.json (Apple)", items: mappedApple },
+    { name: "play-data-safety.json (Play)", items: [...playCategories] },
+  );
+  for (const line of findingsOf(cross, {
+    onlyLeft: "declared collected to Apple but NOT to Play",
+  })) {
+    // onlyRight is not an error: Play splits Apple's sensitive bucket, so
+    // Gender is a legitimate Play row with no Apple type of its own.
+    if (line.startsWith("declared collected to Apple")) errors.push(line);
+  }
+
+  // (b) the unmapped Apple types, against the standing list.
+  for (const t of appleTypes) {
+    if (APPLE_TO_PLAY[t] || NO_PLAY_ROW[t] || STANDING.has(t)) continue;
+    errors.push(
+      `app-privacy.json declares ${t} and play-data-safety.json has no counterpart,\n`
+      + "    and nothing in check-store-forms says why. Two filings about one app\n"
+      + "    disagreeing is the failure this rule exists for: add the Play row, map\n"
+      + "    the type in APPLE_TO_PLAY, or record the divergence in STANDING with\n"
+      + "    what closing it would cost — and put it on docs/OWNER-LIST.md, because\n"
+      + "    a store form is outside what a routine may decide.",
+    );
+  }
+
+  // (c) the App activity contradiction, which is a VALUE disagreement
+  // rather than a missing row and so cannot be seen by (a) or (b): Apple
+  // is told this app collects user content and product interaction, and
+  // the same page of the Play form says App activity is not collected.
+  const appActivity = (playJson.rows ?? []).find((r) => /App activity/.test(r.category ?? ""));
+  const appleSaysActivity = appleTypes.has("OTHER_USER_CONTENT") || appleTypes.has("PRODUCT_INTERACTION");
+  if (appleSaysActivity && appActivity && appActivity.collected === false && !STANDING.has("APP_ACTIVITY")) {
+    errors.push(
+      "app-privacy.json declares OTHER_USER_CONTENT/PRODUCT_INTERACTION collected while\n"
+      + `    play-data-safety.json answers ${JSON.stringify(appActivity.category)} as NOT collected.\n`
+      + "    Answers, takes and the interest profile are the product; one of the two\n"
+      + "    filings is wrong. Owner's call (docs/OWNER-LIST.md) — add APP_ACTIVITY to\n"
+      + "    STANDING with its reasoning if it is to wait.",
+    );
+  }
+}
+
 if (errors.length) {
   console.error("\ncheck-store-forms: the two copies of the store answers disagree:\n");
   for (const e of errors) console.error(`  ${e}\n`);
@@ -519,5 +663,12 @@ console.log(
   // stops matching reports zero rows and passes every comparison — the
   // D275 shape exactly — so the number goes in the success line where a
   // reader sees it fall.
-  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3.`,
+  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3; `
+  // Rule 7's own line. The two filings are named, the compared count is
+  // printed (a mapping that silently stops matching reports zero and
+  // passes — the D275 shape), and the standing divergences are named
+  // rather than merely tolerated, so a green run still says out loud that
+  // two legal attestations about this app do not agree.
+  + `${Object.keys(APPLE_TO_PLAY).length} Apple type(s) mapped to Play rows, `
+  + `${STANDING.size} divergence(s) standing (${[...STANDING].join(", ")}) — docs/OWNER-LIST.md.`,
 );

@@ -208,11 +208,21 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     expect(aggSubs()).toHaveLength(0);
   });
 
-  it("reads the deck once on boot instead", async () => {
+  it("reads NOTHING on boot for a deck this device has not answered", async () => {
     await bootLive();
-    // Losing the listener must not mean losing the counts: the deck is
-    // fetched, so a card renders with real numbers on first paint.
-    expect(h.aggQueries.length).toBeGreaterThan(0);
+    // THE BLIND VOTE IS A DATA RULE. D129 replaced seven listeners with one
+    // boot read of the whole deck, and its case here said "so a card renders
+    // with real numbers on first paint" — which was true, and was the leak:
+    // `daily-split.jsx` hides the split until you vote (`revealed = voted
+    // || !blind`) while every hidden count sat in the store, in memory and
+    // on the wire before the first card painted. Devtools or a patched
+    // client recovered it, so the app's one distinctive claim was a render
+    // decision.
+    //
+    // A boot with no votes now reads no aggregates at all. That is also the
+    // cheapest boot the app has ever had — seven billed documents to zero —
+    // which is worth stating because honesty fixes usually run the other way.
+    expect(h.aggQueries).toHaveLength(0);
   });
 
   it("arms the poll while visible", async () => {
@@ -220,16 +230,25 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     expect(mod._aggPollForTest().running).toBe(true);
   });
 
-  it("a poll tick asks about today only, not the whole deck", async () => {
+  it("a poll tick asks for nothing while today is unanswered", async () => {
     // This is what keeps the replacement cheap. Polling seven documents a
     // minute would trade a quadratic term for a flat one seven times larger
     // than it needs to be — and only today's aggregate is hot, because only
     // today's question is being answered by the whole population at once.
+    // The tick body is `readableDeckIds(state.deckIds.slice(0, 1))`, so
+    // "today only" and "answered only" are one expression and this file
+    // can only see the first half — it has no vote path (its firebase mock
+    // is a bank/aggregate fixture, not a write one). The ANSWERED half is
+    // pinned in vote.test.ts, where a real optimistic write already runs;
+    // both are named here so neither can be deleted as unexplained.
+    //
+    // What this case can still prove is the slice: with today unanswered
+    // the tick asks for nothing at all, which is one document rather than
+    // seven whatever the filter later admits.
     const mod = await bootLive();
     h.aggQueries.length = 0;
     await mod._aggPollForTest().tick();
-    expect(h.aggQueries).toHaveLength(1);
-    expect(h.aggQueries[0]).toHaveLength(1);
+    expect(h.aggQueries).toHaveLength(0);
   });
 
   it("stops polling immediately when the app is hidden", async () => {

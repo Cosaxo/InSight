@@ -252,7 +252,24 @@ beforeEach(() => {
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Stop the store this case booted before the next one boots its own.
+  // `vi.resetModules()` in beforeEach hands the next case a FRESH module
+  // instance; it does not stop the old one, whose timers and in-flight
+  // chains keep running against a registry that has moved on — which is
+  // the failure `_teardownForTest`'s own comment records from
+  // warm-boot.test.ts (D357).
+  //
+  // This file went without it because nothing had made the leak visible:
+  // the two `resetForNewUid` cases both boot, and the first one's tail
+  // reached the second's `loadFollows()` — its dynamic `import("./circle")`
+  // resolving outside the mocked registry, so `collection()` came from the
+  // REAL firestore and rejected the `{ __db: true }` double. The case then
+  // failed on `follows()` being null, naming nothing that was wrong.
+  // Both cases pass in isolation, which is the signature of this class.
+  await import("./live").then((m) => m._teardownForTest()).catch(() => {
+    /* a case that never imported the store has nothing to tear down */
+  });
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });

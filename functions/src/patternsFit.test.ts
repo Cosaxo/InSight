@@ -38,6 +38,10 @@ import {
   seedLoading,
   seedsSummary,
   skillOf,
+  sustainedSkill,
+  PATTERNS_SKILL_DAYS,
+  PATTERNS_SKILL_MIN_N,
+  type PatternsQualityDay,
   type PatternsModel,
   type PatternsObservation,
 } from "./patternsFit";
@@ -488,5 +492,86 @@ describe("the displacement summary", () => {
     expect(displacementSummary({}, emptyModel())).toEqual({
       space: "loading", n: 0, moved: 0, mean: 0, p50: 0, p90: 0, max: 0, perQ: {},
     });
+  });
+});
+
+// ── sustainedSkill: the mount gate's third number (D265 one level down) ──
+//
+// The Patterns tab's gate counts DATA — questions fitted on a basis, and
+// the viewer's own answers among them. Neither can see whether the MODEL
+// learned anything, and docs/ALGORITHM-REFLECTION.md §1.2 is the project's
+// own measurement that it had not: surprisal equal to a marginal-only
+// guess to three decimals, 113 of 113 loadings within cosine 0.9 of their
+// hash seed. This reduces the published quality series to the one scalar
+// `v2_meta/app` can carry, so the gate can refuse that state.
+describe("sustainedSkill", () => {
+  const day = (n: number, bits: number, baselineBits?: number): PatternsQualityDay =>
+    ({ day: "2026-09-0" + (n % 10), n, bits, ...(baselineBits === undefined ? {} : { baselineBits }) });
+
+  it("is null until enough scorable days exist, and null is not zero", () => {
+    // The distinction the whole field rests on: null is "not measured
+    // yet", 0 is "measured, and it learned nothing". Both keep the tab
+    // shut; only one of them will ever change on its own, and the publish
+    // site omits the field for null rather than writing a 0 no run
+    // computed.
+    expect(sustainedSkill([])).toBeNull();
+    const scorable = day(PATTERNS_SKILL_MIN_N, 0.5, 1);
+    expect(sustainedSkill(Array(PATTERNS_SKILL_DAYS - 1).fill(scorable))).toBeNull();
+    expect(sustainedSkill(Array(PATTERNS_SKILL_DAYS).fill(scorable))).toBeCloseTo(0.5, 6);
+  });
+
+  it("SKIPS a thin day rather than failing on it", () => {
+    // A quiet Sunday is an absence of evidence about the model, not
+    // evidence against it — so a day under the floor is not counted and
+    // not held against the fit. The three good days on either side of it
+    // are still what the window reads.
+    const good = day(PATTERNS_SKILL_MIN_N, 0.5, 1);
+    const thin = day(PATTERNS_SKILL_MIN_N - 1, 1, 1); // skill 0 if it counted
+    expect(sustainedSkill([good, thin, good, thin, good])).toBeCloseTo(0.5, 6);
+  });
+
+  it("takes the WORST of the window, not the newest day and not the mean", () => {
+    // The crossing is LATCHED — patternsEarned writes it down and never
+    // takes the tab away — so one lucky night must not be able to open it
+    // permanently. A minimum is the streak D395 already uses to promote a
+    // candidate engine, one feature over.
+    const strong = day(PATTERNS_SKILL_MIN_N, 0.2, 1); // skill 0.8
+    const flat = day(PATTERNS_SKILL_MIN_N, 1, 1); // skill 0
+    // Position inside the window is irrelevant — the minimum is the
+    // minimum whether the bad night was last or first.
+    expect(sustainedSkill([strong, strong, flat])).toBe(0);
+    expect(sustainedSkill([flat, strong, strong])).toBe(0);
+    // …and only the LAST `days` scorable rows count, so an old bad night
+    // does not hold a fit that has since recovered.
+    expect(sustainedSkill([flat, flat, strong, strong, strong])).toBeCloseTo(0.8, 6);
+  });
+
+  it("skips a row with no baseline rather than reading it as skill 0", () => {
+    // Rows published before 2026-09-06 carry no `baselineBits`
+    // (PatternsQualityDay says so). Back-filling one would be inventing a
+    // number the run never computed — the same refusal the field's own
+    // note makes.
+    const legacy = day(PATTERNS_SKILL_MIN_N, 0.5); // no baselineBits
+    const good = day(PATTERNS_SKILL_MIN_N, 0.5, 1);
+    expect(sustainedSkill([legacy, legacy, legacy])).toBeNull();
+    expect(sustainedSkill([legacy, good, good, good])).toBeCloseTo(0.5, 6);
+  });
+
+  it("reports a fit that HURTS as negative rather than clamping it to zero", () => {
+    // skill < 0 is a model doing worse than the question's own popularity.
+    // Clamping would make it indistinguishable from "learned nothing",
+    // and the two want different reactions from whoever reads the
+    // scorecard.
+    const worse = day(PATTERNS_SKILL_MIN_N, 1.4, 1); // 1 - 1.4 = -0.4
+    expect(sustainedSkill([worse, worse, worse])).toBeCloseTo(-0.4, 6);
+  });
+
+  it("agrees with skillOf on every row it reads", () => {
+    // The reduction must not invent an arithmetic of its own: whatever
+    // window it picks, the value it returns is one of the rows' own
+    // skillOf.
+    const rows = [day(50, 0.9, 1), day(60, 0.4, 1), day(70, 0.7, 1)];
+    const want = Math.min(...rows.map((r) => skillOf(r.bits, r.baselineBits as number)));
+    expect(sustainedSkill(rows)).toBeCloseTo(want, 6);
   });
 });

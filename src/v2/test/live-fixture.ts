@@ -221,17 +221,25 @@ export interface LiveFixtureOptions {
   windowed?: boolean;
   /**
    * The Patterns tab's mount gate as the fit would have published it
-   * (D265) — `{ pool, basis, mine }`, straight through to
+   * (D265) — `{ pool, basis, mine, skill }`, straight through to
    * `patternsSignal()`. Absent by default, which is the state every other
    * live case was written against: no fit has run, so the bar is two tabs
    * and the third one is not there to be found.
+   *
+   * `skill` is the third number and it is the fit's own one-step-ahead
+   * score rather than a count of data (patternsFit.sustainedSkill): pool
+   * and mine can both be satisfied while every loading is still the hash
+   * seed it was born as, which is the state docs/ALGORITHM-REFLECTION.md
+   * §1.2 measured. A fixture that opens the gate has to supply it, and
+   * one that omits it is pinning a REFUSAL — which is a state worth
+   * writing cases against, so it is not defaulted in.
    *
    * Opt-in rather than always-on for `sponsored`'s reason: an app whose
    * gate is open is one particular app, and every case that is not about
    * the gate should be asserting against the one the fit has not reached
    * yet.
    */
-  patterns?: { pool?: number; basis?: number; mine?: number };
+  patterns?: { pool?: number; basis?: number; mine?: number; skill?: number };
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];

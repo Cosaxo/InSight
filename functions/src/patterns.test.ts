@@ -24,6 +24,8 @@ import { V2_QUESTIONS } from "./v2content";
 import type { Firestore } from "firebase-admin/firestore";
 import {
   PATTERNS_MIN_BASIS,
+  PATTERNS_SKILL_DAYS,
+  PATTERNS_SKILL_MIN_N,
   PATTERNS_QUALITY_FLOOR,
   PATTERNS_QUALITY_NOTE,
   emptyModel,
@@ -761,7 +763,16 @@ describe("what the fit publishes for the tab's gate", () => {
     expect(JSON.stringify(loadings.data)).not.toContain("undefined");
 
     const meta = writes[1];
-    expect(meta.data).toEqual({ patternsPool: 2, patternsBasis: PATTERNS_MIN_BASIS });
+    // `patternsSkill` is ABSENT here on purpose: the QUALITY fixture's one
+    // series row scored 12 observations, under PATTERNS_SKILL_MIN_N, so
+    // the fit has not posted a scorable day and says nothing rather than
+    // writing a 0 it never measured. The floor it would be read against
+    // still rides along, the way `patternsBasis` does for the count.
+    expect(meta.data).toEqual({
+      patternsPool: 2,
+      patternsBasis: PATTERNS_MIN_BASIS,
+      patternsSkillDays: PATTERNS_SKILL_DAYS,
+    });
     // MERGED, never set: contentRev, latestBuild, minBuild and updateUrl
     // live on this document and belong to the seed and the operator.
     expect(meta.opts).toEqual({ merge: true });
@@ -772,7 +783,11 @@ describe("what the fit publishes for the tab's gate", () => {
     await firestorePatternsStore(asDb(db)).putModel(pubWith(modelWith({ a: 1, b: 2 })));
     // A field that stops being written is a field the client keeps
     // reading at its last value — so early nights say 0 out loud.
-    expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });
+    expect(writes[1].data).toEqual({
+      patternsPool: 0,
+      patternsBasis: PATTERNS_MIN_BASIS,
+      patternsSkillDays: PATTERNS_SKILL_DAYS,
+    });
   });
 
   it("counts the pool over two-option rows only when the engine's corpus is wider", async () => {
@@ -791,7 +806,33 @@ describe("what the fit publishes for the tab's gate", () => {
         t: { kind: "ord", qid: "t", nOptions: 5 },
       },
     }));
-    expect(writes[1].data).toEqual({ patternsPool: 1, patternsBasis: PATTERNS_MIN_BASIS });
+    expect(writes[1].data).toEqual({
+      patternsPool: 1,
+      patternsBasis: PATTERNS_MIN_BASIS,
+      patternsSkillDays: PATTERNS_SKILL_DAYS,
+    });
+  });
+
+  it("publishes the fit's own skill once it has scorable days to say it with", async () => {
+    // The gate's THIRD number, and the one the other two cannot see: pool
+    // and mine count answers, and the tab draws a model of them.
+    // docs/ALGORITHM-REFLECTION.md §1.2 measured the shipped fit at
+    // surprisal equal to a marginal-only guess with every loading still at
+    // its hash seed — a state that satisfies both counts. This is what
+    // carries the refusal to the device, on the meta document it already
+    // reads (the loadings doc is 11 KB and the mount decision cannot
+    // afford it).
+    const { db, writes } = fakeDb();
+    const scorable = (bits: number) =>
+      ({ day: "2026-09-01", n: PATTERNS_SKILL_MIN_N, bits, baselineBits: 1 });
+    const model = modelWith({ a: PATTERNS_MIN_BASIS, b: PATTERNS_MIN_BASIS });
+    await firestorePatternsStore(asDb(db)).putModel(pubWith(model, {
+      quality: { ...QUALITY, series: [scorable(0.4), scorable(0.2), scorable(0.3)] },
+    }));
+    // The WORST of the window (0.6), not the newest (0.7) and not the mean
+    // — the crossing is latched on the device, so one lucky night must not
+    // open the tab for good.
+    expect(writes[1].data).toMatchObject({ patternsSkill: 0.6 });
   });
 });
 

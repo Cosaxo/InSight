@@ -479,6 +479,75 @@ export function publishableQuality(
   };
 }
 
+// ── the mount gate's THIRD number: has the fit learned anything? ─────
+//
+// D265 opens the Patterns tab on two counts — questions fitted on a
+// worthwhile basis, and the viewer's own answers among them. Both are
+// counts of DATA, and the tab does not draw data: it draws a MODEL of it.
+// The two can diverge, and today they do. §1.2 of
+// docs/ALGORITHM-REFLECTION.md is the project's own measurement of the
+// shipped fit: one-step-ahead surprisal equal to a marginal-only guess to
+// three decimals, and 113 of 113 loading vectors still within cosine 0.9
+// of the hash seed they were born with. A corpus that satisfies the pool
+// count while the loadings are still their seeds opens a tab whose Map is
+// a picture of `seedLoading` — and the People lens puts REAL NAMED PEOPLE
+// on that picture (peopleMap.ts places every dot by a ridge solve over
+// these same loadings). The agreement rows beside them are counted
+// directly off shared answers and are true; the positions would not be.
+// Drawing both in one frame, in one visual vocabulary, is the failure the
+// gate is for.
+//
+// `skill` is already the right instrument and already published (D394):
+// 1 − bits/baselineBits, the share of the marginal's surprisal the
+// vectors remove, 0 for a fit that has learned nothing. What was missing
+// is that it never reached the gate — it lives on the 11 KB loadings
+// document, which the mount decision cannot afford to read (that is the
+// whole argument for `v2_meta/app`). This reduces the series to one
+// scalar the meta doc can carry.
+//
+// MINIMUM ACROSS QUALIFYING DAYS, not the newest day and not a mean. The
+// crossing is LATCHED — `patternsEarned` writes it down and never takes
+// the tab away again — so a single lucky night must not be able to open
+// it permanently. A minimum is the streak D395 already uses for promoting
+// a candidate engine, one feature over: the fit must have beaten the
+// marginal on every one of the last `days` days that scored enough to be
+// worth reading.
+export const PATTERNS_SKILL_DAYS = 3;
+/** A day's mean is worth reading at this many scored observations. Below
+ * it the day is SKIPPED rather than failed — a quiet Sunday is not
+ * evidence against the model, it is an absence of evidence about it. */
+export const PATTERNS_SKILL_MIN_N = 30;
+
+/**
+ * The worst skill the fit has posted across its last `days` scorable
+ * days, or `null` when it has not posted that many yet.
+ *
+ * `null` and 0 are deliberately different and the caller must keep them
+ * different: `null` is "not measured yet", 0 is "measured, and it has
+ * learned nothing". Both keep the tab shut, but only one of them will
+ * ever change on its own.
+ *
+ * Rows published before 2026-09-06 carry no `baselineBits` (see
+ * PatternsQualityDay) and are skipped rather than read as skill 0 —
+ * back-filling a number the run never computed is exactly the invented
+ * figure the note on that field refuses.
+ */
+export function sustainedSkill(
+  series: readonly PatternsQualityDay[],
+  days: number = PATTERNS_SKILL_DAYS,
+  minN: number = PATTERNS_SKILL_MIN_N,
+): number | null {
+  const scorable = series.filter(
+    (d) => d.n >= minN && typeof d.baselineBits === "number" && d.baselineBits > 0,
+  );
+  if (scorable.length < days) return null;
+  const window = scorable.slice(-days);
+  return window.reduce(
+    (worst, d) => Math.min(worst, skillOf(d.bits, d.baselineBits as number)),
+    Infinity,
+  );
+}
+
 // ── where the vectors are, relative to where they were born ──────────
 //
 // Every loading starts as a hash of its qid (seedLoading). A fit that has

@@ -88,6 +88,8 @@ import {
   foldUserDay,
   publishableLoadings,
   publishableQuality,
+  sustainedSkill,
+  PATTERNS_SKILL_DAYS,
   displacementSummary,
   readyPool,
   seedsSummary,
@@ -849,10 +851,33 @@ export function firestorePatternsStore(
       // Counted over the engine's TWO-OPTION rows only — what the Map
       // draws — so a wider corpus does not open the tab on rows no lens
       // has a design for yet.
+      //
+      // …and the THIRD number, which is about the MODEL rather than about
+      // the data (patternsFit.sustainedSkill). The two counts above can
+      // both be satisfied while the loadings are still the hash seeds they
+      // were born as — that is not hypothetical, it is what §1.2 of
+      // docs/ALGORITHM-REFLECTION.md measures about the shipped fit — and
+      // a Map drawn on seed geometry with real people's names on it is
+      // exactly the tab D265 refuses to open early. `skill` was already
+      // computed and already published; it just never reached the gate,
+      // because it lives on the loadings document the mount decision
+      // cannot afford to read.
+      //
+      // OMITTED, not zeroed, when the fit has not posted enough scorable
+      // days: `null` means "not measured yet" and 0 means "measured, and
+      // it learned nothing". Writing 0 for the first would tell the client
+      // a fact the run never established, and `dropUndefined` is the
+      // idiom this file already uses to say nothing rather than to say
+      // zero. The field is absent from the merge, so an older run's value
+      // is not resurrected either — it is refreshed every night or it
+      // stands as the last thing that WAS measured.
+      const skill = sustainedSkill(pub.quality?.series ?? []);
       await db.collection("v2_meta").doc("app").set(
         {
           patternsPool: readyPool({ k: pub.k, q: binOf(pub) }, PATTERNS_MIN_BASIS),
           patternsBasis: PATTERNS_MIN_BASIS,
+          ...(skill === null ? {} : { patternsSkill: skill }),
+          patternsSkillDays: PATTERNS_SKILL_DAYS,
         },
         { merge: true },
       );

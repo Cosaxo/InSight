@@ -16,6 +16,7 @@ import {
   PATTERNS_MIN_BASIS,
   PATTERNS_MIN_MINE,
   PATTERNS_MIN_POOL,
+  PATTERNS_MIN_SKILL,
   patternsEligible,
   patternsReady,
 } from "./patternsReady";
@@ -26,6 +27,7 @@ const open = () => ({
   pool: PATTERNS_MIN_POOL,
   basis: PATTERNS_MIN_BASIS,
   mine: PATTERNS_MIN_MINE,
+  skill: PATTERNS_MIN_SKILL,
 });
 
 describe("patternsReady", () => {
@@ -49,10 +51,10 @@ describe("patternsReady", () => {
     // answered; with none, "you" is the origin under a note that says you
     // are not at the centre. The Oracle's guess is the crowd's margin
     // wearing your name. Neither is a thing the tab may say.
-    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS, mine: 0 })).toBe(false);
+    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS, mine: 0, skill: 0.5 })).toBe(false);
     // …and the mirror image: a viewer who has answered plenty still has
     // nothing to be placed IN until the fit has published.
-    expect(patternsReady({ pool: 0, basis: PATTERNS_MIN_BASIS, mine: 200 })).toBe(false);
+    expect(patternsReady({ pool: 0, basis: PATTERNS_MIN_BASIS, mine: 200, skill: 0.5 })).toBe(false);
   });
 
   it("refuses a count taken at a looser basis than it is about", () => {
@@ -62,24 +64,25 @@ describe("patternsReady", () => {
     // report a pool ten times the real one. The gate can see that and
     // stays shut, instead of trusting a number whose meaning changed in
     // another deployable.
-    expect(patternsReady({ pool: 400, basis: 1, mine: 100 })).toBe(false);
-    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS - 1, mine: 100 })).toBe(false);
+    expect(patternsReady({ pool: 400, basis: 1, mine: 100, skill: 0.5 })).toBe(false);
+    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS - 1, mine: 100, skill: 0.5 })).toBe(false);
     // A stricter fit is not a weaker claim, so it passes.
-    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS + 20, mine: 100 })).toBe(true);
+    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS + 20, mine: 100, skill: 0.5 })).toBe(true);
   });
 
   it("treats a missing field as nothing rather than as satisfied", () => {
     // `??` not `||` would be the same here; what this pins is that an
     // absent key can never READ as a pass — a published document that
     // lost a field must shut the gate, not open it.
-    expect(patternsReady({ pool: 400, mine: 100 })).toBe(false);
-    expect(patternsReady({ basis: PATTERNS_MIN_BASIS, mine: 100 })).toBe(false);
-    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS })).toBe(false);
+    expect(patternsReady({ pool: 400, mine: 100, skill: 0.5 })).toBe(false);
+    expect(patternsReady({ basis: PATTERNS_MIN_BASIS, mine: 100, skill: 0.5 })).toBe(false);
+    expect(patternsReady({ pool: 400, basis: PATTERNS_MIN_BASIS, skill: 0.5 })).toBe(false);
   });
 
   it("takes its thresholds as arguments so a caller can pin the verdict, not the constant", () => {
-    expect(patternsReady({ pool: 2, basis: 2, mine: 2 }, 2, 2, 2)).toBe(true);
-    expect(patternsReady({ pool: 2, basis: 2, mine: 2 }, 3, 2, 2)).toBe(false);
+    expect(patternsReady({ pool: 2, basis: 2, mine: 2, skill: 0.2 }, 2, 2, 2, 0.2)).toBe(true);
+    expect(patternsReady({ pool: 2, basis: 2, mine: 2, skill: 0.2 }, 3, 2, 2, 0.2)).toBe(false);
+    expect(patternsReady({ pool: 2, basis: 2, mine: 2, skill: 0.2 }, 2, 2, 2, 0.3)).toBe(false);
   });
 
   it("keeps the viewer's floor at the fit's own dimension", () => {
@@ -90,6 +93,52 @@ describe("patternsReady", () => {
     expect(PATTERNS_MIN_MINE).toBe(8);
     expect(PATTERNS_MIN_BASIS).toBe(8);
     expect(PATTERNS_MIN_POOL).toBe(24);
+  });
+
+  // ── the third number: the MODEL, not the data (D394's skill) ────────
+
+  it("stays shut on a fit that has learned nothing, however much data it has", () => {
+    // THE CASE THE OTHER TWO NUMBERS CANNOT SEE. Pool and mine both count
+    // ANSWERS; the tab draws a MODEL of them. docs/ALGORITHM-REFLECTION.md
+    // §1.2 measured the shipped fit at surprisal equal to a marginal-only
+    // guess to three decimals, with 113 of 113 loadings still within
+    // cosine 0.9 of their hash seed — a state where a corpus ten times the
+    // pool floor would have opened a Map drawn on `seedLoading`, with the
+    // People lens putting real named strangers on it.
+    expect(patternsReady({ ...open(), pool: 400, mine: 300, skill: 0 })).toBe(false);
+    // …and a fit that actively hurts, which is the same picture upside down.
+    expect(patternsReady({ ...open(), pool: 400, mine: 300, skill: -0.4 })).toBe(false);
+  });
+
+  it("opens exactly at the skill floor and not below it", () => {
+    expect(patternsReady({ ...open(), skill: PATTERNS_MIN_SKILL })).toBe(true);
+    expect(patternsReady({ ...open(), skill: PATTERNS_MIN_SKILL / 2 })).toBe(false);
+    expect(patternsReady({ ...open(), skill: 0.9 })).toBe(true);
+  });
+
+  it("fails CLOSED on a signal that carries no skill at all", () => {
+    // Two states share this shape and both must keep the tab shut: a fit
+    // with too few scorable days to say anything (patterns.ts omits the
+    // field rather than writing a 0 it never measured), and a device
+    // running against a backend that has not deployed the publishing half
+    // yet. Neither is a reason to draw a model.
+    const noSkill = { ...open() };
+    delete (noSkill as { skill?: number }).skill;
+    expect(patternsReady(noSkill)).toBe(false);
+    expect(patternsReady({ ...noSkill, pool: 4000, mine: 3000 })).toBe(false);
+  });
+
+  it("keeps 'not measured' and 'measured zero' as different inputs", () => {
+    // Both shut, and that is the easy half. What this pins is that the
+    // gate reads skill for PRESENCE rather than through `?? 0`: collapsing
+    // them would make the two indistinguishable to every reader
+    // downstream, and only one of them will ever move on its own.
+    expect(patternsReady({ ...open(), skill: undefined })).toBe(false);
+    expect(patternsReady({ ...open(), skill: 0 })).toBe(false);
+    // The proof they are distinguishable at all: a floor of 0 admits the
+    // measured zero and still refuses the absent one.
+    expect(patternsReady({ ...open(), skill: 0 }, undefined, undefined, undefined, 0)).toBe(true);
+    expect(patternsReady({ ...open(), skill: undefined }, undefined, undefined, undefined, 0)).toBe(false);
   });
 });
 

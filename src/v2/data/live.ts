@@ -131,6 +131,7 @@ import { reportError, setSentryUser } from "../../lib/sentry";
 // (This branch's D318 built the same move as a single-blob bankStore.ts in
 // parallel; the merge converged on this store — see the D318 amendment.)
 import * as cacheStore from "./cacheStore";
+import { makeLsSet } from "./localWrite";
 // No imports of its own, so reading it here closes no cycle back through
 // data/cityAnchor — which imports this module.
 import { cityIsConfirmed } from "./cityConfirm";
@@ -388,7 +389,11 @@ const state = {
   // `patterns*` are written by the nightly fit rather than the seed
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
-  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, budgetMode: 0 },
+  // `patternsSkill` is `null` rather than 0 when the server has not
+  // published one — see PatternsSignal.skill: "not measured" and
+  // "measured, and it learned nothing" are different facts and the gate
+  // keeps them apart.
+  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, patternsSkill: null as number | null, budgetMode: 0 },
   // `dailySource` says which of D383's two paths served the daily: "deck"
   // (seven documents against the published length) or "whole" (the
   // pre-D383 surface fetch, taken whenever the shape cannot be trusted).
@@ -737,48 +742,13 @@ const REVEAL_HIST_CAP = 30;
 // Clearing the timer alone would not close the snapshot writers.
 let torndown = false;
 
-// ── the quota instrument (docs/ANSWER-SCALE.md §2.1) ─────────────────
+// ── the quota instrument — EXTRACTED to data/localWrite.ts ──────────
 //
-// Every `insight.*` write in this tree is guarded-and-swallowed, which is
-// the right degradation and a terrible sensor: the quota is per-origin, so
-// the day it fills EVERY store silently stops persisting at once — and the
-// caches that fill it grow with what the account has ANSWERED, which no
-// static gate can see (question-quality.mjs's bank budget watches the
-// bank's half and assumes the rest stays small). This is the sensor, not a
-// fix: count every swallowed write, and report the first QUOTA-shaped
-// failure once per session with the key and the size that failed, so the
-// deadline for moving the caches off localStorage arrives as dated reports
-// from real devices instead of as users whose app stopped remembering.
-//
-// Detection only, deliberately — the write stays best-effort and the
-// in-memory state stays correct, exactly as before. Quota is told apart
-// from a merely absent storage (private mode, disabled) because the two
-// mean different things: absence is an environment, quota is the box
-// filling, and only the second is the condition ANSWER-SCALE exists for.
-let quotaReported = false;
-function isQuotaError(err: unknown): boolean {
-  const e = err as { name?: string; code?: number } | null | undefined;
-  // The spec'd name, plus the legacy spellings that still reach real
-  // devices: old WebKit throws code 22, old Firefox NS_ERROR_DOM_QUOTA_
-  // REACHED / code 1014.
-  return !!e && (e.name === "QuotaExceededError"
-    || e.name === "NS_ERROR_DOM_QUOTA_REACHED"
-    || e.code === 22 || e.code === 1014);
-}
-function lsSet(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch (err) {
-    state.stats.cacheWriteFailures += 1;
-    if (isQuotaError(err) && !quotaReported) {
-      quotaReported = true;
-      reportError(
-        new Error(`localStorage quota exceeded writing ${key} (${value.length} chars)`),
-        { where: "quota" },
-      );
-    }
-  }
-}
+// The sensor and its reasoning live in that module now (D-2026-09-09h),
+// the first slice to leave this file. What stays here is the one thing it
+// genuinely needs from the store — the failure counter — passed in, so the
+// nine `lsSet(key, value)` call sites below are unchanged.
+const lsSet = makeLsSet(() => { state.stats.cacheWriteFailures += 1; });
 
 // Which uid the IndexedDB answers store currently belongs to — set by
 // hydrate when it writes the store's meta row, cleared by resetForNewUid.
@@ -1504,10 +1474,13 @@ function buildS(
 // WHY ONLY TODAY IS POLLED. `computeDeckIds` returns today plus six back
 // days and all seven are answerable, so the older aggregates do move — just
 // rarely, and nobody is watching a four-day-old card for a live tick. The
-// full deck is refreshed on boot and on every foreground; the repeating
-// timer asks about today alone. That is 1 document per poll rather than 7,
-// which is what keeps the replacement genuinely cheap rather than merely
-// cheaper.
+// ANSWERED part of the deck is refreshed on boot and on every foreground
+// (readableDeckIds — an unanswered card's crowd is not read at all, which
+// is what makes the blind vote blind); the repeating timer asks about
+// today alone, and only once today has been answered. That is at most 1
+// document per poll rather than 7, which is what keeps the replacement
+// genuinely cheap rather than merely cheaper — and for a reader who has
+// not voted today it is 0.
 const AGG_POLL_MS = 60_000;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 // Which start the armed interval belongs to. startAggPoll awaits the
@@ -1566,6 +1539,38 @@ function stopAggPoll(): void {
 }
 
 /**
+ * The deck ids this device may read a public count for: the ones it has
+ * already answered.
+ *
+ * BLIND ANSWERING IS A DATA RULE, NOT A RENDER RULE. `daily-split.jsx`
+ * hides the split until you have voted (`revealed = voted || !blind`), and
+ * for the whole life of this file the boot read `refreshAggs(state.deckIds)`
+ * — all seven — so every count the card was hiding was already in memory,
+ * in the store, and on the wire before the first card painted. Devtools, a
+ * proxy, or thirty lines of patched client recovered it, which made the
+ * app's one distinctive claim a CSS decision. Filtering the read here is
+ * what makes the claim true: an unanswered question's crowd is not on the
+ * device, so there is nothing to reveal early.
+ *
+ * It is also cheaper, which is the part worth stating plainly because it
+ * runs the other way from most honesty fixes: a cold boot for a new
+ * account reads 0 aggregates instead of 7, and a card the reader skips
+ * costs nothing at all. The counts a reader is entitled to still arrive —
+ * `scheduleAggRefresh` re-reads on the vote's ack, on both write paths,
+ * and that read has always been the one that puts the number on screen.
+ *
+ * Between the vote and that read the card is NOT blank and does not claim
+ * an empty crowd: `noCountsYet` (deck.ts `hasPublishedCounts`) already
+ * distinguishes "the aggregate has not landed" from "the aggregate says
+ * nobody", and daily-split draws "You're first — the count lands in a
+ * moment." for exactly this state. That flag existed for the first-vote
+ * case; this widens the window it covers rather than adding a state.
+ */
+function readableDeckIds(qids: readonly string[]): string[] {
+  return qids.filter((id) => id in state.votes);
+}
+
+/**
  * Refresh the whole deck now, then keep today's aggregate fresh on a timer.
  *
  * Idempotent, because every caller of the old `subscribeAggs` was: boot,
@@ -1589,7 +1594,9 @@ async function startAggPoll(): Promise<void> {
   if (torndown) return;
   stopAggPoll();
   const gen = aggPollGen;
-  await refreshAggs(state.deckIds);
+  // ANSWERED ONLY — see readableDeckIds. An unanswered card's crowd is not
+  // read, so it cannot be revealed early; the vote's own ack reads it.
+  await refreshAggs(readableDeckIds(state.deckIds));
   // A stop that landed during the read wins — see aggPollGen.
   if (torndown || gen !== aggPollGen) return;
   aggPollTimer = setInterval(() => {
@@ -1598,7 +1605,11 @@ async function startAggPoll(): Promise<void> {
     // that is hidden without firing visibilitychange (some WebViews on
     // resume-from-kill) would otherwise poll unseen.
     if (torndown || (typeof document !== "undefined" && document.hidden)) return;
-    void refreshAggs(state.deckIds.slice(0, 1));
+    // …and only once today's card has been answered. Polling an unanswered
+    // question would restore the leak the boot read just gave up, one
+    // minute later — and it would do it while the reader is sitting on the
+    // card, which is the worst moment for the number to arrive.
+    void refreshAggs(readableDeckIds(state.deckIds.slice(0, 1)));
   }, AGG_POLL_MS);
 }
 
@@ -2172,6 +2183,15 @@ async function hydrate(): Promise<void> {
       state.meta.updateUrl = String(meta.get("updateUrl") || "");
       state.meta.patternsPool = Number(meta.get("patternsPool") || 0);
       state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
+      // Read for PRESENCE, not with `|| 0`: the fit omits the field until
+      // it has enough scorable days to say anything (patterns.ts), and a
+      // missing field coerced to 0 would report "the model learned
+      // nothing" about a model nobody has scored yet. Both keep the tab
+      // shut; only one of them is true.
+      const skillRaw = meta.get("patternsSkill");
+      state.meta.patternsSkill = typeof skillRaw === "number" && Number.isFinite(skillRaw)
+        ? skillRaw
+        : null;
       // The read breaker (D332) rides the same one read — see budgetMode.ts.
       state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
     }
@@ -6792,7 +6812,14 @@ const LIVE = {
     // mirror before the event goes out. The two paths do not share that
     // order; that note now says so.
     if (torndown) return {};
-    return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine: patternsMine() };
+    return {
+      pool: state.meta.patternsPool,
+      basis: state.meta.patternsBasis,
+      mine: patternsMine(),
+      // Spread rather than assigned, so an unmeasured fit leaves the key
+      // ABSENT on the signal instead of present-and-undefined.
+      ...(state.meta.patternsSkill === null ? {} : { skill: state.meta.patternsSkill }),
+    };
   },
   // ── Learn (D32) ──
   // The first attempt on a learn card is a plain world answer; the
@@ -8332,8 +8359,28 @@ export function _teardownForTest(): void {
 export function _aggPollForTest(): { running: boolean; tick: () => Promise<void> } {
   return {
     running: aggPollTimer !== null,
-    tick: () => refreshAggs(state.deckIds.slice(0, 1)),
+    // Exactly the timer body, readableDeckIds included — a helper that
+    // skipped the filter would report a poll this build does not run.
+    tick: () => refreshAggs(readableDeckIds(state.deckIds.slice(0, 1))),
   };
+}
+
+/**
+ * Deliver an aggregate the way the network delivers one, WITHOUT the
+ * blind-answer filter in front of it.
+ *
+ * Separate from `_aggPollForTest().tick()` on purpose, and the split is
+ * the point rather than a convenience. `tick()` must stay byte-for-byte
+ * the timer body — including `readableDeckIds` — or it stops being
+ * evidence about the poll this build runs. But several cases are about
+ * what `storeAgg` and the cache coalescer do once an aggregate LANDS, and
+ * they do not care which read delivered it; before the filter existed
+ * they borrowed the poll to deliver one. Borrowing it now would make them
+ * assert the filter instead, and a filter change would fail them for the
+ * wrong reason.
+ */
+export function _deliverAggsForTest(qids: readonly string[]): Promise<void> {
+  return refreshAggs(qids);
 }
 
 // Exported for the test, for the same reason `_aggPollForTest` is: the
