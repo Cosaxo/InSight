@@ -192,7 +192,14 @@ describe("runLogBackfill", () => {
   }
   function fakeWriter(): LogWriter & { rows: LogRow[] } {
     const rows: LogRow[] = [];
-    return { enabled: true, rows, async append(r) { rows.push(...r); }, async presentIds() { return new Set(); }, async deleteUser() { return "done"; } };
+    return {
+      enabled: true, rows,
+      async append(r) { rows.push(...r); },
+      async presentIds() { return new Set(); },
+      async deleteUsers() { return "done"; },
+      async tableBytes() { return null; },
+      async rowsFor(uid) { return rows.filter((r) => r.uid === uid); },
+    };
   }
   const answer = (uid: string, qid: string, data: Record<string, unknown>): Row => ({ path: `v2_users/${uid}/answers/${qid}`, data: { qid, ...data } });
   const OLD = Date.UTC(2026, 7, 1, 9);

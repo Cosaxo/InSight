@@ -83,6 +83,9 @@ export const LOG_ERASE_NOW_MAX_BYTES = 1024 ** 3;
 /** Accounts per nightly DELETE — the marker query's own page; an
  *  `IN UNNEST` of five hundred ids is well inside a query's size. */
 export const LOG_ERASE_BATCH = 500;
+/** Rows the data export (D443's twin of deleteAccount) reads for one
+ *  account at most — a person's answers and edits, far below this. */
+export const LOG_EXPORT_MAX_ROWS = 50_000;
 
 /** One row of the `answers` table — the field names are the schema's
  *  (bigquery/answers.schema.json, pinned by log.test.ts). */
@@ -147,6 +150,10 @@ export interface LogWriter {
   /** The table's logical bytes, off its metadata — no query, nothing
    *  billed. Null where unknown, or where there is no BigQuery. */
   tableBytes(): Promise<number | null>;
+  /** One account's rows, oldest first — the data export's section
+   *  (exportAccount.ts, D443), read through the same writer the erasure
+   *  uses so the two agree on where the rows are. Null where off. */
+  rowsFor(uid: string): Promise<LogRow[] | null>;
 }
 
 /** Whether this process has a BigQuery to write to. Read per call rather
@@ -165,6 +172,7 @@ const offWriter: LogWriter = {
   async presentIds() { return null; },
   async deleteUsers() { return "done"; },
   async tableBytes() { return null; },
+  async rowsFor() { return null; },
 };
 
 /** The writer against the real table: one client per instance, made on
@@ -211,6 +219,20 @@ export function bigQueryLogWriter(dataset = LOG_DATASET, table = LOG_TABLE): Log
       const [meta] = await bq().dataset(dataset).table(table).getMetadata();
       const n = Number((meta as { numBytes?: string | number } | undefined)?.numBytes);
       return Number.isFinite(n) ? n : null;
+    },
+    async rowsFor(uid) {
+      // The columns in the row's own shape (log.test.ts holds LogRow to
+      // the schema): the timestamp and the date as the strings the append
+      // wrote, the JSON column as its text. A filter on the first
+      // clustering column, which is why the table is clustered by person.
+      const [rows] = await bq().query({
+        query: `SELECT id, uid, qid, surface, option_idx, from_idx, `
+          + `FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%E3SZ', answered_at) AS answered_at, CAST(day AS STRING) AS day, `
+          + `TO_JSON_STRING(anchors) AS anchors FROM ${ref()} WHERE uid = @uid ORDER BY answered_at LIMIT ${LOG_EXPORT_MAX_ROWS}`,
+        params: { uid },
+        location: LOG_LOCATION,
+      });
+      return (rows as LogRow[]).map((r) => ({ ...r, anchors: r.anchors === "null" ? null : r.anchors }));
     },
   };
 }
