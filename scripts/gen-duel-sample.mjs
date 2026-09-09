@@ -53,10 +53,19 @@ const OUT = join(root, "content", "duel-sample.json");
 // § The duel lane), so the demo shows the pack's hue changing rather than
 // one colour forever. Four `us` and two `classic` keep `groupPortrait()`'s
 // traits and the older kinds visible; four ratings put one on every
-// group's week. Twenty-one in all, which is more than the sixteen slots
+// group's week. Eighteen in all, which is more than the sixteen slots
 // the four seeded groups' weeks reach (offsets 0 · 3 · 6 · 9, seven days
 // each), so no two seeded groups share a week.
-export const PER_KIND = { us: 4, pick: 3, classic: 2, role: 8, rate: 4 };
+//
+// `pick` is ZERO since D444: the ten plain member picks became the sixth
+// pack's role votes or retired, so no pick without a pack is served — and
+// the demo never played one anyway (D437: a room plays role votes and
+// ratings, nothing else). The key stays because `sampleKind` still names
+// the kind and a missing key is the throw below, on purpose; the count is
+// zero rather than three because the generator's test holds the sample to
+// exactly PER_KIND of every kind, and three of a kind the bank no longer
+// serves is a red test, not a shorter sample.
+export const PER_KIND = { us: 4, pick: 0, classic: 2, role: 8, rate: 4 };
 
 // 1v1 questions per domain, both pools. FOUR because DOMAIN_MIN is four
 // (`duels-data.js`): a domain row draws only once it holds four correct
