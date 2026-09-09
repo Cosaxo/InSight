@@ -40,14 +40,13 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-09T19:35:36Z -->
+<!-- console:generated 2026-09-09T19:36:48Z -->
 
 ## Open
 
-- [ ] **#467** · a session · *what:* The last open item of `OWNER-LIST.md`'s 1v1-and-group profile row — **the LEDGER** of `ROLES-PLAN.md` §3.3 — built on the owner's yes of 2026-09-09. · *how:* Everything else on that row was built at D437; this closes it. · no checks · 13 behind main · conflicts · opened 2026-09-09 · stage **new**
-- [ ] **#465** · a session · *what:* The owner, 2026-09-09: *"lets instead plan for a update to the production of 1v1 and group question with the new desigin."* **`docs/CAST-ROLLOUT-PLAN.md`** — the rollout of what D… · *how:* Measured tonight: the seed runs after every backend deploy and ran three times today, so the packs, seats, ratings and cast entries are in Firestore; `contentRev` last moved 2026-… · CI green (9) · 7 behind main · opened 2026-09-09 · stage **new**
-- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · CI running (1 pending) · 2 behind main · conflicts · opened 2026-09-09 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 217 behind main · conflicts · opened 2026-09-01 · stage **new**
+- [ ] **#467** · a session · *what:* The last open item of `OWNER-LIST.md`'s 1v1-and-group profile row — **the LEDGER** of `ROLES-PLAN.md` §3.3 — built on the owner's yes of 2026-09-09. · *how:* Everything else on that row was built at D437; this closes it. · no checks · 15 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · CI running (1 pending) · 4 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 219 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
 
@@ -65,6 +64,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#465** · Plan: bringing production's 1v1 and group questions onto the 2026-09-09 design, with the audit that measures the gap · merged 2026-09-09
 - **#466** · Build the data export — deleteAccount's read-only twin (D443) · merged 2026-09-09
 - **#464** · Seed the nightly voter samples on first touch, 25 a night (D442) · merged 2026-09-09
 - **#463** · The email door asks too: sign-in from an anonymous session shows the in-use screen first (D441) · merged 2026-09-09
@@ -120,4 +120,3 @@ merge shift like any other PR.
 - **#427** · The night shift looks at the phones: a device pass at phone geometry, the real shells on GitHub's runners, and a brief that reads both (D404) · merged 2026-09-07
 - **#425** · The cost hunt: four Opus hunters a night and a Fable reviewer, chartered before any Routine exists (D403) · merged 2026-09-06
 - **#424** · The logic test learns orientation and position: generator v4, an era-stamped norms fold with an effort floor, and a percentile that says how sure it is (D402) · merged 2026-09-06
-- **#423** · The Patterns engine, the fold, the store and the device solves rebuilt as ALGORITHM-REFLECTION planned (D394–D401) · merged 2026-09-06
