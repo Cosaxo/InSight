@@ -3916,7 +3916,16 @@ const SOCIAL = {
   // the rest of the session.
   async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
     if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
+    // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
+    // that did not follow it. The Groups stop mounts this on a `[gid]`
+    // effect, so it runs AFTER the stop has painted; without the notify
+    // the cold frame — no data and no flag — stands for the whole of the
+    // dynamic import and the ordered thirty-document read, and a room
+    // with weeks of history reads "no rounds revealed yet" under its own
+    // name. `revealHistoryLoading` was added to prevent exactly that
+    // sentence and nothing was ever told the flag had moved.
     state.revealHistLoading[gid] = true;
+    notify();
     try {
       const db = await getDb();
       const snap = await getDocs(query(
