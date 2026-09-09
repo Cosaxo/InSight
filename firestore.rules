@@ -820,8 +820,18 @@ service cloud.firestore {
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
             && request.resource.data.qid == aid
-            && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            // THE QUESTION, FETCHED ONCE AND HANDED ON. Four get() sites
+            // stood in this arm. Billing already deduped them to one read;
+            // the EXPRESSION budget counts every site, and the answer path
+            // sits within ~140 expressions of Firestore's 1,000 (D429,
+            // RULES-BUDGET-PLAN §0). A missing question errors the get here
+            // exactly as it erred the first site before — same refusal,
+            // same mechanism, one clause earlier.
+            && worldBody(request.resource.data,
+                         get(/databases/$(database)/documents/v2_questions/$(aid)).data);
+        }
+        function worldBody(d, q) {
+          return d.optionIdx < q.options.size()
             // A rank question takes an ORDER, never an index (D12/D233).
             // Without this clause a raw-API optionIdx write would pass —
             // rank docs carry real options, so the size bound holds — and
@@ -830,14 +840,11 @@ service cloud.firestore {
             // poisoning D12 pulled the cards for, back through the side
             // door. Catalog questions never needed the clause because
             // their options list is empty and the size bound above
-            // already refuses every index. The get() is deduped with the
-            // two below, so the clause costs no extra read.
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("type", "") != "rank"
+            // already refuses every index.
+            && q.get("type", "") != "rank"
             // Honour the operational kill switch: a question flipped
             // inactive stops accepting answers, not just showing itself.
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("active", true) == true
+            && q.get("active", true) == true
             // …and the claimed surface must BE the question's own —
             // EQUALITY, not membership of the same list on both sides,
             // which is the same test twice and no comparison at all.
@@ -858,10 +865,9 @@ service cloud.firestore {
             // The default keeps a field-less bank doc answerable rather
             // than permanently bricked, and under equality that means
             // answerable as "daily" specifically. The membership check on
-            // the ANSWER's own surface (above) is what still bounds the
-            // pair to the four world names.
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") == request.resource.data.surface;
+            // the ANSWER's own surface (in the caller) is what still bounds
+            // the pair to the four world names.
+            && q.get("surface", "daily") == d.surface;
         }
 
         // Catalog answers (docs/CATALOG-QUESTIONS.md): one pick from a
@@ -897,15 +903,16 @@ service cloud.firestore {
             && request.resource.data.qid == aid
             && request.resource.data.order is list
             && request.resource.data.order.size() >= 2
-            && request.resource.data.order.size()
-              == get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("type", "") == "rank"
+            // One fetch, handed on (isWorldAnswer says why).
+            && rankBody(request.resource.data,
+                        get(/databases/$(database)/documents/v2_questions/$(aid)).data);
+        }
+        function rankBody(d, q) {
+          return d.order.size() == q.options.size()
+            && q.get("type", "") == "rank"
             // same kill switch and surface agreement as isWorldAnswer
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("active", true) == true
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") == "feed";
+            && q.get("active", true) == true
+            && q.get("surface", "daily") == "feed";
         }
 
         function isCatalogAnswer() {
@@ -923,13 +930,14 @@ service cloud.firestore {
             && request.resource.data.entity is int
             && request.resource.data.entity >= 0
             && request.resource.data.entity < 1000000000
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("type", "") == "catalog"
+            // One fetch, handed on (isWorldAnswer says why).
+            && catalogBody(get(/databases/$(database)/documents/v2_questions/$(aid)).data);
+        }
+        function catalogBody(q) {
+          return q.get("type", "") == "catalog"
             // same kill switch and surface agreement as isWorldAnswer
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("active", true) == true
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") == "feed";
+            && q.get("active", true) == true
+            && q.get("surface", "daily") == "feed";
         }
 
         // Sealed duel answers: id g_{gid}_r{n} — one per member per ROUND
@@ -948,14 +956,16 @@ service cloud.firestore {
         // with it: the day regex and both timestamp.date() comparisons,
         // which is fewer expressions on the create path D409 measured.
         function isDuelAnswer() {
-          // The open round, read ONCE: the same group document the
-          // membership clause fetches (deduped for billing either way), and
-          // one binding rather than six repeated get() expressions on the
-          // create path whose refusals D409 measured against the budget.
-          let open = get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.get("round", 1);
-          // Absent reads as "not late" — a value, never an evaluation error
-          // on an unflagged answer to a revealed round.
-          let late = request.resource.data.get("late", false);
+          // GUARDS FIRST, FETCHES AFTER. Until 2026-09-09 this function
+          // opened with `let open = get(group)…`, and a rules function runs
+          // its `let` bindings before its `return` — so every write that
+          // was not a duel paid a group fetch on the way past an arm whose
+          // first real conjunct (`surface in ["group", "duo"]`) would have
+          // rejected it for three expressions. The bindings now live in
+          // duelBody, which is only CALLED once the cheap guards pass, and
+          // the two documents the arm needs are fetched once each as its
+          // arguments — where the old body fetched the question at ten
+          // sites and the group at four (RULES-BUDGET-PLAN §0, D433).
           return request.resource.data.surface in ["group", "duo"]
             && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx", "pickUid",
@@ -967,10 +977,25 @@ service cloud.firestore {
             // The id IS the round. string() over an int resolves in rules
             // — probed in the emulator 2026-09-08 before this was written.
             && aid == "g_" + request.resource.data.gid + "_r" + string(request.resource.data.round)
-            && request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            // THE ROUND BOUND, off the same group document the membership
-            // clause already fetched (repeated get()s on one path are
-            // deduped within an evaluation, so it costs no extra read).
+            // the answer must reference a real question, and indexes must
+            // fit its options ("pick" questions have empty bank options —
+            // their options are the group's members). The exists() guard
+            // precedes the body because the body's argument would error on
+            // a missing document — the one clause this arm reorders, and a
+            // refusal either way.
+            && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+            && duelBody(request.resource.data,
+                        get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data,
+                        get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data);
+        }
+        function duelBody(d, q, g) {
+          // The open round, off the group document the caller fetched.
+          let open = g.get("round", 1);
+          // Absent reads as "not late" — a value, never an evaluation error
+          // on an unflagged answer to a revealed round.
+          let late = d.get("late", false);
+          return request.auth.uid in g.memberUids
+            // THE ROUND BOUND, off the same group document:
             //
             //   round >= open      the round has not revealed. The reveal
             //                      and the advance of `round` are ONE
@@ -1011,18 +1036,14 @@ service cloud.firestore {
             // And the blind arm refuses the flag, so "late" can only ever
             // mean what it says.
             && (
-              (request.resource.data.round >= open
-                && request.resource.data.round < open + 5
+              (d.round >= open
+                && d.round < open + 5
                 && late == false)
-              || (request.resource.data.round < open
-                && request.resource.data.round >= open - 5
+              || (d.round < open
+                && d.round >= open - 5
                 && late == true
-                && !request.resource.data.keys().hasAny(["guessIdx"]))
+                && !d.keys().hasAny(["guessIdx"]))
             )
-            // the answer must reference a real question, and indexes must
-            // fit its options ("pick" questions have empty bank options —
-            // their options are the group's members)
-            && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
             // Same kill switch and surface agreement as isWorldAnswer, and
             // for the same reason — this was the ONE answer shape that
             // checked only that the question existed. Duel votes are not an
@@ -1032,8 +1053,7 @@ service cloud.firestore {
             // a question pulled for being broken or harmful kept taking
             // votes, kept being published in reveals, and kept feeding a
             // public aggregate.
-            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                 .data.get("active", true) == true
+            && q.get("active", true) == true
             // EQUALITY, like isWorldAnswer's — or the world arm beside it.
             // duelQFor (data/deck.ts) draws a round's question from the
             // bank whose surface matches the answer's own "group"/"duo",
@@ -1043,13 +1063,8 @@ service cloud.firestore {
             // catalog question — whose `options` is empty, so
             // duelIndexSpace() falls through to the member count and the
             // vote is folded as if it were a "pick".
-            //
-            // The get() is the same document duelIndexSpace() already
-            // reads, and rules dedupe identical gets within a request, so
-            // neither clause costs an extra read.
             && (
-              get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                   .data.get("surface", "daily") == request.resource.data.surface
+              q.get("surface", "daily") == d.surface
               // …OR a WORLD question as duel content (ROUNDS-PLAN §6.2, the
               // owner's word 2026-09-08): a daily or feed question whose
               // answer is an option index. Written as an explicit second
@@ -1060,17 +1075,14 @@ service cloud.firestore {
               // keeps rank (an order, not an index), dial and field (a
               // position on a range) and path out for the same reason: a
               // duel answer's optionIdx has to name one of the question's
-              // own options. The same document, deduped: no extra read.
-              || (get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                     .data.get("surface", "daily") in ["daily", "feed"]
-                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                     .data.get("type", "") in ["vote", "binary", "choice"]
-                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-                     .data.options.size() > 0)
+              // own options.
+              || (q.get("surface", "daily") in ["daily", "feed"]
+                && q.get("type", "") in ["vote", "binary", "choice"]
+                && q.options.size() > 0)
             )
-            && (request.resource.data.get("guessIdx", 0) is int)
-            && request.resource.data.get("guessIdx", 0) >= 0
-            // SAME bound as optionIdx, and now the SAME COMPARISON — a guess
+            && (d.get("guessIdx", 0) is int)
+            && d.get("guessIdx", 0) >= 0
+            // SAME bound as optionIdx, and the SAME COMPARISON — a guess
             // names an option, so it lives in the same index space. This read
             // `guessIdx < 20` while optionIdx had already been widened for
             // exactly that reason: GROUP_CAP is 32, so on a "pick" day in a
@@ -1080,36 +1092,24 @@ service cloud.firestore {
             // bound written once means the next change to the index space
             // cannot reach one and miss the other.
             //
-            // Testing the LARGER index once, rather than each against its own
-            // duelIndexSpace() call, is what makes it one bound. It is the
-            // same test: neither index can be negative here — guessIdx by the
-            // line above, optionIdx by the create rule's outer block, which is
-            // this function's only caller. The saving is expressions, not
-            // reads: repeated get()s on one path are deduped within an
-            // evaluation, repeated EXPRESSIONS are not, and each call expands
-            // to a ternary over two get() paths. This rule sits in the answer
-            // create's six-arm disjunction, and a DENIAL walks every arm to
-            // the end — which is the path that hit Firestore's hard ceiling
-            // of 1,000 evaluated expressions and denied for running out of
-            // budget rather than for being false.
-            && (request.resource.data.optionIdx >= request.resource.data.get("guessIdx", 0)
-                  ? request.resource.data.optionIdx
-                  : request.resource.data.get("guessIdx", 0))
-               < duelIndexSpace()
+            // Testing the LARGER index once is what makes it one bound. It
+            // is the same test: neither index can be negative here —
+            // guessIdx by the line above, optionIdx by the create rule's
+            // outer block, which is this function's only caller.
+            && (d.optionIdx >= d.get("guessIdx", 0)
+                  ? d.optionIdx
+                  : d.get("guessIdx", 0))
+               < duelIndexSpace(q, g)
             // D224: on a "pick" day the answer also snapshots WHO its
             // optionIdx meant — the roster order the answering client
             // used — because the index alone goes stale the moment the
             // roster changes. Optional (older clients omit it); when
             // present it must be a current member's uid, and only a pick
-            // question (empty bank options) may carry one. Both get()s
-            // below are already made by the clauses above, and repeated
-            // get()s on one path are deduped within a rules evaluation,
-            // so this costs no extra document access.
-            && (!request.resource.data.keys().hasAny(["pickUid"])
-              || (request.resource.data.pickUid is string
-                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() == 0
-                && request.resource.data.pickUid
-                     in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids));
+            // question (empty bank options) may carry one.
+            && (!d.keys().hasAny(["pickUid"])
+              || (d.pickUid is string
+                && q.options.size() == 0
+                && d.pickUid in g.memberUids));
         }
 
         // The daily pulse (D139): the same question answered once per
@@ -1146,13 +1146,14 @@ service cloud.firestore {
             // The TEMPLATE is what the bank holds — one doc per pulse
             // question forever, never one per day — and it answers for
             // the option bound, the kill switch, and the surface claim.
-            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
-                 .data.get("surface", "daily") == "pulse"
-            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
-                 .data.get("active", true) == true
-            && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
-                  .data.options.size();
+            // Fetched once, handed on (isWorldAnswer says why).
+            && pulseBody(request.resource.data,
+                         get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid)).data);
+        }
+        function pulseBody(d, q) {
+          return q.get("surface", "daily") == "pulse"
+            && q.get("active", true) == true
+            && d.optionIdx < q.options.size();
         }
 
         // Foresight CALL, tier A (D194): a prediction sealed now and
@@ -1187,24 +1188,32 @@ service cloud.firestore {
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
             && request.resource.data.qid == aid
-            && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("active", true) == true
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") == "call"
+            // One fetch, handed on (isWorldAnswer says why).
+            && callBody(request.resource.data,
+                        get(/databases/$(database)/documents/v2_questions/$(aid)).data)
             && !exists(/databases/$(database)/documents/v2_call_outcomes/$(aid));
+        }
+        function callBody(d, q) {
+          return d.optionIdx < q.options.size()
+            && q.get("active", true) == true
+            && q.get("surface", "daily") == "call";
         }
 
         // The index space BOTH duel indexes live in: the question's own
         // options, or — for "pick" questions, which carry none, because
-        // their options ARE the group — the member count. Repeated get()s
-        // on one path are deduped within a rules evaluation, so calling
-        // this twice costs no extra document access.
-        function duelIndexSpace() {
-          return get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
-            ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
-            : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size();
+        // their options ARE the group — the member count. Takes the two
+        // documents duelBody already holds; it fetches nothing.
+        function duelIndexSpace(q, g) {
+          return q.options.size() > 0 ? q.options.size() : g.memberUids.size();
+        }
+        // The D86 edit arm's two question reads, as one (isWorldAnswer
+        // says why one fetch and not two).
+        function editOk(q) {
+          return request.resource.data.optionIdx < q.options.size()
+            // Same kill switch as create: a question flipped inactive stops
+            // accepting answer movement of any kind, and edits feed the same
+            // aggregate, so they carry the same D29 device binding.
+            && q.get("active", true) == true;
         }
 
         allow create: if request.auth != null && request.auth.uid == uid
@@ -1298,13 +1307,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["optionIdx", "editedAt"])
           && request.resource.data.optionIdx is int
           && request.resource.data.optionIdx >= 0
-          && request.resource.data.optionIdx
-            < get(/databases/$(database)/documents/v2_questions/$(resource.data.qid)).data.options.size()
-          // Same kill switch as create: a question flipped inactive stops
-          // accepting answer movement of any kind, and edits feed the same
-          // aggregate, so they carry the same D29 device binding.
-          && get(/databases/$(database)/documents/v2_questions/$(resource.data.qid))
-               .data.get("active", true) == true
+          && editOk(get(/databases/$(database)/documents/v2_questions/$(resource.data.qid)).data)
           && deviceBound()
           && request.resource.data.editedAt == request.time
           && (!("editedAt" in resource.data)
