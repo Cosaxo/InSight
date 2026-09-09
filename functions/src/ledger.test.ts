@@ -33,7 +33,7 @@ describe("readLedgerDay's projection", () => {
     const block = /export interface LedgerDayEntry \{([\s\S]*?)\n\}/.exec(code);
     expect(block, "LedgerDayEntry is no longer declared where this test looks").toBeTruthy();
     // `id` is the document's id, not a field of it — the answer log's row
-    // key (log.ts, D440) — so the projection cannot and need not name it.
+    // key (log.ts, D441) — so the projection cannot and need not name it.
     return [...block![1].matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]).filter((f) => f !== "id");
   })();
 

@@ -2202,7 +2202,7 @@ That is a tester-count problem, not a workflow problem.
       it agrees with D165's residency argument. Nothing in the app changes;
       no rules change; no read path moves.
 
-      **Superseded 2026-09-09 (D440 phase A, `LOG-FIRST-RUNBOOK.md`):** the
+      **Superseded 2026-09-09 (D441 phase A, `LOG-FIRST-RUNBOOK.md`):** the
       answer trigger appends the row itself (`functions/src/log.ts`) — one
       code path and one bill, the nightly reconcile catching what an
       append missed — so the extension is not installed. The timing

@@ -630,7 +630,7 @@ gone.
 
 What must not be improvised is the order of operations above.
 
-### The answer log (BigQuery, D440 phase A)
+### The answer log (BigQuery, D441 phase A)
 
 Since `LOG-FIRST-RUNBOOK.md` phase A the answer trigger appends one row
 per ledger entry to BigQuery — dataset `insight`, table `answers`, in

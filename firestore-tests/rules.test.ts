@@ -397,7 +397,7 @@ describe("v2 questions + aggregates", () => {
     await refused(deleteDoc(doc(asUser(OWNER), "v2_velocity", "state")));
   });
 
-  it("deferred answer-log erasure markers (D440 phase A) are opaque to clients", async () => {
+  it("deferred answer-log erasure markers (D441 phase A) are opaque to clients", async () => {
     // A marker names an erased account, and a writable one would let a
     // client queue the deletion of somebody else's rows — or clear the
     // marker that keeps the promise on their own.

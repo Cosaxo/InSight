@@ -57,11 +57,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
-  // D440 phase A · the answer log is a second copy of every answer, in
+  // D441 phase A · the answer log is a second copy of every answer, in
   // BigQuery, and deleting the account deletes it — at once or within a
   // day (the streaming buffer). Both halves are claims: that the copy
   // exists and where, and that erasure reaches it on a stated clock.
-  ["D440 · the answer log exists, in the same project and region, and erasure reaches it within a day",
+  ["D441 · the answer log exists, in the same project and region, and erasure reaches it within a day",
     /analytics table \(BigQuery\) in the\s+same Google Cloud project and region[\s\S]{0,2000}?copy of your answers in the analytics table goes with\s+them[\s\S]{0,120}?within a day/i],
   // D236 · the page must NAME the notifications, not just count them.
   // check:figures holds the count against v2social.ts's own call sites;

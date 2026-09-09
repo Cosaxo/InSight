@@ -98,7 +98,7 @@ export interface NightlyRunners {
    *  the same reader and the partial day its own read. It logs its own
    *  flags and heartbeat (`velocity_scan`). */
   velocity: () => ReturnType<typeof runVelocityScan>;
-  /** The answer log's reconcile (log.ts, D440 phase A) — the eighth, off
+  /** The answer log's reconcile (log.ts, D441 phase A) — the eighth, off
    *  the same ledger read: yesterday's entries the BigQuery table lacks,
    *  and the erasures the day deferred. Skips itself where there is no
    *  BigQuery (the emulator), and says so. */
