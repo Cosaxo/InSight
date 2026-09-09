@@ -65,7 +65,11 @@ Ships independently of any app build — nothing here touches `src/`.
       **The named decision was taken as a SECOND scan**, not a rider on
       `velocity.ts`: velocity's window is a cursor capped at 72 h, the
       digest's is the calendar day, and coupling two windowing semantics
-      to save ~3 reads per user per night is the wrong trade. The
+      to save ~3 reads per user per night is the wrong trade. (Re-taken
+      the other way at DATA-EFFICIENCY-RUNBOOK 4.4, 2026-09-09: velocity
+      rides the pass's memoised day reader for its whole days and reads
+      only its partial-day tail itself, cursor semantics kept — the
+      coupling this feared is a shared reader, not a shared window.) The
       arithmetic is in the file header and D268; the surface of each
       qid derives from the compiled bank (pulse composites by stripping
       the day suffix, unknowns as `other`, never a guess).
@@ -411,7 +415,8 @@ is a decision the plan already priced (§10).
 - **The digest's ledger scan and `velocity.ts` start fighting over the
   same read budget.** The 1.1 decision was one scan or two; if the
   arithmetic that picked it stops holding at real volume, re-take it
-  there rather than tuning around it.
+  there rather than tuning around it. **Re-taken at DATA-EFFICIENCY-
+  RUNBOOK 4.4:** one read, shared through the pass's memoised reader.
 - **Unsampled shard volume swamps the fold.** Sampling is the designed
   lever — turn it down before sharding the fold; if 10 % is not enough
   signal for a question, `ATTENTION.md` §4's line applies: a number

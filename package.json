@@ -74,6 +74,8 @@
     "costs:compare": "node scripts/cost-compare.mjs",
     "costs:levers": "node scripts/cost-levers.mjs",
     "costs:scale": "node scripts/cost-scale.mjs",
+    "costs:structure": "node scripts/cost-structure.mjs",
+    "costs:target": "node scripts/cost-target.mjs",
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "build:countries": "node scripts/build-countries.mjs",

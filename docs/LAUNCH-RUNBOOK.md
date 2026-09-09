@@ -2202,6 +2202,15 @@ That is a tester-count problem, not a workflow problem.
       it agrees with D165's residency argument. Nothing in the app changes;
       no rules change; no read path moves.
 
+      **Superseded 2026-09-09 (D447 phase A, `LOG-FIRST-RUNBOOK.md`):** the
+      answer trigger appends the row itself (`functions/src/log.ts`) — one
+      code path and one bill, the nightly reconcile catching what an
+      append missed — so the extension is not installed. The timing
+      argument below still holds and is met differently: the clicks are
+      the dataset (`apply-bigquery.yml`) and the backfill
+      (`backfill-log.yml` with the deploy's day), on `OWNER-LIST.md`, and
+      the backfill loads what the extension's late import would have.
+
       **Why the timing is the whole step.** The extension streams from the
       moment it is installed. Install it late and you are running
       `fs-bq-import-collection` to catch up, and rows belonging to accounts
@@ -2363,6 +2372,19 @@ That is a tester-count problem, not a workflow problem.
       recovery hand the device a fresh session. Test it once on a build
       before submitting: type a wrong address, create, and check that the
       doors come back.
+
+- [ ] **5.17 Stand the budget's wire up — two clicks after the deploy
+      (`COST-EXPOSURE.md` §6 C4, 2026-09-09).** `functions/src/budget.ts`
+      sets the D332 read breaker when the month's spend reaches the
+      budget; the deploy creates its topic. Then: GitHub → Actions → **Arm
+      budget** → dry, then `apply` (it attaches `budget-alerts` to the
+      budget and prints the grant); then in Cloud Shell the grant the API
+      cannot make —
+      `gcloud pubsub topics add-iam-policy-binding budget-alerts --project prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com --role roles/pubsub.publisher`.
+      Proof: within half an hour a `budget_message` line on
+      `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The budget's wire).
+      What it does not do: detach billing — that is the owner's row on
+      `OWNER-LIST.md`, with the arithmetic.
 
 ## Phase 6 — Submit
 

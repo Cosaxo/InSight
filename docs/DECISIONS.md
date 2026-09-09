@@ -9248,6 +9248,25 @@ need read paths no client module has yet: a collection-group query on
 `answers` (the rule and the composite index ship here; the query does
 not) and batched uid→name resolution. Sequenced as follow-on work.
 
+## D98 amendment (2026-09-09) · Exact, and never more than a poll behind
+
+**Date:** 2026-09-09 · **Status:** Adopted, on the owner's word. D98's
+*no publish cadence* was written against the cadence it retired — the
+privacy one: hours and days, floors and suppression. The log-first
+structure (D446) publishes a question's document through a compactor
+once a minute for the questions that changed, which is the interval the
+card already re-reads at (D129), so nothing a user sees moves and a
+person's own vote still confirms at once. The owner was asked in plain
+words — *"Allow counts to be published once a minute instead of on every
+answer. One old decision says 'no publish cadence', and only you can
+change its wording"* — and answered *"that sound like a good direction
+lets do that."* The sentence is now: **counts are exact from the first
+answer, and never more than a poll behind.** Everything else in D98
+stands as written — answers public, exact counts, no floor, no
+suppression, no special-category carve-out. Built at
+`LOG-FIRST-RUNBOOK.md` phase B; until then the document is rewritten on
+every answer as it is today.
+
 ## D99 · The Mirror's lens row comes back, on data that was already there
 
 **Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
@@ -47209,7 +47228,6 @@ Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
 measurement. The owner row is closed as answered rather than done, because
 nothing was changed — only learned.
 
-
 ## D432 · Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three
 
 **2026-09-09.** **Status:** binding (a measurement, and the method behind
@@ -48980,3 +48998,326 @@ session sharing this machine's ports had finished its own: a
 `pgrep -f` on the runner's own command line self-matches, which cost
 this session twenty minutes of waiting on a process that was its own
 poll — the ports, not the process list, are the signal.
+
+## D446 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+
+**Date:** 2026-09-08 · **Status:** Adopted, with one word still the
+owner's (§2). The owner's ruling on
+[`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md), given the same day the page
+was written:
+
+> *"i approve all that dosent reduce any functonality."* — and, on the
+> shape of the largest change: *"as long as the cost diffrence isent huge
+> it think live is best but i want a bit more details on the spesifics
+> before i make a decision."*
+
+### 1 · What is approved
+
+Every step of [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md)
+that keeps what a user sees identical: the index exemptions and field
+masks; names and scores riding the nightly voter samples, the who-voted
+sheet drawn from the sample with a live tail so today's voters still
+show today, per-city samples for the city pass; the answer map one
+document per person that Circle reads instead of up to 300 answer
+documents per member; the four nightly folds repaired before they fail
+silently at scale (the rollup fold's paging, the sample merge's bound,
+the attention channel's sampling, the candidate scan's streaming); the
+increment fold, the sharded daily with the breakdown-cap correction, and
+the trigger's instance ceiling raised with it; the model's missing terms
+and the named database's missing free allowance.
+
+**The arithmetic the approval rests on** (`npm run costs:structure`,
+2026-09-08, regional sheet, no free allowance): reads per user per day
+381 → 57; reads and writes together **$20 → $5.57 a month at 5,000 DAU,
+$199 → $56 at 50,000, $1,987 → $557 at 500,000**. The model understates
+the social reads it replaces (the city pass and the reveal history have
+no term), so the saving is larger than those figures.
+
+**The one cadence item, named so the owner can strike it:** runbook 1.4
+makes a return to the foreground re-read today's card only, the six
+back days refreshing at boot — a three-day-old card's count is as of
+the last cold start rather than the last app switch. Nothing else in
+the runbook changes a number a user sees, except that old accounts
+compare on everything they have answered once the 300-answer cap
+retires (3.5), which is more, not less.
+
+### 2 · Live, recommended — the word is the owner's
+
+The answer map can be written once a night by the pass (a friend's
+answers from today reach your Circle tomorrow) or live by the trigger,
+one merged write per answer on a document only that person's answers
+touch, with the nightly pass healing any entry a crashed function
+missed. Priced: nightly +$0.14 / $1.35 / $13.50 a month at 5,000 /
+50,000 / 500,000 DAU; live +$0.54 / $5.40 / $54 — about 6 % of the
+$6.60 / $66 / $659 the map saves at the same sizes. **Recommended:
+live with the heal**, because it is the only version where nothing a
+user sees changes, which is this record's own rule. The runbook assumes
+it; the owner's confirming word lands here as an amendment before
+Phase 3 ships.
+
+### 3 · What this does not license
+
+Showing less — fewer people in the who-voted list, fewer questions in
+Kindred, fewer answers in a Circle — which `COST-REDUCTION.md` §5
+refused and this record keeps refused. A publish cadence or a floor on
+the aggregate (D98). A loosened rule, or a touch on the three labelled
+denies. The reveal-history document (`DATA-EFFICIENCY.md` §2.8), which
+would show a late joiner a group's days before they joined and is a
+privacy-shaped ask under D334, on `OWNER-LIST.md` until ruled; the
+per-member variant needs no ruling.
+
+### 4 · Held by
+
+`scripts/cost-structure.mjs` for the figures; each runbook step names
+the gate that proves it, and the model's terms move with the code they
+price (`scripts/pulse.test.mjs`) rather than in prose.
+
+### 5 · Built the same day: Phases 1 and 2 (2026-09-08)
+
+Phase 1 as planned (the runbook has the two refusals). Phase 2 as
+planned with three things that moved, each under this record's own
+rule that nothing a user sees may shrink. **A trigger the plan did not
+have** — `onV2ProfileUpdated` — because a name stamped as of the answer
+would have left a renamed account under its old name on every question
+it did not answer again, which is a visible regression against the
+seven-day cache; it reads nothing unless the stamp changed and is
+bounded by the account's own answers. **The who-voted sheet in three
+shapes** rather than two: a question whose live tail fills its cap
+reads the full live list, so "the newest 200" stays exactly true; the
+saving lands on the cold question and the hot one costs what it did.
+The cheaper sentence — *as of last night, plus the newest 50* — is a
+copy decision and is on `OWNER-LIST.md`; the model charges the hot
+share at `B.sheetOpensHot` until it is made. **The city samples bounded
+per night, not per city**: a size floor cannot accumulate, so every
+touched pair merges up to `CITY_SAMPLE_PAIRS_PER_NIGHT`, hottest first,
+and the erasure arm reaches the city family through the account's own
+answers rather than by listing a collection the size of two catalogues.
+`npm run costs` after: 357 → 277 reads per user-day at maturity, the
+D98 column 282 → 197.
+
+## D446 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D446 held open
+came the same afternoon, verbatim: *"start phase 3 and use live for the
+answer map."* The answer map is written by the world-answer trigger —
+inside the aggregate's own transaction, so it is atomic with the count
+and the ledger mark and a redelivery cannot double-write — with the
+nightly heal filling only what a missed live write left absent, never a
+value the map already holds (the map is the newer truth: an edit made
+after the healed day is in it and not in that day's ledger).
+
+**Two things moved against the runbook as written**, each within
+D446's own rule that nothing a user sees may shrink. The device keeps
+the answer query as a FALLBACK for a member with no map, because the
+client ships with the trigger and the backfill is a click the owner
+makes afterwards — without it every Circle would show nobody between
+the deploy and the click; `CIRCLE_ANSWER_CAP` stays for the fallback
+until the runbook's 3.8 retires it after the backfill has applied. And
+there is no cap guard on the map: one answer per question means the
+document is bounded by the bank, not by time.
+
+**What the owner still holds:** the backfill's dispatch (dry, then
+`apply` — `OWNER-LIST.md`), the group history document (§3), and the
+hot sheet's sentence (runbook 2.4). `npm run costs` after: 357 → 129
+reads per user-day at maturity, the D98 column 282 → 48.
+
+**Phase 4 built 2026-09-09 (*"start phase 4"*) — the four folds
+`DATA-EFFICIENCY.md` §3 named as failing before they cost.** The
+rollup fold drains in pages under a 300 s budget and counts what a
+budget stop leaves (runbook 4.1); the attention channel publishes its
+own sampling rate on `v2_meta/app` — the rate that lands 80 % of the
+fold's cap — and the device draws at it off the read it already makes
+(4.2); the candidate scan streams the people through per-item
+sufficient statistics and holds none of them (4.3); and the velocity
+scan runs inside the nightly pass, its whole days off the read the
+pass already makes and only the partial-day tail its own (4.4) — so
+`ledgerVelocityScan` is retired and joins `fitPatternsV2` and
+`fitTasteV2` on `OWNER-LIST.md`'s delete row, because `--only` names
+what to update and leaves the rest standing. **One trade recorded
+rather than hidden:** the streamed solve reads the fitted people once
+per sweep — 1 + `ALS_SWEEPS` = 4 state reads a night per person where
+the buffered solve read them once and ran out of memory near 150,000 —
+$0.18 a night at 50 k DAU; the runbook's 4.3b (subtract a changed
+person's old contribution, add the new, read only who changed) is the
+step that takes it back to one read per active person, open and priced
+at 11 reads per user-day. `npm run costs` after: server reads 40 → 44
+per user-day at maturity, the whole 129 → 134 (132 at the merged head,
+D426's rounds having taken two reads elsewhere). Nothing a user sees
+moved, and nothing a device reads changed size.
+
+## D447 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+
+**Date:** 2026-09-09 · **Status:** ADOPTED the same evening — see the
+amendment below. The owner, that afternoon, after `npm run costs` had been
+run at a hundred and three hundred answers a day: *"i think we should
+from the start look on how we can design a system that scales to
+hundreds of answers a day and millions of users remember we can use
+other systems like bigquerry."*
+
+**The finding that prompted it.** The model prices four world answers a
+day (`B.worldAnswers`, `scripts/cost-arith.mjs`); everything Phases 1–4
+of the efficiency runbook built is flat per user, and the per-answer
+path was left at its floor because at four a day it was one. At a
+hundred a day the shipped structure costs about $23,000 a month at a
+million users and has already failed twice below that: the nightly pass
+holds the day's ledger entries in memory (470 bytes each, measured on
+node 22) and dies near 16,000 users; the always-increasing timestamp
+indexes hit Firestore's ~500 writes a second near 144,000. Neither is in
+`COSTS.md`, which moves users and never answers.
+
+**The design** is `SCALE-ARCHITECTURE.md`: answers written in batches
+to one document per user-day; one trigger per batch that appends a row
+per answer to BigQuery, increments live counters in Redis and merges the
+person's answer map, reading nothing; a compactor that writes the same
+documents clients read today, once a minute for the questions that
+changed; the night as SQL over the log, with a writer job putting the
+results back into the documents the app already reads; Firestore
+keeping every per-user, social and published document. Priced by `npm
+run costs:target` (`scripts/cost-target.mjs`, with its own test): a
+million users at a hundred a day ≈ $2,200 a month against $23,200; ten
+million at three hundred ≈ $32,000 against $667,000 — and it runs.
+
+**What a user sees is the same, with two cadences stated** (§4 there):
+a card's count exact and at most a minute behind — the interval the card
+already re-reads at (D129) — and a friend's answers in your Circle
+within the batch window rather than within seconds. Nothing shows fewer
+people, questions or answers; D98's substance, the three denies, D1 and
+App Check are untouched.
+
+**What the owner decides** (`OWNER-LIST.md` § Decisions): the direction
+itself (the efficiency runbook's Phase 5 becomes phase B of §6 there);
+one sentence of D98 — *no publish cadence* was written against the
+privacy cadence it retired, and the compactor's sixty seconds is the
+card's own poll, so the sentence becomes *exact, and never more than a
+poll behind* on the owner's word and not before; and the batch window
+(five minutes recommended; one minute doubles the batch lines). Not the
+owner's to decide and done page-first: the privacy page's and the
+inventory's rows for the log (D183).
+
+**Recorded as proposed at first** because D7's rule stands — nothing
+here is built before the owner's word — and adopted three hours later on
+it (the amendment below). Phase A, the log to BigQuery, costs bytes and
+precedes everything, and it is `LAUNCH-RUNBOOK.md` 5.11 done as one code
+path rather than as an extension streaming every document change through
+a trigger of its own.
+
+## D447 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
+
+**Date:** 2026-09-09 · **Status:** Adopted. The three asks were put in
+plain words — the direction; *"allow counts to be published once a
+minute instead of on every answer. One old decision says 'no publish
+cadence', and only you can change its wording"*; and the batch window,
+five minutes recommended — and the owner answered all three at once:
+*"that sound like a good direction lets do that."* So: the log-first
+structure is the direction past the efficiency runbook's Phase 4 (that
+runbook's Phase 5 is superseded by phase B here); D98's sentence moves
+(its amendment of the same date); the batch window is five minutes
+while answering plus a flush when the app leaves the foreground.
+
+**Phase A was built the same night** — `LOG-FIRST-RUNBOOK.md` has the
+steps. The ledger's mirror in BigQuery: `functions/src/log.ts` appends a
+row per ledger entry after the aggregate transaction commits, at every
+ledger site of the answer trigger, best-effort and off wherever there is
+no BigQuery (the emulator, the unit suites); the nightly pass's eighth
+runner reconciles yesterday off the read it already shares and retries
+the erasures the day deferred; `backfillLogV2` loads the existing
+answers before a cutoff day; `deleteAccount` runs the DELETE at once and
+leaves a server-only marker where BigQuery's streaming buffer refuses.
+Nothing a user sees changed, and nothing the night computes moved — the
+Firestore ledger stays what the folds read until phase D. **Two clicks
+are the owner's** (`OWNER-LIST.md`): the dataset and the two IAM roles,
+and the backfill with the deploy's day as its cutoff. The privacy page
+and the inventory moved first (D183).
+
+## D448 · The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on
+
+**Date:** 2026-09-09 · **Status:** Adopted for what is built; three asks
+to the owner, each with its arithmetic on `OWNER-LIST.md`. The owner's
+ask stands unchanged (*"do a in depth analyses of cost and what could be
+improved i dont want a unexpected firebase bill that i cant pay"*), and
+`docs/COST-EXPOSURE.md` §8 is the record; this is the decision under it.
+
+**What was found.** The page had measured production on the morning of
+2026-09-08 and then the same branch built DATA-EFFICIENCY-RUNBOOK phases
+1–4 and phase A of the log-first structure (D447) — code the page had
+not read. Read the way §3 read the old code, four of its surfaces could
+bill in the shape the owner asked to prevent:
+
+1. **The answer log's erasure** ran one `DELETE` per deleted account, and
+   BigQuery bills a DELETE for every column of every partition it
+   touches — an account's answers span the year, so a statement is a pass
+   over the whole table at $6.25 a TiB whatever it names: the 10 MB
+   minimum today, $27 a statement at a million people answering a hundred
+   times a day, the largest line on the bill at ten million. `npm run
+   costs:target` carries it now ($37 a month at 50,000 × 100/day, $747 at
+   a million).
+2. **The append** ships on the streaming API, which bills a 120-byte row
+   as a kilobyte with no free allowance — $143 a month at a million users
+   against $0 on the Storage Write API. The morning's `COSTS.md` note had
+   priced the bytes and not the minimum.
+3. **The profile fan-out** (runbook 2.1) turned one client write into a
+   few thousand operations, and a profile document takes a write a second:
+   on the order of $300–500 a day from one attested account, ~$1,400 a day
+   across accounts at the trigger's instance cap — a device driving the
+   app's own write, which App Check enforcement does not bound.
+4. **Phase B's Redis** is billed by the instance from the hour it exists —
+   $196 a month at the size the model picks, ~$36 at the smallest — and
+   the runbook ordered it "before the wall" with nothing under it.
+
+And one premise, already on the page's §2: the model netted the Firestore
+free quota, which belongs to `(default)`; production is the named
+database `insight` (D165). The launch row printed $0.00 against an
+invoiced dollar.
+
+**What is decided and built.**
+
+- The night erases every pending account in ONE statement (pages of 500),
+  and `deleteAccount` runs the immediate statement only while the table
+  is under a gibibyte (`LOG_ERASE_NOW_MAX_BYTES`, off the table's
+  metadata). The table is clustered by person then question, chosen
+  while it is still free to choose. The privacy page's "within a day" is
+  unchanged.
+- The fan-out is budgeted at three an hour per account
+  (`v2_ratelimits/fanout_{uid}`, the sliding window every other budget
+  here uses, erased with the account); past that a `pending` marker the
+  nightly pass heals from the profile as it stands — a ninth runner.
+- The target model prices the ingest line as built, with the Storage
+  Write API beside it (runbook A.8), and the erasure line (A.9).
+- The model reads the database id off `db.ts` and nets nothing on a named
+  database; the scheduler floor is counted off the tree ($0.40). The
+  launch row is $0.54, and the sentences "genuinely $0 below ~177 DAU"
+  and `COST-COMPARISON.md`'s A+ row are retired (§6 C1).
+- **The budget acts** (§6 C4, D332's recorded next joint):
+  `functions/src/budget.ts` sets the read breaker at 100 % from the
+  budget's Pub/Sub notification, in the fields `budget-mode.mjs` reads,
+  and releases only what it set when the next month arrives under the
+  line. Two clicks after the deploy are the owner's. It does not detach
+  billing.
+- **The review's ceiling** (§6 C3): fifty model calls a day project-wide,
+  a refused slot holding the booking without an attempt; `max_tokens`
+  1,024, the verdict's size, where it was the model's maximum.
+
+**What waits on the owner, each a way through and not a stop (D334,
+D352).** *When phase B starts* — a condition (the contention alert, or
+~5,000 measured actives, on the smallest instance) written into
+`LOG-FIRST-RUNBOOK.md` for the owner to move either way. *A.9* — whether
+an erased account's rows may outlive it in the log by up to a month,
+joined out of every fold meanwhile, for a thirtieth of the erasure line;
+the privacy page moves first (D183). *The hard stop* — whether the
+budget's function may detach billing at a threshold the owner names;
+built as one more branch when they do.
+
+**Not verified from the sandbox, said so on the page:** Google's DML
+pricing wording and whether a DELETE prunes by cluster (the docs host is
+blocked; the batch bounds the cost either way); that the deploy creates
+the Pub/Sub topic (the applier prints the create command if the API
+refuses one); the budget service agent's address (the console's own
+*Connect a Pub/Sub topic* makes the grant if it is wrong).
+
+**Measured before the push:** `test:scripts` (the model's new pins),
+`test --prefix functions` (the batch, the ceiling, the budget's decision
+table, the fan-out's window and heal, the hold without an attempt),
+`check:fn-runtime` (45 functions; a Pub/Sub trigger read by its event
+type), `check:deploy-targets`, `check:appcheck`, `check:docs`,
+`check:figures`, `check:policy-claims`, `check:data-inventory`; the
+counts are in the pull request.

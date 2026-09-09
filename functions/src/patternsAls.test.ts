@@ -18,6 +18,8 @@
 //      strictly better skill; a streak resets on any night it does not win.
 import { describe, expect, it } from "vitest";
 import {
+  alsFitStreamed,
+  type PeopleScan,
   ALS_MIN_SD,
   ORDINAL_TYPES,
   PATTERNS_CROSSOVER_NIGHTS,
@@ -207,6 +209,96 @@ describe("recovery under the app's own rule", () => {
     // the Map's rows are the two-option ones alone
     expect(Object.keys(binRows(pub, model.items))).toEqual(["b"]);
   });
+});
+
+describe("the streamed solve (DATA-EFFICIENCY-RUNBOOK 4.3)", () => {
+  const scanOf = (crowd: readonly { uid: string; a: AnswerMap }[]): PeopleScan => async (each) => {
+    for (const p of crowd) each(p.uid, p.a);
+  };
+
+  it("equals the buffered fit — rows, counts, means, sd — on the same crowd in the same order", async () => {
+    const index = indexItems(compileItems([
+      ...TWO_FACTOR_BANK,
+      { id: "o1", surface: "daily", type: "scale", options: ["1", "2", "3", "4", "5"] },
+      { id: "p1", surface: "daily", type: "choice", options: ["x", "y", "z"] },
+    ]));
+    const rand = lcg(5);
+    const crowd = createOnlyCrowd(150).map(({ uid, a }) => ({
+      uid,
+      a: { ...a, o1: Math.floor(rand() * 5), p1: Math.floor(rand() * 3) },
+    }));
+    const buffered = alsFit(null, crowd, index);
+    const { model: streamed, people } = await alsFitStreamed(null, scanOf(crowd), index);
+    expect(people).toBe(150);
+    expect(Object.keys(streamed.rows).sort()).toEqual(Object.keys(buffered.rows).sort());
+    for (const key of Object.keys(buffered.rows)) {
+      const b = buffered.rows[key];
+      const s = streamed.rows[key];
+      expect(s.n).toBe(b.n);
+      expect(s.sum).toBe(b.sum);
+      expect(s.sd).toBe(b.sd);
+      for (let i = 0; i < K; i++) expect(s.v[i]).toBeCloseTo(b.v[i], 9);
+    }
+    expect(streamed.items).toEqual(buffered.items);
+    // and warm-started from a prior, the same way
+    const warmB = alsFit(buffered, crowd, index);
+    const warmS = (await alsFitStreamed(buffered, scanOf(crowd), index)).model;
+    for (const key of Object.keys(warmB.rows)) {
+      for (let i = 0; i < K; i++) expect(warmS.rows[key].v[i]).toBeCloseTo(warmB.rows[key].v[i], 9);
+    }
+  });
+
+  it("scans once for the statistics and once per sweep, and holds no person between", async () => {
+    const index = indexItems(compileItems(TWO_FACTOR_BANK));
+    const crowd = createOnlyCrowd(40).map(({ uid, a }) => ({ uid, a }));
+    let scans = 0;
+    const scan: PeopleScan = async (each) => { scans += 1; for (const p of crowd) each(p.uid, p.a); };
+    await alsFitStreamed(null, scan, index, K, { sweeps: 3 });
+    expect(scans).toBe(1 + 3);
+    // an empty crowd is a model with no rows and no sweep scans
+    let empty = 0;
+    const { model, people } = await alsFitStreamed(null, async () => { empty += 1; }, index);
+    expect(people).toBe(0);
+    expect(model.rows).toEqual({});
+    expect(empty).toBe(1);
+  });
+
+  // THE PROBE the runbook names: 200,000 synthetic people through the
+  // streamed solve with nothing per person retained. Generated inside the
+  // scan — the test itself holds no crowd either — so the heap the fit
+  // grows by is the fit's own. Run on demand (ALS_PROBE=1, ideally under
+  // NODE_OPTIONS=--expose-gc), because 800,000 person visits are a
+  // minute the ordinary suite does not need every time.
+  it.skipIf(!process.env.ALS_PROBE)("200,000 people stream through under the instance's memory", async () => {
+    const bank = [
+      ...Array.from({ length: 20 }, (_, i) => ({ id: `a${i}`, surface: "daily", type: "binary", options: ["x", "y"] })),
+      ...Array.from({ length: 5 }, (_, i) => ({ id: `s${i}`, surface: "test", type: "scale", options: ["1", "2", "3", "4", "5"] })),
+    ];
+    const index = indexItems(compileItems(bank));
+    const N = 200_000;
+    const scan: PeopleScan = async (each) => {
+      const rand = lcg(99);
+      for (let u = 0; u < N; u++) {
+        const t = rand() < 0.5 ? 1 : -1;
+        const a: AnswerMap = {};
+        for (let i = 0; i < 20; i++) if (rand() < 0.6) a[`a${i}`] = (rand() < 0.85 ? t : -t) === 1 ? 0 : 1;
+        for (let i = 0; i < 5; i++) a[`s${i}`] = Math.floor(rand() * 5);
+        each(`u${u}`, a);
+      }
+    };
+    const gc = (globalThis as { gc?: () => void }).gc;
+    gc?.();
+    const before = process.memoryUsage().heapUsed;
+    const { model, people } = await alsFitStreamed(null, scan, index);
+    gc?.();
+    const after = process.memoryUsage().heapUsed;
+    expect(people).toBe(N);
+    expect(model.rows.a0.n).toBeGreaterThan(100_000);
+    // The buffered fit would hold ~200,000 maps (well over 100 MB); the
+    // streamed one holds 25 items' statistics. Coarse on purpose — the
+    // heap is shared with the runner — but two orders of magnitude apart.
+    expect((after - before) / 1_048_576, "the streamed fit grew the heap like a buffered one").toBeLessThan(64);
+  }, 600_000);
 });
 
 describe("alignment", () => {

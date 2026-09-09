@@ -18,9 +18,9 @@
 //
 // Run: npm run test:scripts
 import { describe, it, expect } from "vitest";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 
 import {
@@ -35,6 +35,8 @@ import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
   AGG_POLL_MS, POLL_DOCS, LOCATION, LOCATION_LABEL, REGIONAL, priceSheet,
+  ANSWER_MAP_WRITES_PER_ANSWER,
+  DB_ID, NAMED_DB, FREE, FREE_EGRESS_GIB_MO, SCHEDULER_JOBS, SCHEDULER_USD_MO, totalCost, functionsCost,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -212,6 +214,17 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     const series = read("scripts/pulse-render.mjs").match(/key: "(\w+)"/g)
       .map((s) => s.slice(6, -1));
     expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
+  });
+
+  it("the answer map's write per world answer is in the model AND in both branches of the trigger (DATA-EFFICIENCY-RUNBOOK 3.2)", () => {
+    // One merged write per world answer, live (D446 amendment). The model
+    // charges it as a constant; the trigger has to write it on the create
+    // AND on the edit, or a moved answer stays where it was in every
+    // Circle that reads the map. Counted off the source, comments out.
+    expect(ANSWER_MAP_WRITES_PER_ANSWER).toBe(1);
+    const src = stripComments(read("functions/src/v2.ts"));
+    const sites = src.match(/tx\.set\(answerMapRef\(db, event\.params\.uid\), answerMapMerge\(/g) || [];
+    expect(sites.length, "the create and the edit branch each merge the entry onto the person's map").toBe(2);
   });
 
   it("the social term is flat above the voter cap, and only above it", () => {
@@ -453,11 +466,16 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     ).toBe(12);
   });
 
-  it("the velocity scan still walks the ledger once per entry", () => {
-    // VELOCITY_READS_PER_LEDGER_ENTRY = 1 rests on this being a paged query
-    // over the window rather than a counter or an aggregation query.
+  it("the velocity scan's own read is a paged query over the partial day, and the whole days come off the pass's reader", () => {
+    // VELOCITY_READS_PER_LEDGER_ENTRY rests on this being a paged query
+    // over the tail rather than a counter or an aggregation query — and,
+    // since DATA-EFFICIENCY-RUNBOOK 4.4, on the whole days of the window
+    // coming off the memoised reader the pass shares (D399), which is
+    // why the constant is the partial day's share and not 1.
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
+    expect(v, "the whole days no longer come off the shared reader").toMatch(/ledgerDay\(utcDayKeyOf\(dayStart\)\)/);
+    expect(read("functions/src/nightly.ts"), "the pass no longer runs the scan").toMatch(/runVelocityScan\(firestoreVelocityStore\(db, ledgerDay\), now\)/);
     // The FIELD LIST is not the tripwire and must not be pinned as one:
     // `select()` narrows egress, not billed reads, so adding a field (as
     // `fromIdx` was, to tell a D86 edit's row from a create) changes the
@@ -506,6 +524,40 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect((fn.match(/getAll\(/g) || []).length).toBe(2);
     expect((fn.match(/\btx\.get\(/g) || []).length).toBe(1);
     expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(0);
+  });
+
+  it("nets no Firestore free quota on a named database, read off db.ts, and carries the scheduler floor", () => {
+    // COST-EXPOSURE.md §2: the free quota belongs to `(default)`; production
+    // is the named database `insight` (D165) and `(default)` is deleted
+    // (D333). The model printed $0.00 for the launch row for three weeks
+    // on an allowance nothing granted. Pinned to the tree the same way the
+    // region is (D200): the id the backend defaults to, not a retyped one.
+    const db = stripComments(read("functions/src/db.ts"));
+    const id = db.match(/export const FIRESTORE_DB_ID = process\.env\.FIRESTORE_DB_ID \|\| "([^"]+)"/)[1];
+    expect(DB_ID).toBe(id);
+    expect(NAMED_DB).toBe(id !== "(default)");
+    if (NAMED_DB) {
+      expect(FREE).toEqual({ read: 0, write: 0, del: 0, storeGiB: 0 });
+      expect(FREE_EGRESS_GIB_MO).toBe(0);
+      // The first read bills: the launch row is not $0.00 any more.
+      const { model } = costModel({});
+      const m = model(50, false);
+      expect(m.cost.reads).toBeGreaterThan(0);
+      expect(m.cost.writes).toBeGreaterThan(0);
+      expect(totalCost(m.cost)).toBeGreaterThan(SCHEDULER_USD_MO);
+    }
+    // The floor: one `onSchedule(` site is one billed job past three free.
+    // Counted here by a second route (per file, comments stripped) so the
+    // model's count cannot drift from the tree without this saying so.
+    let sites = 0;
+    for (const f of readdirSync(join(ROOT, "functions/src"), { recursive: true }).map((e) => String(e).split(sep).join("/"))) {
+      if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
+      sites += (stripComments(read(`functions/src/${f}`)).match(/\bonSchedule\(/g) || []).length;
+    }
+    expect(SCHEDULER_JOBS).toBe(sites);
+    expect(SCHEDULER_JOBS).toBeGreaterThan(3);
+    expect(SCHEDULER_USD_MO).toBeCloseTo((sites - 3) * 0.1, 9);
+    expect(functionsCost(costModel({}).model(50, false).cost)).toBeGreaterThanOrEqual(SCHEDULER_USD_MO);
   });
 
   it("egress and index storage are billed, not assumed free", () => {

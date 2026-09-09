@@ -43,11 +43,20 @@
 //
 // WHAT IT DOES NOT DO. It does not cap anything — a budget notifies
 // (COSTS.md: the only hard stop is detaching billing, which is an outage).
-// It does not wire Pub/Sub: the budget → topic → `budgetMode` auto-flip is
-// D332's recorded next joint, and it starts from the budget this script
-// creates. And it is not on any pipeline — a control this load-bearing is
+// And it is not on any pipeline — a control this load-bearing is
 // dispatched by a person (.github/workflows/budget.yml), the
 // apply-monitoring posture.
+//
+// WHAT IT WIRES (2026-09-09, COST-EXPOSURE.md §6 C4). The budget's
+// notifications go to the Pub/Sub topic `budget-alerts` in the project —
+// `notificationsRule.pubsubTopic` — where functions/src/budget.ts sets the
+// D332 read breaker (`budgetMode` on v2_meta/app) the first time a month's
+// spend reaches the budget, and releases it when the next month arrives
+// under the line. The deploy creates the topic with that function, so the
+// order is: merge (the deploy), then dispatch this, then the one grant the
+// Budgets API cannot make for itself — the budget service agent needs
+// Pub/Sub Publisher on the topic (printed below; the console grants it
+// when a topic is connected there, the API does not).
 //
 // CURRENCY. The API refuses a currency that is not the billing account's,
 // so none is sent and the account's own is what the figure means — which
@@ -187,11 +196,21 @@ const listed = [];
   }
 }
 
+/** The topic functions/src/budget.ts listens on — one name, pinned to the
+ *  function's constant by apply-budget.test.mjs. */
+export const BUDGET_TOPIC = "budget-alerts";
+const TOPIC = `projects/${PROJECT}/topics/${BUDGET_TOPIC}`;
+const PUBLISHER_GRANT = `gcloud pubsub topics add-iam-policy-binding ${BUDGET_TOPIC} --project ${PROJECT} `
+  + "--member serviceAccount:billing-budget-alert@system.gserviceaccount.com --role roles/pubsub.publisher";
+
 const wanted = {
   displayName: NAME,
   budgetFilter: { projects: [`projects/${projectNumber}`] },
   amount: { specifiedAmount: { units: String(AMOUNT) } },
   thresholdRules: THRESHOLDS.map((p) => ({ thresholdPercent: p })),
+  // Where the budget publishes its state every twenty to thirty minutes;
+  // schemaVersion is the notification format's, "1.0" being the only one.
+  notificationsRule: { pubsubTopic: TOPIC, schemaVersion: "1.0" },
 };
 
 const existing = listed.find((b) => b.displayName === NAME);
@@ -200,9 +219,21 @@ const sameThresholds = (b) => {
   const have = (b.thresholdRules || []).map((t) => Number(t.thresholdPercent)).sort((x, y) => x - y);
   return have.length === THRESHOLDS.length && have.every((v, i) => v === THRESHOLDS[i]);
 };
+const sameTopic = (b) => b.notificationsRule?.pubsubTopic === TOPIC;
+
+/** The topic is created by the deploy of functions/src/budget.ts; a
+ *  budget pointed at a topic that does not exist is refused by the API,
+ *  and the refusal names the remedy. */
+const topicHint = (message) => (/topic/i.test(String(message))
+  ? `\n    the topic ${TOPIC} must exist first — it is created by the deploy of functions/src/budget.ts`
+    + ` (merge, wait for the deploy, re-dispatch), or by \`gcloud pubsub topics create ${BUDGET_TOPIC} --project ${PROJECT}\``
+  : "");
 
 const describe = `"${NAME}": ${AMOUNT}/month on projects/${projectNumber} (${PROJECT}), `
-  + `emails at ${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")} to the billing account's admins and users`;
+  + `emails at ${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")} to the billing account's admins and users, `
+  + `notifications to ${TOPIC}`;
+const grantNote = `\n\nThe one grant the API cannot make: the budget's service agent must be allowed to publish\n`
+  + `to the topic (functions/src/budget.ts reads it) — run once, in Cloud Shell:\n  ${PUBLISHER_GRANT}`;
 
 /** The wrong-currency trap, said out loud wherever the currency comes
  *  back. The comparison is against the currency the guard RECORDS
@@ -230,35 +261,39 @@ if (!existing) {
   const r = await googleFetch(budgetsUrl, token, { method: "POST", body: wanted });
   if (!r.ok) {
     die(`creating the budget returned ${r.status}: ${r.message}\n`
-      + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`);
+      + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`
+      + topicHint(r.message));
   }
   console.log(`created budget ${describe}${currencyNote(r.body)}\n\n`
     + "Confirm from the console once (Billing → Budgets & alerts) — then this script's\n"
     + "dry run is the standing check, and monitoring/rates.json's guard note says to\n"
-    + "keep the two figures moving together.");
-} else if (sameAmount(existing) && sameThresholds(existing)) {
+    + "keep the two figures moving together." + grantNote);
+} else if (sameAmount(existing) && sameThresholds(existing) && sameTopic(existing)) {
   console.log(`= budget ${describe}${currencyNote(existing)} — exists and matches. Nothing to do.`);
 } else {
   const have = `${existing.amount?.specifiedAmount?.units ?? "?"}/month, thresholds `
-    + `${(existing.thresholdRules || []).map((t) => `${Number(t.thresholdPercent) * 100}%`).join(" / ") || "(none)"}`;
+    + `${(existing.thresholdRules || []).map((t) => `${Number(t.thresholdPercent) * 100}%`).join(" / ") || "(none)"}`
+    + `, notifications to ${existing.notificationsRule?.pubsubTopic ?? "(no topic)"}`;
   if (!APPLY) {
     console.log(`~ would retune budget "${NAME}" — it holds ${have}; the tree says ${AMOUNT}/month at `
       + `${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")}.\n\n`
       + "Dry run — nothing was changed. Re-run with --apply to retune it.");
     process.exit(0);
   }
-  // PATCH only the two fields this script owns. The filter is deliberately
+  // PATCH only the three fields this script owns. The filter is deliberately
   // NOT in the mask: a budget an operator re-scoped by hand should not be
   // silently re-narrowed by a retune that was about the amount.
   const r = await googleFetch(
-    `${api("billingbudgets.googleapis.com", `/v1/${existing.name}`)}?updateMask=amount,thresholdRules`,
+    `${api("billingbudgets.googleapis.com", `/v1/${existing.name}`)}?updateMask=amount,thresholdRules,notificationsRule`,
     token,
-    { method: "PATCH", body: { amount: wanted.amount, thresholdRules: wanted.thresholdRules } },
+    { method: "PATCH", body: { amount: wanted.amount, thresholdRules: wanted.thresholdRules, notificationsRule: wanted.notificationsRule } },
   );
   if (!r.ok) {
     die(`retuning the budget returned ${r.status}: ${r.message}\n`
-      + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`);
+      + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`
+      + topicHint(r.message));
   }
   console.log(`retuned budget "${NAME}" — was ${have}; now ${AMOUNT}/month at `
-    + `${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")}${currencyNote(r.body)}.`);
+    + `${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")}, notifications to ${TOPIC}${currencyNote(r.body)}.`
+    + grantNote);
 }

@@ -732,6 +732,21 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // The answer MAP (DATA-EFFICIENCY-RUNBOOK Phase 3): one document,
+      // `public/answers`, holding `a: { [qid]: optionIdx }` for every world
+      // answer the account has given — exactly what the `answers`
+      // subcollection below already grants any signed-in reader (D98),
+      // in one read instead of one per answer, which is what the Circle
+      // stop folds. Written only by the world-answer trigger, the nightly
+      // heal and the backfill (admin SDK); `get` rather than `read` so
+      // the subcollection cannot be listed — there is one document and a
+      // list grant would be a second way to reach it for no reader.
+      match /public/{docId} {
+        allow get: if request.auth != null;
+        allow list: if false;
+        allow write: if false;
+      }
+
       // One answer per question, forever: doc id == question id, create-only.
       // The immutability is what lets the aggregate trigger be a plain
       // increment with no reconciliation.
@@ -1470,6 +1485,15 @@ service cloud.firestore {
     // operational telemetry with no surface, not because the counts are
     // secret — since D98 there is no floor for them to sit below.
     match /v2_velocity/{docId} {
+      allow read, write: if false;
+    }
+
+    // ─── deferred answer-log erasures (log.ts, D447 phase A) ────────
+    // One marker per account whose BigQuery rows the streaming buffer
+    // refused to delete at once; the nightly reconcile retries and removes
+    // it. Server-only: it names an erased account, and a client that could
+    // write one could queue a deletion of somebody else's rows.
+    match /v2_log_erasures/{uid} {
       allow read, write: if false;
     }
 

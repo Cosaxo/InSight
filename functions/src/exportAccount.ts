@@ -62,6 +62,8 @@ import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import { isStamped, playedIn } from "./pure";
+import { citySampleId } from "./patternsSamples";
+import { logWriter, type LogRow } from "./log";
 
 /** The format tag on every export, bumped when the shape changes. */
 export const EXPORT_FORMAT = "insight-export/1";
@@ -107,6 +109,9 @@ export const TWIN: Record<string, string> = {
   suggestions: "suggestions",
   purchases: "purchases",
   paidBookings: "paidBookings",
+  // 1a″ — the answer log in BigQuery (D447 phase A), the ledger's mirror
+  // that outlives the ledger's TTL; read through the erasure's own writer.
+  log: "answerLog",
   // The closing sweep re-deletes the subtree phase 1b already took, in
   // case a nightly fold committed inside the erasure's own run time. It
   // reads nothing the `profile` section did not, so it twins the same one.
@@ -303,6 +308,27 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
     out.voterSamples = m.add(rows);
   }
 
+  // 1a″. The answer log (D447 phase A): the ledger's mirror in BigQuery —
+  //      one row per counted answer and one per edit, the rows the
+  //      erasure's statement removes — read through the erasure's own
+  //      writer, so an export and an erasure agree on where the rows are.
+  //      Null where there is no BigQuery (the emulator, the suites) or the
+  //      table is not there yet (the owner's click), and said so in
+  //      `omitted`: the answers and the ledger sections hold the same
+  //      facts, and an export must not fail on its mirror.
+  {
+    let rows: LogRow[] | null = null;
+    let why: string | null = null;
+    try {
+      rows = await logWriter().rowsFor(uid);
+      if (rows === null) why = "no BigQuery here — the answer log is off, or its table is not created yet; the collections.answers and answerLedger sections hold the same facts";
+    } catch (err) {
+      why = `the answer log could not be read (${err instanceof Error ? err.message : String(err)}); the collections.answers and answerLedger sections hold the same facts`;
+    }
+    out.answerLog = m.add(rows === null ? null : rows.map((r) => ({ ...r })));
+    if (why) omitted.push({ what: "answerLog", why });
+  }
+
   // 1b. The v2 subtree: the profile, and every subcollection under it —
   //     answers, the fit's state, the interest profile, the engagement
   //     rollups, foresight, follows, calls, whatever the tree grows next.
@@ -314,6 +340,29 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
     const own = await subtree(db.collection("v2_users").doc(uid), skip);
     out.profile = m.add(own.doc);
     out.collections = m.add(own.collections);
+    // 1a′, the per-city half (DATA-EFFICIENCY-RUNBOOK 2.5): the
+    // `city-{qid}~{city}` family is reached through the account's own
+    // answers — the frozen city on each — exactly as the erasure reaches
+    // it (index.ts, 1a′), because listing the family at scale is the
+    // product of two catalogues. The answers were just read above.
+    {
+      const answers = own.collections.answers ?? [];
+      const ids = [...new Set(answers.flatMap((a) => {
+        const qid = typeof a.qid === "string" ? a.qid : "";
+        const anchors = a.anchors && typeof a.anchors === "object" && !Array.isArray(a.anchors) ? (a.anchors as { [k: string]: Plain }) : null;
+        const city = anchors && typeof anchors.city === "string" ? anchors.city : "";
+        return qid && city ? [citySampleId(qid, city)] : [];
+      }))];
+      const cityRows: { [k: string]: Plain } = {};
+      for (let i = 0; i < ids.length; i += 300) {
+        for (const snap of await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id)))) {
+          if (!snap.exists) continue;
+          const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+          if (uid in all) cityRows[snap.id.slice("city-".length)] = toPlain(all[uid]);
+        }
+      }
+      out.voterSamplesByCity = m.add(cityRows);
+    }
     omitted.push({
       what: "collections.push",
       why: "the notification token is a credential for this phone, not data about you; "

@@ -23,6 +23,8 @@ import {
   emptyFold,
   foldInto,
   scanLedgerWindow,
+  runVelocityScan,
+  type VelocityStore,
   foldWindow,
   volumeFlagged,
   isAggregateSurface,
@@ -467,8 +469,11 @@ describe("bindCoverage", () => {
 //
 // Everything above tests the pure fold and the pure signals, thoroughly.
 // What none of it reaches is the READ that feeds them: the whole
-// `ledgerVelocityScan` body is unreachable from any test, so its paging
-// loop could be broken with every suite green.
+// `ledgerVelocityScan` body was unreachable from any test, so its paging
+// loop could be broken with every suite green. (`runVelocityScan`, the
+// run's shape since DATA-EFFICIENCY-RUNBOOK 4.4, is driven above over a
+// fake store; the tail read this exercises is still the part no test
+// reaches through it.)
 //
 // Measured before `scanLedgerWindow` was extracted: widening
 // `page.size < PAGE` to `<=` makes a full first page end the read, and all
@@ -554,6 +559,101 @@ describe("scanLedgerWindow, run", () => {
       .toEqual(["at", "fromIdx", "qid", "uid"]);
     expect(asked.limit,
       "a page this small makes thousands of round trips over one window").toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("runVelocityScan — the whole days off the shared read, the partial day its own (DATA-EFFICIENCY-RUNBOOK 4.4)", () => {
+  type Row = { uid: string; qid: string; atMs: number; isEdit?: boolean };
+  const NOW = Date.parse("2026-09-06T02:23:00Z"); // the pass's own clock
+  const D5 = Date.parse("2026-09-05T00:00:00Z");
+  const D6 = Date.parse("2026-09-06T00:00:00Z");
+
+  function fakeStore(days: Record<string, Row[]>, tail: Row[], state: { lastScanAt: number; days: DayCounts } = { lastScanAt: 0, days: {} }) {
+    const asked = { days: [] as string[], tailSince: [] as number[], put: null as null | { lastScanAt: number; days: DayCounts } };
+    const store: VelocityStore = {
+      async getState() { return state; },
+      async putState(s) { asked.put = s; },
+      async ledgerDay(day) { asked.days.push(day); return days[day] ?? []; },
+      async ledgerTail(sinceMs, into) {
+        asked.tailSince.push(sinceMs);
+        const rows = tail.filter((r) => r.atMs > sinceMs);
+        foldInto(into, rows);
+        return rows.reduce((m, r) => Math.max(m, r.atMs), sinceMs);
+      },
+      async users(uids) { return uids.map((uid) => ({ uid, metadata: { creationTime: new Date(D5).toISOString() } })); },
+    };
+    return { store, asked };
+  }
+  const quiet = { info() {}, warn() {} };
+
+  it("folds yesterday off the day reader and only today's rows from the tail, and advances the cursor to the newest row", async () => {
+    const { store, asked } = fakeStore(
+      { "2026-09-05": [{ uid: "u1", qid: "q1", atMs: D5 + 3600_000 }, { uid: "u2", qid: "q1", atMs: D5 + 7200_000 }] },
+      [{ uid: "u3", qid: "q2", atMs: D6 + 60_000 }, { uid: "u1", qid: "q2", atMs: D5 + 7200_000 + 1 }], // the second is yesterday's: not the tail's to count
+      { lastScanAt: D5 + 1800_000, days: {} },
+    );
+    const out = await runVelocityScan(store, NOW, quiet);
+    expect(asked.days).toEqual(["2026-09-05"]);
+    expect(asked.tailSince).toEqual([D6 - 1]);
+    expect(out.sharedDays).toBe(1);
+    expect(out.tailRows).toBe(1);
+    expect(out.entries).toBe(3);
+    expect(out.uids).toBe(3);
+    expect(asked.put?.lastScanAt).toBe(D6 + 60_000);
+    expect(asked.put?.days["2026-09-05"]).toEqual({ q1: 2 });
+    expect(asked.put?.days["2026-09-06"]).toEqual({ q2: 1 });
+  });
+
+  it("cuts a whole day to the rows after the window's start, so a day read whole is never counted twice", async () => {
+    const { store, asked } = fakeStore(
+      { "2026-09-05": [{ uid: "u1", qid: "q1", atMs: D5 + 1000 }, { uid: "u2", qid: "q1", atMs: D5 + 50_000_000 }] },
+      [],
+      { lastScanAt: D5 + 40_000_000, days: {} },
+    );
+    const out = await runVelocityScan(store, NOW, quiet);
+    expect(out.entries).toBe(1);
+    expect(asked.put?.lastScanAt).toBe(D5 + 50_000_000);
+  });
+
+  it("a catch-up after a missed night reads each whole day once and caps the window at 72 hours", async () => {
+    const D3 = Date.parse("2026-09-03T00:00:00Z");
+    const D4 = Date.parse("2026-09-04T00:00:00Z");
+    const { store, asked } = fakeStore(
+      {
+        "2026-09-03": [{ uid: "u1", qid: "q1", atMs: D3 + 1000 }],
+        "2026-09-04": [{ uid: "u2", qid: "q1", atMs: D4 + 1000 }],
+        "2026-09-05": [{ uid: "u3", qid: "q1", atMs: D5 + 1000 }],
+      },
+      [],
+      { lastScanAt: 0, days: {} },
+    );
+    const out = await runVelocityScan(store, NOW, quiet);
+    expect(asked.days).toEqual(["2026-09-03", "2026-09-04", "2026-09-05"]);
+    // the window is NOW − 72 h = 2026-09-03T02:23Z, so the 3rd's first-hour row is outside it
+    expect(out.entries).toBe(2);
+  });
+
+  it("a second run the same day reads no whole day and tails from the cursor", async () => {
+    const { store, asked } = fakeStore({}, [{ uid: "u1", qid: "q1", atMs: D6 + 5000 }], { lastScanAt: D6 + 1000, days: {} });
+    await runVelocityScan(store, NOW, quiet);
+    expect(asked.days).toEqual([]);
+    expect(asked.tailSince).toEqual([D6 + 1000]);
+  });
+
+  it("still raises the same flags: a scripted cadence warns, and the heartbeat carries the counts", async () => {
+    const rows: Row[] = Array.from({ length: 20 }, (_, i) => ({ uid: "bot", qid: `q${i}`, atMs: D5 + (i + 1) * 1000 }));
+    const { store } = fakeStore({ "2026-09-05": rows }, [], { lastScanAt: D5, days: {} });
+    const lines: Array<{ level: string; fields: Record<string, unknown> }> = [];
+    const log = {
+      info: (_m: unknown, f?: unknown) => { lines.push({ level: "info", fields: (f ?? {}) as Record<string, unknown> }); },
+      warn: (_m: unknown, f?: unknown) => { lines.push({ level: "warn", fields: (f ?? {}) as Record<string, unknown> }); },
+    };
+    const out = await runVelocityScan(store, NOW, log);
+    expect(out.cadenceFlags).toBe(1);
+    expect(lines.some((l) => l.level === "warn" && l.fields.metric === "velocity_flag" && l.fields.kind === "cadence")).toBe(true);
+    const beat = lines.find((l) => l.fields.metric === "velocity_scan");
+    expect(beat?.fields).toMatchObject({ entries: 20, uids: 1, cadenceFlags: 1, sharedDays: 1, tailRows: 0 });
+    expect(lines.some((l) => l.fields.metric === "bind_coverage")).toBe(true);
   });
 });
 

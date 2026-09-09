@@ -116,7 +116,7 @@ const METRICS = [
   },
   {
     name: "velocity_scan",
-    description: "ledgerVelocityScan completed a nightly scan (03:47 UTC)",
+    description: "the velocity scan completed — inside digestEngagementV2 since DATA-EFFICIENCY-RUNBOOK 4.4 (02:23 UTC; ledgerVelocityScan before it)",
     filter: 'jsonPayload.metric="velocity_scan"',
   },
   {

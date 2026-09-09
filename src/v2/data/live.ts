@@ -136,7 +136,10 @@ import * as cacheStore from "./cacheStore";
 import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import {
+  fetchSampleDoc, fetchVoters, fetchVoterSample, fetchVoterTail, groupByOption, resolveNames, sortVoters,
+  unionVoters, VOTER_TAIL_CAP, type ProfileCaches, type Voter,
+} from "./voters";
 import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
@@ -1208,6 +1211,25 @@ function writeProfileCache(): void {
   }
 }
 
+/** The three caches a sample read fills from its rows (runbook 2.3) —
+ * the same maps `resolveNames` fills from a live read, so precedence is
+ * settled by presence: whichever got there first is what the session
+ * shows, and the disk cache (D129) persists both alike. */
+function profileCaches(): ProfileCaches {
+  return { names: state.names, scores: state.scores, logic: state.logicPcts };
+}
+
+/** The viewer's own row for a who-voted sheet, off the vote map: the
+ * option they picked on `qid`, under the anchors their next answer would
+ * freeze. Null for an unanswered question, and for one whose vote is not
+ * an option index (a catalogue pick, a ranked order). */
+function ownVoterRow(qid: string): Voter | null {
+  if (!state.uid || !storesOptionIdx(qid)) return null;
+  const n = Number(state.votes[qid]);
+  if (!Number.isInteger(n) || n < 0) return null;
+  return { uid: state.uid, optionIdx: n, anchors: { ...state.profile.anchors }, name: state.profile.displayName || "", isMe: true };
+}
+
 // Coalesced on the same reasoning as the agg cache below: `resolveNames`
 // fills the map in batches of 30 and three surfaces call it in a row, so an
 // eager write would serialise the whole map several times per sheet open.
@@ -1513,6 +1535,17 @@ function buildS(
 // which is what keeps the replacement genuinely cheap rather than merely
 // cheaper.
 const AGG_POLL_MS = 60_000;
+// Documents a return to the FOREGROUND re-reads — today's aggregate, plus
+// any deck card this device holds no aggregate for yet (a rollover while
+// backgrounded). The six back days refresh at boot: they are answerable
+// and do move, but slowly, and a back-day card is blind until it is
+// answered, so a count it does not draw is a count it need not re-read.
+// At four background cycles a day the whole-deck refresh was 28 reads a
+// user-day — the second-largest client term after D129 took the fan-out
+// out (DATA-EFFICIENCY-RUNBOOK 1.4). Read from source by
+// scripts/cost-arith.mjs (the `reattach` term), so widening this slice
+// reprices the bill instead of quietly inflating it.
+const REATTACH_DOCS = 1;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 // Which start the armed interval belongs to. startAggPoll awaits the
 // deck's read before it arms, and a stop can land inside that await — a
@@ -1583,7 +1616,7 @@ function stopAggPoll(): void {
  * re-delivers the document; re-arming a `setInterval` reads nothing until
  * it next fires.
  */
-async function startAggPoll(): Promise<void> {
+async function startAggPoll(scope: "deck" | "today" = "deck"): Promise<void> {
   // `torndown` only. NOT `state.ready` — this runs from inside hydrate(),
   // and `ready` does not flip until hydrate AND hydrateSocial have both
   // returned, so guarding on it makes the boot call a silent no-op and the
@@ -1593,7 +1626,12 @@ async function startAggPoll(): Promise<void> {
   if (torndown) return;
   stopAggPoll();
   const gen = aggPollGen;
-  await refreshAggs(state.deckIds);
+  // A boot refreshes the whole deck; a foreground refreshes today and
+  // whatever the deck holds no aggregate for (REATTACH_DOCS, above).
+  const ids = scope === "deck"
+    ? state.deckIds
+    : [...state.deckIds.slice(0, REATTACH_DOCS), ...state.deckIds.slice(REATTACH_DOCS).filter((id) => !state.aggs[id])];
+  await refreshAggs(ids);
   // A stop that landed during the read wins — see aggPollGen.
   if (torndown || gen !== aggPollGen) return;
   aggPollTimer = setInterval(() => {
@@ -2178,6 +2216,10 @@ async function hydrate(): Promise<void> {
       state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
       // The read breaker (D332) rides the same one read — see budgetMode.ts.
       state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
+      // …and the attention channel's coin (DATA-EFFICIENCY-RUNBOOK 4.2):
+      // the nightly fold publishes the rate it can drain at; a field the
+      // document does not carry leaves the coin at the constant.
+      engagement.setSampleRate(meta.get("attnSampleRate"));
     }
   } catch {
     /* meta is best-effort — absence just means no caching/update info */
@@ -5103,13 +5145,43 @@ const LIVE = {
     notify();
     try {
       const db = await getDb();
+      // THE SAMPLE PLUS A LIVE TAIL (DATA-EFFICIENCY-RUNBOOK 2.4), where
+      // the sheet used to be the one live list of two hundred answer
+      // documents plus their profiles. The nightly sample is the newest
+      // VOTER_FETCH_CAP as of last night's merge, names and scores on the
+      // rows (runbook 2.3); the tail is what was answered since, capped
+      // at VOTER_TAIL_CAP. Under the cap the union IS the newest
+      // VOTER_FETCH_CAP, exactly — the panel's "newest 200" stays true. At
+      // the cap the question is hot (today's daily, at any real size) and
+      // the sheet reads the live list as it always did: the saving is on
+      // the cold question, and the claim is never traded for it here.
+      // Three shapes, then: no sample → live; sample and a short tail →
+      // union; sample and a full tail → live.
+      const caches = profileCaches();
+      const sample = await fetchSampleDoc(db, qid, state.uid, caches);
+      let rows: Voter[] | null = null;
+      if (sample) {
+        const tail = await fetchVoterTail(db, qid, state.uid, sample.newestDay);
+        if (tail.length < VOTER_TAIL_CAP) {
+          rows = unionVoters(tail, sample.rows);
+          // Your own answer the moment it lands, which the live list
+          // showed by reading it back: an answer still in the write queue
+          // (D357) is in neither the sample nor the tail, so it comes off
+          // the vote map — the one row the device can vouch for itself.
+          const mine = ownVoterRow(qid);
+          if (mine && !rows.some((r) => r.isMe)) rows = unionVoters([mine], rows);
+          // Only the people no row could name — a row written before the
+          // stamp existed — reach Firestore here; the rest are in hand.
+          await resolveNames(db, rows.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+          for (const r of rows) r.name = state.names[r.uid] || "";
+        }
+      }
+      if (!rows) rows = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts);
       // SORTED HERE, once, rather than on every read. Both keys the
       // comparator uses — `isMe` and the resolved `name` — are fixed when
       // the rows are built and never revised afterwards, so the order the
       // list will ever have is knowable now.
-      state.voters[qid] = sortVoters(
-        await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts),
-      );
+      state.voters[qid] = sortVoters(rows);
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -5143,7 +5215,9 @@ const LIVE = {
     let fallback = false;
     try {
       const db = await getDb();
-      const rows = await fetchVoterSample(db, qid, state.uid);
+      // The rows' own stamps fill the caches first (runbook 2.3), so the
+      // resolve below reads only the people no row could name.
+      const rows = await fetchVoterSample(db, qid, state.uid, profileCaches());
       if (!rows) {
         fallback = true;
       } else {
@@ -5571,7 +5645,19 @@ const LIVE = {
       // queries fired at once is the shape that gets a client rate-limited.
       for (const qid of qids) {
         try {
-          next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+          // The per-city sample first (DATA-EFFICIENCY-RUNBOOK 2.5): one
+          // document for the newest VOTER_FETCH_CAP answers from this
+          // city, stamps on the rows — with the city-scoped live query as
+          // the fallback for a (question, city) pair the nightly has not
+          // written yet, exactly as the world pass falls back.
+          const sample = await fetchVoterSample(db, qid, state.uid, profileCaches(), city);
+          if (sample) {
+            await resolveNames(db, sample.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+            for (const r of sample) r.name = state.names[r.uid] || "";
+            next[qid] = sample;
+          } else {
+            next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+          }
         } catch (err) {
           // One question failing must not cost the other eleven. Absent
           // rather than empty, the loadVoters rule.
@@ -5871,9 +5957,10 @@ const LIVE = {
   // The constellation fields' loader. Two ensures, both bounded and both
   // session-cached:
   //   1. aggregates for every core test item the bank carries — the cells
-  //      the place profiles fold. ≤110 docs in ≤4 batched `in` queries,
-  //      once per session, and only the ones the deck/archive has not
-  //      already cached.
+  //      the place profiles fold. One document per core test item, in
+  //      batched `in` queries of 30, once per session — and only the ones
+  //      the persisted aggregate cache does not already hold, so in
+  //      practice a first open per device and ~0 after.
   //   2. the Kindred voter lists (loadKindred, its own bounds — D102).
   // Candidate scores cost nothing here: they rode along with the voter
   // lists' name resolution, because the profile document was already on
@@ -5893,9 +5980,10 @@ const LIVE = {
         // Chunks IN PARALLEL, the shape hydrate.aggs and loadLearnAggs
         // already use (D169). This awaited each `in` query in turn, and
         // the four are independent: same documents, same billed reads,
-        // but four serial round trips instead of one. 110 core test items
-        // over the 30-id `in` limit is always ~4 chunks, so on a mobile
-        // RTT that was most of a second of "Reading the score profiles…"
+        // but serial round trips instead of one. On a mobile RTT that was
+        // seconds of "Reading the score profiles…" — the bank holds
+        // 266 core test items over the 30-id `in` limit (nine chunks; the
+        // count is check:figures', off the bank)
         // bought by nothing — the fields land on the FIRST open of City,
         // Country and World, which is the moment it was spent.
         const chunks: string[][] = [];
@@ -8010,8 +8098,9 @@ function purgeLocalTrace(): void {
 // Re-attach the day's listeners after a rollover. Called from the wake
 // handler rather than from deck(), so that a render never triggers
 // network work. Cheap and idempotent when the day has not changed:
-// startAggPoll refreshes the whole deck and re-arms the timer on the new
-// day's question, so a rollover needs no separate teardown.
+// startAggPoll refreshes today's aggregate (and any the deck lacks) and
+// re-arms the timer on the new day's question, so a rollover needs no
+// separate teardown — the whole deck is a boot's read, not a foreground's.
 async function resubscribeForToday(): Promise<void> {
   // `attached` rather than `ready` (D356): before the attach the boot
   // itself is still the thing that will start the poll and the reveal
@@ -8022,7 +8111,7 @@ async function resubscribeForToday(): Promise<void> {
       computeDeck();
       notify();
     }
-    await startAggPoll();
+    await startAggPoll("today");
     const db = await getDb();
     subscribeReveals(db);
   } catch (err) {
