@@ -597,6 +597,9 @@ export async function runSeedV2(
       ...(q.scen ? { scen: q.scen } : {}),
       ...(q.role ? { role: q.role } : {}),
       ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
+      // The cast round (D432): the four *them* forms and the four axes.
+      ...(Array.isArray(q.them) ? { them: q.them } : {}),
+      ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
       // The instruments' deep items (D416): which sub-scale an item scores
       // and how it is keyed, on the document — the device joins these by
       // id rather than by prompt text, which is what keeps the 156 new

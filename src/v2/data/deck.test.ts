@@ -17,6 +17,9 @@ import {
   splitBanks,
   duelQFor,
   isRatingRound,
+  groupPhase,
+  duoKind,
+  castText,
   gHash,
   hasPublishedCounts,
   isCore,
@@ -389,55 +392,94 @@ describe("duelQFor (duel question rotation)", () => {
   const bank = [
     qd("gu0", { surface: "group", topic: "us" }),
     qd("gd0", { surface: "group" }),
-    qd("gr0", { surface: "group", topic: "pick", options: [], scen, role: { id: "mastermind", label: "the mastermind" } }),
-    qd("gr1", { surface: "group", topic: "pick", options: [], scen, role: { id: "driver", label: "the getaway driver" } }),
-    qd("gr2", { surface: "group", topic: "pick", options: [], scen, role: { id: "inside", label: "the inside man" } }),
+    qd("gr0", { surface: "group", topic: "pick", options: [], scen, role: { id: "mastermind", label: "the mastermind", seat: "engine" } }),
+    qd("gr1", { surface: "group", topic: "pick", options: [], scen, role: { id: "driver", label: "the getaway driver", seat: "hands" } }),
+    qd("gr2", { surface: "group", topic: "pick", options: [], scen, role: { id: "inside", label: "the inside man", seat: "heart" } }),
     qd("gp0", { surface: "group", topic: "pick", options: [] }),
     qd("gs0", { surface: "group", topic: "rate", poles: ["Calm", "Chaos"], options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"] }),
     qd("gs1", { surface: "group", topic: "rate", poles: ["Gentle", "Brutal"], options: ["Gentle", "mostly Gentle", "in between", "mostly Brutal", "Brutal"] }),
     qd("d0", { surface: "duo" }),
     qd("d1", { surface: "duo" }),
   ];
+  // …and the 1v1's cast round (D432), the pool's one `cast` entry
+  const CAST = qd("056", {
+    surface: "duo", topic: "cast", prompt: "Most days, {name} is…",
+    options: ["the one you tell first", "the one who gets you out the door", "the one you ask what to do", "the one who is just always there"],
+    them: ["the one {name} tells first", "the one who gets {name} out the door", "the one {name} asks what to do", "the one who is just always there"],
+    dims: ["trust", "spark", "judgement", "constancy"],
+  });
   const picks = bank.filter((q) => q.surface === "group" && q.topic === "pick");
   const rates = bank.filter((q) => q.surface === "group" && q.topic === "rate");
   const group = { id: "grp_abc", mode: "group", memberUids: ["u1", "u2", "u3"], memberNames: { u1: "Ada", u2: "Bo", u3: "Cy" } };
+  // The group's PHASE (D432) is read off its id; the cases below compute
+  // it rather than assume zero, so they hold for any id the hash lands on.
+  const phase = groupPhase(group.id);
+  const ratingsBefore = (r: number) => Math.floor((r - 1 + phase) / 4);
   const DAY = 7; // a round — the rotation walks rounds since ROUNDS-PLAN / D426
 
   it("is deterministic for a fixed (group, bank, round)", () => {
     expect(duelQFor(group, bank, DAY)).toEqual(duelQFor(group, bank, DAY));
     // and mirrors the documented formula over the role-vote pool, with the
     // rating rounds before this one skipped so votes walk consecutively
-    const walked = DAY - Math.floor(DAY / 4);
+    const r = isRatingRound(DAY, phase) ? DAY + 1 : DAY;
+    const walked = r - ratingsBefore(r);
     const expected = picks[(gHash(group.id) + walked) % picks.length];
-    expect(duelQFor(group, bank, DAY)!.id).toBe(expected.id);
+    expect(duelQFor(group, bank, r)!.id).toBe(expected.id);
   });
 
-  it("every fourth round rates the group, and the ratings walk their own pool in turn", () => {
+  it("every fourth round from the phase rates the group, and the ratings walk their own pool in turn", () => {
     expect(isRatingRound(4)).toBe(true);
     expect(isRatingRound(5)).toBe(false);
+    expect(isRatingRound(3, 1)).toBe(true);
+    expect(isRatingRound(4, 1)).toBe(false);
     for (let r = 1; r <= 12; r++) {
       const q = duelQFor(group, bank, r)!;
-      if (r % 4 === 0) {
+      if (isRatingRound(r, phase)) {
         expect(q.kind).toBe("rate");
-        expect(q.poles).toEqual(rates[(gHash(group.id) + r / 4) % rates.length].poles);
+        expect(q.poles).toEqual(rates[(gHash(group.id) + ratingsBefore(r) + 1) % rates.length].poles);
         expect(q.options).toHaveLength(5);
       } else {
         expect(q.kind).toBe("pick");
         // the members are the options, and a packed role carries its pack
+        // and its seat
         expect(q.options).toEqual(["Ada", "Bo", "Cy"]);
         const src = picks.find((p) => p.id === q.id)!;
         expect(q.scen).toEqual(src.scen);
         expect(q.role).toEqual(src.role);
       }
     }
-    // rounds 4 and 8 are consecutive ratings, not the same one
-    expect(duelQFor(group, bank, 4)!.id).not.toBe(duelQFor(group, bank, 8)!.id);
+    // two consecutive rating rounds are consecutive ratings, not the same one
+    const ratingRounds = Array.from({ length: 12 }, (_, i) => i + 1).filter((r) => isRatingRound(r, phase));
+    expect(duelQFor(group, bank, ratingRounds[0])!.id).not.toBe(duelQFor(group, bank, ratingRounds[1])!.id);
+  });
+
+  it("the phase is the group's own, three values, and never puts a rating on round 1", () => {
+    // Two rooms you are in should not both rate on the same numbers (the
+    // owner's 2026-09-09 design seeds phases 0 · 1 · 2); the tree reads the
+    // phase off the id, so it is a fact about the room and not a field.
+    const seen = new Set<number>();
+    for (let i = 0; i < 200; i++) {
+      const ph = groupPhase("room_" + i);
+      expect([0, 1, 2]).toContain(ph);
+      seen.add(ph);
+      expect(isRatingRound(1, ph)).toBe(false);
+    }
+    expect(seen.size).toBe(3);
+    // a phased group's first rating comes early, and its votes still walk
+    // consecutively across it
+    const early = { id: "room_x", mode: "group", memberUids: ["u1", "u2"] };
+    const ph = groupPhase(early.id);
+    const firstRating = [1, 2, 3, 4].find((r) => isRatingRound(r, ph))!;
+    expect(firstRating).toBe(4 - ph);
+    expect(duelQFor(early, bank, firstRating)!.kind).toBe("rate");
   });
 
   it("role votes are consecutive questions across a rating — no vote is skipped for it", () => {
-    // Rounds 1–3 and 5–7 walk six consecutive picks of the four: 3 → 5 is
-    // one step, not two, because round 4 took no pick.
-    const ids = [1, 2, 3, 5, 6, 7].map((r) => duelQFor(group, bank, r)!.id);
+    // Six consecutive vote rounds (the rating rounds between them left
+    // out) walk six consecutive picks of the four: a step across a rating
+    // is one step, not two, because that round took no pick.
+    const voteRounds = Array.from({ length: 10 }, (_, i) => i + 1).filter((r) => !isRatingRound(r, phase)).slice(0, 6);
+    const ids = voteRounds.map((r) => duelQFor(group, bank, r)!.id);
     const start = picks.findIndex((p) => p.id === ids[0]);
     ids.forEach((id, i) => expect(id).toBe(picks[(start + i) % picks.length].id));
   });
@@ -454,6 +496,50 @@ describe("duelQFor (duel question rotation)", () => {
     for (let r = 1; r <= 8; r++) expect(duelQFor(group, noRates, r)!.kind).toBe("pick");
   });
 
+  it("every fourth 1v1 round is the cast, and the own rounds walk the pool skipping it (D432)", () => {
+    const withCast = [...bank, CAST];
+    const own = withCast.filter((q) => q.surface === "duo" && q.topic !== "cast");
+    const duo = { id: "duo_1", mode: "duo" };
+    expect(duoKind(4)).toBe("cast");
+    expect(duoKind(5)).toBe("own");
+    for (let r = 1; r <= 12; r++) {
+      const q = duelQFor(duo, withCast, r)!;
+      if (r % 4 === 0) {
+        expect(q.id).toBe("056");
+        expect(q.kind).toBe("cast");
+        expect(q.them).toEqual(CAST.them);
+        expect(q.dims).toEqual(["trust", "spark", "judgement", "constancy"]);
+        expect(q.options).toHaveLength(4);
+      } else {
+        expect(q.kind).toBe("classic");
+        expect(q.them).toBeUndefined();
+        expect(q.id).toBe(own[(gHash(duo.id) + (r - Math.floor(r / 4))) % own.length].id);
+      }
+    }
+    // consecutive own rounds are consecutive questions across the cast
+    const ids = [1, 2, 3, 5, 6, 7].map((r) => duelQFor(duo, withCast, r)!.id);
+    const start = own.findIndex((p) => p.id === ids[0]);
+    ids.forEach((id, i) => expect(id).toBe(own[(start + i) % own.length].id));
+  });
+
+  it("a 1v1 pool without a cast entry plays every round as its own, unmoved — the pre-reseed device", () => {
+    const duoBank = bank.filter((q) => q.surface === "duo");
+    const duo = { id: "duo_1", mode: "duo" };
+    for (let r = 1; r <= 8; r++) {
+      const q = duelQFor(duo, bank, r)!;
+      expect(q.id).toBe(duoBank[(gHash(duo.id) + r) % duoBank.length].id);
+      expect(q.kind).toBe("classic");
+    }
+  });
+
+  it("the cast text puts the name where the bank could not, and never leaves the placeholder", () => {
+    expect(castText("Most days, {name} is…", "Liv")).toBe("Most days, Liv is…");
+    expect(castText("the one {name} tells first", " Liv ")).toBe("the one Liv tells first");
+    expect(castText("Most days, {name} is…", "")).toBe("Most days, your friend is…");
+    expect(castText("the one {name} goes home to", null, true)).toBe("the one your partner goes home to");
+    expect(castText("the one who is just always there", "Liv")).toBe("the one who is just always there");
+  });
+
   it("a bank with no picks at all falls back to the whole surface — never no question", () => {
     const old = bank.filter((q) => q.surface !== "group" || (q.topic !== "pick" && q.topic !== "rate"));
     const q = duelQFor(group, old, DAY)!;
@@ -463,17 +549,6 @@ describe("duelQFor (duel question rotation)", () => {
 
   it("round 1 is a question too — the first round a fresh group opens on", () => {
     expect(duelQFor(group, bank, 1)).not.toBeNull();
-  });
-
-  it("a 1v1 is untouched by the cast — its pool walks as before", () => {
-    const duoBank = bank.filter((q) => q.surface === "duo");
-    const duo = { id: "duo_1", mode: "duo" };
-    for (let r = 1; r <= 8; r++) {
-      const q = duelQFor(duo, bank, r)!;
-      expect(q.id).toBe(duoBank[(gHash(duo.id) + r) % duoBank.length].id);
-      expect(q.kind).toBe("classic");
-      expect(q.scen).toBeUndefined();
-    }
   });
 
   it("selects the question from the group id alone — member order is irrelevant", () => {
@@ -544,6 +619,17 @@ describe("duelQFor (duel question rotation)", () => {
 
     it("returns null for a romantic duo when no romantic docs exist", () => {
       expect(duelQFor({ ...duo, duoMode: "romantic" }, bank, DAY)).toBeNull();
+    });
+
+    it("a romantic duo's cast is the romantic pool's own, and the friends' cast never reaches it", () => {
+      const romCast = qd("057", { surface: "duo", mode: "romantic", topic: "cast", prompt: "Most days, {name} is…",
+        options: ["a", "b", "c", "d"], them: ["a", "b", "c", "d"], dims: ["trust", "spark", "judgement", "constancy"] });
+      const both = [...pooled, CAST, romCast];
+      const rom = { ...duo, duoMode: "romantic" };
+      expect(duelQFor(rom, both, 4)!.id).toBe("057");
+      expect(duelQFor(duo, both, 4)!.id).toBe("056");
+      // and a romantic pool with no cast plays round 4 as its own
+      expect(duelQFor(rom, [...pooled, CAST], 4)!.id).toMatch(/^r/);
     });
   });
 

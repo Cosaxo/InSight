@@ -480,7 +480,11 @@ export function buildEntries(content = loadContent()) {
       axis: null,
       test: null,
       ...(pack ? { scen: { id: String(pack.id), label: String(pack.label), hue: Number(pack.hue) } } : {}),
-      ...(q.role ? { role: { id: String(q.role.id), label: String(q.role.label) } } : {}),
+      // The role's SEAT (D432, the owner's 2026-09-09 design): engine ·
+      // hands · heart · wild — what a member's received votes cluster into.
+      // Every role vote carries one; check:content holds each pack to one
+      // role per seat.
+      ...(q.role ? { role: { id: String(q.role.id), label: String(q.role.label), seat: String(q.role.seat) } } : {}),
       ...(Array.isArray(q.poles) ? { poles: q.poles.map(String) } : {}),
       ...flags(q),
     });
@@ -496,6 +500,17 @@ export function buildEntries(content = loadContent()) {
   // same word about each other as likeness. `check:content` holds the set
   // closed like the group kinds; `duelQFor` carries it to the card as
   // `kind`, which only ever asked "pick".
+  // THE CAST ROUND (D432, the owner's 2026-09-09 design): one entry per
+  // pool with `kind: "cast"` and domain `cast` — *Most days, {name} is…*,
+  // four plain answers each carrying an axis (`dims`) and a *them* form
+  // (`them`: *the one {name} tells first*) for whenever the fact is said
+  // about the other side. Every fourth 1v1 round deals it (duelQFor). The
+  // `{name}` placeholder is substituted where the card renders it; the
+  // bank keeps the template because the question is the same for every
+  // pair and the rules need one active document to point an answer at.
+  const castFields = (q) => (q.kind === "cast"
+    ? { them: q.them.map(String), dims: q.dims.map(String) }
+    : {});
   duel.oneVsOne.forEach((q, i) => {
     entries.push({
       id: `duo-${requireId(q, `duel-questions.json oneVsOne[${i}]`)}`,
@@ -510,6 +525,8 @@ export function buildEntries(content = loadContent()) {
       topic: q.d ?? null,
       axis: null,
       test: null,
+      ...castFields(q),
+      ...flags(q),
     });
   });
 
@@ -536,6 +553,7 @@ export function buildEntries(content = loadContent()) {
       axis: null,
       test: null,
       mode: "romantic",
+      ...castFields(q),
       ...flags(q),
     });
   });
@@ -766,7 +784,7 @@ const HEADER =
   "// facet or position an item scores and whether it is keyed against it,\n" +
   "// on the document so the device joins by id and the prompts stay out\n" +
   "// of first paint. The core items and the lens items carry neither.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string }; poles?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string; seat: string }; poles?: string[]; them?: string[]; dims?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "// THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather\n" +
   "// than a taste. `tsc` checks an array literal against its annotation by\n" +
   "// forming the union of the element types, and V2SeedQuestion has ~45\n" +

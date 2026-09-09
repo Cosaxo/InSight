@@ -932,6 +932,15 @@ service cloud.firestore {
             && request.resource.data.gid is string
             && request.resource.data.round is int
             && request.resource.data.round >= 1
+            // NOTHING IN A GROUP IS CALLED (D432 — the owner's 2026-09-09
+            // brief: "The room casts roles and rates itself; that's all").
+            // A guess is a 1v1's, at what the other person said; a group
+            // answer carrying one is refused HERE rather than ignored
+            // downstream, so "no call" is a rule the table keeps and not a
+            // client's manners. D386 admitted it for one week; the fold in
+            // functions/src/pure.ts scores nothing for a group either way.
+            && !(request.resource.data.surface == "group"
+                 && request.resource.data.keys().hasAny(["guessIdx"]))
             // The id IS the round. string() over an int resolves in rules
             // — probed in the emulator 2026-09-08 before this was written.
             && aid == "g_" + request.resource.data.gid + "_r" + string(request.resource.data.round)

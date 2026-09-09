@@ -340,8 +340,10 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
   };
   beforeEach(() => { LIVE.social.groups = () => [CREW]; });
 
-  it("a role vote names its pack in the kicker and leads every option with its member", () => {
+  it("a role vote names its pack in the kicker, leads every option with its member, and seals on the one tap", async () => {
     LIVE.social.todayQ = () => ROLE;
+    const calls: Array<[number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
     render(<LiveDuelPanel mode="group" />);
     expect(screen.getByText("· Bank Heist")).toBeTruthy();
     // three options, each a member: the two others' marks and your pill
@@ -349,9 +351,11 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     expect(screen.getByRole("button", { name: "Bo" })).toBeTruthy();
     // your own option leads with your pill, so its name reads "you Me"
     expect(screen.getByRole("button", { name: "you Me" })).toBeTruthy();
-    // the read of the room is still the second tap (D386)
+    // nothing in a group is called (D432): the tap IS the vote, no guess
     fireEvent.click(screen.getByRole("button", { name: "Ada" }));
-    expect(screen.getByText(/And the room lands on/)).toBeTruthy();
+    // Ada is the second member (memberUids order), so index 1 — and no guess
+    await waitFor(() => expect(calls).toEqual([[1, undefined]]));
+    expect(screen.queryByText(/And the room lands on/)).toBeNull();
   });
 
   it("a rating asks between two poles on five steps, and seals on the one tap with no call", async () => {
@@ -373,6 +377,8 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     LIVE.social.revealFor = () => ({
       round: 1, day: "2026-09-08", qid: "group-gr0",
       votes: {
+        // a guess on a group vote is an older client's (D386's week); the
+        // reveal draws the vote and says nothing about a call
         u_me: { optionIdx: 1, pickUid: "u_ada", guessIdx: 1 },
         u_ada: { optionIdx: 1, pickUid: "u_ada" },
         u_bo: { optionIdx: 0, pickUid: "u_me" },
@@ -385,8 +391,8 @@ describe("LiveDuelPanel · the group as a cast (D429)", () => {
     // the verdict names the cast, not "the room landed on"
     expect(reveal.textContent).toMatch(/Ada is the mastermind/);
     expect(reveal.textContent).not.toMatch(/The room landed on/);
-    // …and your call on the room still scores
-    expect(reveal.textContent).toMatch(/you called it/);
+    // …and nothing in a group is called (D432)
+    expect(reveal.textContent).not.toMatch(/you called/);
     // the crowned row is first and marked
     const crowned = reveal.querySelector("[data-crown]");
     expect(crowned).not.toBeNull();
@@ -482,10 +488,11 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("a group answers, then reads the room — and still writes once (D386)", async () => {
-    // Until D386 a group sealed on the first tap: there was nothing to
-    // guess. Now the second tap is a call on where the room will land,
-    // and the pick waits for it exactly as a duo's does — one create.
+  it("a group seals on the one tap — nothing in a group is called (D432)", async () => {
+    // For one week (D386) a group's second tap was a call on where the
+    // room would land. The owner's 2026-09-09 brief removed it, and the
+    // rules refuse a guess on the group surface, so the tap IS the vote:
+    // one create, no guess, no morph.
     const calls: Array<[string, number, number | undefined]> = [];
     LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => {
       calls.push([gid, idx, guess]);
@@ -493,11 +500,9 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     render(<LiveDuelPanel mode="group" />);
     fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
-    expect(calls, "the pick wrote before the call on the room existed").toEqual([]);
-    expect(screen.getByText(/And the room lands on…\?/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Tea" }));
     await vi.waitFor(() => expect(calls.length).toBe(1));
-    expect(calls[0]).toEqual(["g1", 0, 1]);
+    expect(calls[0]).toEqual(["g1", 0, undefined]);
+    expect(screen.queryByText(/And the room lands on/)).toBeNull();
   });
 });
 

@@ -105,8 +105,19 @@ export interface QuestionDoc {
   // and the fold. Absent on every other surface and on the older group
   // kinds.
   scen?: { id: string; label: string; hue: number };
-  role?: { id: string; label: string };
+  // …the role's SEAT since D432 (engine · hands · heart · wild): what a
+  // member's received votes cluster into. Optional on the type because a
+  // device may hold a bank seeded before the seats; absent, the instrument
+  // counts nothing for that vote rather than inventing a seat.
+  role?: { id: string; label: string; seat?: string };
   poles?: string[];
+  // THE CAST ROUND (D432, the owner's 2026-09-09 design): a 1v1 question
+  // of topic "cast" — *Most days, {name} is…* — whose four options each
+  // carry an axis (`dims`: trust · spark · judgement · constancy) and a
+  // *them* form (`them`: *the one {name} tells first*) for when the fact
+  // is said about the other side. One per 1v1 pool; absent elsewhere.
+  them?: string[];
+  dims?: string[];
   active: boolean;
   // Current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231): a
   // feed entry is OFFERED only between these two inclusive UTC day keys;
@@ -695,22 +706,49 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 /** What the card is handed for a round: the question, its options as the
  * card should draw them (a pick's are the members), its kind (the seeded
  * `topic`), and — for a role vote — the pack and the role, for a rating
- * the two poles. */
+ * the two poles, for a cast round the them forms and the axes. */
 export interface DuelRoundQ {
   id: string;
   prompt: string;
   options: string[];
   kind: string;
   scen?: { id: string; label: string; hue: number };
-  role?: { id: string; label: string };
+  role?: { id: string; label: string; seat?: string };
   poles?: string[];
+  them?: string[];
+  dims?: string[];
 }
 
-/** Every fourth round of a group is a rating of the group itself; the
- * other three are role votes (D429, the owner's 2026-09-08 design —
- * `isRatingRound` in its `duels-data.js`, phase 0). Exported so the card
- * and the tests say it once. */
-export const isRatingRound = (round: number): boolean => round % 4 === 0;
+/** A group's PHASE (D432): which of its rounds are the ratings. The
+ * owner's 2026-09-09 design staggers the rating round per group, so two
+ * rooms you are in do not both rate on the same numbers; the tree reads it
+ * off the group id, so it is a fact about the room and never a field to
+ * keep in step. Three values, not four: a phase of three would make ROUND
+ * ONE a rating of a group that has not played yet, which the design's own
+ * seeded groups avoid too (phases 0 · 1 · 2). */
+export const groupPhase = (gid: string): number => gHash(gid) % 3;
+
+/** Every fourth round of a group is a rating of the group itself, counted
+ * from its phase; the other three are role votes (D429, the owner's
+ * 2026-09-08 design; the phase at D432). Exported so the card and the
+ * tests say it once. */
+export const isRatingRound = (round: number, phase = 0): boolean => (round + phase) % 4 === 0;
+
+/** A 1v1's rounds by number (D432): every fourth asks what the other
+ * person is to you — the CAST — and the rest walk the pool. There is no
+ * World round: the owner retired those on the 8th (D426's third
+ * amendment) and confirmed it against the 09-09 design's own list. */
+export const duoKind = (round: number): "cast" | "own" => (round % 4 === 0 ? "cast" : "own");
+
+/** A cast round's copy carries `{name}` — the other person's first name,
+ * which the bank cannot know (D432). Every renderer of a cast prompt or a
+ * them form goes through here. Without a name the fallback is a noun the
+ * sentence still works around — *your friend* or *your partner* by pool —
+ * never the placeholder and never a pronoun the verb disagrees with. */
+export function castText(text: string, name?: string | null, romantic = false): string {
+  const who = name && name.trim() ? name.trim() : (romantic ? "your partner" : "your friend");
+  return text.replace(/\{name\}/g, who);
+}
 
 export function duelQFor(
   g: Record<string, unknown> & { id: string },
@@ -730,39 +768,65 @@ export function duelQFor(
   const surfaceBank = duelBank.filter(
     (q) => q.surface === mode && (pool ? q.mode === pool : q.mode == null),
   );
-  // THE GROUP PLAYS A CAST (D429, the owner's 2026-09-08 design —
-  // *"group … should mostly be about what role you have in the group"*).
-  // Three rounds in four are role votes: `pick` questions, whose options
-  // are the members, most of them tagged with the scenario pack they
-  // belong to and the role they cast. Every fourth round is a `rate`
-  // question — the group asked about itself between two poles. The
-  // older `us`/`classic` group questions leave the rotation and stay in
-  // the bank, so the reveals that name them still draw their prompt
-  // (`bankQ`); what happens to them is the owner's row. A bank with no
-  // rate questions yet (a device that has not re-read the bank since
-  // they were seeded) plays every round as a role vote, and a bank with
-  // no picks at all falls back to the whole surface — a group must never
-  // be handed no question because its bank predates the cast. Both
-  // fallbacks are the D70 drift a bank change has always had, and
-  // `revealQid` keeps a drifted client coherent.
   let bank = surfaceBank;
+  let walk = round;
   if (mode === "group") {
+    // THE GROUP PLAYS A CAST (D429, the owner's 2026-09-08 design —
+    // *"group … should mostly be about what role you have in the group"*).
+    // Three rounds in four are role votes: `pick` questions, whose options
+    // are the members, tagged with the scenario pack they belong to and
+    // the role they cast. Every fourth round — counted from the group's
+    // phase (D432) — is a `rate` question, the group asked about itself
+    // between two poles. The older `us`/`classic` group questions leave
+    // the rotation and stay in the bank, so the reveals that name them
+    // still draw their prompt (`bankQ`); what happens to them is the
+    // owner's row. A bank with no rate questions yet (a device that has
+    // not re-read the bank since they were seeded) plays every round as a
+    // role vote, and a bank with no picks at all falls back to the whole
+    // surface — a group must never be handed no question because its bank
+    // predates the cast. Both fallbacks are the D70 drift a bank change
+    // has always had, and `revealQid` keeps a drifted client coherent.
     const picks = surfaceBank.filter((q) => q.topic === "pick");
     const rates = surfaceBank.filter((q) => q.topic === "rate");
-    if (isRatingRound(round) && rates.length) {
+    const phase = groupPhase(g.id);
+    // the ratings strictly before this round, counted from the phase
+    const before = Math.floor((round - 1 + phase) / 4);
+    if (isRatingRound(round, phase) && rates.length) {
       // Ratings walk their own pool, one step per rating round, so the
       // ten dims come round in turn rather than as every fourth pick.
       bank = rates;
-      round = round / 4;
+      walk = before + 1;
     } else if (picks.length) {
-      bank = picks;
       // …and the role votes walk theirs, skipping the rounds a rating
       // took, so consecutive votes are consecutive questions.
-      round = round - Math.floor(round / 4);
+      bank = picks;
+      walk = round - before;
+    }
+  } else {
+    // THE 1v1 HAS KINDS OF ROUND (D432, the owner's 2026-09-09 design):
+    // every fourth is the CAST — *Most days, Liv is…*, the pool's one
+    // `cast` entry — and the rest walk the pool by the same skip the
+    // group's votes use, so consecutive own rounds are consecutive
+    // questions. A pool with no cast entry yet (a device that has not
+    // re-read the bank since it was seeded) plays every round as its own
+    // — the pre-reseed shape, and the D70 drift again. Note what the skip
+    // costs ONCE: the reseed that lands the cast moves every live pair's
+    // open round to the question the skip arithmetic names (round 5 walks
+    // to the pool's fourth question, not its fifth), and the stored `qid`
+    // on each answer plus `revealQid`'s plurality is what keeps a reveal
+    // across that moment honest.
+    const casts = surfaceBank.filter((q) => q.topic === "cast");
+    const own = surfaceBank.filter((q) => q.topic !== "cast");
+    if (duoKind(round) === "cast" && casts.length) {
+      bank = casts;
+      walk = round / 4;
+    } else if (own.length) {
+      bank = own;
+      walk = casts.length ? round - Math.floor(round / 4) : round;
     }
   }
   if (!bank.length) return null;
-  const q = bank[(gHash(g.id) + round + bank.length * 1000) % bank.length];
+  const q = bank[(gHash(g.id) + walk + bank.length * 1000) % bank.length];
   const names = (g.memberNames || {}) as Record<string, string>;
   const memberUids = (g.memberUids || []) as string[];
   const options =
@@ -774,5 +838,7 @@ export function duelQFor(
     ...(q.scen ? { scen: q.scen } : {}),
     ...(q.role ? { role: q.role } : {}),
     ...(q.poles ? { poles: q.poles } : {}),
+    ...(q.them ? { them: q.them } : {}),
+    ...(q.dims ? { dims: q.dims } : {}),
   };
 }

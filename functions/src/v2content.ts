@@ -44,7 +44,7 @@
 // facet or position an item scores and whether it is keyed against it,
 // on the document so the device joins by id and the prompts stay out
 // of first paint. The core items and the lens items carry neither.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string }; poles?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string; seat: string }; poles?: string[]; them?: string[]; dims?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 // THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather
 // than a taste. `tsc` checks an array literal against its annotation by
 // forming the union of the element types, and V2SeedQuestion has ~45
@@ -11874,7 +11874,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "mastermind",
-   "label": "the mastermind"
+   "label": "the mastermind",
+   "seat": "engine"
   }
  },
  {
@@ -11895,7 +11896,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "driver",
-   "label": "the getaway driver"
+   "label": "the getaway driver",
+   "seat": "hands"
   }
  },
  {
@@ -11916,7 +11918,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "inside",
-   "label": "the inside man"
+   "label": "the inside man",
+   "seat": "heart"
   }
  },
  {
@@ -11959,7 +11962,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "crack",
-   "label": "first to crack"
+   "label": "first to crack",
+   "seat": "wild"
   }
  },
  {
@@ -11980,7 +11984,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "fire",
-   "label": "the fire-keeper"
+   "label": "the fire-keeper",
+   "seat": "engine"
   }
  },
  {
@@ -12001,7 +12006,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "food",
-   "label": "the food-finder"
+   "label": "the food-finder",
+   "seat": "hands"
   }
  },
  {
@@ -12044,7 +12050,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "morale",
-   "label": "the morale officer"
+   "label": "the morale officer",
+   "seat": "heart"
   }
  },
  {
@@ -12065,7 +12072,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "loseit",
-   "label": "first to lose it"
+   "label": "first to lose it",
+   "seat": "wild"
   }
  },
  {
@@ -12086,7 +12094,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "main",
-   "label": "the main character"
+   "label": "the main character",
+   "seat": "engine"
   }
  },
  {
@@ -12129,7 +12138,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "comic",
-   "label": "the comic relief"
+   "label": "the comic relief",
+   "seat": "heart"
   }
  },
  {
@@ -12150,7 +12160,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "deadpan",
-   "label": "the deadpan one"
+   "label": "the deadpan one",
+   "seat": "hands"
   }
  },
  {
@@ -12171,7 +12182,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "twist",
-   "label": "the plot twist"
+   "label": "the plot twist",
+   "seat": "wild"
   }
  },
  {
@@ -12202,7 +12214,7 @@ const BANK_2: V2SeedQuestion[] = [
   "seq": 42,
   "type": "choice",
   "domain": null,
-  "prompt": "Who ends up in charge?",
+  "prompt": "Who ends up leading?",
   "options": [],
   "topic": "pick",
   "axis": null,
@@ -12214,7 +12226,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "leader",
-   "label": "the reluctant leader"
+   "label": "the reluctant leader",
+   "seat": "engine"
   }
  },
  {
@@ -12235,8 +12248,10 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "hoarder",
-   "label": "the supply hoarder"
-  }
+   "label": "the supply hoarder",
+   "seat": "hands"
+  },
+  "active": false
  },
  {
   "id": "group-gr14",
@@ -12256,7 +12271,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "scout",
-   "label": "the scout"
+   "label": "the scout",
+   "seat": "hands"
   }
  },
  {
@@ -12299,7 +12315,8 @@ const BANK_2: V2SeedQuestion[] = [
   },
   "role": {
    "id": "bitten",
-   "label": "first one bitten"
+   "label": "first one bitten",
+   "seat": "wild"
   }
  }
 ];
@@ -12322,7 +12339,8 @@ const BANK_3: V2SeedQuestion[] = [
   },
   "role": {
    "id": "wheel",
-   "label": "the driver"
+   "label": "the driver",
+   "seat": "engine"
   }
  },
  {
@@ -12343,7 +12361,8 @@ const BANK_3: V2SeedQuestion[] = [
   },
   "role": {
    "id": "dj",
-   "label": "the DJ"
+   "label": "the DJ",
+   "seat": "heart"
   }
  },
  {
@@ -12386,7 +12405,8 @@ const BANK_3: V2SeedQuestion[] = [
   },
   "role": {
    "id": "nav",
-   "label": "the navigator"
+   "label": "the navigator",
+   "seat": "hands"
   }
  },
  {
@@ -12407,8 +12427,10 @@ const BANK_3: V2SeedQuestion[] = [
   },
   "role": {
    "id": "snacks",
-   "label": "the snack captain"
-  }
+   "label": "the snack captain",
+   "seat": "heart"
+  },
+  "active": false
  },
  {
   "id": "group-gs6",
@@ -12497,6 +12519,50 @@ const BANK_3: V2SeedQuestion[] = [
    "Same, but older",
    "A yearly reunion"
   ]
+ },
+ {
+  "id": "group-gr20",
+  "surface": "group",
+  "seq": 56,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who patches everyone up?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "zombie",
+   "label": "Zombie Plan",
+   "hue": 220
+  },
+  "role": {
+   "id": "medic",
+   "label": "the medic",
+   "seat": "heart"
+  }
+ },
+ {
+  "id": "group-gr21",
+  "surface": "group",
+  "seq": 57,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who needs to pull over every hour?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "roadtrip",
+   "label": "Road Trip",
+   "hue": 60
+  },
+  "role": {
+   "id": "stops",
+   "label": "the hourly stop",
+   "seat": "wild"
+  }
  },
  {
   "id": "duo-000",
@@ -13009,9 +13075,38 @@ const BANK_3: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-020",
+  "id": "duo-056",
   "surface": "duo",
   "seq": 32,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Most days, {name} is…",
+  "options": [
+   "the one you tell first",
+   "the one who gets you out the door",
+   "the one you ask what to do",
+   "the one who is just always there"
+  ],
+  "topic": "cast",
+  "axis": null,
+  "test": null,
+  "them": [
+   "the one {name} tells first",
+   "the one who gets {name} out the door",
+   "the one {name} asks what to do",
+   "the one who is just always there"
+  ],
+  "dims": [
+   "trust",
+   "spark",
+   "judgement",
+   "constancy"
+  ]
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 33,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -13029,7 +13124,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 33,
+  "seq": 34,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -13047,7 +13142,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 34,
+  "seq": 35,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -13065,7 +13160,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 35,
+  "seq": 36,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -13082,7 +13177,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 36,
+  "seq": 37,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -13101,7 +13196,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 37,
+  "seq": 38,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -13119,7 +13214,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 38,
+  "seq": 39,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -13136,7 +13231,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 39,
+  "seq": 40,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -13154,7 +13249,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 40,
+  "seq": 41,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -13173,7 +13268,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 41,
+  "seq": 42,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -13190,7 +13285,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 42,
+  "seq": 43,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -13208,7 +13303,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 43,
+  "seq": 44,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -13226,7 +13321,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 44,
+  "seq": 45,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -13244,7 +13339,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 45,
+  "seq": 46,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -13262,7 +13357,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 46,
+  "seq": 47,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -13281,7 +13376,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 47,
+  "seq": 48,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -13299,7 +13394,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 48,
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -13318,7 +13413,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 49,
+  "seq": 50,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -13336,7 +13431,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 50,
+  "seq": 51,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -13355,7 +13450,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 51,
+  "seq": 52,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
@@ -13372,7 +13467,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-051",
   "surface": "duo",
-  "seq": 52,
+  "seq": 53,
   "type": "binary",
   "domain": null,
   "prompt": "After a fight, the first move back is usually…",
@@ -13391,7 +13486,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-052",
   "surface": "duo",
-  "seq": 53,
+  "seq": 54,
   "type": "binary",
   "domain": null,
   "prompt": "The retirement dream: settled deep somewhere, or still moving?",
@@ -13408,7 +13503,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-054",
   "surface": "duo",
-  "seq": 54,
+  "seq": 55,
   "type": "binary",
   "domain": null,
   "prompt": "When they need help, they…",
@@ -13426,7 +13521,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-055",
   "surface": "duo",
-  "seq": 55,
+  "seq": 56,
   "type": "binary",
   "domain": null,
   "prompt": "Ten years on, the two of you are known for…",
@@ -13440,6 +13535,37 @@ const BANK_3: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-057",
+  "surface": "duo",
+  "seq": 57,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Most days, {name} is…",
+  "options": [
+   "the one you go home to",
+   "the one who starts things",
+   "the one who thinks ahead for you both",
+   "the one who stays when it is hard"
+  ],
+  "topic": "cast",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "them": [
+   "the one {name} goes home to",
+   "the one who starts things",
+   "the one who thinks ahead for you both",
+   "the one who stays when it is hard"
+  ],
+  "dims": [
+   "trust",
+   "spark",
+   "judgement",
+   "constancy"
+  ],
   "active": false
  },
  {
@@ -15801,7 +15927,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "justworld",
   "test": null
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "lq-time-0",
   "surface": "test",
@@ -15873,9 +16001,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "patience",
   "test": null
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "lq-time-4",
   "surface": "test",
@@ -19685,7 +19811,9 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 81,
   "k": "Identical twins: all DNA"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "learn-gene8",
   "surface": "learn",
@@ -19769,9 +19897,7 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 64,
   "k": "Skin is the largest organ"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-body4",
   "surface": "learn",

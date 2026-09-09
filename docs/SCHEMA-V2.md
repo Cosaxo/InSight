@@ -653,7 +653,7 @@ answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_r{n} — one per ROUND, ROUNDS-PLAN /
-D426) with extra fields gid/round/guessIdx (plus pickUid on a "pick"
+D426) with extra fields gid/round/guessIdx — the guess a 1v1's only: a group answer carries none, and the rules refuse one there (D432) — (plus pickUid on a "pick"
 round, D224 — a current member's uid, rules-validated; plus `late: true`
 on an answer to a round that has already revealed, which then carries no
 guess — §4 of the plan) — and they are
@@ -742,7 +742,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (1215 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1223 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -819,7 +819,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (1215 docs) caches in localStorage keyed by
+everything. The question bank (1223 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -854,7 +854,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 204 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 205 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

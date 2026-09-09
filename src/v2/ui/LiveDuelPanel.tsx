@@ -692,7 +692,7 @@ function LdInvites({ mode }: { mode?: string }) {
               <span aria-label="open seat" style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box", border: `1.5px dashed color-mix(in oklch, ${acc} 72%, transparent)` }} />
             </span>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
-              {want === "duo" ? `answer, then guess ${firstName(inv.fromName) || "their"}${firstName(inv.fromName) ? "’s" : ""}` : "everyone answers blind, then calls the room"}
+              {want === "duo" ? `answer, then guess ${firstName(inv.fromName) || "their"}${firstName(inv.fromName) ? "’s" : ""}` : "everyone answers blind; the room names one of you"}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -994,14 +994,14 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
   const iCalled = comparable && (mine as RevealVote).guessIdx === (theirs as RevealVote).optionIdx;
   const theyCalled = comparable && (theirs as RevealVote).guessIdx === (mine as RevealVote).optionIdx;
 
-  // The room's verdict (D386): the option(s) most of the room landed on,
-  // read against your call — a room of one is you, so it needs two.
+  // The room's verdict: the option(s) most of the room landed on — a room
+  // of one is you, so it needs two. Nothing is read against a call any
+  // more: nothing in a group is called (D432), and D386's *you called it*
+  // went with the tap that made it.
   const tally = revealTally(reveal, opts.length);
   const counted = tally.reduce((a, r) => a + r.uids.length, 0);
   const top = tally.length ? Math.max(...tally.map((r) => r.uids.length)) : 0;
   const winners = tally.filter((r) => r.uids.length === top).map((r) => r.optionIdx);
-  const myCall = mine && !mine.late && onQ(uid) && typeof mine.guessIdx === "number" ? mine.guessIdx : null;
-  const roomHit = myCall != null && counted >= 2 && winners.includes(myCall);
   // WHO a crowned option names, on a role vote: the D224 snapshots the
   // counted votes carry, when they agree — never the index, which the
   // roster remaps (the hazard D204 priced). A snapshot-less option falls
@@ -1197,8 +1197,8 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
     );
   }
 
-  // The verdict and the call, on one line — a group's: where the room
-  // landed, and whether you called it. A 1v1's calls are in its table.
+  // The verdict, on one line — a group's: where the room landed. A 1v1's
+  // calls are in its table.
   // A role vote's verdict names the cast — *Ada is the mastermind*, or
   // *Ada and Bo share the mastermind · contested* — and a rating's says
   // where the group landed between its poles, with the 0–100 beside it.
@@ -1218,11 +1218,6 @@ function LdReveal({ g, reveal, browsed }: { g: LiveGroup; reveal: LiveReveal; br
             : <span key="v"><b style={{ color: ink }}>{castName(w)}</b> {castUid(w) === uid ? "are" : "is"} <b>{cq.role.label}</b></span>);
       } else {
         parts.push(<span key="v">{"The room landed on " + winners.map((i) => labelIn(opts, i)).join(" · ")}</span>);
-      }
-      if (myCall != null) {
-        parts.push(roomHit
-          ? <span key="c" style={{ fontWeight: 800, color: good }}><span aria-label="called it">✓</span> you called it</span>
-          : <span key="c" style={{ fontWeight: 800, color: MISS }}>{"you called " + labelIn(opts, myCall)}</span>);
       }
     }
     if (!parts.length) return null;
@@ -1652,8 +1647,6 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
         me = namesMe ? 1 : 0;
         color = bq.scen ? scenInk(bq.scen) : undefined;
         title = namesMe ? `the room named you ${bq.role.label}` : `the room named someone else ${bq.role.label}`;
-      } else if (typeof v.guessIdx === "number" && counted >= 2) {
-        me = crowns.some((x) => x.optionIdx === v.guessIdx) ? 1 : 0;
       }
     }
     youDots.push({ k: me, aria: title ? `${rn}${when} — ${title}` : aria(me), at: i + 1, ...(color ? { color } : {}) });
@@ -1819,15 +1812,20 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
       ) : (
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
+            // A 1v1 answers, then guesses (the morph below); a GROUP round
+            // seals on the one tap — nothing in a group is called (D432,
+            // the owner's 2026-09-09 brief), and the rules refuse a guess
+            // on the group surface, so a second tap here would be a write
+            // the table throws back.
             <LdOption key={i} label={o} tint={tint} disabled={busy} lead={optionLead(i)}
-              onClick={() => setPick(i)} />
+              onClick={() => (duo ? setPick(i) : void seal(i))} />
           ))}
         </div>
       )}
       {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
     </div>
   );
-  const guessBlock = q && pick != null && (
+  const guessBlock = duo && q && pick != null && (
     <div style={{ ...col(12), animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" }} key="guess">
       <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
         You picked <b style={{ color: "var(--ink)", fontWeight: 800 }}>{q.options[pick]}</b>.
@@ -1836,7 +1834,7 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
         {duo
           ? <DuelAv uid={themUid} name={names[themUid]} size={38} />
           : <GroupMark gid={g.id} name={g.name} size={38} />}
-        <div style={serif(27)}>{duo ? "And " + themName + " picked…?" : "And the room lands on…?"}</div>
+        <div style={serif(27)}>{"And " + themName + " picked…?"}</div>
       </div>
       <div style={col(9)}>
         {q.options.map((o: string, i: number) => (
@@ -2018,7 +2016,7 @@ function LdFirstRun({ mode, pendingCode, onCodeDone }: { mode?: string; pendingC
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-                {duo ? `Your guess at ${who || "their"}${who ? "’s" : ""} answer` : "Your call on where the room lands"}
+                {duo ? `Your guess at ${who || "their"}${who ? "’s" : ""} answer` : "Who the room names, round by round"}
               </span>
               <span aria-hidden="true" style={{ display: "flex", gap: 3, alignItems: "center" }}>
                 {Array.from({ length: 7 }, (_, k) => (

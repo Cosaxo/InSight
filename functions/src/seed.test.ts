@@ -120,6 +120,9 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(q.scen ? { scen: q.scen } : {}),
     ...(q.role ? { role: q.role } : {}),
     ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
+    // The cast round (D432): them and dims, in SEEDED_FIELDS too.
+    ...(Array.isArray(q.them) ? { them: q.them } : {}),
+    ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
     ...(typeof q.bg === "string" ? { bg: q.bg } : {}),
     ...(typeof q.c === "number" ? { c: q.c } : {}),
     ...(typeof q.t === "number" ? { t: q.t } : {}),

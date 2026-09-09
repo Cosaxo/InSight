@@ -95,7 +95,8 @@
       "scen": "heist",
       "role": {
         "id": "mastermind",
-        "label": "the mastermind"
+        "label": "the mastermind",
+        "seat": "engine"
       },
       "prompt": "Who plans the whole thing?"
     },
@@ -105,7 +106,8 @@
       "scen": "heist",
       "role": {
         "id": "driver",
-        "label": "the getaway driver"
+        "label": "the getaway driver",
+        "seat": "hands"
       },
       "prompt": "Who drives the getaway car?"
     },
@@ -115,7 +117,8 @@
       "scen": "heist",
       "role": {
         "id": "inside",
-        "label": "the inside man"
+        "label": "the inside man",
+        "seat": "heart"
       },
       "prompt": "Who charms their way inside?"
     },
@@ -135,7 +138,8 @@
       "scen": "heist",
       "role": {
         "id": "crack",
-        "label": "first to crack"
+        "label": "first to crack",
+        "seat": "wild"
       },
       "prompt": "Who confesses after one question?"
     },
@@ -145,7 +149,8 @@
       "scen": "island",
       "role": {
         "id": "fire",
-        "label": "the fire-keeper"
+        "label": "the fire-keeper",
+        "seat": "engine"
       },
       "prompt": "Who keeps the fire going?"
     },
@@ -155,7 +160,8 @@
       "scen": "island",
       "role": {
         "id": "food",
-        "label": "the food-finder"
+        "label": "the food-finder",
+        "seat": "hands"
       },
       "prompt": "Who finds something to eat?"
     },
@@ -175,7 +181,8 @@
       "scen": "island",
       "role": {
         "id": "morale",
-        "label": "the morale officer"
+        "label": "the morale officer",
+        "seat": "heart"
       },
       "prompt": "Who keeps spirits up?"
     },
@@ -185,7 +192,8 @@
       "scen": "island",
       "role": {
         "id": "loseit",
-        "label": "first to lose it"
+        "label": "first to lose it",
+        "seat": "wild"
       },
       "prompt": "Who talks to a coconut first?"
     },
@@ -329,6 +337,30 @@
         "Advice",
         "A favour"
       ]
+    },
+    {
+      "id": "056",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you tell first",
+        "the one who gets you out the door",
+        "the one you ask what to do",
+        "the one who is just always there"
+      ],
+      "them": [
+        "the one {name} tells first",
+        "the one who gets {name} out the door",
+        "the one {name} asks what to do",
+        "the one who is just always there"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
+      ]
     }
   ],
   "romantic": [
@@ -460,6 +492,31 @@
         "Yes",
         "Open to it",
         "No"
+      ],
+      "active": false
+    },
+    {
+      "id": "057",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you go home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "them": [
+        "the one {name} goes home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
       ],
       "active": false
     }

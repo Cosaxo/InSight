@@ -3740,6 +3740,9 @@ const SOCIAL = {
         ...(q.scen ? { scen: q.scen } : {}),
         ...(q.role ? { role: q.role } : {}),
         ...(q.poles ? { poles: q.poles } : {}),
+        // …and a cast round's them forms and axes (D432).
+        ...(q.them ? { them: q.them } : {}),
+        ...(q.dims ? { dims: q.dims } : {}),
       };
     }
     // HISTORY ONLY. For one day (2026-09-08, ROUNDS-PLAN §6.2) even rounds

@@ -52,7 +52,11 @@ describe("the duel sample (D430)", () => {
         const want = ids(bank[pool].filter((q) => q.d === d)).slice(0, PER_DOMAIN);
         expect(ids(s[pool].filter((q) => q.d === d)), `${pool} · ${d}`).toEqual(want);
       }
-      expect(s[pool].length).toBe(domains.length * PER_DOMAIN);
+      // …and a domain the bank holds fewer of than PER_DOMAIN — the cast
+      // round, one a pool (D432) — is taken whole, never padded.
+      expect(s[pool].length).toBe(
+        domains.reduce((n, d) => n + Math.min(PER_DOMAIN, bank[pool].filter((q) => q.d === d).length), 0),
+      );
     }
     // The romantic pool ships dark on live (D40 part 4) and the demo draws
     // it regardless, so its flags ride along untouched — a slice, never a

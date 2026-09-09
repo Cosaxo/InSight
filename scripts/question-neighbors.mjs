@@ -162,6 +162,13 @@ export const ALLOW = new Map([
   // word (D429), so it is recorded here rather than reworded to dodge a
   // lexical measure — the header's own rule.
   ["gp5~gs7", "a role vote against a rating: `runs`+`group` is the whole overlap, and the answer spaces are a person and a scale"],
+  // The two cast rounds (D432) — 056 in the friends pool, 057 in the
+  // romantic pool — carry the same prompt by design, *Most days, {name}
+  // is…*, and differ in their four answers, which are the whole question. A
+  // pair only ever draws from one pool (`mode`), so the two are never
+  // neighbours in anyone's rotation; check:content keys its duplicate rule
+  // by pool for the same reason.
+  ["056~057", "the cast round, one per 1v1 pool: the same prompt over disjoint pools, the answers are the question"],
 ]);
 
 export const GATE = 0.5;

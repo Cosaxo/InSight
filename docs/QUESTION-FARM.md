@@ -931,17 +931,23 @@ for a duel run:
   → deep; append deep. Ids continue each series (group: `gr` for a role
   vote, `gs` for a rating — the older gu/gp/gd series are closed; 1v1:
   the next `NNN` suffix, shared across `oneVsOne` and `romantic` — they
-  are one `duo-NNN` id namespace).
+  are one `duo-NNN` id namespace). **The cast round is not the lane's**:
+  each 1v1 pool holds exactly one `"kind": "cast"` entry (`056`, `057` —
+  *Most days, {name} is…*, D432), dealt every fourth round; never write
+  another, and never give an ordinary 1v1 entry `them` or `dims`.
 - **The group is a CAST (D429, the owner's 2026-09-08 design —
   `docs/VISION-2026-09-08.md`).** A group question is one of two kinds
   now. A **role vote** is a `pick` (no options — the members are the
   options) tagged with the scenario pack it belongs to (`"scen":
   "<pack id>"`, one of the packs in the file's top-level `scenarios`:
   Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip) and
-  the role it casts (`"role": { "id", "label" }` — *the mastermind*,
-  said of a person in front of their group, so `COPY.md` §3 applies
-  word by word). A new pack is four roles and a hue, added to
-  `scenarios` first. A **rating** is `"kind": "rate"` with two
+  the role it casts (`"role": { "id", "label", "seat" }` — *the
+  mastermind*, said of a person in front of their group, so `COPY.md`
+  §3 applies word by word; the **seat** is `engine` · `hands` · `heart`
+  · `wild`, what a member's received votes cluster into — D432). A new
+  pack is **four roles, one a seat**, and a hue, added to `scenarios`
+  first; `check:content` refuses a pack with two roles in one seat or a
+  seat empty. A **rating** is `"kind": "rate"` with two
   `"poles"` and no options — the seed derives the five step labels
   (*Calm · mostly Calm · in between · mostly Chaos · Chaos*), so a pole
   has to read as a step's end word. The live rotation deals three role

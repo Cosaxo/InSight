@@ -1528,19 +1528,44 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // still bounded by the member count
     await assertFails(setDoc(
       doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
-
-    // …and the SAME for guessIdx, which is the half this test did not
-    // cover when it was written: the fixture above never set the field, so
-    // `guessIdx < 20` survived beside the widened optionIdx bound and
-    // members 21-32 stayed unguessable on every pick day. A guess names an
-    // option, so it takes the option bound — no more, no less.
-    await assertSucceeds(setDoc(
-      doc(asUser("m2"), "v2_users", "m2", "answers", aid), duel(0, 31)));
+    // The guess half of this test — `guessIdx` taking the same widened
+    // bound, so members 21–32 were guessable on a pick day — is gone with
+    // the call (D432): a group answer may not carry guessIdx at all, in or
+    // out of bounds, and the case after this one pins that. So the one
+    // index bound on a group answer is optionIdx's; absent stays legal.
     await assertFails(setDoc(
-      doc(asUser("m3"), "v2_users", "m3", "answers", aid), duel(0, 32)));
-    // absent stays legal — the rule reads through .get("guessIdx", 0)
+      doc(asUser("m2"), "v2_users", "m2", "answers", aid), duel(0, 31)));
     await assertSucceeds(setDoc(
       doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
+  });
+
+  it("a group answer carries no guess — nothing in a group is called (D432); a 1v1's still does", async () => {
+    // The owner's 2026-09-09 brief: "The room casts roles and rates itself;
+    // that's all." D386's call on where the room lands was admitted here
+    // for a week; a group answer that carries one is refused now, so the
+    // rule is the table's and not the card's manners. The 1v1's guess —
+    // at what the other person said — is untouched, and the control below
+    // is what keeps this test from passing on a broken duo arm.
+    const GID = "g_nocall";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-vote0"), {
+        surface: "group", seq: 0, type: "pick", prompt: "Who plans the whole thing?", options: [],
+      });
+      await setDoc(doc(db, "v2_questions", "duo-own0"), {
+        surface: "duo", seq: 0, type: "binary", prompt: "Which?", options: ["a", "b"],
+      });
+      await setDoc(doc(db, "v2_groups", GID), { name: "Room", mode: "group", memberUids: ["m0", "m1", "m2"] });
+      await setDoc(doc(db, "v2_groups", "d_call"), { name: "Pair", mode: "duo", memberUids: ["m0", "m1"] });
+    });
+    const answer = (gid: string, qid: string, surface: string, extra: Record<string, unknown>) => ({
+      qid, surface, optionIdx: 0, gid, round: 1, answeredAt: serverTimestamp(), anchors: {}, ...extra,
+    });
+    await assertFails(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", `g_${GID}_r1`), answer(GID, "group-vote0", "group", { guessIdx: 1 })));
+    await assertSucceeds(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", `g_${GID}_r1`), answer(GID, "group-vote0", "group", {})));
+    await assertSucceeds(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", "g_d_call_r1"), answer("d_call", "duo-own0", "duo", { guessIdx: 1 })));
   });
 
   it("a pick answer may snapshot WHO the index meant, and only honestly (D224)", async () => {

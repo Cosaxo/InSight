@@ -457,7 +457,10 @@ for (const q of entries) {
 const promptsBySurface = new Map();
 for (const q of entries) {
   if (q.active === false) continue;
-  const key = `${q.surface}\u0000${q.prompt}`;
+  // A cast round exists once per 1v1 POOL with the same prompt by design
+  // (D432): the friends and romantic pools are disjoint (`mode`), and a
+  // pair only ever draws from one of them — so the key carries the mode.
+  const key = `${q.surface}\u0000${q.topic === "cast" ? `${q.mode ?? ""}\u0000` : ""}${q.prompt}`;
   if (promptsBySurface.has(key)) {
     errors.push(`${q.id}: duplicate prompt within ${q.surface} (also ${promptsBySurface.get(key)})`);
   }
@@ -486,6 +489,12 @@ for (const q of entries) {
     errors.push(`${q.id}: domain ${JSON.stringify(q.domain)} on a non-catalog question`);
   }
 }
+
+// The seats a role is cast in and the axes a cast round names (D432) — the
+// two instruments' dims, closed here so a bank entry cannot invent one the
+// fold does not know (data/roles.ts reads both literally).
+const SEATS = ["engine", "hands", "heart", "wild"];
+const AXES = ["trust", "spark", "judgement", "constancy"];
 
 // ---- group kinds are a closed set (the reveal renders each differently).
 // `rate` joined at D429 (the owner's 2026-09-08 design): a five-step scale
@@ -522,6 +531,31 @@ for (const q of entries) {
   if (q.role && (typeof q.role.id !== "string" || typeof q.role.label !== "string")) {
     errors.push(`${q.id}: role needs id and label`);
   }
+  // The SEAT (D432): what a member's received votes cluster into, so a
+  // role without one is a vote the instrument cannot count.
+  if (q.role && !SEATS.includes(q.role.seat)) {
+    errors.push(`${q.id}: role seat ${JSON.stringify(q.role.seat)} not ${SEATS.join("/")}`);
+  }
+}
+
+// ---- every pack is ONE role per seat (D432): the seats are what the group
+// instrument measures, and a pack with two hands and no heart would cast
+// its members into a seat nobody can earn there — which is exactly the
+// dead-axis shape D204 spent a release refusing. Over ACTIVE role votes:
+// a retired role is not dealt and its replacement carries the seat.
+{
+  const byPack = new Map();
+  for (const q of entries) {
+    if (q.surface !== "group" || !q.scen || !q.role || q.active === false) continue;
+    if (!byPack.has(q.scen.id)) byPack.set(q.scen.id, []);
+    byPack.get(q.scen.id).push(q);
+  }
+  for (const [pack, roles] of byPack) {
+    for (const seat of SEATS) {
+      const n = roles.filter((q) => q.role.seat === seat).length;
+      if (n !== 1) errors.push(`pack ${pack}: ${n} active roles in the ${seat} seat, want exactly one`);
+    }
+  }
 }
 
 // ---- 1v1 domains are a closed set too (D386). The roles fold reads the
@@ -529,10 +563,29 @@ for (const q of entries) {
 // and is held apart from likeness and insight — so a 1v1 question with no
 // domain, or a new word nobody taught the fold, would be scored as
 // something it is not. Both pools, since they share the surface.
-const DUO_DOMAINS = ["day", "heat", "mirror", "ahead"];
+// `cast` joined at D432 (the owner's 2026-09-09 design): the round that asks
+// what the other person is to you, one entry per pool, dealt every fourth
+// round. Its shape is held here because the card, the fold and the roles
+// instrument all read it literally — four answers, four *them* forms, four
+// axes from the instrument's closed set, and a prompt that carries the
+// `{name}` the card substitutes.
+const DUO_DOMAINS = ["day", "heat", "mirror", "ahead", "cast"];
 for (const q of entries) {
-  if (q.surface === "duo" && !DUO_DOMAINS.includes(q.topic)) {
-    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead`);
+  if (q.surface !== "duo") continue;
+  if (!DUO_DOMAINS.includes(q.topic)) {
+    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead/cast`);
+  }
+  if (q.topic === "cast") {
+    if (!Array.isArray(q.options) || q.options.length !== 4) errors.push(`${q.id}: a cast round has four answers`);
+    if (!Array.isArray(q.them) || q.them.length !== 4 || q.them.some((t) => typeof t !== "string" || !t.trim())) {
+      errors.push(`${q.id}: a cast round needs four them forms`);
+    }
+    if (!Array.isArray(q.dims) || q.dims.length !== 4 || q.dims.some((d, i) => d !== AXES[i])) {
+      errors.push(`${q.id}: a cast round's dims are ${AXES.join(" · ")}, in that order`);
+    }
+    if (!/\{name\}/.test(q.prompt)) errors.push(`${q.id}: a cast prompt carries {name}`);
+  } else if (q.them !== undefined || q.dims !== undefined) {
+    errors.push(`${q.id}: them/dims on a ${q.topic} question — only a cast round has them`);
   }
 }
 

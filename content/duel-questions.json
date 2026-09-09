@@ -262,7 +262,8 @@
       "scen": "heist",
       "role": {
         "id": "mastermind",
-        "label": "the mastermind"
+        "label": "the mastermind",
+        "seat": "engine"
       },
       "prompt": "Who plans the whole thing?"
     },
@@ -272,7 +273,8 @@
       "scen": "heist",
       "role": {
         "id": "driver",
-        "label": "the getaway driver"
+        "label": "the getaway driver",
+        "seat": "hands"
       },
       "prompt": "Who drives the getaway car?"
     },
@@ -282,7 +284,8 @@
       "scen": "heist",
       "role": {
         "id": "inside",
-        "label": "the inside man"
+        "label": "the inside man",
+        "seat": "heart"
       },
       "prompt": "Who charms their way inside?"
     },
@@ -302,7 +305,8 @@
       "scen": "heist",
       "role": {
         "id": "crack",
-        "label": "first to crack"
+        "label": "first to crack",
+        "seat": "wild"
       },
       "prompt": "Who confesses after one question?"
     },
@@ -312,7 +316,8 @@
       "scen": "island",
       "role": {
         "id": "fire",
-        "label": "the fire-keeper"
+        "label": "the fire-keeper",
+        "seat": "engine"
       },
       "prompt": "Who keeps the fire going?"
     },
@@ -322,7 +327,8 @@
       "scen": "island",
       "role": {
         "id": "food",
-        "label": "the food-finder"
+        "label": "the food-finder",
+        "seat": "hands"
       },
       "prompt": "Who finds something to eat?"
     },
@@ -342,7 +348,8 @@
       "scen": "island",
       "role": {
         "id": "morale",
-        "label": "the morale officer"
+        "label": "the morale officer",
+        "seat": "heart"
       },
       "prompt": "Who keeps spirits up?"
     },
@@ -352,7 +359,8 @@
       "scen": "island",
       "role": {
         "id": "loseit",
-        "label": "first to lose it"
+        "label": "first to lose it",
+        "seat": "wild"
       },
       "prompt": "Who talks to a coconut first?"
     },
@@ -362,7 +370,8 @@
       "scen": "sitcom",
       "role": {
         "id": "main",
-        "label": "the main character"
+        "label": "the main character",
+        "seat": "engine"
       },
       "prompt": "Who is the main character?"
     },
@@ -382,7 +391,8 @@
       "scen": "sitcom",
       "role": {
         "id": "comic",
-        "label": "the comic relief"
+        "label": "the comic relief",
+        "seat": "heart"
       },
       "prompt": "Who gets the laugh track?"
     },
@@ -392,7 +402,8 @@
       "scen": "sitcom",
       "role": {
         "id": "deadpan",
-        "label": "the deadpan one"
+        "label": "the deadpan one",
+        "seat": "hands"
       },
       "prompt": "Who delivers the dry one-liners?"
     },
@@ -402,7 +413,8 @@
       "scen": "sitcom",
       "role": {
         "id": "twist",
-        "label": "the plot twist"
+        "label": "the plot twist",
+        "seat": "wild"
       },
       "prompt": "Whose life is the plot twist?"
     },
@@ -422,9 +434,10 @@
       "scen": "zombie",
       "role": {
         "id": "leader",
-        "label": "the reluctant leader"
+        "label": "the reluctant leader",
+        "seat": "engine"
       },
-      "prompt": "Who ends up in charge?"
+      "prompt": "Who ends up leading?"
     },
     {
       "id": "gr13",
@@ -432,9 +445,11 @@
       "scen": "zombie",
       "role": {
         "id": "hoarder",
-        "label": "the supply hoarder"
+        "label": "the supply hoarder",
+        "seat": "hands"
       },
-      "prompt": "Who already has a stockpile?"
+      "prompt": "Who already has a stockpile?",
+      "active": false
     },
     {
       "id": "gr14",
@@ -442,7 +457,8 @@
       "scen": "zombie",
       "role": {
         "id": "scout",
-        "label": "the scout"
+        "label": "the scout",
+        "seat": "hands"
       },
       "prompt": "Who goes out for the supply run?"
     },
@@ -462,7 +478,8 @@
       "scen": "zombie",
       "role": {
         "id": "bitten",
-        "label": "first one bitten"
+        "label": "first one bitten",
+        "seat": "wild"
       },
       "prompt": "Who pets the zombie dog?"
     },
@@ -472,7 +489,8 @@
       "scen": "roadtrip",
       "role": {
         "id": "wheel",
-        "label": "the driver"
+        "label": "the driver",
+        "seat": "engine"
       },
       "prompt": "Who takes the wheel?"
     },
@@ -482,7 +500,8 @@
       "scen": "roadtrip",
       "role": {
         "id": "dj",
-        "label": "the DJ"
+        "label": "the DJ",
+        "seat": "heart"
       },
       "prompt": "Who controls the music?"
     },
@@ -502,7 +521,8 @@
       "scen": "roadtrip",
       "role": {
         "id": "nav",
-        "label": "the navigator"
+        "label": "the navigator",
+        "seat": "hands"
       },
       "prompt": "Who knows the way — or says so?"
     },
@@ -512,9 +532,11 @@
       "scen": "roadtrip",
       "role": {
         "id": "snacks",
-        "label": "the snack captain"
+        "label": "the snack captain",
+        "seat": "heart"
       },
-      "prompt": "Who packed the snacks?"
+      "prompt": "Who packed the snacks?",
+      "active": false
     },
     {
       "id": "gs6",
@@ -555,6 +577,28 @@
         "Same, but older",
         "A yearly reunion"
       ]
+    },
+    {
+      "id": "gr20",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "medic",
+        "label": "the medic",
+        "seat": "heart"
+      },
+      "prompt": "Who patches everyone up?"
+    },
+    {
+      "id": "gr21",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "stops",
+        "label": "the hourly stop",
+        "seat": "wild"
+      },
+      "prompt": "Who needs to pull over every hour?"
     }
   ],
   "oneVsOne": [
@@ -875,6 +919,30 @@
         "Concede on the spot",
         "Quietly change course"
       ]
+    },
+    {
+      "id": "056",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you tell first",
+        "the one who gets you out the door",
+        "the one you ask what to do",
+        "the one who is just always there"
+      ],
+      "them": [
+        "the one {name} tells first",
+        "the one who gets {name} out the door",
+        "the one {name} asks what to do",
+        "the one who is just always there"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
+      ]
     }
   ],
   "romantic": [
@@ -1141,6 +1209,31 @@
         "The adventures",
         "The quiet steadiness",
         "The double act"
+      ],
+      "active": false
+    },
+    {
+      "id": "057",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you go home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "them": [
+        "the one {name} goes home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
       ],
       "active": false
     }
