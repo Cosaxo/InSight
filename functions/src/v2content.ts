@@ -12381,6 +12381,45 @@ const BANK_2: V2SeedQuestion[] = [
   ]
  },
  {
+  "id": "feed-n18",
+  "surface": "feed",
+  "seq": 453,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The foldable iPhone is expected on stage today. A phone that opens like a book: would you carry one?",
+  "options": [
+   "Sold on the fold",
+   "When the price folds too",
+   "Flat suits me fine"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-09",
+  "until": "2026-09-15",
+  "bg": "Apple’s ‘Surprise and shine’ keynote on 9 September 2026 — the first under new CEO John Ternus — is expected to introduce the company’s first folding phone alongside the iPhone 18 Pro: book-style, opening to a roughly 7.8-inch screen, priced above $2,000."
+ },
+ {
+  "id": "feed-n19",
+  "surface": "feed",
+  "seq": 454,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A million-person study ties 1,260 DNA variants to personality. What made you you — mostly genes, or mostly life?",
+  "options": [
+   "Mostly genes",
+   "Mostly life",
+   "A tangle you can’t split",
+   "Whatever I make myself"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-09",
+  "until": "2026-09-16",
+  "bg": "Published in Nature this week: the largest genetic study of personality yet links 1,260 DNA variants to the Big Five traits, drawing on more than a million people. No single variant is decisive — the effects are thousands of small nudges, tangled with experience."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -12463,7 +12502,9 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "fav",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk14",
   "surface": "feed",
@@ -12487,9 +12528,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "fav",
   "axis": null,
   "test": null
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "pick-pk16",
   "surface": "feed",
@@ -15791,7 +15830,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "circle",
   "test": "values"
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-values-21",
   "surface": "test",
@@ -15827,9 +15868,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "hedonism",
   "test": "values"
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-23",
   "surface": "test",
@@ -19569,7 +19608,9 @@ const BANK_4: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "selfdiscipline",
   "invert": true
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-big5-141",
   "surface": "test",
@@ -19607,9 +19648,7 @@ const BANK_4: V2SeedQuestion[] = [
   "axis": "C",
   "test": "big5",
   "facet": "cautiousness"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-143",
   "surface": "test",
@@ -23771,7 +23810,9 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 40,
   "k": "Pyramid builders were paid",
   "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "learn-anc18",
   "surface": "learn",
@@ -23815,9 +23856,7 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 35,
   "k": "Stomach relines in days",
   "w": "The acid would digest the stomach itself otherwise — the mucus lining turns over in under a week."
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-body15",
   "surface": "learn",
