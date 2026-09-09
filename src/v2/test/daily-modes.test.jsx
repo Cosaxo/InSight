@@ -59,13 +59,18 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     // the current group appears twice: once as a rail chip, once as the
     // card's own heading.
     expect(screen.getAllByText("The Crew").length, "the group rail drew no groups").toBeGreaterThan(0);
-    // …and the card body past it. The verdict line is what a revealed
-    // group duel resolves to, so it only exists if the card rendered its
-    // reveal arm rather than a shell.
+    // …and the card body past it. The last reveal is what a played round
+    // resolves to (D432: who the room named, or where it lands between
+    // two poles), so it only exists if the card rendered its reveal arm
+    // rather than a shell.
     expect(
       document.body.textContent,
       "Circle drew its rail but no revealed card underneath",
-    ).toMatch(/Group verdict/);
+    ).toMatch(/· revealed|closed at the deadline/);
+    expect(
+      document.body.textContent,
+      "the revealed round has no verdict line",
+    ).toMatch(/ is the | are the | share |The group lands on/);
     expectNoBoundary("daily · circle");
   });
 
@@ -74,14 +79,15 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     await switchTo("1v1");
     expect(screen.getAllByText("Henrik").length, "the partner rail drew no partners").toBeGreaterThan(0);
     // The 1v1 card's whole point is the pair of readings, and they are
-    // drawn by two different arms of the same card — asserting on one
-    // would pass on a card that lost the other.
-    const body = document.body.textContent;
-    expect(body, "the 1v1 card is missing your reading of them").toMatch(/you read Henrik/);
-    expect(body, "the 1v1 card is missing their reading of you").toMatch(/Henrik read you/);
-    // The streak, which comes from the duel store rather than from the
-    // card — a partner with no run would draw a card with no line here.
-    expect(body, "no run length on the 1v1 card").toMatch(/\d+-day run/);
+    // drawn as two runs on one axis (D432) — asserting on one would pass
+    // on a card that lost the other.
+    expect(screen.getAllByLabelText(/How well you read Henrik, one mark per round/).length,
+      "the 1v1 card is missing your reading of them").toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/How well Henrik reads you, one mark per round/).length,
+      "the 1v1 card is missing their reading of you").toBeGreaterThan(0);
+    // The record comes from the duel store rather than from the card — a
+    // partner with no run would draw a card with no reveal above the ask.
+    expect(document.body.textContent, "no revealed round on the 1v1 card").toMatch(/Round \d+\s*·\s*revealed/);
     expectNoBoundary("daily · 1v1");
   });
 });

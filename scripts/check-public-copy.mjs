@@ -305,9 +305,7 @@ export const RETIRED = [
 //
 // Scoped by FILE, not by pattern, because "days" is a fine word on the
 // privacy page and a wrong one on a reveal. The list is the live duel
-// surfaces today; the demo's ported family joins it as each module is
-// converted (VISION-2026-09-09 §7 step 6), because until then the demo
-// still narrates the old model and would fail on purpose.
+// surfaces and the demo's ported family (VISION-2026-09-09 §7 step 6).
 //
 // What the patterns leave alone, on purpose: a relative DATE ("3 days
 // ago" under a reveal is a timestamp, not the game's unit), the words as
@@ -319,6 +317,15 @@ export const DUEL_SURFACES = [
   "src/v2/ui/LiveRolesPanel.tsx",
   "src/v2/data/roles.ts",
   "src/v2/data/groupCast.ts",
+  // …and the demo's family, since the port that made it play rounds
+  // (D432 step 6): the store's copy, the two cards, the Groups stop, the
+  // role map, and the Map's People branch that reads the store.
+  "src/v2/spec/duels-data.js",
+  "src/v2/spec/group-daily.jsx",
+  "src/v2/spec/duo-daily.jsx",
+  "src/v2/spec/group-mirror.jsx",
+  "src/v2/spec/group-role-map.jsx",
+  "src/v2/spec/map-people.jsx",
 ];
 export const VOICE = [
   {

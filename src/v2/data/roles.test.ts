@@ -18,7 +18,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AXES, SEATS, blendRoles, castOf, duoRole, duoCastCount, groupRole, groupVoteCount, seatFor, seatTally,
-  isCastReveal, isRatingReveal, steadiness, MIN_DUO, MIN_GROUP, type BankLookup,
+  isCastReveal, isRatingReveal, MIN_DUO, MIN_GROUP, type BankLookup,
 } from "./roles";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_ARCHETYPES, IS_archScores, IS_matchArchetype } from "../spec/archetype-data.js";
@@ -220,14 +220,6 @@ describe("blendRoles", () => {
   it("returns null with nothing to blend", () => {
     expect(blendRoles([])).toBeNull();
     expect(blendRoles([{ n: 0, dims: [] }])).toBeNull();
-  });
-});
-
-describe("steadiness — kept for the demo's person page until it is ported", () => {
-  it("reads a clean run as steady and returns the neutral with nothing to flip", () => {
-    expect(steadiness([true, true, true])).toBe(100);
-    expect(steadiness([true, false, true])).toBe(0);
-    expect(steadiness([true])).toBe(50);
   });
 });
 

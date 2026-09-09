@@ -112,18 +112,6 @@ export interface RoleResult {
   dims: RoleDim[];
 }
 
-/**
- * A run's steadiness is its lack of flips. Not a dim of either instrument
- * since D432; kept for the demo layer's person page until it is ported
- * (VISION-2026-09-09 §7 step 6).
- */
-export function steadiness(arr: readonly boolean[]): number {
-  if (!arr || arr.length < 2) return 50;
-  let flips = 0;
-  for (let i = 1; i < arr.length; i++) if (arr[i] !== arr[i - 1]) flips++;
-  return clamp(100 - (flips / (arr.length - 1)) * 100);
-}
-
 // Oldest first by day, then by round — a room can reveal more than one
 // round in a day (ROUNDS-PLAN, D426), and "the latest" has to mean time.
 const byDay = <T extends { day?: string; round?: number }>(list: readonly T[]): T[] =>

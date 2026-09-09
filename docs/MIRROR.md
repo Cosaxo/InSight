@@ -224,9 +224,9 @@ is no side to have been on — and the words themselves are held out of
 the duel surfaces by `check:public-copy`'s voice list (rounds, never
 days; named, never crowned; no majority). Duos are excluded on purpose:
 a 1v1 has its own Mirror in the reveal, and a room of two names nobody
-the other did not. The demo body (`spec/group-mirror.jsx`) still draws
-the sample people and the old shape until step 6 of
-`docs/VISION-2026-09-09.md` ports the family.
+the other did not. The demo body (`spec/group-mirror.jsx` over
+`spec/duels-data.js`, re-ported from the same record at D432) draws the
+same stop from the sample people, so a demo build shows what live shows.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
 are within a few hundred metres (the 3x3 of 0.002° cells, ~600 m across
