@@ -131,7 +131,12 @@ describe("check:versions reads the version, not a comment above it", () => {
         "--fix rewrote the comment instead of the code",
       ).toMatch(/\/\/ was: versionCode 34 \/ versionName "2\.0\.0" before the downgrade/);
       // …and the live lines really moved.
-      expect(after).toMatch(/\n\s*versionCode 34\b/);
+      // …to the tree's OWN appBuild — read, not recalled. This line pinned
+      // "34" and failed the day the number moved (2026-09-09, the bump
+      // after build 35 went up), which is the hand-kept figure this repo
+      // keeps re-committing and check:figures refuses in the docs.
+      const appBuild = JSON.parse(readFileSync(join(tree, "package.json"), "utf8")).appBuild;
+      expect(after).toMatch(new RegExp(`\\n\\s*versionCode ${appBuild}\\b`));
       expect(after).toMatch(/\n\s*versionName "2\.0\.0"/);
       // The operator's own next step: a re-run without --fix agrees.
       expect(runGate(tree).code, "the gate still refuses after its own --fix").toBe(0);
