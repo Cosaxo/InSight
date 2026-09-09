@@ -959,7 +959,16 @@ export const createPaidCheckoutV2 = onCall(
     }
     const quote = snap.get("quote") as PaidQuote;
     const { default: Stripe } = await import("stripe");
-    const stripe = new Stripe(key);
+    // THE WIRE VERSION IS PINNED HERE, not inherited from the package.
+    //
+    // Unset, the SDK sends whatever `stripe/cjs/apiVersion.js` happens to
+    // carry — `2025-08-27.basil` at 18.5.0, which is what this value is. That
+    // makes a dependency bump a silent change to the API contract this
+    // account talks over: a major moves the default, every request starts
+    // speaking a different version of the API, and nothing in this repo says
+    // so. The package version and the wire version are two different
+    // decisions and only one of them is dependabot's.
+    const stripe = new Stripe(key, { apiVersion: "2025-08-27.basil" });
     await expirePriorSession(stripe, snap.get("stripe"), bid);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -1476,7 +1485,10 @@ export const closePaidCampaignsV2 = onSchedule(
           try {
             if (!stripe) {
               const { default: Stripe } = await import("stripe");
-              stripe = new Stripe(key);
+              // Same explicit wire version as the checkout site — the refund
+              // path must not drift onto a different API version from the
+              // charge it is refunding.
+              stripe = new Stripe(key, { apiVersion: "2025-08-27.basil" });
             }
             // ASK BEFORE PAYING, and pay idempotently. The refund moves
             // money and the purchase is marked closed AFTER it — so a
