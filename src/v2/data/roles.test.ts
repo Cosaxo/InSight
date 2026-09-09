@@ -214,6 +214,69 @@ describe("groupRole", () => {
   });
 });
 
+describe("the group as a cast (D429)", () => {
+  // A bank lookup with a role vote (a pick casting a role), a plain pick,
+  // and a rating between two poles.
+  const cast: BankLookup = (qid) => ({
+    r1: { kind: "pick", options: [], role: { id: "mastermind", label: "the mastermind" } },
+    r2: { kind: "pick", options: [], role: { id: "driver", label: "the getaway driver" } },
+    p1: { kind: "pick", options: [] },
+    s1: { kind: "rate", options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"] },
+  } as Record<string, { kind: string; options: string[]; role?: { id: string; label: string } }>)[qid] || null;
+  const vote = (d: string, qid: string, votes: Record<string, { optionIdx: number; pickUid?: string; guessIdx?: number }>) =>
+    ({ day: d, qid, votes, members: [ME, "a", "b"] });
+
+  it("a rating round leaves the instrument — the floor, the dims and the asides", () => {
+    // Two role votes and two ratings: the ratings would have made this a
+    // four-day record and put my "step" against the room's.
+    const hist = [
+      vote("2026-09-01", "r1", { [ME]: { optionIdx: 0, pickUid: ME }, a: { optionIdx: 0, pickUid: ME }, b: { optionIdx: 1, pickUid: "a" } }),
+      vote("2026-09-02", "s1", { [ME]: { optionIdx: 4 }, a: { optionIdx: 0 }, b: { optionIdx: 0 } }),
+      vote("2026-09-03", "r2", { [ME]: { optionIdx: 1, pickUid: "a" }, a: { optionIdx: 1, pickUid: "a" }, b: { optionIdx: 1, pickUid: "a" } }),
+      vote("2026-09-04", "s1", { [ME]: { optionIdx: 4 }, a: { optionIdx: 0 } }),
+    ];
+    const r = groupRole(hist, ME, cast)!;
+    expect(r.n).toBe(2);
+    const by = Object.fromEntries(r.dims.map((d) => [d.id, d]));
+    // both votes with the majority — the ratings' "away" steps counted nowhere
+    expect(by.own.note).toBe("away from the majority on 0 of 2 days");
+    // …and without a lookup the ratings read as ordinary days, which is
+    // what every reveal before the cast was
+    expect(groupRole(hist, ME)!.n).toBe(4);
+  });
+
+  it("Standing: the room naming you, scored against luck, as an aside", () => {
+    const hist = [
+      vote("2026-09-01", "r1", { [ME]: { optionIdx: 0, pickUid: ME }, a: { optionIdx: 0, pickUid: ME }, b: { optionIdx: 0, pickUid: ME } }), // crowned
+      vote("2026-09-02", "r2", { [ME]: { optionIdx: 1, pickUid: "a" }, a: { optionIdx: 1, pickUid: "a" }, b: { optionIdx: 1, pickUid: "a" } }), // a is
+      vote("2026-09-03", "p1", { [ME]: { optionIdx: 0, pickUid: ME }, a: { optionIdx: 0, pickUid: ME } }), // a plain pick casts no role
+    ];
+    const r = groupRole(hist, ME, cast)!;
+    const cast_ = r.asides!.find((x) => x.id === "cast")!;
+    expect(cast_.label).toBe("Standing");
+    expect(cast_.n).toBe(2);
+    expect(cast_.note).toBe("the room named you in 1 of 2 role votes");
+    // one hit, one miss on three-name rounds: (1 − 1/2) / 2 → 50 + 12.5
+    expect(cast_.value).toBe(63);
+    // still an aside — the tables do not carry it (the registry cases below)
+    expect(r.dims.some((d) => d.id === "cast")).toBe(false);
+  });
+
+  it("casts nobody when the snapshots disagree, and not on a room of one", () => {
+    const hist = [
+      vote("2026-09-01", "r1", { [ME]: { optionIdx: 0, pickUid: ME }, a: { optionIdx: 0, pickUid: "b" } }), // the counted votes name two people
+      vote("2026-09-02", "r2", { [ME]: { optionIdx: 0, pickUid: ME } }),                                   // a room of one
+      vote("2026-09-03", "r1", { [ME]: { optionIdx: 1, pickUid: "a" }, a: { optionIdx: 1, pickUid: "a" } }),
+    ];
+    const r = groupRole(hist, ME, cast)!;
+    const cast_ = r.asides!.find((x) => x.id === "cast")!;
+    // day 1 counts as a miss (the crown went to nobody — not to me), day 2
+    // is not counted, day 3 is a miss
+    expect(cast_.n).toBe(2);
+    expect(cast_.note).toBe("the room named you in 0 of 2 role votes");
+  });
+});
+
 // ── the chance scale (D386, ROLES-PLAN §3.2) ────────────────────────────
 describe("every rate is scored against luck", () => {
   const four: BankLookup = () => ({ options: ["a", "b", "c", "d"], kind: "day" });

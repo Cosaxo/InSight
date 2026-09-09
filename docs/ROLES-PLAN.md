@@ -363,6 +363,15 @@ row on the reveal, the reading as a receipt row (`asides` in
 against the option the room landed on); it becomes a matched dim with
 the table in step 4.
 
+**The owner's 2026-09-08 design supplies the pick days** (D429,
+`docs/VISION-2026-09-08.md`): twenty role votes in five scenario packs
+and a rating of the group every fourth round, so Standing is folded from
+three rounds in four rather than from the eight picks the bank had. It
+arrived as an aside (*the room named you in N of M role votes*, chance-
+scaled) — the tables are step 2 of that plan, and this section's
+`named` against the prototype's `cast` is the choice it puts to the
+owner.
+
 **Standing is the pick days.** Only votes carrying a D224 snapshot
 count, only when the counted votes agree (the `majorityPickUid` rule),
 and a pick day counts toward `named` only with three or more snapshot

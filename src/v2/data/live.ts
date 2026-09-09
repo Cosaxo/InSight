@@ -3732,7 +3732,16 @@ const SOCIAL = {
   },
   bankQ(qid: string) {
     const q = state.duelBank.find((x) => x.id === qid);
-    if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
+    if (q) {
+      // The cast's fields ride along (D429): the reveal card draws a role
+      // vote's pack and role and a rating's poles off this same door.
+      return {
+        id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic",
+        ...(q.scen ? { scen: q.scen } : {}),
+        ...(q.role ? { role: q.role } : {}),
+        ...(q.poles ? { poles: q.poles } : {}),
+      };
+    }
     // HISTORY ONLY. For one day (2026-09-08, ROUNDS-PLAN §6.2) even rounds
     // drew a feed question, and the reveals written that day name one. The
     // owner retired the feature the same day (D426's third amendment) and

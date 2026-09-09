@@ -107,8 +107,18 @@ export const MIRROR = "mirror";
 export interface BankEntryLike {
   options?: readonly string[] | null;
   kind?: string | null;
+  /** The role a pick casts (D429) — present on a role vote, absent on the
+   * older picks and on every other kind. */
+  role?: { id: string; label: string } | null;
 }
 export type BankLookup = (qid: string) => BankEntryLike | null | undefined;
+
+/** A rating round (D429): the reveal's question is the bank's `rate` kind.
+ * Exported so the Mirror's portrait and this fold read the same rule. */
+export function isRatingReveal(r: { qid?: string | null }, lookup?: BankLookup): boolean {
+  const q = lookup && r.qid ? lookup(r.qid) : null;
+  return !!q && q.kind === "rate";
+}
 
 /** A reveal as this fold reads it — the duel shape plus the roster the
  * reveal carries (who was in the group ON that day, SCHEMA-V2), which is
@@ -347,12 +357,20 @@ export function groupRole(
   myUid: string | null,
   lookup?: BankLookup,
 ): RoleResult | null {
-  const P = groupPortrait(reveals as PortraitReveal[], myUid);
+  // A RATING ROUND is the group about itself, not a reading of the room
+  // (D429): where its members put the group between two poles says
+  // nothing about who stands apart or who the room follows, so those
+  // rounds leave the instrument entirely — the floor, the dims and the
+  // asides. They fold elsewhere (`groupScores`, the Mirror's Scores lens).
+  // Without a lookup no round can be told apart, which is what every
+  // reveal before the cast was.
+  const votes_ = reveals.filter((r) => !isRatingReveal(r, lookup));
+  const P = groupPortrait(votes_ as PortraitReveal[], myUid);
   if (P.daysPlayed < MIN_GROUP || myUid == null) return null;
 
-  const own = tally(), pull = tally(), room = tally();
+  const own = tally(), pull = tally(), room = tally(), cast = tally();
   const majRun: boolean[] = [];
-  for (const r of byDay(reveals)) {
+  for (const r of byDay(votes_)) {
     const row: PortraitRow | null = portraitRow(r, myUid);
     if (!row || row.mine == null) continue;
     const votes = r.votes || {};
@@ -361,6 +379,19 @@ export function groupRole(
     const k = optionsOn(r as RevealLike, row.qid || "", lookup);
     count(own, row.withMajority, k);
     majRun.push(row.withMajority);
+    // STANDING (the prototype's `cast`, ROLES-PLAN §3.5's `named`): on a
+    // role vote — a pick whose bank entry casts a role — did the room name
+    // YOU? Read off the D224 snapshots, never the index: the crown is the
+    // option the counted votes agree names (`majorityPickUid`), and a
+    // round whose snapshots disagree or are missing casts nobody. Scored
+    // against luck like every other rate (a room of k names you by chance
+    // one time in k), and only when two or more answered — a room of one
+    // crowning itself is not a reading. An ASIDE until the tables carry it
+    // (D386's rule): drawn as a receipt row, blended, never matched.
+    const bq = lookup && row.qid ? lookup(row.qid) : null;
+    if (bq && bq.kind === "pick" && bq.role && row.total >= 2) {
+      count(cast, row.majorityPickUid === myUid, k);
+    }
     const rowQid = r.qid ?? null;
     const myQid = voteQid(mine, rowQid);
     for (const [uid, v] of Object.entries(votes)) {
@@ -378,6 +409,8 @@ export function groupRole(
   const asides: RoleAside[] = [];
   if (room.n) asides.push({ id: "room", label: "Reading the room", value: chanceValue(room), n: room.n,
     note: `called where the room landed ${room.hits} of ${room.n} times` });
+  if (cast.n) asides.push({ id: "cast", label: "Standing", value: chanceValue(cast), n: cast.n,
+    note: `the room named you in ${cast.hits} of ${cast.n} role votes` });
 
   return {
     n: P.daysPlayed,

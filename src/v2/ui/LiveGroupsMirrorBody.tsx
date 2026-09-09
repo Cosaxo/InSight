@@ -36,7 +36,7 @@ import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } fr
 // The floor the cross-group line stands on — the same one the Roles
 // instrument uses for a group reading, so "runs most like you" never
 // speaks from thinner history than a role would.
-import { MIN_GROUP } from "../data/roles";
+import { isRatingReveal, MIN_GROUP } from "../data/roles";
 import { likenessRate } from "../data/cohort";
 
 // The stop's constellation (D152) — shared with Circle and the cohort
@@ -352,7 +352,13 @@ function LiveGroupsMirrorBody() {
 
   if (!LIVE.enabled) return null;
 
-  const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : [];
+  // A RATING ROUND (D429) is the group about itself, not a pick of the
+  // room: its "majority" is a step on a scale, so it is out of every
+  // number this stop draws about landing with or against the room. It
+  // folds into the Scores lens when that lens is built (VISION-2026-09-08).
+  const notRating = (rs: PortraitReveal[]): PortraitReveal[] =>
+    rs.filter((r) => !isRatingReveal(r, (qid) => S.bankQ(qid) as { kind?: string } | null));
+  const reveals = g ? notRating(S.revealHistory(g.id) as unknown as PortraitReveal[]) : [];
   const P = g ? groupPortrait(reveals, LIVE.uid) : null;
 
   // "The Crew runs most like you" — the D287 line's groups half, said only
@@ -380,7 +386,7 @@ function LiveGroupsMirrorBody() {
     // group's own empty state; the fold simply never asked it.
     if (groups.some((x) => LIVE.social.revealHistoryLoading(x.id))) return null;
     const scored = groups
-      .map((x) => ({ x, p: groupPortrait(S.revealHistory(x.id) as unknown as PortraitReveal[], LIVE.uid) }))
+      .map((x) => ({ x, p: groupPortrait(notRating(S.revealHistory(x.id) as unknown as PortraitReveal[]), LIVE.uid) }))
       .filter((r) => r.p.daysPlayed >= MIN_GROUP);
     if (scored.length < 2) return null;
     // `likenessRate`, not the printed percentage — D277 §2's rule, and

@@ -1,4 +1,31 @@
 {
+  "scenarios": [
+    {
+      "id": "heist",
+      "label": "Bank Heist",
+      "hue": 25
+    },
+    {
+      "id": "island",
+      "label": "Desert Island",
+      "hue": 150
+    },
+    {
+      "id": "sitcom",
+      "label": "The Sitcom",
+      "hue": 285
+    },
+    {
+      "id": "zombie",
+      "label": "Zombie Plan",
+      "hue": 220
+    },
+    {
+      "id": "roadtrip",
+      "label": "Road Trip",
+      "hue": 60
+    }
+  ],
   "group": [
     {
       "id": "gu0",
@@ -44,7 +71,8 @@
         "Vote",
         "Let it slide",
         "Loudest wins"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gp1",
@@ -132,7 +160,8 @@
         "Scattered, still close",
         "Neighbours",
         "A yearly reunion"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gd6",
@@ -153,7 +182,8 @@
         "Memes",
         "Life updates",
         "Silence"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gp4",
@@ -177,7 +207,8 @@
       "options": [
         "One house",
         "Rooms apart"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gp5",
@@ -209,7 +240,8 @@
         "Slow to warm",
         "Full — sorry",
         "Depends who"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gd8",
@@ -223,6 +255,306 @@
       "id": "gp7",
       "kind": "pick",
       "prompt": "Who tells the same story every time, and it still lands?"
+    },
+    {
+      "id": "gr0",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "mastermind",
+        "label": "the mastermind"
+      },
+      "prompt": "Who plans the whole thing?"
+    },
+    {
+      "id": "gr1",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "driver",
+        "label": "the getaway driver"
+      },
+      "prompt": "Who drives the getaway car?"
+    },
+    {
+      "id": "gr2",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "inside",
+        "label": "the inside man"
+      },
+      "prompt": "Who charms their way inside?"
+    },
+    {
+      "id": "gs0",
+      "kind": "rate",
+      "dim": "pace",
+      "prompt": "This group’s energy?",
+      "poles": [
+        "Calm",
+        "Chaos"
+      ]
+    },
+    {
+      "id": "gr3",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "crack",
+        "label": "first to crack"
+      },
+      "prompt": "Who confesses after one question?"
+    },
+    {
+      "id": "gr4",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "fire",
+        "label": "the fire-keeper"
+      },
+      "prompt": "Who keeps the fire going?"
+    },
+    {
+      "id": "gr5",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "food",
+        "label": "the food-finder"
+      },
+      "prompt": "Who finds something to eat?"
+    },
+    {
+      "id": "gs1",
+      "kind": "rate",
+      "dim": "disagree",
+      "prompt": "When we disagree, we…",
+      "poles": [
+        "Talk it out",
+        "Loudest wins"
+      ]
+    },
+    {
+      "id": "gr6",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "morale",
+        "label": "the morale officer"
+      },
+      "prompt": "Who keeps spirits up?"
+    },
+    {
+      "id": "gr7",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "loseit",
+        "label": "first to lose it"
+      },
+      "prompt": "Who talks to a coconut first?"
+    },
+    {
+      "id": "gr8",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "main",
+        "label": "the main character"
+      },
+      "prompt": "Who is the main character?"
+    },
+    {
+      "id": "gs2",
+      "kind": "rate",
+      "dim": "late",
+      "prompt": "Our timekeeping?",
+      "poles": [
+        "Punctual",
+        "Always late"
+      ]
+    },
+    {
+      "id": "gr9",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "comic",
+        "label": "the comic relief"
+      },
+      "prompt": "Who gets the laugh track?"
+    },
+    {
+      "id": "gr10",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "deadpan",
+        "label": "the deadpan one"
+      },
+      "prompt": "Who delivers the dry one-liners?"
+    },
+    {
+      "id": "gr11",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "twist",
+        "label": "the plot twist"
+      },
+      "prompt": "Whose life is the plot twist?"
+    },
+    {
+      "id": "gs3",
+      "kind": "rate",
+      "dim": "plan",
+      "prompt": "A free evening with us is…",
+      "poles": [
+        "Planned",
+        "Spontaneous"
+      ]
+    },
+    {
+      "id": "gr12",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "leader",
+        "label": "the reluctant leader"
+      },
+      "prompt": "Who ends up in charge?"
+    },
+    {
+      "id": "gr13",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "hoarder",
+        "label": "the supply hoarder"
+      },
+      "prompt": "Who already has a stockpile?"
+    },
+    {
+      "id": "gr14",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "scout",
+        "label": "the scout"
+      },
+      "prompt": "Who goes out for the supply run?"
+    },
+    {
+      "id": "gs4",
+      "kind": "rate",
+      "dim": "door",
+      "prompt": "New person wants in. We are…",
+      "poles": [
+        "Open door",
+        "Full — sorry"
+      ]
+    },
+    {
+      "id": "gr15",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "bitten",
+        "label": "first one bitten"
+      },
+      "prompt": "Who pets the zombie dog?"
+    },
+    {
+      "id": "gr16",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "wheel",
+        "label": "the driver"
+      },
+      "prompt": "Who takes the wheel?"
+    },
+    {
+      "id": "gr17",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "dj",
+        "label": "the DJ"
+      },
+      "prompt": "Who controls the music?"
+    },
+    {
+      "id": "gs5",
+      "kind": "rate",
+      "dim": "say",
+      "prompt": "How much goes unsaid between us?",
+      "poles": [
+        "We say everything",
+        "Plenty unsaid"
+      ]
+    },
+    {
+      "id": "gr18",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "nav",
+        "label": "the navigator"
+      },
+      "prompt": "Who knows the way — or says so?"
+    },
+    {
+      "id": "gr19",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "snacks",
+        "label": "the snack captain"
+      },
+      "prompt": "Who packed the snacks?"
+    },
+    {
+      "id": "gs6",
+      "kind": "rate",
+      "dim": "candour",
+      "prompt": "How honest are we with each other?",
+      "poles": [
+        "Gentle",
+        "Brutal"
+      ]
+    },
+    {
+      "id": "gs7",
+      "kind": "rate",
+      "dim": "chat",
+      "prompt": "Our group chat runs on…",
+      "poles": [
+        "Plans",
+        "Nonsense"
+      ]
+    },
+    {
+      "id": "gs8",
+      "kind": "rate",
+      "dim": "space",
+      "prompt": "A group holiday: one house, or rooms apart?",
+      "poles": [
+        "One house",
+        "Rooms apart"
+      ]
+    },
+    {
+      "id": "gs9",
+      "kind": "rate",
+      "dim": "future",
+      "prompt": "In ten years, this group is…",
+      "poles": [
+        "Same, but older",
+        "A yearly reunion"
+      ]
     }
   ],
   "oneVsOne": [

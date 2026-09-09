@@ -591,6 +591,12 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The group as a cast (D429): a role vote's scenario pack and the
+      // role it casts, and a rating's two poles. Emit-when-set — the older
+      // group kinds and every other surface carry none of the three.
+      ...(q.scen ? { scen: q.scen } : {}),
+      ...(q.role ? { role: q.role } : {}),
+      ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
       // The instruments' deep items (D416): which sub-scale an item scores
       // and how it is keyed, on the document — the device joins these by
       // id rather than by prompt text, which is what keeps the 156 new

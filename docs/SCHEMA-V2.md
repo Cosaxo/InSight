@@ -46,8 +46,15 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                        paint. Absent on the 110 core items and the lenses
   topic, axis, test   metadata (test != null only on a test's own items;
                        topic is the feed's topic id, a group question's kind
-                       us|pick|classic, and since D386 a 1v1 question's
+                       us|pick|classic|rate, and since D386 a 1v1 question's
                        domain day|heat|mirror|ahead — the roles fold reads it)
+  scen?, role?        a group pick that casts a ROLE (D429): the scenario
+                       pack { id, label, hue } it belongs to and the role
+                       { id, label } it casts — the card's kicker, crown
+                       and verdict read them. Both or neither
+  poles?              a group `rate` question's two ends (D429); its
+                       `options` are the five step labels between them,
+                       derived at seed time, so the answer stays an index
   active: bool
   until?              feed only (D179): the UTC day after which the card
                       stops being SERVED. A client-side serving filter;
@@ -735,7 +742,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (1145 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1215 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -812,7 +819,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (1145 docs) caches in localStorage keyed by
+everything. The question bank (1215 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

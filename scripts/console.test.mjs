@@ -340,9 +340,12 @@ describe("the lists on this tree", () => {
     // a clock, and a 1v1 that reveals when the other person plays has
     // none — and the owner's canvas came back the same day, so it sits
     // under Built as item 12 (its number moved off the pictures' 11 at
-    // the merge): requested 10 again, built 4.
-    expect(v.requested.length).toBe(10);
-    expect(v.designed).toEqual([]);
+    // the merge): requested 10 again, built 4. Requested 9 and Designed 1
+    // since 2026-09-08 (D429): the owner's InSight_12 upload drew the
+    // group's cast — item 6 — so it moved under Designed, the section
+    // being the status; its build is step 3 of VISION-2026-09-08.md.
+    expect(v.requested.length).toBe(9);
+    expect(v.designed.length).toBe(1);
     expect(v.built.length).toBe(4);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);

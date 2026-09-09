@@ -437,21 +437,52 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
-  // Group array order is deliberately interleaved (us/pick/classic) — it is
-  // the rotation order. Never sort it. `pick` questions have no options
-  // (the group's members are the options, filled in client-side).
+  // Group array order is deliberately interleaved — it is the demo's
+  // rotation order. Never sort it. `pick` questions have no options (the
+  // group's members are the options, filled in client-side).
+  //
+  // The group is a CAST since the owner's 2026-09-08 design (D429,
+  // docs/VISION-2026-09-08.md): a `pick` may carry the scenario PACK it
+  // belongs to (`scen` — Bank Heist, Desert Island…) and the ROLE it casts
+  // (`role` — "the mastermind"), and a `rate` question asks the group
+  // about itself on a five-step scale between two `poles`, its `options`
+  // being the five step labels so the answer stays an option index for
+  // the rules and the fold. Emit-when-set, like `flags`: the older
+  // us/classic/untagged picks carry none of the three.
+  // The packs are written ONCE, in `duel.scenarios`, and a role vote
+  // names its pack by id; the seeded document carries the pack whole
+  // (id, label, hue) so the card draws it without a second lookup. A
+  // rating carries its two `poles` in the source and the five step labels
+  // are derived here — `[a, mostly a, in between, mostly b, b]`, the
+  // design's `stepLabel` — so the file stays under its bundle cap and the
+  // labels cannot drift from the poles. The demo layer derives them the
+  // same way (spec/duels-data.js).
+  const packs = new Map((duel.scenarios ?? []).map((s) => [s.id, s]));
+  const stepLabels = (poles) => [poles[0], `mostly ${poles[0]}`, "in between", `mostly ${poles[1]}`, poles[1]];
   duel.group.forEach((q, i) => {
+    const id = `group-${requireId(q, `duel-questions.json group[${i}]`)}`;
+    if (q.scen !== undefined && !packs.has(q.scen)) {
+      throw new Error(`${id}: scenario pack ${JSON.stringify(q.scen)} is not in duel-questions.json scenarios`);
+    }
+    if (q.kind === "rate" && (!Array.isArray(q.poles) || q.poles.length !== 2)) {
+      throw new Error(`${id}: a rate question needs exactly two poles`);
+    }
+    const pack = q.scen !== undefined ? packs.get(q.scen) : null;
     entries.push({
-      id: `group-${requireId(q, `duel-questions.json group[${i}]`)}`,
+      id,
       surface: "group",
       seq: i,
       type: "choice",
       domain: null,
       prompt: q.prompt,
-      options: q.options ?? [],
+      options: q.kind === "rate" ? stepLabels(q.poles.map(String)) : (q.options ?? []),
       topic: q.kind ?? "classic",
       axis: null,
       test: null,
+      ...(pack ? { scen: { id: String(pack.id), label: String(pack.label), hue: Number(pack.hue) } } : {}),
+      ...(q.role ? { role: { id: String(q.role.id), label: String(q.role.label) } } : {}),
+      ...(Array.isArray(q.poles) ? { poles: q.poles.map(String) } : {}),
+      ...flags(q),
     });
   });
 
@@ -735,7 +766,7 @@ const HEADER =
   "// facet or position an item scores and whether it is keyed against it,\n" +
   "// on the document so the device joins by id and the prompts stay out\n" +
   "// of first paint. The core items and the lens items carry neither.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string }; poles?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "// THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather\n" +
   "// than a taste. `tsc` checks an array literal against its annotation by\n" +
   "// forming the union of the element types, and V2SeedQuestion has ~45\n" +

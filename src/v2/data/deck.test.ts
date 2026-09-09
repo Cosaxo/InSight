@@ -16,6 +16,7 @@ import {
   DECK_EPOCH,
   splitBanks,
   duelQFor,
+  isRatingRound,
   gHash,
   hasPublishedCounts,
   isCore,
@@ -380,37 +381,99 @@ describe("computeDeckIds (deck rotation)", () => {
 });
 
 describe("duelQFor (duel question rotation)", () => {
+  // A group's bank as the cast seeds it (D429): role votes are picks, most
+  // of them tagged with a scenario pack and a role; every fourth round is
+  // a rating between two poles; the older us/classic questions are in the
+  // bank and out of the rotation.
+  const scen = { id: "heist", label: "Bank Heist", hue: 25 };
   const bank = [
-    qd("g0", { surface: "group" }),
-    qd("g1", { surface: "group" }),
-    qd("g2", { surface: "group" }),
-    qd("g3", { surface: "group", topic: "pick" }),
+    qd("gu0", { surface: "group", topic: "us" }),
+    qd("gd0", { surface: "group" }),
+    qd("gr0", { surface: "group", topic: "pick", options: [], scen, role: { id: "mastermind", label: "the mastermind" } }),
+    qd("gr1", { surface: "group", topic: "pick", options: [], scen, role: { id: "driver", label: "the getaway driver" } }),
+    qd("gr2", { surface: "group", topic: "pick", options: [], scen, role: { id: "inside", label: "the inside man" } }),
+    qd("gp0", { surface: "group", topic: "pick", options: [] }),
+    qd("gs0", { surface: "group", topic: "rate", poles: ["Calm", "Chaos"], options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"] }),
+    qd("gs1", { surface: "group", topic: "rate", poles: ["Gentle", "Brutal"], options: ["Gentle", "mostly Gentle", "in between", "mostly Brutal", "Brutal"] }),
     qd("d0", { surface: "duo" }),
     qd("d1", { surface: "duo" }),
   ];
-  const group = { id: "grp_abc", mode: "group" };
+  const picks = bank.filter((q) => q.surface === "group" && q.topic === "pick");
+  const rates = bank.filter((q) => q.surface === "group" && q.topic === "rate");
+  const group = { id: "grp_abc", mode: "group", memberUids: ["u1", "u2", "u3"], memberNames: { u1: "Ada", u2: "Bo", u3: "Cy" } };
   const DAY = 7; // a round — the rotation walks rounds since ROUNDS-PLAN / D426
 
   it("is deterministic for a fixed (group, bank, round)", () => {
     expect(duelQFor(group, bank, DAY)).toEqual(duelQFor(group, bank, DAY));
-    // and mirrors the documented formula over the surface-filtered bank
-    const groupBank = bank.filter((q) => q.surface === "group");
-    const expected = groupBank[(gHash(group.id) + DAY) % groupBank.length];
+    // and mirrors the documented formula over the role-vote pool, with the
+    // rating rounds before this one skipped so votes walk consecutively
+    const walked = DAY - Math.floor(DAY / 4);
+    const expected = picks[(gHash(group.id) + walked) % picks.length];
     expect(duelQFor(group, bank, DAY)!.id).toBe(expected.id);
   });
 
-  it("rotates across rounds with the bank's period", () => {
-    const groupBankLen = bank.filter((q) => q.surface === "group").length;
-    const seen = new Set(
-      Array.from({ length: groupBankLen }, (_, d) => duelQFor(group, bank, DAY + d)!.id),
-    );
-    expect(seen.size).toBe(groupBankLen); // each round a different question…
-    expect(duelQFor(group, bank, DAY + groupBankLen)!.id)
-      .toBe(duelQFor(group, bank, DAY)!.id); // …then the cycle repeats
+  it("every fourth round rates the group, and the ratings walk their own pool in turn", () => {
+    expect(isRatingRound(4)).toBe(true);
+    expect(isRatingRound(5)).toBe(false);
+    for (let r = 1; r <= 12; r++) {
+      const q = duelQFor(group, bank, r)!;
+      if (r % 4 === 0) {
+        expect(q.kind).toBe("rate");
+        expect(q.poles).toEqual(rates[(gHash(group.id) + r / 4) % rates.length].poles);
+        expect(q.options).toHaveLength(5);
+      } else {
+        expect(q.kind).toBe("pick");
+        // the members are the options, and a packed role carries its pack
+        expect(q.options).toEqual(["Ada", "Bo", "Cy"]);
+        const src = picks.find((p) => p.id === q.id)!;
+        expect(q.scen).toEqual(src.scen);
+        expect(q.role).toEqual(src.role);
+      }
+    }
+    // rounds 4 and 8 are consecutive ratings, not the same one
+    expect(duelQFor(group, bank, 4)!.id).not.toBe(duelQFor(group, bank, 8)!.id);
+  });
+
+  it("role votes are consecutive questions across a rating — no vote is skipped for it", () => {
+    // Rounds 1–3 and 5–7 walk six consecutive picks of the four: 3 → 5 is
+    // one step, not two, because round 4 took no pick.
+    const ids = [1, 2, 3, 5, 6, 7].map((r) => duelQFor(group, bank, r)!.id);
+    const start = picks.findIndex((p) => p.id === ids[0]);
+    ids.forEach((id, i) => expect(id).toBe(picks[(start + i) % picks.length].id));
+  });
+
+  it("the older us/classic group questions are in the bank and out of the rotation", () => {
+    const served = new Set(Array.from({ length: 40 }, (_, i) => duelQFor(group, bank, i + 1)!.id));
+    expect(served.has("gu0")).toBe(false);
+    expect(served.has("gd0")).toBe(false);
+    expect([...served].sort()).toEqual([...picks, ...rates].map((q) => q.id).sort());
+  });
+
+  it("a bank with no ratings yet plays every round as a role vote — the pre-reseed device", () => {
+    const noRates = bank.filter((q) => q.topic !== "rate");
+    for (let r = 1; r <= 8; r++) expect(duelQFor(group, noRates, r)!.kind).toBe("pick");
+  });
+
+  it("a bank with no picks at all falls back to the whole surface — never no question", () => {
+    const old = bank.filter((q) => q.surface !== "group" || (q.topic !== "pick" && q.topic !== "rate"));
+    const q = duelQFor(group, old, DAY)!;
+    expect(q).not.toBeNull();
+    expect(["gu0", "gd0"]).toContain(q.id);
   });
 
   it("round 1 is a question too — the first round a fresh group opens on", () => {
     expect(duelQFor(group, bank, 1)).not.toBeNull();
+  });
+
+  it("a 1v1 is untouched by the cast — its pool walks as before", () => {
+    const duoBank = bank.filter((q) => q.surface === "duo");
+    const duo = { id: "duo_1", mode: "duo" };
+    for (let r = 1; r <= 8; r++) {
+      const q = duelQFor(duo, bank, r)!;
+      expect(q.id).toBe(duoBank[(gHash(duo.id) + r) % duoBank.length].id);
+      expect(q.kind).toBe("classic");
+      expect(q.scen).toBeUndefined();
+    }
   });
 
   it("selects the question from the group id alone — member order is irrelevant", () => {
@@ -426,9 +489,12 @@ describe("duelQFor (duel question rotation)", () => {
       memberUids: ["u1", "u2", "u3"],
       memberNames: { u1: "Ana", u3: "Cleo" },
     };
-    // find the round this group lands on the pick question g3
+    // find the round this group lands on the plain pick gp0 — within four
+    // votes, since the role-vote pool has four entries (a bounded search:
+    // the fixture id this loop hunts for MUST be in the bank, or it never
+    // ends, which is how this file hung the whole suite once)
     let day = DAY;
-    while (duelQFor(g, bank, day)!.id !== "g3") day++;
+    while (duelQFor(g, bank, day)!.id !== "gp0") { day++; if (day > DAY + 8) throw new Error("gp0 never served"); }
     const q = duelQFor(g, bank, day)!;
     expect(q.kind).toBe("pick");
     expect(q.options).toEqual(["Ana", "Member 2", "Cleo"]); // name fallback

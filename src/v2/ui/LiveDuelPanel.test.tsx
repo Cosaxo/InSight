@@ -328,6 +328,105 @@ describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
   });
 });
 
+describe("LiveDuelPanel · the group as a cast (D429)", () => {
+  const CREW = { ...DUO, id: "g2", name: "The Crew", mode: "group", memberUids: ["u_me", "u_ada", "u_bo"], memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" } };
+  const ROLE = {
+    id: "group-gr0", prompt: "Who plans the whole thing?", options: ["Me", "Ada", "Bo"], kind: "pick",
+    scen: { id: "heist", label: "Bank Heist", hue: 25 }, role: { id: "mastermind", label: "the mastermind" },
+  };
+  const RATE = {
+    id: "group-gs0", prompt: "This group’s energy?", kind: "rate", poles: ["Calm", "Chaos"],
+    options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"],
+  };
+  beforeEach(() => { LIVE.social.groups = () => [CREW]; });
+
+  it("a role vote names its pack in the kicker and leads every option with its member", () => {
+    LIVE.social.todayQ = () => ROLE;
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByText("· Bank Heist")).toBeTruthy();
+    // three options, each a member: the two others' marks and your pill
+    expect(screen.getByRole("button", { name: "Ada" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bo" })).toBeTruthy();
+    // your own option leads with your pill, so its name reads "you Me"
+    expect(screen.getByRole("button", { name: "you Me" })).toBeTruthy();
+    // the read of the room is still the second tap (D386)
+    fireEvent.click(screen.getByRole("button", { name: "Ada" }));
+    expect(screen.getByText(/And the room lands on/)).toBeTruthy();
+  });
+
+  it("a rating asks between two poles on five steps, and seals on the one tap with no call", async () => {
+    LIVE.social.todayQ = () => RATE;
+    const calls: Array<[number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByText("· Rate the group")).toBeTruthy();
+    const ballot = screen.getByRole("group", { name: "Calm to Chaos" });
+    expect(within(ballot).getAllByRole("button")).toHaveLength(5);
+    fireEvent.click(within(ballot).getByRole("button", { name: "mostly Chaos" }));
+    await waitFor(() => expect(calls).toEqual([[3, undefined]]));
+    expect(screen.queryByText(/And the room lands on/)).toBeNull();
+  });
+
+  it("a role vote's reveal crowns who the room named, off the snapshots, in the pack's words", () => {
+    LIVE.social.bankQ = () => ROLE;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => ({
+      round: 1, day: "2026-09-08", qid: "group-gr0",
+      votes: {
+        u_me: { optionIdx: 1, pickUid: "u_ada", guessIdx: 1 },
+        u_ada: { optionIdx: 1, pickUid: "u_ada" },
+        u_bo: { optionIdx: 0, pickUid: "u_me" },
+      },
+      names: { u_ada: "Ada", u_bo: "Bo" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(within(reveal).getByText("· Bank Heist")).toBeTruthy();
+    // the verdict names the cast, not "the room landed on"
+    expect(reveal.textContent).toMatch(/Ada is the mastermind/);
+    expect(reveal.textContent).not.toMatch(/The room landed on/);
+    // …and your call on the room still scores
+    expect(reveal.textContent).toMatch(/you called it/);
+    // the crowned row is first and marked
+    const crowned = reveal.querySelector("[data-crown]");
+    expect(crowned).not.toBeNull();
+    expect(crowned!.textContent).toMatch(/Ada/);
+  });
+
+  it("a rating's reveal says where the group landed, with the poles and the marks", () => {
+    LIVE.social.bankQ = () => RATE;
+    LIVE.social.roundInfo = () => ({ open: 5, next: 5, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => ({
+      round: 4, day: "2026-09-08", qid: "group-gs0",
+      votes: { u_me: { optionIdx: 4 }, u_ada: { optionIdx: 3 }, u_bo: { optionIdx: 2 } },
+      names: { u_ada: "Ada", u_bo: "Bo" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(within(reveal).getByText("· Rate the group")).toBeTruthy();
+    // mean step 3 → "mostly Chaos" · 75
+    expect(reveal.textContent).toMatch(/The group lands on\s*mostly Chaos\s*· 75/);
+    expect(within(reveal).getByLabelText("How the group rated itself")).toBeTruthy();
+    expect(within(reveal).getByLabelText("the group · 75")).toBeTruthy();
+    // no call was asked, so none is scored
+    expect(reveal.textContent).not.toMatch(/called/);
+  });
+
+  it("the run marks a rating as a square and a role vote by whether the room named you", () => {
+    const bank: Record<string, unknown> = { "group-gr0": ROLE, "group-gs0": RATE };
+    LIVE.social.bankQ = (qid: string) => (bank[qid] as Record<string, unknown>) || null;
+    LIVE.social.roundInfo = () => ({ open: 3, next: 3, sealed: [], lead: 5 });
+    LIVE.social.revealHistory = () => [
+      { round: 2, day: "2026-09-08", qid: "group-gs0", votes: { u_me: { optionIdx: 2 }, u_ada: { optionIdx: 2 } } },
+      { round: 1, day: "2026-09-08", qid: "group-gr0", votes: { u_me: { optionIdx: 0, pickUid: "u_me" }, u_ada: { optionIdx: 0, pickUid: "u_me" }, u_bo: { optionIdx: 1, pickUid: "u_ada" } } },
+    ];
+    LIVE.social.revealFor = () => ({ round: 2, day: "2026-09-08", qid: "group-gs0", votes: { u_me: { optionIdx: 2 }, u_ada: { optionIdx: 2 } } });
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByTitle(/the room named you the mastermind/)).toBeTruthy();
+    expect(screen.getByTitle(/rated the group/)).toBeTruthy();
+  });
+});
+
 describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
   it("asks the question first and the read second, never both at once", () => {
     // The prototype's two steps, and the reason they are two: "what do you
@@ -991,7 +1090,9 @@ describe("LiveDuelPanel · the pair's read-runs", () => {
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     LIVE.social.revealHistory = () => [hist("2026-08-12", 1, 0)];
     render(<LiveDuelPanel mode="group" />);
-    expect(screen.getByLabelText("Your calls on where the room lands")).toBeTruthy();
+    // The group's one run reads as the cast since D429: the room naming
+    // you, or not, and the ratings as squares — never the pair's two runs.
+    expect(screen.getByLabelText(/where the room named you/)).toBeTruthy();
     expect(screen.queryByLabelText(/How well/)).toBeNull();
   });
 });

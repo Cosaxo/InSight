@@ -488,9 +488,39 @@ for (const q of entries) {
 }
 
 // ---- group kinds are a closed set (the reveal renders each differently).
+// `rate` joined at D429 (the owner's 2026-09-08 design): a five-step scale
+// between two poles, asked of the group about itself every fourth round.
+// Its shape is held here because the card and the fold both read it
+// literally — five options, two poles, or the ballot has no ends to draw.
+// A `pick` may carry the scenario pack and the role it casts, and a pack
+// without a role (or the reverse) is a half-tagged question nothing can
+// draw a kicker or a verdict for.
 for (const q of entries) {
-  if (q.surface === "group" && !["us", "pick", "classic"].includes(q.topic)) {
-    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic`);
+  if (q.surface !== "group") continue;
+  if (!["us", "pick", "classic", "rate"].includes(q.topic)) {
+    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic/rate`);
+  }
+  if (q.topic === "rate") {
+    if (!Array.isArray(q.poles) || q.poles.length !== 2 || q.poles.some((p) => typeof p !== "string" || !p.trim())) {
+      errors.push(`${q.id}: a rate question needs exactly two poles`);
+    }
+    if (!Array.isArray(q.options) || q.options.length !== 5) {
+      errors.push(`${q.id}: a rate question has five step labels, not ${Array.isArray(q.options) ? q.options.length : "none"}`);
+    }
+  } else if (q.poles !== undefined) {
+    errors.push(`${q.id}: poles on a ${q.topic} question — only a rate question has ends`);
+  }
+  if ((q.scen && !q.role) || (q.role && !q.scen)) {
+    errors.push(`${q.id}: a role vote carries both its pack (scen) and its role, or neither`);
+  }
+  if (q.scen && q.topic !== "pick") {
+    errors.push(`${q.id}: a scenario pack on a ${q.topic} question — only a pick casts a role`);
+  }
+  if (q.scen && (typeof q.scen.id !== "string" || typeof q.scen.label !== "string" || typeof q.scen.hue !== "number")) {
+    errors.push(`${q.id}: scen needs id, label and a numeric hue`);
+  }
+  if (q.role && (typeof q.role.id !== "string" || typeof q.role.label !== "string")) {
+    errors.push(`${q.id}: role needs id and label`);
   }
 }
 

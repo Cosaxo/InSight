@@ -110,7 +110,22 @@ export let DUELS;
   // gen-v2content.mjs seeds the live Firestore bank from, so demo and live
   // can never drift (single source, the D32 shape). Array order is the
   // rotation order and is deliberately interleaved: append, never sort.
-  const GROUP_QS = DUEL_CONTENT.group;
+  // Since D429 the file carries the group as a CAST: a role vote is a
+  // `pick` naming its scenario pack by id (the packs are written once in
+  // `scenarios`), a `rate` question carries two poles and no options, and
+  // five older prompts are retired (`active: false`) because a rating
+  // re-asks them. The demo resolves the pack and derives the five step
+  // labels the way the seed does, and leaves the retired ones out — the
+  // same shape the live deck reads off the seeded bank.
+  const PACKS = new Map((DUEL_CONTENT.scenarios || []).map((s) => [s.id, s]));
+  const stepLabels = (poles) => [poles[0], 'mostly ' + poles[0], 'in between', 'mostly ' + poles[1], poles[1]];
+  const GROUP_QS = DUEL_CONTENT.group
+    .filter((q) => q.active !== false)
+    .map((q) => ({
+      ...q,
+      ...(q.scen !== undefined ? { scen: PACKS.get(q.scen) || null } : {}),
+      ...(q.kind === 'rate' ? { options: stepLabels(q.poles) } : {}),
+    }));
   // seeded groups — each runs the shared pool at its own offset
   //
   // Four sizes on purpose (7 · 4 · 2 · 5): a group's portrait, its

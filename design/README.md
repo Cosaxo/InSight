@@ -70,8 +70,17 @@ sections on paper — extracted to `standalone-2026-09-07/` (compiled
 again, same recipe; no stylesheet moved), with the plan at
 [`docs/VISION-2026-09-07.md`](../docs/VISION-2026-09-07.md), which is
 also the plan for how the facets and positions get measured;
-`docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D415). Each
+`docs/VISUAL-VISION.md` named it the current vision (D361's rule,
+D415); and the **2026-09-08** upload (`InSight_12`) makes the group a
+CAST — role votes in five scenario packs with the members as the
+options, a rating of the group between two poles every fourth round,
+the crown and the contested pair on the reveal, the cast drawn on the
+Mirror's Groups stop, and the group instrument's fourth dim back —
+extracted to `standalone-2026-09-08/` (compiled and, new with this
+bundle, compacted; the README says what the extraction did and did not
+diff, and carries the bundle's own hashes for the next one), with the
+plan at [`docs/VISION-2026-09-08.md`](../docs/VISION-2026-09-08.md);
+it is the current vision (D429). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

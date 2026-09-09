@@ -1895,6 +1895,12 @@ export const SEEDED_FIELDS = [
   // would ever have got one. Held here now by `check:seed-fields`, which
   // compares this list against what gen-v2content actually emits.
   "bg", "c", "t", "p", "k", "w",
+  // The group as a cast (D429, the owner's 2026-09-08 design): a pick's
+  // scenario pack and the role it casts, and a rate question's two poles.
+  // `scen` and `role` are objects and ride the structural arm; `poles` is
+  // an array and rides the element-wise compare. Compared, because the
+  // card draws all three: a repacked role has to reach the standing doc.
+  "scen", "role", "poles",
   // The instruments' deep items (D416): the facet or position an item
   // scores and its keying, on the document so the device joins by id.
   // Compared so a re-filed or re-keyed item reaches the standing doc.

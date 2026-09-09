@@ -44,7 +44,7 @@
 // facet or position an item scores and whether it is keyed against it,
 // on the document so the device joins by id and the prompts stay out
 // of first paint. The core items and the lens items carry neither.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; scen?: { id: string; label: string; hue: number }; role?: { id: string; label: string }; poles?: string[]; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; facet?: string; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 // THE BANK IS EMITTED IN SLICES, and that is a compiler limit rather
 // than a taste. `tsc` checks an array literal against its annotation by
 // forming the union of the element types, and V2SeedQuestion has ~45
@@ -11533,7 +11533,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "us",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gp1",
@@ -11686,7 +11687,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "us",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gd6",
@@ -11720,7 +11722,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "us",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gp4",
@@ -11764,7 +11767,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "classic",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gp5",
@@ -11822,7 +11826,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "us",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gd8",
@@ -11850,6 +11855,648 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "pick",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "group-gr0",
+  "surface": "group",
+  "seq": 26,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who plans the whole thing?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "heist",
+   "label": "Bank Heist",
+   "hue": 25
+  },
+  "role": {
+   "id": "mastermind",
+   "label": "the mastermind"
+  }
+ },
+ {
+  "id": "group-gr1",
+  "surface": "group",
+  "seq": 27,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who drives the getaway car?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "heist",
+   "label": "Bank Heist",
+   "hue": 25
+  },
+  "role": {
+   "id": "driver",
+   "label": "the getaway driver"
+  }
+ },
+ {
+  "id": "group-gr2",
+  "surface": "group",
+  "seq": 28,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who charms their way inside?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "heist",
+   "label": "Bank Heist",
+   "hue": 25
+  },
+  "role": {
+   "id": "inside",
+   "label": "the inside man"
+  }
+ },
+ {
+  "id": "group-gs0",
+  "surface": "group",
+  "seq": 29,
+  "type": "choice",
+  "domain": null,
+  "prompt": "This group’s energy?",
+  "options": [
+   "Calm",
+   "mostly Calm",
+   "in between",
+   "mostly Chaos",
+   "Chaos"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Calm",
+   "Chaos"
+  ]
+ },
+ {
+  "id": "group-gr3",
+  "surface": "group",
+  "seq": 30,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who confesses after one question?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "heist",
+   "label": "Bank Heist",
+   "hue": 25
+  },
+  "role": {
+   "id": "crack",
+   "label": "first to crack"
+  }
+ },
+ {
+  "id": "group-gr4",
+  "surface": "group",
+  "seq": 31,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who keeps the fire going?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "island",
+   "label": "Desert Island",
+   "hue": 150
+  },
+  "role": {
+   "id": "fire",
+   "label": "the fire-keeper"
+  }
+ },
+ {
+  "id": "group-gr5",
+  "surface": "group",
+  "seq": 32,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who finds something to eat?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "island",
+   "label": "Desert Island",
+   "hue": 150
+  },
+  "role": {
+   "id": "food",
+   "label": "the food-finder"
+  }
+ },
+ {
+  "id": "group-gs1",
+  "surface": "group",
+  "seq": 33,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When we disagree, we…",
+  "options": [
+   "Talk it out",
+   "mostly Talk it out",
+   "in between",
+   "mostly Loudest wins",
+   "Loudest wins"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Talk it out",
+   "Loudest wins"
+  ]
+ },
+ {
+  "id": "group-gr6",
+  "surface": "group",
+  "seq": 34,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who keeps spirits up?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "island",
+   "label": "Desert Island",
+   "hue": 150
+  },
+  "role": {
+   "id": "morale",
+   "label": "the morale officer"
+  }
+ },
+ {
+  "id": "group-gr7",
+  "surface": "group",
+  "seq": 35,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who talks to a coconut first?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "island",
+   "label": "Desert Island",
+   "hue": 150
+  },
+  "role": {
+   "id": "loseit",
+   "label": "first to lose it"
+  }
+ },
+ {
+  "id": "group-gr8",
+  "surface": "group",
+  "seq": 36,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who is the main character?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "sitcom",
+   "label": "The Sitcom",
+   "hue": 285
+  },
+  "role": {
+   "id": "main",
+   "label": "the main character"
+  }
+ },
+ {
+  "id": "group-gs2",
+  "surface": "group",
+  "seq": 37,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Our timekeeping?",
+  "options": [
+   "Punctual",
+   "mostly Punctual",
+   "in between",
+   "mostly Always late",
+   "Always late"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Punctual",
+   "Always late"
+  ]
+ },
+ {
+  "id": "group-gr9",
+  "surface": "group",
+  "seq": 38,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who gets the laugh track?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "sitcom",
+   "label": "The Sitcom",
+   "hue": 285
+  },
+  "role": {
+   "id": "comic",
+   "label": "the comic relief"
+  }
+ },
+ {
+  "id": "group-gr10",
+  "surface": "group",
+  "seq": 39,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who delivers the dry one-liners?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "sitcom",
+   "label": "The Sitcom",
+   "hue": 285
+  },
+  "role": {
+   "id": "deadpan",
+   "label": "the deadpan one"
+  }
+ },
+ {
+  "id": "group-gr11",
+  "surface": "group",
+  "seq": 40,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Whose life is the plot twist?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "sitcom",
+   "label": "The Sitcom",
+   "hue": 285
+  },
+  "role": {
+   "id": "twist",
+   "label": "the plot twist"
+  }
+ },
+ {
+  "id": "group-gs3",
+  "surface": "group",
+  "seq": 41,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A free evening with us is…",
+  "options": [
+   "Planned",
+   "mostly Planned",
+   "in between",
+   "mostly Spontaneous",
+   "Spontaneous"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Planned",
+   "Spontaneous"
+  ]
+ },
+ {
+  "id": "group-gr12",
+  "surface": "group",
+  "seq": 42,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who ends up in charge?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "zombie",
+   "label": "Zombie Plan",
+   "hue": 220
+  },
+  "role": {
+   "id": "leader",
+   "label": "the reluctant leader"
+  }
+ },
+ {
+  "id": "group-gr13",
+  "surface": "group",
+  "seq": 43,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who already has a stockpile?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "zombie",
+   "label": "Zombie Plan",
+   "hue": 220
+  },
+  "role": {
+   "id": "hoarder",
+   "label": "the supply hoarder"
+  }
+ },
+ {
+  "id": "group-gr14",
+  "surface": "group",
+  "seq": 44,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who goes out for the supply run?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "zombie",
+   "label": "Zombie Plan",
+   "hue": 220
+  },
+  "role": {
+   "id": "scout",
+   "label": "the scout"
+  }
+ },
+ {
+  "id": "group-gs4",
+  "surface": "group",
+  "seq": 45,
+  "type": "choice",
+  "domain": null,
+  "prompt": "New person wants in. We are…",
+  "options": [
+   "Open door",
+   "mostly Open door",
+   "in between",
+   "mostly Full — sorry",
+   "Full — sorry"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Open door",
+   "Full — sorry"
+  ]
+ },
+ {
+  "id": "group-gr15",
+  "surface": "group",
+  "seq": 46,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who pets the zombie dog?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "zombie",
+   "label": "Zombie Plan",
+   "hue": 220
+  },
+  "role": {
+   "id": "bitten",
+   "label": "first one bitten"
+  }
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
+ {
+  "id": "group-gr16",
+  "surface": "group",
+  "seq": 47,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who takes the wheel?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "roadtrip",
+   "label": "Road Trip",
+   "hue": 60
+  },
+  "role": {
+   "id": "wheel",
+   "label": "the driver"
+  }
+ },
+ {
+  "id": "group-gr17",
+  "surface": "group",
+  "seq": 48,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who controls the music?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "roadtrip",
+   "label": "Road Trip",
+   "hue": 60
+  },
+  "role": {
+   "id": "dj",
+   "label": "the DJ"
+  }
+ },
+ {
+  "id": "group-gs5",
+  "surface": "group",
+  "seq": 49,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How much goes unsaid between us?",
+  "options": [
+   "We say everything",
+   "mostly We say everything",
+   "in between",
+   "mostly Plenty unsaid",
+   "Plenty unsaid"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "We say everything",
+   "Plenty unsaid"
+  ]
+ },
+ {
+  "id": "group-gr18",
+  "surface": "group",
+  "seq": 50,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who knows the way — or says so?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "roadtrip",
+   "label": "Road Trip",
+   "hue": 60
+  },
+  "role": {
+   "id": "nav",
+   "label": "the navigator"
+  }
+ },
+ {
+  "id": "group-gr19",
+  "surface": "group",
+  "seq": 51,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who packed the snacks?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "roadtrip",
+   "label": "Road Trip",
+   "hue": 60
+  },
+  "role": {
+   "id": "snacks",
+   "label": "the snack captain"
+  }
+ },
+ {
+  "id": "group-gs6",
+  "surface": "group",
+  "seq": 52,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How honest are we with each other?",
+  "options": [
+   "Gentle",
+   "mostly Gentle",
+   "in between",
+   "mostly Brutal",
+   "Brutal"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Gentle",
+   "Brutal"
+  ]
+ },
+ {
+  "id": "group-gs7",
+  "surface": "group",
+  "seq": 53,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Our group chat runs on…",
+  "options": [
+   "Plans",
+   "mostly Plans",
+   "in between",
+   "mostly Nonsense",
+   "Nonsense"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Plans",
+   "Nonsense"
+  ]
+ },
+ {
+  "id": "group-gs8",
+  "surface": "group",
+  "seq": 54,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A group holiday: one house, or rooms apart?",
+  "options": [
+   "One house",
+   "mostly One house",
+   "in between",
+   "mostly Rooms apart",
+   "Rooms apart"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "One house",
+   "Rooms apart"
+  ]
+ },
+ {
+  "id": "group-gs9",
+  "surface": "group",
+  "seq": 55,
+  "type": "choice",
+  "domain": null,
+  "prompt": "In ten years, this group is…",
+  "options": [
+   "Same, but older",
+   "mostly Same, but older",
+   "in between",
+   "mostly A yearly reunion",
+   "A yearly reunion"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Same, but older",
+   "A yearly reunion"
+  ]
  },
  {
   "id": "duo-000",
@@ -12184,9 +12831,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-015",
   "surface": "duo",
@@ -15228,7 +15873,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "patience",
   "test": null
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "lq-time-4",
   "surface": "test",
@@ -15775,9 +16422,7 @@ const BANK_3: V2SeedQuestion[] = [
   "axis": "N",
   "test": "big5",
   "facet": "anger"
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-30",
   "surface": "test",
@@ -19124,7 +19769,9 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 64,
   "k": "Skin is the largest organ"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "learn-body4",
   "surface": "learn",
@@ -19759,9 +20406,7 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 48,
   "k": "Great Pyramid: Khufu"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-anc2",
   "surface": "learn",

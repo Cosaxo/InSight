@@ -395,7 +395,12 @@ together* as doors whose sub-line carries the named type's one-line
 meaning, and the read-each-other card as a two-column hit-rate table
 under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
 pair's card as this request wants it drawn; the plan's owner call still
-gates what the doors say.
+gates what the doors say. **Noted 2026-09-08**: the owner's `InSight_12`
+upload draws the group half — the role votes in packs, the ratings, the
+cast, and a group instrument with Standing back and nine types
+(`design/standalone-2026-09-08/role-data.js`, `roles-panel.jsx`); D429
+built the rounds and Standing as an aside, and the tables are step 2 of
+`VISION-2026-09-08.md`.
 
 - **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
   (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
@@ -455,48 +460,6 @@ gates what the doors say.
   first paragraph — a join nothing draws is unfinished, and the
   pair's reading and the group's cast fold from data already on the
   phone.
-- **status** — `requested` (waits on the plan's owner call).
-
-### 6 · The cast — the group as roles
-
-- **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
-  §2.6 and §3.8.
-- **surface** — the Mirror's **Groups** stop, **People** tab
-  (`ui/LiveGroupsMirrorBody.tsx`, `LgPeopleCard`): today a
-  constellation of the members, a likeness bar per member, and the
-  twin / breaks-ranks labels (D277). The prototype's
-  `spec/group-role-map.jsx` drew a cast from a scenario generator —
-  stars with earned roles orbiting, contested roles between rivals —
-  and is the reference for the idea, not the data.
-- **what it draws** — every member's role in THIS group (the same
-  fold that gives you yours, run for each uid): mark, first name,
-  type, line — *Anna · The Anchor · Where the room lands, you were
-  already standing*; and the crowns of the pick days where D224
-  snapshots exist: *Best advice · 3 of 4*. The twin and breaks-ranks
-  labels stay. A member under the floor is listed with their count,
-  not omitted.
-- **data and basis** — `groupRole` over the stop's own reveals (or the
-  ledger), per member; nominations from `pickUid` snapshots, counted
-  only when the counted votes agree (`groupPortrait`'s
-  `majorityPickUid` rule); the same floors as request 5. Zero reads
-  beyond the stop's own.
-- **states** — a group under the floor for everyone (today's People
-  card, unchanged); some members over it; crowns present or absent
-  (pre-D224 reveals carry none); demo: the demo body keeps its sample
-  people and never draws this.
-- **interaction** — tap a member: their page; tap a crown: the pick
-  day's reveal row; the constellation keeps its place above.
-- **vocabulary** — `LgPeopleCard` and the stop's tab row; `TypeMark`
-  at 20 px beside a name (the Kindred rows' shape, D156 §7); `COPY.md`
-  — a role is said to a person in front of their group.
-- **constraints** — `LiveGroupsMirrorBody` is a static import in
-  `mirror-tab`, so anything with weight goes behind `React.lazy` as
-  `LgField` and `GroupCompare` do; zero new reads; 44 px targets;
-  the floor is D1's line — no member wears a role the days do not
-  earn.
-- **why** — the group is a population the Mirror already draws; a
-  cast is the group reading itself, which is what a group stop is
-  for. Every input is public (D98) and already on screen with names.
 - **status** — `requested` (waits on the plan's owner call).
 
 ### 8 · The logic test's worked example — one solved matrix before item 1
@@ -629,6 +592,56 @@ gates what the doors say.
 ## Drafted
 
 ## Designed
+
+### 6 · The cast — the group as roles
+
+- **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
+  §2.6 and §3.8.
+- **surface** — the Mirror's **Groups** stop, **People** tab
+  (`ui/LiveGroupsMirrorBody.tsx`, `LgPeopleCard`): today a
+  constellation of the members, a likeness bar per member, and the
+  twin / breaks-ranks labels (D277). The prototype's
+  `spec/group-role-map.jsx` drew a cast from a scenario generator —
+  stars with earned roles orbiting, contested roles between rivals —
+  and is the reference for the idea, not the data.
+- **what it draws** — every member's role in THIS group (the same
+  fold that gives you yours, run for each uid): mark, first name,
+  type, line — *Anna · The Anchor · Where the room lands, you were
+  already standing*; and the crowns of the pick days where D224
+  snapshots exist: *Best advice · 3 of 4*. The twin and breaks-ranks
+  labels stay. A member under the floor is listed with their count,
+  not omitted.
+- **data and basis** — `groupRole` over the stop's own reveals (or the
+  ledger), per member; nominations from `pickUid` snapshots, counted
+  only when the counted votes agree (`groupPortrait`'s
+  `majorityPickUid` rule); the same floors as request 5. Zero reads
+  beyond the stop's own.
+- **states** — a group under the floor for everyone (today's People
+  card, unchanged); some members over it; crowns present or absent
+  (pre-D224 reveals carry none); demo: the demo body keeps its sample
+  people and never draws this.
+- **interaction** — tap a member: their page; tap a crown: the pick
+  day's reveal row; the constellation keeps its place above.
+- **vocabulary** — `LgPeopleCard` and the stop's tab row; `TypeMark`
+  at 20 px beside a name (the Kindred rows' shape, D156 §7); `COPY.md`
+  — a role is said to a person in front of their group.
+- **constraints** — `LiveGroupsMirrorBody` is a static import in
+  `mirror-tab`, so anything with weight goes behind `React.lazy` as
+  `LgField` and `GroupCompare` do; zero new reads; 44 px targets;
+  the floor is D1's line — no member wears a role the days do not
+  earn.
+- **why** — the group is a population the Mirror already draws; a
+  cast is the group reading itself, which is what a group stop is
+  for. Every input is public (D98) and already on screen with names.
+- **status** — `designed` (2026-09-08): the owner's `InSight_12`
+  upload draws it — `design/standalone-2026-09-08/group-role-map.jsx`
+  (the members on a ring, each earned role a satellite on its holder,
+  a contested role dashed between two, a tap opening the vote or the
+  person's sheet) and `group-mirror.jsx` (*Who the room named* by pack,
+  *How the group rates itself*, the crowns as chips) — and D429 built
+  the rounds that feed it: three in four a role vote in a scenario
+  pack. The build is step 3 of `VISION-2026-09-08.md`; the data it
+  draws is the D224 snapshots on role votes and the ratings' steps.
 
 
 ## Built

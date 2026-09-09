@@ -926,12 +926,36 @@ for a duel run:
   `duel-budget.test.mjs` pins the properties — including that the dark
   romantic pool counts at full weight, because its entries light up in
   one operator step.
-- **Append only, at the end of the right array.** Group order is
-  rotation order — interleaved us/pick/classic, never sorted. Both 1v1
-  pools are ordered light → deep; append deep. Ids continue each series
-  (group: the gu/gp/gd prefixes; 1v1: the next `NNN` suffix, shared
-  across `oneVsOne` and `romantic` — they are one `duo-NNN` id
-  namespace).
+- **Append only, at the end of the right array.** Group order is the
+  demo's rotation order, never sorted. Both 1v1 pools are ordered light
+  → deep; append deep. Ids continue each series (group: `gr` for a role
+  vote, `gs` for a rating — the older gu/gp/gd series are closed; 1v1:
+  the next `NNN` suffix, shared across `oneVsOne` and `romantic` — they
+  are one `duo-NNN` id namespace).
+- **The group is a CAST (D429, the owner's 2026-09-08 design —
+  `docs/VISION-2026-09-08.md`).** A group question is one of two kinds
+  now. A **role vote** is a `pick` (no options — the members are the
+  options) tagged with the scenario pack it belongs to (`"scen":
+  "<pack id>"`, one of the packs in the file's top-level `scenarios`:
+  Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip) and
+  the role it casts (`"role": { "id", "label" }` — *the mastermind*,
+  said of a person in front of their group, so `COPY.md` §3 applies
+  word by word). A new pack is four roles and a hue, added to
+  `scenarios` first. A **rating** is `"kind": "rate"` with two
+  `"poles"` and no options — the seed derives the five step labels
+  (*Calm · mostly Calm · in between · mostly Chaos · Chaos*), so a pole
+  has to read as a step's end word. The live rotation deals three role
+  votes and then a rating (`isRatingRound`, data/deck.ts); the older
+  us/classic questions are in the bank and out of the rotation, so
+  **do not write more of them**. `check:content` holds the kinds and
+  their shapes.
+- **The bank is compiled into the demo build whole, under a 24 KiB
+  cap** (`check:content`'s `BUNDLED_CONTENT`), and stood at 22.8 KiB
+  when the cast landed: **one burst run crosses it.** The cap's own
+  instruction is learn's treatment (D284 — a generated sample for the
+  demo, a live read for the app), not a higher number; until that is
+  built, a run that would cross it stops at the cap and says so in the
+  run log rather than raising it.
 - **Match the pool's `active` posture.** While the romantic pool is dark
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,

@@ -154,6 +154,14 @@ export const ALLOW = new Map([
   // a third member, that is the moment to ask whether the family is a
   // template rather than to add a third exemption.
   ["pk09~pk13", "different catalogues, shared question shape: `best`+`name` is the whole overlap"],
+  // gp5 "Who secretly runs this group?" (a role vote — a member is the
+  // answer) against gs7 "Our group chat runs on…" (a rating — Plans ↔
+  // Nonsense) scores exactly 0.500 on `runs` + `group`, and the two share
+  // neither an answer space nor a subject: one casts a person, the other
+  // rates the room. The rating is the owner's 2026-09-08 design, word for
+  // word (D429), so it is recorded here rather than reworded to dodge a
+  // lexical measure — the header's own rule.
+  ["gp5~gs7", "a role vote against a rating: `runs`+`group` is the whole overlap, and the answer spaces are a person and a scale"],
 ]);
 
 export const GATE = 0.5;
@@ -441,8 +449,13 @@ export function buildDomains() {
   return {
     daily: specQ.map((q, i) => entry(dailyIdOf(i, dqBase), q)),
     feed: [...live, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
+    // …and the same exclusion for the duel pools since D429: five group
+    // questions retired when the owner's design re-asked them as ratings
+    // between two poles (`gs1` re-asks `gu3`, word for word), so the
+    // retired form would score its replacement at 1.000 for exactly the
+    // reason above.
     duel: [
-      ...duel.group.map((q) => entry(q.id, q)),
+      ...duel.group.filter((q) => q.active !== false).map((q) => entry(q.id, q)),
       ...duel.oneVsOne.map((q) => entry(q.id, q)),
       // The romantic 1v1 pool (D40 part 4) shares the duo id series and the
       // dedup domain: the pools are disjoint at serve time, but a pair can

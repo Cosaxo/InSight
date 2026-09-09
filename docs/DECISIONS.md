@@ -46598,3 +46598,118 @@ is the run log.
 **Verified rather than assumed:** the create response echoes the stored
 prompt, so the canonical block in § Scheduled runs is the live text, not
 a copy of what was sent.
+
+## D429 · The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them
+
+**Date:** 2026-09-08 · **Status:** binding, step 1 built. The owner's
+`InSight_12` upload, delivered with a ruling: *"yeah this is
+functonality that should not have been added they should be more like
+this"* — *this* being the upload's 1v1 and group — after *"its worst for
+group as that should mostly be about what role you have in the group."*
+D426's third amendment took the world rounds out the same evening; this
+is what the upload puts in their place. The plan is
+[`VISION-2026-09-08.md`](VISION-2026-09-08.md); the record is
+[`design/standalone-2026-09-08/`](../design/standalone-2026-09-08/README.md).
+
+### What the design says a group round is
+
+A **role vote in a scenario pack** — *Bank Heist · Who plans the whole
+thing?* — with the members and *You* as the options and the pack's own
+hue on the kicker; five packs of four roles. Every **fourth round rates
+the group itself** between two poles on five steps — *This group's
+energy? Calm ↔ Chaos*; ten dims. The reveal of a vote names the cast (*Ada
+is the mastermind*, or *Ada and Bo share the mastermind · contested*);
+the reveal of a rating puts the members on the five stops and the group's
+dot on the track (*The group lands on mostly Chaos · 75*). The run at the
+foot is one mark per round: filled in the pack's colour where the room
+named you, a ring where it named someone else, a square for a rating.
+The Mirror's Groups stop draws the cast, and the group instrument gets
+its fourth dim — Standing — and its nine types back.
+
+### The finding: the mechanism existed, the content did not
+
+A role vote is the group bank's `pick` kind — the members as options
+(D40), the snapshot of who an index meant (D224), the rules' fall-through
+to the member count — which had eight questions. The design adds the pack
+around it and one new kind whose answer is still an option index. So
+nothing moved in the write path, the rules, the trigger or the reveal.
+What moved is which questions a group is asked, and what the card and the
+fold make of them:
+
+- **The bank** (`content/duel-questions.json`): twenty role votes
+  (`gr0`–`gr19`) as `pick` questions naming their pack (`scen`, the five
+  packs written once in `scenarios`) and the role they cast (`role`);
+  ten ratings (`gs0`–`gs9`) as `kind: "rate"` with two `poles`, the five
+  step labels derived at seed time and by the demo layer alike so they
+  cannot drift. Five older prompts the design re-asks word for word as
+  ratings are retired (`active: false`, D52's shape; both dedup gates
+  skip retired entries, as they did for the feed). The file went 25.2 →
+  22.8 KiB against its 24 KiB bundle cap by writing the packs once and
+  deriving the steps — and the daily burst crosses that cap on its first
+  run, which is recorded, not solved (VISION §4.3).
+- **The seed**: `scen`, `role` and `poles` in `V2SeedQuestion`, the
+  payload, `SEEDED_FIELDS` and the seed test's mirror — `check:seed-fields`
+  holds the four equal, which is the D234 lesson applied before rather
+  than after.
+- **The rotation** (`duelQFor`): a group walks two pools — the ratings
+  on every fourth round, one step per rating, the votes on the rest, one
+  step per vote — so the ten dims come round in turn and consecutive
+  votes are consecutive questions. The older `us`/`classic` questions
+  are in the bank and out of the rotation, so the reveals that name them
+  still draw their prompt. A bank without ratings plays votes; a bank
+  without picks plays the whole surface.
+- **The card** (`ui/LiveDuelPanel.tsx`): the pack on the kicker in its
+  ink, a member's mark on every option, the pole ballot sealing on one
+  tap with no call, the crown and the contested pair on the reveal's
+  rows (ordered by count, the crown read off D224's snapshots when they
+  agree), the rating's track, the verdicts, and the run's marks.
+- **The fold** (`data/roles.ts`): a rating round leaves the group
+  instrument entirely — its "majority" is a step, not a pick — through
+  `isRatingReveal`, shared with the Mirror's portrait so the stop and the
+  role agree; and **Standing** arrives as an aside, *the room named you
+  in N of M role votes*, scored against luck, counted only on a role
+  vote two or more answered. An aside because the tables do not carry it
+  (D386's rule).
+
+### Two things kept against the design, and said so
+
+- **The room's call stays on a role vote.** The design asks no guess on
+  a group round; D386 built *And the room lands on…?* on the owner's
+  word, and ROLES-PLAN §3.5 makes it the Bellwether's measurement. A
+  rating takes no call, as designed. Whether the call stays is on
+  `OWNER-LIST.md`.
+- **The thirteen older group questions stay in the bank**, out of the
+  rotation: retiring them on the live documents is the operator's flip,
+  and folding the eight plain picks into packs is a content call. Also
+  on `OWNER-LIST.md`.
+
+### What is not built, and why
+
+The tables (Standing as a dim, nine types — or ROLES-PLAN §3.5's eight),
+the Mirror's cast and scores (request 6, now `designed`), and the lane's
+contract are steps 2–4 of the plan, each with its gate. The extraction
+did not diff every module of the upload against a reconstructed baseline
+— the bundle's build changed shape (compacted, comments stripped), so the
+record's byte comparison is dead — and says so; it carries the bundle's
+own hashes so the next one can.
+
+**Measured, not assumed.** `check:content` (1 175 questions, the file
+at 22.8 KiB under its 24 KiB cap), `check:quality`, `check:neighbors`
+(one lexical collision — `gp5` against `gs7`, `runs`+`group` — recorded
+in `ALLOW` with its reason, as the gate's header asks), `check:seed-fields`
+(43 generated fields, all transported, compared and mirrored),
+`test:unit` (2 953 — thirteen new: the rotation, the card's role vote,
+rating, reveals and run, the fold's rating exclusion and Standing),
+`test:scripts` (1 199), `test --prefix functions` (817), `test:rules`
+(204; no rule moved), `lint`, `tsc -b`, `check:globals` (30, unmoved),
+`check:figures` (the bank's counts moved in eight places — 1 145 → 1 215
+docs, 336.5 → 344.6 KiB, +492 → +522 boot reads — each corrected to the
+gate's own number), `check:docs`, `check:public-copy`,
+`check:policy-claims`, `check:a11y` (6, unmoved), `check:tap-targets`
+(331 buttons, the ballot's five at 56 px). **One thing the build found
+the hard way:** a pre-existing rotation test hunted rounds until a
+fixture id was served, and with the fixture rewritten for the cast the
+id no longer existed — the loop never ended, and the whole unit suite
+hung at the first file rather than failing. The search is bounded now
+and says so. `test:e2e:all` is left to CI, as D426's third amendment
+records: this sandbox answers 403 to `firebase-public.firebaseio.com`.

@@ -97,6 +97,16 @@ export interface QuestionDoc {
   // every other surface.
   facet?: string;
   invert?: boolean;
+  // The group as a CAST (D429, the owner's 2026-09-08 design): a `pick`
+  // may name the scenario pack it belongs to and the role it casts, and a
+  // `rate` question (topic "rate") asks the group about itself on a
+  // five-step scale whose two ends are `poles` — its `options` are the
+  // five step labels, so the answer stays an option index for the rules
+  // and the fold. Absent on every other surface and on the older group
+  // kinds.
+  scen?: { id: string; label: string; hue: number };
+  role?: { id: string; label: string };
+  poles?: string[];
   active: boolean;
   // Current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231): a
   // feed entry is OFFERED only between these two inclusive UTC day keys;
@@ -682,11 +692,31 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 // about what role you have in the group"* (D426's third amendment). A duel
 // question is written for reading a person or a room; the feed's are not,
 // and the Mirror already draws you against the crowd on every one of them.
+/** What the card is handed for a round: the question, its options as the
+ * card should draw them (a pick's are the members), its kind (the seeded
+ * `topic`), and — for a role vote — the pack and the role, for a rating
+ * the two poles. */
+export interface DuelRoundQ {
+  id: string;
+  prompt: string;
+  options: string[];
+  kind: string;
+  scen?: { id: string; label: string; hue: number };
+  role?: { id: string; label: string };
+  poles?: string[];
+}
+
+/** Every fourth round of a group is a rating of the group itself; the
+ * other three are role votes (D429, the owner's 2026-09-08 design —
+ * `isRatingRound` in its `duels-data.js`, phase 0). Exported so the card
+ * and the tests say it once. */
+export const isRatingRound = (round: number): boolean => round % 4 === 0;
+
 export function duelQFor(
   g: Record<string, unknown> & { id: string },
   duelBank: Array<QuestionDoc & { id: string }>,
   round: number,
-): { id: string; prompt: string; options: string[]; kind: string } | null {
+): DuelRoundQ | null {
   const mode = g.mode === "duo" ? "duo" : "group";
   // A duo draws from exactly one pool (D40 part 4): the romantic pool when
   // its doc says duoMode "romantic", the shared pool otherwise. The two are
@@ -697,9 +727,40 @@ export function duelQFor(
   // rotation unmoved by the pool's arrival — for them the bank is
   // unchanged, so no served day remaps (the D30 growth argument).
   const pool = mode === "duo" && g.duoMode === "romantic" ? "romantic" : null;
-  const bank = duelBank.filter(
+  const surfaceBank = duelBank.filter(
     (q) => q.surface === mode && (pool ? q.mode === pool : q.mode == null),
   );
+  // THE GROUP PLAYS A CAST (D429, the owner's 2026-09-08 design —
+  // *"group … should mostly be about what role you have in the group"*).
+  // Three rounds in four are role votes: `pick` questions, whose options
+  // are the members, most of them tagged with the scenario pack they
+  // belong to and the role they cast. Every fourth round is a `rate`
+  // question — the group asked about itself between two poles. The
+  // older `us`/`classic` group questions leave the rotation and stay in
+  // the bank, so the reveals that name them still draw their prompt
+  // (`bankQ`); what happens to them is the owner's row. A bank with no
+  // rate questions yet (a device that has not re-read the bank since
+  // they were seeded) plays every round as a role vote, and a bank with
+  // no picks at all falls back to the whole surface — a group must never
+  // be handed no question because its bank predates the cast. Both
+  // fallbacks are the D70 drift a bank change has always had, and
+  // `revealQid` keeps a drifted client coherent.
+  let bank = surfaceBank;
+  if (mode === "group") {
+    const picks = surfaceBank.filter((q) => q.topic === "pick");
+    const rates = surfaceBank.filter((q) => q.topic === "rate");
+    if (isRatingRound(round) && rates.length) {
+      // Ratings walk their own pool, one step per rating round, so the
+      // ten dims come round in turn rather than as every fourth pick.
+      bank = rates;
+      round = round / 4;
+    } else if (picks.length) {
+      bank = picks;
+      // …and the role votes walk theirs, skipping the rounds a rating
+      // took, so consecutive votes are consecutive questions.
+      round = round - Math.floor(round / 4);
+    }
+  }
   if (!bank.length) return null;
   const q = bank[(gHash(g.id) + round + bank.length * 1000) % bank.length];
   const names = (g.memberNames || {}) as Record<string, string>;
@@ -708,5 +769,10 @@ export function duelQFor(
     q.topic === "pick"
       ? memberUids.map((u, i) => names[u] || "Member " + (i + 1))
       : q.options;
-  return { id: q.id, prompt: q.prompt, options, kind: q.topic || "classic" };
+  return {
+    id: q.id, prompt: q.prompt, options, kind: q.topic || "classic",
+    ...(q.scen ? { scen: q.scen } : {}),
+    ...(q.role ? { role: q.role } : {}),
+    ...(q.poles ? { poles: q.poles } : {}),
+  };
 }

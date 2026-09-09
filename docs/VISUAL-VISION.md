@@ -10,7 +10,38 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-08 canvas: the 1v1 and group card
+## The current vision — the 2026-09-08 standalone: the group as a cast
+
+- **Source:** the owner's `InSight_12.html` upload of 2026-09-08 — the
+  twelfth numbered standalone, delivered with a ruling on the world
+  rounds the tree had built that afternoon (*"they should be more like
+  this … its worst for group as that should mostly be about what role
+  you have in the group"*) — extracted to `design/standalone-2026-09-08/`
+  (its README is the readable half: the duel family whole, the bundle's
+  hashes, what the extraction did not diff, and where the tree departs).
+- **The plan built on it:** `VISION-2026-09-08.md` — the mechanism was
+  already in the tree (a `pick` with D224's snapshot) and the content was
+  not; step 1 built the same day (D429).
+- **What it changed over the 2026-09-08 canvas:** the group's rounds.
+  A round is a role vote in a scenario pack — *Bank Heist · Who plans
+  the whole thing?* — with the members as the options and the pack's hue
+  on the kicker, or every fourth round a rating of the group between two
+  poles on five steps; the reveal crowns who the room named (*Ada is the
+  mastermind*, a contested pair when the runner-up is within a vote) or
+  puts the members on the five stops with the group's dot on the track;
+  the run's marks are the pack's colour where the room named you, a ring
+  where it named someone else, a square for a rating. The Mirror's Groups
+  stop draws the cast and the ratings (step 3), and the group instrument
+  regains Standing and its nine types (step 2). The world rounds the same
+  upload carries on the 1v1 are retired, not drawn (D426's third
+  amendment).
+- **Built from it:** step 1 — the bank, the rotation, the card, the fold
+  (D429) — `content/duel-questions.json`, `data/deck.ts`,
+  `ui/LiveDuelPanel.tsx`, `data/roles.ts`.
+- **Requests it closed:** 6 moves to `designed`; 5's group half is drawn
+  in it.
+
+## The one before — the 2026-09-08 canvas: the 1v1 and group card
 
 - **Source:** the owner's `1v1_and_Group_Cards.html` upload of
   2026-09-08 — Claude Design, from the prompt the rounds session wrote
@@ -38,7 +69,7 @@ it is moving toward.
   amendment) — `ui/LiveDuelPanel.tsx`.
 - **Requests it closed:** 12.
 
-## The one before — the 2026-09-07 standalone
+## Before that — the 2026-09-07 standalone
 
 - **Source:** the owner's `InSight_10.html` upload of 2026-09-07,
   extracted to `design/standalone-2026-09-07/` (its README is the

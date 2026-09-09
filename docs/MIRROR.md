@@ -199,8 +199,12 @@ compare populations it invented (`spec/compare-pop.js`, whose own comment
 says "Tuned, not random") are measured now. The crowns' data source began
 accruing at D224: a "pick" answer snapshots the picked member's uid into
 the reveal, so the votes stop being roster-relative indexes — building
-the crowns (or the role map) on those days is its own decision once
-enough of them exist.
+the crowns (or the role map) on those days was its own decision once
+enough of them existed — and D429 made it: since the owner's 2026-09-08
+design three rounds in four are role votes in scenario packs, so the days
+exist, and the cast, the votes lens and the ratings lens are step 3 of
+`docs/VISION-2026-09-08.md`, designed in
+`design/standalone-2026-09-08/group-mirror.jsx` and `group-role-map.jsx`.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
 are within a few hundred metres (the 3x3 of 0.002° cells, ~600 m across
