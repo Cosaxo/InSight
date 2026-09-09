@@ -2252,8 +2252,15 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         gid: "g2", round: 1, anchors: { city: "Oslo, NO" },
       });
     });
+    // WITH the surface filter, so the CITY narrowing is what is under
+    // test. Without it this query carried no surface clause at all and
+    // was refused wholesale by the list rule — which is exactly what the
+    // case below already pins, so this one proved its neighbour's point
+    // and nothing of its own. Adding "duo" to the rule's list would have
+    // left it green.
     await refused(getDocs(query(
       collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
       where("anchors.city", "==", "Oslo, NO"),
     )));
   });
@@ -2295,6 +2302,35 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await refused(getDocs(query(
       collectionGroup(asUser(FRIEND), "answers"),
       where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
+    )));
+  });
+
+  it("…and the GROUP half of the seal, which nothing read-side reached", async () => {
+    // Every case that pinned the seal — this file's, and the e2e's one
+    // sealed-read denial — seeded a `duo` answer. The rule's list is one
+    // expression covering both halves, so appending "group" to it (at
+    // either of its two sites) left EVERY seal assertion green: each
+    // holds a duo document, or a query whose filter list ends in "duo".
+    // Nothing else pinned the list either — the script that cross-reads
+    // the surfaces reads the client's constant, not the rules file, and
+    // the coverage ratchet is unmoved by an element added to an `in`.
+    // The group round is the one D437 built the role vote on: a blind
+    // vote naming a person, sealed until the reveal puts it on the table.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g3_r1"), {
+        qid: "group-gu0", surface: "group", optionIdx: 1,
+        gid: "g3", round: 1,
+      });
+    });
+    const sealed = ["v2_users", OWNER, "answers", "g_g3_r1"] as const;
+    // Yours to read, as every answer of your own is.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), ...sealed)));
+    // Not the other players'.
+    await refused(getDoc(doc(asUser(FRIEND), ...sealed)));
+    // Nor by naming the surface in a collection-group filter.
+    await refused(getDocs(query(
+      collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "group"]),
     )));
   });
 });
