@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 467 lines instead of
-48,385. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 468 lines instead of
+48,486. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -201,7 +201,7 @@ detect it.
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17864 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18094 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18199 |
-| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D426 (+14) | 18297 |
+| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D441 (+15) | 18297 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18456 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18607 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18781 |
@@ -447,7 +447,7 @@ detect it.
 | **D411** | [`main`'s e2e flake: the aggregate was always there, and the client could not see it](DECISIONS.md#d411--mains-e2e-flake-the-aggregate-was-always-there-and-the-client-could-not-see-it) | — | 43633 |
 | **D412** | [Ad-network tracking is deferred with a trigger, not refused — and counting was never the thing being deferred](DECISIONS.md#d412--ad-network-tracking-is-deferred-with-a-trigger-not-refused--and-counting-was-never-the-thing-being-deferred) | — | 43716 |
 | **D413** | [The first two Crossroads stories are retired, and four take their place](DECISIONS.md#d413--the-first-two-crossroads-stories-are-retired-and-four-take-their-place) | — | 43816 |
-| **D414** | [The account wall goes back up, and D219's own condition is why](DECISIONS.md#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why) | D430 (+2) | 43934 |
+| **D414** | [The account wall goes back up, and D219's own condition is why](DECISIONS.md#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why) | D441 (+3) | 43934 |
 | **D415** | [The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions](DECISIONS.md#d415--the-2026-09-07-vision-arrives-the-instruments-in-depth-the-first-day-of-circle-and-1v1-and-the-plan-for-measuring-the-facets-and-positions) | D416 | 44217 |
 | **D416** | [The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written](DECISIONS.md#d416--the-owner-rules-on-the-09-07-rows-the-feed-is-the-only-door-the-sub-scales-stay-on-the-device-and-the-facet-items-are-written) | D417 | 44344 |
 | **D417** | [The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint](DECISIONS.md#d417--the-instruments-deep-items-land-in-the-bank-thirty-facets-written-eighteen-positions-carried-and-the-prompts-kept-out-of-first-paint) | — | 44402 |
@@ -480,4 +480,5 @@ detect it.
 | **D438** | [Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test](DECISIONS.md#d438--phase-3-of-the-rules-budget-the-gate--every-probe-pinned-at-its-measured-headroom-a-floor-of-50-fillers-and-a-denial-by-budget-is-a-red-test) | D440 | 47953 |
 | **D439** | [The bridge's read half: the fit's own scorecard becomes readable from `main`](DECISIONS.md#d439--the-bridges-read-half-the-fits-own-scorecard-becomes-readable-from-main) | — | 48046 |
 | **D440** | [The owner of a directory row may delete it — clearing your display name unlists you](DECISIONS.md#d440--the-owner-of-a-directory-row-may-delete-it--clearing-your-display-name-unlists-you) | — | 48143 |
+| **D441** | [The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again](DECISIONS.md#d441--the-email-door-asks-too-the-walls-one-silent-path-gets-the-same-second-tap-as-apple-and-google-and-the-privacy-page-promises-the-warning-at-all-three-doors-again) | — | 48385 |
 | **D444** | [The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's](DECISIONS.md#d444--the-ten-plain-picks-get-a-sixth-pack-any-given-evening-four-of-them-in-place-six-retired-by-the-one-role-a-seat-rule-the-live-flip-still-the-owners) | — | 48235 |

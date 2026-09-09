@@ -273,16 +273,22 @@ export const CLAIMS = [
   // account before anything looks at the address (live.ts's own
   // `abandonSignIn` note: "Nothing is deleted — the abandoned account
   // still exists"), and it said the app warns before signing in to an
-  // existing account, which Apple and Google do and the email door does
-  // not.
+  // existing account, which Apple and Google did and the email door did
+  // not. That second sentence went the other way at D441: the owner had
+  // the CODE match the better promise, so the row that pinned the caveat
+  // now pins the promise for all three doors, and an absence row keeps
+  // the caveat from coming back — the page must not go on describing a
+  // door that no longer exists.
   ["D414 · the three doors are named, so the wall cannot quietly grow a fourth",
     /Sign in with Apple[\s\S]{0,400}?Continue with Google[\s\S]{0,400}?Email and password/i],
   ["D414 · the password is hashed by Firebase and this app never sees it",
     /stores\s+it hashed; this app never sees it and never stores it/i],
   ["D414 · a password account exists BEFORE the address is confirmed, and is abandoned rather than deleted",
     /exists from the moment the password is accepted, before[\s\S]{0,200}?signing out abandons that account rather\s+than deleting it/i],
-  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
-    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
+  ["D441 · signing in to an existing account leaves this session's answers, and every door says so first",
+    /two histories are not\s+merged[\s\S]{0,200}?says so on the screen before it\s+happens/i],
+  ["D441 · the retired email-door caveat is gone",
+    (src) => !/With an\s+email address it does not/i.test(src)],
 ];
 
 /** Labels of every claim the given page source fails to state. */
