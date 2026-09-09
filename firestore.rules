@@ -1289,13 +1289,20 @@ service cloud.firestore {
           // cheapest kind of latent bug: correct today, and silently wrong
           // the moment a path grows past the ceiling.
           //
-          // MEASURED, 2026-09-09, twice. D429, by hand: the thinnest legal
-          // creates — D426's world-question duel arm and the pick round —
-          // cleared the 1,000 by roughly 130 expressions, and past ~170
-          // more the ruleset stopped COMPILING ("Expression is too complex
-          // to evaluate safely"), the loud ceiling. D433, by the
-          // instrument, after the arms were routed and their fetches
-          // hoisted: see that record for the table. `firestore-tests/
+          // MEASURED, 2026-09-09, three times. D429, by hand: the thinnest
+          // legal creates — D426's world-question duel arm and the pick
+          // round — survived 46 filler conjuncts, which it read as ~130
+          // expressions, and at 85 the ruleset stopped COMPILING
+          // ("Expression is too complex to evaluate safely"), the loud
+          // ceiling. D432, by the instrument (scripts/rules-budget.mjs):
+          // a filler costs ~8 budget units, not 3, so those 46 were ~375
+          // — and every REFUSAL was already over the line, refused by
+          // budget rather than by a rule. D433, after the arms were
+          // routed, their fetches hoisted and the anchors read once: the
+          // thinnest legal create clears by 58 fillers (~470), every
+          // refusal by at least the compile ceiling's 94, and the e2e's
+          // thirteen budget refusals are zero. The table is
+          // scripts/rules-budget-baseline.json. `firestore-tests/
           // rules.test.ts` § "the heaviest LEGAL create" pins the legal
           // half as executable cases — all ten anchors at their bounds,
           // where every other case sends the cheap end — so the day a new
