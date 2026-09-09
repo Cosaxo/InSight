@@ -589,6 +589,15 @@ arithmetic.
       are the worked example: same commit `2933dc0`, eight minutes apart,
       `skipped` then `success`, so only one of the two spent a build.
 
+      **BUILD 34 UPLOADED 2026-09-07** (run 57, `9069f62`, upload step
+      `success`) — the first submittable build. The bump after it did not
+      happen: run 58 on 2026-09-09 (a dry run, upload `skipped`) and the
+      tree that merged #456 still carried 34, so the release for #456's
+      rules deploy (the group guess refused from 17:16 UTC that day, every
+      installed build affected until it updates) was dispatched from a
+      branch carrying the bump. **`appBuild` is now 35**, bumped off run
+      57's step 17 in the session that dispatched the next run.
+
       **BUILD 12 UPLOADED 2026-08-13** (run 18, `d0cf435`, 5m 32s, upload
       step `success`). Builds 11 and 12 went up a day apart — run 17
       (`ac61c37`, 2026-08-12) carried D103–D116, and run 18 carried
@@ -1705,7 +1714,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 34.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 35.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
