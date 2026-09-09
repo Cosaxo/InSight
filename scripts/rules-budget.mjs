@@ -69,8 +69,13 @@ const RULES = process.env.RULES_BUDGET_RULES || join(root, "firestore.rules");
 
 // ── pure: rule transforms ───────────────────────────────────────────
 
-/** The last conjunct of the answer CREATE rule — the filler anchor. */
-export const CREATE_TAIL = '&& isValidV2Anchors(request.resource.data.get("anchors", {}));';
+/**
+ * The last conjunct of the answer CREATE rule — the filler anchor. Since
+ * Phase 1 (c) the rule ends in the routed `createArm()`; the anchors ride
+ * inside each branch. The rule's own comment names this line as the
+ * probe's landing and asks that it stay last.
+ */
+export const CREATE_TAIL = "&& createArm();";
 /** The last conjunct of the answer UPDATE rule. */
 export const UPDATE_TAIL = "|| request.time > resource.data.editedAt + duration.value(60, 's'));";
 
@@ -430,8 +435,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const ablations = [];
   for (let i = 0; i < process.argv.length; i += 1) {
     if (process.argv[i] === "--ablate") {
-      const [name, value] = String(process.argv[i + 1]).split("=");
-      rules = ablate(rules, name, value === "true" ? "true" : "false");
+      // NAME=EXPR — any rules expression, not only true/false, so a helper
+      // that returns a number (duelIndexSpace) or a map can be stubbed too.
+      const eq = String(process.argv[i + 1]).indexOf("=");
+      const name = String(process.argv[i + 1]).slice(0, eq);
+      const value = String(process.argv[i + 1]).slice(eq + 1);
+      rules = ablate(rules, name, value);
       ablations.push(`${name}=${value}`);
     }
   }

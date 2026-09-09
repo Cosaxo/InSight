@@ -1216,58 +1216,83 @@ service cloud.firestore {
             && q.get("active", true) == true;
         }
 
-        allow create: if request.auth != null && request.auth.uid == uid
-          && request.resource.data.answeredAt == request.time
-          && (
-            (request.resource.data.optionIdx is int
-              && request.resource.data.optionIdx >= 0
-              // Outer sanity bound only — the real bound is per-question
-              // below (options.size(), or the group's member count for
-              // "pick" questions). Must clear GROUP_CAP (32,
-              // functions/src/v2social.ts) or members past the 20th become
-              // unpickable on every "pick" day.
-              && request.resource.data.optionIdx < 64
-              && ((isWorldAnswer() && deviceBound())
-                || isDuelAnswer()
-                // Pulse answers feed a published aggregate, so they carry
-                // the same D29 binding the world surfaces do.
-                || (isPulseAnswer() && deviceBound())
-                // A call is exactly what a sybil would want to spam — a
-                // score with a leaderboard behind it — so it binds too.
-                || (isCallAnswer() && deviceBound())))
+        // ONE DISCRIMINATOR, ONE ARM (RULES-BUDGET-PLAN §3(c), D433). This
+        // rule was a six-way disjunction, and the instrument
+        // (scripts/rules-budget.mjs) measured what that costs: an ALLOWED
+        // write paid every arm listed before its own, and a REFUSED write
+        // paid all six and the anchors and never fitted the budget — every
+        // refusal in the suite and the e2e was a refusal BY BUDGET,
+        // indistinguishable from a rule saying no (D431). A ternary
+        // evaluates one branch. Each write routes on the field that only
+        // its arm admits (`order` → rank, `entity` → catalog) or on its
+        // surface, and pays its own arm, its binding and the anchors.
+        // Nothing else is reached.
+        //
+        // THE PARTITION IS EXACT, which is what makes this a refactor and
+        // not a rule change: every arm's hasOnly refuses the other arms'
+        // distinguishing keys, and the surface lists are disjoint, so no
+        // write could ever have been accepted by an arm other than the one
+        // it now routes to. `firestore-tests/rules.test.ts` is the proof,
+        // case for case, and rules-coverage's never-false count is the
+        // proof that no clause went dark in the move.
+        function anchorsOk() {
+          // D8's snapshot, validated exactly as before — inside the branch
+          // now, so it is paid once, by exactly the write it validates.
+          return isValidV2Anchors(request.resource.data.get("anchors", {}));
+        }
+        function createArm() {
+          let d = request.resource.data;
+          return ("order" in d)
+            // Rank answers carry `order` (D233): their own branch, the D29
+            // binding, and no optionIdx block.
+            ? (isRankAnswer() && deviceBound() && anchorsOk())
+            : ("entity" in d)
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
             // field out. They feed aggregates, so they carry the D29
             // binding the duel branch is exempt from.
-            || (isCatalogAnswer() && deviceBound())
-            // Rank answers carry `order` (D233) — same arrangement: their
-            // own branch beside the optionIdx block, the same binding.
-            || (isRankAnswer() && deviceBound())
-          )
-          // LAST, not first, and only the position moved (D8's snapshot is
-          // validated exactly as before — a conjunction reorders freely).
-          // It walks ten anchors through isOptionalShortString, and on a
-          // create that no arm above accepts that is spent before the arms
-          // are even tried. Firestore stops at 1,000 evaluated expressions
-          // and reports the stop as PERMISSION_DENIED, so a rule that runs
-          // out of budget denies exactly like a rule that is false — which
-          // makes this the cheapest kind of latent bug: correct today, and
-          // silently wrong the moment a path grows past the ceiling.
+            ? (isCatalogAnswer() && deviceBound() && anchorsOk())
+            // Everything else names an option. Outer sanity bound only —
+            // the real bound is per-question in the arm (options.size(),
+            // or the group's member count for "pick" questions). Must
+            // clear GROUP_CAP (32, functions/src/v2social.ts) or members
+            // past the 20th become unpickable on every "pick" day.
+            : !(d.optionIdx is int && d.optionIdx >= 0 && d.optionIdx < 64)
+            ? false
+            : (d.surface in ["group", "duo"])
+            ? (isDuelAnswer() && anchorsOk())
+            : (d.surface == "pulse")
+            // Pulse answers feed a published aggregate, so they carry
+            // the same D29 binding the world surfaces do.
+            ? (isPulseAnswer() && deviceBound() && anchorsOk())
+            : (d.surface == "call")
+            // A call is exactly what a sybil would want to spam — a
+            // score with a leaderboard behind it — so it binds too.
+            ? (isCallAnswer() && deviceBound() && anchorsOk())
+            : (isWorldAnswer() && deviceBound() && anchorsOk());
+        }
+        allow create: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.answeredAt == request.time
+          // Firestore stops a rule at 1,000 evaluated expressions and
+          // reports the stop as PERMISSION_DENIED, so a rule that runs out
+          // of budget denies exactly like a rule that is false — the
+          // cheapest kind of latent bug: correct today, and silently wrong
+          // the moment a path grows past the ceiling.
           //
-          // MEASURED, 2026-09-09, and there are TWO ceilings (D429).
-          // Runtime: the thinnest allow arms here — D426's world-question
-          // duel arm and the pick round — clear the 1,000 by roughly 130
-          // expressions; the profile arm above by 80–140. Compile: past
-          // about 170 more expressions the ruleset stops compiling at all
-          // ("Expression is too complex to evaluate safely", naming
-          // isValidV2Anchors and the profile arm), which is the LOUD one —
-          // a deploy fails rather than a person being refused.
-          // `firestore-tests/rules.test.ts` § "the heaviest LEGAL create"
-          // pins the runtime half as executable cases: they send all ten
-          // anchors at their bounds, where every other case in that file
-          // sends the cheap end, so the day a new clause crosses the line
-          // the suite reds instead of the release.
-          && isValidV2Anchors(request.resource.data.get("anchors", {}));
+          // MEASURED, 2026-09-09, twice. D429, by hand: the thinnest legal
+          // creates — D426's world-question duel arm and the pick round —
+          // cleared the 1,000 by roughly 130 expressions, and past ~170
+          // more the ruleset stopped COMPILING ("Expression is too complex
+          // to evaluate safely"), the loud ceiling. D433, by the
+          // instrument, after the arms were routed and their fetches
+          // hoisted: see that record for the table. `firestore-tests/
+          // rules.test.ts` § "the heaviest LEGAL create" pins the legal
+          // half as executable cases — all ten anchors at their bounds,
+          // where every other case sends the cheap end — so the day a new
+          // clause crosses the line the suite reds instead of the release.
+          // The filler probe scripts/rules-budget.mjs appends lands on the
+          // line below; keep it the last conjunct.
+          && createArm();
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,
         // and why each stays:
