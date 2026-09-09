@@ -872,13 +872,19 @@ describe("runRollupFold", () => {
   // rollups died unfolded at their TTL, while the warning promised
   // "leftovers fold tomorrow". Now the page is the memory bound and the
   // time budget is the night's; a full page is a reason to ask again.
+  // A 25,000-row fixture is a real amount of work for a fake store; the
+  // two drains below took 5.2 s on a loaded two-vCPU sandbox against the
+  // 5 s default (2026-09-09), and a size probe that fails on the machine's
+  // mood is a probe nobody trusts. Thirty seconds is the budget, not a
+  // target — the assertions are what hold.
+  const DRAIN_TIMEOUT_MS = 30_000;
   it("drains 25,000 rollups over three pages, and calls none of it capped", async () => {
     const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, `2026-08-${String(1 + (i % 20)).padStart(2, "0")}`));
     const { store, state } = rollupStore(many);
     const res = await runRollupFold(store);
     expect(res).toMatchObject({ rollups: 25_000, days: 20, capped: false, left: 0 });
     expect(state.rows, "rollups were left unfolded on a night with budget to spare").toHaveLength(0);
-  });
+  }, DRAIN_TIMEOUT_MS);
 
   it("a budget stop leaves the rest unfolded — not lost — and says how many", async () => {
     const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, "2026-08-22"));
@@ -894,7 +900,7 @@ describe("runRollupFold", () => {
     const again = await runRollupFold(store);
     expect(again).toMatchObject({ rollups: 25_000 - ROLLUP_FOLD_CAP, capped: false, left: 0 });
     expect(state.rows).toHaveLength(0);
-  });
+  }, DRAIN_TIMEOUT_MS);
 
   it("stops on a full page of junk rather than asking for it forever", async () => {
     const junk = Array.from({ length: ROLLUP_FOLD_CAP }, (_, i) => rr(`u${i}`, "someday"));
