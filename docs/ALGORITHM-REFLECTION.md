@@ -603,7 +603,15 @@ every question that day inside one invocation, so it needs a per-run bound
 nobody has chosen. Both are the owner's to price. Until then the reader
 does what it can, which is only to stop treating an EMPTY sample as a
 crowd of nobody (`fetchVoterSample`, `voter-sample.test.ts`); a SHORT one
-it cannot detect. ~200 × 32 bytes ≈ 6.5 KB a doc, 113 docs (≈ 380 under §3),
+it cannot detect. **Priced and built, 2026-09-09 (D442):** the owner took
+the seeding pass at 25 questions a night — `functions/src/answerSurfaces.ts`
+is the second copy of the list, held equal to the client's by a test
+that reads `voters.ts` across the boundary, `PATTERNS_SEED_PER_RUN` is
+the bound, and the `seeded` stamp on the sample document is what keeps
+the query to once per question ever. The corpus is wider than the 113
+below: every item the candidate's corpus names gets a sample (540 at
+D442), so the ceiling is 540 × 200 reads once, and a seeding night is at
+most 5,000. ~200 × 32 bytes ≈ 6.5 KB a doc, 113 docs (≈ 380 under §3),
 one write each a night: nothing. On the device, `sayRows`, `loadKindred`,
 `loadCityKindred` and the People lens read one doc per question instead
 of 200 rows: a Kindred first view goes from ~2,400 answer reads (plus up

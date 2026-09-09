@@ -28,6 +28,20 @@
 // what they picked, the chips their answer froze. Nothing derived, no
 // vector, no position. The erasure arm is what it owes, and
 // e2e-delete-account.mjs asserts it.
+//
+// SEEDED ON FIRST TOUCH (D442). The ledger day is the merge's only input,
+// and a person answers a given question once — so as D397 shipped, the
+// two hundred people who answered before the samples existed never
+// arrived, and a long-standing question published a sample of however
+// many had answered it SINCE: real rows the reader could not tell from a
+// complete list, landing on the 12-voter floors as `thin` — a claim about
+// the crowd whose real subject was the deploy date. So the first night
+// the pass meets a question whose sample carries no `seeded` stamp, it
+// runs the who-voted sheet's own query once — the newest
+// PATTERNS_SAMPLE_CAP world answers — folds them in exactly as a ledger
+// day is folded, stamps the document, and never asks again. Bounded per
+// run (PATTERNS_SEED_PER_RUN) so a busy night cannot put the whole
+// corpus's reads inside one invocation; the rest wait a night.
 import type { AnswerMap } from "./patternsAls";
 
 /** The device's own bound, mirrored: `VOTER_FETCH_CAP` in
@@ -35,6 +49,22 @@ import type { AnswerMap } from "./patternsAls";
  * A sample larger than the sheet would claim more than the sheet does;
  * smaller would claim less. */
 export const PATTERNS_SAMPLE_CAP = 200;
+
+/** How many samples one nightly run may SEED from the answers (D442) —
+ * the owner's number, 2026-09-09.
+ *
+ * A seed is up to PATTERNS_SAMPLE_CAP billed reads, so a seeding night
+ * costs at most 25 × 200 = 5,000 reads on top of the pass's own, where an
+ * unbounded first night over the whole sampled corpus (540 items at the
+ * time of writing, every item the candidate's corpus names) would be up to
+ * ~108,000 reads inside one invocation with a timeout — the bound the
+ * row on OWNER-LIST.md said nobody had chosen. At 25 a night the corpus
+ * converges in at most ceil(540 / 25) = 22 seeding nights, and only the
+ * questions a day's answers actually touch are met at all, so the nights
+ * that seed anything are the nights people answered questions with a
+ * history. After the last unstamped sample is met, the term is zero
+ * forever: the stamp is the only thing a later night reads. */
+export const PATTERNS_SEED_PER_RUN = 25;
 
 export interface SampleRow {
   /** The option index picked. */
@@ -50,6 +80,12 @@ export interface SampleDoc {
   rows: Record<string, SampleRow>;
   /** How many rows — the basis the client states. */
   n: number;
+  /** The UTC day the sample was seeded from the answers themselves
+   * (D442) — absent on a document only the ledger has fed. The stamp is
+   * the whole idempotence of the seed: a run seeds an unstamped sample
+   * and reads nothing for a stamped one, so `mergeSample` has to carry
+   * it across every nightly rewrite or the query runs again forever. */
+  seeded?: string;
 }
 
 export interface SampleAddition {
@@ -84,7 +120,73 @@ export function mergeSample(prev: SampleDoc | null, qid: string, adds: readonly 
     rows[add.uid] = { o: add.optionIdx, a: add.anchors ?? {}, d: add.day };
   }
   const kept = Object.entries(rows).sort(sampleOrder).slice(0, cap);
-  return { qid, rows: Object.fromEntries(kept), n: kept.length };
+  // The seed stamp rides every rewrite (D442): the merged document is the
+  // WHOLE sample (putSamples is a set with no merge), so a merge that
+  // rebuilt the document without it would un-seed the question nightly.
+  return { qid, rows: Object.fromEntries(kept), n: kept.length, ...(prev?.seeded ? { seeded: prev.seeded } : {}) };
+}
+
+/** Whether the pass owes this sample its one seed (D442): no document
+ * yet, or one only the ledger has fed. */
+export const needsSeed = (doc: SampleDoc | null | undefined): boolean => !doc?.seeded;
+
+/** A Firestore Timestamp, as much of it as the seed needs. */
+export interface MillisLike { toMillis(): number }
+
+/**
+ * One answer document → one sample addition, the seed's projection (D442).
+ * The uid is the caller's (it is the document's grandparent, not a field);
+ * the option must be a non-negative integer, as `mergeSample` demands —
+ * a catalog answer carries `entity` and no option column, so it is
+ * skipped rather than coerced (the client's `fetchVoterPicks` rule); the
+ * chips are the answer's frozen anchors (D8), string values only, exactly
+ * the filter `ledgerAnchors` applies when the ledger copies the same
+ * snapshot (v2.ts), so a seeded row and a ledgered row of the same
+ * answer are byte-identical.
+ *
+ * THE DAY IS WHEN THE ANSWER LAST MOVED — `editedAt` when a D86 edit
+ * stamped it, else `answeredAt` — because that is the day the ledger
+ * folded it: a create's entry lands on the create day and an edit's on
+ * the edit day, and `mergeSample` moves the row to the edit day. So a
+ * seeded row lands exactly where the ledger would have put it, and an
+ * edit the ledger already moved meets the seed as a TIE (same day, same
+ * option) rather than as a rollback or a second person. Null when the
+ * document has no usable clock — nothing to order it by, so it is not
+ * minted at an invented day.
+ */
+export function seedAddition(
+  uid: string,
+  d: { optionIdx?: unknown; anchors?: unknown; answeredAt?: unknown; editedAt?: unknown },
+): SampleAddition | null {
+  const at = isMillis(d.editedAt) ? d.editedAt : isMillis(d.answeredAt) ? d.answeredAt : null;
+  if (!uid || !at || !Number.isInteger(d.optionIdx) || (d.optionIdx as number) < 0) return null;
+  const anchors: Record<string, string> = {};
+  if (d.anchors && typeof d.anchors === "object") {
+    for (const [k, v] of Object.entries(d.anchors as Record<string, unknown>)) {
+      if (typeof v === "string" && v.length <= 80) anchors[k] = v;
+    }
+  }
+  return {
+    uid,
+    optionIdx: d.optionIdx as number,
+    ...(Object.keys(anchors).length ? { anchors } : {}),
+    day: new Date(at.toMillis()).toISOString().slice(0, 10),
+  };
+}
+
+const isMillis = (x: unknown): x is MillisLike =>
+  !!x && typeof x === "object" && typeof (x as MillisLike).toMillis === "function";
+
+/**
+ * Seed a sample from the answers (D442): the query's rows folded in
+ * exactly as a ledger day is — one row per person, the newest day wins,
+ * the cap keeps the newest — then stamped with the day the seed ran.
+ * The caller merges the ledger day AFTER this, so an entry ledgered
+ * today wins its tie with the seed's copy of the same answer (the
+ * caller's order is the tiebreak, as `mergeSample` says).
+ */
+export function seedSample(prev: SampleDoc | null, qid: string, rows: readonly SampleAddition[], day: string): SampleDoc {
+  return { ...mergeSample(prev, qid, rows), seeded: day };
 }
 
 /** The sample documents a day's entries touch, grouped by question, from

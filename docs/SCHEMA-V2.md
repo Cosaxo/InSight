@@ -376,6 +376,14 @@ v2_patterns/sample-{qid}           the nightly voter sample (D397)
                                    a person is one row (an edit moves it)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
+  seeded?                          the UTC day the sample was seeded from
+                                   the answers themselves (D442) — the
+                                   newest cap of the question's world
+                                   answers, folded in once the first night
+                                   the pass met it; absent on a document
+                                   only the ledger has fed, which is the
+                                   pass's cue to seed it (at most 25 a
+                                   night, PATTERNS_SEED_PER_RUN)
 read: signed-in (the loadings document's own rule — same collection) ·
 write: NOBODY — merged nightly by the pass (D399) from the ledger day it
 already reads. What Kindred, the People lens and the pair card read in
