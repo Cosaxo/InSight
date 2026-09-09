@@ -1279,6 +1279,174 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
   });
 });
 
+// ── the expression budget the create rule is already close to ───────
+//
+// Firestore stops a rule at 1,000 evaluated expressions and reports the
+// stop as PERMISSION_DENIED — a budget exhaustion is indistinguishable
+// from a rule saying no. `firestore.rules:1206` says exactly that about
+// itself ("correct today, and silently wrong the moment a path grows
+// past the ceiling") and nothing measured it.
+//
+// Measured 2026-09-09 by appending N filler conjuncts (`&& …surface !=
+// "zzfillN"`, roughly 3 expressions each) after `isValidV2Anchors` and
+// running exactly these seven cases against the emulator at each N:
+//
+//   N    world  own-bank  world-content  pick  late  rank  32-member
+//   40    ok      ok          ok          ok    ok    ok      ok
+//   48    ok      ok        BUDGET      BUDGET  ok    ok      ok
+//   52    ok      ok        BUDGET      BUDGET BUDGET ok      ok
+//   56    ok    BUDGET      BUDGET      BUDGET BUDGET ok    BUDGET
+//   60    ok    BUDGET      BUDGET      BUDGET BUDGET BUDGET BUDGET
+//   80  BUDGET  BUDGET      BUDGET      BUDGET BUDGET BUDGET BUDGET
+//
+// The thinnest paths — D426's world-question arm and the pick round —
+// flip between 40 and 48 fillers, so their headroom is somewhere near
+// 130 expressions of the 1,000. That is what "close to the ceiling"
+// means here, in a number.
+//
+// Group size is NOT what pays for it: the 32-member case flips at the
+// same N as its two-member twin, because `uid in memberUids` is not
+// priced per element. Pinned below as its own case, since it is the
+// intuitive suspect and it is wrong.
+//
+// And EVERY refusal already exceeds the budget today, because a deny
+// walks every arm to the end. That is why this pins the SUCCESSES: a
+// denial that costs too much is still a denial, while an allow that
+// costs too much is a person who cannot answer, told they may not.
+//
+// Every other answer/duel case in this file sends `anchors: {}` or a
+// one-key snapshot, which is the cheap end of the payload. These send
+// all ten anchors at their rule bounds, which is what a real device
+// writes.
+describe("the heaviest LEGAL create still fits the expression budget", () => {
+  const GID = "g_budget";
+  // Every anchor `isValidV2Anchors` admits, each at its exact bound —
+  // read off the rule rather than restated as round numbers, so a bound
+  // that moves shows up here as a failing length rather than as a test
+  // that quietly got cheaper.
+  const FAT = {
+    city: "c".repeat(80),
+    country: "n".repeat(80),
+    ageBand: "b".repeat(20),
+    age: "999",
+    gender: "g".repeat(40),
+    profession: "p".repeat(80),
+    jobField: "j".repeat(40),
+    education: "e".repeat(80),
+    relationship: "r".repeat(40),
+    heightBand: "h".repeat(20),
+  };
+
+  const MEMBERS = [OWNER, FRIEND, STRANGER];
+  const seedAll = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", "daily-000"), {
+      surface: "daily", seq: 0, type: "binary", prompt: "?",
+      options: ["a", "b"], active: true,
+    });
+    // "group", not "duo": the own-bank arm requires the QUESTION's
+    // surface to equal the answer's (`== request.resource.data.surface`,
+    // firestore.rules), which is the clause that keeps a room from
+    // sealing a vote against a catalog question. A `duo` question answered
+    // on a `group` round is refused, correctly, and that refusal is not
+    // what these cases are about.
+    await setDoc(doc(db, "v2_questions", "group-b0"), {
+      surface: "group", seq: 1, type: "classic", prompt: "?",
+      options: ["a", "b"], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "feed-w0"), {
+      surface: "feed", seq: 2, type: "vote", prompt: "?",
+      options: ["a", "b"], active: true, core: true,
+    });
+    await setDoc(doc(db, "v2_questions", "group-pick0"), {
+      surface: "group", seq: 3, type: "classic", topic: "pick", prompt: "?",
+      options: [], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "feed-rank0"), {
+      surface: "feed", seq: 4, type: "rank", prompt: "?",
+      options: ["A", "B", "C", "D"], active: true,
+    });
+    await setDoc(doc(db, "v2_groups", GID), {
+      name: "Room", mode: "group", memberUids: MEMBERS, round: 2,
+    });
+  });
+
+  const at = (uid: string, aid: string) => doc(asUser(uid), "v2_users", uid, "answers", aid);
+
+  it("carries all ten anchors at their bounds — the payload a real device sends", async () => {
+    // The fixture proves itself first: a bound that shrank would make
+    // every case below cheaper than the thing it is measuring.
+    expect(Object.keys(FAT)).toHaveLength(10);
+    expect(FAT.city.length + FAT.country.length + FAT.profession.length + FAT.education.length).toBe(320);
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, "daily-000"), {
+      qid: "daily-000", surface: "daily", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a duel answer on the room's own bank", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, `g_${GID}_r2`), {
+      qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0,
+      gid: GID, round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a duel answer on WORLD content (D426 §6.2) — the thinnest margin measured", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(FRIEND, `g_${GID}_r2`), {
+      qid: "feed-w0", surface: "group", optionIdx: 1, guessIdx: 0,
+      gid: GID, round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a pick round, with pickUid — the other thinnest margin", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(STRANGER, `g_${GID}_r2`), {
+      qid: "group-pick0", surface: "group", optionIdx: 1, guessIdx: 2,
+      pickUid: FRIEND, gid: GID, round: 2,
+      answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a late answer to a revealed round (D426 §4)", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, `g_${GID}_r1`), {
+      qid: "group-b0", surface: "group", optionIdx: 0, late: true,
+      gid: GID, round: 1, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("a rank answer", async () => {
+    await seedAll();
+    await assertSucceeds(setDoc(at(OWNER, "feed-rank0"), {
+      qid: "feed-rank0", surface: "feed", order: [2, 0, 1, 3],
+      answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+
+  it("and the group's size is not what pays for it", async () => {
+    // Pinned because it is the intuitive suspect and it is wrong: `uid in
+    // memberUids` is not priced per element. A room of thirty-two — the
+    // GROUP_CAP — costs what a pair costs, so a growing room is not the
+    // thing that will push a path over.
+    const BIG = Array.from({ length: 32 }, (_, i) => `m${i}`);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-b0"), {
+        surface: "group", seq: 1, type: "classic", prompt: "?",
+        options: ["a", "b"], active: true,
+      });
+      await setDoc(doc(db, "v2_groups", "g_big"), {
+        name: "Crowd", mode: "group", memberUids: BIG, round: 2,
+      });
+    });
+    await assertSucceeds(setDoc(at("m31", "g_g_big_r2"), {
+      qid: "group-b0", surface: "group", optionIdx: 1, guessIdx: 0,
+      gid: "g_big", round: 2, answeredAt: serverTimestamp(), anchors: FAT,
+    }));
+  });
+});
+
 describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
   // A SECOND real question, and it is what makes the authorship case
