@@ -1,6 +1,6 @@
 # The rules expression budget — buying it back, and holding it
 
-**Status: plan notes — Phases 0, 1 and 2 are BUILT and measured (D432, D433); Phases 3 and 4 remain proposals.** Every number in §§0–6 is marked as either
+**Status: plan notes — Phases 0 to 3 are BUILT and measured (D432, D433, D434); Phase 4 remains a proposal, priced and untaken.** Every number in §§0–6 is marked as either
 *measured* (D429's filler runs, the e2e log, the tree) or *estimate*, as
 it was written before Phase 0 ran; **§9 is the measured table** and where
 the two disagree §9 is the correction — starting with the unit itself,
@@ -291,6 +291,22 @@ Not in scope: bounding anchors by fewer keys, changing any bound, or
 touching D8's snapshot semantics.
 
 ## 5 · Phase 3 — the gate that holds it
+
+**BUILT 2026-09-09 (D434), with two of its numbers re-derived.** The
+plan below wrote *FLOOR ≈ 130 fillers ≈ 400 expressions* and *FLOOR +
+60 must load* in D429's unit; D432 measured the unit at 8.1, the
+thinnest legal create at 58 fillers and the compile ceiling at 94, so
+130 fillers is above the ceiling and 130 + 60 could never load. What
+shipped: **a floor of 50 fillers (~405 units — the plan's ≥ 400 in the
+measured currency), a compile floor of 80, and every probe pinned at
+exactly its measured headroom on both sides** (unchanged at N, budget at
+N+1 — `check:globals` rule 4's two-sided shape, so the baseline stays a
+measurement rather than a memory), with the compile-bounded refusals
+held at the floor. `node scripts/rules-budget.mjs --gate`, chained into
+`test:rules` after `rules-coverage.mjs`; `--pin` re-measures the pins
+(`npm run test:rules:baseline`). Assertion 2 landed as written, in the
+suite AND in the e2e's one denial helper, which is where the thirteen
+had hidden.
 
 Three assertions, all inside `test:rules`' existing emulator boot,
 chained after `rules-coverage.mjs` in `package.json` the way it is

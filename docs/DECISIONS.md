@@ -47296,3 +47296,86 @@ no decision. **Phase 3 — the gate** — is the plan's next commit: a
 headroom ratchet in the rules job so the number in
 `rules-budget-baseline.json` can only go up, a compile-headroom probe,
 and a `refused()` helper that turns a denial-by-budget into a red test.
+
+## D434 · Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test
+
+**2026-09-09.** **Status:** binding. The owner: *"go on phase 3, merge
+when green"*. D433 bought the headroom back; nothing held it. A clause
+added to the create path would have spent it one filler at a time, and
+the first symptom would have been what D431 found — a refusal that was
+really an exhausted budget, in a suite that stayed green. This is the
+plan's Phase 3: the number can be read, and it can only move on purpose.
+
+**What holds it.** `node scripts/rules-budget.mjs --gate`, chained into
+`test:rules` after `rules-coverage.mjs`, so it runs inside the same
+emulator boot on the PR path and the deploy path both
+(`backend-checks.yml`'s rules job — the property CLAUDE.md names, kept
+by construction). Twenty-three variants, about fifteen seconds on the
+machine that measured it:
+
+- **Every flippable probe is pinned on both sides.** For each of the
+  eight legal creates the baseline records the N at which it flips
+  (`scripts/rules-budget-baseline.json`, `fillers`), and the gate
+  asserts the write is still *allowed* at exactly N and *refused by
+  budget* at N+1. Two-sided is deliberate: it is `check:globals` rule
+  4's shape. A change that costs expressions moves a pin and must
+  re-pin and say why; a change that GAINS headroom moves it the other
+  way and must re-pin too, so the baseline stays a measurement and not
+  a memory of one. The far side wants *budget* specifically — a variant
+  that failed to load is not a flip, and the classifier seeing the
+  emulator's reason text is itself under test.
+- **The compile-bounded probes are held at the floor.** Every refusal
+  shape reaches the compile ceiling (94 fillers) without flipping, so
+  there is no N+1 to assert; each is asserted *refused for its reason*
+  at the floor instead. That is the sentence D431 could not get: no
+  refusal in the pinned set is a refusal by budget, with 50 fillers of
+  margin.
+- **The floor is policy.** `floorFillers: 50` — ~405 budget units at
+  D432's 8.1, which is the plan's "≥ 400 expressions" target in the
+  measured currency. Every pin must clear it, arithmetically, before a
+  single variant boots. The thinnest legal create sits at 58, eight
+  fillers (~65 units) above it. A pin that would land under the floor
+  is refused by the gate with the sentence that matters: *the change
+  that put it there is the thing to argue, not the number to edit*.
+- **The file must load at 80 fillers** (`compileFloorFillers`), 14
+  under the measured ceiling, so a deploy that would fail at the compile
+  ceiling is caught here rather than on the deploy path.
+- **Fails closed.** No baseline file, a floor missing, a probe with no
+  row, a row with no probe, a pin that is not a headroom, fillers pinned
+  on the wrong arm — each is a refusal to run, never a pass. The
+  decisions of WHAT to assert are pure (`planGate`, `judge`) and pinned
+  without an emulator in `rules-budget.test.mjs`.
+
+**Why these numbers and not the plan's.** §5 wrote *FLOOR ≈ 130
+fillers* and *FLOOR + 60 must load* in D429's currency of ~3
+expressions a filler. D432's calibration put a filler at 8.1, the
+thinnest legal create at 58 and the compile ceiling at 94: 130 fillers
+is above the ceiling, and 190 could never load. The plan's own hedge —
+*provisional until Phase 0* — is what this record cashes.
+
+**The second assertion — a denial by budget is a red test.** Every
+`assertFails` in `firestore-tests/rules.test.ts` (467 sites) is now
+`refused()`: the same assertion, plus the emulator's reason text must
+not contain *"maximum of 1000 expressions"*. The e2e got the same
+sentence in `firestore-tests/e2e-lib.mjs`'s `expectRefusal`, the one
+door every `expectDenied` in the three drivers passes through — which
+is where D431's thirteen had hidden, and the place a fourteenth would
+appear. Both are mechanical; both are the thing the suite's own header
+said a case could not tell, and now every case can.
+
+**How a PR meets it.** Green: nothing to do. Red with *N pin(s) moved*:
+if the change is meant to cost expressions, `npm run
+test:rules:baseline` re-pins (the coverage baseline and the budget pins
+in one boot, ~2 minutes — the pin re-bisects every probe and refuses to
+record a probe whose VERDICT changed at zero fillers, because that is a
+rule change and not a headroom change) and the PR says why; if it was
+not meant to cost anything, it did, and `node scripts/rules-budget.mjs`
+with no flags says on which line. A full `--write-baseline` (the
+calibration and the cost table, ~10 minutes) is for a record, not a PR.
+
+**What it does not do.** It does not measure the update arm's headroom
+(the pins are on the create arm; `--fillers-on update` exists for the
+day that matters), it does not assert the coverage report's counts
+(D432 found them not to be budget units), and it does not stop anyone
+editing `floorFillers` — a review does, and the number is in a file
+that reads as a measurement. Phase 4 stays priced and untaken.

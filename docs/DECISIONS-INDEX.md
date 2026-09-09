@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 458 lines instead of
-47,299. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 459 lines instead of
+47,381. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -466,9 +466,10 @@ detect it.
 | **D427** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d427--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | D428 | 46289 |
 | **D428** | [Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples](DECISIONS.md#d428--breadth-first-a-room-is-born-with-a-handful-coverage-steers-where-the-next-one-opens-and-learns-cap-triples) | D430 | 46390 |
 |  | ↳ *amendment 2026-09-08* — [The learn lane runs daily, and its prompt is swapped for the one that can open a field](DECISIONS.md#d428-amendment-2026-09-08--the-learn-lane-runs-daily-and-its-prompt-is-swapped-for-the-one-that-can-open-a-field) | — | 46508 |
-| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | D433 (+3) | 46543 |
+| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | D434 (+4) | 46543 |
 | **D430** | [The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides](DECISIONS.md#d430--the-2026-09-09-night-review-two-shifts-merged-as-one-tree--54-commits-kept-zero-conflicts-for-the-first-time-and-the-defects-that-live-where-nothing-collides) | D431 | 46619 |
-| **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | D433 (+1) | 46869 |
+| **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | D434 (+2) | 46869 |
 |  | ↳ *amendment 2026-09-09* — [There was a probe all along, and Apple was already on](DECISIONS.md#d431-amendment-2026-09-09--there-was-a-probe-all-along-and-apple-was-already-on) | — | 47056 |
-| **D432** | [Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three](DECISIONS.md#d432--phase-0-of-the-rules-budget-the-instrument--and-a-filler-conjunct-costs-eight-units-not-three) | D433 | 47109 |
-| **D433** | [Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero](DECISIONS.md#d433--phases-1-and-2-of-the-rules-budget-the-answer-rule-restructured-with-every-verdict-identical--refusals-by-budget-go-from-thirteen-to-zero) | — | 47204 |
+| **D432** | [Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three](DECISIONS.md#d432--phase-0-of-the-rules-budget-the-instrument--and-a-filler-conjunct-costs-eight-units-not-three) | D434 (+1) | 47109 |
+| **D433** | [Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero](DECISIONS.md#d433--phases-1-and-2-of-the-rules-budget-the-answer-rule-restructured-with-every-verdict-identical--refusals-by-budget-go-from-thirteen-to-zero) | D434 | 47204 |
+| **D434** | [Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test](DECISIONS.md#d434--phase-3-of-the-rules-budget-the-gate--every-probe-pinned-at-its-measured-headroom-a-floor-of-50-fillers-and-a-denial-by-budget-is-a-red-test) | — | 47300 |
