@@ -328,6 +328,12 @@ const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 // importing (and therefore RUNNING) the gate.
 import { word } from "./number-words.mjs";
 import { stripComments } from "./strip-comments.mjs";
+// The cost model's own constants, so COSTS.md's prose is read against
+// the single copy rather than a second one. NOT the dollar figures —
+// those are outputs of scripts/cost-model.mjs and re-deriving one here
+// would be the duplicate model cost-arith.mjs exists to prevent (see the
+// COSTS.md block below). These two are inputs, exported from that file.
+import { RULE_READS, TRIGGER_READS, revealReadsPerMember } from "./cost-arith.mjs";
 
 
 // How many test runners this repo has, off package.json — the figure
@@ -794,6 +800,19 @@ const storageCapKb = (() => {
 const cityPlaces = Number(
   /# (\d+) places in \d+ countries/.exec(read("public/cities.txt"))?.[1] ?? 0,
 );
+
+/** The daily deck's audience list, counted off the array itself. Its
+ *  comment said "five" while the array held six — `country` was added and
+ *  the sentence was not — which is the hand-kept-figure error CLAUDE.md
+ *  names as the one this repo keeps re-committing, sitting one line above
+ *  the data that disproves it. Counted by `{ id:` inside the literal
+ *  rather than by commas, so a trailing comma or a wrapped entry cannot
+ *  move it. */
+const dailyAudiences = (() => {
+  const src = stripComments(read("src/v2/spec/daily-questions.js"));
+  const m = /const AUDIENCES = \[([\s\S]*?)\n\s*\];/.exec(src);
+  return m ? (m[1].match(/\{\s*id:/g) || []).length : 0;
+})();
 
 const FIGURES = [
   {
@@ -1349,6 +1368,50 @@ const FIGURES = [
   // The second half's entry went with the sentence rather than being
   // retargeted, per this script's own advice when a figure stops being
   // quoted; the bank's count is still held, by the bank row below.
+  {
+    file: "src/v2/spec/daily-questions.js",
+    what: "audiences on the daily deck",
+    re: /The (\w+) audiences, in tab order/,
+    actual: word(dailyAudiences),
+    fix: (n) => `"The ${n} audiences, in tab order"`,
+  },
+  // The two sentences D426's rounds work made false. Both were stale
+  // against constants in the same repo — `RULE_READS.duel` went 3 → 2 when
+  // the reveal-exists `exists()` left the rule, and the reveal pipeline's
+  // formula went `(4 + 3m)/m` → `(2 + 2m)/m` — while the same file's own
+  // TABLE ROWS were updated in the commit that changed them. Prose beside
+  // a corrected table is the shape this gate exists for.
+  {
+    file: "docs/COSTS.md",
+    what: "documents the aggregate transaction reads per world answer",
+    // The THIRD clause of the same sentence whose other two were gated on
+    // 2026-09-08. It said "two documents … the private aggregate" while
+    // the table row twelve screens up already said three and named the
+    // published one — the file contradicting itself, which is the shape
+    // that block's own header describes. D410 put the author's profile in
+    // the same `tx.getAll`.
+    re: /reads (\w+)\s+documents per world answer/,
+    actual: word(TRIGGER_READS.world),
+    fix: (n) => `"reads ${n} documents per world answer"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "distinct documents a duel answer's create rule reads",
+    // `\s+`, not `\n`: the sentence wraps in the file, and a pattern that
+    // REQUIRED the wrap made the printed remedy — a single line — one this
+    // gate could not then find. That is the loop check-figures.test.mjs's
+    // hint rule closes, and it caught this entry on the night it was added.
+    re: /a duel answer's\s+touches (\w+) distinct ones/,
+    actual: word(RULE_READS.duel),
+    fix: (n) => `"a duel answer's touches ${n} distinct ones"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "reveal-pipeline reads per member for a duo",
+    re: /which is (\d+) for a duo/,
+    actual: revealReadsPerMember(2),
+    fix: (n) => `"which is ${n} for a duo"`,
+  },
   {
     file: "docs/COSTS.md",
     what: "the documents a cold boot reads from the bank (the cold-boot row)",

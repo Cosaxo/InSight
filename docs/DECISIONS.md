@@ -46539,3 +46539,79 @@ is the run log.
 **Verified rather than assumed:** the create response echoes the stored
 prompt, so the canonical block in § Scheduled runs is the live text, not
 a copy of what was sent.
+
+## D429 · `firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either
+
+**Deferred, with the arithmetic**, per CLAUDE.md's house rule. This is
+not a privacy deferral and does not need the D334 ask: what is deferred
+is a HARDENING measure, and nothing about it hides a link or narrows
+what the app may draw.
+
+### What was hardened, and what is left
+
+The profile's `testResults` was capped at eight KEYS and not at all by
+size, on a document every other device downloads whole (`voters.ts`
+resolves thirty uids per query with no field mask). Measured against the
+live ruleset: a 400 KB value was accepted while a 61-character display
+name was refused. The same night's fix replaced the count with a key
+VOCABULARY — `logic`, `big5`, `political`, `values`, `attachment`, the
+five the tree actually writes — which removes the arbitrary key.
+
+What it does not do is bound the size INSIDE a legitimate kind. A 400 KB
+string under `values.title` is still accepted. Closing that needs
+per-kind shape checks: for each of the five, the keys it may carry and a
+length bound on each leaf.
+
+### Why it does not fit
+
+Two separate ceilings, both measured on 2026-09-09 by appending filler
+conjuncts to the rule under test and running the suite at each N.
+
+**The runtime budget.** Firestore stops a rule at 1,000 evaluated
+expressions and reports the stop as `PERMISSION_DENIED` — indistinguishable
+from a rule saying no. On the ANSWER create path the thinnest arms
+(D426's world-question duel arm, and the pick round) flip between 40 and
+48 fillers of ~3 expressions each: roughly 130 expressions of headroom.
+On the PROFILE path, writes survive 40 fillers of ~2 expressions and 8
+of 9 cases fail at 70: roughly 80–140.
+
+**The compile ceiling, which was not known before this.** At 85 fillers
+the ruleset stops COMPILING at all —
+
+    Error compiling rules:
+    L363:32 Expression is too complex to evaluate safely.
+    L477:12 … L478:12 … L478:53 … L479:38 … L479:46 …
+
+— naming `isValidV2Anchors` and the profile arm. That one is at least
+LOUD: a deploy fails rather than a user being refused. It is recorded
+here because the file's own comment named only the runtime budget, and a
+reader planning a rule change needs both numbers.
+
+Five kinds × (a `hasOnly` on the kind's keys + a length bound per leaf)
+is comfortably more than 80 expressions on a path that has 80–140. It
+does not fit, and spending the margin on it would buy a hardening
+measure at the cost of the create path this app exists to serve.
+
+### What is true instead
+
+- The cheap half of the attack is closed: an arbitrary KEY is refused,
+  so a blob needs a legitimate kind's name and shape.
+- The residual is a large value under one of five known keys, from one
+  account, read by whoever meets that account. It is a cost and
+  bandwidth exposure, not a disclosure — the document is public by D98.
+- The server already bounds its own exposure with a `fieldMask`
+  (`v2social.ts`), which is why the reveal pipeline is not affected.
+- Two ways through, neither taken tonight: a Cloud Function that folds
+  and rewrites an over-large profile (a write path, not a rule), or
+  trimming the anchors' own expression cost to buy margin first. Both
+  are their own increments.
+
+`firestore-tests/rules.test.ts` carries the measurement as executable
+cases: seven pin the heaviest LEGAL create against the runtime budget,
+and one asserts that a large value under a legal key is still accepted,
+so this record cannot quietly stop being true.
+
+### Reversal
+
+None to reverse — nothing was built. If the per-kind bound is wanted,
+the budget has to be bought first.

@@ -37,6 +37,7 @@ import LIVE from "../data/live";
 // session rather than upgrading it, and they are deliberately not on the
 // store surface for spec-layer JSX to find by name.
 import { appleSignIn, googleSignIn, type EmailFailure } from "../../lib/firebase";
+import { SITE_ORIGIN } from "../data/siteOrigin";
 
 const GATE_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -544,10 +545,10 @@ function LiveSignInGate() {
           <p style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500,
             color: "var(--ink-3)", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
             By continuing you agree to the{" "}
-            <a href="https://prvfire33.web.app/terms.html" target="_blank" rel="noreferrer noopener"
+            <a href={`${SITE_ORIGIN}/terms.html`} target="_blank" rel="noreferrer noopener"
               style={{ color: "var(--ink-2)", fontWeight: 700 }}>Terms</a>{" "}
             and the{" "}
-            <a href="https://prvfire33.web.app/privacy.html" target="_blank" rel="noreferrer noopener"
+            <a href={`${SITE_ORIGIN}/privacy.html`} target="_blank" rel="noreferrer noopener"
               style={{ color: "var(--ink-2)", fontWeight: 700 }}>Privacy Policy</a>.
           </p>
         </>

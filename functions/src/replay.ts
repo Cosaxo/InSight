@@ -463,6 +463,15 @@ export interface RebuildReport {
    *  at nothing. Found on the first production dry run (2026-08-25), where
    *  the project genuinely held zero answers. */
   emptyScan: boolean;
+  /** Answers on the "group"/"duo" surfaces the scan met and refused to
+   *  fold. `rebuildRefusal` guards the QUESTION's surface, which was the
+   *  whole guard until D426 §6.2 made a world question duel content: a
+   *  feed or daily qid now also names sealed duel votes, and those pass
+   *  every shape test the vote arm applies. Reported rather than silently
+   *  dropped, because a rebuild whose scan met sealed votes is a rebuild
+   *  whose `scanned` no longer matches its `folded` for a reason the
+   *  operator has to be able to see. */
+  sealedDuel: number;
 }
 
 /** Which fold an answer to this question goes through. Decided by the
@@ -570,6 +579,7 @@ export async function runRebuild(
   const canon = newCanonFold(qid, domain);
   let scanned = 0;
   let wrongShape = 0;
+  let sealedDuel = 0;
   let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
   for (let page = 0; page < SCAN_MAX_PAGES; page += 1) {
@@ -586,6 +596,22 @@ export async function runRebuild(
       // the grandparent's id and is what the D28 exclusion matches on.
       const uid = doc.ref.parent.parent?.id || "";
       scanned += 1;
+      // THE SEAL, PER ANSWER — not only per question. `rebuildRefusal`
+      // above asks the QUESTION's surface, and that was the whole guard
+      // while a duel round could only carry duel content. D426 §6.2 made
+      // a world question duel content, so a feed or daily qid now names
+      // both public votes and sealed duel votes, and a duel answer
+      // (`{surface:"duo", qid, optionIdx, anchors}`) carries neither
+      // `entity` nor `order` — it passes every shape test the vote arm
+      // applies and folds straight into the public aggregate.
+      //
+      // That is the exact thing rebuildRefusal's own comment says this
+      // tool must never do: mint a public aggregate out of votes that are
+      // sealed until their reveal, on rounds that may not have revealed.
+      // The refusal's reasoning was right and its reach was one level too
+      // shallow.
+      const answerSurface = doc.get("surface");
+      if (answerSurface === "group" || answerSurface === "duo") { sealedDuel += 1; continue; }
       if (arm === "catalog") {
         if (doc.get("entity") === undefined) { wrongShape += 1; continue; }
         foldCanonAnswerInto(canon, { uid, entity: doc.get("entity"), anchors: doc.get("anchors") }, opts.exclude);
@@ -612,7 +638,8 @@ export async function runRebuild(
   const out = arm === "vote" ? finishFold(vote) : null;
   const total = arm === "vote" ? vote.total : arm === "rank" ? rank.total : canon.total;
   const folded = arm === "vote" ? vote.folded : arm === "rank" ? rank.folded : canon.folded;
-  const skipped = (arm === "vote" ? vote.skipped : arm === "rank" ? rank.skipped : canon.skipped) + wrongShape;
+  const skipped = (arm === "vote" ? vote.skipped : arm === "rank" ? rank.skipped : canon.skipped)
+    + wrongShape + sealedDuel;
   const excluded = arm === "vote" ? vote.excluded : arm === "rank" ? rank.excluded : canon.excluded;
 
   // `counts` is the vote arm's shape. The other two report their own, and
@@ -758,6 +785,7 @@ export async function runRebuild(
     drift: { total: total - beforeTotal, counts: drift },
     carriedEdits: edits !== undefined,
     emptyScan: scanned === 0,
+    sealedDuel,
   };
 }
 
