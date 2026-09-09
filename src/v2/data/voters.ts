@@ -73,7 +73,12 @@ export const UID_CHUNK = 30;
 
 export interface Voter {
   uid: string;
+  /** The option index picked; −1 on a catalogue pick's row (D434), which
+   * every fold that reads 0/1 skips as it skips any foreign index. */
   optionIdx: number;
+  /** A catalogue pick's canonical entity key (D434) — the row's answer
+   * where a vote has its option index. */
+  entity?: string;
   /** The cohort this answer was given from — frozen at vote time (D8). */
   anchors: Record<string, string>;
   /** Display name, or "" when the voter has not set one. */
@@ -253,19 +258,25 @@ export async function fetchVoterSample(
   const { doc, getDoc } = await getFirestoreApi();
   const snap = await getDoc(doc(db, "v2_patterns", `sample-${qid}`));
   if (!snap.exists()) return null;
-  const rows = (snap.get("rows") as Record<string, { o?: unknown; a?: unknown; d?: unknown }> | undefined) ?? {};
+  const rows = (snap.get("rows") as Record<string, { o?: unknown; e?: unknown; a?: unknown; d?: unknown }> | undefined) ?? {};
   const out: { v: Voter; d: string }[] = [];
   for (const [uid, r] of Object.entries(rows)) {
-    if (!uid || typeof r?.o !== "number") continue;
+    if (!uid) continue;
+    // a vote's row carries its option; a catalogue pick's carries the
+    // entity instead (D434) and no option at all
+    const vote = typeof r?.o === "number";
+    const pick = typeof r?.e === "string" && r.e !== "";
+    if (!vote && !pick) continue;
     out.push({
       v: {
         uid,
-        optionIdx: r.o,
-        anchors: (r.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
+        optionIdx: vote ? (r.o as number) : -1,
+        ...(pick ? { entity: r.e as string } : {}),
+        anchors: (r?.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
         name: "",
         isMe: uid === myUid,
       },
-      d: typeof r.d === "string" ? r.d : "",
+      d: typeof r?.d === "string" ? r.d : "",
     });
   }
   // newest first, then uid — the server's own total order

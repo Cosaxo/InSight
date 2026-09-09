@@ -29,6 +29,7 @@ import {
   candidateWon,
   compileAnchorItems,
   compileItems,
+  compilePickItems,
   emptyAls,
   encodeAnchor,
   encodeFor,
@@ -37,6 +38,8 @@ import {
   mergeScores,
   nextCrossoverStreak,
   observationsOf,
+  pickKey,
+  pickSpecsOf,
   procrustes,
   publishableAls,
   residualFor,
@@ -45,10 +48,13 @@ import {
   rotateModel,
   symmetricEigen,
   validAnchors,
+  encodePick,
+  PICK_ITEM_CAP,
   type AnchorMap,
   type AnswerMap,
+  type PickMap,
 } from "./patternsAls";
-import { BREAKDOWN_MAX_BUCKETS } from "./pure";
+import { BREAKDOWN_MAX_BUCKETS, CANON_TOP_N } from "./pure";
 import { PATTERNS_K, PATTERNS_QUALITY_FLOOR, loadingCosine, skillOf, type PatternsQuality } from "./patternsFit";
 
 const K = PATTERNS_K;
@@ -439,13 +445,13 @@ describe("anchors as items (D433)", () => {
     // a person who has answered nothing is solved from their anchors: two
     // observations off the gender rows, and a vector that calls a0 the
     // way a woman in this crowd answers it
-    const obs = observationsOf(model, {}, index, undefined, { gender: "Woman" });
+    const obs = observationsOf(model, { a: {}, an: { gender: "Woman" } }, index);
     expect(obs).toHaveLength(2);
     const th = ridgeTheta(obs, K, 1);
     const call = th.reduce((s, x, i) => s + x * model.rows.a0.v[i], 0);
     expect(call).toBeGreaterThan(0.1);
     // and without anchors, nothing
-    expect(observationsOf(model, {}, index)).toEqual([]);
+    expect(observationsOf(model, { a: {} }, index)).toEqual([]);
     // publication carries the row like any other
     expect(publishableAls(model)["anchor~gender~Woman"].n).toBe(200);
   });
@@ -456,7 +462,7 @@ describe("anchors as items (D433)", () => {
     const model = alsFit(null, fitted, index);
     const fresh = anchored(150, 99).filter((p) => p.an);
     const history = new Map<string, AnswerMap>(); // nothing answered yet
-    const anchors = new Map(fresh.map((p) => [p.uid, p.an as AnchorMap]));
+    const anchors = new Map(fresh.map((p) => [p.uid, { an: p.an as AnchorMap }]));
     const obs = fresh.map((p) => ({ uid: p.uid, qid: "a0", x: p.a.a0 === 0 ? 1 : -1 }));
     const start = new Map([["a0", { n: model.rows.a0.n, sum: model.rows.a0.sum }]]);
     const without = alsScoreDay(model, index, history, obs, start, 2);
@@ -465,5 +471,88 @@ describe("anchors as items (D433)", () => {
     expect(withAnchors.n).toBe(obs.length);
     expect(withAnchors.bits).toBeLessThan(withAnchors.baseBits);
     expect(skillOf(withAnchors.bits, withAnchors.baseBits)).toBeGreaterThan(0.1);
+  });
+});
+
+describe("catalogue picks as items (D434)", () => {
+  /** The two-factor crowd with a favourite the first trait decides:
+   * trait +1 picks entity "25", −1 picks "6", one in five picks
+   * something rare, and every fourth person never answered the card. */
+  const withPicks = (people: number, seed = 7): { uid: string; a: AnswerMap; p?: PickMap; traits: number[] }[] =>
+    createOnlyCrowd(people, seed).map((p, i) => ({
+      ...p,
+      ...(i % 4 === 3 ? {} : { p: { "pick-x": i % 5 === 4 ? String(100 + i) : p.traits[0] === 1 ? "25" : "6" } }),
+    }));
+  const cos = (a: readonly number[], b: readonly number[]): number => {
+    let s = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) { s += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+    return s / Math.sqrt(na * nb);
+  };
+
+  it("compiles an item per entity enough people picked — floored, capped at the board's size, in a fixed order", () => {
+    expect(PICK_ITEM_CAP).toBe(CANON_TOP_N);
+    const people = [
+      ...Array.from({ length: 12 }, () => ({ p: { "pick-x": "25", "pick-y": "1" } })),
+      ...Array.from({ length: 9 }, () => ({ p: { "pick-x": "6" } })),
+      ...Array.from({ length: 7 }, () => ({ p: { "pick-x": "150" } })), // under the floor
+      { p: { "pick-x": "" } },
+      {},
+    ];
+    const specs = compilePickItems(people);
+    // by question, then the most-picked first; pick-y's one entity has
+    // twelve pickers, so it is an item on its own
+    expect(specs.map((s) => s.key)).toEqual(["pick-x~25", "pick-x~6", "pick-y~1"]);
+    expect(specs[0]).toEqual({ key: "pick-x~25", kind: "pick", qid: "pick-x", nOptions: 2, entity: "25" });
+    expect(specs[2].nOptions).toBe(1);
+    expect(pickKey("pick-x", "25")).toBe("pick-x~25");
+    // the cap is the board's: the eleventh most-picked entity is not an item
+    const many = Array.from({ length: 12 }, (_, e) => Array.from({ length: 20 - e }, () => ({ p: { "pick-z": String(e + 1) } }))).flat();
+    const capped = compilePickItems(many);
+    expect(capped).toHaveLength(CANON_TOP_N);
+    expect(capped[0].entity).toBe("1");
+    expect(capped.map((s) => s.entity)).not.toContain("11");
+    expect(capped.every((s) => s.nOptions === CANON_TOP_N)).toBe(true);
+    // picked it +1, picked another −1
+    expect(encodePick(specs[0], "25")).toBe(1);
+    expect(encodePick(specs[0], "6")).toBe(-1);
+    // filed by question, never as a bank option
+    const index = indexItems([...compileItems(TWO_FACTOR_BANK), ...specs]);
+    expect(index.byPick.get("pick-x")?.map((s) => s.entity)).toEqual(["25", "6"]);
+    expect(index.byQid.has("pick-x")).toBe(false);
+    expect(pickSpecsOf({ "pick-x~25": { kind: "pick", qid: "pick-x", nOptions: 2, entity: "25" } })).toEqual([specs[0]]);
+  });
+
+  it("fits a pick row beside the answers, parallel to the trait it carries, and reads a person's pick as evidence", () => {
+    const crowd = withPicks(400);
+    const index = indexItems([...compileItems(TWO_FACTOR_BANK), ...compilePickItems(crowd)]);
+    const model = alsFit(null, crowd, index);
+    const row = model.rows["pick-x~25"];
+    expect(row, "twenty-five clears the floor").toBeTruthy();
+    expect(model.rows["pick-x~6"]).toBeTruthy();
+    expect(Object.keys(model.rows).filter((k) => k.startsWith("pick-x~")).length, "the rare picks are under the floor").toBe(2);
+    expect(row.n, "everyone who answered the card, whatever they picked").toBe(300);
+    expect(model.items["pick-x~25"]).toEqual({ kind: "pick", qid: "pick-x", nOptions: 2, entity: "25" });
+    const cosA = [0, 1, 2, 3, 4].map((i) => Math.abs(cos(row.v, model.rows[`a${i}`].v))).reduce((x, y) => x + y, 0) / 5;
+    const cosB = [0, 1, 2, 3, 4].map((i) => Math.abs(cos(row.v, model.rows[`b${i}`].v))).reduce((x, y) => x + y, 0) / 5;
+    expect(cosA).toBeGreaterThan(0.8);
+    expect(cosB).toBeLessThan(0.4);
+    // never a two-option row
+    expect(Object.keys(binRows(model.rows, model.items)).some((k) => k.startsWith("pick-"))).toBe(false);
+    // a person who has answered no question is solved from their pick
+    const obs = observationsOf(model, { a: {}, p: { "pick-x": "25" } }, index);
+    expect(obs).toHaveLength(2);
+    const th = ridgeTheta(obs, K, 1);
+    expect(th.reduce((s, x, i) => s + x * model.rows.a0.v[i], 0)).toBeGreaterThan(0.1);
+    // a rare pick is −1 on both kept rows, which is "neither of these"
+    const rare = observationsOf(model, { a: {}, p: { "pick-x": "999" } }, index);
+    expect(rare.map((o) => Math.sign(o.r + (row.sum / row.n)))).toEqual([-1, -1]);
+    // and the scorecard reads a newcomer's picks one step ahead
+    const fresh = withPicks(200, 99).filter((p) => p.p);
+    const known = new Map(fresh.map((p) => [p.uid, { p: p.p as PickMap }]));
+    const day = fresh.map((p) => ({ uid: p.uid, qid: "a0", x: p.a.a0 === 0 ? 1 : -1 }));
+    const start = new Map([["a0", { n: model.rows.a0.n, sum: model.rows.a0.sum }]]);
+    const scored = alsScoreDay(model, index, new Map(), day, start, 2, known);
+    expect(scored.bits).toBeLessThan(scored.baseBits);
+    expect(skillOf(scored.bits, scored.baseBits)).toBeGreaterThan(0.05);
   });
 });

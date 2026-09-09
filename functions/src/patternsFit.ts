@@ -108,6 +108,13 @@ export interface PatternsUserState {
    * D98); erased with the document.
    */
   an?: Record<string, string>;
+  /**
+   * The person's catalogue picks (D434): qid → the canonical entity key,
+   * compacted from the ledger like `a` (last wins; a pick cannot be
+   * edited, so the first is the last). The candidate engine reads them as
+   * pick items beside the answer map.
+   */
+  p?: Record<string, string>;
 }
 
 export interface PatternsObservation {

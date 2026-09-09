@@ -42,6 +42,15 @@
 // sealed variants are two clean answers to one question, and the meter
 // decides between the cells and the rows.
 //
+// AND THE PICKS (D434): a catalogue question's popular entities are rows
+// too — `pick-pk01~25` — and the viewer's own pick, which the vote mirror
+// holds as the entity's digits, is encoded against them under BOTH
+// centres: a pick is an answer, not a group. Its centre is the world's
+// under either, because the cube's cells for a catalogue question are
+// keyed by entity and cut to the board, so no cohort prior can be folded
+// off them cheaply — the one row kind the cohort centre reads from the
+// world, said here so it is a known gap and not a surprise.
+//
 // The pair card's "pick this — and N% pick that" is the one place a pair
 // is counted directly, and only for the links actually on screen (the
 // selected question's own few since the 2026-08-20 standalone, D215): the
@@ -217,13 +226,15 @@ interface LoadingsRow { v: number[]; n: number; sum: number; sd?: number }
  * engine's item metadata (D395); absent while the online engine owns the
  * rows, which are then all two-option. */
 interface LoadingsItem {
-  kind: "bin" | "ord" | "opt" | "anc";
+  kind: "bin" | "ord" | "opt" | "anc" | "pick";
   qid: string;
   opt?: number;
   nOptions: number;
   /** anc only (D433): the breakdown dim and the value the row stands for. */
   dim?: string;
   bucket?: string;
+  /** pick only (D434): the catalogue entity the row stands for. */
+  entity?: string;
 }
 interface LoadingsDoc {
   k: number;
@@ -466,6 +477,21 @@ function evidence(excludeQid?: string, centre: OracleCentre = "world"): { L: rea
         const mean = prior ? 2 * prior.shares[i] - 1 : r.sum / r.n;
         out.push({ L: r.v, r: (idx === i ? 1 : -1) - mean });
       }
+    }
+  }
+  // The viewer's own catalogue picks against the pick rows (D434), under
+  // both centres — a pick is an answer. The vote mirror holds a pick as
+  // the entity's digits under the catalogue question's id (votePick), so
+  // the row's question names it directly; an unanswered card is nothing.
+  if (meta) {
+    const votes = LIVE.myVotes();
+    for (const [key, m] of Object.entries(meta)) {
+      if (m.kind !== "pick" || m.entity === undefined || key === excludeQid) continue;
+      const v = votes[m.qid];
+      if (typeof v !== "string" || v === "") continue;
+      const row = loadings.q[key];
+      if (!row || row.n <= 0) continue;
+      out.push({ L: row.v, r: (v === m.entity ? 1 : -1) - row.sum / row.n });
     }
   }
   // The viewer's own anchors against the anchor rows (D433), under the

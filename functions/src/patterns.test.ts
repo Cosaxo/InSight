@@ -16,7 +16,7 @@ vi.mock("firebase-functions", () => ({
 }));
 
 import {
-  PATTERNS_CATCHUP_DAYS, PATTERNS_ITEMS, PATTERNS_ITEM_QIDS, PATTERNS_QIDS, SGD_LAMBDA_U,
+  PATTERNS_CATCHUP_DAYS, PATTERNS_ITEMS, PATTERNS_ITEM_QIDS, PATTERNS_QIDS, PICK_QIDS, SGD_LAMBDA_U,
   firestorePatternsStore, runPatternsFit, utcDay,
   type PatternsLedgerEntry, type PatternsPublication, type PatternsStore,
 } from "./patterns";
@@ -86,7 +86,7 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
   // how the retry guard shipped dead. A fake that carries more than its
   // subject proves nothing about it.
   const project = (s: PatternsUserState): PatternsUserState => ({
-    v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: { ...s.a } } : {}), ...(s.an ? { an: { ...s.an } } : {}),
+    v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: { ...s.a } } : {}), ...(s.an ? { an: { ...s.an } } : {}), ...(s.p ? { p: { ...s.p } } : {}),
   });
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
@@ -1204,5 +1204,76 @@ describe("anchors as items (D433)", () => {
     // and their state carries the anchors for the nights to come
     expect(state.users.get(pad(200))?.an).toEqual({ gender: "Woman", ageBand: "25-34" });
     expect(state.users.get(pad(200))?.a).toEqual({ [CORE_A]: 0, [CORE_B]: 0 });
+  });
+});
+
+describe("catalogue picks as items (D434)", () => {
+  const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
+  const PICK = [...PICK_QIDS][0];
+
+  it("every catalogue card in the bank is a pick question, and nothing else is", () => {
+    const cats = V2_QUESTIONS.filter((q) => q.type === "catalog");
+    expect(cats.length).toBeGreaterThan(0);
+    expect(PICK_QIDS.size).toBe(cats.length);
+    for (const q of cats) expect(PICK_QIDS.has(q.id)).toBe(true);
+    // none of them is a two-option item — a pick is never a pool question
+    for (const qid of PICK_QIDS) expect(PATTERNS_ITEM_QIDS.has(qid)).toBe(false);
+  });
+
+  it("compacts a person's picks beside their map, samples them, and publishes an item per entity enough people picked", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < 24; i++) {
+      // the first sixteen pick 25 (the women) or 6 (the men) with their
+      // vote; the last eight pick something rare and vote the other way
+      const rare = i >= 16;
+      const woman = i % 2 === 0;
+      const entity = rare ? String(100 + i) : woman ? "25" : "6";
+      const anchors = { gender: woman ? "Woman" : "Man" };
+      rows.push({ uid: pad(i), qid: CORE_A, optionIdx: rare ? 1 : woman ? 0 : 1, anchors });
+      rows.push({ uid: pad(i), qid: PICK, entity, anchors });
+    }
+    rows.push({ uid: pad(0), qid: PICK, entity: "" });            // no key: nothing
+    rows.push({ uid: pad(0), qid: CORE_B, entity: "25" });         // a pick on a vote question: nothing
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    const r = await runPatternsFit(store, NOW);
+    expect(state.users.get(pad(0))?.p).toEqual({ [PICK]: "25" });
+    expect(state.users.get(pad(1))?.p).toEqual({ [PICK]: "6" });
+    expect(state.users.get(pad(0))?.a).toEqual({ [CORE_A]: 0 });
+    expect(r.compacted, "24 votes and 24 picks").toBe(48);
+    // the sample carries the pick where a vote has its option
+    const sample = state.samples.get(PICK)!;
+    expect(sample.n).toBe(24);
+    expect(sample.rows[pad(0)]).toEqual({ e: "25", a: { gender: "Woman" }, d: yesterday });
+    expect(sample.rows[pad(1)].o).toBeUndefined();
+    // the items: 25 and 6 clear the floor of eight, the rare picks do not
+    const cand = state.pub!.candidates.als!;
+    expect(cand.q[`${PICK}~25`]?.n, "everyone who answered the card").toBe(24);
+    expect(cand.q[`${PICK}~6`]?.n).toBe(24);
+    expect(Object.keys(cand.q).filter((k) => k.startsWith(`${PICK}~`))).toEqual([`${PICK}~25`, `${PICK}~6`]);
+    expect(cand.items?.[`${PICK}~25`]).toEqual({ kind: "pick", qid: PICK, nOptions: 2, entity: "25" });
+    // never on the engine's two-option rows
+    expect(Object.keys(state.pub!.q).some((k) => k.startsWith(PICK))).toBe(false);
+    // a pick that decides the vote loads with it
+    const v25 = cand.q[`${PICK}~25`]!.v;
+    const a = cand.q[CORE_A]!.v;
+    const cos = v25.reduce((acc, x, i) => acc + x * a[i], 0) / (Math.hypot(...v25) * Math.hypot(...a));
+    expect(Math.abs(cos)).toBeGreaterThan(0.6);
+  });
+
+  it("a person with picks and no votes is still fitted, and a later pick joins the map", async () => {
+    const DAY = 24 * 3600 * 1000;
+    const d2 = utcDay(NOW, -2);
+    const rows1: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < 10; i++) rows1.push({ uid: pad(i), qid: PICK, entity: "25" });
+    const { store, state } = memoryStore({
+      [d2]: rows1,
+      [yesterday]: [{ uid: pad(0), qid: [...PICK_QIDS][1], entity: "7" }],
+    });
+    await runPatternsFit(store, NOW - DAY);
+    expect(state.users.get(pad(0))?.p).toEqual({ [PICK]: "25" });
+    expect(state.users.get(pad(0))?.a).toBeUndefined();
+    expect(state.pub!.candidates.als!.q[`${PICK}~25`]?.n).toBe(10);
+    await runPatternsFit(store, NOW);
+    expect(state.users.get(pad(0))?.p).toEqual({ [PICK]: "25", [[...PICK_QIDS][1]]: "7" });
   });
 });

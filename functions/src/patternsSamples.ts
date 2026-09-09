@@ -37,8 +37,11 @@ import type { AnswerMap } from "./patternsAls";
 export const PATTERNS_SAMPLE_CAP = 200;
 
 export interface SampleRow {
-  /** The option index picked. */
-  o: number;
+  /** The option index picked — absent on a catalogue pick's row. */
+  o?: number;
+  /** A catalogue pick's canonical entity key (D434) — the row's answer
+   * where `o` is a vote's. One of the two is present. */
+  e?: string;
   /** The answer's frozen anchors (D8) — `{}` for an entry that carried none. */
   a: Record<string, string>;
   /** The UTC day the answer was ledgered — the ordering key. */
@@ -54,7 +57,9 @@ export interface SampleDoc {
 
 export interface SampleAddition {
   uid: string;
-  optionIdx: number;
+  /** A vote's option index, or a pick's entity key (D434) — one of the two. */
+  optionIdx?: number;
+  entity?: string;
   anchors?: Record<string, string>;
   day: string;
 }
@@ -76,12 +81,17 @@ export function sampleOrder(a: [string, SampleRow], b: [string, SampleRow]): num
 export function mergeSample(prev: SampleDoc | null, qid: string, adds: readonly SampleAddition[], cap: number = PATTERNS_SAMPLE_CAP): SampleDoc {
   const rows: Record<string, SampleRow> = { ...(prev?.rows ?? {}) };
   for (const add of adds) {
-    if (!add.uid || !Number.isInteger(add.optionIdx) || add.optionIdx < 0) continue;
+    if (!add.uid) continue;
+    const vote = Number.isInteger(add.optionIdx) && (add.optionIdx as number) >= 0;
+    const pick = typeof add.entity === "string" && add.entity !== "";
+    if (!vote && !pick) continue;
     const cur = rows[add.uid];
     // the newest day wins; within a day the later entry (the caller's
     // order) wins, which is the edit
     if (cur && cur.d > add.day) continue;
-    rows[add.uid] = { o: add.optionIdx, a: add.anchors ?? {}, d: add.day };
+    rows[add.uid] = vote
+      ? { o: add.optionIdx as number, a: add.anchors ?? {}, d: add.day }
+      : { e: add.entity as string, a: add.anchors ?? {}, d: add.day };
   }
   const kept = Object.entries(rows).sort(sampleOrder).slice(0, cap);
   return { qid, rows: Object.fromEntries(kept), n: kept.length };
@@ -89,12 +99,26 @@ export function mergeSample(prev: SampleDoc | null, qid: string, adds: readonly 
 
 /** The sample documents a day's entries touch, grouped by question, from
  * the compaction's own view of the day (qid → answers, per person). */
-export function sampleAdditions(day: string, byUid: ReadonlyMap<string, AnswerMap>, anchorsByUid: ReadonlyMap<string, Record<string, Record<string, string>>>): Map<string, SampleAddition[]> {
+export function sampleAdditions(
+  day: string,
+  byUid: ReadonlyMap<string, AnswerMap>,
+  anchorsByUid: ReadonlyMap<string, Record<string, Record<string, string>>>,
+  picksByUid: ReadonlyMap<string, Record<string, string>> = new Map(),
+): Map<string, SampleAddition[]> {
   const out = new Map<string, SampleAddition[]>();
-  for (const [uid, answers] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-    for (const [qid, optionIdx] of Object.entries(answers)) {
+  const uids = [...new Set([...byUid.keys(), ...picksByUid.keys()])].sort((a, b) => (a < b ? -1 : 1));
+  for (const uid of uids) {
+    for (const [qid, optionIdx] of Object.entries(byUid.get(uid) ?? {})) {
       const list = out.get(qid) ?? [];
       list.push({ uid, optionIdx, anchors: anchorsByUid.get(uid)?.[qid], day });
+      out.set(qid, list);
+    }
+    // a catalogue question's sample is its picks (D434): the same rows the
+    // pair card would count, one person one row, the entity where a vote
+    // has its option
+    for (const [qid, entity] of Object.entries(picksByUid.get(uid) ?? {})) {
+      const list = out.get(qid) ?? [];
+      list.push({ uid, entity, anchors: anchorsByUid.get(uid)?.[qid], day });
       out.set(qid, list);
     }
   }

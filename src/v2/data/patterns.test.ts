@@ -53,7 +53,7 @@ const remote = vi.hoisted(() => ({
     k: number;
     engine?: string;
     lambdaU?: number;
-    items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number; dim?: string; bucket?: string }>;
+    items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number; dim?: string; bucket?: string; entity?: string }>;
     q: Record<string, { v: number[]; n: number; sum: number; sd?: number }>;
   },
 }));
@@ -761,6 +761,54 @@ describe("anchor rows (D433)", () => {
     // the online engine's document carries no items, so no rows
     publishFixture();
     await ensureLive(true);
+    expect(PATTERNS.anchorRows()).toEqual([]);
+  });
+});
+
+describe("pick rows (D434)", () => {
+  /** The candidate's document with a catalogue question's two popular
+   * entities as rows, beside a two-option question. */
+  const publishPicks = () => {
+    live.aggregated.mockReturnValue([bankQ("qa"), bankQ("qb")]);
+    live.coreFeedAggregated.mockReturnValue([]);
+    remote.doc = {
+      k: K,
+      engine: "als",
+      lambdaU: 1,
+      q: {
+        qa: { v: vec(1, 0), n: 40, sum: 0 },
+        qb: { v: vec(0.9, 0.1), n: 30, sum: 0 },
+        "pick-x~25": { v: vec(0.7, 0), n: 60, sum: -20 },
+        "pick-x~6": { v: vec(-0.7, 0), n: 60, sum: -30 },
+      },
+      items: {
+        qa: { kind: "bin", qid: "qa", nOptions: 2 },
+        qb: { kind: "bin", qid: "qb", nOptions: 2 },
+        "pick-x~25": { kind: "pick", qid: "pick-x", nOptions: 2, entity: "25" },
+        "pick-x~6": { kind: "pick", qid: "pick-x", nOptions: 2, entity: "6" },
+      },
+    };
+  };
+
+  it("reads the viewer's own pick as evidence under both centres, and a rare pick as neither of these", async () => {
+    publishPicks();
+    // the vote mirror holds a pick as the entity's digits (votePick)
+    live.myVotes.mockReturnValue({ "pick-x": "25" });
+    await ensureLive();
+    for (const centre of ["world", "cohort"] as const) {
+      const ev = PATTERNS.evidence(undefined, centre);
+      expect(ev).toHaveLength(2);
+      expect(ev[0].L).toEqual(vec(0.7, 0));
+      expect(ev[0].r).toBeCloseTo(1 - (-20 / 60), 12); // picked it
+      expect(ev[1].r).toBeCloseTo(-1 - (-30 / 60), 12); // did not pick the other
+    }
+    live.myVotes.mockReturnValue({ "pick-x": "999" });
+    const rare = PATTERNS.evidence();
+    expect(rare.map((o, i) => Math.sign(o.r + [-20 / 60, -30 / 60][i]))).toEqual([-1, -1]);
+    // an unanswered card is nothing, and the pool is still the bank's two-option questions
+    live.myVotes.mockReturnValue({});
+    expect(PATTERNS.evidence()).toEqual([]);
+    expect(PATTERNS.pool().map((p) => p.q.id)).toEqual(["qa", "qb"]);
     expect(PATTERNS.anchorRows()).toEqual([]);
   });
 });

@@ -47,7 +47,15 @@
 // beside the answer map (`an`), the fit reads both, and the scorecard
 // solves a person from both — so a vector starts from the person's
 // demographics before their first answer, which is what the Oracle, the
-// People lens and the Map all read.
+// People lens and the Map all read. And since D434 the catalogue picks:
+// a `pick` answer's canonical entity key rides the ledger entry as
+// `entity`, the compaction keeps each person's picks beside the map
+// (`p`), and every entity enough people picked is an item like an
+// anchor's value. THE PICKS ARE NOT CORE by the bank's flag — the
+// catalogue questions are feed cards with no `core` key, which D161's
+// polarity reads as tail — and they enter the fit anyway, on the owner's
+// 2026-09-09 instruction (D434 has the reasoning and the row that asks
+// whether they should be served as core).
 //
 // Scale note, recorded not built (D7) — and CORRECTED 2026-08-31, because
 // it named the wrong term and therefore the wrong fix.
@@ -114,9 +122,11 @@ import {
   alsScoreDay,
   anchorSpecsOf,
   binRows,
+  pickSpecsOf,
   candidateWon,
   compileAnchorItems,
   compileItems,
+  compilePickItems,
   indexItems,
   nextCrossoverStreak,
   procrustes,
@@ -131,6 +141,8 @@ import {
   type ItemIndex,
   type ItemMeta,
   type ItemSpec,
+  type PersonKnown,
+  type PickMap,
 } from "./patternsAls";
 
 /** The ONLINE engine's pool: two options (the engine is one bit per
@@ -156,6 +168,13 @@ export const PATTERNS_ITEMS: readonly ItemSpec[] = compileItems(V2_QUESTIONS);
  * PATTERNS_QIDS. */
 export const PATTERNS_ITEM_QIDS: ReadonlySet<string> = new Set(PATTERNS_ITEMS.map((s) => s.qid));
 
+/** The catalogue questions whose picks the compaction records (D434):
+ * every `catalog` card in the bank. Not gated on `core` — see the header
+ * — but gated on the type, so a pick on anything else is not one. */
+export const PICK_QIDS: ReadonlySet<string> = new Set(
+  V2_QUESTIONS.filter((q) => q.type === "catalog" && typeof (q as { domain?: unknown }).domain === "string").map((q) => q.id),
+);
+
 /** A missed night folds on the next run, up to a week back — bounded, so
  * a long outage cannot turn the catch-up into an unbounded ledger scan.
  * Beyond it, unfolded days stay unfolded and the basis counts say so. */
@@ -174,6 +193,8 @@ export interface PatternsLedgerEntry {
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the voter samples (D397). */
   anchors?: Record<string, string>;
+  /** A catalogue pick's canonical entity key (D434), on catalog entries. */
+  entity?: string;
 }
 
 export type PatternsEngine = "sgd" | "als";
@@ -349,7 +370,7 @@ export async function runPatternsFit(
   // the day, so its anchor items are the ones that model published; the
   // fit's own index is compiled below, from the people it is about to
   // read (D433).
-  const index: ItemIndex = indexItems([...items, ...anchorSpecsOf(alsPrev?.items)]);
+  const index: ItemIndex = indexItems([...items, ...anchorSpecsOf(alsPrev?.items), ...pickSpecsOf(alsPrev?.items)]);
   const itemQids = new Set(items.map((s) => s.qid));
 
   // the days still owed, oldest first, bounded by the catch-up window
@@ -390,8 +411,11 @@ export async function runPatternsFit(
     // included — newest last, so the last write below is the person's
     // current answer, edits and all.
     const wide = dayEntries.filter((e) => itemQids.has(e.qid) && typeof e.optionIdx === "number" && e.optionIdx >= 0);
+    // The picks (D434): a catalogue card's entries, the entity where a
+    // vote has its option — compacted beside the map, and sampled.
+    const picks = dayEntries.filter((e) => PICK_QIDS.has(e.qid) && typeof e.entity === "string" && e.entity !== "");
     let refolded = 0;
-    if (!entries.length && !wide.length) continue;
+    if (!entries.length && !wide.length && !picks.length) continue;
     // group by person; sort each person's day by qid so a replay
     // reproduces the run (the fit is order-sensitive within a day)
     //
@@ -473,7 +497,18 @@ export async function runPatternsFit(
         anchorsByUid.set(e.uid, an);
       }
     }
-    const uids = [...new Set([...byUid.keys(), ...answersByUid.keys()])].sort();
+    const picksByUid = new Map<string, PickMap>();
+    for (const e of picks) {
+      const pm = picksByUid.get(e.uid) ?? {};
+      pm[e.qid] = e.entity as string;
+      picksByUid.set(e.uid, pm);
+      if (e.anchors) {
+        const an = anchorsByUid.get(e.uid) ?? {};
+        an[e.qid] = e.anchors;
+        anchorsByUid.set(e.uid, an);
+      }
+    }
+    const uids = [...new Set([...byUid.keys(), ...answersByUid.keys(), ...picksByUid.keys()])].sort();
     const states = await store.getUsers(uids);
     // The candidate scores the day BEFORE the day is merged into anyone's
     // map: each person's vector is re-solved from the answers they had
@@ -486,10 +521,13 @@ export async function runPatternsFit(
     // alsScoreDay's header).
     const dayEntries2: DayEntry[] = [];
     const history = new Map<string, AnswerMap>();
-    // The anchors a person is scored with: their state's, else the ones
-    // on today's own entries — the profile precedes the answer, so a
-    // newcomer's demographics are evidence one step ahead too (D433).
-    const scoreAnchors = new Map<string, AnchorMap>();
+    // What else is known about a person before the day: their anchors —
+    // the state's, else the ones on today's own entries, since the
+    // profile precedes the answer and a newcomer's demographics are
+    // evidence one step ahead too (D433) — and their picks from before
+    // the day (D434; today's are not, since a pick and a vote on one day
+    // have no order the ledger keeps).
+    const known = new Map<string, PersonKnown>();
     for (const uid of uids) {
       const user = states.get(uid);
       // A person a dead run already stamped has today's answers merged in
@@ -499,7 +537,7 @@ export async function runPatternsFit(
       if (!seen) continue;
       history.set(uid, user?.a ?? {});
       const an = user?.an ?? newestAnchors.get(uid);
-      if (an) scoreAnchors.set(uid, an);
+      if (an || user?.p) known.set(uid, { ...(an ? { an } : {}), ...(user?.p ? { p: user.p } : {}) });
       for (const [qid, v] of [...seen.entries()].sort((p, q) => (p[0] < q[0] ? -1 : 1))) {
         dayEntries2.push(v.prev === undefined ? { uid, qid, x: v.x } : { uid, qid, x: v.x, prev: v.prev });
       }
@@ -508,7 +546,7 @@ export async function runPatternsFit(
     for (const [qid, L] of Object.entries(model.q)) marginalStart.set(qid, { n: L.n, sum: L.sum });
     for (const lam of ALS_LAMBDAS_U) {
       const rows = alsScored.get(lam)!;
-      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, lam, scoreAnchors);
+      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, lam, known);
     }
     const write = new Map<string, PatternsUserState>();
     for (const uid of uids) {
@@ -534,6 +572,11 @@ export async function runPatternsFit(
       }
       const an = newestAnchors.get(uid);
       if (an) user.an = an;
+      const todaysPicks = picksByUid.get(uid);
+      if (todaysPicks) {
+        user.p = { ...(user.p ?? {}), ...todaysPicks };
+        compacted += Object.keys(todaysPicks).length;
+      }
       user.d = day;
       write.set(uid, user);
       touched.add(uid);
@@ -546,7 +589,7 @@ export async function runPatternsFit(
     // the who-voted sheet's own list refreshed nightly. A set, not a step
     // — re-merging a day a dead run already merged changes nothing — so
     // it needs no stamp of its own.
-    const adds = sampleAdditions(day, answersByUid, anchorsByUid);
+    const adds = sampleAdditions(day, answersByUid, anchorsByUid, picksByUid);
     if (adds.size) {
       const qids = [...adds.keys()].sort();
       const prevSamples = await store.getSamples(qids);
@@ -648,16 +691,19 @@ export async function runPatternsFit(
   const alsQuality = scored.length
     ? publishableQuality(alsScored.get(bestLambda)!, alsQualityPrev?.series ?? [])
     : alsQualityPrev;
-  const people: { uid: string; a: AnswerMap; an?: AnchorMap }[] = [];
+  const people: ({ uid: string; a: AnswerMap } & PersonKnown)[] = [];
   await store.scanUsers((uid, st) => {
-    if (st.a && Object.keys(st.a).length) people.push({ uid, a: st.a, ...(st.an ? { an: st.an } : {}) });
+    // a person with picks and no answers still has a map to fit from (D434)
+    const hasA = !!st.a && Object.keys(st.a).length > 0;
+    const hasP = !!st.p && Object.keys(st.p).length > 0;
+    if (hasA || hasP) people.push({ uid, a: st.a ?? {}, ...(st.an ? { an: st.an } : {}), ...(st.p ? { p: st.p } : {}) });
   });
   let als: AlsModel | null = alsPrev;
   if (people.length) {
     // the anchor items are the values THESE people carry (D433): an item
     // that persists night to night warm-starts from its published row by
     // key, one that fell under the floor simply stops being fitted
-    const fitIndex = indexItems([...items, ...compileAnchorItems(people)]);
+    const fitIndex = indexItems([...items, ...compileAnchorItems(people), ...compilePickItems(people)]);
     const solved = alsFit(alsPrev, people, fitIndex, k);
     als = alsPrev ? rotateModel(solved, procrustes(
       Object.fromEntries(Object.entries(solved.rows).map(([key, r]) => [key, r.v])),
@@ -915,6 +961,8 @@ export function firestorePatternsStore(
               ...(snap.get("a") ? { a: snap.get("a") as Record<string, number> } : {}),
               // the anchors, both ways as well (D433) — same reason as `a`
               ...(snap.get("an") ? { an: snap.get("an") as Record<string, string> } : {}),
+              // and the picks (D434)
+              ...(snap.get("p") ? { p: snap.get("p") as Record<string, string> } : {}),
             });
           }
         });
@@ -928,9 +976,10 @@ export function firestorePatternsStore(
         for (const [uid, s] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
-            // `set` with no merge replaces the document — `d`, `a` and `an`
-            // have to be named or the stamp, the map and the anchors never land.
-            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}), ...(s.an ? { an: s.an } : {}) },
+            // `set` with no merge replaces the document — `d`, `a`, `an` and
+            // `p` have to be named or the stamp, the maps and the anchors
+            // never land.
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}), ...(s.an ? { an: s.an } : {}), ...(s.p ? { p: s.p } : {}) },
           );
         }
         await batch.commit();
@@ -987,6 +1036,7 @@ export function firestorePatternsStore(
             ...(d.get("d") ? { d: String(d.get("d")) } : {}),
             ...(d.get("a") ? { a: d.get("a") as Record<string, number> } : {}),
             ...(d.get("an") ? { an: d.get("an") as Record<string, string> } : {}),
+            ...(d.get("p") ? { p: d.get("p") as Record<string, string> } : {}),
           });
         }
         if (snap.size < PAGE) break;

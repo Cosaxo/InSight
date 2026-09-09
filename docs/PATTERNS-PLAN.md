@@ -1,6 +1,6 @@
 # The Patterns plan — three lenses widened, and the walls before they bind
 
-**Status: mixed — steps 1 and 2 (§3, §4) are BUILT at D432 and D433, the same day; steps 0, 3, 4 and 5 are proposals and nothing else is built.** Written
+**Status: mixed — steps 1, 2 and 3 (§3, §4, §5) are BUILT at D432, D433 and D434, the same day; steps 0, 4 and 5 are proposals and nothing else is built.** Written
 for the owner's ask of that day (*"make a plan for implementing it"*),
 after the same session's reading of the three lenses against the tree.
 Every *exists today* claim in §1 names the file it was read in; every
@@ -263,7 +263,27 @@ ask in the exposure sense; the owner row is about the picture.
 anchors (`functions/src/patterns.test.ts`), the device solve with anchor
 observations (`patterns.test.ts`), and the scorecard's own verdict.
 
-## 5 · Step 3 — catalogue picks
+## 5 · Step 3 — catalogue picks — **BUILT (D434, 2026-09-09)**
+
+*As built, where it differs from the paragraphs below — and one finding
+first:* the catalogue questions are NOT core. All 24 are feed cards
+with no `core` key, which D161's polarity reads as tail, so the fit's
+own *core only* clause would have kept them out; they enter on the
+owner's instruction to build this step, the fit's rule for catalogue
+questions is now stated as its own (`PICK_QIDS`, gated on the type),
+the Mirror's corpus is untouched, and whether the cards should be
+SERVED as core is the owner-list row D434 filed. Then the deviations:
+the items are compiled from the scanned people like the anchors,
+capped at the board's own `CANON_TOP_N` (moved into `pure.ts` so the
+trigger and the fit share it) with no *rest* row; the state document
+carries the picks as `p`; the sample row is `{e, a, d}`; the device
+reads its own pick under BOTH centres, from the world's marginal under
+either (the cube's cells for a catalogue question are keyed by entity
+and cut to the board, so no cohort prior folds off them cheaply);
+strangers' picks do not reach the People fold, because their rows are
+not among the twelve lists the lens fetches; and nothing is drawn until
+request 13. §9's line on the corpus rule is corrected below.
+
 
 **5.1 The ledger carries the pick.** `PatternsLedgerEntry` gains
 `entity?: string` — the canonical key `catalogEntityKey` already
@@ -433,8 +453,11 @@ the meter is recorded as tried, not merged as an improvement.
   is not.
 - **Drawing without a design.** The multi-answer node (request 13) and
   the anchor node (the owner's tick) wait; the folds do not.
-- **Changing the corpus rule.** D161 stands: core only, and the tail
-  never enters the fit.
+- **Changing the corpus rule.** D161 stands for the Mirror: core only.
+  The fit's own clause has one recorded exception since D434 — the
+  catalogue picks, which are tail by the flag's polarity and enter on
+  the owner's instruction (§5's as-built note); whether they should be
+  served as core is on the owner list.
 
 ## 10 · What this plan files elsewhere
 

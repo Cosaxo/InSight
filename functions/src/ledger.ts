@@ -33,9 +33,13 @@ export interface LedgerDayEntry {
    *  Its absence is what marks an entry as a first answer. */
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the nightly voter samples
-   *  (D397). Absent on entries written before the field, and on catalog
-   *  entries. */
+   *  (D397). Absent on entries written before the field; on catalog
+   *  entries since D434. */
   anchors?: Record<string, string>;
+  /** A catalogue pick's canonical entity key (D434) — the fit's own
+   *  reading of a `pick` answer, the way `optionIdx` is of a vote. Absent
+   *  on every other arm, and on catalog entries written before it. */
+  entity?: string;
 }
 
 const PAGE = 5000;
@@ -123,7 +127,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     // undefined at every reader — no error, no log, just a fold that
     // quietly stops distinguishing an edit from a first answer. Pinned in
     // ledger.test.ts against the interface itself.
-    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "at")
+    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "entity", "at")
     .limit(PAGE);
   for (;;) {
     const snap = await query.get();
@@ -134,6 +138,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
         optionIdx: d.get("optionIdx") as number | undefined,
         ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
         ...(d.get("anchors") ? { anchors: d.get("anchors") as Record<string, string> } : {}),
+        ...(typeof d.get("entity") === "string" ? { entity: d.get("entity") as string } : {}),
       });
     }
     if (snap.size < PAGE) break;

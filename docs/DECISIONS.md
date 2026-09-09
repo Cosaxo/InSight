@@ -47292,3 +47292,111 @@ newcomers above the marginal from their anchors). On the device,
 `anchorRows()`, and `peopleMap.test.ts` that a stranger's chips move
 their dot and never their counts. Both packages' suites, `tsc`, eslint
 and the check gates were green at the commit.
+
+## D434 · Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag
+
+**2026-09-09.** **Status:** binding. Step 3 of `PATTERNS-PLAN.md` (§5),
+built on the owner's *"ok build step 3"* the same day as steps 1 and 2
+(D432, D433). The fold is this record; the picture — a dot with more
+than two answers on the Map — is request 13 and waits on its design.
+
+### The finding first: the pick questions are not core
+
+The plan assumed the catalogue questions were part of the fit's corpus.
+They are not, by the letter: all 24 are feed cards (`content/pick-questions.json`
+→ `type: "catalog"`, `surface: "feed"`), and none carries `core`. The
+generator emits `core` only for `feed-questions.json` rows and the
+quality gate's declaration rule runs over those rows, so the pick file
+was never classified at all — and D161's polarity reads an absent flag
+as TAIL, deliberately. The fit's header extended D161 to itself
+(*"the corpus is core only… a tail answer cannot enter either fold by
+any path"*). So a routine building §5 as written would either widen the
+corpus silently or ship the step dark.
+
+Neither. CLAUDE.md's axiom rule is that a limit does not block
+functionality on its own: the owner approved the plan and instructed
+this step, and that instruction is the decision that admits the
+catalogue picks to the FIT's corpus. The Mirror's corpus is untouched —
+`core` stays absent, `coreFeedAggregated()` does not change, nothing on
+the Mirror draws a pick — and the fit's rule for catalogue questions is
+now its own, stated in `patterns.ts` where the old sentence stood:
+`PICK_QIDS` is every `catalog` card in the bank, gated on the type and
+not on the flag. What D161's sample-bias argument says about it is
+recorded rather than argued away: a pick card is served under its topic
+by the feed's ordering, so who answers *Favourite Pokémon?* is
+interest-selected, and a pick item's basis is exactly *the people who
+answered that card* — which is what a one-hot item's row claims and no
+more. Whether the pick questions should be SERVED as core — to everyone,
+unpersonalized, which would retire the caveat and put them in the
+Mirror's corpus too — is the owner's, and is on `OWNER-LIST.md` with
+its cost.
+
+### What changed
+
+- **The ledger carries the pick.** `ledgerEntry` takes an `entity`
+  (the canonical key `catalogEntityKey` validated against the committed
+  catalogue — an unknown key never reached this line before and still
+  does not) and the catalogue arm passes it, with the answer's frozen
+  anchors, which that arm used to omit. `readLedgerDay` selects and
+  copies it; `ledger.test.ts` holds the projection to the interface as
+  before. Public like the answer (D98), same TTL, same erasure.
+- **The compaction keeps it.** The state document gains `p`, qid → key,
+  merged like `a` (a pick cannot be edited, so first is last). A person
+  with picks and no votes is still fitted.
+- **The entities are items.** `compilePickItems` compiles, from the
+  scanned people, one item of a fifth kind `pick` per entity at least
+  `PICK_ITEM_FLOOR` (the pool's basis, eight) people picked, the
+  most-picked first, at most `PICK_ITEM_CAP = CANON_TOP_N` per question
+  — the board's own size, moved into `pure.ts` so the fit and the
+  trigger share one number. Keyed `qid~entity`, which cannot collide
+  with a bank id (no `~` in the alphabet) nor with a choice's `qid~i`
+  (a catalogue question has no options). +1 picked it, −1 picked
+  another entity on that card, nothing for a card never answered. The
+  one walk `encodedOf` feeds the statistics, the fit and the
+  observations; the scorecard solves a person from their picks from
+  before the day (`PersonKnown`, which replaced D433's anchors-only
+  parameter). `binRows` and the mount gate never see one.
+- **The samples carry it.** A catalogue question's sample row is
+  `{e, a, d}` where a vote's is `{o, a, d}`; `fetchVoterSample` reads
+  either, a pick's row with `optionIdx −1` and `entity`, which every
+  fold that reads 0/1 skips as it skips any foreign index (pinned in
+  `votersSample.test.ts`). Kindred, the People lens and the pair card
+  fetch samples for two-option questions only, so nothing changes there
+  until request 13 asks for a pick's 2×2.
+- **The device reads its own pick.** The vote mirror already holds a
+  pick as the entity's digits under the card's id (`votePick`), so
+  `evidence()` encodes it against the pick rows under BOTH centres — a
+  pick is an answer, not a group. Its centre is the world's under
+  either: the cube's cells for a catalogue question are keyed by entity
+  and cut to the board, so no cohort prior can be folded off them
+  cheaply. A known gap, said in the store's header.
+
+### What it costs, and what it does not do
+
+At most ten rows per catalogue question, 240 for the 24 in the bank,
+against the walls §7.1 of the plan measures. No new read: the pick
+rides the ledger entry the pass already reads and the rows ride the
+document the device already fetches. The honesty the plan asked for
+holds by construction: a favourite spread over a thousand species
+names its popular picks and nothing else, and a person's rare pick is
+said only as *neither of these*. Not built, each with its reason: the
+*rest* row the plan sketched (the cap bounds the rows and the −1s
+already say the rest, D433's argument); strangers' picks in the People
+fold (their rows are not among the twelve lists the lens fetches, and
+displacing a two-option list would cost `shared` counts to buy a
+refinement); and any drawing (request 13).
+
+### Proof
+
+`functions/src/patternsAls.test.ts` pins the compilation (floor, the
+board's cap, order, the index by question), the fit (a pick row parallel
+to the trait it carries, a person solved from a pick alone, a rare pick
+as −1 on every kept row) and the scorecard (skill from a newcomer's
+picks); `functions/src/patterns.test.ts` pins `PICK_QIDS` against the
+bank, the nightly pass (the pick on the state document, the sample's
+`e` row, the items and their metadata, the rows absent from the
+engine's block, a pick that decides a vote loading with it) and a person
+fitted from picks alone across two nights. On the device,
+`patterns.test.ts` pins the evidence under both centres and the rare
+pick, and `votersSample.test.ts` the sample reader. Both packages'
+suites, `tsc`, eslint and the check gates were green at the commit.
