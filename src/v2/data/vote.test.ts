@@ -763,6 +763,63 @@ describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
     expect(new Set(qids).size, "both rounds drew the same question").toBe(2);
   });
 
+  it("a LATE answer names the question it was GIVEN, not one re-derived from today's bank", async () => {
+    // The defect this closes (fixed earlier tonight, and until now held by
+    // nothing that runs `voteLate`): the card renders a revealed round's
+    // buttons from the reveal's own qid, while `voteLate` re-derived the
+    // round's question with `duelQFor` — a hash over the CURRENT bank and
+    // world pool. One question appended to either remaps every past round,
+    // and a late answer is by definition given after its round revealed.
+    //
+    // Asserted by handing it a qid `duelQFor` would NOT have chosen and
+    // checking the write carries that one. A test that passed the derived
+    // qid would pass with the fix reverted.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 4, played: {} });
+    // What the round would resolve to on today's bank, so the case can
+    // assert it is NOT what gets written.
+    await LIVE.social.voteDuel("g1", 0);       // seals round 4 and names its question
+    const sealedQid = String(h.setDocCalls.find((c) => c.path.endsWith("g_g1_r4"))!.data.qid);
+    const other = sealedQid === "duo-t1" ? "duo-t2" : "duo-t1";
+
+    await LIVE.social.voteLate("g1", 2, 1, other);
+    const late = h.setDocCalls.find((c) => c.path.endsWith("g_g1_r2"));
+    expect(late, "no late answer was written").toBeTruthy();
+    expect(late!.data).toMatchObject({ gid: "g1", round: 2, optionIdx: 1, late: true });
+    expect(late!.data.qid, "the late answer was filed under a re-derived question").toBe(other);
+  });
+
+  it("a late answer stays inside the lead behind the open round, and never overwrites", async () => {
+    // The window the rules enforce, checked on the client so the tap does
+    // not become a refused write. `open - ROUND_LEAD` is the floor.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 9, played: {} });
+    const before = h.setDocCalls.length;
+    await LIVE.social.voteLate("g1", 3, 0, "duo-t1");   // 9 - 5 = 4, so 3 is out
+    expect(h.setDocCalls.length, "a late answer past the lead was written").toBe(before);
+    await LIVE.social.voteLate("g1", 9, 0, "duo-t1");   // the open round is not late
+    expect(h.setDocCalls.length, "the open round was answered through the late door").toBe(before);
+
+    await LIVE.social.voteLate("g1", 5, 0, "duo-t1");
+    expect(h.setDocCalls.length, "a legal late answer was refused").toBe(before + 1);
+    // …and a second tap on the same round writes nothing: the seal is the
+    // product, and a late answer is still an answer.
+    await LIVE.social.voteLate("g1", 5, 1, "duo-t1");
+    expect(h.setDocCalls.length, "a late answer was overwritten").toBe(before + 1);
+  });
+
+  it("myDuelCall reports the vote and the call it was sealed with", async () => {
+    // The reveal card reads this to decide whether it can say "you read
+    // them" — a guess that silently stopped being remembered would make
+    // the row vanish with nothing red.
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
+    await LIVE.social.voteDuel("g1", 1, 0);
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // A vote with no call reads as a pick alone, not as a missing vote.
+    await LIVE.social.voteDuel("g1", 0);
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
+  });
+
   it("refuses past the lead rather than writing an answer nothing will accept", async () => {
     const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 1, played: {} });
     const info = LIVE.social.roundInfo("g1")!;
