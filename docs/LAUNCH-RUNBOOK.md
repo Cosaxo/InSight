@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 138
-questions of 1342 seeded; the production backend is deployed. **Measured
+questions of 1298 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1342 questions land in `v2_questions` — idempotent and, since D34,
+      1298 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1342** after the K=5 test expansion, D103's
+      and the bank is **1298** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1144,7 +1144,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1342 seeded questions are live regardless.
+      working, not a leak — the 1298 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -2202,7 +2202,7 @@ That is a tester-count problem, not a workflow problem.
       it agrees with D165's residency argument. Nothing in the app changes;
       no rules change; no read path moves.
 
-      **Superseded 2026-09-09 (D441 phase A, `LOG-FIRST-RUNBOOK.md`):** the
+      **Superseded 2026-09-09 (D446 phase A, `LOG-FIRST-RUNBOOK.md`):** the
       answer trigger appends the row itself (`functions/src/log.ts`) — one
       code path and one bill, the nightly reconcile catching what an
       append missed — so the extension is not installed. The timing

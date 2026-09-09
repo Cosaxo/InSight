@@ -40,27 +40,17 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-09T18:11:57Z -->
+<!-- console:generated 2026-09-09T19:16:37Z -->
 
 ## Open
 
-- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 5 behind main · conflicts · opened 2026-09-09 · stage **new**
-- [ ] **#388** · a list worker · *what:* The worklist's standing `[claude-3]` item — one provider module off the spec layer's global bridge per PR — this round taking `MAP_OPEN_GROUP`, and `check:globals` rule 4's baseli… · *how:* `MAP_OPEN_GROUP` was not a provider module but a one-shot mailbox: the feed's Learn card wrote `window.MAP_OPEN_GROUP = 'g-know'` under its "See it" button and called `NAV.goTab('… · CI running (8 pending) · 1 behind main · opened 2026-09-03 · stage **new**
-- [ ] **#381** · a session · *what:* the five program Routines on this account now fire into the planning session, which relays each into a fresh session (the dispatcher refused every firing for a day); and one thing… · *how:* the Routines were re-created self-bound from this session (three old ones deleted, two disabled where the classifier refused deletion) and the record written into the runbook's ph… · CI green (10) · 99 behind main · opened 2026-09-03 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 194 behind main · opened 2026-09-01 · stage **new**
-- [ ] **#281** · a session · *what:* Three faults on one screen, reported from a device in one sentence — "the sign in should be cleaned up in general and i seam to be stuck here… and should have menus that fit the a… · *how:* All three are fixed here, and the fourth thing found on the way is the reason the third one happened. · CI green (9) · 889 behind main · opened 2026-08-24 · stage **new**
+- [ ] **#466** · a session · *what:* The owner's decision on the 2026-09-08 owner-list row *"The terms promise a data download the app has no way to give — build the export, or soften the sentence?"*: build the expor… · *how:* `web/terms.html` has said since it was written that before a termination we would *"give you a chance to download your data first"*, and nothing in the tree could give one — so th… · no checks · 8 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#465** · a session · *what:* The owner, 2026-09-09: *"lets instead plan for a update to the production of 1v1 and group question with the new desigin."* **`docs/CAST-ROLLOUT-PLAN.md`** — the rollout of what D… · *how:* Measured tonight: the seed runs after every backend deploy and ran three times today, so the packs, seats, ratings and cast entries are in Firestore; `contentRev` last moved 2026-… · CI running (4 pending) · 2 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#464** · a session · *what:* Builds the owner's 2026-09-09 answer to the `OWNER-LIST.md` row *"The nightly voter samples have never held anyone who answered before they existed — pay ~23,000 reads once to see… · *how:* Recorded as **D442** (D440 and D441 are unclaimed on `main`; `check:docs` prints them as a note, not a failure, and the task named D442). · CI running (8 pending) · 1 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 23 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 212 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
-
-**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
-
-- [ ] **#302** · dependabot · *what:* Build(deps-dev): bump firebase-tools from 15.24.0 to 15.28.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 3 behind main · opened 2026-08-26 · stage **new**
-- [ ] **#272** · dependabot · *what:* Build(deps): bump firebase-admin from 14.2.0 to 14.3.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (6 pending) · 3 behind main · opened 2026-08-24 · stage **new**
-- [ ] **#213** · dependabot · *what:* Bump @sentry/browser from 10.60.0 to 10.70.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (5 of 10) · 3 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#212** · dependabot · *what:* Bump @capacitor/status-bar from 8.0.2 to 8.0.3 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (11) · 5 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#211** · dependabot · *what:* Bump @capacitor/android from 8.3.3 to 8.5.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (1 pending) · 5 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#210** · dependabot · *what:* Build(deps-dev): bump eslint-plugin-react-refresh from 0.5.2 to 0.5.4 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (2 pending) · 5 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#209** · dependabot · *what:* Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (4 pending) · 3 behind main · opened 2026-08-17 · stage **new**
 
 ## In the shift
 
@@ -76,6 +66,16 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#463** · The email door asks too: sign-in from an anonymous session shows the in-use screen first (D441) · merged 2026-09-09
+- **#462** · content: the ten plain picks get a sixth pack — Any Given Evening (D444) · merged 2026-09-09
+- **#461** · Directory row: the owner may delete it — clearing your name unlists you (D440) · merged 2026-09-09
+- **#209** · Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · merged 2026-09-09
+- **#272** · Build(deps): bump firebase-admin from 14.2.0 to 14.3.0 in /functions · merged 2026-09-09
+- **#302** · Build(deps-dev): bump firebase-tools from 15.24.0 to 15.28.1 · merged 2026-09-09
+- **#210** · Build(deps-dev): bump eslint-plugin-react-refresh from 0.5.2 to 0.5.4 · merged 2026-09-09
+- **#211** · Bump @capacitor/android from 8.3.3 to 8.5.0 · merged 2026-09-09
+- **#212** · Bump @capacitor/status-bar from 8.0.2 to 8.0.3 · merged 2026-09-09
+- **#388** · MAP_OPEN_GROUP off the bridge: the Learn card's "See it" takes the typed Map cue, 32 → 30 · merged 2026-09-09
 - **#334** · Bump actions/setup-java from 5.7.0 to 6.0.0 · merged 2026-09-09
 - **#389** · Add check:pick-crowds gate for pick-card contract · merged 2026-09-09
 - **#390** · The fit scorecard readable from main: scorecard --fetch writes the fit block (D363, Status: Proposed), plus the axiom builder's first list rows · merged 2026-09-09
@@ -122,14 +122,3 @@ merge shift like any other PR.
 - **#423** · The Patterns engine, the fold, the store and the device solves rebuilt as ALGORITHM-REFLECTION planned (D394–D401) · merged 2026-09-06
 - **#419** · The first launch explains the app: a five-page walkthrough before the questions, and a row to see it again (D393) · merged 2026-09-06
 - **#422** · Runbook 4.4 closed: the privacy label is published · merged 2026-09-06
-- **#421** · The 2026-09-06 vision built: ink on paper, all six steps (D390–D392) · merged 2026-09-06
-- **#420** · The pick card browses every catalogue, paged; the learn reveal's crowd share is a strip, not a lit row; the field's Change door is pinned (D389) · merged 2026-09-06
-- **#418** · Build 31 delivered: appBuild 32 in lockstep, the release record, screenshots uploaded (4.1 closed), and the profiles chip click bounded · merged 2026-09-06
-- **#417** · D385's rule forbade the instruction as well as the lane, and the owner corrected it (D385 amendment) · merged 2026-09-06
-- **#414** · App Check: no phone ever sent a token — the native SDK was initialised and the JS SDK was not (D387); screenshots harness; runbook 4.1/5.5/Phase 4 · merged 2026-09-06
-- **#408** · Every night shift is reviewed; the merge list had been saying otherwise for four days (D387) · merged 2026-09-06
-- **#412** · Now 2026-09-06: design installations and TV's big night — two, the day's legal max · merged 2026-09-06
-- **#413** · Mirror Answers rows size their columns to what they print; a feed dial or field answer can be changed · merged 2026-09-06
-- **#410** · The 1v1 and group profile measured and re-planned; steps 1–2 built (D386): the day's kind reaches the seed, every rate is scored against luck, a group day gets a guess · merged 2026-09-06
-- **#409** · Build 30 is delivered, and the PR shepherd is retired: merges are by hand (D381 amendment, D385) · merged 2026-09-06
-- **#406** · Feed 2026-09-06: sixty levelled — six per topic, the parked batch unblocked by D365 · merged 2026-09-06

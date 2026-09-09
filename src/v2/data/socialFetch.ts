@@ -176,6 +176,18 @@ export async function searchPeopleByName(
  * and is immutable here — see firestore.rules). `nameKey` is written
  * beside it and the rules check the two agree, so this cannot publish a
  * name it is not also found by.
+ *
+ * An EMPTY name DELETES the row (D440). The rules refuse an empty
+ * `name`, so there is no unlisted row to write; until D440 this returned
+ * early instead, and the old name went on standing in the directory — a
+ * person who cleared their name to stop being found stayed found, with
+ * nothing in the app able to change it. The delete is the owner's own
+ * row only (the rules pin it to `request.auth.uid`), it can only reduce
+ * what is published, and it is not erasure: deleteAccount's phase 3d
+ * still deletes the row for every account that never cleared its name,
+ * and is idempotent, so a row removed here first changes nothing there.
+ * On a document that does not exist the delete is a no-op, which is what
+ * makes it safe to call without a read first.
  */
 export async function writeDirectoryRow(
   db: Firestore,
@@ -183,8 +195,11 @@ export async function writeDirectoryRow(
   name: string,
 ): Promise<void> {
   const clean = name.trim();
-  if (!clean) return;
-  const { doc: fsDoc, setDoc } = await import("firebase/firestore");
+  const { doc: fsDoc, setDoc, deleteDoc } = await import("firebase/firestore");
+  if (!clean) {
+    await deleteDoc(fsDoc(db, "v2_people", uid));
+    return;
+  }
   await setDoc(fsDoc(db, "v2_people", uid), {
     name: clean,
     nameKey: foldName(clean),

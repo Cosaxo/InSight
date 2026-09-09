@@ -513,7 +513,7 @@ Console-only facts, listed so they are read rather than assumed:
 Written the evening after §§0–7, on the same ask, against the tree as
 merged with `main` that evening. Between the morning's measurement and
 this section the branch built DATA-EFFICIENCY-RUNBOOK phases 1–4, the
-log-first structure's phase A (D441) and four of §6's items — and each
+log-first structure's phase A (D446) and four of §6's items — and each
 of those is code that can bill, which this page had not read. Every
 figure below is `npm run costs`, `costs:target` or `costs:structure`'s;
 none is typed.

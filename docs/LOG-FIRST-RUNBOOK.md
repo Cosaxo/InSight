@@ -1,7 +1,7 @@
 # Log-first runbook — the ordered build list
 
 > **Reasoning lives in [`SCALE-ARCHITECTURE.md`](SCALE-ARCHITECTURE.md)**,
-> which is canonical, and the decision is D441 — the owner's adoption of
+> which is canonical, and the decision is D446 — the owner's adoption of
 > the log-first structure on 2026-09-09 (*"that sound like a good
 > direction lets do that"*, to the three asks put in plain words: the
 > direction, counts published once a minute — D98's amendment — and the
@@ -19,9 +19,9 @@
 they are estimates. **Every step names the gate that proves it.** Every
 figure is `npm run costs:target`'s; none is typed.
 
-**What no step here may do** (D441 §4, D440 §3): show fewer people,
+**What no step here may do** (D446 §4, D445 §3): show fewer people,
 questions or answers than today; change a number a user sees; move a
-cadence a user can notice except the two D441 states — a card's count at
+cadence a user can notice except the two D446 states — a card's count at
 most a minute behind, a friend's answers in Circle within the batch
 window; loosen a rule; touch the three denies; skip a test.
 

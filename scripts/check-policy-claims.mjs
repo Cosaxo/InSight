@@ -57,11 +57,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
-  // D441 phase A · the answer log is a second copy of every answer, in
+  // D446 phase A · the answer log is a second copy of every answer, in
   // BigQuery, and deleting the account deletes it — at once or within a
   // day (the streaming buffer). Both halves are claims: that the copy
   // exists and where, and that erasure reaches it on a stated clock.
-  ["D441 · the answer log exists, in the same project and region, and erasure reaches it within a day",
+  ["D446 · the answer log exists, in the same project and region, and erasure reaches it within a day",
     /analytics table \(BigQuery\) in the\s+same Google Cloud project and region[\s\S]{0,2000}?copy of your answers in the analytics table goes with\s+them[\s\S]{0,120}?within a day/i],
   // D236 · the page must NAME the notifications, not just count them.
   // check:figures holds the count against v2social.ts's own call sites;
@@ -279,16 +279,22 @@ export const CLAIMS = [
   // account before anything looks at the address (live.ts's own
   // `abandonSignIn` note: "Nothing is deleted — the abandoned account
   // still exists"), and it said the app warns before signing in to an
-  // existing account, which Apple and Google do and the email door does
-  // not.
+  // existing account, which Apple and Google did and the email door did
+  // not. That second sentence went the other way at D441: the owner had
+  // the CODE match the better promise, so the row that pinned the caveat
+  // now pins the promise for all three doors, and an absence row keeps
+  // the caveat from coming back — the page must not go on describing a
+  // door that no longer exists.
   ["D414 · the three doors are named, so the wall cannot quietly grow a fourth",
     /Sign in with Apple[\s\S]{0,400}?Continue with Google[\s\S]{0,400}?Email and password/i],
   ["D414 · the password is hashed by Firebase and this app never sees it",
     /stores\s+it hashed; this app never sees it and never stores it/i],
   ["D414 · a password account exists BEFORE the address is confirmed, and is abandoned rather than deleted",
     /exists from the moment the password is accepted, before[\s\S]{0,200}?signing out abandons that account rather\s+than deleting it/i],
-  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
-    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
+  ["D441 · signing in to an existing account leaves this session's answers, and every door says so first",
+    /two histories are not\s+merged[\s\S]{0,200}?says so on the screen before it\s+happens/i],
+  ["D441 · the retired email-door caveat is gone",
+    (src) => !/With an\s+email address it does not/i.test(src)],
 ];
 
 /** Labels of every claim the given page source fails to state. */

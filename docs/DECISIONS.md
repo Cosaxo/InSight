@@ -9253,7 +9253,7 @@ not) and batched uid→name resolution. Sequenced as follow-on work.
 **Date:** 2026-09-09 · **Status:** Adopted, on the owner's word. D98's
 *no publish cadence* was written against the cadence it retired — the
 privacy one: hours and days, floors and suppression. The log-first
-structure (D440) publishes a question's document through a compactor
+structure (D445) publishes a question's document through a compactor
 once a minute for the questions that changed, which is the interval the
 card already re-reads at (D129), so nothing a user sees moves and a
 person's own vote still confirms at once. The owner was asked in plain
@@ -48158,7 +48158,351 @@ own rule.
 `build`, `check:globals`, `check:docs`, `check:figures` — the counts are
 in the PR body.
 
-## D440 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+## D440 · The owner of a directory row may delete it — clearing your display name unlists you
+
+**2026-09-09.** **Status:** binding. The owner, on the `OWNER-LIST.md`
+row night shift B filed 2026-09-07 (*"Clearing your display name does
+not unlist you from the people directory — may the owner of a row delete
+it?"*): allow it. This record is the build and the arithmetic the row
+carried, kept where a decision is found by number.
+
+**What was wrong.** Saving an empty display name wrote `displayName: ""`
+to the profile and then SKIPPED the directory row: `writeDirectoryRow`
+returned early on an empty name. The `v2_people` rule requires
+`name.size() > 0`, so there was no empty row to write instead, and
+`allow delete: if false` closed the only other path. The old name went
+on standing in `v2_people`, which the people search reads by `nameKey`
+prefix — so a person who cleared their name to stop being found stayed
+found, permanently, with nothing in the app able to change it. That was
+measured 2026-09-07 at the store. Measured again today one level up, it
+was worse: NO screen could hand the store a blank name at all. The
+account panel's Save has returned early on a blank since the P1 batch,
+and the setup screen's `newName` requires a non-blank — so a name was a
+one-way door from the day the directory shipped, and the store-level
+fix alone would have been reachable from nowhere.
+
+**Why the refusal no longer held.** The deny was deliberate and had a
+test behind it — *"nobody deletes a row from a client, not even their
+own"* — whose stated reason was that `deleteAccount` owns removal and
+*"a client delete would be the one path able to strip a row the erasure
+counts on"*. Erasure phase 3d is ``db.doc(`v2_people/${uid}`).delete()``
+followed by `counts.peopleRow = 1`: an idempotent delete and a constant,
+not a measurement. A row the owner removed first changes neither the
+erasure's verdict nor its report, and the e2e that holds the erasure
+(`e2e-delete-account.mjs`) asserts the row is GONE afterwards, beside a
+control row that must survive — which a row deleted earlier satisfies
+trivially. So the refusal rested on an argument that was never true of
+the code it named. D334 is why it went to the owner rather than being
+lifted on a shift: a recorded refusal on a rules write surface, with
+another session's deliberate assertion behind it, is the owner's to
+lift.
+
+**What was built.** The row's shape, plus the one step its measurement
+had not reached:
+
+- `firestore.rules`, the people directory: `allow delete: if
+  request.auth != null && request.auth.uid == uid`. Own row only. The
+  comment at the arm carries why the old reason fell and what of phase
+  3d is still true — it still needs its own arm, because this is a
+  top-level document phase 1b's recursive delete walks past, and most
+  erased accounts never cleared their name.
+- `src/v2/data/socialFetch.ts` `writeDirectoryRow`: an empty name
+  DELETES the row instead of returning. No read first — a delete of a
+  row that does not exist is a legal no-op under the arm (it reads no
+  `resource`), and the rules suite holds that with a second delete.
+- `firestore-tests/rules.test.ts`: the case asserting the opposite is
+  replaced by the owner/stranger pair — the owner deletes their own row
+  (twice), a stranger may not, and neither may a signed-out client. The
+  signed-out case is not decoration: the sign-in conjunct is its own
+  predicate on the new arm, and `rules-coverage` (D438's companion
+  ratchet) counts a conjunct the suite never sees refuse, so without it
+  the never-false baseline would have moved up by one.
+- `src/v2/data/socialFetch.test.ts`, new: the empty branch deletes and
+  writes nothing; the named branch writes the fold and deletes nothing.
+- `src/v2/ui/LivePrivacyPanel.tsx`: a blank Save clears a NAME THAT IS
+  SET, and only then — an account with no name has nothing to clear and
+  keeps the no-op, since a write of `""` over `""` would be a profile
+  write plus a delete of nothing for no visible result. Pinned in
+  `LivePrivacyPanel.test.tsx` both ways. Not a visual in D352's sense:
+  the control exists; what changed is what a blank in it does.
+- `docs/data-inventory.md`'s `v2_people` row says who may delete now
+  and that 3d is idempotent; `functions/src/index.ts` says at 3d why
+  the constant is a constant, so nobody improves it into the
+  measurement that would make the retired argument true.
+
+**What it does not do.** It is not erasure: 3d still runs for every
+account, and an erased account that never cleared its name is unlisted
+by the erasure exactly as before. It does not let anyone touch another
+account's row — the arm is the uid equality and nothing else, and the
+grant can only ever reduce what is published. The setup screen still
+saves no blank (`newName` is unchanged); the account panel is the
+editing surface, and the one that needed to open. `web/privacy.html` is
+untouched: the page never described the directory, and its sentence on
+a blank name — *"hides the name, not the answers"* — is exactly as true
+after this as before, so `check:policy-claims` holds an unchanged page.
+And it does not unmake a circle: a directory row is read at search
+time, never held by a searcher, so once it is gone nobody finds the name
+again — but a circle that already holds you holds you by uid, and still
+does.
+
+**The arithmetic.** One delete per blank save, on a document nothing
+else reads by that path; zero new reads. The new arm is two predicates,
+both seen refusing, so `rules-coverage` stays at its baseline; the arm
+is not on the answer create path, so no `rules-budget` pin moves — both
+measured on the branch, and the counts are in the PR body.
+## D444 · The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's
+
+**Date:** 2026-09-09 · **Status:** binding, built in the bank; the live
+documents are the owner's. Builds one half of `OWNER-LIST.md`'s row *The
+group as a cast — what happens to the eighteen older group questions?*,
+on the owner's answer of 2026-09-09 through the session's recommendation,
+accepted: the plain picks get **a sixth pack of their own rather than
+being retired**. The other half — flipping `active` on the documents
+already on `v2_questions` — is a console click and is not taken here.
+
+### What the ten were
+
+The group pool's `pick` kind from D40: a question with no options, the
+members as the ballot, the reveal naming one — `Who gives the best
+advice?`, `Who secretly runs this group?` — eight in the bank at D434
+(`gp0`–`gp7`) and ten after the lane's last run in the older shapes
+(`gp8`, `gp9`, `main`'s #450). Since the cast (D434) they dealt with no
+pack: `duelQFor` walks every `pick` on the surface, so a room drew *Who
+would you call from jail at 3am?* with no kicker, no role and no seat,
+between Bank Heist and Desert Island. The owner's 2026-09-09 design has
+no such round (D436 §3.7: the bank is packs and ratings alone), which
+is why the row put the two shapes side by side: retire them, or give
+them the pack a role vote is missing.
+
+### Why a pack rather than retirement
+
+A plain pick is already a role vote in everything but the kicker. Its
+options are the members (D40), the snapshot of whom an index meant is
+D224's, the rules fall through to the member count, the reveal names one
+person — D434's finding, one step further: the mechanism existed and the
+content lacked two fields. So the pack costs `scen` and `role` on the
+entry and moves nothing in the write path, the rules, the trigger or the
+reveal, while retiring the ten would have thrown away eight questions
+whose answers are already on live keyed to them (D30, D52). The
+recommendation was the cheaper half and the owner took it.
+
+### The pack, and the arithmetic that sized it
+
+**Any Given Evening** (`evening`, hue 335 — the widest gap the five hues
+leave, between Road Trip's 60 and Bank Heist's 25 the long way round):
+the scenario a plain role vote already has, which is no scenario — the
+group on an ordinary night, nobody robbing a bank.
+
+A pack is **four roles, one a seat** (D437; `check:content` refuses two
+active roles in one seat or a seat empty; QUESTION-FARM § The duel lane
+says it in the lane's contract). Ten does not divide into four seats, so
+the contract sizes the pack at four and the other six leave the
+rotation — the row's own alternative, applied to the six the pack cannot
+hold. Which four: the one that fills each seat best, chosen so the four
+read as one evening's cast.
+
+| seat | qid | prompt (unchanged) | role |
+| --- | --- | --- | --- |
+| engine | `gp5` | *Who secretly runs this group?* | **the ringleader** |
+| hands | `gp3` | *Who would you call from jail at 3am?* | **the 3am call** |
+| heart | `gp2` | *Who gives the best advice?* | **the voice of reason** |
+| wild | `gp4` | *Who changes the plan at the last minute?* | **the curveball** |
+
+**The four keep their qids.** Joining the pack changes neither a
+question's options (the members, as before) nor its meaning (the prompt
+is untouched; the role label is a name for the answer the prompt already
+asked for), so it is a field merge and not the D30/D52 retirement-plus-
+new-entry that D437's two role changes were — those changed the prompt.
+`seedOptionConflict` (D58) has nothing to refuse on an empty option set,
+and the seed merges `scen` and `role` onto the four live documents on the
+owner's next *Seed content*; every answer stored against `gp2`–`gp5`
+reads exactly as it did. The four sit where they were in the array, so a
+live room's walk through the `picks` pool does not move on the reseed.
+
+**Six retired** (`active: false`, D52's shape), each with the seat it
+would have taken, so a seventh pack is a declaration and one line each
+if the owner wants one — the prompts stay in the bank, and one re-seat
+would be needed (no wild among them):
+
+- `gp0` *Who'd survive longest in the wild?* — hands
+- `gp1` *Who replies to the group chat within a minute?* — engine
+- `gp6` *Who would win a group argument on a technicality?* — hands
+- `gp7` *Who tells the same story every time, and it still lands?* — heart
+- `gp8` *Who would survive longest without their phone?* — hands
+- `gp9` *Who's secretly keeping the group together?* — heart
+
+Two of the six lost a seat to a near twin: `gp9` is the heart's own line
+asked as a question, and `gp1` is an engine, but `gp5` and `gp9` are the
+same *secretly* frame twice, which in a pack of four reads as one
+question asked again — so the pack keeps `gp5` (the row's own example)
+and the voice of reason. **The six carry no pack and no seat on
+purpose.** A retired entry tagged with a pack would draw the kicker onto
+the reveals of rounds it was played in as a plain pick, and the seed
+would write the pack onto its live document while `active` stayed the
+owner's — so the interval between the reseed and the flip would deal Any
+Given Evening with three hands. Untagged, the six deal on live exactly
+as they do today until the owner's click, and not at all after it.
+
+### What the flip is, precisely
+
+The seed never rewrites `active` after create (D40 part 4's rule, in
+`runSeedV2`), so the bank's six retirements reach a seeded document
+never: `gp0`, `gp1`, `gp6` and `gp7` keep dealing on live until the
+console flip, and `gp8`–`gp9`, which the seed has not yet written (the
+reseed row is open), are created retired. The row says so, dated. This
+record retires nothing in production.
+
+### What moved with it
+
+- **The demo sample** (`content/duel-sample.json`, `build:duel-sample`):
+  the four precede `gr0` in bank order, so the sample's eight role votes
+  are Any Given Evening and Bank Heist (they were Heist and Island), and
+  `PER_KIND.pick` is 0 — no pick without a pack is served, and the demo
+  never played one (D437). Eighteen group entries from twenty-one, two
+  packs still, 10.2 KiB.
+- **`content/README.md`** (twenty-six role votes, six packs, thirty in
+  the older shapes, eleven retired), **QUESTION-FARM**'s pack list, and
+  the row.
+
+### One thing the build found the hard way
+
+`check:figures` went red on a change that added no question, asking for
+the bank to be written up as **1350**. Its bank count was a regex over
+every `"id":` key in `functions/src/v2content.ts` — exact until D434 gave
+a role vote a nested `scen.id` and `role.id`, and 44 over the bank from
+that day, with every sentence the gate holds "corrected" to the
+over-count at D434 (*1 145 → 1 215 docs*). The four new votes moved it by
+eight, which is how it surfaced. The count is `bankArray(…).length`
+now — the parser the rest of the gate already trusts, and
+`V2_QUESTIONS.length`, the number `seedContent()` reports — and the
+eleven sentences (LAUNCH-RUNBOOK, SHIP-CHECKLIST, SCHEMA-V2, COSTS, the
+`engagement.ts` fence comment) read **1298**, which is what
+`check:content` has printed all along. COSTS' wire size moved for real,
+382.4 → 383.0 KiB: four `scen` and `role` maps.
+
+### Measured
+
+`check:content` 1298 (group 66, unmoved — nothing was added);
+`check:duel-sample` 18 group (2 packs) · 13 · 13 of 66 · 41 · 34;
+`check:quality` 1271, all bounds hold; `check:neighbors` duel 128,
+closest 0.400 (`gp2` ~ `047`, as before — no prompt changed);
+`check:taxonomy`, `check:labels` (12 references, 96 files),
+`check:seed-fields` (45 fields), `check:eager-content` (93 modules, 4
+content), `check:public-copy` (273 strings, the 12 duel surfaces in the
+owner's voice) green; `check:figures` 106 figures across 314 files with
+the bank at 1298; `check:docs` 440 decisions indexed; `check:globals`
+28, unmoved; `test:scripts` 74 files, 1286 tests; `test:unit` 207
+files, 3016 tests; `test --prefix functions` 39 files, 837 tests;
+`lint` clean. `test:e2e:all` is CI's, as every record since D426's
+third amendment says of this sandbox.
+
+### What this record does not decide
+
+The flip on the live documents; a seventh pack for the six; the reseed
+itself, which is the same owner click as the cast's.
+## D441 · The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again
+
+**Date:** 2026-09-09 · **Status:** Adopted — the owner's answer, 2026-09-09,
+to the `OWNER-LIST.md` § Decisions row *"Should the email door ask too?"*:
+**add it.** Amends
+[D414](#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why)
+§3, whose sentence — *signing in to an account that already exists … is
+a second, named tap with the consequence written on it, never what the
+first tap does* — was true of two doors and not of the third.
+
+### 1 · What was measured (night shift B, 2026-09-07)
+
+`fly("apple" | "google")` catches `auth/credential-already-in-use` and
+shows the in-use screen — *"That account already has an InSight history.
+Signing in to it leaves this phone's answers behind — they are not
+merged"* — with a labelled second tap and a way back. The email door
+never reached it: `emailSignIn` called `signInWithEmailAndPassword`
+directly, the auth observer saw a new uid, and `resetForNewUid` purged
+the session. No screen, no second tap, nothing to go back to. And the
+gate STEERED people there: a create that failed with
+`email-already-in-use` rendered *"Sign in instead"* as the way on, so the
+one door with no warning was the one the app pointed at.
+
+The night shift did the half it could do alone. `web/privacy.html` had
+promised the warning for all three doors, which was false, so the page
+was made to state the difference and four `check:policy-claims` rows
+went under the section (before that night the whole account section
+could be deleted at exit 0). The other half — a confirmation step on the
+primary sign-in path of the wall — is a product change, and it went to
+the owner as the row.
+
+### 2 · What ships
+
+**The condition, not an error.** Apple and Google learn that an account
+exists from Firebase refusing the link. A password sign-in has no link
+to refuse — the call *is* the replacement — so the email door asks on
+the condition instead: in sign-in mode, while the session is anonymous
+and unlinked (`!LIVE.linked` at the gate, where `SignInGate` mounts the
+screen only for an unlinked session and `initLive()` has already signed
+it in), the first tap opens the existing in-use screen and makes no
+call. The second tap — the same *"Sign in and leave this phone's
+answers"* button the other two doors use — runs `emailSignIn`. *"Use a
+different account"* goes back to the form, still filled.
+
+**A failed second tap comes back to the form.** A wrong password or an
+unknown address answers on the door, through the same `FAILURES` table
+as before, because the way out those name — *Forgot password?*, a
+retyped address — is a control the form has and the in-use screen does
+not. The next *Sign in* asks again: a wrong password does not spend the
+acknowledgement, and the cost of that is one tap on a retry.
+
+**The page promises the warning again, and the gate holds it.**
+`web/privacy.html` § The account says the app says so on the screen
+before it happens whichever of the three doors you use, and that it
+takes a second tap. The fourth `check:policy-claims` row of the section
+now pins that sentence, relabelled to this record, and a fifth — an
+absence row — forbids the retired caveat, *"With an email address it
+does not"*, from coming back. Page and gate move in the same commit as
+the code, which is the D183 order.
+
+**Pinned.** `LiveSignInGate.test.tsx`: an anonymous session tapping
+*Sign in* — reached the way the row named, create → *taken* → *Sign in
+instead* — sees the warning with no call made and a way back onto the
+filled form; a linked session is not asked (the one case that renders
+the screen without its wrapper, because the wrapper never mounts it for
+a linked session, so that arm is observable nowhere else); the second
+tap makes the call with the typed credentials; a failed second tap lands
+on the form with *Forgot password?*. Run against the tree before this
+record, four of the suite's twenty-six cases fail — the one that expects
+the ask, the two whose sign-in is the second tap, and the failure case
+that expects the form — and the linked-session case is green on both
+trees, which is what it is for.
+
+### 3 · What it deliberately does not do
+
+- **No acknowledgement memo.** A flag remembering the second tap across
+  a retry would save one tap on a wrong password and be one more piece
+  of state on the wall's worst screen. Asking again is one rule for
+  every attempt.
+- **`firebaseImpl.ts` § emailSignIn is untouched.** The row named it as
+  a possible seam; it is not one. The function is the SDK call and
+  nothing else, and the gate is its only caller — verified, one site. A
+  condition there would need a bypass for the second tap, which is a
+  second way to sign in.
+- **No new store member.** The condition reads `LIVE.linked`, which
+  exists and is pinned by `vote.test.ts`; nothing joins the
+  `window.LIVE` surface.
+- **The copy is the existing screen's, unchanged.** *"That account
+  already has an InSight history"* is what signing in means; at the
+  email door it is read before the password is checked, and a wrong
+  password answers on the form.
+
+### 4 · The arithmetic
+
+One tap more on one path — a password sign-in from an anonymous session
+— and none on create, Apple or Google. Zero reads: nothing is fetched
+before the second tap that was not fetched before. The screen is a lazy
+chunk (`SignInGate`'s header), so the eager graph does not move.
+
+**Measured before the push:** the gates and their counts are in the PR
+body.
+
+## D445 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
 
 **Date:** 2026-09-08 · **Status:** Adopted, with one word still the
 owner's (§2). The owner's ruling on
@@ -48254,9 +48598,9 @@ answers rather than by listing a collection the size of two catalogues.
 `npm run costs` after: 357 → 277 reads per user-day at maturity, the
 D98 column 282 → 197.
 
-## D440 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+## D445 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
 
-**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D440 held open
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D445 held open
 came the same afternoon, verbatim: *"start phase 3 and use live for the
 answer map."* The answer map is written by the world-answer trigger —
 inside the aggregate's own transaction, so it is atomic with the count
@@ -48266,7 +48610,7 @@ value the map already holds (the map is the newer truth: an edit made
 after the healed day is in it and not in that day's ledger).
 
 **Two things moved against the runbook as written**, each within
-D440's own rule that nothing a user sees may shrink. The device keeps
+D445's own rule that nothing a user sees may shrink. The device keeps
 the answer query as a FALLBACK for a member with no map, because the
 client ships with the trigger and the backfill is a click the owner
 makes afterwards — without it every Circle would show nobody between
@@ -48304,7 +48648,7 @@ per user-day at maturity, the whole 129 → 134 (132 at the merged head,
 D426's rounds having taken two reads elsewhere). Nothing a user sees
 moved, and nothing a device reads changed size.
 
-## D441 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+## D446 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
 
 **Date:** 2026-09-09 · **Status:** ADOPTED the same evening — see the
 amendment below. The owner, that afternoon, after `npm run costs` had been
@@ -48360,7 +48704,7 @@ precedes everything, and it is `LAUNCH-RUNBOOK.md` 5.11 done as one code
 path rather than as an extension streaming every document change through
 a trigger of its own.
 
-## D441 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
+## D446 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
 
 **Date:** 2026-09-09 · **Status:** Adopted. The three asks were put in
 plain words — the direction; *"allow counts to be published once a
@@ -48388,7 +48732,7 @@ are the owner's** (`OWNER-LIST.md`): the dataset and the two IAM roles,
 and the backfill with the deploy's day as its cutoff. The privacy page
 and the inventory moved first (D183).
 
-## D442 · The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on
+## D447 · The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on
 
 **Date:** 2026-09-09 · **Status:** Adopted for what is built; three asks
 to the owner, each with its arithmetic on `OWNER-LIST.md`. The owner's
@@ -48398,7 +48742,7 @@ improved i dont want a unexpected firebase bill that i cant pay"*), and
 
 **What was found.** The page had measured production on the morning of
 2026-09-08 and then the same branch built DATA-EFFICIENCY-RUNBOOK phases
-1–4 and phase A of the log-first structure (D441) — code the page had
+1–4 and phase A of the log-first structure (D446) — code the page had
 not read. Read the way §3 read the old code, four of its surfaces could
 bill in the shape the owner asked to prevent:
 
@@ -48480,4 +48824,3 @@ table, the fan-out's window and heal, the hold without an attempt),
 type), `check:deploy-targets`, `check:appcheck`, `check:docs`,
 `check:figures`, `check:policy-claims`, `check:data-inventory`; the
 counts are in the pull request.
-

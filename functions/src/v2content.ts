@@ -12736,7 +12736,8 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gu1",
@@ -12798,7 +12799,8 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gu4",
@@ -12861,7 +12863,17 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "scen": {
+   "id": "evening",
+   "label": "Any Given Evening",
+   "hue": 335
+  },
+  "role": {
+   "id": "reason",
+   "label": "the voice of reason",
+   "seat": "heart"
+  }
  },
  {
   "id": "group-gu2",
@@ -12922,7 +12934,17 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "scen": {
+   "id": "evening",
+   "label": "Any Given Evening",
+   "hue": 335
+  },
+  "role": {
+   "id": "call",
+   "label": "the 3am call",
+   "seat": "hands"
+  }
  },
  {
   "id": "group-gu7",
@@ -12987,7 +13009,17 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "scen": {
+   "id": "evening",
+   "label": "Any Given Evening",
+   "hue": 335
+  },
+  "role": {
+   "id": "curveball",
+   "label": "the curveball",
+   "seat": "wild"
+  }
  },
  {
   "id": "group-gu9",
@@ -13032,7 +13064,17 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "scen": {
+   "id": "evening",
+   "label": "Any Given Evening",
+   "hue": 335
+  },
+  "role": {
+   "id": "ringleader",
+   "label": "the ringleader",
+   "seat": "engine"
+  }
  },
  {
   "id": "group-gu10",
@@ -13061,7 +13103,8 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gu11",
@@ -13106,7 +13149,8 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gr0",
@@ -13856,7 +13900,8 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gu13",
@@ -13900,7 +13945,8 @@ const BANK_3: V2SeedQuestion[] = [
   "options": [],
   "topic": "pick",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "group-gu14",

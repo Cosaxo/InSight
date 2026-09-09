@@ -45,7 +45,7 @@ export const crowd = (dau) => Math.min(VOTER_FETCH_CAP, dau);
 // the same day Phase 2 took the names-on-the-sample row, the sheet row
 // and the city pass (runbook 2.2–2.5; `socialTerms` in cost-arith.mjs
 // now carries all three at their built size) and Phase 3 took the Circle
-// row — the answer map, live, on the owner's word (D440 amendment).
+// row — the answer map, live, on the owner's word (D445 amendment).
 export const RESHAPES = [
   {
     key: "deckDoc",

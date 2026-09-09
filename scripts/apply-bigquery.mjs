@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // apply-bigquery.mjs — create the answer log's home in BigQuery
-// (SCALE-ARCHITECTURE.md phase A, D441): dataset `insight` in europe-west1
+// (SCALE-ARCHITECTURE.md phase A, D446): dataset `insight` in europe-west1
 // and the `answers` table — partitioned by day, clustered by person then
 // question — from bigquery/answers.schema.json, the file functions/src/log.ts
 // is held to.
@@ -44,7 +44,7 @@ export function datasetBody(project, dataset = DATASET, location = LOCATION) {
   return {
     datasetReference: { projectId: project, datasetId: dataset },
     location,
-    description: "InSight's answer log (SCALE-ARCHITECTURE.md, D441): one row per ledger entry, the truth every nightly fold is computed from.",
+    description: "InSight's answer log (SCALE-ARCHITECTURE.md, D446): one row per ledger entry, the truth every nightly fold is computed from.",
   };
 }
 

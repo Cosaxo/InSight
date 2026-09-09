@@ -191,7 +191,7 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
-      // The answer log's rows (log.ts, D441 phase A, phase 1a″): 1 when the
+      // The answer log's rows (log.ts, D446 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
       // buffer refused it or the table is past the immediate ceiling
       // (LOG_ERASE_NOW_MAX_BYTES — a DELETE is a pass over the whole
@@ -307,7 +307,7 @@ export const deleteAccount = onCall(
       failed.push("aggEvents");
     }
 
-    // 1a″. THE ANSWER LOG (log.ts, D441 phase A) — the ledger's mirror in
+    // 1a″. THE ANSWER LOG (log.ts, D446 phase A) — the ledger's mirror in
     //     BigQuery, which keeps rows past the ledger's TTL and so holds the
     //     attribution longest. One DML statement now while the table is
     //     under a gibibyte; past that, or where BigQuery refuses because
@@ -1046,6 +1046,14 @@ export const deleteAccount = onCall(
     //     registry, and worse if missed: the row holds a name, so leaving
     //     it means an erased account stays findable by the search this
     //     feature exists to provide.
+    //
+    //     The count is a CONSTANT on purpose, and since D440 that is
+    //     load-bearing: the owner may already have deleted this row by
+    //     clearing their name, and the delete below is idempotent, so an
+    //     erasure that finds no row succeeds and reports exactly as one
+    //     that found it. The old client-side deny rested on this phase
+    //     "counting on" the row; it never did, and a measurement here
+    //     (exists-then-delete) would be the change that made that true.
     try {
       await db.doc(`v2_people/${uid}`).delete();
       counts.peopleRow = 1;
