@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 451 lines instead of
-46,542. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 452 lines instead of
+46,618. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -115,7 +115,7 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D425 (+6) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D328 (+12) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D427 (+87) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D429 (+88) | 9129 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9251 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D334 (+5) | 9394 |
 | **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D426 (+11) | 9495 |
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D426 (+20) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D429 (+21) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -458,10 +458,11 @@ detect it.
 | **D423** | [The pictures land: five domains fetched from a cloud session, the seventh host nobody knew about, and the two ways a throttled network kills a run](DECISIONS.md#d423--the-pictures-land-five-domains-fetched-from-a-cloud-session-the-seventh-host-nobody-knew-about-and-the-two-ways-a-throttled-network-kills-a-run) | — | 45400 |
 | **D424** | [The lanes create categories: the human gate becomes arithmetic, and the taxonomy gets a gate that can fail](DECISIONS.md#d424--the-lanes-create-categories-the-human-gate-becomes-arithmetic-and-the-taxonomy-gets-a-gate-that-can-fail) | D428 (+2) | 45529 |
 | **D425** | [The You map's ring is fixed, and the taxonomies grow: subtopics first, new topics when the arithmetic says so](DECISIONS.md#d425--the-you-maps-ring-is-fixed-and-the-taxonomies-grow-subtopics-first-new-topics-when-the-arithmetic-says-so) | D428 (+1) | 45744 |
-| **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | — | 45900 |
+| **D426** | [Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal](DECISIONS.md#d426--rounds-replace-the-day-on-1v1-and-group--the-plan-and-the-finding-that-the-day-was-never-the-seal) | D429 | 45900 |
 |  | ↳ *amendment 2026-09-08* — [The model is approved, and notifications are the volley's other half](DECISIONS.md#d426-amendment-2026-09-08--the-model-is-approved-and-notifications-are-the-volleys-other-half) | — | 46042 |
 |  | ↳ *amendment 2026-09-08, later the same day* — [Steps 0–3 are built: the round replaces the day](DECISIONS.md#d426-amendment-2026-09-08-later-the-same-day--steps-03-are-built-the-round-replaces-the-day) | — | 46085 |
 |  | ↳ *amendment 2026-09-08, the profiles* — [The 1v1 and group profiles under rounds: keyed by round, worded in rounds, thirty reveals until the ledger](DECISIONS.md#d426-amendment-2026-09-08-the-profiles--the-1v1-and-group-profiles-under-rounds-keyed-by-round-worded-in-rounds-thirty-reveals-until-the-ledger) | — | 46243 |
 | **D427** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d427--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | D428 | 46289 |
 | **D428** | [Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples](DECISIONS.md#d428--breadth-first-a-room-is-born-with-a-handful-coverage-steers-where-the-next-one-opens-and-learns-cap-triples) | — | 46390 |
 |  | ↳ *amendment 2026-09-08* — [The learn lane runs daily, and its prompt is swapped for the one that can open a field](DECISIONS.md#d428-amendment-2026-09-08--the-learn-lane-runs-daily-and-its-prompt-is-swapped-for-the-one-that-can-open-a-field) | — | 46508 |
+| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | — | 46543 |

@@ -1249,6 +1249,20 @@ service cloud.firestore {
           // out of budget denies exactly like a rule that is false — which
           // makes this the cheapest kind of latent bug: correct today, and
           // silently wrong the moment a path grows past the ceiling.
+          //
+          // MEASURED, 2026-09-09, and there are TWO ceilings (D429).
+          // Runtime: the thinnest allow arms here — D426's world-question
+          // duel arm and the pick round — clear the 1,000 by roughly 130
+          // expressions; the profile arm above by 80–140. Compile: past
+          // about 170 more expressions the ruleset stops compiling at all
+          // ("Expression is too complex to evaluate safely", naming
+          // isValidV2Anchors and the profile arm), which is the LOUD one —
+          // a deploy fails rather than a person being refused.
+          // `firestore-tests/rules.test.ts` § "the heaviest LEGAL create"
+          // pins the runtime half as executable cases: they send all ten
+          // anchors at their bounds, where every other case in that file
+          // sends the cheap end, so the day a new clause crosses the line
+          // the suite reds instead of the release.
           && isValidV2Anchors(request.resource.data.get("anchors", {}));
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,
