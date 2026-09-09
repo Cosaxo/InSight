@@ -32,13 +32,26 @@
 // scripts/apply-bigquery.mjs, dry by default; the runtime service account
 // needs BigQuery Data Editor and Job User, which DEPLOYMENT.md names.
 //
-// ERASURE reaches it (D8's promise, the privacy page's sentence): one DML
-// statement per deleted account, attempted at once and — where BigQuery
-// refuses because the rows are still in its streaming buffer, which it
-// does for up to ninety minutes after an insert — deferred to the nightly
+// ERASURE reaches it (D8's promise, the privacy page's sentence): a DML
+// statement, attempted at once while the table is small and — where
+// BigQuery refuses because the rows are still in its streaming buffer,
+// which it does for up to ninety minutes after an insert, or where the
+// table has passed LOG_ERASE_NOW_MAX_BYTES — deferred to the nightly
 // reconcile through a server-only marker in `v2_log_erasures`, so an
 // account's rows are gone within a day at the outside. The anonymous
 // tallies stay, as the aggregate counts a deleted account fed stay today.
+//
+// WHY THE NIGHT DELETES IN ONE STATEMENT. BigQuery bills a DELETE for
+// every column of every partition it touches, and an account whose
+// answers span the year touches every partition — so one statement costs
+// the table's size at $6.25 a TiB whether it removes one account or five
+// hundred. Per account that is nothing today and, at a million people
+// answering a hundred times a day, about $27 a statement; a statement per
+// deletion would then be the largest line on the bill (COST-EXPOSURE.md
+// §8). The night takes every pending account in one `IN UNNEST`, which
+// bounds erasure at one pass a night whatever the day deleted; the
+// immediate path is kept while a pass is cheap (the ceiling), because
+// gone-at-once is the better promise where it costs nothing to keep.
 import { BigQuery } from "@google-cloud/bigquery";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { FieldPath, type Firestore, type Timestamp } from "firebase-admin/firestore";
@@ -61,6 +74,15 @@ export const LOG_ERASURE_RETRY_MS = 2 * 60 * 60 * 1000;
 /** Rows per streaming insert — the API's own ceiling is 10,000 rows or
  *  10 MB a request; 500 keeps a request well under both. */
 export const LOG_APPEND_CHUNK = 500;
+/** Above this many bytes in the table an account's erasure is deferred to
+ *  the night's one statement rather than run at once: a DELETE is a pass
+ *  over the whole table (see the header), $0.006 at this ceiling and the
+ *  table's size × deletions a day past it. Read off the table's metadata,
+ *  which bills nothing. */
+export const LOG_ERASE_NOW_MAX_BYTES = 1024 ** 3;
+/** Accounts per nightly DELETE — the marker query's own page; an
+ *  `IN UNNEST` of five hundred ids is well inside a query's size. */
+export const LOG_ERASE_BATCH = 500;
 
 /** One row of the `answers` table — the field names are the schema's
  *  (bigquery/answers.schema.json, pinned by log.test.ts). */
@@ -117,9 +139,14 @@ export interface LogWriter {
    *  the trigger's clock and the ledger's are not the same clock, so a
    *  row filed a minute past midnight is still found. Null when off. */
   presentIds(day: string): Promise<Set<string> | null>;
-  /** `DELETE … WHERE uid = @uid`. "deferred" when BigQuery refuses because
-   *  the rows are in its streaming buffer; the caller leaves a marker. */
-  deleteUser(uid: string): Promise<"done" | "deferred">;
+  /** `DELETE … WHERE uid IN UNNEST(@uids)` — one pass over the table for
+   *  every account in the list, which is the point of the list. "deferred"
+   *  when BigQuery refuses because rows are in its streaming buffer; the
+   *  caller keeps the markers. */
+  deleteUsers(uids: readonly string[]): Promise<"done" | "deferred">;
+  /** The table's logical bytes, off its metadata — no query, nothing
+   *  billed. Null where unknown, or where there is no BigQuery. */
+  tableBytes(): Promise<number | null>;
 }
 
 /** Whether this process has a BigQuery to write to. Read per call rather
@@ -136,7 +163,8 @@ const offWriter: LogWriter = {
   enabled: false,
   async append() {},
   async presentIds() { return null; },
-  async deleteUser() { return "done"; },
+  async deleteUsers() { return "done"; },
+  async tableBytes() { return null; },
 };
 
 /** The writer against the real table: one client per instance, made on
@@ -162,14 +190,27 @@ export function bigQueryLogWriter(dataset = LOG_DATASET, table = LOG_TABLE): Log
       });
       return new Set((rows as Array<{ id: string }>).map((r) => r.id));
     },
-    async deleteUser(uid) {
+    async deleteUsers(uids) {
+      if (!uids.length) return "done";
       try {
-        await bq().query({ query: `DELETE FROM ${ref()} WHERE uid = @uid`, params: { uid }, location: LOG_LOCATION });
+        await bq().query({
+          query: `DELETE FROM ${ref()} WHERE uid IN UNNEST(@uids)`,
+          params: { uids: [...uids] },
+          // An array parameter needs its element type stated (an empty
+          // array cannot be inferred); the guard above keeps it non-empty.
+          types: { uids: ["STRING"] },
+          location: LOG_LOCATION,
+        });
         return "done";
       } catch (err) {
         if (/streaming buffer/i.test(err instanceof Error ? err.message : String(err))) return "deferred";
         throw err;
       }
+    },
+    async tableBytes() {
+      const [meta] = await bq().dataset(dataset).table(table).getMetadata();
+      const n = Number((meta as { numBytes?: string | number } | undefined)?.numBytes);
+      return Number.isFinite(n) ? n : null;
     },
   };
 }
@@ -219,22 +260,35 @@ export async function appendLog(rows: readonly LogRow[]): Promise<void> {
 
 export interface LogErasureStore {
   deleteUser(uid: string): Promise<"done" | "deferred">;
+  /** The table's size, so the immediate statement is skipped past the
+   *  ceiling (LOG_ERASE_NOW_MAX_BYTES); null defers to the statement. */
+  tableBytes(): Promise<number | null>;
   /** Leave (or refresh) the marker that the nightly retries from. */
   defer(uid: string, atMs: number): Promise<void>;
 }
 
 /**
- * Erase one account's rows: attempt the DML now; when BigQuery defers it
- * (the streaming buffer), or the attempt fails for any other reason,
- * leave the marker and let the night retry — the promise is "within a
- * day", and a marker written is a promise kept. Throws only when the
- * marker itself cannot be written, which is the one case deleteAccount
- * must refuse to complete on (its own rule about stranded data).
+ * Erase one account's rows: attempt the DML now while the table is under
+ * the ceiling; when the table is past it, when BigQuery defers (the
+ * streaming buffer), or when the attempt fails for any other reason,
+ * leave the marker and let the night's one statement take it — the
+ * promise is "within a day", and a marker written is a promise kept.
+ * Throws only when the marker itself cannot be written, which is the one
+ * case deleteAccount must refuse to complete on (its own rule about
+ * stranded data).
  */
-export async function eraseUserLog(store: LogErasureStore, uid: string, nowMs: number, log: Pick<typeof logger, "warn"> = logger): Promise<"done" | "deferred"> {
+export async function eraseUserLog(store: LogErasureStore, uid: string, nowMs: number, log: Pick<typeof logger, "info" | "warn"> = logger): Promise<"done" | "deferred"> {
   let outcome: "done" | "deferred";
   try {
-    outcome = await store.deleteUser(uid);
+    const bytes = await store.tableBytes();
+    if (bytes !== null && bytes > LOG_ERASE_NOW_MAX_BYTES) {
+      log.info(`[log] erasure of ${uid} deferred to the nightly batch — the table is ${(bytes / 1024 ** 3).toFixed(1)} GiB, past the immediate ceiling`, {
+        metric: "log_erasure_deferred", reason: "table past LOG_ERASE_NOW_MAX_BYTES", bytes,
+      });
+      outcome = "deferred";
+    } else {
+      outcome = await store.deleteUser(uid);
+    }
   } catch (err) {
     log.warn(`[log] erasure of ${uid} failed now; deferred to the nightly reconcile`, {
       metric: "log_erasure_deferred", reason: err instanceof Error ? err.message : String(err),
@@ -253,7 +307,8 @@ export interface LogReconcileStore {
   append(rows: readonly LogRow[]): Promise<void>;
   /** Deferred erasures whose marker is older than `beforeMs`. */
   pendingErasures(beforeMs: number): Promise<string[]>;
-  deleteUser(uid: string): Promise<"done" | "deferred">;
+  /** One statement for the whole list (LogWriter.deleteUsers). */
+  deleteUsers(uids: readonly string[]): Promise<"done" | "deferred">;
   eraseDone(uid: string): Promise<void>;
 }
 
@@ -266,6 +321,9 @@ export interface LogReconcileSummary {
   appended: number;
   erasures: number;
   erased: number;
+  /** DELETE statements run — one per LOG_ERASE_BATCH accounts, each a
+   *  pass over the table, which is what the night's cost is. */
+  passes: number;
 }
 
 /**
@@ -283,24 +341,30 @@ export async function runLogReconcile(
   const present = await store.presentIds(day);
   if (!present) {
     log.info("[log] reconcile skipped — no BigQuery here", { metric: "log_reconcile", day, skipped: true });
-    return { day, skipped: true, entries: 0, missing: 0, appended: 0, erasures: 0, erased: 0 };
+    return { day, skipped: true, entries: 0, missing: 0, appended: 0, erasures: 0, erased: 0, passes: 0 };
   }
   const entries = await store.ledgerDay(day);
   const rows = entries.filter((e) => e.id && !present.has(e.id)).map(rowFromLedgerEntry);
   if (rows.length) await store.append(rows);
+  // Every pending account in one statement per page — a DELETE is a pass
+  // over the table however many ids it names (the header). A refused
+  // batch (rows of one of them still in the streaming buffer, which the
+  // retry gap should have outlived) keeps every marker for tomorrow.
   const uids = await store.pendingErasures(nowMs - LOG_ERASURE_RETRY_MS);
   let erased = 0;
-  for (const uid of uids) {
-    if ((await store.deleteUser(uid)) === "done") {
-      await store.eraseDone(uid);
-      erased += 1;
-    }
+  let passes = 0;
+  for (let i = 0; i < uids.length; i += LOG_ERASE_BATCH) {
+    const chunk = uids.slice(i, i + LOG_ERASE_BATCH);
+    passes += 1;
+    if ((await store.deleteUsers(chunk)) !== "done") continue;
+    for (const uid of chunk) await store.eraseDone(uid);
+    erased += chunk.length;
   }
-  const out: LogReconcileSummary = { day, skipped: false, entries: entries.length, missing: rows.length, appended: rows.length, erasures: uids.length, erased };
+  const out: LogReconcileSummary = { day, skipped: false, entries: entries.length, missing: rows.length, appended: rows.length, erasures: uids.length, erased, passes };
   // A missing row is a live append that failed — worth a warning, since
   // the heal is the safety net and not the path.
   (rows.length ? log.warn : log.info)(
-    `[log] reconciled ${day}: ${entries.length} entries, ${rows.length} appended, ${erased} of ${uids.length} deferred erasures done`,
+    `[log] reconciled ${day}: ${entries.length} entries, ${rows.length} appended, ${erased} of ${uids.length} deferred erasures done in ${passes} statement(s)`,
     { metric: "log_reconcile", ...out },
   );
   return out;
@@ -309,7 +373,8 @@ export async function runLogReconcile(
 /** The erasure half over Firestore's markers — what deleteAccount takes. */
 export function firestoreLogErasure(db: Firestore, w: LogWriter = logWriter()): LogErasureStore {
   return {
-    deleteUser: (uid) => w.deleteUser(uid),
+    deleteUser: (uid) => w.deleteUsers([uid]),
+    tableBytes: () => w.tableBytes(),
     async defer(uid, atMs) {
       await db.collection(LOG_ERASURES).doc(uid).set({ at: atMs }, { merge: true });
     },
@@ -322,10 +387,10 @@ export function firestoreLogStore(db: Firestore, ledgerDay: LedgerDayReader, w: 
     ledgerDay,
     presentIds: (day) => w.presentIds(day),
     append: (rows) => w.append(rows),
-    deleteUser: (uid) => w.deleteUser(uid),
+    deleteUsers: (uids) => w.deleteUsers(uids),
     async pendingErasures(beforeMs) {
       if (!w.enabled) return [];
-      const snap = await markers().where("at", "<=", beforeMs).limit(500).get();
+      const snap = await markers().where("at", "<=", beforeMs).limit(LOG_ERASE_BATCH).get();
       return snap.docs.map((d) => d.id);
     },
     async eraseDone(uid) {

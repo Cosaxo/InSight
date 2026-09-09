@@ -651,10 +651,13 @@ operationally:
 - **Reading it:** `log_append_failed` (an error per failed append, with
   its count), `log_reconcile` (the nightly heartbeat inside
   `digestEngagementV2`: `entries`, `missing`, `appended`, `erasures`,
-  `erased` — a warning when `missing` is not zero, because a reconciled
-  row is a live append that failed), `log_erasure_deferred` (an account
-  whose rows the streaming buffer refused; the marker in
-  `v2_log_erasures` is retried the next night). The same `gcloud logging
+  `erased`, `passes` — a warning when `missing` is not zero, because a
+  reconciled row is a live append that failed; `passes` is the DELETE
+  statements the night ran, one per 500 pending accounts, each a pass
+  over the table), `log_erasure_deferred` (an account whose rows were
+  not deleted at once — the streaming buffer refused, or the table is
+  past `LOG_ERASE_NOW_MAX_BYTES`, a gibibyte; the marker in
+  `v2_log_erasures` is taken by the next night's one statement). The same `gcloud logging
   read` shapes as the velocity scan below, on
   `service_name="onv2answercreated"` and `"digestengagementv2"`.
 - **Switching it off** is `LOG_DATASET=off` in the functions' env

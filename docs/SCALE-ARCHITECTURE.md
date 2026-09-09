@@ -36,7 +36,9 @@ designed for.
   changed; every nightly fold becomes SQL over the log, and a writer job
   puts the results back into the documents the app already reads.
 - **What it costs, printed (§5):** at a million users answering a
-  hundred times a day, about $2,200 a month against $23,200 on the
+  hundred times a day, about $3,100 a month (it read $2,200 until the evening of 2026-09-09
+priced the erasure statements and the streaming API phase A ships on —
+§5) against $23,200 on the
   shipped structure — which would not run at that size at all. At ten
   million answering three hundred times a day, about $32,000 against
   $667,000. Ten to twenty times cheaper, and it runs.
@@ -234,10 +236,26 @@ reconcile).
 ### 3.6 · Erasure and recovery
 
 Erasure is what it is today plus one statement: the subtree, the
-samples scrub, and `DELETE FROM answers WHERE uid = @uid` (and the
-`profiles` row), which is cheap because the table is clustered by
-person. The anonymous tallies stay, as the aggregate counts a deleted
-account fed stay today (`deleteAccount`'s own comment). Recovery is the
+samples scrub, and a `DELETE FROM answers WHERE uid IN …` (and the
+`profiles` row). **It is not cheap by construction, and the first draft
+of this paragraph said it was** (*"cheap because the table is clustered
+by person"* — the table was clustered by question first, which prunes
+nothing for a filter on the person, and a DELETE is billed for every
+column of every partition it touches, which for an account whose
+answers span the year is the whole table). What bounds it is the shape
+phase A built (`functions/src/log.ts`, 2026-09-09): one statement runs at
+once while the table is under a gibibyte; past that, and wherever the
+streaming buffer refuses, the account leaves a marker and the night
+deletes every pending account in ONE statement — one pass over the
+table a night whatever the day deleted, priced as the erasure line in
+§5. The table is clustered by person then question for the same reason,
+while it is still free to choose. Beyond a million users the pass is the
+largest line, and runbook A.9 is the cheaper shape — an erased-ids table
+the folds join against and a monthly physical purge — which keeps the
+rows for up to a month and so moves the privacy page's "within a day"
+first (D183): the owner's sentence. The anonymous tallies stay, as the
+aggregate counts a deleted account fed stay today (`deleteAccount`'s own
+comment). Recovery is the
 part that improves: **every derived store is rebuildable from the log
 by one query** — the counters, the aggregates, the samples, the maps,
 the states — which is the question `replay.ts` was written to answer
@@ -280,7 +298,10 @@ the same number. Two things change *when*, and D1 says they are stated:
 
 ## 5 · The bill, printed
 
-`npm run costs:target`, 2026-09-09 (`europe-west1` list prices;
+`npm run costs:target`, 2026-09-09, re-printed that evening with two
+lines the morning's print lacked — the erasure DELETE and the streaming
+API's row minimum (`COST-EXPOSURE.md` §8) — and on the named database's
+no-allowance sheet (`europe-west1` list prices;
 BigQuery, Redis, Eventarc and CDN prices read from Google's pricing
 pages the same day and held as named constants in the script, which is
 the part to confirm against the first invoice — `LAUNCH-RUNBOOK.md`
@@ -291,27 +312,28 @@ that has already failed at the row above it.
 
 <!-- costs:target -->
 ```
-InSight at hundreds of answers a day — europe-west1 regional prices, no free allowance netted on the shipped column past what cost-arith nets
+InSight at hundreds of answers a day — europe-west1 regional prices, no Firestore free allowance (the named database has none)
 bank assumed 100,000 questions · 15 answers a batch · compaction every 60 s · 8 breakdown dims · 3 ALS sweeps
 
 load                            50 K × 100/day 1.0 M × 100/day 1.0 M × 300/day10.0 M × 100/day10.0 M × 300/day
 --------------------------------------------------------------------------------------------------------------
-SHIPPED structure, $/month              $1,155         $23,219         $66,653        $232,247        $666,585
+SHIPPED structure, $/month              $1,157         $23,222         $66,655        $232,250        $666,588
   reads/day                             33.5 M         668.2 M           1.8 G           6.7 G          17.9 G
   writes/day                            20.5 M         409.7 M           1.2 G           4.1 G          12.1 G
   the nightly pass dies at            16 K DAU        16 K DAU         5 K DAU        16 K DAU         5 K DAU
   the index wall arrives at          144 K DAU       144 K DAU        48 K DAU       144 K DAU        48 K DAU
 
-TARGET structure, $/month                 $464          $2,177          $3,985         $15,645         $31,534
+TARGET structure, $/month                 $508          $3,067          $6,655         $24,512         $58,033
   Firestore — per-user writes (the day document, the map merge, the nightly states)             $22            $441          $1,161          $4,410         $11,610
   Firestore — per-user reads (boot documents, the D98 surfaces, today's card)             $28            $565            $565          $5,649          $5,649
   Firestore — deletes (the rollups' TTL)           $0.15           $3.00           $3.00             $30             $30
   Triggers — one per batch (Eventarc + Cloud Run request + compute)             $12            $236            $707          $2,358          $7,073
   Compactor — always-on instances             $70            $209            $348            $348            $348
   Publish — the cheaper of Firestore documents and CDN pages            $133            $461            $461            $873            $873
-  BigQuery — ingest (Storage Write API)           $0.00           $0.00           $0.00             $33            $200
+  BigQuery — ingest (the streaming API phase A ships on: 1 KB minimum a row; A.8 is            $7.15            $143            $429          $1,431          $4,292
   BigQuery — storage, the twelfth month (nine long-term, three active)           $2.51             $50            $151            $503          $1,509
   BigQuery — the nightly queries (six day scans, the people table per sweep)           $0.82             $16             $41            $165            $410
+  BigQuery — erasures (one DELETE a night over the year's table for the day's delete             $37            $747          $2,241          $7,469         $22,408
   Redis — live counters (sized for the peak and the keyspace)            $196            $196            $548          $1,278          $3,833
   Firestore writes/day                   5.8 M          89.4 M         170.1 M         317.2 M         584.0 M
   Firestore reads/day                    3.1 M          62.8 M          62.8 M         627.6 M         627.6 M
@@ -320,23 +342,38 @@ TARGET structure, $/month                 $464          $2,177          $3,985  
   Redis shards · GiB                     1 · 5           1 · 5          3 · 15          7 · 35        21 · 105
   dirty questions/minute                   3 K            50 K            88 K           100 K           100 K
   BigQuery GiB ingested/month               17             335             1 K             3 K            10 K
+   …billed by the streaming API         143 GiB         3 K GiB         9 K GiB        29 K GiB        86 K GiB
+   …on the Storage Write API (A.8)        $0.00/mo        $0.00/mo        $0.00/mo          $33/mo         $200/mo
   BigQuery TiB scanned/night              0.00            0.09            0.22            0.88            2.19
+  BigQuery TiB an erasure pass reads            0.20            3.98           11.95           39.84          119.51
 
-shipped ÷ target                          2.5×           10.7×           16.7×           14.8×           21.1×
+shipped ÷ target                          2.3×            7.6×           10.0×            9.5×           11.5×
 
 the batch dial, at a million users answering a hundred a day (Circle sees a friend's answer within the window):
-    1 min window ·   3 answers a batch →    $4,560/month, 33.3 M triggers/day
-    5 min window ·  15 answers a batch →    $2,177/month, 6.7 M triggers/day
-   15 min window ·  45 answers a batch →    $1,780/month, 2.2 M triggers/day
+    1 min window ·   3 answers a batch →    $5,450/month, 33.3 M triggers/day
+    5 min window ·  15 answers a batch →    $3,067/month, 6.7 M triggers/day
+   15 min window ·  45 answers a batch →    $2,670/month, 2.2 M triggers/day
 ```
 <!-- /costs:target -->
 
 Reading it: the target's biggest lines are the per-user Firestore
 writes and the triggers, both of which scale with the *batch* count, not
-the answer count — the dial at the bottom. Redis is sized for the peak
-and for the keyspace of a hundred-thousand-question bank; BigQuery is a
-rounding error until ten million, and its storage line is the twelfth
-month's. The shipped column's reads and writes are what a Firestore
+the answer count — the dial at the bottom — **and, from a million users,
+the erasure line**: a DELETE is billed for every column of every
+partition it touches, an account's answers span every partition, so one
+statement is a pass over the year's table ($6.25 a TiB) whatever it
+names, and the night runs one for the day's deleted accounts
+(`functions/src/log.ts`). At a million people answering a hundred times
+a day that pass reads 4 TiB and the line is $747 a month; at ten
+million it is the largest line on the bill, which is why runbook A.9
+exists (the marker table with a monthly purge takes it to a thirtieth,
+and moves the privacy page's sentence — the owner's). The ingest line
+is the streaming API phase A ships on, which bills a kilobyte for a
+120-byte row and has no free allowance; the Storage Write API figure
+beneath it is what A.8 buys. Redis is sized for the peak and for the
+keyspace of a hundred-thousand-question bank — and is a fixed line from
+the hour the instance exists, whatever the load (§8). BigQuery's storage
+line is the twelfth month's. The shipped column's reads and writes are what a Firestore
 invoice would read, if the structure ran.
 
 ## 6 · The path from here
@@ -432,3 +469,17 @@ arithmetic:
 - **The shipped column** is `cost-arith.mjs` with `B.worldAnswers`
   moved; its per-user reads include the who-voted, Kindred and Circle
   terms at the same open rates, which a heavy answerer may exceed.
+- **Redis is a fixed line, not a per-user one.** Memorystore bills the
+  instance from the hour it exists: the 5 GiB the model sizes for the
+  keyspace is $196 a month with two users as with fifty thousand, and
+  the smallest Basic-tier instance (1 GiB, no replica) is about $36.
+  That is why `LOG-FIRST-RUNBOOK.md`'s phase B carries a start condition
+  rather than a date — at today's size it would be the whole bill.
+- **The erasure line assumes Google's DML rule as read before this
+  sandbox** — a DELETE bills the referenced columns plus every column of
+  the partitions it modifies or scans — and one pass a night. Whether a
+  DELETE prunes by cluster the way a SELECT does could not be verified
+  from here (the docs host is blocked); if it does, the person-first
+  clustering makes the pass a fraction and the line is an overestimate.
+  Either way the batch bounds it, and the first invoice with a deletion
+  on it is what settles the constant.

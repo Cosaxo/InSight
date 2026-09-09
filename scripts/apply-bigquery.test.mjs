@@ -13,11 +13,13 @@ describe("apply-bigquery", () => {
     expect(datasetBody("p").location).toBe(LOCATION);
   });
 
-  it("partitions by day and clusters by question then person, with every schema field", () => {
+  it("partitions by day and clusters by person then question, with every schema field", () => {
     const schema = readSchema();
     const body = tableBody("p", schema);
     expect(body.timePartitioning).toEqual({ type: "DAY", field: "day" });
-    expect(body.clustering).toEqual({ fields: ["qid", "uid"] });
+    // Person first: the erasure's `WHERE uid IN …` is the one DML the
+    // design runs, and a prefix is what clustering prunes on.
+    expect(body.clustering).toEqual({ fields: ["uid", "qid"] });
     const names = body.schema.fields.map((f) => f.name);
     for (const f of ["id", "uid", "qid", "surface", "option_idx", "from_idx", "answered_at", "day", "anchors"]) expect(names).toContain(f);
     expect(schema.find((f) => f.name === "day").type).toBe("DATE");

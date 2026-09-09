@@ -96,6 +96,24 @@ export const T = {
   // eight frozen chips. The stamp (name, scores) is NOT on the row — it is
   // one row per person in a profiles table the samples join against.
   rowBytes: 120,
+  // What the streaming API phase A ships on (functions/src/log.ts,
+  // `table.insert` — tabledata.insertAll) bills a row AS: a 1 KB minimum
+  // per row, and the row above is an eighth of that. Runbook A.8 moves
+  // the append to the Storage Write API, whose figure is printed beside
+  // this line as the fact `ingestWriteApiMo` so the step's worth is read
+  // rather than guessed.
+  rowMinBilledBytes: 1024,
+  // The log's retention: nothing drops a row — outliving the ledger's
+  // 90-day TTL is what the log is for — so an erasure pass reads the
+  // year, and the twelfth month's storage line below is a year's rows.
+  logRetentionDays: 365,
+  // Erasure: ONE DELETE statement a night over every account the day
+  // deleted (log.ts's batch). BigQuery bills a DELETE for every column of
+  // every partition it touches, and an account whose answers span the
+  // year touches every partition, so a statement costs the table's size
+  // however many accounts it names — which is why it is one a night and
+  // not one an account. Runbook A.9 is the shape that scans less.
+  erasurePassesPerNight: 1,
   // How many times a night the day's partition is scanned: the digest, the
   // world samples, the city samples, the velocity signals, the taste fold,
   // the rank. Each is one SELECT over one day.
@@ -152,10 +170,15 @@ export const T = {
 // ── prices outside Firestore (USD, list, read 2026-09-09) ───────
 export const PRICES = {
   // BigQuery: Storage Write API $0.025/GiB after 2 TiB a month free;
+  // the legacy streaming API (insertAll, what phase A ships on) $0.01 per
+  // 200 MB — $0.05/GiB — with a 1 KB minimum a row and no free allowance;
   // logical storage $0.02/GiB-month active, $0.01 after 90 untouched days;
-  // on-demand queries $6.25/TiB scanned.
+  // on-demand queries $6.25/TiB scanned, DML included (the first TiB a
+  // month is free and is not netted here — conservative, like the query
+  // line).
   bqWritePerGiB: 0.025,
   bqWriteFreeGiBMo: 2_048,
+  bqStreamPerGiB: 0.05,
   bqStoreActivePerGiBMo: 0.02,
   bqStoreLongPerGiBMo: 0.01,
   bqQueryPerTiB: 6.25,
@@ -231,8 +254,13 @@ export function target(dau, answers) {
 
   // BigQuery.
   const ingestGiBMo = (rowsPerDay * T.rowBytes * 30) / GIB;
+  // …billed by the streaming API at the row minimum (phase A as shipped).
+  const ingestBilledGiBMo = (rowsPerDay * Math.max(T.rowBytes, T.rowMinBilledBytes) * 30) / GIB;
+  const ingestWriteApiMo = Math.max(0, ingestGiBMo - PRICES.bqWriteFreeGiBMo) * PRICES.bqWritePerGiB;
   const storeGiBMo = ingestGiBMo; // what a month adds; year-end storage is twelve of them
   const scanBytesDay = rowsPerDay * T.rowBytes * T.nightlyScans + mau * T.peopleRowBytes * (1 + ALS_SWEEPS);
+  // Erasure: a pass over the year's table per statement, one a night.
+  const erasureBytesPass = rowsPerDay * T.rowBytes * T.logRetentionDays;
 
   // Redis: sized for the peak and for the keyspace, whichever is larger.
   const opsPerSecPeak = ((rowsPerDay * (1 + BREAKDOWN_DIMS + 1)) / 86_400) * T.peakFactor;
@@ -257,9 +285,10 @@ export function target(dau, answers) {
       publishWritesFs * 30 * P.write,
       originRequestsDay * 30 * REQ + egressGiBMo * PRICES.cdnEgressPerGiB + instanceMo,
     ),
-    "BigQuery — ingest (Storage Write API)": Math.max(0, ingestGiBMo - PRICES.bqWriteFreeGiBMo) * PRICES.bqWritePerGiB,
+    "BigQuery — ingest (the streaming API phase A ships on: 1 KB minimum a row; A.8 is the Storage Write API)": ingestBilledGiBMo * PRICES.bqStreamPerGiB,
     "BigQuery — storage, the twelfth month (nine long-term, three active)": storeGiBMo * (9 * PRICES.bqStoreLongPerGiBMo + 3 * PRICES.bqStoreActivePerGiBMo),
     "BigQuery — the nightly queries (six day scans, the people table per sweep)": (scanBytesDay / TIB) * PRICES.bqQueryPerTiB * 30,
+    "BigQuery — erasures (one DELETE a night over the year's table for the day's deleted accounts)": (erasureBytesPass / TIB) * PRICES.bqQueryPerTiB * 30 * T.erasurePassesPerNight,
     "Redis — live counters (sized for the peak and the keyspace)": redisGiB * HOURS_MO * PRICES.redisPerGiBHour,
   };
   const perMonth = Object.values(lines).reduce((a, b) => a + b, 0);
@@ -271,7 +300,8 @@ export function target(dau, answers) {
       firestoreReadsPerDay: userReads,
       invocationsPerDay: invocations,
       dirtyPerMinute, compactorInstances,
-      ingestGiBMo, scanTiBDay: scanBytesDay / TIB,
+      ingestGiBMo, ingestBilledGiBMo, ingestWriteApiMo, scanTiBDay: scanBytesDay / TIB,
+      erasureTiBPass: erasureBytesPass / TIB,
       redisShards: shards, redisGiB, opsPerSecPeak,
       publishFsWritesPerDay: publishWritesFs,
       cdnOriginRequestsDay: originRequestsDay, egressGiBMo,
@@ -286,7 +316,7 @@ const big = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + " G" : n >= 1e6 ? (n / 1e6
 const pad = (s, n) => String(s).padStart(n);
 
 if (process.argv[1] && /cost-target\.mjs$/.test(process.argv[1])) {
-  console.log(`\nInSight at hundreds of answers a day — ${LOCATION_LABEL} prices, no free allowance netted on the shipped column past what cost-arith nets`);
+  console.log(`\nInSight at hundreds of answers a day — ${LOCATION_LABEL} prices, no Firestore free allowance (the named database has none)`);
   console.log(`bank assumed ${T.bankQuestions.toLocaleString("en-US")} questions · ${T.answersPerBatch} answers a batch · compaction every ${T.compactSeconds} s · ${BREAKDOWN_DIMS} breakdown dims · ${ALS_SWEEPS} ALS sweeps\n`);
 
   const cols = LOADS.map(([dau, answers]) => ({ dau, answers, s: shipped(dau, answers), t: target(dau, answers) }));
@@ -310,7 +340,10 @@ if (process.argv[1] && /cost-target\.mjs$/.test(process.argv[1])) {
   console.log("  Redis shards · GiB".padEnd(30) + cols.map((c) => pad(`${c.t.facts.redisShards} · ${c.t.facts.redisGiB.toFixed(0)}`, 16)).join(""));
   console.log("  dirty questions/minute".padEnd(30) + cols.map((c) => pad(big(c.t.facts.dirtyPerMinute), 16)).join(""));
   console.log("  BigQuery GiB ingested/month".padEnd(30) + cols.map((c) => pad(big(c.t.facts.ingestGiBMo), 16)).join(""));
+  console.log("   …billed by the streaming API".padEnd(30) + cols.map((c) => pad(big(c.t.facts.ingestBilledGiBMo) + " GiB", 16)).join(""));
+  console.log("   …on the Storage Write API (A.8)".padEnd(30) + cols.map((c) => pad(money(c.t.facts.ingestWriteApiMo) + "/mo", 16)).join(""));
   console.log("  BigQuery TiB scanned/night".padEnd(30) + cols.map((c) => pad(c.t.facts.scanTiBDay.toFixed(2), 16)).join(""));
+  console.log("  BigQuery TiB an erasure pass reads".padEnd(30) + cols.map((c) => pad(c.t.facts.erasureTiBPass.toFixed(2), 16)).join(""));
   console.log("");
   console.log("shipped ÷ target".padEnd(30) + cols.map((c) => pad((c.s.perMonth / c.t.perMonth).toFixed(1) + "×", 16)).join(""));
 

@@ -157,10 +157,16 @@ roughly double on the three operation lines.
 > structures at those loads.
 >
 > **2026-09-09, phase A of that structure (D441).** Every ledger entry is
-> also a row in BigQuery — about 160 bytes on the streaming API at
-> $0.05 a GiB, so 4 answers × 500,000 DAU is under 10 GiB a month: under
-> a dollar at every size in this table, plus one query a night over the
-> day's ids. Not a model line until phase D moves the folds onto it.
+> also a row in BigQuery — about 120 bytes, **billed as 1 KB** by the
+> streaming API the append uses (`table.insert`, insertAll: $0.05 a GiB
+> with a kilobyte minimum a row and no free allowance — the morning's
+> note priced the bytes and not the minimum), so 4 answers × 500,000 DAU
+> is 60 GiB a month: about $3 at the top of this table and cents below
+> it, plus one query a night over the day's ids and, from the day an
+> account is deleted, one DELETE a night over the whole table for the
+> day's deleted accounts (a pass billed at $6.25 a TiB, the table under
+> a gibibyte for a long time). `npm run costs:target` carries both as
+> lines; not a line here until phase D moves the folds onto it.
 
 > **Re-measured 2026-09-08 (DATA-EFFICIENCY-RUNBOOK 1.4 and 1.5).** A
 > return to the foreground re-reads today's aggregate rather than the

@@ -17,7 +17,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { stripComments } from "./strip-comments.mjs";
 import { bankArrayFrom } from "./v2content-lib.mjs";
 
@@ -169,7 +169,10 @@ export const DB_LABEL = NAMED_DB ? `named database \`${DB_ID}\` — no free quot
 export const SCHEDULER_JOBS = (() => {
   const dir = join(ROOT, "functions/src");
   let n = 0;
-  for (const f of readdirSync(dir)) {
+  // Recursive, and the path normalised — scripts/source-pins.test.mjs's
+  // rule for every gate that walks a source root, so a schedule declared
+  // one directory down is counted rather than invisible.
+  for (const f of readdirSync(dir, { recursive: true }).map((e) => String(e).split(sep).join("/"))) {
     if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
     n += (stripComments(readFileSync(join(dir, f), "utf8")).match(/\bonSchedule\(/g) || []).length;
   }

@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  LOG_BACKFILL_PAGE, LOG_ERASURE_RETRY_MS, eraseUserLog, logRow, rowFromLedgerEntry, runLogBackfill, runLogReconcile,
+  LOG_BACKFILL_PAGE, LOG_ERASE_BATCH, LOG_ERASE_NOW_MAX_BYTES, LOG_ERASURE_RETRY_MS,
+  eraseUserLog, logRow, rowFromLedgerEntry, runLogBackfill, runLogReconcile,
   type LogErasureStore, type LogReconcileStore, type LogRow, type LogWriter,
 } from "./log";
 import type { LedgerDayEntry } from "./ledger";
@@ -51,14 +52,16 @@ describe("runLogReconcile", () => {
   const entry = (id: string, uid = "u1"): LedgerDayEntry => ({ id, uid, qid: "q1", optionIdx: 0, at: Date.UTC(2026, 8, 8, 12) });
   function fakeStore(o: { present: Set<string> | null; entries: LedgerDayEntry[]; pending?: string[]; refuse?: Set<string> }) {
     const appended: LogRow[][] = [];
-    const deleted: string[] = [];
+    // One entry per STATEMENT — the claim under test is how many passes
+    // over the table a night makes, not how many accounts it names.
+    const deleted: string[][] = [];
     const done: string[] = [];
     const store: LogReconcileStore = {
       async ledgerDay(day) { return day === "2026-09-08" ? o.entries : []; },
       async presentIds() { return o.present; },
       async append(rows) { appended.push([...rows]); },
       async pendingErasures() { return o.pending ?? []; },
-      async deleteUser(uid) { deleted.push(uid); return o.refuse?.has(uid) ? "deferred" : "done"; },
+      async deleteUsers(uids) { deleted.push([...uids]); return uids.some((u) => o.refuse?.has(u)) ? "deferred" : "done"; },
       async eraseDone(uid) { done.push(uid); },
     };
     return { store, appended, deleted, done };
@@ -86,28 +89,66 @@ describe("runLogReconcile", () => {
     expect(read).toBe(0);
   });
 
-  it("retries the deferred erasures and clears the ones that went through", async () => {
+  it("deletes every deferred erasure in ONE statement and clears their markers", async () => {
+    // A DELETE is billed as a pass over the table however many accounts
+    // it names, so the night's cost is the statement count, and this pins
+    // it at one for a day's worth of deletions.
+    const { store, deleted, done } = fakeStore({ present: new Set(), entries: [], pending: ["gone-1", "gone-2", "gone-3"] });
+    const out = await runLogReconcile(store, NOW, quiet);
+    expect(deleted).toEqual([["gone-1", "gone-2", "gone-3"]]);
+    expect(done).toEqual(["gone-1", "gone-2", "gone-3"]);
+    expect(out).toMatchObject({ erasures: 3, erased: 3, passes: 1 });
+  });
+
+  it("a refused batch keeps every marker for tomorrow, and a night with none runs no statement", async () => {
     const { store, deleted, done } = fakeStore({ present: new Set(), entries: [], pending: ["gone-1", "still-buffered"], refuse: new Set(["still-buffered"]) });
     const out = await runLogReconcile(store, NOW, quiet);
-    expect(deleted).toEqual(["gone-1", "still-buffered"]);
-    expect(done).toEqual(["gone-1"]);
-    expect(out).toMatchObject({ erasures: 2, erased: 1 });
+    expect(deleted).toEqual([["gone-1", "still-buffered"]]);
+    expect(done).toEqual([]);
+    expect(out).toMatchObject({ erasures: 2, erased: 0, passes: 1 });
+    const empty = fakeStore({ present: new Set(), entries: [] });
+    expect((await runLogReconcile(empty.store, NOW, quiet)).passes).toBe(0);
+    expect(empty.deleted).toEqual([]);
+  });
+
+  it("pages a long marker list at LOG_ERASE_BATCH accounts a statement", async () => {
+    const pending = Array.from({ length: LOG_ERASE_BATCH * 2 + 1 }, (_, i) => `u${i}`);
+    const { store, deleted } = fakeStore({ present: new Set(), entries: [], pending });
+    const out = await runLogReconcile(store, NOW, quiet);
+    expect(deleted.map((c) => c.length)).toEqual([LOG_ERASE_BATCH, LOG_ERASE_BATCH, 1]);
+    expect(out).toMatchObject({ erasures: pending.length, erased: pending.length, passes: 3 });
   });
 });
 
 describe("eraseUserLog", () => {
-  function fakeErasure(outcome: "done" | "deferred" | Error) {
+  function fakeErasure(outcome: "done" | "deferred" | Error, bytes: number | null = null) {
     const deferred: Array<[string, number]> = [];
+    let statements = 0;
     const store: LogErasureStore = {
-      async deleteUser() { if (outcome instanceof Error) throw outcome; return outcome; },
+      async deleteUser() { statements += 1; if (outcome instanceof Error) throw outcome; return outcome; },
+      async tableBytes() { return bytes; },
       async defer(uid, at) { deferred.push([uid, at]); },
     };
-    return { store, deferred };
+    return { store, deferred, statements: () => statements };
   }
   it("done now leaves no marker", async () => {
     const { store, deferred } = fakeErasure("done");
     expect(await eraseUserLog(store, "u1", 1000, quiet)).toBe("done");
     expect(deferred).toEqual([]);
+  });
+  it("runs the statement at once while the table is under the ceiling, and not at all past it", async () => {
+    // Under: the immediate pass costs cents at most, and gone-at-once is
+    // the better promise. Past: one account's DELETE is a pass over the
+    // whole table, so it waits for the night's one statement — the
+    // marker is the promise, and no statement is run.
+    const under = fakeErasure("done", LOG_ERASE_NOW_MAX_BYTES);
+    expect(await eraseUserLog(under.store, "u1", 1000, quiet)).toBe("done");
+    expect(under.statements()).toBe(1);
+    const past = fakeErasure("done", LOG_ERASE_NOW_MAX_BYTES + 1);
+    expect(await eraseUserLog(past.store, "u1", 1000, quiet)).toBe("deferred");
+    expect(past.statements()).toBe(0);
+    expect(past.deferred).toEqual([["u1", 1000]]);
+    expect(LOG_ERASE_NOW_MAX_BYTES).toBe(1024 ** 3);
   });
   it("a streaming-buffer refusal leaves the marker the night retries from", async () => {
     const { store, deferred } = fakeErasure("deferred");

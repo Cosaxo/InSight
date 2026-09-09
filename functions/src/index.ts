@@ -28,6 +28,7 @@ import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
+import { fanoutBudgetId } from "./profileFanout";
 import { playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
@@ -192,8 +193,11 @@ export const deleteAccount = onCall(
       patternSamples: 0,
       // The answer log's rows (log.ts, D441 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
-      // buffer refused it and the nightly reconcile carries the marker —
-      // gone within a day either way, which is the privacy page's word.
+      // buffer refused it or the table is past the immediate ceiling
+      // (LOG_ERASE_NOW_MAX_BYTES — a DELETE is a pass over the whole
+      // table) and the nightly reconcile's one statement carries the
+      // marker — gone within a day either way, which is the privacy
+      // page's word.
       log: 0,
       logDeferred: 0,
       discoverable: 0,
@@ -305,12 +309,15 @@ export const deleteAccount = onCall(
 
     // 1a″. THE ANSWER LOG (log.ts, D441 phase A) — the ledger's mirror in
     //     BigQuery, which keeps rows past the ledger's TTL and so holds the
-    //     attribution longest. One DML statement now; where BigQuery
-    //     refuses because the rows are still in its streaming buffer, a
-    //     server-only marker (`v2_log_erasures`) that the nightly
-    //     reconcile retries — the marker written is the promise kept, and
-    //     only a marker that cannot be written fails the phase. Where there
-    //     is no BigQuery — every emulator run — there are no rows either,
+    //     attribution longest. One DML statement now while the table is
+    //     under a gibibyte; past that, or where BigQuery refuses because
+    //     the rows are still in its streaming buffer, a server-only
+    //     marker (`v2_log_erasures`) that the nightly reconcile takes in
+    //     ONE statement with every other account the day deleted (a
+    //     DELETE is a pass over the table whatever it names — log.ts's
+    //     header) — the marker written is the promise kept, and only a
+    //     marker that cannot be written fails the phase. Where there is
+    //     no BigQuery — every emulator run — there are no rows either,
     //     and the writer answers "done" for the same reason an empty
     //     collection sweep does.
     try {
@@ -1101,6 +1108,9 @@ export const deleteAccount = onCall(
       await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
       // The paid-booking budget (paid.ts, D313), same pattern again.
       await db.collection("v2_ratelimits").doc(`paidbook_${uid}`).delete();
+      // The profile fan-out's hourly budget and its heal marker
+      // (profileFanout.ts), same pattern: activity timestamps keyed by uid.
+      await db.collection("v2_ratelimits").doc(fanoutBudgetId(uid)).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");

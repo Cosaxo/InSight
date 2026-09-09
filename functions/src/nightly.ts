@@ -80,6 +80,7 @@ import { runTasteFold, firestoreTasteStore } from "./taste";
 import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 import { runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
+import { runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -103,6 +104,10 @@ export interface NightlyRunners {
    *  and the erasures the day deferred. Skips itself where there is no
    *  BigQuery (the emulator), and says so. */
   log: () => ReturnType<typeof runLogReconcile>;
+  /** The profile fan-out's heal (profileFanout.ts) — the ninth: every
+   *  account whose stamp change the hourly budget deferred gets the
+   *  fan-out from its profile as it is now. Bounded by the markers. */
+  fanout: () => ReturnType<typeof runFanoutHeal>;
 }
 
 /** The three log levels the pass speaks — `logger`'s, injectable. */
@@ -154,6 +159,12 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   // after the heal so a night that dies in the folds still mirrors the
   // day — the ledger keeps it for ninety days either way.
   await attempt("log", r.log);
+  // The fan-out heal speaks only when it healed, like the map heal: a
+  // healed account is a stamp change the budget refused in the day.
+  const fan = await attempt("fanout", r.fanout);
+  if (fan && fan.pending > 0) {
+    log.info(`[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`, { metric: "profile_fanout_heal", ...fan });
+  }
   if (heal && heal.healed > 0) {
     log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });
   }
@@ -229,6 +240,7 @@ export const digestEngagementV2 = onSchedule(
       velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
       answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
+      fanout: () => runFanoutHeal(firestoreFanoutHealStore(db)),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
       rollup: () => runRollupFold(firestoreRollupStore(db)),
     });

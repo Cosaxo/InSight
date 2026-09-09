@@ -81,13 +81,21 @@ until phase D.
       `backfill-log.yml` dispatches it in `backfill-answer-maps.yml`'s
       shape. **Click: dispatch with `before` = the deploy's UTC day, dry,
       then apply.**
-- [x] **A.5 Erasure. DONE 2026-09-09** — `deleteAccount` phase 1a″: the
-      `DELETE … WHERE uid` at once; where BigQuery refuses because the
-      rows are still in its streaming buffer (up to ninety minutes after
-      an insert), or the statement fails for any other reason, a
-      server-only marker in `v2_log_erasures` that A.3 retries and
-      removes — the marker written is the promise kept, and only a marker
-      that cannot be written fails the phase. `firestore.rules` closes the
+- [x] **A.5 Erasure. DONE 2026-09-09, re-shaped the same evening** —
+      `deleteAccount` phase 1a″: the `DELETE … WHERE uid` at once while
+      the table is under a gibibyte (`LOG_ERASE_NOW_MAX_BYTES`, off the
+      table's metadata, nothing billed); past that, where BigQuery
+      refuses because the rows are still in its streaming buffer (up to
+      ninety minutes after an insert), or where the statement fails for
+      any other reason, a server-only marker in `v2_log_erasures` that
+      A.3 takes — **every pending account in ONE statement** (`IN
+      UNNEST`, pages of 500), because a DELETE is billed as a pass over
+      every partition it touches, i.e. the whole table for an account
+      whose answers span the year, however many accounts it names
+      (`COST-EXPOSURE.md` §8). The marker written is the promise kept,
+      and only a marker that cannot be written fails the phase.
+      `log.test.ts` pins the ceiling, the one statement, a refused batch
+      keeping every marker, and the paging. `firestore.rules` closes the
       collection to clients (rules-tested); the summary reports `log` and
       `logDeferred`. The privacy page says "within a day".
 - [x] **A.6 The paperwork. DONE 2026-09-09** — `docs/data-inventory.md`
@@ -102,6 +110,29 @@ until phase D.
       newest two hundred per question, the velocity scan's entry count.
       A week of zero diffs is what licenses phase D. · **Gate:** a
       `log_shadow` heartbeat carrying the diffs; `nightly.test.ts`.
+- [ ] **A.8 The append moves to the Storage Write API** (S–M, before the
+      ingest line matters — about a million users at a hundred answers a
+      day, where `npm run costs:target` prints the streaming line at
+      $143 a month against $0). Phase A ships on `table.insert`, the
+      legacy streaming API: $0.05 a GiB, **a 1 KB minimum per row** for a
+      120-byte row, and no free allowance; the Storage Write API is
+      $0.025 a GiB after 2 TiB a month free. `@google-cloud/bigquery-
+      storage`'s default stream, the same `insertId`-shaped dedup by
+      row key, the same fake in the suites. · **Gate:** `log.test.ts`,
+      `idempotence.test.ts` (one row per commit, none on a redelivery).
+- [ ] **A.9 Erasure at scale — the owner's sentence first** (S in code,
+      the decision is the cost). From about a million users the nightly
+      erasure statement is the largest BigQuery line — a pass over the
+      year's table for the day's deleted accounts, $747 a month at a
+      million people answering a hundred times a day, the largest line
+      on the bill at ten million (`SCALE-ARCHITECTURE.md` §5). The
+      cheaper shape is an `erased` table the folds join against
+      (`WHERE uid NOT IN …`) and a physical purge once a month — one pass
+      a month instead of thirty — which keeps an erased account's rows
+      for up to a month and so moves `web/privacy.html`'s "within a day"
+      (`check:policy-claims`), page first (D183): **on `OWNER-LIST.md`**.
+      Until the word, the batch stands. · **Gate:** `log.test.ts`,
+      `check:policy-claims`.
 
 **Done when:** every answer is a row within a minute of its count, the
 table and the ledger agree every morning (the reconcile's own heartbeat
@@ -109,7 +140,21 @@ says `missing: 0`), and an erased account's rows are gone within a day —
 the third is `log.test.ts`'s fakes plus one production deletion read in
 the console, because the emulator has no BigQuery to prove it against.
 
-## Phase B — counters and the compactor · **M** · D98's amendment given 2026-09-09
+## Phase B — counters and the compactor · **M** · D98's amendment given 2026-09-09 · **not before the wall is in sight**
+
+> **The start condition (2026-09-09, `COST-EXPOSURE.md` §8).** Redis is
+> the one line in the target that does not scale down: Memorystore
+> bills the instance from the hour it exists — the 5 GiB the model sizes
+> is $196 a month, the smallest Basic-tier 1 GiB about $36 — and with
+> two measured actives it would be the whole bill many times over. So
+> B.1 is built when the daily's contention alert
+> (`monitoring/onV2AnswerCreated-contention.json`) has fired, or the
+> pulse's measured actives pass about **5,000** (a third of D7's
+> ~14,400 wall), whichever comes first — and starts on the smallest
+> instance the keyspace allows, not the model's sized one. Nothing else
+> in this file waits on it: A.7's shadow queries and phase C's client
+> batching do not need the counters to exist. Recorded as an ask on
+> `OWNER-LIST.md` so the owner can move the threshold either way.
 
 - [ ] **B.1 The counters.** Memorystore for Redis in `europe-west1`; the
       answer trigger increments after its commit, pipelined beside the log
@@ -206,3 +251,9 @@ the three trigger reads per answer are gone from `npm run costs`.
   (`apply-bigquery.yml`, then the two `gcloud` bindings), and the backfill
   (`backfill-log.yml` with `before` = the deploy's day). On
   `OWNER-LIST.md` § Clicks.
+- **When phase B starts** — the condition above, the owner's to move
+  (`OWNER-LIST.md` § Decisions).
+- **A.9's sentence** — whether an erased account's rows may outlive the
+  account by up to a month in the log, joined out of every fold
+  meanwhile, for a thirtieth of the erasure line; the privacy page moves
+  first if so (`OWNER-LIST.md` § Decisions).

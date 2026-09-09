@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // apply-bigquery.mjs — create the answer log's home in BigQuery
 // (SCALE-ARCHITECTURE.md phase A, D441): dataset `insight` in europe-west1
-// and the `answers` table — partitioned by day, clustered by question and
-// person — from bigquery/answers.schema.json, the file functions/src/log.ts
+// and the `answers` table — partitioned by day, clustered by person then
+// question — from bigquery/answers.schema.json, the file functions/src/log.ts
 // is held to.
 //
 //   node scripts/apply-bigquery.mjs            # dry run: what it would create
@@ -56,9 +56,20 @@ export function tableBody(project, schema, dataset = DATASET, table = TABLE) {
     // scans that day and nothing else, and the reconcile's ±1-day lookup
     // scans three.
     timePartitioning: { type: "DAY", field: "day" },
-    // Clustered by question then person: the samples ask per question, the
-    // erasure per person, and both prune to the blocks they need.
-    clustering: { fields: ["qid", "uid"] },
+    // Clustered by PERSON then question (2026-09-09; it was question then
+    // person). Clustering prunes on a prefix of its columns, so the order
+    // decides which filter reads less: the one DML statement the design
+    // has is the erasure's `WHERE uid IN …` (log.ts), and the nightly's
+    // per-question work is a window over the DAY partition, which the
+    // partitioning already bounds and clustering cannot shrink further.
+    // A per-question scan over all time — a sample rebuilt from scratch —
+    // is the rare query this order makes a full scan; the erasure that
+    // runs every night is the one it makes a fraction. Whether BigQuery
+    // prunes a DELETE by cluster as it prunes a SELECT could not be read
+    // from here (the docs host is unreachable from the sandbox); the
+    // nightly batch in log.ts bounds the cost either way, and this order
+    // is free to choose while the table does not exist yet.
+    clustering: { fields: ["uid", "qid"] },
     description: "One row per answer (a D86 edit is a second row with from_idx). Appended by the answer trigger, reconciled nightly from the Firestore ledger, backfilled once from the answer documents; deleted per account by deleteAccount.",
   };
 }
@@ -105,9 +116,9 @@ async function main() {
     if (APPLY) {
       const made = await googleFetch(`${base}/datasets/${DATASET}/tables`, token, { method: "POST", body: tableBody(PROJECT, readSchema()) });
       if (!made.ok) { console.error(`  ✗ table create failed: ${made.status} ${made.message}`); process.exit(1); }
-      console.log(`  table ${TABLE}: created (partitioned by day, clustered by qid, uid)`);
+      console.log(`  table ${TABLE}: created (partitioned by day, clustered by uid, qid)`);
     } else {
-      console.log(`  table ${TABLE}: would create (${readSchema().length} fields, partitioned by day, clustered by qid, uid)`);
+      console.log(`  table ${TABLE}: would create (${readSchema().length} fields, partitioned by day, clustered by uid, qid)`);
     }
   } else if (tb.status !== 404) {
     console.error(`  ✗ cannot read table ${TABLE}: ${tb.status} ${tb.message}`);

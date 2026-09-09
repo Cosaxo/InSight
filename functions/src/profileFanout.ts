@@ -34,6 +34,20 @@
 // profile write or the next nightly merge of those samples, which is the
 // pre-2.2 condition and not a lost count; the seven-day redelivery the
 // answer triggers carry would be the wrong instrument for it.
+//
+// A BUDGET, because this is the largest amplifier of one client write in
+// the deploy (COST-EXPOSURE.md §8). A profile document takes about a
+// write a second, and each stamp change costs the account's answers in
+// reads plus a read and a write per sample that holds its row — a few
+// thousand operations for an account that has answered a few thousand
+// times, on the order of $300 a day for one attested account flipping its
+// name, bounded only by the trigger's instance cap. A real rename is a
+// handful of times per account LIFETIME (cost-arith's `stampChanges`), so
+// PROFILE_FANOUT_PER_HOUR costs nobody anything visible; past it the
+// change leaves a marker and the nightly heal applies the CURRENT stamp,
+// which keeps the promise that the last name lands within a day. The
+// ledger is the sliding window every other budget here uses
+// (v2_ratelimits, server-only, erased with the account — index.ts 4b).
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { FieldPath, type Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
@@ -44,6 +58,113 @@ import { citySampleId, worldSampleId } from "./patternsSamples";
 import { PATTERNS_ITEMS } from "./patterns";
 
 const PAGE = 1000;
+
+/** Stamp changes an account may fan out in an hour; past it, the marker
+ * and the nightly heal (the header's budget paragraph). */
+export const PROFILE_FANOUT_PER_HOUR = 3;
+/** Accounts the nightly heal takes a night — a page, bounded like every
+ * other nightly fold; the rest wait a day. */
+export const FANOUT_HEAL_CAP = 500;
+export const FANOUT_BUDGET_PREFIX = "fanout_";
+/** The budget ledger's id under `v2_ratelimits`, keyed by uid so the
+ * erasure arm can name it. */
+export const fanoutBudgetId = (uid: string): string => `${FANOUT_BUDGET_PREFIX}${uid}`;
+
+/** The transaction surface the budget needs — Firestore's, and a fake's. */
+export interface BudgetTx {
+  get(ref: FirebaseFirestore.DocumentReference): Promise<{ exists: boolean; get(field: string): unknown }>;
+  set(ref: FirebaseFirestore.DocumentReference, data: Record<string, unknown>, opts: { merge: boolean }): unknown;
+}
+
+/**
+ * Take one fan-out from the account's hourly budget: "now" to fan out,
+ * "deferred" when the hour's budget is spent — the ledger then carries
+ * `pending: true` for the nightly heal. A fan-out that goes through
+ * clears `pending`, because it applies the current stamp, which is all a
+ * heal would do.
+ */
+export async function takeFanoutBudget(
+  db: Pick<Firestore, "collection" | "runTransaction">,
+  uid: string,
+  nowMs: number,
+): Promise<"now" | "deferred"> {
+  const ref = db.collection("v2_ratelimits").doc(fanoutBudgetId(uid));
+  return db.runTransaction(async (tx) => {
+    const snap = await (tx as unknown as BudgetTx).get(ref);
+    const cutoff = nowMs - 3_600_000;
+    const events: number[] = ((snap.exists && (snap.get("events") as number[] | undefined)) || []).filter((t) => t > cutoff);
+    // TTL-swept like the other ledgers (D333); the heal runs long before.
+    const expireAt = new Date(nowMs + 2 * 86_400_000);
+    if (events.length >= PROFILE_FANOUT_PER_HOUR) {
+      (tx as unknown as BudgetTx).set(ref, { events, pending: true, expireAt }, { merge: true });
+      return "deferred";
+    }
+    events.push(nowMs);
+    (tx as unknown as BudgetTx).set(ref, { events, pending: false, expireAt }, { merge: true });
+    return "now";
+  });
+}
+
+export interface FanoutHealStore {
+  /** Accounts whose ledger says `pending`, up to `limit`. */
+  pending(limit: number): Promise<string[]>;
+  /** The account's CURRENT stamp, or null where the profile is gone. */
+  stampOf(uid: string): Promise<ProfileStamp | null>;
+  /** restampSamples over the real database; returns documents touched. */
+  restamp(uid: string, stamp: ProfileStamp): Promise<number>;
+  clear(uid: string): Promise<void>;
+}
+
+export interface FanoutHealSummary {
+  pending: number;
+  healed: number;
+  touched: number;
+}
+
+/**
+ * The nightly heal: every account the budget deferred gets the fan-out
+ * it was refused, from the profile as it is NOW (the last of a burst is
+ * the one that should land; the intermediate ones never mattered). A
+ * gone profile is an erased account whose rows the erasure arm already
+ * scrubbed — its marker is cleared and nothing is read for it.
+ */
+export async function runFanoutHeal(store: FanoutHealStore): Promise<FanoutHealSummary> {
+  const uids = await store.pending(FANOUT_HEAL_CAP);
+  let healed = 0;
+  let touched = 0;
+  for (const uid of uids) {
+    const stamp = await store.stampOf(uid);
+    if (stamp) {
+      touched += await store.restamp(uid, stamp);
+      healed += 1;
+    }
+    await store.clear(uid);
+  }
+  return { pending: uids.length, healed, touched };
+}
+
+export function firestoreFanoutHealStore(db: Firestore): FanoutHealStore {
+  const ledgers = () => db.collection("v2_ratelimits");
+  return {
+    async pending(limit) {
+      // Only the fan-out ledgers carry `pending`; the prefix filter is
+      // belt and braces against a future ledger that borrows the field.
+      const snap = await ledgers().where("pending", "==", true).limit(limit).get();
+      return snap.docs.map((d) => d.id)
+        .filter((id) => id.startsWith(FANOUT_BUDGET_PREFIX))
+        .map((id) => id.slice(FANOUT_BUDGET_PREFIX.length));
+    },
+    async stampOf(uid) {
+      const snap = await db.collection("v2_users").doc(uid).get();
+      if (!snap.exists) return null;
+      return profileStamp({ displayName: snap.get("displayName"), testResults: snap.get("testResults") });
+    },
+    restamp: (uid, stamp) => restampSamples(db, uid, stamp),
+    async clear(uid) {
+      await ledgers().doc(fanoutBudgetId(uid)).set({ pending: false }, { merge: true });
+    },
+  };
+}
 
 /** The corpus that has samples at all: a tail or learn answer names a
  * question the nightly never writes a sample for, and asking Firestore
@@ -132,7 +253,14 @@ export const onV2ProfileUpdated = onDocumentUpdated(
     const prev = profileStamp({ displayName: before.get("displayName"), testResults: before.get("testResults") });
     const next = profileStamp({ displayName: after.get("displayName"), testResults: after.get("testResults") });
     if (sameStamp(prev, next)) return;
-    const touched = await restampSamples(firestore(), event.params.uid, next);
+    const db = firestore();
+    if ((await takeFanoutBudget(db, event.params.uid, Date.now())) === "deferred") {
+      logger.warn(`[v2] profile stamp changed more than ${PROFILE_FANOUT_PER_HOUR} times in an hour for ${event.params.uid} — fan-out deferred to the nightly heal`, {
+        metric: "profile_fanout_deferred",
+      });
+      return;
+    }
+    const touched = await restampSamples(db, event.params.uid, next);
     if (touched) {
       logger.info(`[v2] profile stamp moved into ${touched} voter sample(s)`, {
         metric: "profile_fanout", touched,

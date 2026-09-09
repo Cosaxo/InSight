@@ -20,7 +20,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 
 import {
@@ -542,7 +542,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // Counted here by a second route (per file, comments stripped) so the
     // model's count cannot drift from the tree without this saying so.
     let sites = 0;
-    for (const f of readdirSync(join(ROOT, "functions/src"))) {
+    for (const f of readdirSync(join(ROOT, "functions/src"), { recursive: true }).map((e) => String(e).split(sep).join("/"))) {
       if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
       sites += (stripComments(read(`functions/src/${f}`)).match(/\bonSchedule\(/g) || []).length;
     }

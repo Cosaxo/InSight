@@ -76,6 +76,23 @@ describe("the target structure's arithmetic", () => {
     }
   });
 
+  it("bills phase A's ingest at the streaming API's row minimum, and erasure as one pass a night over the year", () => {
+    // COST-EXPOSURE.md §8: the row is ~120 bytes and the API phase A ships
+    // on bills 1 KB of it; and a DELETE is a pass over every partition an
+    // account's answers touch — the whole table — so the night runs one
+    // statement for the day's deleted accounts and the model prices that
+    // pass, not one per account.
+    const t = target(1_000_000, 100);
+    const ingest = t.lines["BigQuery — ingest (the streaming API phase A ships on: 1 KB minimum a row; A.8 is the Storage Write API)"];
+    const erasure = t.lines["BigQuery — erasures (one DELETE a night over the year's table for the day's deleted accounts)"];
+    expect(ingest).toBeGreaterThan(0);
+    expect(t.facts.ingestBilledGiBMo / t.facts.ingestGiBMo).toBeCloseTo(T.rowMinBilledBytes / T.rowBytes, 6);
+    expect(t.facts.ingestWriteApiMo, "the Storage Write API is the cheaper line the runbook's A.8 moves to").toBeLessThan(ingest);
+    expect(erasure).toBeGreaterThan(0);
+    expect(t.facts.erasureTiBPass).toBeCloseTo((1_000_000 * 100 * T.rowBytes * T.logRetentionDays) / 1024 ** 4, 6);
+    expect(erasure).toBeCloseTo(t.facts.erasureTiBPass * PRICES.bqQueryPerTiB * 30 * T.erasurePassesPerNight, 6);
+  });
+
   it("prices outside Firestore are stated as constants the document can name", () => {
     expect(PRICES.bqWritePerGiB).toBeGreaterThan(0);
     expect(PRICES.bqQueryPerTiB).toBeGreaterThan(0);
