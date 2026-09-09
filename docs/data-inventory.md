@@ -66,9 +66,17 @@ Safety answers when store listing time comes.
 | Offline data cache | Firestore `persistentLocalCache` (IndexedDB) | this device | mirrors the questions and answers fetched for this account |
 | Crash reports | Sentry (third party) | Sentry project members | **on, with no in-app switch** (D76, the panel toggle removed at D211; an opt-out recorded by an older build is still honoured at every send site); errors carry the **uid** (no email, no name, no session replay, `sendDefaultPii: false`) |
 
-**Not collected:** contacts, photos, free-text from strangers, advertising
+**Not collected:** contacts, free-text from strangers, advertising
 or analytics identifiers, and any analytics SDK — the only third party is
-still Sentry, crash-scoped. **Product analytics, stated precisely
+still Sentry, crash-scoped. (This said *photos* until 2026-09-09 and had
+been wrong since D178 added the opt-in profile photo — the table above
+carries its collection and its Storage object, and both store forms
+declare it. The row and the summary of the same document disagreed, which
+matters more here than anywhere else: this file is the canonical source
+both forms are derived from, and `play-data-safety.json` says in as many
+words that if it and this file disagree, this file is right.)
+
+**Product analytics, stated precisely
 (D268 → D270 → D271 → D272, the whole ladder):** the server *derives*
 anonymous daily counts from answers already stored (the digest, D268);
 the app *collects* one **anonymous, bucketed feature tally per sampled
