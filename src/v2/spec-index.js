@@ -129,8 +129,7 @@ import './spec/read-run.jsx';
 // duo-daily.jsx moved to loadOverlays(): in a SHIPPING build daily-split
 // picks LiveDuelPanel (React.lazy since D156) whenever LIVE.enabled, so the
 // `window.DuoBody` arm is dead code the installed app cannot execute — the
-// same argument D200 used to take relmap.jsx off this list. group-daily.jsx
-// stays, because GDAv is read from the Mirror (group-mirror, group-role-map).
+// same argument D200 used to take relmap.jsx off this list.
 // place-stats.js and place-stats.jsx are gone from this list too, and they
 // were the last pair. The .js was eager because the pool concatenated
 // window.PLACE_RATE_QS at module scope; the .jsx was eager because the .js

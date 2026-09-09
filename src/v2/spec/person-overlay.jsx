@@ -161,32 +161,17 @@ function affinityBreakdown(me, prof, p) {
   return { personality, politics, values, interests };
 }
 
-// ─── Affinity, broken into bars — the fallback when CompareCarousel is absent ───
-function AffinityBreakdown({ parts }) {
-  // hue-as-text and full-strength bar fills go through the palette gate
-  // (v28: no raw 0.5x ink literals)
-  const dims = [
-    { k: 'personality', label: 'Personality', col: WPAL.ink('oklch(0.55 0.13 38)') },
-    { k: 'politics',    label: 'Politics',    col: WPAL.ink('oklch(0.50 0.12 220)') },
-    { k: 'values',      label: 'Values',      col: WPAL.ink('oklch(0.52 0.14 305)') },
-    { k: 'interests',   label: 'Interests',   col: WPAL.ink('oklch(0.55 0.10 145)') },
-  ].map(d => ({ ...d, v: Math.round(parts[d.k]) })).sort((a, b) => b.v - a.v);
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {dims.map(d => (
-        <div key={d.k}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 650, letterSpacing: '-0.01em', color: 'var(--ink)' }}>{d.label}</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: d.col }}>{d.v}</span>
-          </div>
-          <div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{ width: `${d.v}%`, height: '100%', background: d.col, borderRadius: 999 }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// AffinityBreakdown lived here — four labelled bars, drawn when
+// CompareCarousel was absent. That condition stopped existing when
+// CompareCarousel became a static import (it renders unconditionally in the
+// compare section below), so the component was the D108 residue class: a
+// fallback for a state a conversion removed. Nothing read it — no JSX tag,
+// no window lookup, no test — and no gate could say so, because
+// no-unused-vars is off for the ported spec layer and check:globals only
+// sees names that are published or referenced.
+//
+// D26 is the record that kept it: it survived that sweep because
+// "PersonOverlay reaches AffinityBreakdown", and that reachability is gone.
 
 // ─── Together: the doors, the cast, the record ───
 function TogetherSection({ p, me, isFriend, firstName, themColor }) {
