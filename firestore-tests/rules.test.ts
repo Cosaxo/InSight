@@ -474,45 +474,67 @@ describe("v2 profile", () => {
     await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }));
     // unknown anchor key
     await assertFails(setDoc(mine, { anchors: { ssn: "123" } }));
-    // synced test results: map allowed, non-map rejected
+    // ── testResults is SERVER-ONLY now, and these cases are the door ──
+    //
+    // Until 2026-09-09 this field was client-written and bounded only in
+    // KEYS (D429's five-name vocabulary). The size INSIDE a legal key was
+    // unbounded and unboundable: rules have no quantifier over a list, so
+    // `dims[i].label` cannot be reached by any `allow` clause. The case
+    // below that used to read `assertSucceeds` on a 2,000-character title
+    // said so out loud. The write moved to `saveTestResultV2`, which can
+    // run the loop, and the rules' job is now to make that callable the
+    // ONLY writer.
+    //
+    // A client may still CARRY the field — every profile write here is a
+    // merge and the key rides along — but may not change it.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), {
+        testResults: { big5: { dims: [], title: "Big Five" } },
+      }, { merge: true });
+    });
+    // Carried unchanged: allowed, and this is the case that keeps ordinary
+    // profile writes working once the callable has written something.
     await assertSucceeds(setDoc(mine, {
       testResults: { big5: { dims: [], title: "Big Five" } },
     }, { merge: true }));
+    // Changed in any direction: refused.
+    await assertFails(setDoc(mine, {
+      testResults: { big5: { dims: [], title: "Big Fives" } },
+    }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
-    // Nine invented keys, refused. This used to be the KEY-COUNT cap's
-    // case; the count clause is gone and the vocabulary below is what
-    // refuses these now, structurally — five names cannot reach nine at
-    // any list length. Kept because it is the shape an attacker sends.
+    // A KIND THE VOCABULARY USED TO ADMIT is refused too, which is the
+    // point of moving from a key list to an equality: the client cannot
+    // add `values` any more than it can add `blob`, so the vocabulary no
+    // longer has to be stated here at all. It lives in the callable's
+    // CLIENT_TEST_KINDS, where an exhaustive test can read it.
+    await assertFails(setDoc(mine, {
+      testResults: { values: { dims: [], title: "Values" } },
+    }, { merge: true }));
     await assertFails(setDoc(mine, {
       testResults: Object.fromEntries(
         Array.from({ length: 9 }, (_, i) => [`t${i}`, { dims: [] }]),
       ),
     }, { merge: true }));
-    // THE VOCABULARY. Key COUNT was bounded and key SIZE was not, on a
-    // document every other device downloads whole — voters.ts resolves
-    // thirty uids per query with no field mask. Measured before this
-    // clause: a 400 KB value was accepted while a 61-character display
-    // name was refused, so one free anonymous account could serve a
-    // 1 MiB profile to everyone who met it.
+    // THE CASE THAT CHANGED SIDES. A 2,000-character title under a LEGAL
+    // key was accepted before today and the old case asserted it, with a
+    // comment saying bounding the shape was "its own increment". This is
+    // that increment: same payload, now refused, because the client cannot
+    // write this field at all.
+    await assertFails(setDoc(mine, {
+      testResults: { values: { dims: [], title: "x".repeat(2000) } },
+    }, { merge: true }));
+    // And the 400 KB blob the D429 case measured.
     await assertFails(setDoc(mine, {
       testResults: { blob: "x".repeat(400_000) },
     }, { merge: true }));
-    // A blob is refused because its KEY is not one of the five, which is
-    // the cheap version of the attack. Under a legal key it is still
-    // accepted — bounding the shape inside a kind is its own increment,
-    // and this case says so rather than implying it is covered.
-    await assertSucceeds(setDoc(mine, {
-      testResults: { values: { dims: [], title: "x".repeat(2000) } },
+    // Removal is the server's too: a client `deleteField()` here is what a
+    // political-consent withdrawal used to send, and it now goes through
+    // the callable's remove arm. If this ever passes, that path is writable
+    // again and so is every other.
+    await assertFails(setDoc(mine, {
+      testResults: { big5: deleteField() },
     }, { merge: true }));
-    // The five, verified against the tree rather than asserted from
-    // memory: CORE_TEST_KINDS is the only set saveTestResult is called
-    // with, plus `logic`, which only the callable writes.
-    await assertSucceeds(setDoc(mine, {
-      testResults: {
-        big5: { dims: [] }, political: { dims: [] },
-        values: { dims: [] }, attachment: { dims: [] },
-      },
-    }, { merge: true }));
+
     // The display name's own 60-char cap. It went untested from the day it
     // was written: this case checked the unknown-field and stranger-write
     // arms and stopped, so `isOptionalShortString(displayName, 60)` could be
@@ -583,12 +605,22 @@ describe("v2 profile", () => {
       }, { merge: true });
     });
 
-    // the POST-merge trap, same as fcmTokens: other test results must
-    // still be writable while the server-written logic key rides along
-    // unchanged — banning presence instead of mutation would brick every
-    // core-test sync for verified users.
-    await assertSucceeds(setDoc(mine, {
+    // THE POST-MERGE TRAP, and it changed sides on 2026-09-09. It used to
+    // read `assertSucceeds`: other test results had to stay writable while
+    // the server-written logic key rode along, because banning presence
+    // instead of mutation would have bricked every core-test sync. That is
+    // still exactly right about PRESENCE — the case below proves the key
+    // may ride along — but the other four kinds are server-written now
+    // too (the size argument, in the block above), so a client writing
+    // `big5` here is refused for its own reason rather than logic's.
+    await assertFails(setDoc(mine, {
       testResults: { big5: { dims: [], title: "Big Five" } },
+    }, { merge: true }));
+    // Presence, unchanged, still rides along — this is the case that keeps
+    // ordinary profile writes working for a verified user.
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Mira",
+      testResults: { logic: { v: 2, verified: true, pctile: 62, marks: [true] } },
     }, { merge: true }));
 
     // mutation is still refused: replacing or clearing the verified score
@@ -597,15 +629,16 @@ describe("v2 profile", () => {
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: { logic: null } }, { merge: true }));
 
-    // DELETING your own verified score is allowed on purpose (it is your
-    // doc; the cooldown and the norms count live in the server-only
-    // attempt doc, so deletion resets nothing) — but the door does not
-    // swing back: reintroducing the key after a delete is a create against
-    // a null prior, and that is forgery, refused.
-    await assertSucceeds(updateDoc(mine, { "testResults.logic": deleteField() }));
-    await assertFails(setDoc(mine, {
-      testResults: { logic: { v: 2, verified: true, pctile: 94, marks: [true] } },
-    }, { merge: true }));
+    // DELETING your own verified score was allowed here on purpose (it is
+    // your doc; the cooldown and the norms count live in the server-only
+    // attempt doc, so deletion resets nothing). The RULES no longer permit
+    // it, because they no longer permit the client to touch this field at
+    // all — but the capability did not disappear with the write path: it
+    // moved to `saveTestResultV2`'s remove arm, whose REMOVABLE_TEST_KINDS
+    // includes `logic` precisely so this stays possible. Deleting is not
+    // forgery; writing is. functions/src/testResults.test.ts holds that
+    // asymmetry.
+    await assertFails(updateDoc(mine, { "testResults.logic": deleteField() }));
   });
 
   // The D57 server-side surfaces around the verified score.

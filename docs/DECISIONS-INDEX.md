@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 453 lines instead of
-46,816. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 454 lines instead of
+47,004. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D429 (+21) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D431 (+22) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -465,5 +465,6 @@ detect it.
 | **D427** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d427--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | D428 | 46289 |
 | **D428** | [Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples](DECISIONS.md#d428--breadth-first-a-room-is-born-with-a-handful-coverage-steers-where-the-next-one-opens-and-learns-cap-triples) | D430 | 46390 |
 |  | ↳ *amendment 2026-09-08* — [The learn lane runs daily, and its prompt is swapped for the one that can open a field](DECISIONS.md#d428-amendment-2026-09-08--the-learn-lane-runs-daily-and-its-prompt-is-swapped-for-the-one-that-can-open-a-field) | — | 46508 |
-| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | D430 | 46543 |
-| **D430** | [The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides](DECISIONS.md#d430--the-2026-09-09-night-review-two-shifts-merged-as-one-tree--54-commits-kept-zero-conflicts-for-the-first-time-and-the-defects-that-live-where-nothing-collides) | — | 46619 |
+| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | D431 (+1) | 46543 |
+| **D430** | [The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides](DECISIONS.md#d430--the-2026-09-09-night-review-two-shifts-merged-as-one-tree--54-commits-kept-zero-conflicts-for-the-first-time-and-the-defects-that-live-where-nothing-collides) | D431 | 46619 |
+| **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | — | 46817 |

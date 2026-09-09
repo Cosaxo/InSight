@@ -174,7 +174,12 @@ Both apps must be registered under `com.cosaxo.insight`:
   enabled but has no remote probe (§1 explains why); the seed run verifies
   it. Apple has the same absence of a probe and, unlike Google, no record
   of ever having been switched on — see the owner row, and the *Sign in
-  with Apple* item under **Before-public hardening** for the door itself. The client side is
+  with Apple* item under **Before-public hardening** for the door itself.
+  Note the two Apple prerequisites are separate and only one is open: the
+  **Developer portal** capability on the App ID was confirmed on
+  2026-09-09 by an `ios-release.yml` dry run (upload off, run 58) whose
+  Archive step passed, which is the step that fails without it. The
+  **Firebase** Sign-in method toggle is the one still unrecorded. The client side is
   wired: `capacitor.config.ts` declares
   `providers: ["apple.com", "google.com"]` (Apple added 2026-09-09 — the
   plugin builds a handler only for the ids named here, so every Apple

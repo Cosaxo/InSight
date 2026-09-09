@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 44 `await getDb()` sites in this file did not change
+// deliberately: the 42 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -6286,6 +6286,28 @@ const LIVE = {
     if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
     profileChanged();
     publishTestResults();
+    // A WITHDRAWAL IS ONE WRITE, STILL — it just runs on the server now.
+    // `testResults` became server-only (D431: rules cannot bound a nested
+    // map's size), and splitting this into a client consent merge plus a
+    // callable removal would have reintroduced exactly the state this
+    // method was built to make impossible: a profile still publishing the
+    // coordinate behind a switch reading "off". So the record travels WITH
+    // the removal and `saveTestResultV2` lands both in one `set`.
+    //
+    // Granting is unchanged and stays a client write: it touches no test
+    // result, so there is nothing to keep atomic with it.
+    if (!on) {
+      if (!state.uid) return;
+      await callable("saveTestResultV2", {
+        kind: POLITICAL_RESULT_KEY,
+        result: null,
+        politicalConsent: rec,
+      });
+      // No re-fold on the way out: the withdrawal's whole point is that
+      // nothing is computed from here. The grant arm below re-folds, for
+      // the D277 reason its own comment gives.
+      return;
+    }
     const db = await getDb();
     const uid = state.uid;
     if (!uid) return;
@@ -6305,7 +6327,6 @@ const LIVE = {
         // Removed explicitly, with the same `deleteField()` this write
         // already uses one line down for the published coordinate.
         consent: { political: on ? { ...rec, off: deleteField() } : rec },
-        ...(on ? {} : { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } }),
       },
       { merge: true },
     );
@@ -6322,16 +6343,24 @@ const LIVE = {
     // while the boot's profile read was in flight must not make the boot
     // discard the read.
     saveOwnProfile();
+    // THROUGH THE SERVER, because rules cannot bound this field's SIZE.
+    // `v2_users` is world-readable and voters.ts fetches thirty of them
+    // whole per query, so a megabyte parked here is a megabyte every
+    // reader downloads — and rules have no quantifier over a list, so
+    // `dims[i].label` cannot be bounded by any `allow` clause. D429
+    // bounded which KEYS may appear and said the size was its own
+    // increment; this is that increment. `saveTestResultV2` validates
+    // every field and rebuilds the value, and the rules now refuse a
+    // client write to `testResults` outright.
+    //
+    // The local mirror above is written FIRST and unconditionally, so the
+    // screen does not wait on the network and an offline fold still shows
+    // its result. `syncPassiveResults` re-attempts on the next hydrate,
+    // which is what makes a dropped call recoverable rather than lost.
     void (async () => {
       try {
-        const db = await getDb();
-        const uid = state.uid;
-        if (!uid) return;
-        await setDoc(
-          doc(db, "v2_users", uid),
-          { testResults: { [kind]: result } },
-          { merge: true },
-        );
+        if (!state.uid) return;
+        await callable("saveTestResultV2", { kind, result });
       } catch (err) {
         reportError(err, { where: "saveTestResult" });
       }
@@ -6421,21 +6450,25 @@ const LIVE = {
             delete state.profile.testResults[POLITICAL_RESULT_KEY];
             saveOwnProfile(); // the same rule as saveTestResult: not an edit
             wrote = true;
+            // Through the callable, like every other write to this field
+            // (saveTestResult says why). `result: null` is its remove arm,
+            // and this site is the reason that arm exists: a coordinate a
+            // pre-gate build published has to come down, and the client can
+            // no longer take it down itself.
             void (async () => {
               try {
-                const db = await getDb();
-                const uid = state.uid;
-                if (!uid) return;
-                await setDoc(
-                  doc(db, "v2_users", uid),
-                  { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } },
-                  { merge: true },
-                );
+                if (!state.uid) return;
+                await callable("saveTestResultV2", {
+                  kind: POLITICAL_RESULT_KEY,
+                  result: null,
+                });
               } catch (err) {
-                // The local delete stands either way, so the screen never
-                // shows a coordinate this account has not consented to.
-                // The next boot retries; the server is re-read then.
-                reportError(err, { where: "syncPassiveResults.politicalPurge" });
+                // The local delete above stands either way, so the screen
+                // never shows a coordinate this account has not consented
+                // to. The next boot retries — this block runs on every
+                // hydrate — which is what makes a failed call a delay
+                // rather than a coordinate left standing.
+                reportError(err, { where: "syncPassiveResults.removePolitical" });
               }
             })();
           }

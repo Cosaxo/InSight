@@ -46813,3 +46813,191 @@ Merged, not decided:
 Each half is its own merge commit and each of the two fixes is its own
 commit; the pull request is one squash. Reverting this record's tree
 restores `main` at `a2ac97e`.
+
+## D431 · The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click
+
+**2026-09-09.** **Status:** binding. The owner read D430's three owner
+items and said *"can you do thiese for me?"*. Two are done, one is not
+mine to do, and this record says which is which — because "I did what I
+could" is the shape that hides an undone thing.
+
+### What could be done, and what could not
+
+| Item | Outcome |
+| --- | --- |
+| The `testResults` byte bound | **Built** — the recommended shape, below |
+| A handset tap for Apple sign-in | **Run as the dry run, and it answered a real question** |
+| The Firebase console's Apple toggle | **Not possible from a session.** No console access, no credentials in the tree, and no remote probe exists |
+
+The third is not a limitation worth arguing with: `.firebaserc` is absent,
+the Firebase config lives in Actions variables a session cannot read, and
+`LAUNCH-RUNBOOK.md` 1.3 already records why even an authenticated caller
+gets no answer — the project-config endpoint returns `authorizedDomains`
+and no `idpConfig`. So the row stays open, narrowed to exactly the one
+click.
+
+### The Apple dry run, and what it actually proved
+
+`ios-release.yml` was dispatched with `upload=false` (run 58, commit
+`d646394`, which carries shift A's fix). Every step passed and the two
+upload steps were skipped, as the input gates them to be.
+
+**The Archive step passing is the result**, and it is a different fact
+from the one D430's owner row asks about. The entitlement's own comment
+states the trap: *"a provisioning profile cannot grant an entitlement the
+App ID does not have, so if Sign in with Apple is not ticked on
+com.cosaxo.insight in the developer portal, this fails the ARCHIVE"*. It
+did not fail. So the **Apple Developer portal** capability is measured and
+present.
+
+That says nothing about **Firebase**. The two are separate prerequisites
+on the same button: the portal one lets the app be signed with the
+entitlement, the Firebase one lets `signInWithCredential` accept the
+credential. With the second missing the button still fails, with
+`auth/operation-not-allowed`. Both halves are now named at
+`App.entitlements`, `SHIP-CHECKLIST.md` §2 and the owner row, so nobody
+reads the green run as the whole answer.
+
+### The byte bound: why rules could not do it, checked before building
+
+The owner did not pick between the three shapes — *"i dont understant the
+question"*, which was a fair verdict on how it was put — so the shapes
+were re-derived from the tree rather than re-asked.
+
+The middle option looked better than the row credited it. A stored value
+is `PassiveResult` (`passiveProfile.ts`): `{title, taken, dims:[{id,
+label, value}], passive, answered, total}` — small, fixed, every field
+bounded in principle, and rules CAN bound a string with `.size()`. If
+that were the whole story the cheap fix would win.
+
+It is not, and the reason is the one `OWNER-LIST.md` gave: **rules have no
+quantifier over a list.** `dims` can be checked for `is list` and for its
+LENGTH, and there is no expression that reaches `dims[i].label`. Eight
+entries with a megabyte label each is legal under any shape check
+writable in that file. So the row's recommendation stood, and the write
+moved to where a loop exists.
+
+### What was built
+
+`functions/src/testResults.ts` — `saveTestResultV2`, App Check enforced,
+in the deploy list. It validates every field against a named bound and
+**rebuilds** the value rather than passing it through, so an unknown key
+cannot ride along onto a document everyone downloads. A stored result is
+now capped under a kilobyte against roughly 1 MiB before.
+
+`firestore.rules`: the client may carry `testResults` in a merge and may
+not change it — one equality where D429 had a vocabulary `hasOnly` plus a
+per-key `logic` comparison. **It made the rules cheaper**, which is why
+this was safe on this arm in particular: D429 measured the profile create
+at 80–140 expressions below the runtime ceiling, and `rules-coverage`
+counts **360 atomic predicates against 363** before, at the same
+never-false baseline of 8.
+
+Three client sites moved: `saveTestResult`, the removal branch inside
+`syncPassiveResults`, and the political withdrawal.
+
+**Nothing was lost on the way.** The old rules allowed a user to delete
+their own verified `logic` score, with a reason written into the test
+(*"it is your doc; the cooldown and the norms count live in the
+server-only attempt doc"*). No surface has ever called it. It moved to
+the callable's `REMOVABLE_TEST_KINDS` rather than disappearing because
+nothing happened to be using it — deleting your own score is not forgery,
+writing one is, and that asymmetry is now a pinned pair of lists.
+
+### The property this nearly cost, which is the part worth reading
+
+The political withdrawal was ONE client merge carrying both the consent
+record and the coordinate's deletion, and `vote.test.ts` pinned it in as
+many words: *"One merge, so a partial failure cannot land that state."*
+The state is a profile still publishing a six-axis coordinate behind a
+switch reading "off" — worse than no switch, because it is a claim.
+
+The obvious port — a client consent write plus a callable removal —
+reintroduces exactly that window whenever the call fails, and most of all
+OFFLINE, where the old Firestore write simply queued and this one cannot.
+The first cut did that, and the failing test is what said so; the
+mitigation available (the hydrate-time removal retries) would have made
+it a delay rather than a loss, and a delay in which a coordinate is
+published is still the thing the case forbids.
+
+So the record travels WITH the removal: `saveTestResultV2` takes an
+optional withdrawal record and lands both in one `set`. The property is
+kept and is now stronger than it was — one SERVER-side write instead of
+one client-side one — and the case asserts both halves are in the same
+invocation rather than merely that both happened. **A privacy property is
+not something to spend on the way to closing a different hole** (D334's
+posture, pointed at a regression rather than at a refusal).
+
+### A test that does not prove its own name
+
+Adding `expect(kinds.size).toBeGreaterThan(0)` to *"still writes the
+OTHER instruments — the gate is political-only"* fails: the set is empty.
+Only political prompts are seeded, and `passiveResult` refuses an
+instrument whose axes are not all behind `MIN_AXIS_ITEMS`, so big5,
+values and attachment fold to null whatever the gate does — a gate placed
+one level too high would pass there. Its assertion is still real as
+another absence case, and the block's positive control carries the
+weight; what is false is the half of the name that promises the others
+still write. Closing it needs ten real Big Five prompts matched BY PROMPT,
+which is a fixture and not this change's to build. **Written into the case
+rather than renamed away**, so the next person meets the gap instead of a
+tidier sentence.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `test:rules` 213 with `rules-coverage` 360 predicates
+at baseline 8 · functions 39 files / 840 (12 new, every bound crossed by
+one so a widened constant reddens the file) · `test:unit` 202 files /
+2995 · `check:appcheck` (29 callables, 21 enforcing — the new one among
+them) · `check:fn-runtime` (42 functions, up from 41) ·
+`check:deploy-targets` · `check:globals` at baseline · `check:docs` ·
+`check:data-inventory` · `test:e2e:all` on one emulator boot.
+
+### The ceiling D429 warned about is already being hit, on `main`
+
+Found while checking whether this change had pushed the answer create path
+over, and it is worth separating from that answer: **it had not, and the
+path is over anyway.**
+
+`test:e2e:all` prints, thirteen times, `Unable to evaluate the expression
+as the maximum of 1000 expressions to evaluate has been reached` — 21
+against the answer CREATE arm and 31 against the UPDATE arm beneath it.
+
+**Measured both ways rather than argued**, because the first attempt to
+answer this used a bad control: the night review's own e2e log had been
+piped through `grep | tail`, so it held 42 lines and no emulator output at
+all, and reading zero matches in it as "zero before" was wrong. The real
+control is the tree with this change stashed and `functions` rebuilt:
+**13 messages before, 13 after**, at the same two arms — `L1223`/`L1308`
+without the change, `L1210`/`L1295` with it, the shift being exactly the
+13 lines this change removes from the file above them. Identical counts,
+identical arms.
+
+So this is pre-existing and not this change's, and this change moves it in
+the right direction: `rules-coverage` counts 360 atomic predicates against
+363, because one equality replaced a vocabulary check and a per-key
+comparison.
+
+**Why it matters even though the suite is green.** D429 wrote the reason
+down four days before this: *"a rule that runs out of budget denies
+exactly like a rule that is false — which makes this the cheapest kind of
+latent bug: correct today, and silently wrong the moment a path grows past
+the ceiling"*. The suite passing means every one of those writes was
+expected to be denied, so no case can tell the difference; a write that
+was meant to SUCCEED and crossed the ceiling would fail identically and
+the failure would name the entitlement of nothing. The budget is being
+spent by writes the e2e makes today, and nobody has been told.
+
+Not fixed here. It is a separate piece of work — finding which of the two
+arms' clauses are the expensive ones needs the same instrumentation D429
+used, and doing it inside a change that already touches this file would
+make both harder to review. It is an owner row rather than a silent note
+because the fix is a real increment and the risk is a release-time denial
+nobody can read.
+
+### What is still the owner's
+
+1. **Firebase Console → Authentication → Sign-in method → Apple.** One
+   click, no probe, and the lead button on the iOS wall depends on it.
+2. **A tap on a handset**, which the dry run narrows but cannot replace.
+3. **A's terms/export row** from D430, untouched here.
