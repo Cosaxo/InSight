@@ -7515,6 +7515,51 @@
           "line": "Read once, alone, as instructed. Filed with the things you don’t reread."
         }
       }
+    },
+    {
+      "id": "n18",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "The foldable iPhone is expected on stage today. A phone that opens like a book: would you carry one?",
+      "bg": "Apple’s ‘Surprise and shine’ keynote on 9 September 2026 — the first under new CEO John Ternus — is expected to introduce the company’s first folding phone alongside the iPhone 18 Pro: book-style, opening to a roughly 7.8-inch screen, priced above $2,000.",
+      "from": "2026-09-09",
+      "until": "2026-09-15",
+      "options": [
+        {
+          "label": "Sold on the fold"
+        },
+        {
+          "label": "When the price folds too"
+        },
+        {
+          "label": "Flat suits me fine"
+        }
+      ]
+    },
+    {
+      "id": "n19",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A million-person study ties 1,260 DNA variants to personality. What made you you — mostly genes, or mostly life?",
+      "bg": "Published in Nature this week: the largest genetic study of personality yet links 1,260 DNA variants to the Big Five traits, drawing on more than a million people. No single variant is decisive — the effects are thousands of small nudges, tangled with experience.",
+      "from": "2026-09-09",
+      "until": "2026-09-16",
+      "options": [
+        {
+          "label": "Mostly genes"
+        },
+        {
+          "label": "Mostly life"
+        },
+        {
+          "label": "A tangle you can’t split"
+        },
+        {
+          "label": "Whatever I make myself"
+        }
+      ]
     }
   ]
 }

@@ -11170,6 +11170,45 @@ const BANK_2: V2SeedQuestion[] = [
   }
  },
  {
+  "id": "feed-n18",
+  "surface": "feed",
+  "seq": 393,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The foldable iPhone is expected on stage today. A phone that opens like a book: would you carry one?",
+  "options": [
+   "Sold on the fold",
+   "When the price folds too",
+   "Flat suits me fine"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-09",
+  "until": "2026-09-15",
+  "bg": "Apple’s ‘Surprise and shine’ keynote on 9 September 2026 — the first under new CEO John Ternus — is expected to introduce the company’s first folding phone alongside the iPhone 18 Pro: book-style, opening to a roughly 7.8-inch screen, priced above $2,000."
+ },
+ {
+  "id": "feed-n19",
+  "surface": "feed",
+  "seq": 394,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A million-person study ties 1,260 DNA variants to personality. What made you you — mostly genes, or mostly life?",
+  "options": [
+   "Mostly genes",
+   "Mostly life",
+   "A tangle you can’t split",
+   "Whatever I make myself"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-09",
+  "until": "2026-09-16",
+  "bg": "Published in Nature this week: the largest genetic study of personality yet links 1,260 DNA variants to the Big Five traits, drawing on more than a million people. No single variant is decisive — the effects are thousands of small nudges, tangled with experience."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -12153,7 +12192,9 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "heat",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-014",
   "surface": "duo",
@@ -12184,9 +12225,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-015",
   "surface": "duo",
@@ -15736,7 +15775,9 @@ const BANK_3: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "anxiety",
   "invert": true
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-big5-28",
   "surface": "test",
@@ -15775,9 +15816,7 @@ const BANK_3: V2SeedQuestion[] = [
   "axis": "N",
   "test": "big5",
   "facet": "anger"
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-30",
   "surface": "test",
@@ -19716,7 +19755,9 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 66,
   "k": "Universe: 13.8 billion years"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "learn-str8",
   "surface": "learn",
@@ -19759,9 +19800,7 @@ const BANK_4: V2SeedQuestion[] = [
   "t": 1,
   "p": 48,
   "k": "Great Pyramid: Khufu"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-anc2",
   "surface": "learn",
