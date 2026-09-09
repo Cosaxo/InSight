@@ -40,13 +40,14 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-09T18:40:34Z -->
+<!-- console:generated 2026-09-09T18:44:41Z -->
 
 ## Open
 
-- [ ] **#461** · a session · *what:* The owner's **"allow it"** on the `OWNER-LIST.md` row *"Clearing your display name does not unlist you from the people directory — may the owner of a row delete it?"* (night shift… · *how:* Decision number used: **D440** (D439 was the last on `main` at branch time; no collision). · CI running (9 pending) · current with main · opened 2026-09-09 · stage **new**
-- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 15 behind main · conflicts · opened 2026-09-09 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 204 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#462** · a session · *what:* Builds one half of `docs/OWNER-LIST.md`'s row **"The group as a cast — what happens to the eighteen older group questions?"** on the owner's 2026-09-09 answer (the session's recom… · *how:* The other half, flipping `active` on the documents already on `v2_questions`, is the owner's console click and is not touched here. · CI running (9 pending) · 1 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#461** · a session · *what:* The owner's **"allow it"** on the `OWNER-LIST.md` row *"Clearing your display name does not unlist you from the people directory — may the owner of a row delete it?"* (night shift… · *how:* Decision number used: **D440** (D439 was the last on `main` at branch time; no collision). · CI green (9) · 1 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 16 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 205 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
 
