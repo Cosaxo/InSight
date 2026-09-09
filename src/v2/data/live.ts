@@ -1151,9 +1151,26 @@ let profileCacheTimer: ReturnType<typeof setTimeout> | null = null;
 // actually expires.
 const profileSeen = new Map<string, number>();
 
+// Which uid's cache is already in `state`. Two call sites reach this —
+// `warmFromDisk`'s warm-paint branch and `hydrate` — and on a warm boot both
+// run, so the same blob was JSON.parsed and walked twice, up to
+// PROFILE_CACHE_CAP = 800 entries each carrying a nested score map, for
+// byte-identical results. Neither call site should have to know about the
+// other, so the guard lives here.
+//
+// Keyed on the uid rather than a boolean: the anonymous → linked upgrade
+// changes `state.uid`, and that boot must load the new owner's cache. Reset
+// in `resetForNewUid` beside `profileSeen.clear()`, where this class of
+// module state already resets.
+let profileCacheLoadedFor: string | null = null;
+
 function loadProfileCache(): void {
+  if (profileCacheLoadedFor === state.uid) return;
   try {
     const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    // NOT marked loaded on this arm, deliberately: a boot that read nothing
+    // (no blob yet, or another owner's) must not suppress a later legitimate
+    // load for the same uid.
     if (!raw || raw.owner !== state.uid || !raw.e) return;
     const now = Date.now();
     for (const [uid, v] of Object.entries(raw.e as Record<string, {
@@ -1179,6 +1196,9 @@ function loadProfileCache(): void {
       // of a removal being immediate everywhere.
       profileSeen.set(uid, v.t);
     }
+    // At the END of a successful walk, so a throw part-way through is retried
+    // rather than remembered as done.
+    profileCacheLoadedFor = state.uid;
   } catch {
     /* corrupt or unavailable — treat as empty */
   }
@@ -3170,12 +3190,26 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     surface: string,
     qids: string[],
   ): Promise<Array<QuestionDoc & { id: string }>> => {
+    // CONCURRENT chunks, the shape every other `in`-chunk read in this file
+    // already uses — this was the last one still awaiting inside the loop, so
+    // a heal of N ids cost ceil(N/30) serial round trips instead of one.
+    //
+    // It is also the one that runs at the worst moment: a `contentRev` bump
+    // writes the bank with `clearFirst: true`, which drops every paged learn
+    // and tail row, so the next boot's need list is the whole paged
+    // remainder rather than a handful. Order does not matter — both call
+    // sites re-sort by `seq` and merge by id.
+    //
+    // The three SURFACE blocks below stay sequential on purpose: they are
+    // separately try/caught so "each surface fails alone" holds, and running
+    // them together would trade that property for much less than this.
+    const chunks: string[][] = [];
+    for (let i = 0; i < qids.length; i += 30) chunks.push(qids.slice(i, i + 30));
+    const snaps = await Promise.all(chunks.map((chunk) => getDocs(
+      query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+    )));
     const out: Array<QuestionDoc & { id: string }> = [];
-    for (let i = 0; i < qids.length; i += 30) {
-      const chunk = qids.slice(i, i + 30);
-      const snap = await getDocs(
-        query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
-      );
+    for (const snap of snaps) {
       for (const d of snap.docs) {
         const row = d.data() as QuestionDoc & { updatedAt?: unknown };
         delete row.updatedAt;
@@ -7817,6 +7851,8 @@ function resetForNewUid(uid: string): void {
   // arbitrary amount. Cancel the queued write for the same reason
   // cancelAggCache is called: it would re-create the key just removed.
   profileSeen.clear();
+  // …and the once-per-uid guard on loadProfileCache, for the same reason.
+  profileCacheLoadedFor = null;
   if (profileCacheTimer) {
     clearTimeout(profileCacheTimer);
     profileCacheTimer = null;

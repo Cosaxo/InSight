@@ -72,8 +72,17 @@ function srchQVotes(q) {
 // with the live branch cut off, so an answer that exists only on the
 // server — another device, or a page fetched after boot — read as
 // unanswered in both orderings below and on the row itself.
-function srchAnswered(q, votes) {
-  return wfAnsweredOf(q, votes, LIVE.myVotes ? () => LIVE.myVotes() : null);
+//
+// `mine` is optional and exists for one reason: `LIVE.myVotes()` returns a
+// DEFENSIVE COPY — `{ ...state.votes }`, and live.ts's memo block says in as
+// many words that it deliberately does not memoise, "because their defensive
+// copy is the point of them". Called from inside a sort comparator, that is
+// one spread of the whole vote map per comparison, per keystroke. Hoisted by
+// the caller and passed in, it is one spread per keystroke. The store cannot
+// move between comparisons of one synchronous sort, so the two are
+// value-identical. The two-argument form stays valid for the per-row call.
+function srchAnswered(q, votes, mine) {
+  return wfAnsweredOf(q, votes, mine ? () => mine : (LIVE.myVotes ? () => LIVE.myVotes() : null));
 }
 // what you said, in the fewest words that still mean something
 function srchMyPick(q, votes) {
@@ -190,10 +199,12 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   // then weight of traffic.
   const questions = useSrchMemo(() => {
     const pool = window.WORLD_FEED_QS || [];
+    // ONE copy of the vote map for the whole pass — see srchAnswered.
+    const mine = LIVE.myVotes ? LIVE.myVotes() : null;
     if (!query) {
       // one per stream, round-robin — five open questions that aren't all one room
       const by = {}, order = [];
-      pool.filter((x) => !srchAnswered(x, votes)).forEach((x) => {
+      pool.filter((x) => !srchAnswered(x, votes, mine)).forEach((x) => {
         const k = x.scene || x.sub || x.cat;
         if (!by[k]) { by[k] = []; order.push(k); }
         by[k].push(x);
@@ -215,7 +226,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       .map((x) => ({ x, s: srchQScore(x, query, extraOf(x)) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s
-        || (srchAnswered(a.x, votes) ? 1 : 0) - (srchAnswered(b.x, votes) ? 1 : 0)
+        || (srchAnswered(a.x, votes, mine) ? 1 : 0) - (srchAnswered(b.x, votes, mine) ? 1 : 0)
         || srchQVotes(b.x) - srchQVotes(a.x))
       .slice(0, 12)
       .map((r) => r.x);
