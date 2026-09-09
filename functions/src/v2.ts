@@ -993,7 +993,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // The cap's discards from the attempt that commits — reset per
       // attempt, logged once the transaction returns (logBucketCaps).
       const capped: BucketCapEvent[] = [];
-      // THE ANSWER LOG (log.ts, D446 phase A): the row this commit will
+      // THE ANSWER LOG (log.ts, D447 phase A): the row this commit will
       // have earned, built where the ledger entry is and appended after
       // the transaction returns — never inside it, and never on the
       // redelivery that returns above without writing the ledger. Same

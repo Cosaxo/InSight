@@ -1423,7 +1423,11 @@ const FIGURES = [
   {
     file: "docs/COSTS.md",
     what: "reveal-pipeline reads per member for a duo",
-    re: /which is (\d+) for a duo/,
+    // `[\d.]+`, not `\d+`: the figure is (3 + 2m)/m since D445's role
+    // ledger read the round's question, which is 3.5 for a duo — and a
+    // pattern that admitted only an integer would have reported the
+    // sentence as no longer quoted rather than as wrong.
+    re: /which is ([\d.]+) for a duo/,
     actual: revealReadsPerMember(2),
     fix: (n) => `"which is ${n} for a duo"`,
   },

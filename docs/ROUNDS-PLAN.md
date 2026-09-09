@@ -66,7 +66,9 @@ the tree does not do.
 - **The reveal reads `2 + 2m`, not `4 + 3m`.** The pre-read of every
   answer and the standalone reveal-exists get both became unnecessary
   once `played` sat on the group document; the tripwire in
-  `scripts/pulse.test.mjs` counts the two sites that remain.
+  `scripts/pulse.test.mjs` counts the two sites that remain. (*`3 + 2m`
+  since D445, 2026-09-09: §7.2's ledger reads the round's question inside
+  the same transaction, and the tripwire counts that site too.*)
 - **The clean cutover happened.** No dual-write period: the answer id,
   the reveal id and the rules moved together, and reveals written
   before rounds stay readable as history. This was available only
@@ -522,6 +524,14 @@ Rounds change the argument to *volume*: a fortnight can now hold hundreds
 of reveals, and the device cannot fold what it cannot fetch. Under rounds
 the ledger is the substrate, not an improvement to one. The existing row
 gains this as a reason; no new row.
+
+**Built 2026-09-09 (D445), on the owner's yes.** `ledger.{uid}` on the
+group document, written by `revealRound` in the settle update that
+advances the round, from the round's question read inside the same
+transaction (`3 + 2m` reads, §0a); the device fold reads a row once it
+clears the instrument's floor and pages reveals until then — the plan's
+forward-only catch-up for a room from before it. `ROLES-PLAN.md` §3.3
+has the schema as built.
 
 ### 7.3 · The streak stays a day
 

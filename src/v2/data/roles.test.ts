@@ -18,7 +18,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AXES, SEATS, blendRoles, castOf, duoRole, duoCastCount, groupRole, groupVoteCount, seatFor, seatTally,
-  isCastReveal, isRatingReveal, MIN_DUO, MIN_GROUP, type BankLookup,
+  isCastReveal, isRatingReveal, ledgerClearsFloor, ledgerRow, MIN_DUO, MIN_GROUP, type BankLookup,
 } from "./roles";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_ARCHETYPES, IS_archScores, IS_matchArchetype } from "../spec/archetype-data.js";
@@ -201,6 +201,86 @@ describe("groupRole — your seat in the room", () => {
     const hist = [vote("2026-09-01", "r1", { [ME]: "a", a: "me", b: "me", c: "me" })];
     expect(groupRole(hist, ME)).toBeNull();
     expect(groupVoteCount(hist, ME)).toBe(0);
+  });
+});
+
+// ── THE LEDGER (D445, ROLES-PLAN §3.3) ─────────────────────────────
+//
+// The server keeps the same counts on the group document as each round
+// reveals, so the reading outlives the thirty reveals a page can hold.
+// Two properties, both refusals: the fold reads the ledger ONLY once it
+// clears the floor (below it, and on a room from before the ledger, the
+// reveals in hand are the reading — the plan's forward-only catch-up),
+// and a ledger that clears the floor is the reading even when the page
+// disagrees — because the page is a WINDOW, and the ledger is the record.
+describe("the ledger — the record that outlives the window", () => {
+  const LEDGER = {
+    [ME]: { casts: 5, axes: { trust: 3, spark: 1, judgement: 1 }, saw: { right: 4, total: 5 }, castQid: "c1" },
+    [THEM]: { casts: 5, axes: { constancy: 5 }, saw: { right: 1, total: 2 }, castQid: "c1" },
+  };
+  // A window that says something else — one cast, on the constancy axis.
+  const window = [cast("2026-09-04", 0, 3, 3)];
+
+  it("a 1v1 reads its dims, its count and the receipts off the ledger once it clears the floor", () => {
+    const r = duoRole(window, ME, THEM, bank, "Liv", false, LEDGER)!;
+    expect(r.n).toBe(5);
+    expect(r.dims.map((d) => [d.id, d.value])).toEqual([["trust", 60], ["spark", 20], ["judgement", 20], ["constancy", 0]]);
+    // the them forms come off the bank by the cast question the row names
+    expect(r.dims[0].note).toBe("they said you are the one Liv tells first in 3 of 5 rounds");
+    expect(r.sawIt).toEqual({ right: 4, total: 5 });
+    expect(duoCastCount(window, ME, THEM, bank, LEDGER)).toBe(5);
+    // …and the row is the member's own: the other reads their own axes.
+    expect(duoRole(window, THEM, ME, bank, null, false, LEDGER)!.dims[3].value).toBe(100);
+  });
+
+  it("…and draws the same reading with NO history at all — the room the device never paged", () => {
+    const r = duoRole([], ME, THEM, bank, "Liv", false, LEDGER)!;
+    expect(r.n).toBe(5);
+    expect(r.dims[0].note).toBe("they said you are the one Liv tells first in 3 of 5 rounds");
+    expect(ledgerClearsFloor(LEDGER, ME, "duo")).toBe(true);
+  });
+
+  it("below the floor the reveals in hand are the reading — the plan's forward-only catch-up", () => {
+    const thin = { [ME]: { casts: 2, axes: { trust: 2 }, saw: { right: 0, total: 0 }, castQid: "c1" } };
+    // The window holds three casts, all naming constancy: the reveals win.
+    const three = [cast("2026-09-04", 0, 3, 3), cast("2026-09-08", 0, 3), cast("2026-09-12", 1, 3, 1)];
+    const r = duoRole(three, ME, THEM, bank, "Liv", false, thin)!;
+    expect(r.n).toBe(3);
+    expect(r.dims[3].value).toBe(100);
+    expect(duoCastCount(three, ME, THEM, bank, thin)).toBe(3);
+    expect(ledgerClearsFloor(thin, ME, "duo")).toBe(false);
+    // …and with the window under the floor too, nobody is named.
+    expect(duoRole(window, ME, THEM, bank, "Liv", false, thin)).toBeNull();
+    expect(duoCastCount(window, ME, THEM, bank, thin)).toBe(1);
+  });
+
+  it("a group reads its seats and its count off the ledger once it clears the floor", () => {
+    const L = { [ME]: { votes: 6, seats: { engine: 4, heart: 2 } }, a: { votes: 1, seats: { wild: 1 } } };
+    // The page names ME the hands twice: the ledger is the reading.
+    const page = [vote("2026-09-01", "r2", { [ME]: "a", a: "me", b: "me" })];
+    const mine = groupRole(page, ME, bank, L)!;
+    expect(mine.n).toBe(6);
+    expect(mine.seat.id).toBe("engine");
+    expect(mine.shares).toEqual({ engine: 4, hands: 0, heart: 2, wild: 0 });
+    expect(mine.dims.find((d) => d.id === "engine")!.note).toBe("4 of 6 votes in the engine roles");
+    expect(groupVoteCount(page, ME, bank, L)).toBe(6);
+    expect(seatFor(page, ME, bank, L)!.seat.id).toBe("engine");
+    expect(ledgerClearsFloor(L, ME, "group")).toBe(true);
+    // …and a member whose row is under the floor is read off the page,
+    // where two votes name them the hands.
+    expect(seatFor(page, "a", bank, L)).toBeNull();
+    expect(ledgerClearsFloor(L, "a", "group")).toBe(false);
+    expect(seatFor([...page, vote("2026-09-02", "r2", { [ME]: "a", b: "a" })], "a", bank, L)!.seat.id).toBe("hands");
+  });
+
+  it("no ledger, a ledger that is not a map, and a row that is not a row all read as no ledger — never as zeros", () => {
+    const hist = [cast("2026-09-04", 0, 0, 0), cast("2026-09-08", 1, 0, 2), cast("2026-09-12", 0, 2, 2)];
+    for (const bad of [undefined, null, 7, "x", [], { [ME]: 3 }, { [ME]: null }]) {
+      expect(ledgerRow(bad, ME)).toBeNull();
+      expect(duoRole(hist, ME, THEM, bank, null, false, bad)!.n).toBe(3);
+      expect(ledgerClearsFloor(bad, ME, "duo")).toBe(false);
+    }
+    expect(ledgerRow({ [ME]: { casts: 1 } }, null)).toBeNull();
   });
 });
 

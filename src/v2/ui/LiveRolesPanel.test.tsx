@@ -31,9 +31,14 @@ vi.mock("../data/live", () => ({
     social: {
       groups: () => ROOMS,
       revealHistory: (gid: string) => HIST[gid] || [],
-      loadRevealHistory: (gid: string) => (REFUSE.has(gid)
-        ? Promise.reject(new Error("permission-denied"))
-        : Promise.resolve()),
+      // Records which rooms the tab paid a history read for: a room the
+      // server's ledger already draws must not be one of them (D445).
+      loadRevealHistory: (gid: string) => {
+        LOADED.push(gid);
+        return REFUSE.has(gid)
+          ? Promise.reject(new Error("permission-denied"))
+          : Promise.resolve();
+      },
       revealHistoryLoading: (gid: string) => LOADING.has(gid),
       // The bank the fold asks what each round was (D437): a cast round
       // and its them forms, a role vote and its seat.
@@ -48,6 +53,7 @@ import LiveRolesPanel from "./LiveRolesPanel";
 
 const REFUSE = new Set<string>();
 const LOADING = new Set<string>();
+const LOADED: string[] = [];
 
 const CAST = {
   kind: "cast",
@@ -78,7 +84,7 @@ beforeEach(() => {
   ROOMS = []; HIST = {}; BANK = { c1: CAST, q1: { options: ["a", "b"], kind: "day" },
     r1: { kind: "pick", options: [], role: { id: "mastermind", label: "the mastermind", seat: "engine" } },
     r2: { kind: "pick", options: [], role: { id: "driver", label: "the getaway driver", seat: "hands" } } };
-  REFUSE.clear(); LOADING.clear();
+  REFUSE.clear(); LOADING.clear(); LOADED.length = 0;
 });
 afterEach(cleanup);
 
@@ -214,5 +220,50 @@ describe("groups", () => {
     expect(screen.getByText("3 votes")).toBeTruthy();
     // …and the 1v1 half still refuses, independently.
     expect(screen.getByText(/Every fourth round of a 1v1/)).toBeTruthy();
+  });
+});
+
+// ── THE LEDGER (D445) ───────────────────────────────────────────────
+//
+// The group document carries the server's running counts, so a room whose
+// row clears the floor is drawn off the document the store already holds
+// — with NO history read, which is the cost the ledger exists to remove
+// (COSTS.md's Roles row) — and reaches past the thirty reveals a page
+// holds. A room under the floor is read as before, page and all.
+describe("a room the ledger draws", () => {
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  it("draws a 1v1 off the group document alone, and pays no history read for it", async () => {
+    ROOMS = [{
+      ...duoRoom("d1"),
+      ledger: { me: { casts: 5, axes: { trust: 3, spark: 2 }, saw: { right: 4, total: 5 }, castQid: "c1" } },
+    }];
+    // No history staged at all — the page would say "nothing revealed yet".
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("The Confidant")).toBeTruthy();
+    expect(screen.getByText("5 rounds asked")).toBeTruthy();
+    expect(screen.getByText("You guessed what they’d say you are 4 of 5 times.")).toBeTruthy();
+    expect(screen.queryByText("nothing revealed yet")).toBeNull();
+    await settle();
+    expect(LOADED, "a room the ledger draws was paged anyway").toEqual([]);
+  });
+
+  it("…and a room under the floor is still paged, with the page's count on its thin row", async () => {
+    ROOMS = [{ ...duoRoom("d1"), ledger: { me: { casts: 1, axes: { trust: 1 }, saw: { right: 0, total: 1 }, castQid: "c1" } } }];
+    HIST.d1 = [cast("2026-09-04", 0, 2, 2), cast("2026-09-08", 0, 1, 1)];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("2 of 3 cast rounds")).toBeTruthy();
+    await settle();
+    expect(LOADED).toEqual(["d1"]);
+  });
+
+  it("draws a group's seat off its row, votes received and all", async () => {
+    ROOMS = [{ id: "g1", mode: "group", name: "The Wednesday Six", memberUids: ["me", "a", "b"],
+      ledger: { me: { votes: 6, seats: { engine: 4, heart: 2 } }, a: { votes: 1, seats: { wild: 1 } } } }];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("The Confidant")).toBeTruthy(); // the pinned matcher
+    expect(screen.getByText("6 votes")).toBeTruthy();
+    await settle();
+    expect(LOADED).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 // log.ts — the answer log: one row per ledger entry, appended to BigQuery
-// (SCALE-ARCHITECTURE.md phase A, D446).
+// (SCALE-ARCHITECTURE.md phase A, D447).
 //
 // WHAT THIS IS. The first step of the log-first structure the owner
 // adopted on 2026-09-09: everything the app computes overnight — the

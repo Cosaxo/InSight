@@ -506,14 +506,19 @@ export const ENGAGEMENT_ROLLUP_FOLD_WRITES = 2;
 // group of M members:
 //   M  getAll(profiles, fieldMask) — the names, past the verdict
 // 2+M  the committing transaction: tx.getAll(revealRef, group, ...answers)
-// = 2 + 2M, shared across M members. The day's pipeline was 4 + 3M: a
+//   1  …and the round's question, tx.get, for the role ledger (D445):
+//      whether the round was a cast or a seated role vote, and which axis
+//      or seat each option names, is a fact about the question that the
+//      answers cannot say. The ledger itself adds NO write — it rides the
+//      settle update that advances the round.
+// = 3 + 2M, shared across M members. The day's pipeline was 4 + 3M: a
 // standalone reveal-exists get and a pre-read of every answer, both made
 // unnecessary by `played` on the group document (ROUNDS-PLAN §3.1), and
 // the scan's page read, which the indexed deadline query now spends only
 // on groups whose round is actually due. Charged per duel answer in the
 // model, which under rounds is exactly right: every answer is one of a
 // round that reveals.
-export const revealReadsPerMember = (m) => (2 + 2 * m) / m;
+export const revealReadsPerMember = (m) => (3 + 2 * m) / m;
 
 // ── behaviour assumptions ───────────────────────────────────────
 // The soft numbers. Every one of these is a guess about humans, not a fact
@@ -988,7 +993,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // question a night, under any rounding here.
     //
     // + the answer map's merge per world answer (runbook 3.2), the one
-    // write the owner chose "live" over nightly for (D445 amendment).
+    // write the owner chose "live" over nightly for (D446 amendment).
     const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + attnRate(dau) + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)

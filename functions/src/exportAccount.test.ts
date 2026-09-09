@@ -199,6 +199,9 @@ function seed() {
   set("v2_groups/g_shared", {
     name: "Shared", mode: "group", ownerUid: OTHER, memberUids: [ME, OTHER],
     memberJoinedAt: { [ME]: 5, [OTHER]: 1 }, memberNames: { [ME]: "Me", [OTHER]: "Them" },
+    // The role ledger (D445): one row per member. OTHER's is the only row
+    // anywhere with a `hands` seat, which is what the leak case greps for.
+    ledger: { [ME]: { votes: 4, seats: { engine: 3, heart: 1 } }, [OTHER]: { votes: 2, seats: { hands: 2 } } },
   });
   set(`v2_groups/g_shared/reveals/${DAY}`, {
     day: DAY, qid: "gq",
@@ -306,9 +309,14 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     // 1c — the two circles the account is in, with what the document says about it.
     expect(b.groups.map((g: { gid: string }) => g.gid).sort()).toEqual(["g_shared", "g_solo"]);
     const solo = b.groups.find((g: { gid: string }) => g.gid === "g_solo");
-    expect(solo).toMatchObject({ owner: true, members: 1, sealedRounds: ["r3"], turnStamp: 5 });
+    expect(solo).toMatchObject({ owner: true, members: 1, sealedRounds: ["r3"], turnStamp: 5, ledger: null });
     const shared = b.groups.find((g: { gid: string }) => g.gid === "g_shared");
-    expect(shared).toMatchObject({ owner: false, members: 2, joinedAt: 5, memberName: "Me", sealedRounds: [], turnStamp: null });
+    expect(shared).toMatchObject({
+      owner: false, members: 2, joinedAt: 5, memberName: "Me", sealedRounds: [], turnStamp: null,
+      // …and the role ledger's row for this member (D445), the way the
+      // erasure's phase 1c drops it — this row, never the map.
+      ledger: { votes: 4, seats: { engine: 3, heart: 1 } },
+    });
     expect(b.ownedGroups).toEqual([{ gid: "g_owned_left", name: "OwnedLeft", mode: "group" }]);
     // 1c + 1c-bis — four reveals name the account: its own circles, the
     // one it left, and the one that names it only through a pick.
@@ -349,6 +357,8 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
       "somebody else's answer", "someone else's words", "someone else's suggestion",
       "someone else's paid ask", "not this account's campaign", "Their bought question",
       "evt_theirs", "u_fourth", "tok1", "pd_theirs", "paidad-theirs", '"theirs"',
+      // OTHER's role-ledger row on the shared circle — the one `hands` seat seeded.
+      '"hands"',
     ]) {
       expect(text, `the export carries someone else's data: ${theirs}`).not.toContain(theirs);
     }

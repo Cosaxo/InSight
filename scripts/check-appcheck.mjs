@@ -105,7 +105,7 @@ const EXEMPT = {
     gate: "assertOperator",
     reason:
       "operator callable, the one-time load of every existing answer into "
-      + "the BigQuery answer log (SCALE-ARCHITECTURE.md phase A, D446), "
+      + "the BigQuery answer log (SCALE-ARCHITECTURE.md phase A, D447), "
       + "driven by scripts/backfill-log.mjs from the Backfill answer log "
       + "workflow — no attested app runs a migration; gated on "
       + "SEED_ADMIN_UIDS",

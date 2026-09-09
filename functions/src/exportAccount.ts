@@ -109,7 +109,7 @@ export const TWIN: Record<string, string> = {
   suggestions: "suggestions",
   purchases: "purchases",
   paidBookings: "paidBookings",
-  // 1a″ — the answer log in BigQuery (D446 phase A), the ledger's mirror
+  // 1a″ — the answer log in BigQuery (D447 phase A), the ledger's mirror
   // that outlives the ledger's TTL; read through the erasure's own writer.
   log: "answerLog",
   // The closing sweep re-deletes the subtree phase 1b already took, in
@@ -308,7 +308,7 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
     out.voterSamples = m.add(rows);
   }
 
-  // 1a″. The answer log (D446 phase A): the ledger's mirror in BigQuery —
+  // 1a″. The answer log (D447 phase A): the ledger's mirror in BigQuery —
   //      one row per counted answer and one per edit, the rows the
   //      erasure's statement removes — read through the erasure's own
   //      writer, so an export and an erasure agree on where the rows are.
@@ -471,6 +471,11 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
         owner: g.get("ownerUid") === uid,
         joinedAt: toPlain((g.get("memberJoinedAt") as Record<string, unknown> | undefined)?.[uid]),
         memberName: toPlain((g.get("memberNames") as Record<string, unknown> | undefined)?.[uid]),
+        // The role ledger's row for THIS member (D445) — what the room has
+        // made them, kept by the reveal pipeline and dropped by the same
+        // phase-1c update that drops the name. The other members' rows
+        // stay on the document and out of this file.
+        ledger: toPlain((g.get("ledger") as Record<string, unknown> | undefined)?.[uid]),
         members: members.length,
         // The rounds this account has sealed and not yet seen revealed
         // (`played`, ROUNDS-PLAN §2.1), and the turn stamp if one stands.

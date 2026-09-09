@@ -33,7 +33,7 @@ import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
 import { fanoutBudgetId } from "./profileFanout";
-import { playedRemovals, stampRemoval } from "./v2social";
+import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -195,7 +195,7 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
-      // The answer log's rows (log.ts, D446 phase A, phase 1a″): 1 when the
+      // The answer log's rows (log.ts, D447 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
       // buffer refused it or the table is past the immediate ceiling
       // (LOG_ERASE_NOW_MAX_BYTES — a DELETE is a pass over the whole
@@ -311,7 +311,7 @@ export const deleteAccount = onCall(
       failed.push("aggEvents");
     }
 
-    // 1a″. THE ANSWER LOG (log.ts, D446 phase A) — the ledger's mirror in
+    // 1a″. THE ANSWER LOG (log.ts, D447 phase A) — the ledger's mirror in
     //     BigQuery, which keeps rows past the ledger's TTL and so holds the
     //     attribution longest. One DML statement now while the table is
     //     under a gibibyte; past that, or where BigQuery refuses because
@@ -665,6 +665,11 @@ export const deleteAccount = onCall(
             // every remaining member reads.
             ...playedRemovals(g.get("played"), uid),
             ...stampRemoval(g.get("pushAt"), uid),
+            // …and their role-ledger row (D445, ROLES-PLAN §3.3's erasure
+            // clause): what the room made this member, counted by the
+            // server and readable by every remaining member — the same
+            // erasure leak as `memberNames`, one map over.
+            ...ledgerRemoval(g.get("ledger"), uid),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is

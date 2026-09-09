@@ -165,6 +165,26 @@ describe("a LATE answer to a revealed round (ROUNDS-PLAN §4)", () => {
     expect(store.has(`v2_groups/${GID}/reveals/r1`)).toBe(false);
     expect(store.get(`v2_groups/${GID}`)!["played.r1"]).toBeUndefined();
   });
+
+  it("moves no figure in the role ledger (D445) — shown in the reveal, counted by nothing", async () => {
+    // The revealed round was a CAST, and u2's blind vote already stands in
+    // it. u1's late answer joins the reveal marked; the ledger — the
+    // server's running counts on the group document — is not opened,
+    // because a reading made with the table in view is not a reading.
+    const before = { u2: { casts: 1, axes: { spark: 1 }, saw: { right: 0, total: 1 }, castQid: "duo-073" } };
+    store.set(`v2_groups/${GID}`, { ...store.get(`v2_groups/${GID}`)!, ledger: before });
+    store.set(`v2_groups/${GID}/reveals/r1`, {
+      round: 1, day: "2026-09-07", qid: "duo-073",
+      votes: { u2: { optionIdx: 1, guessIdx: 0 } }, names: { u2: "Ada" }, members: ["u2"],
+    });
+    store.set("v2_questions/duo-073", { topic: "cast", dims: ["trust", "spark", "judgement", "constancy"] });
+    await deliver("u1", `g_${GID}_r1`, { surface: "duo", gid: GID, round: 1, optionIdx: 0, late: true, qid: "duo-073" });
+    expect(store.get(`v2_groups/${GID}/reveals/r1`)!["votes.u1"]).toEqual({ optionIdx: 0, late: true });
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g.ledger, "a late answer reached the ledger").toBe(before);
+    expect(g["ledger.u1"]).toBeUndefined();
+    expect(g["ledger.u2"]).toBeUndefined();
+  });
 });
 
 // ── the nudge (ROUNDS-PLAN §7.4): decided in the transaction, sent after ──

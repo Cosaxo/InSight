@@ -82,7 +82,7 @@ const { setLogWriterForTest } = await import("./log");
 type LogRowT = import("./log").LogRow;
 
 /** The answer log's writer, injected: one row per COMMITTED ledger entry,
- *  none on the redelivery the ledger mark turns away (log.ts, D446). */
+ *  none on the redelivery the ledger mark turns away (log.ts, D447). */
 function fakeLog() {
   const rows: LogRowT[] = [];
   setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUsers() { return "done" as const; }, async tableBytes() { return null; }, async rowsFor() { return null; } } as never);
@@ -447,7 +447,7 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
 });
 
 
-describe("the answer log mirrors the ledger, once per commit (D446 phase A)", () => {
+describe("the answer log mirrors the ledger, once per commit (D447 phase A)", () => {
   it("a vote, redelivered, is one row; its edit is a second row that says what it moved from", async () => {
     const rows = fakeLog();
     try {

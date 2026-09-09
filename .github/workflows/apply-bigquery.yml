@@ -1,5 +1,5 @@
 # Create the answer log's dataset and table in BigQuery
-# (SCALE-ARCHITECTURE.md phase A, D446) — once, before the deploy that
+# (SCALE-ARCHITECTURE.md phase A, D447) — once, before the deploy that
 # carries the trigger's append goes out, or right after it (the trigger's
 # append fails softly and the nightly reconcile catches up the day).
 #

@@ -397,7 +397,7 @@ describe("v2 questions + aggregates", () => {
     await refused(deleteDoc(doc(asUser(OWNER), "v2_velocity", "state")));
   });
 
-  it("deferred answer-log erasure markers (D446 phase A) are opaque to clients", async () => {
+  it("deferred answer-log erasure markers (D447 phase A) are opaque to clients", async () => {
     // A marker names an erased account, and a writable one would let a
     // client queue the deletion of somebody else's rows — or clear the
     // marker that keeps the promise on their own.
@@ -2634,6 +2634,55 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       });
     });
     await refused(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"), { duoMode: "romantic" }));
+  });
+
+  // ── the role ledger is server-written, member-read (D445) ─────────
+  //
+  // `ledger.{uid}` on the group document is what the room has made each
+  // member, counted by the reveal pipeline (admin SDK). No clause names
+  // it: the read rule serves it with the rest of the document, and the
+  // `affectedKeys` pin on `duoMode` is what refuses a client writing it.
+  // Both halves pinned here, because the pin is the only thing standing
+  // between a member and a row that says the room named them the engine
+  // nine times.
+  it("the role ledger is readable by members with the document, and writable by no client (D445)", async () => {
+    const LEDGER = {
+      [OWNER]: { casts: 5, axes: { trust: 3, spark: 2 }, saw: { right: 4, total: 5 }, castQid: "group-gu0" },
+      [FRIEND]: { casts: 5, axes: { constancy: 5 }, saw: { right: 1, total: 2 }, castQid: "group-gu0" },
+    };
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID), { ledger: LEDGER }, { merge: true });
+      await setDoc(doc(db, "v2_groups", "g_grp"), {
+        name: "Circle", mode: "group", ownerUid: OWNER,
+        memberUids: [OWNER, FRIEND], inviteCode: "EFGH6789", streak: 0,
+        ledger: { [OWNER]: { votes: 9, seats: { engine: 6, heart: 3 } } },
+      });
+    });
+    // READ: a member reads the ledger as part of the document — both rows,
+    // theirs and the other member's — and a stranger reads none of it.
+    const seen = await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID)));
+    expect((seen as { get: (f: string) => unknown }).get("ledger")).toEqual(LEDGER);
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", "g_grp")));
+    await refused(getDoc(doc(asUser(STRANGER), "v2_groups", GID)));
+    // WRITE: nobody — not a member writing their own row, not one writing
+    // the other's, not one riding the legal duoMode flip, not on a group
+    // doc, not a stranger, not a removal.
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { [`ledger.${OWNER}`]: { casts: 50, axes: { trust: 50 } } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { [`ledger.${FRIEND}`]: { casts: 0 } }));
+    await refused(updateDoc(doc(asUser(FRIEND), "v2_groups", GID),
+      { duoMode: "romantic", ledger: { [FRIEND]: { casts: 50 } } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"),
+      { [`ledger.${OWNER}.votes`]: 99 }));
+    await refused(updateDoc(doc(asUser(STRANGER), "v2_groups", GID),
+      { ledger: {} }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { ledger: deleteField() }));
+    // …and the legal flip still lands beside an untouched ledger: the pin
+    // refuses the field, not the document.
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "romantic" }));
   });
 
   // ── join requests are server-only, both ways (D240) ──────────────
