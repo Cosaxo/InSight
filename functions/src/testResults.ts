@@ -195,6 +195,10 @@ export const saveTestResultV2 = onCall(
     // result, so it stays an ordinary client write.
     const consent = data.politicalConsent;
     const withConsent = consent !== undefined;
+    // Hoisted, because the WRITE below rebuilds the record from these
+    // three fields rather than passing the caller's object through — see
+    // the note there.
+    const c = consent as Record<string, unknown> | null;
     if (withConsent) {
       if (kind !== "political" || !removing) {
         throw new HttpsError(
@@ -202,7 +206,6 @@ export const saveTestResultV2 = onCall(
           "politicalConsent may only ride along with a political removal",
         );
       }
-      const c = consent as Record<string, unknown> | null;
       if (!c || typeof c !== "object" || Array.isArray(c)
         || typeof c.v !== "number" || !Number.isInteger(c.v)
         || typeof c.at !== "number" || !Number.isInteger(c.at)
@@ -222,7 +225,31 @@ export const saveTestResultV2 = onCall(
     await firestore().collection("v2_users").doc(uid).set(
       {
         testResults: { [kind]: value },
-        ...(withConsent ? { consent: { political: consent } } : {}),
+        // REBUILT FROM THE THREE VALIDATED FIELDS, exactly as `value` is
+        // rebuilt above, and for the same reason one field over.
+        //
+        // The checks above prove `v`, `at` and `off` are integers and
+        // stop there; passing `consent` through would carry every OTHER
+        // key the caller sent. This runs on the admin SDK, which bypasses
+        // rules, so `firestore.rules`'s own
+        // `consent.political.keys().hasOnly(["v", "at", "off"])` — the
+        // bound that holds this shape on the client path — does not apply
+        // here. That made this the one client-reachable way to park
+        // arbitrary keys on `v2_users/{uid}`: a world-readable document
+        // that `voters.ts` fetches WHOLE, thirty at a time, with no field
+        // mask. Measured 2026-09-09 against this callable: a consent
+        // object carrying two extra keys was written verbatim, 300,075
+        // bytes of it, onto the document this file exists to keep at
+        // roughly seven hundred.
+        //
+        // The cost of rebuilding is that a field added to the record
+        // later is dropped here rather than refused, and silently. The
+        // client's `politicalConsentRecord` emits exactly these three
+        // (`v: POLITICAL_CONSENT_VERSION`, `at`, `off`) and no surface
+        // sends any other, so nothing is lost today — but a version 2
+        // carrying a fourth has to be added to the guard above AND to
+        // this line, or it reaches the server and stops there.
+        ...(withConsent && c ? { consent: { political: { v: c.v, at: c.at, off: c.off } } } : {}),
       },
       { merge: true },
     );
