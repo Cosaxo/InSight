@@ -874,6 +874,15 @@ function loadPending(uid: string): Record<string, PendingAnswer> {
 const restoredPending = new Set<string>();
 // Back into memory as the state they died in: voted, unconfirmed, and
 // not yet in the public aggregate (the display flag every create sets).
+// A duel answer's id (`g_{gid}_r{n}` / the day-keyed shape before D426).
+// Two things in the pending machinery are about the WORLD aggregate and
+// have nothing to answer for a duel: `unaggregated`, which is cleared by
+// the aggregate re-read, and `scheduleAggRefresh`, which would put a
+// non-qid into a `v2_question_aggs` `in` query and spend a read on a
+// document that does not exist. The seal itself is mirrored like any other
+// answer; only these two are skipped.
+const isDuelAid = (aid: string): boolean => aid.startsWith("g_");
+
 function restorePending(uid: string): void {
   for (const [aid, p] of Object.entries(loadPending(uid))) {
     // On a re-run hydrate (a wake after a failed boot) the file also
@@ -884,8 +893,10 @@ function restorePending(uid: string): void {
     if (aid in state.inflight && !restoredPending.has(aid)) continue;
     state.votes[aid] = p.v;
     state.inflight[aid] = true;
-    const n = Number(p.v);
-    state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    if (!isDuelAid(aid)) {
+      const n = Number(p.v);
+      state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    }
     restoredPending.add(aid);
   }
 }
@@ -928,7 +939,7 @@ function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: s
     }
     if (q.surface === "test") LIVE.syncPassiveResults();
   }
-  scheduleAggRefresh(db, aid);
+  if (!isDuelAid(aid)) scheduleAggRefresh(db, aid);
 }
 function rollbackPending(aid: string, serverValue?: string): void {
   if (serverValue === undefined) {
@@ -4169,6 +4180,17 @@ const SOCIAL = {
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
     if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
+    // THE DISK MIRROR (D357), which this path did without. `cacheVote` is
+    // ack-only by contract, so between the tap and the server's ack the
+    // seal lived in this process's memory alone — and a relaunch before the
+    // queue drained lost it. `roundsOf` then found no vote for the round
+    // and offered it again, and the second seal is a `setDoc` onto an
+    // existing document: `firestore.rules` restricts `allow update` to
+    // daily/feed/test, so a group or duo answer can never be updated. The
+    // round was spent, unanswerable, and the reveal showed nothing from
+    // this account. The other five optimistic write paths have carried
+    // this since D357.
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4195,8 +4217,12 @@ const SOCIAL = {
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        // The shared rollback, not a hand-rolled one — it drops the vote,
+        // the inflight mark and the disk mirror together. `duelCalls` is
+        // this path's own and is not something rollbackPending knows about.
+        rollbackPending(aid);
         delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
@@ -4244,6 +4270,9 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // The disk mirror, for voteDuel's reason above — a late answer is the
+    // same shape of write and was lost the same way.
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4264,8 +4293,9 @@ const SOCIAL = {
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "duelVoteLate", gid });
         throw err;
