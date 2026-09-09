@@ -47986,8 +47986,9 @@ machine that measured it:
 - **The floor is policy.** `floorFillers: 50` — ~405 budget units at
   D432's 8.1, which is the plan's "≥ 400 expressions" target in the
   measured currency. Every pin must clear it, arithmetically, before a
-  single variant boots. The thinnest legal create sits at 58, eight
-  fillers (~65 units) above it. A pin that would land under the floor
+  single variant boots. The thinnest legal create sits at 57 (the pick round, since #456's
+  D437 took the guess off group answers), seven fillers (~57 units)
+  above it. A pin that would land under the floor
   is refused by the gate with the sentence that matters: *the change
   that put it there is the thing to argue, not the number to edit*.
 - **The file must load at 80 fillers** (`compileFloorFillers`), 14
@@ -48007,7 +48008,7 @@ is above the ceiling, and 190 could never load. The plan's own hedge —
 *provisional until Phase 0* — is what this record cashes.
 
 **The second assertion — a denial by budget is a red test.** Every
-`assertFails` in `firestore-tests/rules.test.ts` (467 sites) is now
+`assertFails` in `firestore-tests/rules.test.ts` (465 sites) is now
 `refused()`: the same assertion, plus the emulator's reason text must
 not contain *"maximum of 1000 expressions"*. The e2e got the same
 sentence in `firestore-tests/e2e-lib.mjs`'s `expectRefusal`, the one
@@ -48032,3 +48033,12 @@ day that matters), it does not assert the coverage report's counts
 (D432 found them not to be budget units), and it does not stop anyone
 editing `floorFillers` — a review does, and the number is in a file
 that reads as a measurement. Phase 4 stays priced and untaken.
+
+**Merged over #456 (D434–D437), which is why this record is D438.** That
+PR changed the duel arms under this gate while it was open — a group
+answer carries no guess (D437) — and re-measured the baseline in the
+old schema. The merge kept its measurement, re-applied the `refused()`
+sweep over its new case, and re-pinned on the merged rules: **zero pins
+moved**, the compile ceiling still 94, fifteen probes at their pins, the
+gate green on the first run. Which is the gate meeting the exact event
+it was built for, before it had merged.

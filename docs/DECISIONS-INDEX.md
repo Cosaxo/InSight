@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 464 lines instead of
-48,035. Do not hand-edit; `npm run check:docs` fails when this
+48,045. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -473,8 +473,8 @@ detect it.
 |  | ↳ *amendment 2026-09-09* — [There was a probe all along, and Apple was already on](DECISIONS.md#d431-amendment-2026-09-09--there-was-a-probe-all-along-and-apple-was-already-on) | — | 47160 |
 | **D432** | [Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three](DECISIONS.md#d432--phase-0-of-the-rules-budget-the-instrument--and-a-filler-conjunct-costs-eight-units-not-three) | D438 (+2) | 47213 |
 | **D433** | [Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero](DECISIONS.md#d433--phases-1-and-2-of-the-rules-budget-the-answer-rule-restructured-with-every-verdict-identical--refusals-by-budget-go-from-thirteen-to-zero) | D438 (+1) | 47308 |
-| **D434** | [The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them](DECISIONS.md#d434--the-group-is-a-cast-the-owners-2026-09-08-design-lands-as-role-votes-in-packs-a-rating-every-fourth-round-and-the-fold-that-reads-them) | D437 (+2) | 47403 |
+| **D434** | [The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them](DECISIONS.md#d434--the-group-is-a-cast-the-owners-2026-09-08-design-lands-as-role-votes-in-packs-a-rating-every-fourth-round-and-the-fold-that-reads-them) | D438 (+3) | 47403 |
 | **D435** | [The duel bank leaves the JavaScript: learn's treatment, one bank over](DECISIONS.md#d435--the-duel-bank-leaves-the-javascript-learns-treatment-one-bank-over) | D437 | 47518 |
 | **D436** | [The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built](DECISIONS.md#d436--the-2026-09-09-design-arrives--how-1v1s-and-groups-work-now--recorded-planned-and-its-confusions-put-to-the-owner-before-anything-is-built) | — | 47623 |
-| **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | — | 47694 |
+| **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | D438 | 47694 |
 | **D438** | [Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test](DECISIONS.md#d438--phase-3-of-the-rules-budget-the-gate--every-probe-pinned-at-its-measured-headroom-a-floor-of-50-fillers-and-a-denial-by-budget-is-a-red-test) | — | 47953 |
