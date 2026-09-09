@@ -381,7 +381,16 @@ user-day at maturity for this phase (velocity −3.6, the streamed scan
 head prints 43 and 132, because D426's rounds landed from `main` in the
 same merge and took one read off a reveal and one off the rules.
 
-## Phase 5 — the write path at scale · **L**
+## Phase 5 — the write path at scale · **L** · **direction under the owner's decision at D430**
+
+> **2026-09-09.** The owner asked for a structure that scales to hundreds
+> of answers a day and millions of users; `SCALE-ARCHITECTURE.md` is that
+> design, and its phase B — live counters in Redis and a compactor writing
+> the same aggregate document once a minute — is this phase's compactor
+> with a cheaper counter store and no shard documents to fold. If the
+> owner adopts it (`OWNER-LIST.md` § Decisions), this phase is superseded
+> by phase B and the steps below are not built as written; until that
+> word they stand.
 
 - [ ] **5.1 The increment fold.** `counts`, `total`, the `by` cells and
       `edits` become `FieldValue.increment` under `merge: true` — the
@@ -429,6 +438,9 @@ and `npm run costs` prints boot ≈ 15.
 
 ## Waiting on the owner, not on this file
 
+- **The log-first direction** (D430, `SCALE-ARCHITECTURE.md`): whether
+  Phase 5 becomes its phase B, one sentence of D98 for the compactor's
+  cadence, and the batch window — all on `OWNER-LIST.md` § Decisions.
 - **The word "live"** for Phase 3 — given 2026-09-08 (the D429
   amendment records it). What stays the owner's from that phase is the
   backfill's click, dry then `apply` (`OWNER-LIST.md`).

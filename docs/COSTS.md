@@ -123,6 +123,14 @@ roughly double on the three operation lines.
 > (4.4) and the self-sampling shard fold's −0.7 (4.2) — about $4 a month
 > at 50,000 DAU, paid for a nightly pass that no longer dies at 150,000
 > fitted people.
+>
+> **The other axis.** Every row above holds answers at four world
+> answers per user per day (`B.worldAnswers`). At a hundred or three
+> hundred — the owner's target since 2026-09-09 — the per-answer terms are
+> the whole bill and the structure fails before it costs;
+> [`SCALE-ARCHITECTURE.md`](SCALE-ARCHITECTURE.md) is that finding and
+> the design that answers it, and `npm run costs:target` prints both
+> structures at those loads.
 
 > **Re-measured 2026-09-08 (DATA-EFFICIENCY-RUNBOOK 1.4 and 1.5).** A
 > return to the foreground re-reads today's aggregate rather than the

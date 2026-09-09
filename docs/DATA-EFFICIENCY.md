@@ -550,6 +550,15 @@ bullet keeps the failure as found and says what it became:
   **Built (runbook 4.2):** the fold publishes tomorrow's rate on
   `v2_meta/app` — the rate that lands 80 % of its cap — and the device
   draws at it off the read it already makes.
+- **The nightly pass holds the day — the fifth, found on the other
+  axis (2026-09-09).** The memoised ledger reader keeps every entry of
+  the day resident so six folds share one read (D399): about 470 bytes
+  an entry, measured, on the pass's 1 GiB. At four answers a day that is
+  past 400,000 users; at a hundred a day it is ~16,000, and the pass
+  then dies every night without advancing. Not in this page's tables,
+  which hold the answer rate at four. `SCALE-ARCHITECTURE.md` §1 has the
+  arithmetic and §3.4 the fix — the night as SQL over a log BigQuery
+  holds on disk — and D430 puts the direction to the owner.
 
 ## 4 · What looks wasteful and is not
 

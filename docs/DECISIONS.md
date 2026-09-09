@@ -46685,3 +46685,58 @@ at 11 reads per user-day. `npm run costs` after: server reads 40 → 44
 per user-day at maturity, the whole 129 → 134 (132 at the merged head,
 D426's rounds having taken two reads elsewhere). Nothing a user sees
 moved, and nothing a device reads changed size.
+
+## D430 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+
+**Date:** 2026-09-09 · **Status:** PROPOSED — the owner's word makes it
+the direction. The owner, the same day, after `npm run costs` had been
+run at a hundred and three hundred answers a day: *"i think we should
+from the start look on how we can design a system that scales to
+hundreds of answers a day and millions of users remember we can use
+other systems like bigquerry."*
+
+**The finding that prompted it.** The model prices four world answers a
+day (`B.worldAnswers`, `scripts/cost-arith.mjs`); everything Phases 1–4
+of the efficiency runbook built is flat per user, and the per-answer
+path was left at its floor because at four a day it was one. At a
+hundred a day the shipped structure costs about $23,000 a month at a
+million users and has already failed twice below that: the nightly pass
+holds the day's ledger entries in memory (470 bytes each, measured on
+node 22) and dies near 16,000 users; the always-increasing timestamp
+indexes hit Firestore's ~500 writes a second near 144,000. Neither is in
+`COSTS.md`, which moves users and never answers.
+
+**The design** is `SCALE-ARCHITECTURE.md`: answers written in batches
+to one document per user-day; one trigger per batch that appends a row
+per answer to BigQuery, increments live counters in Redis and merges the
+person's answer map, reading nothing; a compactor that writes the same
+documents clients read today, once a minute for the questions that
+changed; the night as SQL over the log, with a writer job putting the
+results back into the documents the app already reads; Firestore
+keeping every per-user, social and published document. Priced by `npm
+run costs:target` (`scripts/cost-target.mjs`, with its own test): a
+million users at a hundred a day ≈ $2,200 a month against $23,200; ten
+million at three hundred ≈ $32,000 against $667,000 — and it runs.
+
+**What a user sees is the same, with two cadences stated** (§4 there):
+a card's count exact and at most a minute behind — the interval the card
+already re-reads at (D129) — and a friend's answers in your Circle
+within the batch window rather than within seconds. Nothing shows fewer
+people, questions or answers; D98's substance, the three denies, D1 and
+App Check are untouched.
+
+**What the owner decides** (`OWNER-LIST.md` § Decisions): the direction
+itself (the efficiency runbook's Phase 5 becomes phase B of §6 there);
+one sentence of D98 — *no publish cadence* was written against the
+privacy cadence it retired, and the compactor's sixty seconds is the
+card's own poll, so the sentence becomes *exact, and never more than a
+poll behind* on the owner's word and not before; and the batch window
+(five minutes recommended; one minute doubles the batch lines). Not the
+owner's to decide and done page-first: the privacy page's and the
+inventory's rows for the log (D183).
+
+**Recorded as proposed rather than adopted** because D7's rule stands:
+nothing here is built before the owner's word, and phase A — the log to
+BigQuery, which costs bytes and precedes everything — is
+`LAUNCH-RUNBOOK.md` 5.11 done as one code path rather than as an
+extension streaming every document change through a trigger of its own.
