@@ -1,8 +1,11 @@
 # The rules expression budget — buying it back, and holding it
 
-**Status: plan notes — nothing built.** Every number below is marked as either
-*measured* (D429's filler runs, the e2e log, the tree) or *estimate* (to
-be replaced by Phase 0's instrument before anything is restructured).
+**Status: plan notes — Phases 0, 1 and 2 are BUILT and measured (D432, D433); Phases 3 and 4 remain proposals.** Every number in §§0–6 is marked as either
+*measured* (D429's filler runs, the e2e log, the tree) or *estimate*, as
+it was written before Phase 0 ran; **§9 is the measured table** and where
+the two disagree §9 is the correction — starting with the unit itself,
+which D429 and §0 took as ~3 expressions a filler and D432 measured at
+~8.
 The owner asked for this on 2026-09-09 after the ceiling was explained,
 with *"you can make pretty big changes"* — so §6 prices the big change
 too, and says why it comes last rather than first.
@@ -378,19 +381,38 @@ answers questions this file currently estimates. Phase 1 is the one to
 say go on. Phases 1–3 together are about a day of work if Phase 0's
 numbers land where the estimates put them.
 
-## 9 · Numbers to fill
+## 9 · Numbers, filled
 
-To be replaced by Phase 0's table; kept here so the file says what it
-does not yet know.
+Measured 2026-09-09 by `scripts/rules-budget.mjs` (D432 for the method,
+D433 for the moves); `scripts/rules-budget-baseline.json` is the
+checked-in copy of the last column. **Headroom is in filler conjuncts,
+with budget units in brackets at the calibrated 8.1 units a filler** —
+the number this file's §0 and D429 called "~3" and "~130" is the one
+Phase 0 corrected, so the "today" column reads higher than the plan
+expected and every later column is measured in the same currency. Cost
+is the coverage report's count for the one write, which D432 found is
+NOT budget units (a base-tree duel write counts 1,410 and is allowed);
+it is kept because it attributes to a line.
 
-| probe | cost today | headroom today | after Phase 1 | after Phase 2 |
-| --- | ---: | ---: | ---: | ---: |
-| all ten anchors at their bounds (world) | — | — | — | — |
-| own-bank duel | — | — | — | — |
-| world-content duel *(thinnest, D429)* | — | ~130 | — | — |
-| pick round *(thinnest, D429)* | — | ~130 | — | — |
-| late answer | — | — | — | — |
-| rank | — | — | — | — |
-| 32-member room | — | — | — | — |
-| the thirteen e2e refusals | exhausts | 0 | must be *refused*, not *by budget* | — |
-| one legal update | — | — | — | — |
+| probe | cost today | headroom today | after (a)(b)(d) | after (c) | after Phase 2 (e) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| all ten anchors at their bounds (world) | 1124 | 75 (608) | 78 | 73 | **74 (599)** |
+| own-bank duel | 1410 | 53 (429) | 60 | 59 | **62 (502)** |
+| world-content duel *(thinnest, D429)* | 1410 | 46 (373) | 56 | 56 | **58 (470)** |
+| pick round *(thinnest, D429)* | 1410 | 47 (381) | 56 | 56 | **58 (470)** |
+| late answer | 1410 | 50 (405) | 58 | 57 | **60 (486)** |
+| rank | 1710 | 56 (454) | 63 | 79 | **80 (648)** |
+| 32-member room | 1410 | 53 (429) | 60 | 59 | **62 (502)** |
+| six refusal shapes, the e2e's thirteen | 934–1554, *by budget* | over | over | ≥94, *refused* | **≥94 (≥761), refused** |
+| one legal update | 200 | — | — | — | 192, allowed |
+| compile ceiling on the create arm | | 85 | 85 | 94 | **94** |
+| `test:e2e:all`, "maximum of 1000 expressions" | | 13 | | 0 | **0** |
+
+The provisional target — ≥ 400 on every legal create — is met on all
+seven in calibrated units (470–648) and would read as unmet in the
+currency that was wrong; §3's "done when" was written before Phase 0
+could say which. What did not move is the duel arm's own body: after
+(a) it fetches nothing twice, and the ~609 counts it still costs are its
+ten-name `hasOnly`, the aid composition, the member test and the
+question checks — a design change to trim, not a refactor, and the
+reason Phase 4 stays priced.

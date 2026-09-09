@@ -404,7 +404,17 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // already fetch, so a duel create still bills the question once and
       // RULE_READS.duel stays 2. Sites, not reads, moved — the third time
       // this comment has had to say so.
-    ).toEqual({ gets: 37, exists: 2 });
+      //
+      // 37 → 14 gets (RULES-BUDGET-PLAN §3(a), D433): the fourth time, and
+      // in the other direction. Every answer arm now fetches each document
+      // ONCE and hands it on as an argument — the duel arm's ten question
+      // sites and four group sites became one each, the world arm's four
+      // became one, the update arm's two became one — because the
+      // EXPRESSION budget counts every site where billing counts every
+      // document, and the sites were what had the create path refusing by
+      // budget. Every removed site read a document a remaining site still
+      // fetches, so RULE_READS is unchanged: world 1, duel 2, call 2.
+    ).toEqual({ gets: 14, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {
