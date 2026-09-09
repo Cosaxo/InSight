@@ -47105,3 +47105,100 @@ Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
 measurement. The owner row is closed as answered rather than done, because
 nothing was changed — only learned.
 
+
+## D432 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
+
+**2026-09-09.** **Status:** binding. Step 1 of `PATTERNS-PLAN.md` (§3),
+built on the owner's *"ok start building step 1"* the same day the plan
+was written. Device only: nothing new is read, nothing new is published,
+and no server code changes.
+
+### What changed
+
+The Oracle's guess used to start from the world's split of the question
+— `marginal + θ·L`, with θ solved from the viewer's answers as residuals
+against that same world split — so before a person's first answer the
+guess was the crowd's base rate, for everybody, whoever they were. Every
+question already publishes how each age band, gender, country and the
+rest split on it (`v2_question_aggs.by`, D8 for the shape, D98 for the
+exactness), the Mirror reads those cells today, and the device knows the
+viewer's own anchors. The seal now folds the two into a prior
+(`src/v2/data/cohortPrior.ts`): the viewer's groups' split is where the
+guess starts, and their evidence is centred by the same prior, so θ does
+not learn the demographics twice.
+
+The arithmetic, so it can be checked: each of the viewer's groups is a
+cell of per-option counts; a cell is shrunk toward the world's split by a
+pseudo-count of `PRIOR_SHRINK = 20` answers, so five unanimous answers
+are a lean of 0.6 and three hundred speak for themselves; the cells then
+combine as naïve Bayes in log space against the world's share. The dims
+are not independent and that bias is accepted, because the joint cell the
+exact form wants is one the cube does not publish; the one nesting that
+plainly double-counts is resolved — a city speaks when its cell holds at
+least twenty answers and its country is then skipped, else the country
+speaks. An opt-out value (*Prefer not to say*, *Other*) is not a group.
+Shares stay off 0 and 1 so the ratios are finite; the guess clamps again,
+wider, in `oracleGuess` as before. An ordinal row's world distribution
+comes off the aggregate's counts (the row publishes a mean and an sd,
+not a distribution); a pick's off its own one-hot rows.
+
+### The shadow, and why the verdict is a measurement
+
+The plan said this ships *if it beats the world marginal on the meter*,
+and there is no meter to read from a session — no device has records
+under it. So the seal computes BOTH: the world-centred guess exactly as
+before, and the cohort-centred one; `ORACLE_CENTRE` (one word,
+`patterns.ts`) says which is live, the other is stored on the record as
+`alt`, and `grade()` charges both with the same answer. Every record
+also stores the centre it was sealed under, the world marginal at seal
+time (`m0`) and the prior's (`mc`), and is graded against the base rate
+alone (`baseBits`). `PATTERNS.meter()` reads them side by side:
+`cohortBits` against `worldBits` over the records that carry both is the
+verdict on the prior for THIS viewer, and either against `baseBits` is
+the skill the fit publishes for the crowd, read off one person's record.
+Lower is better; a record sealed before this existed carries none of it,
+grades as it did, and stays out of the comparison.
+
+The live variant is the cohort one, on the axiom-power rule: the
+feature is the power, the shadow is how it is judged, and a flip is one
+constant with every record still correctly labelled. The verdict goes on
+`MEASUREMENT-NOTES.md` when a device has enough graded answers to give
+one.
+
+### What the working shows
+
+The Oracle's *Why?* panel lists the groups that carried the call beside
+the evidence answers — *Age 55–64 — how your group splits here · mostly
+pick Tea · 143 answers from that group* — read off the record rather
+than re-folded (they are what actually moved the seal), on the evidence
+rows' own two floors: twelve answers in the cell, a lean of 0.54 toward
+the called side. A group that spoke but did not lean is not a row, and
+the empty state says so in its own sentence rather than borrowing *the
+crowd's own lean*. The basis line under the working now names both
+sources; a claim moved, none was deleted (D146, COPY.md §3).
+
+### What it does not do
+
+- The People lens keeps the world centre for the viewer's own dot: the
+  crowd it places is centred by the world, and a viewer centred
+  differently would drift off their own crowd. `evidence()` defaults to
+  the world and the seal asks for the cohort by name.
+- The question choice is unchanged: `mostInformative` reads the
+  posterior precision, which no centre touches.
+- No profile leaves the phone, and nothing publishes: the anchors read
+  are the viewer's own, on their own device, against cells that are
+  public already. Not a D334 ask; it exposes nothing.
+- Step 2 of the plan — anchors as items in the fit — is the same knob
+  turned server-side; when it publishes, this prior reduces toward the
+  world again and the meter says which to keep.
+
+### Proof
+
+`src/v2/data/cohortPrior.test.ts` pins the arithmetic without a device
+(the shrink, the naïve-Bayes combination, the nesting rule, the clamp,
+three options); `src/v2/data/patterns.test.ts` pins the seal with its
+shadow, the evidence centring, the grade of all three, the meter, the
+working's rows and floors, and that a pre-D432 record still grades.
+`PatternsOracle.test.tsx` renders the panel unchanged. `tsc -b`, eslint,
+`check:globals`, `check:public-copy` and the unit suite were green at
+the commit.

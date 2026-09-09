@@ -19,6 +19,19 @@
 // The estimate never leaves the phone: theta is a K×K ridge solve over
 // loadings and answers the device already holds.
 //
+// THE GUESS STARTS FROM THE VIEWER'S OWN GROUPS (D432, PATTERNS-PLAN.md
+// §3). The fit centres every row on the world's split; the seal instead
+// starts from how the viewer's age band, gender, country and the rest
+// split on the question — the `by` cells the Mirror already reads,
+// folded on the device against the viewer's own anchors
+// (data/cohortPrior.ts) — and centres their evidence by the same prior,
+// so the vector does not learn the demographics twice. The world-centred
+// guess is sealed BESIDE it as the shadow, graded on the same answer, so
+// `meter()` can say which of the two reads this viewer better: the
+// verdict is a measurement on each device's own record, and ORACLE_CENTRE
+// is the one word that flips which variant is live. Nothing new is read
+// and nothing leaves the phone.
+//
 // The pair card's "pick this — and N% pick that" is the one place a pair
 // is counted directly, and only for the links actually on screen (the
 // selected question's own few since the 2026-08-20 standalone, D215): the
@@ -27,6 +40,8 @@
 // are fetched once per question per session (sayRows), so three links
 // sharing an endpoint cost four lists, not six.
 import LIVE from "./live";
+import { byOf, type CohortDim } from "./cohort";
+import { cohortPrior, type CohortPrior } from "./cohortPrior";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
 import { fetchVoterPicks, fetchVoterSample, VOTER_FETCH_CAP } from "./voters";
 import type { LiveQuestion } from "./deck";
@@ -56,6 +71,25 @@ export interface PoolItem {
   mine: number | null;
 }
 
+/** Which split a guess starts from and its evidence is centred by
+ * (D432): the world's, or the viewer's own groups'. */
+export type OracleCentre = "world" | "cohort";
+/** The centre the SEALED guess is drawn from. The other variant is sealed
+ * beside it as the shadow and graded on the same answer, so the record
+ * says which reads the viewer better before anybody has to believe it.
+ * One word to flip; every record carries the centre it was sealed under,
+ * so a flip cannot mislabel history. */
+export const ORACLE_CENTRE: OracleCentre = "cohort";
+
+/** One group that carried a sealed guess: the viewer's bucket in a dim,
+ * the cell's basis, and its share of option 0 after shrinking. */
+export interface SealedPriorRow {
+  dim: CohortDim;
+  bucket: string;
+  n: number;
+  p0: number;
+}
+
 export interface OracleRecord {
   qid: string;
   /** Sealed BEFORE the options rendered. */
@@ -67,6 +101,22 @@ export interface OracleRecord {
   bits?: number;
   /** The answered questions that carried the guess — ids, strongest first. */
   ev?: string[];
+  /** The centre `p0` was sealed under (D432). Absent on a record sealed
+   * before it existed, which was the world's. */
+  centre?: OracleCentre;
+  /** The world's marginal of the encoded answer at seal time — the base
+   * rate a guess is measured against (`baseBits`). */
+  m0?: number;
+  /** The cohort prior's marginal at seal time, `m0` where no group spoke. */
+  mc?: number;
+  /** The OTHER centre's guess, sealed at the same moment and graded on
+   * the same answer — the shadow the meter compares against. */
+  alt?: { p0: number; pred: 0 | 1; bits?: number };
+  /** Surprisal of the actual answer under the base rate alone. */
+  baseBits?: number;
+  /** The groups that moved the sealed guess, with their basis — what the
+   * working shows beside the evidence answers (D146). */
+  prior?: SealedPriorRow[];
 }
 
 export interface PairSay {
@@ -110,8 +160,23 @@ export interface WorkingRow {
   /** The answer's pull on the call, for ink weight only — never printed. */
   w: number;
 }
+/** One group in the working (D432): the viewer's bucket, and of the
+ * answers in that cell how many took the CALLED side, basis stated. */
+export interface WorkingPriorRow {
+  dim: CohortDim;
+  bucket: string;
+  share: number;
+  n: number;
+}
 export interface Working {
   rows: WorkingRow[];
+  /** The groups that carried the call and lean its way — the same 0.54
+   * floor as the evidence rows, and the same twelve-answer basis floor
+   * (D146). A group that spoke but did not lean is not a row. */
+  prior?: WorkingPriorRow[];
+  /** Whether the seal recorded any group at all — with none, the call
+   * really did start from the crowd's own lean. */
+  hadPrior?: boolean;
   /** Whether the sealed record named any evidence at all — the UI's
    * empty states differ: "guessed at the coin" is only true when it
    * did not. */
@@ -276,6 +341,60 @@ function lambdaU(): number {
   return loadings?.lambdaU ?? DEFAULT_LAMBDA_U;
 }
 
+// ── the cohort prior (D432) ─────────────────────────────────────────────
+
+/** The viewer's groups' prior on a question, over the world shares the
+ * fit centres by — or null where no group can speak (no `by` cells in
+ * hand, no anchors, no cell with answers), so a caller falls back to the
+ * row's own marginal and the two centres are then byte-identical. */
+function priorFor(qid: string, world: readonly number[]): CohortPrior | null {
+  const by = byOf(LIVE.aggFor(qid) ?? undefined);
+  if (!by) return null;
+  const p = cohortPrior(by, LIVE.anchors() || {}, world);
+  return p.rows.length ? p : null;
+}
+
+/** A two-option row's centre: the world's marginal of the encoded answer,
+ * or under the cohort centre the viewer's groups' — `2·p0 − 1`. */
+function binCentre(qid: string, row: LoadingsRow, centre: OracleCentre): number {
+  const m = row.sum / row.n;
+  if (centre !== "cohort") return m;
+  const p = priorFor(qid, [(1 + m) / 2, (1 - m) / 2]);
+  return p ? 2 * p.shares[0] - 1 : m;
+}
+
+/** An ordinal row's centre: the world mean of the index, or the groups'
+ * mean over the question's own counts. The row publishes a mean and an
+ * sd, not a distribution, so the world distribution comes off the
+ * aggregate's counts; absent counts mean the world mean, exactly. */
+function ordCentre(qid: string, row: LoadingsRow, nOptions: number, centre: OracleCentre): number {
+  const mean = row.sum / row.n;
+  if (centre !== "cohort") return mean;
+  const counts = LIVE.aggFor(qid)?.counts;
+  if (!counts) return mean;
+  const world = Array.from({ length: nOptions }, (_, i) => counts[String(i)] || 0);
+  const tot = world.reduce((a, b) => a + b, 0);
+  if (tot <= 0) return mean;
+  const p = priorFor(qid, world.map((c) => c / tot));
+  return p ? p.shares.reduce((a, sh, i) => a + i * sh, 0) : mean;
+}
+
+/** A pick's prior over its options, the world shares read off its own
+ * one-hot rows (each row's marginal is `2·share − 1`). */
+function pickPrior(qid: string, meta: NonNullable<LoadingsDoc["items"]>, centre: OracleCentre): CohortPrior | null {
+  if (centre !== "cohort" || !loadings) return null;
+  const world: number[] = [];
+  for (let i = 0; ; i++) {
+    const key = `${qid}~${i}`;
+    const r = loadings.q[key];
+    if (!r || !meta[key]) break;
+    world.push(r.n > 0 ? (1 + r.sum / r.n) / 2 : 0);
+  }
+  const tot = world.reduce((a, b) => a + b, 0);
+  if (!world.length || tot <= 0) return null;
+  return priorFor(qid, world.map((x) => x / tot));
+}
+
 /**
  * The viewer's evidence: every answer of theirs the published rows can
  * encode, as the centred residuals the fit itself is written in (D396).
@@ -287,37 +406,48 @@ function lambdaU(): number {
  * mirror, so an instrument item counts whether or not its crowd counts
  * are cached here. `excludeQid` keeps a target's own answer out of the
  * solve that guesses it.
+ *
+ * `centre` (D432) is what each residual is measured FROM: the world's
+ * split, or the viewer's own groups'. The People lens keeps the world —
+ * the crowd it places is centred by the world, and a viewer centred
+ * differently would drift off their own crowd — and the seal uses the
+ * same centre its guess starts from.
  */
-function evidence(excludeQid?: string): { L: readonly number[]; r: number }[] {
+function evidence(excludeQid?: string, centre: OracleCentre = "world"): { L: readonly number[]; r: number }[] {
   if (!LIVE.enabled || !loadings) return [];
   const answered = LIVE.answeredIndex();
   const meta = loadings.items;
   const out: { L: readonly number[]; r: number }[] = [];
-  const centred = (row: LoadingsRow, x: number): number => x - row.sum / row.n;
   for (const [qid, idx] of Object.entries(answered)) {
     if (qid === excludeQid) continue;
     const row = loadings.q[qid];
     if (!meta) {
       // the online engine's rows: two-option only, ±1
-      if (row && row.n > 0 && (idx === 0 || idx === 1)) out.push({ L: row.v, r: centred(row, idx === 0 ? 1 : -1) });
+      if (row && row.n > 0 && (idx === 0 || idx === 1)) {
+        out.push({ L: row.v, r: (idx === 0 ? 1 : -1) - binCentre(qid, row, centre) });
+      }
       continue;
     }
     const m = meta[qid];
     if (m && row && row.n > 0) {
       if (m.kind === "ord") {
-        if (row.sd && row.sd >= 1e-6) out.push({ L: row.v, r: (idx - row.sum / row.n) / row.sd });
+        if (row.sd && row.sd >= 1e-6) out.push({ L: row.v, r: (idx - ordCentre(qid, row, m.nOptions, centre)) / row.sd });
       } else if (m.kind === "bin") {
-        out.push({ L: row.v, r: centred(row, idx === 0 ? 1 : -1) });
+        out.push({ L: row.v, r: (idx === 0 ? 1 : -1) - binCentre(qid, row, centre) });
       }
       continue;
     }
     // a pick: one row per option, keyed off the qid
+    const prior = pickPrior(qid, meta, centre);
     for (let i = 0; ; i++) {
       const key = `${qid}~${i}`;
       const r = loadings.q[key];
       const mm = meta[key];
       if (!r || !mm) break;
-      if (r.n > 0) out.push({ L: r.v, r: centred(r, idx === i ? 1 : -1) });
+      if (r.n > 0) {
+        const mean = prior ? 2 * prior.shares[i] - 1 : r.sum / r.n;
+        out.push({ L: r.v, r: (idx === i ? 1 : -1) - mean });
+      }
     }
   }
   return out;
@@ -358,10 +488,31 @@ export const PATTERNS = {
     if (!target || !loadings) return null;
     // the viewer's vector from everything they have answered — every kind
     // the rows can encode — minus the target itself, under the ridge the
-    // fit's scorecard was measured at
-    const { theta } = ridgeSolve(evidence(qid), loadings.k, lambdaU());
-    const g = oracleGuess(theta, target.L, target.marginal);
-    const rec: OracleRecord = { qid, p0: g.p0, pred: g.pred, at: Date.now() };
+    // fit's scorecard was measured at. TWICE (D432): once centred by the
+    // world, once by the viewer's own groups, each guess starting from
+    // its own centre. One is the seal, the other its shadow; both are
+    // graded on the same answer, and the record says which was which.
+    const lam = lambdaU();
+    const thetaW = ridgeSolve(evidence(qid, "world"), loadings.k, lam).theta;
+    const gw = oracleGuess(thetaW, target.L, target.marginal);
+    const prior = priorFor(qid, [(1 + target.marginal) / 2, (1 - target.marginal) / 2]);
+    const mc = prior ? 2 * prior.shares[0] - 1 : target.marginal;
+    const thetaC = ridgeSolve(evidence(qid, "cohort"), loadings.k, lam).theta;
+    const gc = oracleGuess(thetaC, target.L, mc);
+    const [live, shadow] = ORACLE_CENTRE === "cohort" ? [gc, gw] : [gw, gc];
+    const rec: OracleRecord = {
+      qid,
+      p0: live.p0,
+      pred: live.pred,
+      at: Date.now(),
+      centre: ORACLE_CENTRE,
+      m0: target.marginal,
+      mc,
+      alt: { p0: shadow.p0, pred: shadow.pred },
+      ...(prior
+        ? { prior: prior.rows.map((r) => ({ dim: r.dim, bucket: r.bucket, n: r.n, p0: r.shares[0] })) }
+        : {}),
+    };
     logSaved().push(rec);
     persistLog();
     return rec;
@@ -384,6 +535,10 @@ export const PATTERNS = {
     const mine: 0 | 1 = target.mine === 1 ? 0 : 1;
     rec.mine = mine;
     rec.bits = Math.round(surprisalBits(rec.p0, mine) * 100) / 100;
+    // the shadow and the base rate, on the same answer (D432) — a record
+    // sealed before they existed carries neither and grades as it did
+    if (rec.alt) rec.alt.bits = Math.round(surprisalBits(rec.alt.p0, mine) * 100) / 100;
+    if (rec.m0 != null) rec.baseBits = Math.round(surprisalBits((1 + rec.m0) / 2, mine) * 100) / 100;
     const answered = items.filter((p) => p.q.id !== qid && p.mine != null);
     if (answered.length) {
       const nodes: MapNode[] = [{ id: qid, L: target.L, n: target.n },
@@ -405,14 +560,41 @@ export const PATTERNS = {
     notify();
     return rec;
   },
-  /** The score strip: every graded record, oldest first. */
-  meter(): { records: OracleRecord[]; called: number; avgBits: number } {
+  /** The score strip: every graded record, oldest first — and, since
+   * D432, the two centres side by side over the records that carry both
+   * (`compared`), plus the base rate's own bits over the records that
+   * stored it. Mean bits per graded answer, lower is better; `cohortBits`
+   * against `worldBits` is the verdict on the prior for THIS viewer, and
+   * either against `baseBits` is the skill the fit publishes for the
+   * crowd, read on one person's record. */
+  meter(): {
+    records: OracleRecord[];
+    called: number;
+    avgBits: number;
+    compared: number;
+    cohortBits: number;
+    worldBits: number;
+    based: number;
+    baseBits: number;
+  } {
     const graded = logSaved().filter((r) => r.bits != null);
     const called = graded.filter((r) => r.pred === r.mine).length;
-    const avgBits = graded.length
-      ? graded.reduce((a, r) => a + (r.bits as number), 0) / graded.length
-      : 0;
-    return { records: graded, called, avgBits };
+    const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+    const avgBits = mean(graded.map((r) => r.bits as number));
+    const both = graded.filter((r) => r.alt?.bits != null);
+    const cohortBits = mean(both.map((r) => (r.centre === "cohort" ? (r.bits as number) : (r.alt!.bits as number))));
+    const worldBits = mean(both.map((r) => (r.centre === "cohort" ? (r.alt!.bits as number) : (r.bits as number))));
+    const withBase = graded.filter((r) => r.baseBits != null);
+    return {
+      records: graded,
+      called,
+      avgBits,
+      compared: both.length,
+      cohortBits,
+      worldBits,
+      based: withBase.length,
+      baseBits: mean(withBase.map((r) => r.baseBits as number)),
+    };
   },
   /** The pair card's exact table: the two questions' bounded voter
    * samples intersected on the device. Positive-lift direction only, the
@@ -481,11 +663,20 @@ export const PATTERNS = {
   async working(qid: string): Promise<Working | null> {
     const rec = logSaved().find((r) => r.qid === qid);
     if (!rec || rec.mine == null || !loadings) return null;
+    // The groups the seal recorded (D432), read off the record rather
+    // than re-folded — they are what actually carried the call — kept on
+    // the same two floors as the evidence rows: twelve answers in the
+    // cell, and a lean of 0.54 toward the called side.
+    const hadPrior = (rec.prior?.length ?? 0) > 0;
+    const prior: WorkingPriorRow[] = (rec.prior ?? [])
+      .map((r) => ({ dim: r.dim, bucket: r.bucket, n: r.n, share: rec.pred === 0 ? r.p0 : 1 - r.p0 }))
+      .filter((r) => r.n >= 12 && r.share >= 0.54)
+      .sort((a, b) => b.share - a.share || b.n - a.n);
     const evIds = rec.ev ?? [];
-    if (!evIds.length) return { rows: [], hadEv: false, thin: false, weak: false, failed: false };
+    if (!evIds.length) return { rows: [], prior, hadPrior, hadEv: false, thin: false, weak: false, failed: false };
     const items = pool();
     const target = items.find((p) => p.q.id === qid);
-    if (!target) return { rows: [], hadEv: true, thin: false, weak: false, failed: false };
+    if (!target) return { rows: [], prior, hadPrior, hadEv: true, thin: false, weak: false, failed: false };
     // the grade's own weight, for the rows that still resolve
     const answered = items.filter((p) => p.q.id !== qid && p.mine != null);
     const wOf = new Map<string, number>();
@@ -521,7 +712,7 @@ export const PATTERNS = {
       rows.push({ evId, side, share: share.shares[rec.pred], n: share.n, w: wOf.get(evId) ?? 0 });
     }
     rows.sort((a, b) => b.w - a.w);
-    return { rows, hadEv: true, thin, weak, failed };
+    return { rows, prior, hadPrior, hadEv: true, thin, weak, failed };
   },
 
   /** The Oracle's evidence line (2026-08-20 standalone): among the people

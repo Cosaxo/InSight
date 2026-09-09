@@ -36,6 +36,11 @@ const live = vi.hoisted(() => {
     answeredIndex: vi.fn((): Record<string, number> => Object.fromEntries(
       Object.entries(l.myVotes()).map(([qid, id]) => [qid, Number(String(id).split(":").pop())]),
     )),
+    // The cohort prior's two inputs (D432): the viewer's own anchors and
+    // a question's aggregate with its `by` cells. Empty and absent by
+    // default, so every case above this block seals from the world exactly.
+    anchors: vi.fn((): Record<string, string> => ({})),
+    aggFor: vi.fn<(qid: string) => unknown>(() => null),
   };
   return l;
 });
@@ -130,6 +135,8 @@ beforeEach(async () => {
   live.enabled = true;
   live.myVotes.mockReturnValue({});
   live.aggregated.mockReturnValue([]);
+  live.anchors.mockReturnValue({});
+  live.aggFor.mockReturnValue(null);
   remote.doc = null;
 });
 afterEach(() => vi.clearAllMocks());
@@ -489,7 +496,7 @@ describe("the working (2026-08-26)", () => {
     // reading them exactly: a call with no evidence at all is not thin,
     // not weak and not a failed read — it is the coin, and the panel says
     // so with its own sentence.
-    expect(w).toEqual({ rows: [], hadEv: false, thin: false, weak: false, failed: false });
+    expect(w).toEqual({ rows: [], prior: [], hadPrior: false, hadEv: false, thin: false, weak: false, failed: false });
   });
 
   it("evidence below the 12-in-both-samples floor is thinness, not a bar", async () => {
@@ -540,5 +547,147 @@ describe("the purge", () => {
     expect(PATTERNS.hasLoadings()).toBe(false);
     expect(PATTERNS.ready()).toBe(false); // a re-entry refetches honestly
     expect(PATTERNS.meter().records).toHaveLength(0);
+  });
+});
+
+describe("the cohort prior (D432)", () => {
+  /** An aggregate whose cells split by the viewer's groups: on qb the
+   * viewer's age band leans hard to option 0, their gender is split
+   * evenly, and the world (the row's sum) is a coin. */
+  const cells = (age: [number, number], gender: [number, number] = [30, 30]) => ({
+    counts: { "0": 50, "1": 50 },
+    total: 100,
+    by: {
+      ageBand: { "55-64": { "0": age[0], "1": age[1] } },
+      gender: { male: { "0": gender[0], "1": gender[1] } },
+    },
+  });
+  const me = { ageBand: "55-64", gender: "male" };
+
+  it("seals the guess from the viewer's groups' split, with the world guess beside it as the shadow", async () => {
+    publishFixture();
+    live.anchors.mockReturnValue(me);
+    live.aggFor.mockImplementation((qid: string) => (qid === "qb" ? cells([90, 10]) : null));
+    await ensureLive();
+    const rec = PATTERNS.seal("qb")!;
+    // no answers, so θ is zero and the guess IS the prior: the age cell
+    // shrunk by twenty world answers is (90 + 10)/120 = 0.83; the gender
+    // cell is even and moves nothing
+    expect(rec.centre).toBe("cohort");
+    expect(rec.p0).toBeCloseTo(0.833, 2);
+    expect(rec.pred).toBe(0);
+    expect(rec.alt).toEqual({ p0: 0.5, pred: 0 }); // the world's coin
+    expect(rec.m0).toBe(0);
+    expect(rec.mc).toBeCloseTo(0.667, 2);
+    expect(rec.prior).toEqual([
+      { dim: "ageBand", bucket: "55-64", n: 100, p0: expect.closeTo(0.833, 2) },
+      { dim: "gender", bucket: "male", n: 60, p0: 0.5 },
+    ]);
+    // persisted whole, so the shadow survives a relaunch
+    expect(JSON.parse(localStorage.getItem(LS)!)[0].alt.p0).toBe(0.5);
+  });
+
+  it("a small cell moves the guess less than a large one — the shrink toward the world", async () => {
+    publishFixture();
+    live.anchors.mockReturnValue(me);
+    live.aggFor.mockImplementation((qid: string) => (qid === "qb" ? cells([5, 0]) : null));
+    await ensureLive();
+    // five unanimous answers: (5 + 10)/25 = 0.6, not 1
+    expect(PATTERNS.seal("qb")!.p0).toBeCloseTo(0.6, 2);
+  });
+
+  it("with no group able to speak the two centres are identical and nothing is recorded as a prior", async () => {
+    publishFixture();
+    // an opt-out and an empty value are not groups; and qb has no cells at all
+    live.anchors.mockReturnValue({ ageBand: "", gender: "Prefer not to say" });
+    live.aggFor.mockImplementation((qid: string) => (qid === "qb" ? cells([90, 10]) : null));
+    await ensureLive();
+    const rec = PATTERNS.seal("qb")!;
+    expect(rec.p0).toBe(0.5);
+    expect(rec.alt?.p0).toBe(0.5);
+    expect(rec.mc).toBe(rec.m0);
+    expect(rec.prior).toBeUndefined();
+  });
+
+  it("centres the evidence by the same prior, so the vector does not learn the demographics twice", async () => {
+    publishFixture();
+    live.anchors.mockReturnValue(me);
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    // the viewer's age band leans to option 0 on qa as well: (95 + 10)/120
+    live.aggFor.mockImplementation((qid: string) => (qid === "qa" ? cells([95, 5]) : null));
+    await ensureLive();
+    const world = PATTERNS.evidence(undefined, "world");
+    const cohort = PATTERNS.evidence(undefined, "cohort");
+    expect(world).toHaveLength(1);
+    expect(world[0].r).toBe(1); // +1 against a coin
+    expect(cohort[0].r).toBeCloseTo(1 - (2 * (105 / 120) - 1), 3); // +1 against the group's own lean
+    expect(Math.abs(cohort[0].r)).toBeLessThan(Math.abs(world[0].r));
+    // the default is the world — the People lens's crowd is centred there
+    expect(PATTERNS.evidence()[0].r).toBe(1);
+  });
+
+  it("grades the seal, the shadow and the base rate on the same answer, and the meter reads the two centres side by side", async () => {
+    publishFixture();
+    live.anchors.mockReturnValue(me);
+    live.aggFor.mockImplementation((qid: string) => (qid === "qb" ? cells([90, 10]) : null));
+    await ensureLive();
+    PATTERNS.seal("qb");
+    // the viewer breaks the group's lean: option 1
+    live.myVotes.mockReturnValue({ qb: "qb:1" });
+    const rec = PATTERNS.grade("qb")!;
+    expect(rec.mine).toBe(1);
+    expect(rec.bits).toBeGreaterThan(rec.alt!.bits!); // the prior was surer, and wrong
+    expect(rec.alt!.bits).toBe(1); // the coin costs one bit either way
+    expect(rec.baseBits).toBe(1);
+    const m = PATTERNS.meter();
+    expect(m.compared).toBe(1);
+    expect(m.cohortBits).toBe(rec.bits);
+    expect(m.worldBits).toBe(1);
+    expect(m.based).toBe(1);
+    expect(m.baseBits).toBe(1);
+  });
+
+  it("a record sealed before the shadow existed still grades, and stays out of the comparison", async () => {
+    publishFixture();
+    localStorage.setItem(LS, JSON.stringify([{ qid: "qa", p0: 0.7, pred: 0, at: 1 }]));
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    const rec = PATTERNS.grade("qa")!;
+    expect(rec.bits).toBeCloseTo(0.51, 2);
+    expect(rec.alt).toBeUndefined();
+    expect(rec.baseBits).toBeUndefined();
+    const m = PATTERNS.meter();
+    expect(m.records).toHaveLength(1);
+    expect(m.compared).toBe(0);
+    expect(m.based).toBe(0);
+  });
+
+  it("the working shows the groups that leaned toward the call, on the evidence rows' own floors", async () => {
+    publishFixture();
+    live.anchors.mockReturnValue(me);
+    live.aggFor.mockImplementation((qid: string) => (qid === "qb" ? cells([90, 10]) : null));
+    await ensureLive();
+    PATTERNS.seal("qb");
+    live.myVotes.mockReturnValue({ qb: "qb:0" });
+    PATTERNS.grade("qb");
+    const w = (await PATTERNS.working("qb"))!;
+    expect(w.hadEv).toBe(false); // nothing answered before the seal
+    expect(w.hadPrior).toBe(true);
+    // the even gender cell spoke but did not lean — not a row
+    expect(w.prior).toEqual([{ dim: "ageBand", bucket: "55-64", n: 100, share: expect.closeTo(0.833, 2) }]);
+  });
+
+  it("a thin cell is not a row in the working, though it moved the seal", async () => {
+    publishFixture();
+    live.anchors.mockReturnValue(me);
+    live.aggFor.mockImplementation((qid: string) => (qid === "qb" ? cells([11, 0], [0, 0]) : null));
+    await ensureLive();
+    const rec = PATTERNS.seal("qb")!;
+    expect(rec.prior).toHaveLength(1); // eleven answers moved it a little
+    live.myVotes.mockReturnValue({ qb: "qb:0" });
+    PATTERNS.grade("qb");
+    const w = (await PATTERNS.working("qb"))!;
+    expect(w.hadPrior).toBe(true);
+    expect(w.prior).toEqual([]); // under twelve, it is not a sentence
   });
 });

@@ -137,6 +137,17 @@ their groupings in
 the product to build. **Fourteen of the sixteen need no new data**,
 which is why the closed bridge costs money rather than merely time.
 
+- **The Oracle's shadow meter (D432, 2026-09-09) — an instrument with
+  no reading yet.** Every seal since that day carries two guesses, the
+  world-centred one and the one starting from the viewer's own groups'
+  split, graded on the same answer, with the base rate's own surprisal
+  beside them. `PATTERNS.meter()` reads `cohortBits` against `worldBits`
+  over the records that carry both, and either against `baseBits`; lower
+  is better. No device has records under it yet, so there is no verdict
+  to write — this row is here so the next reader of the meter knows what
+  it is a verdict ON, and writes the number here rather than in prose
+  elsewhere.
+
 ## 5 · Program findings — how to run machine-written work at all
 
 These generalize past this project and are the graph-optimizer and

@@ -1,6 +1,6 @@
 # The Patterns plan — three lenses widened, and the walls before they bind
 
-**Status: plan only — proposed 2026-09-09, nothing below is built.** Written
+**Status: mixed — step 1 (§3) is BUILT at D432, the same day; steps 0 and 2–5 are proposals and nothing else is built.** Written
 for the owner's ask of that day (*"make a plan for implementing it"*),
 after the same session's reading of the three lenses against the tree.
 Every *exists today* claim in §1 names the file it was read in; every
@@ -138,7 +138,20 @@ working panel read *thin* on exactly the questions with the most
 answers. Steps 3 and 4 both draw sentences from those samples; seeded,
 they say something on the first day.
 
-## 3 · Step 1 — a cohort prior for the Oracle, on the device
+## 3 · Step 1 — a cohort prior for the Oracle, on the device — **BUILT (D432, 2026-09-09)**
+
+*As built, where it differs from the paragraphs below:* one `priorOf`
+became three helpers by row kind (`binCentre`, `ordCentre`,
+`pickPrior` in `patterns.ts`) over one pure fold
+(`data/cohortPrior.ts`); the shadow is not a re-solve of old records but
+a second guess SEALED beside the live one on every record and graded on
+the same answer, so the meter (`PATTERNS.meter()`: `cohortBits`,
+`worldBits`, `baseBits`) is the verdict without a fixture — which also
+brings step 4's `m0` forward, since the base rate is stored at seal
+time; `ORACLE_CENTRE` picks the live variant and every record carries
+the centre it was sealed under; the People lens keeps the world centre
+for the viewer's own dot. D432 has the reasoning.
+
 
 **The change.** Today the guess is `marginal_world + θ·L`. Proposed:
 `marginal_cohort + θ·L`, where the cohort marginal is folded on the
