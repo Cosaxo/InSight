@@ -493,7 +493,16 @@ describe("duelQFor (duel question rotation)", () => {
 
   it("a bank with no ratings yet plays every round as a role vote — the pre-reseed device", () => {
     const noRates = bank.filter((q) => q.topic !== "rate");
-    for (let r = 1; r <= 8; r++) expect(duelQFor(group, noRates, r)!.kind).toBe("pick");
+    const served = Array.from({ length: 8 }, (_, i) => duelQFor(group, noRates, i + 1)!);
+    served.forEach((q) => expect(q.kind).toBe("pick"));
+    // …and consecutive rounds are consecutive picks: with no rating to take
+    // a round, the vote walk has nothing to skip. This is the live bank's
+    // own shape until the reseed lands the rate docs, and the walk used to
+    // subtract the rating rounds such a bank never deals — so round 5
+    // re-served round 4's question, and round 9 round 8's (probed
+    // 2026-09-09; the assertion above saw only the kind).
+    const start = picks.findIndex((p) => p.id === served[0].id);
+    served.forEach((q, i) => expect(q.id, `round ${i + 1}`).toBe(picks[(start + i) % picks.length].id));
   });
 
   it("every fourth 1v1 round is the cast, and the own rounds walk the pool skipping it (D435)", () => {

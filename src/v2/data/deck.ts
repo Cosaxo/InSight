@@ -789,8 +789,13 @@ export function duelQFor(
     const picks = surfaceBank.filter((q) => q.topic === "pick");
     const rates = surfaceBank.filter((q) => q.topic === "rate");
     const phase = groupPhase(g.id);
-    // the ratings strictly before this round, counted from the phase
-    const before = Math.floor((round - 1 + phase) / 4);
+    // the ratings strictly before this round, counted from the phase — and
+    // NONE while the bank has no rate question to take a round with. The
+    // pre-reseed bank plays every round as a vote (the branch below), so a
+    // walk that still skipped the rating rounds it never dealt served
+    // round 4's question again on round 5, and round 8's on round 9 —
+    // the live bank's own shape until the reseed, probed 2026-09-09.
+    const before = rates.length ? Math.floor((round - 1 + phase) / 4) : 0;
     if (isRatingRound(round, phase) && rates.length) {
       // Ratings walk their own pool, one step per rating round, so the
       // ten dims come round in turn rather than as every fourth pick.
