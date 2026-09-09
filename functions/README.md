@@ -57,6 +57,10 @@ rewrite is D223.*
   every aggregate a disposable projection instead of a thing that must
   never break.
 - `src/index.ts` — account deletion, and the re-exports the deploy reads.
+- `src/exportAccount.ts` — the data export (D443): deletion's read-only
+  twin, the same graph phase by phase as one JSON object for the owner,
+  under a byte bound. Its test reads `index.ts`'s wipe phases and refuses
+  one with no export section, so the two walks cannot drift.
 - `src/pure.ts` — the fold arithmetic, with no Firebase in it, so every
   number this codebase publishes can be tested without an emulator. Most
   of what is worth reading twice is here.
@@ -93,7 +97,7 @@ npm --prefix functions run build     # the emulator loads functions/lib
 
 ## Deployed functions
 
-45 functions ship from this codebase (the deploy's `--only` list also
+46 functions ship from this codebase (the deploy's `--only` list also
 names `firestore:rules` and `firestore:indexes`, which are not functions).
 `scripts/check-deploy-targets.mjs` fails CI if an exported function is
 missing from that list — otherwise it would be built, tested, green and

@@ -642,6 +642,87 @@ if ((pickedBefore.get("members") || []).includes(uid))
   fail("fixture: the picked-only reveal lists the account in members — the members sweep would catch it");
 ok("seeded a reveal that names the account only through someone else's pick");
 
+// ── the export, BEFORE the erasure it twins (D443) ──
+// The same seeded graph, read instead of removed, and held to the seed the
+// way the wipe assertions below are. exportAccount.test.ts proves every
+// wipe LABEL has a twin section; this proves the real callable reads the
+// real documents out of the real database — including the photo out of
+// Storage and the reveal of a circle this account has just left.
+const exp = (await httpsCallable(fns, "exportAccountV2")({})).data;
+if (!exp?.ok || exp.uid !== uid)
+  fail("exportAccountV2 did not report ok for this uid: " + JSON.stringify(exp).slice(0, 200));
+const has = (rows, id) => Array.isArray(rows) && rows.some((r) => r?.id === id);
+for (const [cond, label] of [
+  [exp.profile?.displayName === "Doomed", "the v2 profile"],
+  [has(exp.collections?.answers, "daily-000"), "the v2 answer"],
+  [has(exp.collections?.answers, "learn-cell1"), "the learn answer (D32)"],
+  [has(exp.collections?.answers, "client-written"), "the client-written answer"],
+  [has(exp.collections?.patterns, "state"), "the fit's per-person state (D395)"],
+  [has(exp.collections?.taste, "profile"), "the interest profile (D317/D322)"],
+  [has(exp.collections?.engagement, "_state") && has(exp.collections?.engagement, "2026-08-22"),
+    "the engagement pair (D268/D272)"],
+  [has(exp.collections?.foresight, "daily-000__ageBand__25-34"), "the foresight verdict (D126)"],
+  [has(exp.collections?.following, OTHER), "the account's own follow"],
+  [exp.legacy?.profile?.sharePrefs !== undefined && has(exp.legacy?.collections?.insight_daily, DAY),
+    "the v1 profile and its daily report"],
+  [has(exp.answerLedger, "evt_mine")
+    && exp.answerLedger.some((r) => r.id !== "evt_mine" && r.qid === "daily-000"),
+    "the agg-ledger entries, synthetic and organic"],
+  [exp.voterSamples?.["daily-000"]?.o === 1, "the voter-sample row (D397)"],
+  [exp.logicAttempt?.score === 9, "the verified logic attempt (D57)"],
+  [has(exp.takes, MY_TAKE), "their take"],
+  [has(exp.flags?.cast, `${MY_TAKE}_${uid}`) && has(exp.flags?.cast, `${THEIR_TAKE}_${uid}`),
+    "the flags they cast"],
+  [exp.flags?.receivedOnTakes === 1 && exp.flags?.receivedOnPhoto === 1, "the flags on them, as counts"],
+  [exp.avatar?.token === "tok0e2e0000", "the photo's document"],
+  [exp.photo?.base64 === Buffer.from([0xff, 0xd8, 0xff]).toString("base64"),
+    "the photo's bytes out of Storage (D178)"],
+  [exp.presence?.held === true && typeof exp.presence?.until === "string", "the presence square, as held-until (D84)"],
+  [exp.groups?.some((g) => g.gid === SOLO && g.owner) && exp.groups?.some((g) => g.gid === SHARED && g.owner),
+    "the circles they are in"],
+  [exp.ownedGroups?.some((g) => g.gid === OWNED_LEFT), "the circle they created and left"],
+  [exp.reveals?.some((r) => r.gid === SHARED && r.vote?.optionIdx === 1 && r.name === "Doomed" && r.picked === 1),
+    "their vote, name and pick in the shared reveal"],
+  [exp.reveals?.some((r) => r.gid === LEFT && r.name === "Doomed"),
+    "the reveal of the circle they left (phase 1c-bis's query)"],
+  [exp.reveals?.some((r) => r.gid === PICKED_ONLY && r.picked === 1 && r.vote === null),
+    "the reveal that names them only through a pick"],
+  [exp.discoverable?.location?.geohash === "u4pru", "the v1 discoverable doc"],
+  [has(exp.impressionsSent, "i1"), "the impression they sent"],
+  [exp.followers === 1, "the follow someone else holds of them, counted"],
+  [exp.handle === "erasable", "the handle (D122)"],
+  [exp.pendingJoins?.some((g) => g.gid === WAITED && g.asName === "Doomed"), "the pending join (D240)"],
+  [exp.directory?.name === "Erasable", "the directory row (D239)"],
+  [has(exp.invitesReceived, uid) && has(exp.invitesSent, "third_party"), "invitations both ways"],
+  [exp.relationsToYou === 1, "the relation naming them, counted"],
+  [exp.rateLimits?.insight && exp.rateLimits?.join && exp.rateLimits?.suggest && exp.rateLimits?.paidbook,
+    "the rate-limit ledgers"],
+  [has(exp.suggestions, `${uid}_e2e`), "their question suggestion (phase 4d)"],
+  [has(exp.purchases?.rows, `${uid}_e2e`) && has(exp.purchases?.rows, `${uid}_ad`) && has(exp.purchases?.rows, `${uid}_done`),
+    "their purchase records (phase 4e)"],
+  [has(exp.purchases?.ads, `paidad-${uid}_ad`), "the ad their row points at"],
+  [exp.purchases?.sponsoredQuestions?.some((q) => q.qid === "pd_e2e" && q.sponsor?.buyer === "Erasable Person"),
+    "the byline on their bought question"],
+  [has(exp.paidBookings, `${uid}_e2e`), "their paid-question booking (phase 4f)"],
+]) if (!cond) fail("EXPORT MISSED a document the erasure below removes: " + label);
+// …and nothing of anybody else's — asserted on the serialised file, which
+// is what a device receives. The controls seeded above are what make this
+// mean something: a walk that copied a collection instead of a uid's rows
+// passes every line in the list above.
+const expText = JSON.stringify(exp);
+for (const theirs of [
+  "someone else's words", "someone else's suggestion", "someone else's paid ask",
+  "Not this account's campaign", "evt_theirs", "somebodyelse", "fourth_party", "Someone Else",
+  `"uid":"${OTHER}"`,
+]) if (expText.includes(theirs)) fail("the export carries someone else's data: " + theirs);
+// The four things the file leaves out, and says so (exportAccount.ts's header).
+if (exp.logicAttempt?.seed !== undefined) fail("the export carries the logic attempt's seed — the answer key");
+if (exp.collections?.push !== undefined) fail("the export carries the push-token subcollection — a credential");
+if (expText.includes("5999_1074")) fail("the export carries the presence CELL — a location, in a file built to travel");
+if (!Array.isArray(exp.omitted) || !exp.omitted.some((o) => o.what === "logicAttempt.seed"))
+  fail("the export does not say what it leaves out");
+ok(`the export carries every phase's documents (${exp.bytes} bytes) and nothing of anyone else's`);
+
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
 if (!res.data?.ok) fail("deleteAccount did not report ok: " + JSON.stringify(res.data));

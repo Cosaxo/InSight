@@ -17,7 +17,7 @@
 import { describe, it, expect } from "vitest";
 import { gatePlacement } from "./gate-placement.mjs";
 import { execFileSync } from "node:child_process";
-import { writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync, rmSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -53,6 +53,26 @@ describe("doc-index and the working tree", () => {
     } finally {
       if (had) writeFileSync(p, before);
       else rmSync(p, { force: true });
+    }
+  });
+
+  it("ignores a README under a nested directory .gitignore has taken out of the repo", () => {
+    // Claude Code's build agents check sibling branches out under
+    // .claude/worktrees/<agent>/ — inside the repository, each carrying every
+    // README the tree has. They are other branches; .gitignore says so, and
+    // the README walk has to agree, or six agents turn this gate red 348 times.
+    const ignore = readFileSync(join(root, ".gitignore"), "utf8");
+    expect(ignore, ".claude/worktrees/ is no longer gitignored — this case is about the wrong directory")
+      .toMatch(/^\.claude\/worktrees\/$/m);
+    const dir = join(root, ".claude", "worktrees", "doc-index-probe");
+    const had = existsSync(dir);
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "README.md"), "# a branch's README, not this tree's\n");
+      expect(run().code, "a README under a gitignored directory turned the gate red").toBe(0);
+    } finally {
+      if (!had) rmSync(dir, { recursive: true, force: true });
+      else rmSync(join(dir, "README.md"), { force: true });
     }
   });
 

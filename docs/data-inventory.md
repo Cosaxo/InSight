@@ -184,6 +184,28 @@ their takes and flags, the moderation queue's copy of any take of theirs,
 and the auth user; it also purges every local `insight.*` key and the
 offline cache on the device that ran it.
 
+**Export.** The `exportAccountV2` callable (D443) is deletion's read-only
+twin: it walks the same graph, phase by phase —
+`functions/src/exportAccount.ts` keys every one of its sections to the
+wipe phase it reads, and its test reads `index.ts` and refuses a wipe
+phase with no section — and returns one JSON object to the **owner
+only**, under an 8 MiB bound with a plain refusal past it, demanding App
+Check like every user-facing callable, served through the account panel's
+*Download your data* row directly above the delete. Nothing in it is a new
+read of anyone else's data: other people's records that point at the
+account (their follows of it, their v1 relations) are counted rather than
+copied, a reveal row carries this account's vote, name and how many
+picked it and never the other members' votes, and four things are left
+out and named inside the file — the logic attempt's seed (the answer
+key), who reported the account (flag authorship), the presence CELL (the
+export says a square is held and until when, never which — a location in
+a file built to travel), and the push token (a credential) — the four the
+rules keep closed to everyone, the owner included. It is what
+`web/terms.html`'s "a chance to download your data
+first" is now backed by, and the app's answer to GDPR Art. 20
+portability; `web/privacy.html` states it under *Downloading everything*,
+held by `check:policy-claims`.
+
 That queue copy is worth stating explicitly, because it is the one place a
 user's words lived somewhere other than where they wrote them: the
 moderation design copies a flagged take's text into `v2_mod_queue` so the

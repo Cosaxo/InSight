@@ -5,6 +5,10 @@
 //     owned by the user + every reference to them in others' subtrees
 //     and deletes them, then drops the auth user. App Store + Play
 //     Store both require this for any app with sign-up.
+//   - exportAccountV2 (./exportAccount, D443): the read-only twin of
+//     that walk — the same graph, phase by phase, returned as one JSON
+//     object. A wipe phase added here without a section there is a red
+//     test (exportAccount.test.ts reads this file's `failed` labels).
 //   - the v2 daily/mirror loop, re-exported at the foot of this file
 //     from ./v2 and ./v2social.
 //
@@ -1488,3 +1492,9 @@ export { onBudgetAlert } from "./budget";
 // SDK off the two public documents. onRequest, and no App Check, because
 // it serves the open web; the reasoning is share.ts's header.
 export { resultsPageV2 } from "./share";
+// D443: the data export — deleteAccount's read-only twin, owner-only, one
+// JSON object under a byte bound. What web/terms.html's "a chance to
+// download your data first" is now backed by, and the app's answer to
+// GDPR Art. 20; exportAccount.ts's header has the three things it leaves
+// out and why.
+export { exportAccountV2 } from "./exportAccount";
