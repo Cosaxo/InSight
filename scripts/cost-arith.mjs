@@ -930,7 +930,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // question a night, under any rounding here.
     //
     // + the answer map's merge per world answer (runbook 3.2), the one
-    // write the owner chose "live" over nightly for (D438 amendment).
+    // write the owner chose "live" over nightly for (D439 amendment).
     const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + attnRate(dau) + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)

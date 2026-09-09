@@ -1,7 +1,7 @@
 // log.test.ts — the answer log's row, the reconcile that makes a missed
 // append a day's lag rather than a hole, the erasure that defers rather
 // than fails, and the backfill's page walk (SCALE-ARCHITECTURE.md phase A,
-// D439).
+// D440).
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";

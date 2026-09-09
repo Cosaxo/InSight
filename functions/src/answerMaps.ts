@@ -19,7 +19,7 @@
 // under `v2_users/{uid}` so `deleteAccount`'s recursive delete takes it
 // with no new arm.
 //
-// LIVE — the owner's word (D438 amendment, 2026-09-08: "use live for the
+// LIVE — the owner's word (D439 amendment, 2026-09-08: "use live for the
 // answer map"). The world-answer trigger writes the entry INSIDE the same
 // transaction that folds the aggregate and marks the ledger (v2.ts): one
 // merged write on a document only that person's answers touch, atomic

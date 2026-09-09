@@ -47968,7 +47968,100 @@ allow. D433's invariant held across the merge: every verdict in
 `firestore-tests/rules.test.ts` as before, `rules-coverage` at its
 baseline.
 
-## D438 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+## D438 · Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test
+
+**2026-09-09.** **Status:** binding. The owner: *"go on phase 3, merge
+when green"*. D433 bought the headroom back; nothing held it. A clause
+added to the create path would have spent it one filler at a time, and
+the first symptom would have been what D431 found — a refusal that was
+really an exhausted budget, in a suite that stayed green. This is the
+plan's Phase 3: the number can be read, and it can only move on purpose.
+
+**What holds it.** `node scripts/rules-budget.mjs --gate`, chained into
+`test:rules` after `rules-coverage.mjs`, so it runs inside the same
+emulator boot on the PR path and the deploy path both
+(`backend-checks.yml`'s rules job — the property CLAUDE.md names, kept
+by construction). Twenty-three variants, about fifteen seconds on the
+machine that measured it:
+
+- **Every flippable probe is pinned on both sides.** For each of the
+  eight legal creates the baseline records the N at which it flips
+  (`scripts/rules-budget-baseline.json`, `fillers`), and the gate
+  asserts the write is still *allowed* at exactly N and *refused by
+  budget* at N+1. Two-sided is deliberate: it is `check:globals` rule
+  4's shape. A change that costs expressions moves a pin and must
+  re-pin and say why; a change that GAINS headroom moves it the other
+  way and must re-pin too, so the baseline stays a measurement and not
+  a memory of one. The far side wants *budget* specifically — a variant
+  that failed to load is not a flip, and the classifier seeing the
+  emulator's reason text is itself under test.
+- **The compile-bounded probes are held at the floor.** Every refusal
+  shape reaches the compile ceiling (94 fillers) without flipping, so
+  there is no N+1 to assert; each is asserted *refused for its reason*
+  at the floor instead. That is the sentence D431 could not get: no
+  refusal in the pinned set is a refusal by budget, with 50 fillers of
+  margin.
+- **The floor is policy.** `floorFillers: 50` — ~405 budget units at
+  D432's 8.1, which is the plan's "≥ 400 expressions" target in the
+  measured currency. Every pin must clear it, arithmetically, before a
+  single variant boots. The thinnest legal create sits at 57 (the pick round, since #456's
+  D437 took the guess off group answers), seven fillers (~57 units)
+  above it. A pin that would land under the floor
+  is refused by the gate with the sentence that matters: *the change
+  that put it there is the thing to argue, not the number to edit*.
+- **The file must load at 80 fillers** (`compileFloorFillers`), 14
+  under the measured ceiling, so a deploy that would fail at the compile
+  ceiling is caught here rather than on the deploy path.
+- **Fails closed.** No baseline file, a floor missing, a probe with no
+  row, a row with no probe, a pin that is not a headroom, fillers pinned
+  on the wrong arm — each is a refusal to run, never a pass. The
+  decisions of WHAT to assert are pure (`planGate`, `judge`) and pinned
+  without an emulator in `rules-budget.test.mjs`.
+
+**Why these numbers and not the plan's.** §5 wrote *FLOOR ≈ 130
+fillers* and *FLOOR + 60 must load* in D429's currency of ~3
+expressions a filler. D432's calibration put a filler at 8.1, the
+thinnest legal create at 58 and the compile ceiling at 94: 130 fillers
+is above the ceiling, and 190 could never load. The plan's own hedge —
+*provisional until Phase 0* — is what this record cashes.
+
+**The second assertion — a denial by budget is a red test.** Every
+`assertFails` in `firestore-tests/rules.test.ts` (465 sites) is now
+`refused()`: the same assertion, plus the emulator's reason text must
+not contain *"maximum of 1000 expressions"*. The e2e got the same
+sentence in `firestore-tests/e2e-lib.mjs`'s `expectRefusal`, the one
+door every `expectDenied` in the three drivers passes through — which
+is where D431's thirteen had hidden, and the place a fourteenth would
+appear. Both are mechanical; both are the thing the suite's own header
+said a case could not tell, and now every case can.
+
+**How a PR meets it.** Green: nothing to do. Red with *N pin(s) moved*:
+if the change is meant to cost expressions, `npm run
+test:rules:baseline` re-pins (the coverage baseline and the budget pins
+in one boot, ~2 minutes — the pin re-bisects every probe and refuses to
+record a probe whose VERDICT changed at zero fillers, because that is a
+rule change and not a headroom change) and the PR says why; if it was
+not meant to cost anything, it did, and `node scripts/rules-budget.mjs`
+with no flags says on which line. A full `--write-baseline` (the
+calibration and the cost table, ~10 minutes) is for a record, not a PR.
+
+**What it does not do.** It does not measure the update arm's headroom
+(the pins are on the create arm; `--fillers-on update` exists for the
+day that matters), it does not assert the coverage report's counts
+(D432 found them not to be budget units), and it does not stop anyone
+editing `floorFillers` — a review does, and the number is in a file
+that reads as a measurement. Phase 4 stays priced and untaken.
+
+**Merged over #456 (D434–D437), which is why this record is D438.** That
+PR changed the duel arms under this gate while it was open — a group
+answer carries no guess (D437) — and re-measured the baseline in the
+old schema. The merge kept its measurement, re-applied the `refused()`
+sweep over its new case, and re-pinned on the merged rules: **zero pins
+moved**, the compile ceiling still 94, fifteen probes at their pins, the
+gate green on the first run. Which is the gate meeting the exact event
+it was built for, before it had merged.
+
+## D439 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
 
 **Date:** 2026-09-08 · **Status:** Adopted, with one word still the
 owner's (§2). The owner's ruling on
@@ -48064,9 +48157,9 @@ answers rather than by listing a collection the size of two catalogues.
 `npm run costs` after: 357 → 277 reads per user-day at maturity, the
 D98 column 282 → 197.
 
-## D438 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+## D439 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
 
-**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D438 held open
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D439 held open
 came the same afternoon, verbatim: *"start phase 3 and use live for the
 answer map."* The answer map is written by the world-answer trigger —
 inside the aggregate's own transaction, so it is atomic with the count
@@ -48076,7 +48169,7 @@ value the map already holds (the map is the newer truth: an edit made
 after the healed day is in it and not in that day's ledger).
 
 **Two things moved against the runbook as written**, each within
-D438's own rule that nothing a user sees may shrink. The device keeps
+D439's own rule that nothing a user sees may shrink. The device keeps
 the answer query as a FALLBACK for a member with no map, because the
 client ships with the trigger and the backfill is a click the owner
 makes afterwards — without it every Circle would show nobody between
@@ -48114,7 +48207,7 @@ per user-day at maturity, the whole 129 → 134 (132 at the merged head,
 D426's rounds having taken two reads elsewhere). Nothing a user sees
 moved, and nothing a device reads changed size.
 
-## D439 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+## D440 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
 
 **Date:** 2026-09-09 · **Status:** ADOPTED the same evening — see the
 amendment below. The owner, that afternoon, after `npm run costs` had been
@@ -48170,7 +48263,7 @@ precedes everything, and it is `LAUNCH-RUNBOOK.md` 5.11 done as one code
 path rather than as an extension streaming every document change through
 a trigger of its own.
 
-## D439 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
+## D440 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
 
 **Date:** 2026-09-09 · **Status:** Adopted. The three asks were put in
 plain words — the direction; *"allow counts to be published once a

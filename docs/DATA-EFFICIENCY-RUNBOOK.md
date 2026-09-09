@@ -1,7 +1,7 @@
 # Data-efficiency runbook — the ordered build list
 
 > **Reasoning lives in [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md)**, which
-> is canonical, and the decision is D438 — the owner's approval of every
+> is canonical, and the decision is D439 — the owner's approval of every
 > change that keeps the picture identical, 2026-09-08. This file is the
 > same work as an ordered to-do list: open steps only, dependency order,
 > what "done" means, and which gate proves it. If the two disagree,
@@ -14,10 +14,10 @@ they are estimates. **Every step names the gate that proves it.** Every
 figure is `npm run costs:structure`'s or `npm run costs`'s; none is
 typed. **One assumption runs through Phase 3**: the answer map is kept
 *live* by the trigger with a nightly heal — the owner's stated lean,
-priced at about 6 % of what the map saves — and D438 records that the
+priced at about 6 % of what the map saves — and D439 records that the
 word confirming it is still the owner's to give.
 
-**What no step here may do** (D438 §3): show fewer people, questions or
+**What no step here may do** (D439 §3): show fewer people, questions or
 answers than today; change a number a user sees except where the step
 says so; loosen a rule; touch the three labelled denies; skip a test.
 
@@ -25,7 +25,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
 
 ## Phase 0 — record and measure · **DONE with this pull request**
 
-- [x] **0.1 The decision.** D438 in `DECISIONS.md`: what is approved, the
+- [x] **0.1 The decision.** D439 in `DECISIONS.md`: what is approved, the
       one open word (live), the one thing that waits (§2.8's history
       document, a privacy-shaped ask).
 - [x] **0.2 The measurement.** `scripts/cost-structure.mjs` prices every
@@ -98,7 +98,7 @@ says so; loosen a rule; touch the three labelled denies; skip a test.
       new `REATTACH_DOCS` from source and its pin moves. **What a user
       sees:** a card from three days ago shows the count as of the last
       cold start rather than the last app switch; today's card is
-      unchanged. The one cadence item in this file — D438 names it, and
+      unchanged. The one cadence item in this file — D439 names it, and
       the owner may strike it. · **Gate:** `idle-detach.test.ts` gains
       the case (a wake issues one id; a boot issues seven);
       `pulse.test.mjs`; `check:figures` after `npm run costs`.
@@ -139,7 +139,7 @@ and the city samples' bound.
       did not answer again — for most rows, never — which is a visible
       reduction against today's seven-day cache, and "live is best when
       the cost difference isn't huge" is the owner's word on exactly this
-      (D438 §2). The trigger reads nothing unless the stamp changed, then
+      (D439 §2). The trigger reads nothing unless the stamp changed, then
       reads the account's own answers, the samples they name, and
       rewrites the three fields under `rows.{uid}` where a row exists —
       bounded by the account's answers, a handful of times per account
@@ -214,7 +214,7 @@ sentence on `OWNER-LIST.md`.
 ## Phase 3 — the answer map, live with a nightly heal · **M, one pull request** · **DONE 2026-09-08, one click and one step after it left**
 
 The owner's word on *live* landed the same day (*"start phase 3 and use
-live for the answer map"* — the D438 amendment). Two things moved against
+live for the answer map"* — the D439 amendment). Two things moved against
 the plan as written, each on its step: the write is INSIDE the aggregate
 transaction rather than after it, and the device keeps the answer query
 as a fallback until the backfill has run.
@@ -381,7 +381,7 @@ user-day at maturity for this phase (velocity −3.6, the streamed scan
 head prints 43 and 132, because D426's rounds landed from `main` in the
 same merge and took one read off a reveal and one off the rules.
 
-## Phase 5 — the write path at scale · **L** · **direction under the owner's decision at D439**
+## Phase 5 — the write path at scale · **L** · **direction under the owner's decision at D440**
 
 > **2026-09-09.** The owner asked for a structure that scales to hundreds
 > of answers a day and millions of users; `SCALE-ARCHITECTURE.md` is that
@@ -390,7 +390,7 @@ same merge and took one read off a reveal and one off the rules.
 > with a cheaper counter store and no shard documents to fold. If the
 > owner adopts it (`OWNER-LIST.md` § Decisions), this phase is superseded
 > by phase B and the steps below are not built as written; until that
-> word they stand. **The word came the same evening (D439's amendment):
+> word they stand. **The word came the same evening (D440's amendment):
 > superseded — the steps below are not built as written; the work is
 > `LOG-FIRST-RUNBOOK.md` phase B.**
 
@@ -440,11 +440,11 @@ and `npm run costs` prints boot ≈ 15.
 
 ## Waiting on the owner, not on this file
 
-- ~~**The log-first direction** (D439, `SCALE-ARCHITECTURE.md`): whether
+- ~~**The log-first direction** (D440, `SCALE-ARCHITECTURE.md`): whether
   Phase 5 becomes its phase B, one sentence of D98 for the compactor's
   cadence, and the batch window~~ — answered 2026-09-09, all three
-  (D439's amendment); the clicks that remain are `LOG-FIRST-RUNBOOK.md`'s.
-- **The word "live"** for Phase 3 — given 2026-09-08 (the D438
+  (D440's amendment); the clicks that remain are `LOG-FIRST-RUNBOOK.md`'s.
+- **The word "live"** for Phase 3 — given 2026-09-08 (the D439
   amendment records it). What stays the owner's from that phase is the
   backfill's click, dry then `apply` (`OWNER-LIST.md`).
 - **The `functions:delete`** of the three retired nightly functions —

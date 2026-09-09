@@ -1,7 +1,7 @@
 # The data structure, priced per user once there are users
 
 **Status: measured 2026-09-08 — §§1–4 read the tree as it stood that
-morning; §5 is the build order, approved by the owner the same day (D438)
+morning; §5 is the build order, approved by the owner the same day (D439)
 and carried as steps in
 [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md). Phases 1, 2
 and 3 were built the same day (the runbook has what moved; the owner's
@@ -151,7 +151,7 @@ Hit                    500000       131 → 107               $936 → $844   (�
 
 ### 2.1 · Circle reads one document per member — 150 → 0.5 reads per user-day · **BUILT 2026-09-08 (runbook 3.1–3.7), live**
 
-> The owner chose *live* (D438 amendment); the trigger writes the entry in
+> The owner chose *live* (D439 amendment); the trigger writes the entry in
 > the aggregate's own transaction, the heal fills only what is absent, and
 > the device keeps the answer query as a fallback for a member with no
 > map until the backfill has run — the click on `OWNER-LIST.md`. The
@@ -558,7 +558,7 @@ bullet keeps the failure as found and says what it became:
   then dies every night without advancing. Not in this page's tables,
   which hold the answer rate at four. `SCALE-ARCHITECTURE.md` §1 has the
   arithmetic and §3.4 the fix — the night as SQL over a log BigQuery
-  holds on disk — and D439 puts the direction to the owner.
+  holds on disk — and D440 puts the direction to the owner.
 
 ## 4 · What looks wasteful and is not
 

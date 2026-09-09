@@ -1,7 +1,10 @@
 {
   "measured": "2026-09-09",
+  "pinned": "2026-09-09",
   "variant": "base",
   "fillersOn": "create",
+  "floorFillers": 50,
+  "compileFloorFillers": 80,
   "compileCeiling": 94,
   "unit": 8.1,
   "calibration": [
