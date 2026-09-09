@@ -62,6 +62,7 @@ import {
   revealQid,
   revealVotes,
   votesMatchingQid,
+  foldRoleLedger,
   ROOM_MIN_TYPED,
   ROOM_SAMPLE_CAP,
   ROOM_SCAN_CAP,
@@ -1694,6 +1695,104 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(describeSeedOptionConflicts([
       { qid: "f-42", field: "type", stored: ["vote"], desired: ["catalog"] },
     ])).toContain("f-42 (type): [vote] -> [catalog]");
+  });
+});
+
+// ── the role ledger (D445, ROLES-PLAN §3.3) ────────────────────────
+//
+// The counts the device's fold (src/v2/data/roles.ts) takes over a page of
+// reveals, kept by the server as each round reveals. The rules here are
+// the device's rules, and every case is a REFUSAL as much as a count: a
+// vote the device would not count is one the ledger must not either, or
+// the reading changes the day the ledger takes over.
+describe("the role ledger (foldRoleLedger)", () => {
+  const CAST = { topic: "cast", dims: ["trust", "spark", "judgement", "constancy"] };
+  const ROLE = { topic: "pick", role: { id: "mind", label: "the mastermind", seat: "engine" } };
+  const duo = ["ada", "bo"];
+
+  it("a cast round counts, for each member, what the OTHER said they are — and their own guess", () => {
+    // Ada says Bo is spark (1) and guesses Bo will say trust (0); Bo says
+    // Ada is trust (0) and guesses judgement (2).
+    const L = foldRoleLedger(undefined, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 1, guessIdx: 0 }, bo: { optionIdx: 0, guessIdx: 2 },
+    }, duo)!;
+    expect(L.ada).toEqual({ casts: 1, axes: { trust: 1 }, saw: { right: 1, total: 1 }, castQid: "duo-073" });
+    expect(L.bo).toEqual({ casts: 1, axes: { spark: 1 }, saw: { right: 0, total: 1 }, castQid: "duo-073" });
+  });
+
+  it("accumulates onto the rows it was handed and carries untouched rows over", () => {
+    const prev = {
+      ada: { casts: 4, axes: { trust: 3, spark: 1 }, saw: { right: 2, total: 3 }, castQid: "duo-073" },
+      gone: { casts: 9 },
+    };
+    const L = foldRoleLedger(prev, "duo", CAST, "duo-074", {
+      ada: { optionIdx: 3 }, bo: { optionIdx: 0, guessIdx: 3 },
+    }, duo)!;
+    expect(L.ada).toEqual({ casts: 5, axes: { trust: 4, spark: 1 }, saw: { right: 2, total: 3 }, castQid: "duo-074" });
+    expect(L.bo).toEqual({ casts: 1, axes: { constancy: 1 }, saw: { right: 1, total: 1 }, castQid: "duo-074" });
+    expect(L.gone, "a row the round did not touch was dropped").toEqual({ casts: 9 });
+    // …and the input was not mutated: the transaction may retry.
+    expect(prev.ada.casts).toBe(4);
+  });
+
+  it("counts a cast only when BOTH answered blind on the cast question", () => {
+    // Bo's vote is stamped with another qid (D71): not an answer to this cast.
+    expect(foldRoleLedger(undefined, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 1 }, bo: { optionIdx: 0, qid: "duo-001" },
+    }, duo)).toBeNull();
+    // A late vote can never reach a create, but the rule is stated anyway.
+    expect(foldRoleLedger(undefined, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 1 }, bo: { optionIdx: 0, late: true },
+    }, duo)).toBeNull();
+    // One answer alone — a deadline reveal for the one who played.
+    expect(foldRoleLedger(undefined, "duo", CAST, "duo-073", { ada: { optionIdx: 1 } }, duo)).toBeNull();
+  });
+
+  it("an own round, a rating, a plain pick and a missing question move nothing", () => {
+    const votes = { ada: { optionIdx: 1, guessIdx: 0 }, bo: { optionIdx: 0, guessIdx: 1 } };
+    expect(foldRoleLedger(undefined, "duo", { topic: "day" }, "duo-001", votes, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "group", { topic: "rate" }, "gs0", votes, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "group", { topic: "pick" }, "gp0", { ada: { optionIdx: 0, pickUid: "bo" } }, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "group", { topic: "pick", role: { id: "x", label: "x" } }, "gr9", { ada: { optionIdx: 0, pickUid: "bo" } }, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "duo", null, "duo-073", votes, duo)).toBeNull();
+    // …and a cast in a GROUP is not a cast round: the surface is the 1v1's.
+    expect(foldRoleLedger(undefined, "group", CAST, "duo-073", votes, duo)).toBeNull();
+  });
+
+  it("a role vote counts for whom the snapshot names, under the role's seat — never for the voter's own name", () => {
+    const room = ["ada", "bo", "cy", "di"];
+    const L = foldRoleLedger(undefined, "group", ROLE, "gr0", {
+      ada: { optionIdx: 1, pickUid: "bo" },
+      bo: { optionIdx: 1, pickUid: "bo" },    // a vote for yourself is not the room naming you
+      cy: { optionIdx: 1, pickUid: "bo" },
+      di: { optionIdx: 0, pickUid: "ada" },
+    }, room)!;
+    expect(L).toEqual({
+      bo: { votes: 2, seats: { engine: 2 } },
+      ada: { votes: 1, seats: { engine: 1 } },
+    });
+  });
+
+  it("skips a vote with no snapshot, on another question, or naming someone off the roster", () => {
+    const room = ["ada", "bo"];
+    expect(foldRoleLedger(undefined, "group", ROLE, "gr0", {
+      ada: { optionIdx: 1 },                                   // pre-D224 client: an index, no name
+      bo: { optionIdx: 0, pickUid: "ada", qid: "gr1" },        // their bank disagreed (D71)
+      cy: { optionIdx: 0, pickUid: "left" },                   // names someone who has left
+    }, room)).toBeNull();
+    // …and accumulates onto a row by seat, the other seats untouched.
+    const L = foldRoleLedger({ ada: { votes: 2, seats: { engine: 2 } } }, "group",
+      { topic: "pick", role: { id: "wheel", label: "the getaway driver", seat: "hands" } }, "gr1",
+      { bo: { optionIdx: 0, pickUid: "ada" } }, room)!;
+    expect(L.ada).toEqual({ votes: 3, seats: { engine: 2, hands: 1 } });
+  });
+
+  it("reads a corrupt row as empty rather than adding to a string", () => {
+    const L = foldRoleLedger({ ada: { casts: "9", axes: null }, bo: "nonsense" }, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 0 }, bo: { optionIdx: 2 },
+    }, duo)!;
+    expect(L.ada).toEqual({ casts: 1, axes: { judgement: 1 }, saw: { right: 0, total: 0 }, castQid: "duo-073" });
+    expect(L.bo).toEqual({ casts: 1, axes: { trust: 1 }, saw: { right: 0, total: 0 }, castQid: "duo-073" });
   });
 });
 

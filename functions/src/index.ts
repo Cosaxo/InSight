@@ -30,7 +30,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
-import { playedRemovals, stampRemoval } from "./v2social";
+import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -599,6 +599,11 @@ export const deleteAccount = onCall(
             // every remaining member reads.
             ...playedRemovals(g.get("played"), uid),
             ...stampRemoval(g.get("pushAt"), uid),
+            // …and their role-ledger row (D445, ROLES-PLAN §3.3's erasure
+            // clause): what the room made this member, counted by the
+            // server and readable by every remaining member — the same
+            // erasure leak as `memberNames`, one map over.
+            ...ledgerRemoval(g.get("ledger"), uid),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is

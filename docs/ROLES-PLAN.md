@@ -7,7 +7,9 @@ plan (D437): one idea in two settings — a 1v1's dims the share of cast
 rounds that named you each axis, a group's the share of your received
 votes per seat — ten and eleven types, `MIN_DUO` 3 casts and `MIN_GROUP`
 2 votes. §3.4–§3.5's tables are answered, not adopted; §3.6's name rule
-stands over the new dims; §3.3's ledger is still open; the guess on
+stands over the new dims; §3.3's ledger is **built (D445, 2026-09-09, on
+the owner's yes)** for the new instrument's counts — its schema as built
+is at the head of §3.3; the guess on
 group days (§6) was retired with the call. §2's measurements describe
 the instrument this replaced.** Written
 2026-09-06 on the owner's ask of that day — *"how could we make the 1v1
@@ -95,7 +97,8 @@ screens.
   last thirty rounds, a few days of an active pair or a month of a slow
   one, and the run of dots is the only thing that shows the rounds. It
   was 14, and a fortnight, while a reveal was a day (D426's profiles
-  follow-up raised it as a stopgap; §3.3 is what outlives any window).
+  follow-up raised it as a stopgap; §3.3 is what outlives any window,
+  and since D445 the fold reads it once a row clears the floor).
 - **The questions** — `content/duel-questions.json`: 26 group (kinds
   `us` · `pick` · `classic`, interleaved in rotation order), 32 friends
   1v1 and 24 romantic 1v1 (dark: `active: false`, D40 part 4). Every
@@ -259,6 +262,30 @@ the tables that exist: `duo` 70 · 70 · 64 · 58 and `group` 24 · 70 ·
 58, the arithmetic beside them in `test-definitions.js`.
 
 ### 3.3 The record outlives the fortnight: the ledger
+
+> **Built 2026-09-09 (D445), on the owner's yes — for the instrument
+> D437 adopted, so the row holds the new counts rather than the ones
+> sketched below.** As built, on the group document:
+>
+>     v2_groups/{gid}.ledger.{uid} = {
+>       casts, axes{ trust, spark, judgement, constancy }, saw{ right, total }, castQid,   // a 1v1
+>       votes, seats{ engine, hands, heart, wild },                                          // a group
+>     }
+>
+> A 1v1 row counts the cast rounds both answered blind, what the OTHER
+> said this member is per axis (keyed by the bank's `dims` id for the
+> option), this member's guesses at what the other said of them, and the
+> cast question the receipts read their them forms from; a group row
+> counts the votes received from OTHER members on role votes, per the
+> seat of the role, off the D224 snapshots. Written whole by
+> `revealRound` in the settle update that advances the round, from the
+> round's question read inside the same transaction (one billed read the
+> reveal did not make before — `3 + 2m`, `COSTS.md`); the device fold
+> (`roles.ts`) reads a row once it clears `MIN_DUO` / `MIN_GROUP` and
+> pages reveals until then. Forward-only, erased on leave and on
+> `deleteAccount`, refused to every client by the rules' `duoMode` pin.
+> The bullets below are the plan as written; where they differ from the
+> build, the build is above.
 
 A role read over 14 days is §2.1's coin. The fix is not more reads —
 14 per room is already `COSTS.md`'s Roles row — but a fold the server
@@ -531,10 +558,11 @@ keeps D204's tables, because they fix what the current numbers mean.
    counts group guesses (today: only a duo's) and the scorecard's duel
    section reads them. · **Gate:** `npm run test:unit`, functions
    tests, `npm run test:e2e:all` (the duel loop).
-3. **M · The ledger (§3.3).** `revealGroupDay` writes it in its
-   transaction; `deleteAccount` scrubs the entry; the schema, the data
-   inventory and the costs row; `roles.ts` folds a ledger when present.
-   · **Gate:** functions tests, `npm run test:rules`,
+3. **M · The ledger (§3.3) — BUILT (D445, 2026-09-09).** `revealRound`
+   (the round's `revealGroupDay`) writes it in its transaction;
+   `leaveGroupV2` and `deleteAccount` scrub the entry; the schema, the
+   data inventory and the costs row; `roles.ts` folds a ledger once it
+   clears the floor. · **Gate:** functions tests, `npm run test:rules`,
    `npm run test:e2e:all`, `npm run check:data-inventory`.
 4. **M · The instruments (§3.4–§3.6).** The three tables and baselines;
    `RP_TESTS` hues and poles for the new dims; the rule words; the

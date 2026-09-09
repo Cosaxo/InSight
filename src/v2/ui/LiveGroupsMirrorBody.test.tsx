@@ -157,6 +157,21 @@ describe("LiveGroupsMirrorBody · the head", () => {
     expect(screen.queryByText(/Here, you are/)).toBeNull();
   });
 
+  it("reads the seat off the server's ledger once a row clears the floor — past what the page holds (D445)", () => {
+    // The page holds ONE vote naming me (under the floor on its own); the
+    // group document's ledger holds the record — nine votes, the engine
+    // seat — so the line says the ledger's numbers, not the page's.
+    LIVE.social.groups = () => [{
+      ...GROUP,
+      ledger: { u_me: { votes: 9, seats: { engine: 6, heart: 3 } }, u_ada: { votes: 1, seats: { wild: 1 } } },
+    }];
+    LIVE.social.revealHistory = () => [vote("2026-09-01", 1, "r_fire", { u_me: "u_ada", u_ada: "u_me", u_bo: "u_ada" })];
+    render(<LiveGroupsMirrorBody />);
+    const line = screen.getByText(/Here, you are/);
+    expect(line.textContent).toContain("the one who gets things going");
+    expect(line.parentElement!.textContent).toContain("6 of 9 votes say so");
+  });
+
   it("draws the role map above the row, with everyone on it", async () => {
     LIVE.social.revealHistory = () => HISTORY;
     render(<LiveGroupsMirrorBody />);
