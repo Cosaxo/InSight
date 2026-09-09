@@ -52,7 +52,7 @@ Every constant below is sourced, not assumed:
 | One duel answer | 1 client write + 1 server transaction on the group document (1 read, 1 write: who played, and the round's clock on its first answer) — and, on the answer that completes the round, the reveal below runs right there | v2.ts duel branch (ROUNDS-PLAN §3.1, D426). It was one blind `pendingDays` arrayUnion with no read |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+492 reads** — five whole surfaces plus the feed's core questions, not the whole bank. This row said **+913**, the bank's total, and the gate beside it kept rewriting that to the newest bank size every promotion cycle — so the row grew more wrong the more diligently it was maintained. The daily left the boot's fetch at D383 (a shape document and seven deck rows instead) and the feed's tail pages in after first paint; `check:figures` now computes what the boot reads rather than what the bank holds | `BANK_SURFACES` + `core == true`, src/v2/data/live.ts; D383. The whole bank is `V2_QUESTIONS`, 1145 docs / 336.5 KiB of JSON — still the right number for the install and cache budgets, and no longer the right one for a boot |
+| One cold boot | **+492 reads** — five whole surfaces plus the feed's core questions, not the whole bank. This row said **+913**, the bank's total, and the gate beside it kept rewriting that to the newest bank size every promotion cycle — so the row grew more wrong the more diligently it was maintained. The daily left the boot's fetch at D383 (a shape document and seven deck rows instead) and the feed's tail pages in after first paint; `check:figures` now computes what the boot reads rather than what the bank holds | `BANK_SURFACES` + `core == true`, src/v2/data/live.ts; D383. The whole bank is `V2_QUESTIONS`, 1147 docs / 337.0 KiB of JSON — still the right number for the install and cache budgets, and no longer the right one for a boot |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | A returning device's first paint | 0 reads before the deck draws — it paints off the D312 caches and the own-profile mirror, and the ~15 warm-boot reads above reconcile it behind the screen: the count is unchanged, the wait is not | `warmFromDisk()`, src/v2/data/live.ts (D356) |
 | One answer relaunched before its ack | ≤1 read, once the SDK reports its queue drained — and none when the boot's own answers delta already returned it | `settlePending`, src/v2/data/live.ts (D357). Only a boot with an unsettled answer pays it, and the `documentId() in` read covers up to 30 of them |
@@ -424,7 +424,7 @@ existed to prevent.
 billed read charged to the project, on top of the operation that triggered
 it. A world answer's create rule touches one document (`v2_questions/{aid}`,
 three times — repeats of the same document are free); a duel answer's
-touches three distinct ones. Reads pay nothing: `v2_questions` and
+touches two distinct ones. Reads pay nothing: `v2_questions` and
 `v2_question_aggs` are `allow read: if request.auth != null`, with no
 document access at all, so this term scales with *answers*, not opens.
 
@@ -436,11 +436,12 @@ document access at all, so this term scales with *answers*, not opens.
 > un-deduped the figure would be 14 rather than 6.
 
 **Server reads** (14). Three sources, none of them visible from the client:
-the aggregate transaction reads two documents per world answer (the ledger
-event for dedup, the private aggregate); the nightly velocity scan (D54)
+the aggregate transaction reads three documents per world answer (the
+ledger event for dedup, the published aggregate, and the author's profile
+— D410); the nightly velocity scan (D54)
 reads **every ledger entry written that day**, which is one per world
-answer; and the reveal pipeline reads `(4 + 3m)/m` per member per group-day,
-which is 5 for a duo. The velocity scan alone is the size of the top-up and
+answer; and the reveal pipeline reads `(2 + 2m)/m` per member per round,
+which is 3 for a duo. The velocity scan alone is the size of the top-up and
 the reseed delta put together, and it was invisible.
 
 **The D98 surfaces** (339 at maturity). Who-voted sheets, Kindred and

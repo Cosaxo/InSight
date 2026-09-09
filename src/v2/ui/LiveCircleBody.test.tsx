@@ -338,6 +338,60 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
 // sample floor of two rather than thirty, because a circle is not a
 // sample of anything. It is the exact set you chose, and its mean is
 // that set's mean at any size.
+// ── the Answers tab's cap says so ───────────────────────────────────
+//
+// It was the only cap in this family that did not. LiveAnswerRows offers
+// "Show N more"; the places field says how many are placed further out;
+// LiveGroupsMirrorBody writes the rule out — "a cap that silently eats
+// rows reads as that is all of them". Here the tab is labelled "Answers",
+// so a circle with forty aggregated questions saw twelve and had no cue
+// that twenty-eight were missing, or that the twelve were the MOST
+// DIVIDED rather than simply all of them.
+describe("LiveCircleBody · the Answers tab says what it is showing", () => {
+  // Two members answering opposite ways, so every question clears the
+  // n >= 2 floor and is genuinely split.
+  const twoWhoDisagree = (qids: string[]) => ([
+    { uid: "u_a", name: "A", mutual: true, like: { pct: 50, same: 1, shared: 2, rate: 0.5 },
+      answers: Object.fromEntries(qids.map((id) => [id, "0"])) },
+    { uid: "u_b", name: "B", mutual: true, like: { pct: 50, same: 1, shared: 2, rate: 0.5 },
+      answers: Object.fromEntries(qids.map((id) => [id, "1"])) },
+  ]);
+  const bank = (n: number) => Array.from({ length: n }, (_, i) => ({
+    id: `q${i}`, text: `Question ${i}?`,
+    options: [{ id: "0", label: "Yes" }, { id: "1", label: "No" }],
+  }));
+
+  it("names the cap and how many are behind it", () => {
+    const qs = bank(40);
+    LIVE.aggregated = () => qs;
+    LIVE.circle = () => twoWhoDisagree(qs.map((q) => q.id));
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
+    // 12 drawn of 40 that qualify — and the reader is told both halves:
+    // that this is a ranked slice, and that 28 more are there.
+    expect(
+      screen.getByText(/The 12 your circle splits on most/),
+      "twelve of forty rows were drawn with nothing saying so",
+    ).toBeTruthy();
+    expect(screen.getByText(/28 more/)).toBeTruthy();
+  });
+
+  it("…and says nothing when nothing is hidden", () => {
+    // THE CONTROL. A line that always appears is not a cap notice, it is
+    // furniture — and it would be wrong on every circle under the cap,
+    // which is nearly all of them.
+    const qs = bank(4);
+    LIVE.aggregated = () => qs;
+    LIVE.circle = () => twoWhoDisagree(qs.map((q) => q.id));
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
+    expect(screen.queryByText(/splits on most/)).toBeNull();
+    expect(screen.queryByText(/more.*answered here/)).toBeNull();
+    // …and the rows really are all there, so this is not an empty tab.
+    expect(screen.getAllByText(/of your circle answered/)).toHaveLength(4);
+  });
+});
+
 describe("LiveCircleBody · Compare lays two profiles over each other", () => {
   // Every big5 item, in the seeded bank's shape.
   const BIG5 = (IS_TESTS as Record<string, { questions: Array<{ q: string }> }>)

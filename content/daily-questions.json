@@ -3353,5 +3353,57 @@
         "What you admire"
       ]
     ]
+  },
+  {
+    "id": "136",
+    "type": "binary",
+    "prompt": "Dessert: every day, or a special occasion?",
+    "tag": "Dessert",
+    "options": [
+      "Every day",
+      "Special occasion"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Habits"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Balance"
+      ],
+      [
+        "Values",
+        "Treats"
+      ]
+    ]
+  },
+  {
+    "id": "137",
+    "type": "choice",
+    "prompt": "What do you follow most closely?",
+    "tag": "Following",
+    "options": [
+      "A sport",
+      "A show",
+      "An artist",
+      "A subject"
+    ],
+    "tone": "light",
+    "cat": [
+      "Interests",
+      "Following"
+    ],
+    "alts": [
+      [
+        "Sport",
+        "Fandom"
+      ],
+      [
+        "Music",
+        "Fandom"
+      ]
+    ]
   }
 ]

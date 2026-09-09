@@ -13,6 +13,27 @@ describe("duoRuns", () => {
     expect(runs).toEqual({ read: [true], by: [true] });
   });
 
+  it("sorts a dayless reveal FIRST, which is what the comparator does", () => {
+    // The docstring said "last" and the code has always said first:
+    // `String(a.day || "")` makes a missing day the empty string, which
+    // precedes every date key. No case passed one, so the sentence and
+    // the comparator drifted apart unnoticed. This is the pin.
+    //
+    // It matters at the reading end: the run is drawn oldest-LEFT, and a
+    // dayless reveal is the live listener's copy of the newest round
+    // before the caller stamps it — so the newest round renders at the
+    // oldest end. Asserted rather than fixed: which end it belongs at is
+    // a product question for a function nothing currently calls.
+    const runs = duoRuns([
+      day("2026-08-10", { me: { optionIdx: 0, guessIdx: 0 }, you: { optionIdx: 1, guessIdx: 1 } }),
+      { qid: "q1", votes: { me: { optionIdx: 0, guessIdx: 1 }, you: { optionIdx: 1, guessIdx: 0 } } },
+    ], "me", "you");
+    // The dayless one (a hit) comes out at index 0, ahead of the dated
+    // miss — first, not last.
+    expect(runs.read).toEqual([true, false]);
+    expect(runs.by).toEqual([true, false]);
+  });
+
   it("records a miss as a miss rather than dropping the day", () => {
     const runs = duoRuns([
       day("2026-08-10", { me: { optionIdx: 0, guessIdx: 0 }, you: { optionIdx: 1, guessIdx: 1 } }),

@@ -72,7 +72,7 @@ const LIVE = vi.hoisted(() => {
     approveJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     declineJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
-    voteLate: async (gid: string, round: number, idx: number) => { void gid; void round; void idx; },
+    voteLate: async (gid: string, round: number, idx: number, qid?: string) => { void gid; void round; void idx; void qid; },
     worldSplit: (qid: string) => { void qid; return null as { counts: number[]; total: number } | null; },
     loadPartnerAnswers: async (gid: string) => { void gid; },
     ensureWorldSplit: (qid: string) => { void qid; },
@@ -308,15 +308,22 @@ describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
     LIVE.social.bankQ = () => Q;
     LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
     LIVE.social.revealFor = () => revealed();
-    const calls: Array<[string, number, number]> = [];
-    LIVE.social.voteLate = async (gid: string, round: number, idx: number) => { calls.push([gid, round, idx]); };
+    const calls: Array<[string, number, number, string | undefined]> = [];
+    LIVE.social.voteLate = async (gid: string, round: number, idx: number, qid?: string) => {
+      calls.push([gid, round, idx, qid]);
+    };
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.getByText(/You didn’t play this one/)).toBeTruthy();
     // The card also asks round 2's question with the same options, so pick
     // the late door's button by its own block.
     const door = screen.getByText(/You didn’t play this one/).parentElement!;
     fireEvent.click(within(door).getByRole("button", { name: "Tea" }));
-    await waitFor(() => expect(calls).toEqual([["g1", 1, 1]]));
+    // THE QID IS THE ASSERTION, not a fourth argument along for the ride.
+    // `optionIdx` indexes the options THESE buttons were rendered from,
+    // which is `bankQ(reveal.qid)` — and `voteLate` used to re-derive the
+    // round's question off the current bank instead, so one appended
+    // question filed the answer under a different prompt.
+    await waitFor(() => expect(calls).toEqual([["g1", 1, 1, "duo-000"]]));
   });
 
   it("does not offer it past the lead, nor to someone who played", () => {
