@@ -235,15 +235,18 @@ export async function fetchVoterPicks(
  * standing, so a sample whose only voter erases their account becomes
  * `rows: {}` on disk.
  *
- * WHAT THIS DOES NOT FIX, named so it is not mistaken for fixed: the
- * sample is the newest cap voters *the nightly has seen since D397*, not
- * the newest cap voters. `mergeSample` is fed only by the ledger day the
- * run reads and nothing seeds it from the answers already written, so a
- * question answered two hundred times before the samples existed
- * publishes a sample of however many people answered it since. Those are
- * real rows and this reader cannot tell them from a complete sample —
- * the floors downstream (`say()` and `tell()` want 12) then report
- * `thin` about the crowd when the true subject is the deploy date.
+ * WHAT THIS READER CANNOT TELL, and why the server had to (D442): a
+ * sample only the ledger has fed holds the people who answered since
+ * D397 and nobody before — real rows, indistinguishable here from a
+ * complete list, so the floors downstream (`say()` and `tell()` want 12)
+ * would report `thin` about the crowd when the true subject was the
+ * deploy date. Since D442 the nightly seeds each sample once, the first
+ * night it meets the question, from this module's own query
+ * (`fetchVoterPicks`'s filter, order and cap — the server's copy of
+ * WORLD_ANSWER_SURFACES is pinned equal to the one above), bounded at
+ * 25 questions a night, and never creates a sample short: with no
+ * document this reader returns null and the caller takes the live
+ * query, which is complete.
  */
 export async function fetchVoterSample(
   db: Firestore,

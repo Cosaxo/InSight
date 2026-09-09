@@ -39,7 +39,13 @@ rewrite is D223.*
   `v2_patterns/loadings` (the Patterns tab's only source) with whichever
   engine has won the last fortnight in `q` and the other under
   `candidates` (D395). Beside it, the drawable-pool count on `v2_meta/app`
-  that decides whether the tab is in the bar at all (D265).
+  that decides whether the tab is in the bar at all (D265), and the voter
+  samples (`src/patternsSamples.ts`, pure; D397) — the who-voted sheet's
+  newest two hundred per question, published so the device reads one
+  document instead of two hundred, each seeded once from the answers
+  themselves the first night the pass meets it, at most 25 a night
+  (D442; `src/answerSurfaces.ts` is the server's copy of the world-answer
+  surface list the seed filters on, held equal to the client's by test).
   Deliberately off the hot write path.
 - `src/moderation.ts` — the flag tally, the server-picked queue, and the
   moderator's three instruments. `docs/MODERATION.md` is the design.

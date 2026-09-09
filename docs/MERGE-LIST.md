@@ -40,20 +40,17 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-09T18:22:28Z -->
+<!-- console:generated 2026-09-09T19:16:37Z -->
 
 ## Open
 
-- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 14 behind main · opened 2026-09-09 · stage **new**
-- [ ] **#381** · a session · *what:* the five program Routines on this account now fire into the planning session, which relays each into a fresh session (the dispatcher refused every firing for a day); and one thing… · *how:* the Routines were re-created self-bound from this session (three old ones deleted, two disabled where the classifier refused deletion) and the record written into the runbook's ph… · CI green (10) · 108 behind main · opened 2026-09-03 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 203 behind main · opened 2026-09-01 · stage **new**
-- [ ] **#281** · a session · *what:* Three faults on one screen, reported from a device in one sentence — "the sign in should be cleaned up in general and i seam to be stuck here… and should have menus that fit the a… · *how:* All three are fixed here, and the fourth thing found on the way is the reason the third one happened. · CI green (9) · 898 behind main · opened 2026-08-24 · stage **new**
+- [ ] **#466** · a session · *what:* The owner's decision on the 2026-09-08 owner-list row *"The terms promise a data download the app has no way to give — build the export, or soften the sentence?"*: build the expor… · *how:* `web/terms.html` has said since it was written that before a termination we would *"give you a chance to download your data first"*, and nothing in the tree could give one — so th… · no checks · 8 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#465** · a session · *what:* The owner, 2026-09-09: *"lets instead plan for a update to the production of 1v1 and group question with the new desigin."* **`docs/CAST-ROLLOUT-PLAN.md`** — the rollout of what D… · *how:* Measured tonight: the seed runs after every backend deploy and ran three times today, so the packs, seats, ratings and cast entries are in Firestore; `contentRev` last moved 2026-… · CI running (4 pending) · 2 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#464** · a session · *what:* Builds the owner's 2026-09-09 answer to the `OWNER-LIST.md` row *"The nightly voter samples have never held anyone who answered before they existed — pay ~23,000 reads once to see… · *how:* Recorded as **D442** (D440 and D441 are unclaimed on `main`; `check:docs` prints them as a note, not a failure, and the task named D442). · CI running (8 pending) · 1 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · no checks · 23 behind main · opened 2026-09-09 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 212 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
-
-**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
-
-- [ ] **#213** · dependabot · *what:* Bump @sentry/browser from 10.60.0 to 10.70.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 12 behind main · opened 2026-08-17 · stage **new**
 
 ## In the shift
 
@@ -69,6 +66,9 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#463** · The email door asks too: sign-in from an anonymous session shows the in-use screen first (D441) · merged 2026-09-09
+- **#462** · content: the ten plain picks get a sixth pack — Any Given Evening (D444) · merged 2026-09-09
+- **#461** · Directory row: the owner may delete it — clearing your name unlists you (D440) · merged 2026-09-09
 - **#209** · Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · merged 2026-09-09
 - **#272** · Build(deps): bump firebase-admin from 14.2.0 to 14.3.0 in /functions · merged 2026-09-09
 - **#302** · Build(deps-dev): bump firebase-tools from 15.24.0 to 15.28.1 · merged 2026-09-09
@@ -122,7 +122,3 @@ merge shift like any other PR.
 - **#423** · The Patterns engine, the fold, the store and the device solves rebuilt as ALGORITHM-REFLECTION planned (D394–D401) · merged 2026-09-06
 - **#419** · The first launch explains the app: a five-page walkthrough before the questions, and a row to see it again (D393) · merged 2026-09-06
 - **#422** · Runbook 4.4 closed: the privacy label is published · merged 2026-09-06
-- **#421** · The 2026-09-06 vision built: ink on paper, all six steps (D390–D392) · merged 2026-09-06
-- **#420** · The pick card browses every catalogue, paged; the learn reveal's crowd share is a strip, not a lit row; the field's Change door is pinned (D389) · merged 2026-09-06
-- **#418** · Build 31 delivered: appBuild 32 in lockstep, the release record, screenshots uploaded (4.1 closed), and the profiles chip click bounded · merged 2026-09-06
-- **#417** · D385's rule forbade the instruction as well as the lane, and the owner corrected it (D385 amendment) · merged 2026-09-06

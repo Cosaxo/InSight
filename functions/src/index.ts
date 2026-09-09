@@ -984,6 +984,14 @@ export const deleteAccount = onCall(
     //     registry, and worse if missed: the row holds a name, so leaving
     //     it means an erased account stays findable by the search this
     //     feature exists to provide.
+    //
+    //     The count is a CONSTANT on purpose, and since D440 that is
+    //     load-bearing: the owner may already have deleted this row by
+    //     clearing their name, and the delete below is idempotent, so an
+    //     erasure that finds no row succeeds and reports exactly as one
+    //     that found it. The old client-side deny rested on this phase
+    //     "counting on" the row; it never did, and a measurement here
+    //     (exists-then-delete) would be the change that made that true.
     try {
       await db.doc(`v2_people/${uid}`).delete();
       counts.peopleRow = 1;

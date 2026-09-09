@@ -126,7 +126,16 @@ function LivePrivacyPanel() {
   };
   const saveName = async () => {
     const n = name.trim().slice(0, 60);
-    if (!n) return;
+    // A blank Save CLEARS a name that is set — the store deletes the
+    // directory row with it (D440), so this is how a person who no longer
+    // wants to be found by name stops being found. Before D440 a blank
+    // returned here before reaching the store, which made a name a
+    // one-way door: settable, never un-settable, from the one screen
+    // that edits it. An account with no name has nothing to clear and
+    // stays the no-op it was — a write of "" over "" would be a profile
+    // write and a delete of a row that does not exist, for nothing the
+    // user can see.
+    if (!n && !(LIVE.displayName || localName()).trim()) return;
     setBusy(true); setErr(null);
     try {
       // The store writes the device mirror too, so this panel no longer
