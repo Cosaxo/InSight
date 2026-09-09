@@ -977,13 +977,17 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      // The author's profile, for D410 — see the read below. Declared here
+      // because the vote arm's own `profRef` is a hundred lines down, inside
+      // the branch this one has already returned from.
+      const profRef = db.collection("v2_users").doc(event.params.uid);
       // The cap's discards from the attempt that commits — reset per
       // attempt, logged once the transaction returns (logBucketCaps).
       const capped: BucketCapEvent[] = [];
       await runAggTransaction(db, qid, async (tx) => {
         capped.length = 0;
-        // Batched for the same reason as the vote path below: three
-        // sequential round trips inside the transaction is three times the
+        // Batched for the same reason as the vote path below: four
+        // sequential round trips inside the transaction is four times the
         // lock window on the contended per-qid document.
         //
         // The question's domain decides which key space validates this
@@ -991,7 +995,22 @@ export const onV2AnswerCreated = onDocumentCreated(
         // only. A missing or unknown domain never aggregates: with three
         // key spaces (a contiguous range and two sparse QID sets, D15)
         // there is no honest global fallback bound.
-        const [seen, qDoc, priv] = await tx.getAll(eventRef, qRef, privRef);
+        //
+        // AND THE PROFILE RIDES THIS READ (D410), exactly as it does on the
+        // vote path below. D410 binds "the fold … which builds the published
+        // aggregate every Mirror cut is drawn from" and never scoped this arm
+        // out — this second fold was simply left unenforced for as long as
+        // the decision has existed. The anchors on an answer are the client's
+        // CLAIM about its own cohort; firestore.rules shape-checks ten short
+        // strings and cannot check WHOSE they are (honestAnchors() in pure.ts
+        // has why the rule that would is not expressible at all). Unenforced,
+        // a hand-written client naming a city it does not live in put that
+        // city into the published `by` map, where `pickSegs`/`pickSeg`
+        // (live.ts) read it straight onto the pick card as a segment chip and
+        // a segment ordering of the board. One more billed read, no extra
+        // round trip, and the lock window on the per-qid document is
+        // unchanged.
+        const [seen, qDoc, priv, prof] = await tx.getAll(eventRef, qRef, privRef, profRef);
         if (seen.exists) return;
         const spec = CATALOG_DOMAINS[qDoc.get("domain") as string];
         if (!spec) {
@@ -1014,9 +1033,25 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key, (kind, dim, bucket, total) => {
+        // What the answer SHOULD have said (D410). Bound before the fold so
+        // the fold and the correction below are comparing one thing.
+        const claimed = snap.get("anchors");
+        const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
+        foldCanonAnchors(entBy, anchors, key, (kind, dim, bucket, total) => {
           capped.push({ kind, dim, bucket, total });
         });
+        // AND THE DOCUMENT IS CORRECTED, not only the fold — the vote arm's
+        // rule, for the vote arm's reason. Answers are public (D98), so an
+        // invented cohort left on the row stays readable by anyone even
+        // after the fold has ignored it, and D8's snapshot has to stay true.
+        // Written ONLY when it differs, so an honest client pays one read
+        // and no write — the write is the liar's cost.
+        if (JSON.stringify(anchors) !== JSON.stringify(claimed ?? {})) {
+          logger.warn(
+            `[v2] catalog answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+          );
+          tx.set(snap.ref, { anchors }, { merge: true });
+        }
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
         // into `rest`; it used to also drop every entity under the

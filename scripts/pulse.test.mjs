@@ -440,9 +440,11 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
       + "the published aggregate, which is the fold's working document since "
       + "D275 collapsed the private mirror into it); the catalog (D232) and "
-      + "rank (D233) branches each read one more — the question doc — which "
-      + "the model deliberately absorbs into the vote rate (see the "
-      + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
+      + "rank (D233) branches each read one more — the question doc — and "
+      + "the catalog branch reads a FOURTH since 2026-09-09, the author's "
+      + "profile, because D410's honest-anchor check had never been applied "
+      + "to that fold; the model deliberately absorbs both into the vote "
+      + "rate (see the constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
       + "D426 — the group document, in the transaction that marks who "
       + "played and asks whether the round is complete (TRIGGER_READS.duel "
       + "0 → 1) — plus TWO on its late path alone (the reveal it joins and "
@@ -450,7 +452,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "for a late answer rather than by the per-answer constant, because "
       + "only an answer to a round that has already revealed takes that "
       + "path. Recount before changing the constant.",
-    ).toBe(12);
+    ).toBe(13);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {

@@ -306,12 +306,15 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // ledger event (dedup) and tx.get on the private aggregate. The catalog
 // branch (live since D232) and the rank branch (D233) each add a third —
 // the question doc, for the domain and the item count respectively — so a
-// pick or rank answer costs 3 where a vote costs 2. The model still
-// charges the vote path for every world answer, a DELIBERATE
-// approximation rather than a stale one: `B.worldAnswers` has no per-type
-// split to hang the extra read on, picks and ranks are a small slice of
-// the bank (17 + 8 of 129 feed entries), and the error is one read per
-// such answer, strictly under +50% on this term's smallest component.
+// rank answer costs 3 where a vote costs 2, and a PICK costs 4, because
+// the catalog arm reads the author's profile too (the D410 paragraph
+// below; it was the one published fold that did not, until 2026-09-09).
+// The model still charges the vote path for every world answer, a
+// DELIBERATE approximation rather than a stale one: `B.worldAnswers` has
+// no per-type split to hang the extra read on, picks and ranks are a small
+// slice of the bank (17 + 8 of 129 feed entries), and the error is one
+// read per such answer — two on a pick — strictly under +50% on this
+// term's smallest component either way.
 // If the mix ever tilts toward catalogue/rank-heavy feeds, split the
 // volume assumption before touching this constant.
 //
@@ -321,7 +324,9 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // answer completed the round — in which case the reveal runs right there
 // (its reads are the reveal's, below). The day's branch did zero, one
 // blind arrayUnion, because nothing about it depended on the document.
-// THREE on the world path since D410, not two. The fold reads the AUTHOR'S
+// THREE on the world path since D410, not two — and on the CATALOG arm
+// only since 2026-09-09, which is the fix that took this constant's
+// approximation from one read to two on a pick. The fold reads the AUTHOR'S
 // PROFILE alongside the ledger event and the published aggregate, because
 // the anchors on an answer are the client's claim about its own cohort and
 // firestore.rules can only check they are plausible, never that they are
