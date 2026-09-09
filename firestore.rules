@@ -459,10 +459,18 @@ service cloud.firestore {
             // AND IT REPLACES `keys().size() <= 8` rather than joining it.
             // Five names cannot reach nine, so the count could never
             // evaluate false again — rules-coverage said so on the first
-            // run, 44 never-false predicates going to 45 — and a knowingly
+            // run, its never-false list going UP by one — and a knowingly
             // dead clause on a path already near the expression ceiling is
             // worse than no clause. The vocabulary bounds the count
             // structurally, at whatever length the list is, forever.
+            //
+            // (The absolute figures that used to sit in that sentence, 44
+            // going to 45, were retired hours later the same night: the
+            // gate had been filing a predicate whose negative case ERRORS
+            // as never-false, and fixing that took the list from 44 to 8.
+            // The direction is what the argument rests on, so the numbers
+            // are gone rather than restated — a figure in a comment is the
+            // documentation error this repo keeps re-committing.)
             && request.resource.data.testResults.keys()
                  .hasOnly(["logic", "big5", "political", "values", "attachment"])
             && (!("logic" in request.resource.data.testResults)
