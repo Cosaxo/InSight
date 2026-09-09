@@ -1344,13 +1344,14 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 //
 // Firestore stops a rule at 1,000 evaluated expressions and reports the
 // stop as PERMISSION_DENIED — a budget exhaustion is indistinguishable
-// from a rule saying no. `firestore.rules:1206` says exactly that about
-// itself ("correct today, and silently wrong the moment a path grows
-// past the ceiling") and nothing measured it.
+// from a rule saying no. The create rule's own comment (firestore.rules
+// § "MEASURED, 2026-09-09") says exactly that about itself ("correct
+// today, and silently wrong the moment a path grows past the ceiling"),
+// and for a day nothing measured it.
 //
-// Measured 2026-09-09 by appending N filler conjuncts (`&& …surface !=
-// "zzfillN"`, roughly 3 expressions each) after `isValidV2Anchors` and
-// running exactly these seven cases against the emulator at each N:
+// Measured 2026-09-09 (D429) by appending N filler conjuncts (`&& …surface
+// != "zzfillN"`) after the rule's last conjunct and running exactly these
+// seven cases against the emulator at each N:
 //
 //   N    world  own-bank  world-content  pick  late  rank  32-member
 //   40    ok      ok          ok          ok    ok    ok      ok
@@ -1361,9 +1362,12 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 //   80  BUDGET  BUDGET      BUDGET      BUDGET BUDGET BUDGET BUDGET
 //
 // The thinnest paths — D426's world-question arm and the pick round —
-// flip between 40 and 48 fillers, so their headroom is somewhere near
-// 130 expressions of the 1,000. That is what "close to the ceiling"
-// means here, in a number.
+// flipped between 40 and 48 fillers. D429 read a filler as ~3
+// expressions and called that ~130 of headroom; D432's calibration block
+// measured a filler at ~8 budget units, so it was ~375. After D433
+// (fetches hoisted, arms routed, anchors read once) the same two flip at
+// 58 — ~470 — and scripts/rules-budget-baseline.json holds the table for
+// all seven; scripts/rules-budget.mjs re-measures it.
 //
 // Measured with two clauses in the file that left it the same day: the
 // world-content arm (D426's third amendment — a round is its own bank's
@@ -1379,10 +1383,13 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 // priced per element. Pinned below as its own case, since it is the
 // intuitive suspect and it is wrong.
 //
-// And EVERY refusal already exceeds the budget today, because a deny
-// walks every arm to the end. That is why this pins the SUCCESSES: a
-// denial that costs too much is still a denial, while an allow that
-// costs too much is a person who cannot answer, told they may not.
+// And until D433 EVERY refusal exceeded the budget, because a deny walked
+// every arm to the end — thirteen times in one e2e run, each an expected
+// refusal, so the suite was green and could not tell (D431). The router
+// ended that (zero in the same run), and this block still pins the
+// SUCCESSES: a denial that costs too much is still a denial, while an
+// allow that costs too much is a person who cannot answer, told they may
+// not.
 //
 // Every other answer/duel case in this file sends `anchors: {}` or a
 // one-key snapshot, which is the cheap end of the payload. These send

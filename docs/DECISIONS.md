@@ -47209,6 +47209,197 @@ Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
 measurement. The owner row is closed as answered rather than done, because
 nothing was changed — only learned.
 
+
+## D432 · Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three
+
+**2026-09-09.** **Status:** binding (a measurement, and the method behind
+every later number). Built on the owner's *"go on phase 1, merge when
+green"*, because `RULES-BUDGET-PLAN.md` conditioned Phase 1 on Phase 0
+answering five questions first. This record is those answers; D433 is
+what was done with them.
+
+**What was built.** `scripts/rules-budget.mjs`, run inside the same
+`emulators:exec` as the rules suite, with `scripts/rules-budget.test.mjs`
+pinning its pure parts (19 cases, in `test:scripts`). For each of fifteen
+probe writes — eight legal creates (the suite's seven "heaviest LEGAL"
+cases plus a pulse), six refusal shapes the e2e hits, one D86 edit — it
+boots a fresh project, seeds with rules disabled, sends the one write and
+reports three things: the **verdict**, told apart three ways because the
+emulator's reason text reaches the client (*allowed*, *refused*, or
+*budget* — "maximum of 1000 expressions to evaluate has been reached");
+the **cost**, the coverage report's delta for that write attributed to
+the line; and the **headroom**, D429's filler method automated — append
+N conjuncts, bisect for the N at which the verdict changes. It measures
+the **compile ceiling** first and bounds the bisection by it; it can
+**ablate** any helper (`--ablate NAME=EXPR`) to price a clause by
+difference; and `--write-baseline` checks the table in as
+`scripts/rules-budget-baseline.json`. Every transform REFUSES when its
+anchor text is absent or doubled rather than measuring an unmodified
+file — the first run found the create rule's last conjunct is also the
+profile rule's, word for word, and would have measured the wrong rule.
+
+**The five questions, answered.**
+
+| question (plan §2) | answer, measured |
+| --- | --- |
+| Does the coverage count agree with the filler headroom? | **No, and not by a constant factor.** A base-tree duel write that is ALLOWED counts 1,410 — over the 1,000 it did not exceed. Routing the arms (D433 (c)) halved that write's count, 1,257 → 616, and moved its headroom by one filler, 60 → 59. So the filler method is the oracle for the ceiling and the report is a guide to WHICH line, which is what the plan said to do if the answer was no. (On the routed tree the report comes within ~10% of budget units — cost + 8.1·fillers lands at 1,063–1,133 on the eight legal probes — which says the base tree's excess was the arms a write walked and abandoned; recorded as an observation, not a model.) |
+| What does one `get(…).data.x` site cost? | The duel arm's fetch sites went 14 → 2 in D433 (a), and its writes gained 10 fillers ≈ **81 units, ~7 a site** — inside the plan's 6–8 estimate. Not memoised by the emulator as an expression, then; only as a read. |
+| Is a function's `let` evaluated before its `return`? | **Yes.** Ablating `isDuelAnswer` on the base tree made a pulse and a rank write ~6 fillers (~49 units) cheaper: the group fetch in its `let`, paid by writes that never reached the arm. Plan §3(b) was real. |
+| Per `allow` statement or per request? | **Per request**, from D431's row (a `set` over an existing answer evaluates create AND update against one budget and the pair exceeds it where either alone fits), and the coverage report agrees: the update arm is entered on every create and errors at its first `resource.data` read, 18 counts. `--fillers-on update` exists for the direct measurement and was not run in this session — D433's zero on the e2e is what the question was for. |
+| What does `hasOnly([ten names])` cost? | **Not isolated.** After (a) the duel arm still counts ~609 with nothing fetched twice; the ten-name `hasOnly`, the aid composition and the member test are what is left, and the instrument can price them by ablation the day someone needs the number. |
+
+**The unit — the finding that reprices everything before it.** D429
+read a filler conjunct (`&& request.resource.data.surface != "zzfillN"`)
+as "~3 expressions" and every headroom figure since has been quoted in
+that currency, this plan's included. The instrument has a calibration
+block: a rule whose own cost is a handful of units (`request.auth !=
+null`, in a match block of its own at the top of the file), tipped over
+the 1,000 by fillers of known weight — five compares in one conjunct,
+then ten — so the N at the flip brackets what a plain filler costs.
+Weight 5 is allowed at N = 24 and refused by budget at 25; weight 10 at
+12 and 13. Brackets (7.92, 8.33] and (7.62, 8.33]; they overlap, and the
+middle is **8.1 budget units a filler**. So D429's "~130 expressions of
+headroom" on the thinnest legal create was **~375**, and the plan's §0
+arithmetic, written in the same currency, was low by the same factor.
+Nothing that was ordered by those numbers changes order; what changes is
+the distance, and D433's target reads against the measured unit.
+
+**The base tree, in that unit** (`origin/main` at D431; compile ceiling
+85 fillers on the create arm):
+
+| probe | verdict | fillers (units) |
+| --- | --- | ---: |
+| world · all ten anchors at their bounds | allowed | 75 (608) |
+| duel · own bank | allowed | 53 (429) |
+| duel · world content *(thinnest, D429)* | allowed | 46 (373) |
+| duel · pick round *(thinnest, D429)* | allowed | 47 (381) |
+| duel · late answer | allowed | 50 (405) |
+| rank | allowed | 56 (454) |
+| duel · 32-member room | allowed | 53 (429) |
+| pulse | allowed | 55 (446) |
+| six refusal shapes (revealed round, entity on a non-catalog question, a second ranking, optionIdx on a rank question, a killed question, a non-member) | **budget**, all six | over |
+| update · optionIdx edit | allowed | — |
+
+D429's hand measurement reproduced exactly (46–47 on the two thinnest,
+the 32-member room flipping with its two-member twin, the compile
+ceiling at 85), and the six refusals are D431's thirteen e2e messages
+seen from the other side: not one of them was refused by the rule it was
+sent to test.
+
+**Ablations on the base tree**, for the plan's §0 ranking: the anchors
+cost every duel, rank and pulse write ~28 fillers (~225 units — the
+world probe capped at the compile ceiling before its ablation flipped);
+the world arm costs a duel write 1–2 fillers on the way past, so `||`
+does short-circuit on a failed surface guard; the duel arm's eager `let`
+costs a pulse or rank write ~6; and with the duel arm ablated every
+refusal FITS, with 11 fillers to spare — the arm was the whole of the
+refusals' excess.
+
+**What the instrument found about itself.** Three fixture defects on
+first contact, each now a flagged verdict rather than a number nobody
+questions: fillers scoped to the answers block (above); the pulse probe
+had seeded the per-day answer id where the arm reads the BASE question;
+and the "duplicate ranking" probe was a repeated index, which
+`isRankAnswer` bounds the length of and never the distinctness — a legal
+order measured as a refusal until it became a second answer to the same
+question. **Not a gate**: the plan's Phase 3 is the gate, and it is
+built on this record's numbers, not the other way round.
+
+## D433 · Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero
+
+**2026-09-09.** **Status:** binding. The owner: *"go on phase 1, merge
+when green"*. The plan's four moves and its Phase 2, each a commit, each
+measured by D432's instrument, under one invariant: **every allow/deny
+verdict in `firestore-tests/rules.test.ts` identical (213 of 213 at every
+commit), `rules-coverage`'s never-false count at its baseline of 8, and
+`test:e2e:all` green.** The suite is the oracle for meaning; the
+instrument is the oracle for cost.
+
+**The moves, and what each measured.**
+
+*(a)+(b)+(d), one commit — fetch each document once, guard before
+`let`, hoist the update arm.* `isDuelAnswer` fetched the question at ten
+sites and the group at four; now it is guards, then `exists(question)`,
+then `duelBody(d, q, g)` with the two documents fetched once each as
+arguments and the `let`s (`open`, `late`) inside the body, so a write
+that fails the guards never pays the fetch. The same shape for
+`isWorldAnswer`, `isRankAnswer`, `isCatalogAnswer`, `isPulseAnswer` and
+`isCallAnswer`; `duelIndexSpace(q, g)` takes what it used to fetch
+three times; the update arm reads its question once through `editOk(q)`.
+Fetch and exists sites in the answers block: **39 → 16**. (b) is not a
+separate commit because it is not separable from (a): the `let`s move
+into the body function (a) creates. Headroom, in fillers: the duel arms
++10 (46 → 56 on the thinnest), rank +7, pulse +6, world +3. Refusals:
+still over budget — every one of them still walked six arms.
+
+*(c) One discriminator, one arm.* The create rule's six-way `||` became
+`createArm()`: a ternary that routes on the field only one arm admits
+(`order` → rank, `entity` → catalog), then on the `optionIdx` bound, then
+on `surface` — duel, pulse, call, world — with the anchors INSIDE each
+branch, because the base measurement had found a refused write paying
+every arm and the anchors both, so "last" bought a refusal nothing. The
+partition is exact, which is what makes this a refactor: every arm's
+`hasOnly` refuses the other arms' distinguishing keys and the surface
+lists are disjoint, so no write could ever have been accepted by an arm
+other than the one it now routes to; the suite is the proof, case for
+case. Measured: **every refusal now reports *refused*, at ≥ 94 fillers
+of headroom** — the compile ceiling, which the instrument reached
+without a flip — so each costs under ~240 units where it had exceeded
+1,000. The legal arms moved by at most one filler either way (a write
+pays four discriminators instead of the arms' guards), except rank, +16:
+it had been the LAST alternative and is now the first test. The compile
+ceiling itself rose 85 → 94, the statement being shorter. The router
+also made three clauses dead — the `surface` guards opening the duel,
+pulse and call arms, each repeating what the router had decided —
+`rules-coverage` reported never-false 8 → 11 the moment it landed, and
+the honest fix was to remove them and name the router as the guard, not
+to add cases that cannot exist. Back at 8.
+
+*(e), Phase 2 — the anchors read once.* `isShortAnchor` read the map
+twice per key, once for `is string` and once for `size()`; a `let` binds
+it once. Same verdicts, ten keys deep on every answer and profile write.
+Measured: +2–3 fillers (16–24 units) on every legal create, the plan's
+"~15" estimate. `check:anchors` still parses the call form it always
+parsed.
+
+**Before and after** (fillers, with budget units at D432's 8.1):
+
+| probe | base | (a)(b)(d) | (c) | (e) — now |
+| --- | ---: | ---: | ---: | ---: |
+| world · all ten anchors at their bounds | 75 (608) | 78 | 73 | **74 (599)** |
+| duel · own bank | 53 (429) | 60 | 59 | **62 (502)** |
+| duel · world content *(thinnest)* | 46 (373) | 56 | 56 | **58 (470)** |
+| duel · pick round *(thinnest)* | 47 (381) | 56 | 56 | **58 (470)** |
+| duel · late answer | 50 (405) | 58 | 57 | **60 (486)** |
+| rank | 56 (454) | 63 | 79 | **80 (648)** |
+| duel · 32-member room | 53 (429) | 60 | 59 | **62 (502)** |
+| pulse | 55 (446) | 61 | 62 | **64 (518)** |
+| the six refusal shapes | over, *by budget* | over | ≥94, *refused* | **≥94 (≥761), refused** |
+| compile ceiling, create arm | 85 | 85 | 94 | **94** |
+| `test:e2e:all` budget messages | 13 | — | 0 | **0** |
+
+**Against the plan's target.** §3 asked for ≥ 400 on every legal create,
+"provisional until Phase 0"; all seven clear it in the measured unit
+(470–648), and would read 174 in the unit that was wrong. The honest
+reading of the legal column is modest: **the restructure bought the
+thinnest legal create ~100 units and bought every refusal its verdict
+back**, which is the finding D431 opened — a suite whose refusals were
+granted by exhaustion rather than by the rules under test, and an e2e
+that said so thirteen times a run and was green. What did not move is
+the duel arm's own body, ~609 counts after nothing is fetched twice: the
+ten-name `hasOnly`, the aid composition, the member test, the question
+checks. Trimming it is a design change to what a duel answer is, not a
+refactor, and it is why Phase 4 stays priced rather than started.
+
+**What else changed.** `scripts/rules-budget.mjs` now carries the
+calibration block and prints headroom in both currencies; the create
+rule's own comment, the suite's budget header and the plan's §9 carry
+the measured numbers instead of D429's reading; `docs/OWNER-LIST.md`'s
+row is closed as done with Phase 3 named as the next step, which needs
+no decision. **Phase 3 — the gate** — is the plan's next commit: a
+headroom ratchet in the rules job so the number in
+`rules-budget-baseline.json` can only go up, a compile-headroom probe,
+and a `refused()` helper that turns a denial-by-budget into a red test.
 ## D434 · The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them
 
 **Date:** 2026-09-08 · **Status:** binding, step 1 built. The owner's
@@ -47735,3 +47926,26 @@ finding that is code's to take.
   `OWNER-LIST.md` — ship the next build promptly, or accept the field
   for one release — and the choice is the owner's, because it is an
   ordering of releases and not a defect in either.
+
+### Merged with `main` again (2026-09-09, after the second review)
+
+`main` took **D432 and D433** for the rules budget's Phase 0 and Phases
+1–2 (#457) while the review's follow-up was being built, so this
+branch's four records moved once more — D434–D437 — and
+`RULES-BUDGET-PLAN.md`'s prospective *D434* for its Phase 3 will find
+the number taken when that phase lands; a move then is the ordinary
+D299/D408 step, not a loss. **The restructured answer rule carries this
+branch's two changes where they were:** the group's guess is refused at
+`isDuelAnswer`'s door, before either fetch, and `duelBody`'s surface
+test is the equality alone — D433's world arm, kept on `main` because
+`main` still served world rounds, leaves with D426's third amendment.
+The arm read the question document `duelBody` is handed, so its leaving
+moves no fetch and D433's fourteen sites are fourteen still
+(`scripts/pulse.test.mjs`). **The budget instrument's probes are this
+tree's legal shapes** — no guess on a group write, the 1v1 answer with
+its guess in the world-content probe's place, and one more refusal, a
+guess on a group answer — and `scripts/rules-budget-baseline.json` is
+re-measured on the merged rules, so the record names writes the rules
+allow. D433's invariant held across the merge: every verdict in
+`firestore-tests/rules.test.ts` as before, `rules-coverage` at its
+baseline.

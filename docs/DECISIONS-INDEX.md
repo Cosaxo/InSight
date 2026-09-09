@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 461 lines instead of
-47,738. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 463 lines instead of
+47,952. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -103,7 +103,7 @@ detect it.
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D378 (+9) | 8049 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D370 (+8) | 8171 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D417 (+2) | 8248 |
-| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D437 (+30) | 8349 |
+| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D437 (+31) | 8349 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D303 (+5) | 8439 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8518 |
 | **D89** | [The feed's "knows this best" row is demo furniture — live mode refuses it](DECISIONS.md#d89--the-feeds-knows-this-best-row-is-demo-furniture--live-mode-refuses-it) | D133 (+2) | 8582 |
@@ -320,7 +320,7 @@ detect it.
 | **D296** | [The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero](DECISIONS.md#d296--the-scorecard-has-been-reading-production-through-a-retired-predicate-and-every-number-downstream-inherited-the-zero) | D331 (+6) | 30255 |
 | **D297** | [Doing the things that could be done, and the four latent faults that surfaced on the way](DECISIONS.md#d297--doing-the-things-that-could-be-done-and-the-four-latent-faults-that-surfaced-on-the-way) | D408 (+2) | 30350 |
 | **D298** | [The review of D296/D297 found a bug D296 had created, and five things that were true of the stub instead of the server](DECISIONS.md#d298--the-review-of-d296d297-found-a-bug-d296-had-created-and-five-things-that-were-true-of-the-stub-instead-of-the-server) | D299 | 30491 |
-| **D299** | [Decision numbers get a gate, because three renumbers in two days is a process and not an accident](DECISIONS.md#d299--decision-numbers-get-a-gate-because-three-renumbers-in-two-days-is-a-process-and-not-an-accident) | D385 (+1) | 30601 |
+| **D299** | [Decision numbers get a gate, because three renumbers in two days is a process and not an accident](DECISIONS.md#d299--decision-numbers-get-a-gate-because-three-renumbers-in-two-days-is-a-process-and-not-an-accident) | D437 (+2) | 30601 |
 | **D300** | [The first look at production, and the two things it said that the repo had wrong](DECISIONS.md#d300--the-first-look-at-production-and-the-two-things-it-said-that-the-repo-had-wrong) | D327 (+3) | 30669 |
 | **D301** | [Twenty-one strays, three provenances, and one of them runs on every account deletion](DECISIONS.md#d301--twenty-one-strays-three-provenances-and-one-of-them-runs-on-every-account-deletion) | D333 | 30763 |
 | **D302** | [The iris mark: the identity stops being a first pass](DECISIONS.md#d302--the-iris-mark-the-identity-stops-being-a-first-pass) | D393 (+2) | 30889 |
@@ -441,7 +441,7 @@ detect it.
 | **D405** | [The place scorecard's second crowd is renamed "everywhere else", and D288 §2's "from elsewhere" is retired — the night shipped it, the owner rules on it](DECISIONS.md#d405--the-place-scorecards-second-crowd-is-renamed-everywhere-else-and-d288-2s-from-elsewhere-is-retired--the-night-shipped-it-the-owner-rules-on-it) | D408 (+1) | 43051 |
 | **D406** | [The 2026-09-07 night review: two shifts merged as one tree — 67 commits kept, three defects the composition created, and a guard fix that was the same fix twice](DECISIONS.md#d406--the-2026-09-07-night-review-two-shifts-merged-as-one-tree--67-commits-kept-three-defects-the-composition-created-and-a-guard-fix-that-was-the-same-fix-twice) | D430 (+2) | 43110 |
 | **D407** | [Three behaviour signals get a reader: whether the Mirror is READ, not only answered into](DECISIONS.md#d407--three-behaviour-signals-get-a-reader-whether-the-mirror-is-read-not-only-answered-into) | D408 | 43254 |
-| **D408** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d408--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | D417 (+2) | 43330 |
+| **D408** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d408--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | D437 (+3) | 43330 |
 | **D409** | [The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success](DECISIONS.md#d409--the-answer-rules-are-not-at-firestores-expression-ceiling--measuring-the-failure-instead-of-the-success) | D426 (+1) | 43449 |
 | **D410** | [You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist](DECISIONS.md#d410--you-may-withhold-an-anchor-you-may-not-invent-one--and-why-the-rule-that-would-say-so-cannot-exist) | — | 43546 |
 | **D411** | [`main`'s e2e flake: the aggregate was always there, and the client could not see it](DECISIONS.md#d411--mains-e2e-flake-the-aggregate-was-always-there-and-the-client-could-not-see-it) | — | 43633 |
@@ -467,11 +467,13 @@ detect it.
 | **D427** | [The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way](DECISIONS.md#d427--the-path-out-a-room-is-retired-by-folding-never-by-deleting-and-the-gate-fails-a-fold-stopped-part-way) | D428 | 46393 |
 | **D428** | [Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples](DECISIONS.md#d428--breadth-first-a-room-is-born-with-a-handful-coverage-steers-where-the-next-one-opens-and-learns-cap-triples) | D430 | 46494 |
 |  | ↳ *amendment 2026-09-08* — [The learn lane runs daily, and its prompt is swapped for the one that can open a field](DECISIONS.md#d428-amendment-2026-09-08--the-learn-lane-runs-daily-and-its-prompt-is-swapped-for-the-one-that-can-open-a-field) | — | 46612 |
-| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | D437 (+2) | 46647 |
+| **D429** | [`firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either](DECISIONS.md#d429--firestorerules-has-two-ceilings-both-close-and-a-per-kind-size-bound-does-not-fit-under-either) | D437 (+4) | 46647 |
 | **D430** | [The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides](DECISIONS.md#d430--the-2026-09-09-night-review-two-shifts-merged-as-one-tree--54-commits-kept-zero-conflicts-for-the-first-time-and-the-defects-that-live-where-nothing-collides) | D431 | 46723 |
-| **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | D437 | 46973 |
+| **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | D437 (+2) | 46973 |
 |  | ↳ *amendment 2026-09-09* — [There was a probe all along, and Apple was already on](DECISIONS.md#d431-amendment-2026-09-09--there-was-a-probe-all-along-and-apple-was-already-on) | — | 47160 |
-| **D434** | [The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them](DECISIONS.md#d434--the-group-is-a-cast-the-owners-2026-09-08-design-lands-as-role-votes-in-packs-a-rating-every-fourth-round-and-the-fold-that-reads-them) | D437 (+2) | 47212 |
-| **D435** | [The duel bank leaves the JavaScript: learn's treatment, one bank over](DECISIONS.md#d435--the-duel-bank-leaves-the-javascript-learns-treatment-one-bank-over) | D437 | 47327 |
-| **D436** | [The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built](DECISIONS.md#d436--the-2026-09-09-design-arrives--how-1v1s-and-groups-work-now--recorded-planned-and-its-confusions-put-to-the-owner-before-anything-is-built) | — | 47432 |
-| **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | — | 47503 |
+| **D432** | [Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three](DECISIONS.md#d432--phase-0-of-the-rules-budget-the-instrument--and-a-filler-conjunct-costs-eight-units-not-three) | D437 (+1) | 47213 |
+| **D433** | [Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero](DECISIONS.md#d433--phases-1-and-2-of-the-rules-budget-the-answer-rule-restructured-with-every-verdict-identical--refusals-by-budget-go-from-thirteen-to-zero) | D437 | 47308 |
+| **D434** | [The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them](DECISIONS.md#d434--the-group-is-a-cast-the-owners-2026-09-08-design-lands-as-role-votes-in-packs-a-rating-every-fourth-round-and-the-fold-that-reads-them) | D437 (+2) | 47403 |
+| **D435** | [The duel bank leaves the JavaScript: learn's treatment, one bank over](DECISIONS.md#d435--the-duel-bank-leaves-the-javascript-learns-treatment-one-bank-over) | D437 | 47518 |
+| **D436** | [The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built](DECISIONS.md#d436--the-2026-09-09-design-arrives--how-1v1s-and-groups-work-now--recorded-planned-and-its-confusions-put-to-the-owner-before-anything-is-built) | — | 47623 |
+| **D437** | [How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers](DECISIONS.md#d437--how-1v1s-and-groups-work-now--built-to-the-owners-2026-09-09-brief-on-the-owners-eight-answers) | — | 47694 |
