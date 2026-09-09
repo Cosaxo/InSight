@@ -8,7 +8,7 @@
 // exactly like evidence arriving.
 import { describe, it, expect } from "vitest";
 import {
-  leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
+  leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing, HUE_MIN_GAP,
   loadTops, loadLeaves, loadLedger, loadRing, isPlaced, feedPageCost, parentDeficitOf,
   retireVerdict, demandReading, coverageAllocation, settlingStock,
   EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, LEAF_BIRTH, FIELD_BIRTH, LEAF_TARGET, FIELD_TARGET, BREADTH_SHARE,
@@ -212,6 +212,47 @@ describe("hueFor — a top's colour; a leaf wears its family's", () => {
     expect(hueFor([350, 10])).toBe(180);
     expect(hueFor([90])).toBe(270);
     expect(hueFor([])).toBe(0);
+  });
+
+  // THE HALF THAT WAS MISSING. `HUE_MIN_GAP` lived in check-taxonomy.mjs
+  // and this function never read it, so the rule and the generator agreed
+  // only while the ring was sparse enough for luck to hold.
+  it("returns null rather than a hue check:taxonomy would refuse", () => {
+    // A ring whose widest arc is 28: splitting it leaves 14, under the
+    // floor of 15, and no other arc could do better — the midpoint of the
+    // widest arc is the furthest point on the ring by definition.
+    const tight = [0, 28, 56, 84, 112, 140, 168, 196, 224, 252, 280, 308, 336];
+    expect(hueFor(tight)).toBeNull();
+    // …and the old behaviour is still reachable, for a caller that wants
+    // the pick without the rule.
+    expect(hueFor(tight, 0)).toBe(14);
+    // Two points wider and it answers: an even ring of twelve leaves every
+    // arc at 30, and half of 30 is exactly the floor rather than under it.
+    expect(hueFor([0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330])).toBe(15);
+  });
+
+  it("refuses at the twentieth feed topic, on the ring that actually ships", async () => {
+    // Measured rather than reasoned: today's eleven, then `hueFor` fed its
+    // own output. The ninth hue it hands out is the one the gate refuses —
+    // and the lane would have written it at every site first.
+    const { loadSources } = await import("./check-taxonomy.mjs");
+    let ring = hueRing("feed", loadSources().wire);
+    expect(ring.length).toBeGreaterThan(8);
+    let added = 0;
+    for (; added < 30; added++) {
+      const h = hueFor(ring);
+      if (h === null) break;
+      ring = [...ring, h];
+    }
+    // Whatever the ring grows to, every hue it DID hand out clears the
+    // floor against every neighbour — which is the property, stated
+    // without a magic number in it.
+    for (const h of ring) {
+      const others = ring.filter((x) => x !== h);
+      const lo = Math.min(...others.map((x) => Math.abs(((h - x + 540) % 360) - 180)));
+      expect(lo).toBeGreaterThanOrEqual(HUE_MIN_GAP);
+    }
+    expect(hueFor(ring, 0)).not.toBeNull();
   });
 });
 
