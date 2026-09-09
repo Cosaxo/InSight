@@ -46818,3 +46818,74 @@ the sample rule — append freely, never edit the sample, regenerate only
 when the gate says so. `BANK-DELIVERY.md` § Ceiling 1 now reads as the
 record of both moves. Steps 2–4 of `VISION-2026-09-08.md` stand where
 they were; §4.3 is marked built.
+
+## D431 · The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built
+
+**Date:** 2026-09-09 · **Status:** binding as a record; every ruling it
+touches stands until the owner answers. The owner's `InSight_15` upload
+and its brief — *"the plan laid for group and 1v1 and visual. ask if
+anything confuses you"* — extracted to
+[`design/standalone-2026-09-09/`](../design/standalone-2026-09-09/README.md)
+(ten of 110 modules moved by the bundle's own hashes, the first
+extraction measured that way) and planned in
+[`VISION-2026-09-09.md`](VISION-2026-09-09.md). Nothing is built from
+it in this record's PR, on purpose: the brief asked for the confusions
+first, and six of them change the build's shape.
+
+### What the design says, in the brief's own order
+
+Rounds everywhere, a lead either side may run; nothing in a group
+predicted or called; titles only on result cards; answers carrying the
+question they answered. A 1v1's rounds by number are own · World · own
+· **cast** — the cast a plain sentence, *Most days, Liv is…*, with four
+answers per mode each carrying a dim (trust · spark · judgement ·
+constancy) and a *them* form, the guess at what they said about you.
+A group plays votes and ratings only, every role in a **seat** (engine ·
+hands · heart · wild), the ballot a grid of faces, the run at the foot
+a record rather than a score, the reveal at everyone-played or a
+48-hour deadline. The Groups stop is Overview · Votes · People · Scores
+· Compare. The role instrument is one idea in two settings — the share
+of casts naming you per axis, the share of your votes per seat — and how
+well you read each other moves to the person page's Together tab.
+
+### Where it meets a ruling on the record
+
+Four places, and the rule of this record is that each is an ASK (D334's
+shape), not a silent reversal and not a silent refusal:
+
+- **The World round in a 1v1** — retired 2026-09-08 by the owner at the
+  first reveal (D426's third amendment); the brief lists it as current.
+- **The room's call on a role vote** — D386's, owner-approved, an owner
+  row since D429; the brief's principle removes it.
+- **The instrument** — D204's two, rescored at D386, Standing as an
+  aside at D429, ROLES-PLAN's proposed tables on an owner row; the
+  design replaces all of it with the seats and the axes.
+- **The clock** — the owner's own rule of 2026-09-08 (a 1v1 closes at
+  the deadline for one player too; 24 hours from the first answer);
+  the design says 48 hours and *no clock* for a 1v1.
+
+Plus two departures the plan keeps and asks the owner to confirm: a
+live answer is create-only (D86), so a moved question cannot re-open a
+round the way the demo's `dState`/`gState` do — the stored `qid` and
+`revealQid`'s plurality are the honest equivalent; and two scenario
+roles changed since the 09-08 packs, which under D30/D52 is two
+retirements and two new entries, never an edit.
+
+### What is recorded rather than built, and why
+
+The last upload (D429) was built the same day, step 1 of four, because
+its mechanism was already in the tree and its content was not. This one
+changes what a 1v1 round IS (the cast), what the instrument measures,
+and three things the owner ruled on within the last two days — and the
+brief's last sentence is an instruction. The plan's §7 orders the build
+so that what needs no answer comes first (the group card to the brief,
+the Groups stop, the demo playing rounds) and what needs one names it;
+the questions are §6 there and rows on `OWNER-LIST.md`, each with a
+recommendation so one word answers it.
+
+### One thing the extraction found
+
+The brief opens *"Read `insight/README.md`"*; the bundle carries no
+README (searched by its section title across every decoded resource).
+The brief's paragraphs are the prose, the code is the design, and the
+record says so rather than paraphrasing a document nobody here has read.

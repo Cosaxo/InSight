@@ -383,85 +383,6 @@ that lets a buyer read them.
   price they do not pay.
 - **status** — `requested`.
 
-### 5 · The 1v1 and group profile — three instruments, and the pair's card
-
-**Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
-groups profile better … assume you have full creative freedom."*
-`ROLES-PLAN.md` is the plan; this is the screen half of it, and it
-waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
-it is planned here. **Noted 2026-09-07**: the owner's `InSight_10`
-upload draws the third surface — the person's page — on paper: *Play
-together* as doors whose sub-line carries the named type's one-line
-meaning, and the read-each-other card as a two-column hit-rate table
-under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
-pair's card as this request wants it drawn; the plan's owner call still
-gates what the doors say. **Noted 2026-09-08**: the owner's `InSight_12`
-upload draws the group half — the role votes in packs, the ratings, the
-cast, and a group instrument with Standing back and nine types
-(`design/standalone-2026-09-08/role-data.js`, `roles-panel.jsx`); D429
-built the rounds and Standing as an aside, and the tables are step 2 of
-`VISION-2026-09-08.md`.
-
-- **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
-  (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
-- **surface** — three places, one vocabulary. (1) The profile
-  overlay's **Roles** subtab (`ui/LiveRolesPanel.tsx`, D204 — yours,
-  live only): today an average rose, a name, a line, a day count, and
-  one row per setting with receipts on tap. (2) The **1v1 daily
-  card's** done state (`ui/LiveDuelPanel.tsx`, D156): today the two
-  runs of dots under the day's answer. (3) The **person's page**
-  (`spec/person-overlay.jsx` — its *Play together* card, D310, draws
-  a pair type from demo data only).
-- **what it draws** — on the Roles tab: *you across 1v1s* (Insight ·
-  Legibility · Projection) with the rule that earns the name, the
-  runner-up when the match is close (*The Watcher · nearly The Mind
-  Reader — if sharper on them*), and the rarity; then one row per
-  pair carrying the PAIR's type (The Familiar, The One-Way — who is
-  ahead named, The Twins…) beside your role in it, the two runs, and
-  on tap the receipts and the domain rows (*everyday · under pressure
-  · how they see you*). Then *you in groups* (Independence · Reading
-  the room · Standing · Presence) the same way, one row per group
-  with the group's cast in miniature (request 6 is the full cast).
-  On the 1v1 card: the pair's type and line under the runs. On the
-  person's page: the pair's type and their role in each group you
-  share, from the record you both already see.
-- **data and basis** — `data/roles.ts` over the reveal documents the
-  duel panel already fetches (14 per room, `COSTS.md`'s Roles row) or
-  the per-member ledger the plan's §3.3 adds to the group document
-  (zero reads either way); the tables in `ROLES-PLAN.md` §3.4–§3.5;
-  every rate chance-scaled (§3.2: 50 is luck). Floors: a pair at 4
-  days both guessed, you-across-pairs at 6, a group at 3 days played,
-  Standing at 3 pick days with D224 snapshots, Reading the room at 3
-  guessed days. Below a floor a dim is absent and the types it
-  defines are out of the running; D1's empty state is the thin row
-  with its count, as today.
-- **states** — no settings (the sentence, as today); thin (the dashed
-  ring and *2 of 4 days both guessed*); one setting (no rows, the
-  card alone); several; a close match (the runner-up line present);
-  a setting whose history could not be read (*couldn't read this
-  one*, as today); demo: never — the tab is not there.
-- **interaction** — tap a row: receipts and domains; tap a pair's
-  type: the 1v1 card (`data/duelCue`, the daily ruler's licensed
-  exit); tap a name in a group's cast: their page; the ⓘ opens the
-  explain sheet's instrument entry; long press nothing.
-- **vocabulary** — the result card family (`spec/result-card.jsx`:
-  `TestRose`, `TypeMark`, the rule line, the nearly chips, the rarity
-  field); `RP_TESTS` hues (`--c-people` for a 1v1, `--c-groups` for a
-  group, new dims need hues); the 2026-09-02 standalone family and
-  `src/v2/styles.css`; D302's palettes; `COPY.md` — a type's line is
-  a claim about a person, true and kind at once (§3.5 of the plan).
-- **constraints** — the panel stays behind its `React.lazy` boundary
-  (first paint untouched; `check:bundle` at its band); zero new
-  reads; 44 px targets (`check:tap-targets`); the daily card's done
-  state must not grow a screen (D156: a finished circle collapses to
-  its content).
-- **why** — the ties axiom (D347, tie-1: the pair, the person across
-  pairs and the person in a group are three objects); CLAUDE.md's
-  first paragraph — a join nothing draws is unfinished, and the
-  pair's reading and the group's cast fold from data already on the
-  phone.
-- **status** — `requested` (waits on the plan's owner call).
-
 ### 8 · The logic test's worked example — one solved matrix before item 1
 
 - **title · asked by** — *How a matrix works* · a session, 2026-09-06
@@ -593,6 +514,95 @@ built the rounds and Standing as an aside, and the tables are step 2 of
 
 ## Designed
 
+### 5 · The 1v1 and group profile — three instruments, and the pair's card
+
+**Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
+groups profile better … assume you have full creative freedom."*
+`ROLES-PLAN.md` is the plan; this is the screen half of it, and it
+waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
+it is planned here. **Noted 2026-09-07**: the owner's `InSight_10`
+upload draws the third surface — the person's page — on paper: *Play
+together* as doors whose sub-line carries the named type's one-line
+meaning, and the read-each-other card as a two-column hit-rate table
+under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
+pair's card as this request wants it drawn; the plan's owner call still
+gates what the doors say. **Noted 2026-09-08**: the owner's `InSight_12`
+upload draws the group half — the role votes in packs, the ratings, the
+cast, and a group instrument with Standing back and nine types
+(`design/standalone-2026-09-08/role-data.js`, `roles-panel.jsx`); D429
+built the rounds and Standing as an aside, and the tables are step 2 of
+`VISION-2026-09-08.md`.
+
+- **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
+  (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
+- **surface** — three places, one vocabulary. (1) The profile
+  overlay's **Roles** subtab (`ui/LiveRolesPanel.tsx`, D204 — yours,
+  live only): today an average rose, a name, a line, a day count, and
+  one row per setting with receipts on tap. (2) The **1v1 daily
+  card's** done state (`ui/LiveDuelPanel.tsx`, D156): today the two
+  runs of dots under the day's answer. (3) The **person's page**
+  (`spec/person-overlay.jsx` — its *Play together* card, D310, draws
+  a pair type from demo data only).
+- **what it draws** — on the Roles tab: *you across 1v1s* (Insight ·
+  Legibility · Projection) with the rule that earns the name, the
+  runner-up when the match is close (*The Watcher · nearly The Mind
+  Reader — if sharper on them*), and the rarity; then one row per
+  pair carrying the PAIR's type (The Familiar, The One-Way — who is
+  ahead named, The Twins…) beside your role in it, the two runs, and
+  on tap the receipts and the domain rows (*everyday · under pressure
+  · how they see you*). Then *you in groups* (Independence · Reading
+  the room · Standing · Presence) the same way, one row per group
+  with the group's cast in miniature (request 6 is the full cast).
+  On the 1v1 card: the pair's type and line under the runs. On the
+  person's page: the pair's type and their role in each group you
+  share, from the record you both already see.
+- **data and basis** — `data/roles.ts` over the reveal documents the
+  duel panel already fetches (14 per room, `COSTS.md`'s Roles row) or
+  the per-member ledger the plan's §3.3 adds to the group document
+  (zero reads either way); the tables in `ROLES-PLAN.md` §3.4–§3.5;
+  every rate chance-scaled (§3.2: 50 is luck). Floors: a pair at 4
+  days both guessed, you-across-pairs at 6, a group at 3 days played,
+  Standing at 3 pick days with D224 snapshots, Reading the room at 3
+  guessed days. Below a floor a dim is absent and the types it
+  defines are out of the running; D1's empty state is the thin row
+  with its count, as today.
+- **states** — no settings (the sentence, as today); thin (the dashed
+  ring and *2 of 4 days both guessed*); one setting (no rows, the
+  card alone); several; a close match (the runner-up line present);
+  a setting whose history could not be read (*couldn't read this
+  one*, as today); demo: never — the tab is not there.
+- **interaction** — tap a row: receipts and domains; tap a pair's
+  type: the 1v1 card (`data/duelCue`, the daily ruler's licensed
+  exit); tap a name in a group's cast: their page; the ⓘ opens the
+  explain sheet's instrument entry; long press nothing.
+- **vocabulary** — the result card family (`spec/result-card.jsx`:
+  `TestRose`, `TypeMark`, the rule line, the nearly chips, the rarity
+  field); `RP_TESTS` hues (`--c-people` for a 1v1, `--c-groups` for a
+  group, new dims need hues); the 2026-09-02 standalone family and
+  `src/v2/styles.css`; D302's palettes; `COPY.md` — a type's line is
+  a claim about a person, true and kind at once (§3.5 of the plan).
+- **constraints** — the panel stays behind its `React.lazy` boundary
+  (first paint untouched; `check:bundle` at its band); zero new
+  reads; 44 px targets (`check:tap-targets`); the daily card's done
+  state must not grow a screen (D156: a finished circle collapses to
+  its content).
+- **why** — the ties axiom (D347, tie-1: the pair, the person across
+  pairs and the person in a group are three objects); CLAUDE.md's
+  first paragraph — a join nothing draws is unfinished, and the
+  pair's reading and the group's cast fold from data already on the
+  phone.
+- **status** — `designed` (2026-09-09, D431): the owner's `InSight_15`
+  upload draws all three surfaces — `design/standalone-2026-09-09/roles-panel.jsx`
+  (*In 1v1s* and *In groups*, the average card, one row per setting
+  with its casts or votes, thin rows *asked at round 4* / *not named
+  yet*), `person-overlay.jsx` (the Together tab: *What you are to each
+  other*, *How well you read each other* as two rings and the domain
+  rows, the groups you share) and `role-data.js` (one idea in two
+  settings: casts per axis, votes per seat; ten and eleven types) —
+  and answers the plan's owner call with a third shape, neither
+  `ROLES-PLAN.md`'s three nor D204's two. The build is step 4 of
+  `VISION-2026-09-09.md`, gated on its Q5 (the floor) and Q6.
+
 ### 6 · The cast — the group as roles
 
 - **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
@@ -642,6 +652,15 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   the rounds that feed it: three in four a role vote in a scenario
   pack. The build is step 3 of `VISION-2026-09-08.md`; the data it
   draws is the D224 snapshots on role votes and the ratings' steps.
+  **Redrawn 2026-09-09** (D431, `design/standalone-2026-09-09/group-mirror.jsx`
+  and `group-role-map.jsx`): the stop is Overview (the seat line — *Here,
+  you are the one who gets things going · 5 of 15 votes say so* — over
+  the role map, each person's seat under their name) · Votes (by pack,
+  a row opening who voted for whom) · People (the affinity swarm with
+  numbers, the seats list, in-common chips) · Scores (pole rows, five
+  ticks, you over the group) · Compare (the crowns as chips, and *the
+  room named you N of M* — the one place it appears). The build is step
+  5 of `VISION-2026-09-09.md`.
 
 
 ## Built
@@ -752,7 +771,13 @@ built the rounds and Standing as an aside, and the tables are step 2 of
   sealed; only the open round carries a deadline; the header's run line
   and the *N to play* count are gone). Built as `ui/LiveDuelPanel.tsx`'s
   card, rail, run and first run the same day; `ROUNDS-PLAN.md` §0a has
-  the same departures beside the model's own.
+  the same departures beside the model's own. **Refined 2026-09-09**
+  (D431, `design/standalone-2026-09-09/group-daily.jsx` and
+  `duo-daily.jsx`): the group's ballot is a 2-across grid of faces, the
+  run at the foot is a record with a caption on tap rather than a score,
+  no call on a role vote, the reveal says *closed at the deadline*, and
+  the 1v1 gains a cast round every fourth — steps 1 and 3 of
+  `VISION-2026-09-09.md`, gated on its questions.
 
 ### 7 · The first-launch walkthrough — how the app works, before the questions
 

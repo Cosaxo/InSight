@@ -344,8 +344,12 @@ describe("the lists on this tree", () => {
     // since 2026-09-08 (D429): the owner's InSight_12 upload drew the
     // group's cast — item 6 — so it moved under Designed, the section
     // being the status; its build is step 3 of VISION-2026-09-08.md.
-    expect(v.requested.length).toBe(9);
-    expect(v.designed.length).toBe(1);
+    // Requested 8 and Designed 2 since 2026-09-09 (D431): the owner's
+    // InSight_15 upload drew the roles panel, the person page's pair card
+    // and the instrument in two settings — item 5's three surfaces — so
+    // it moved under Designed beside 6, which the same upload redrew.
+    expect(v.requested.length).toBe(8);
+    expect(v.designed.length).toBe(2);
     expect(v.built.length).toBe(4);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);

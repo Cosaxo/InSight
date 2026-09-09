@@ -80,7 +80,16 @@ extracted to `standalone-2026-09-08/` (compiled and, new with this
 bundle, compacted; the README says what the extraction did and did not
 diff, and carries the bundle's own hashes for the next one), with the
 plan at [`docs/VISION-2026-09-08.md`](../docs/VISION-2026-09-08.md);
-it is the current vision (D429). Each
+it was the current vision (D429); and the **2026-09-09** upload
+(`InSight_15`, with the owner's brief *how 1v1s and Groups work now*)
+gives the 1v1 a cast round, every role a seat, the group a run that is
+a record, the Groups stop an Overview, the instrument two settings —
+casts per axis, votes per seat — and the person page a Together tab;
+extracted to `standalone-2026-09-09/` (the ten modules the bundle's own
+hashes say moved, the first extraction measured that way), with the
+plan and the questions at
+[`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it is the
+current vision (D431), recorded and not yet built. Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:
