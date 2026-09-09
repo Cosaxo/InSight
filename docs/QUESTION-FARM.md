@@ -949,13 +949,16 @@ for a duel run:
   us/classic questions are in the bank and out of the rotation, so
   **do not write more of them**. `check:content` holds the kinds and
   their shapes.
-- **The bank is compiled into the demo build whole, under a 24 KiB
-  cap** (`check:content`'s `BUNDLED_CONTENT`), and stood at 22.8 KiB
-  when the cast landed: **one burst run crosses it.** The cap's own
-  instruction is learn's treatment (D284 — a generated sample for the
-  demo, a live read for the app), not a higher number; until that is
-  built, a run that would cross it stops at the cap and says so in the
-  run log rather than raising it.
+- **The bank is not compiled into the app (D430).** The demo build
+  carries `content/duel-sample.json` — a generated slice (the first few
+  served questions of each group kind and each 1v1 domain, in bank
+  order, plus the packs those votes name), written by
+  `scripts/gen-duel-sample.mjs` and held to its source by
+  `check:duel-sample`. An **append never moves it**, so a run has no cap
+  to stop at and nothing to regenerate beyond `build:content`. The one
+  edit that does move it is a retirement (the next entry of that kind
+  slides in), which is the operator's, and the gate names the fix:
+  `npm run build:duel-sample`. Never edit the sample by hand.
 - **Match the pool's `active` posture.** While the romantic pool is dark
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,

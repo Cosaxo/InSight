@@ -94,15 +94,19 @@ fails CI rather than a device, which is the good version of this
 problem — but it stops the lane dead, and it will read as an unrelated
 build failure to whoever meets it.
 
-`content/duel-questions.json` (14.6 KiB) is compiled in the same way via
-`duels-data.js`. That lane is weekly and much smaller, so it is the same
+`content/duel-questions.json` (14.6 KiB) was compiled in the same way via
+`duels-data.js`. That lane was weekly and much smaller, so it was the same
 mechanism with years of slack — worth fixing in the same pass, not worth
-a pass of its own.
+a pass of its own. *The slack went in a week once the lane ran daily
+(D426) and the cast landed (D429): 22.8 KiB, one run from the cap. It got
+the same treatment on 2026-09-09 — D430, `content/duel-sample.json`,
+`check:duel-sample`.*
 
 **Every other bank is already clean.** Daily, feed and test questions
 reach the client only through Firestore. Learn and duel are the two
 exceptions, and they are exceptions because Learn and the duel pools have
-to work in the DEMO build, which has no backend at all.
+to work in the DEMO build, which has no backend at all — which is why
+each carries a generated sample rather than its bank.
 
 ### Why the live path cannot simply read the bank instead
 
@@ -167,12 +171,16 @@ shipped bank against its source has to import the source, and none of it
 reaches a device. Both directions fail, the check-purge shape: an
 unlisted import, and a listing nothing imports any more.
 
-Two entries today. `learn-sample.json` at 32 KiB — it grows with the
-number of FIELDS and never with the bank, so crossing it means the
-taxonomy roughly doubled and `PER_FIELD` wants re-deriving rather than
-the cap raising. `duel-questions.json` at 24 KiB — the last bank still
-compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
-signal to give it learn's treatment.
+Two content entries today, both samples. `learn-sample.json` at 32 KiB —
+it grows with the number of FIELDS and never with the bank, so crossing
+it means the taxonomy roughly doubled and `PER_FIELD` wants re-deriving
+rather than the cap raising. `duel-sample.json` at 16 KiB (D430) — it
+grows with the number of group KINDS and 1v1 DOMAINS and never with the
+bank, on the same argument. The entry it replaced, `duel-questions.json`
+at 24 KiB, was the last bank compiled in whole: written down as having
+years of slack on a weekly lane, and one daily run from the cap once the
+burst and the cast landed — which is what "crossing it is the signal"
+was for.
 
 ## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D312)**
 

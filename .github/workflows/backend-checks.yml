@@ -98,6 +98,9 @@ jobs:
       # does not have, which the demo build is by definition unable to
       # notice. Node stdlib only, no root node_modules.
       - run: npm run check:learn-sample
+      # The slice of the duel bank the JS bundle carries (D430) — the same
+      # gate one bank over, and the same silent failure if it drifts.
+      - run: npm run check:duel-sample
       # The rate card the SERVER charges from (D313). Same shape as the two
       # above and the same reason: functions/src/pricing.ts is a generated
       # embed of content/pricing.json, and check:pricing byte-compares them

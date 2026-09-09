@@ -60,7 +60,9 @@ const CONTENT = new Set([
   "src/v2/spec/test-definitions.js",
 ]);
 // Any JSON seed under content/ is content by construction — the banks
-// themselves. duel-questions.json rides duels-data.js today.
+// themselves, and the two generated samples the demo build carries
+// (learn-sample.json in learn-data.js, duel-sample.json in duels-data.js
+// since D430) — a sample is content too, just content that cannot grow.
 const CONTENT_DIR = "content/";
 
 // Eager today, and only because a first-paint surface still imports it.

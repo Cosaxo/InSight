@@ -654,6 +654,14 @@ const NOT_SEEDED = {
     + "scripts/gen-learn-sample.mjs, imported by src/v2/spec/learn-data.js so "
     + "the demo build has cards, and held equal to its source by "
     + "check:learn-sample. It is emphatically not a second bank to edit",
+  "duel-sample.json":
+    "generated OUTPUT, not an input — the fixed slice of duel-questions.json "
+    + "the JS bundle carries (D430: the whole bank used to be compiled in "
+    + "under the 24 KiB cap below, and the daily burst was one run from "
+    + "crossing it). Written by scripts/gen-duel-sample.mjs, imported by "
+    + "src/v2/spec/duels-data.js so the demo build has duel questions, and "
+    + "held equal to its source by check:duel-sample. It is emphatically "
+    + "not a second bank to edit",
 };
 
 // ---- content COMPILED INTO THE CLIENT, and how much of it there may be.
@@ -674,8 +682,9 @@ const NOT_SEEDED = {
 // its subjects.
 //
 // What is NOT here is the whole point: daily, feed, test, pick, pulse,
-// call and lens content reach the client only through Firestore, and must
-// keep doing so. Adding a line here is the decision, not the paperwork.
+// call, lens and — since D430 — duel content reach the client only through
+// Firestore, and must keep doing so. Adding a line here is the decision,
+// not the paperwork.
 const BUNDLED_CONTENT = {
   "learn-sample.json": {
     maxKiB: 32,
@@ -697,14 +706,17 @@ const BUNDLED_CONTENT = {
       + "cohort. Crossing this means the card grew a per-day series or a "
       + "fourth cohort — reshape it, don't raise the cap",
   },
-  "duel-questions.json": {
-    maxKiB: 24,
+  "duel-sample.json": {
+    maxKiB: 16,
     why:
-      "the duel pools, read by spec/duels-data.js — the last bank still "
-      + "compiled in whole (D284 moved learn and left this one: a weekly "
-      + "lane at 14.6 KiB has years of slack). Crossing this is the signal "
-      + "to give it learn's treatment, a generated sample plus a live read, "
-      + "rather than to raise the number",
+      "the fixed slice of the duel bank the demo build needs (D430) — "
+      + "generated at PER_KIND questions a group kind and PER_DOMAIN a 1v1 "
+      + "domain plus the packs those votes name, so it grows with the number "
+      + "of KINDS and DOMAINS and never with the bank. Crossing this means a "
+      + "count crept or a kind arrived: re-derive the counts against the "
+      + "demo's needs rather than raising the cap. (This entry replaced "
+      + "duel-questions.json at 24 KiB, the last bank compiled in whole — "
+      + "which the daily burst was one run from crossing)",
   },
 };
 
