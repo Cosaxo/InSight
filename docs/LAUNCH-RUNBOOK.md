@@ -25,8 +25,8 @@ still excuses it for an iOS build. **For an iOS launch the count is
 zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 136
-questions of 1170 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 138
+questions of 1262 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1170 questions land in `v2_questions` — idempotent and, since D34,
+      1262 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1170** after the K=5 test expansion, D103's
+      and the bank is **1262** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -389,6 +389,19 @@ arithmetic.
       tapping *Link Google* in the app — which 0.1 requires anyway, since
       the seed gate matches a Google-account uid. Treat 0.1 succeeding as
       the proof.
+
+      **APPLE IS A THIRD PROVIDER THIS ITEM NEVER NAMED, and since
+      2026-09-09 the client asks for it.** The tick above is left as it
+      is because it is honest about what it says — Anonymous and Google —
+      but D414 added Apple's door, night shift A wired the native
+      provider list to reach it (`capacitor.config.ts`, previously
+      `["google.com"]` only), and nothing anywhere records Apple being
+      switched on in Sign-in method. It has the same absence of a remote
+      probe as Google and, unlike Google, no record of ever having been
+      enabled. It is on `OWNER-LIST.md` § Clicks with the failure mode
+      (`auth/operation-not-allowed`) and the scope (the toggle is the
+      whole of it for iOS native; a Services ID is only for the web
+      popup path, which the iOS-only wall does not use).
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
       Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak
@@ -1107,7 +1120,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1170 seeded questions are live regardless.
+      working, not a leak — the 1262 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first

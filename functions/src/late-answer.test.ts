@@ -101,6 +101,28 @@ describe("a blind answer to the open round", () => {
     expect(revealDueRounds).toHaveBeenCalledTimes(1);
   });
 
+  it("a later answer to the same round does not push the deadline out", async () => {
+    // THE SECOND HALF OF THE GUARD, and it had no test: deleting
+    // `&& !g.get("roundDeadlineAt")` left the whole functions suite green.
+    // Without it every answer restarts the clock, so a round in a slow
+    // room never reaches its deadline — it just keeps moving — and the
+    // card's countdown jumps forward whenever anybody answers. Seven
+    // sibling mutations in the same commit ARE caught; this one was not.
+    //
+    // Three members so the second answer does not COMPLETE the round:
+    // completion reveals, and a reveal writes its own clock.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], round: 2,
+      played: { r2: ["u2"] }, roundDeadlineAt: 1, roundOpenedAt: 1,
+    });
+    await deliver("u1", `g_${GID}_r2`, { surface: "group", gid: GID, round: 2, optionIdx: 0, guessIdx: 1 });
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g["played.r2"], "the second player was not marked").toBeTruthy();
+    expect(revealDueRounds, "two of three is not a complete round").not.toHaveBeenCalled();
+    expect(g.roundDeadlineAt, "the second answer restarted the round's clock").toBe(1);
+    expect(g.roundOpenedAt, "the second answer restamped when the round opened").toBe(1);
+  });
+
   it("an answer sealed AHEAD marks its own round and starts no clock", async () => {
     await deliver("u1", `g_${GID}_r4`, { surface: "duo", gid: GID, round: 4, optionIdx: 0, guessIdx: 1 });
     const g = store.get(`v2_groups/${GID}`)!;

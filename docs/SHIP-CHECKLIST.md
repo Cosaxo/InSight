@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   1170 questions land in `v2_questions`. Re-running is safe (idempotent,
+   1262 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 1170-read
+   alone, so a reseed no longer costs every returning device a 1262-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -165,14 +165,21 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
-- ~~**Enable the provider**~~ — **done 2026-08-04.** Firebase Console →
-  Authentication → Sign-in method: both **Google** and **Anonymous** are
-  on. D3 depends on Anonymous and it is measured, not assumed — the same
-  `accounts:signUp` probe that returned `ADMIN_ONLY_OPERATION` on
-  2026-08-03 now returns an `idToken`. Google is enabled but has no remote
-  probe (§1 explains why); the seed run verifies it. The client side is
+- **Enable the provider** — **Google and Anonymous done 2026-08-04;
+  APPLE IS NOT RECORDED AS DONE and the client now asks for it.**
+  Firebase Console → Authentication → Sign-in method: both **Google** and
+  **Anonymous** are on. D3 depends on Anonymous and it is measured, not
+  assumed — the same `accounts:signUp` probe that returned
+  `ADMIN_ONLY_OPERATION` on 2026-08-03 now returns an `idToken`. Google is
+  enabled but has no remote probe (§1 explains why); the seed run verifies
+  it. Apple has the same absence of a probe and, unlike Google, no record
+  of ever having been switched on — see the owner row, and the *Sign in
+  with Apple* item under **Before-public hardening** for the door itself. The client side is
   wired: `capacitor.config.ts` declares
-  `providers: ["google.com"]` and `android/variables.gradle` sets
+  `providers: ["apple.com", "google.com"]` (Apple added 2026-09-09 — the
+  plugin builds a handler only for the ids named here, so every Apple
+  entry point rejected on device until it was) and
+  `android/variables.gradle` sets
   `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
   flag the Google libraries are `compileOnly`, so an Android build
   compiles and ships but throws the moment anyone taps *Continue with
