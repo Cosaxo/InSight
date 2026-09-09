@@ -1,0 +1,475 @@
+// source-pins.test.mjs — no gate may read past a comment.
+//
+// A gate that cross-reads a value out of another file does it with
+// `readFileSync(...).match(/NAME = (\d+)/)`, and `.match` returns the FIRST
+// hit. So a superseded value parked in a comment above the live
+// declaration — house style in this tree, which explains its constants
+// where they live — is what the gate compares against, and the run goes
+// green while the thing it exists to catch is true.
+//
+// Four gates have been caught this way and every one was measured, not
+// argued:
+//   check-anchors, check-cities, account-level-lib, check-figures  (swept
+//     2026-09-05: "a retuned value with its old line parked above it made
+//     the gate report the SUPERSEDED number and exit 0")
+//   cost-arith        — a commented `DECK_DAYS = 3` repriced boot 21 → 15
+//     reads and the Hit scenario $2,568 → $2,462, test:scripts green
+//   check-pokedex     — old ceiling parked above a raised one: "1025
+//     species, keys contiguous" printed, exit 0, ON THE DEPLOY PATH
+//   check-elements    — the same, exit 0
+//   check-fn-runtime  — old region parked above `us-central1`: exit 0,
+//     also on the deploy path, comparing the right answer to itself while
+//     the client called the wrong region
+//
+// So this is a CLASS ratchet rather than three more single pins: the next
+// gate to cross-read a constant fails here on the day it is written,
+// instead of on the day someone leaves a note above a value.
+import { describe, it, expect } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const SCRIPTS = join(root, "scripts");
+
+/** A regex run straight over a file read, with nothing stripping comments. */
+const RAW_MATCH = /readFileSync\([^)]*\)\s*\n?\s*\.match\(/;
+
+const gates = readdirSync(SCRIPTS)
+  .filter((f) => f.endsWith(".mjs") && !f.endsWith(".test.mjs"))
+  // COMMENTS BLANKED, which this ratchet of all things should not have
+  // needed telling. It scanned raw source for gates that read raw source,
+  // so a gate whose COMMENT quotes the offending shape — explaining the
+  // very defect, as check-versions.mjs now does — was reported as an
+  // offender. Blanking keeps every line number pointing at the real file,
+  // which is what the offender list is for.
+  .map((f) => ({ f, src: stripComments(readFileSync(join(SCRIPTS, f), "utf8")) }));
+
+describe("no gate reads a constant past a comment", () => {
+  it("finds the gates to check — vacuous otherwise", () => {
+    // The floor. A glob that stopped matching would make every assertion
+    // below pass over an empty list, which is the failure this whole file
+    // is about, pointed at itself.
+    expect(gates.length).toBeGreaterThan(20);
+    expect(gates.some((g) => g.f === "check-pokedex.mjs")).toBe(true);
+  });
+
+  it("has no direct .match over an unstripped read", () => {
+    const offenders = [];
+    for (const { f, src } of gates) {
+      for (const [i, line] of src.split("\n").entries()) {
+        if (!/readFileSync/.test(line)) continue;
+        // Two-line form counts too — the region read spans a line break.
+        const window = line + "\n" + (src.split("\n")[i + 1] ?? "");
+        if (RAW_MATCH.test(window) && !/stripComments/.test(window)) {
+          offenders.push(`${f}:${i + 1}  ${line.trim().slice(0, 90)}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      "a gate reads a constant out of raw source — wrap the read in stripComments()",
+    ).toEqual([]);
+  });
+
+  it("the three that were caught now strip, named so a revert is loud", () => {
+    const named = ["check-pokedex.mjs", "check-elements.mjs", "check-fn-runtime.mjs", "cost-arith.mjs"];
+    for (const f of named) {
+      const g = gates.find((x) => x.f === f);
+      expect(g, `${f} vanished — this ratchet no longer covers it`).toBeTruthy();
+      expect(g.src, `${f} stopped importing the stripper`)
+        .toContain('from "./strip-comments.mjs"');
+    }
+  });
+
+  it("every gate that reads the iOS plist strips XML comments first", () => {
+    // THE SAME DEFECT IN A SECOND SYNTAX. `check-ios-location`'s reader
+    // scanned for `<key>NAME</key>` with `indexOf` over raw bytes, so a key
+    // inside `<!-- … -->` read exactly like a live one; `check-store-forms`
+    // tolerated a comment BETWEEN key and value while reading the first
+    // `<key>` wherever it was. Measured, each restored: commenting out the
+    // WhenInUse purpose string left check:ios-location at exit 0 (deleting
+    // it correctly failed), and commenting out
+    // `NSLocationDefaultAccuracyReduced` left BOTH gates at exit 0 with the
+    // store label still asserted against a key not in the shipped app.
+    //
+    // One is the gate whose absence returns ITMS-90683 by email a build
+    // number later; the other is a store attestation, which CLAUDE.md puts
+    // outside the D334 ask. `check-policy-claims` and `check-public-copy`
+    // had already met this and strip; these two never did.
+    // Gates that look up a KEY's value, not every gate that opens the file.
+    // The direction matters and it is not symmetric: a gate reading a
+    // required value must not read a commented-out one as live, while a
+    // gate scanning for a FORBIDDEN pattern (check-store-copy, hunting
+    // unfilled placeholders) must not have comments stripped — that would
+    // hide a placeholder rather than report it, and the safe direction
+    // there is noise. Same distinction the deploy-targets rule makes about
+    // its own `--only` list.
+    const readers = gates.filter((g) => /Info\.plist/.test(g.src) && /<key>/.test(g.src));
+    expect(readers.length, "no gate reads a plist key — this rule went vacuous").toBeGreaterThan(1);
+    for (const g of readers) {
+      expect(g.src, `${g.f} reads Info.plist without stripping XML comments`)
+        .toMatch(/stripXmlComments\(/);
+    }
+  });
+
+  it("the rule can actually fail — a positive control on the matcher", () => {
+    // Without this, a regex that stopped matching anything would make the
+    // sweep above green forever.
+    const bad = 'const m = readFileSync(FN, "utf8").match(/X = (\\d+)/);';
+    expect(RAW_MATCH.test(bad)).toBe(true);
+    const good = 'const m = stripComments(readFileSync(FN, "utf8")).match(/X = (\\d+)/);';
+    expect(RAW_MATCH.test(good) && !/stripComments/.test(good)).toBe(false);
+  });
+});
+
+// ── a gate must actually RUN when it is run ─────────────────────────
+//
+// A second class, in the same file and for the same reason as the first:
+// the failure is a gate reporting nothing while the thing it exists to
+// catch is true.
+//
+// `import.meta.url === `file://${process.argv[1]}`` compares a URL against
+// a path. `import.meta.url` percent-encodes and `process.argv[1]` does
+// not, so on any checkout path containing a space — or any other character
+// a URL escapes — the guard is false, the whole check body behind it never
+// executes, and the script exits 0 having printed nothing. Not a wrong
+// answer: no answer, indistinguishable from a pass.
+//
+// Measured 2026-09-06 on two identical trees differing only in whether the
+// directory name contained a space, both carrying the defect
+// `check:account-level` exists to catch: exit 1 with the correct diagnosis
+// from the unspaced path, exit 0 and zero bytes of output from the spaced
+// one. Nine scripts carried it, one of them (`check-account-level`) on the
+// deploy path via backend-checks.yml, and one (`rules-coverage`) inside
+// `npm run test:rules`.
+//
+// The safe form was already the majority spelling here — thirteen scripts
+// used `resolve(process.argv[1]) === fileURLToPath(import.meta.url)` — so
+// this ratchet pins the majority rather than inventing a rule.
+describe("no gate hides behind a path-fragile main-module guard", () => {
+  it("finds the gates to check — vacuous otherwise", () => {
+    expect(gates.length).toBeGreaterThan(20);
+  });
+
+  it("nobody compares import.meta.url to a raw argv path", () => {
+    const offenders = gates
+      .filter((g) => /import\.meta\.url\s*===\s*`file:\/\/\$\{process\.argv\[1\]\}`/.test(g.src))
+      .map((g) => g.f);
+    expect(
+      offenders,
+      "a script's whole body sits behind a guard that is false on any path with a space "
+        + "— it will exit 0 having checked nothing. Use "
+        + "`process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)`.",
+    ).toEqual([]);
+  });
+});
+
+// ── a gate that walks source must walk ALL of it ────────────────────
+//
+// Third class in this file, same failure as the other two: a gate that
+// reports green while the thing it exists to catch is true — here because
+// the file carrying it was never read.
+//
+// `readdirSync(dir)` returns one level. Every gate that walks a source
+// root and stops there is blind to a file one directory down: a callable
+// whose module disables App Check, a store that persists `insight.*` and
+// never listens for the purge, a panel that owes a suite, a module the
+// figure count is supposed to include. The gate does not fail — it counts
+// what it can see and calls that agreement, which is worse.
+//
+// Found by mutation on 2026-09-06: the same probe file at
+// `functions/src/sub/zzprobe.ts` left `check:appcheck` exiting 0 with its
+// enforcing count going UP, and flat at `functions/src/` it exited 1.
+// `check-deploy-targets.mjs` already carried the argument in its own
+// comment — "latent while functions/src is flat, which is exactly how the
+// moderation.ts miss … happened" — which is the point: latent is what
+// this class looks like right up until it is not.
+//
+// SCOPED TO SOURCE ROOTS, deliberately. There are fifty-odd
+// `readdirSync` calls under scripts/ and most are legitimately flat —
+// build output, fixtures, the scripts directory itself. A blanket rule
+// would need forty-nine exemptions and would be noise. These five roots
+// are where the tree's own code lives, and a walk over one of them that
+// stops at the top level is always wrong.
+const SOURCE_ROOTS = ["functions/src", "src/v2/spec", "src/v2/ui", "src/v2/data", "src/lib"];
+
+describe("no gate walks a source root one level deep", () => {
+  /** Every readdirSync in `src` whose directory argument is a source root,
+   *  resolving one level of `const NAME = …` so `readdirSync(UI)` counts. */
+  function sourceWalks(src) {
+    // const names bound to an expression naming a source root
+    const bound = new Set();
+    // ONE LINE PER BINDING. An earlier version let the expression span a
+    // line break, and on `const X = (() => { const dir = "functions/src";`
+    // it consumed across the IIFE — binding the OUTER name and stepping
+    // over the inner `const dir` entirely, so a walk on `dir` was invisible.
+    // Measured by de-recursing check-figures' own walk and watching this
+    // stay green.
+    for (const m of src.matchAll(/^[ \t]*(?:const|let)\s+(\w+)\s*=\s*([^;\n]+);[ \t]*$/gm)) {
+      const [, name, expr] = m;
+      if (SOURCE_ROOTS.some((r) => expr.includes(r) || expr.includes(r.split("/").map((x) => `"${x}"`).join(", ")))) {
+        bound.add(name);
+      }
+    }
+    const out = [];
+    const lines = src.split("\n");
+    for (const [i, line] of lines.entries()) {
+      if (!line.includes("readdirSync(")) continue;
+      const stmt = lines.slice(i, i + 3).join("\n");
+      const arg = stmt.slice(stmt.indexOf("readdirSync(") + "readdirSync(".length);
+      // A bound name ANYWHERE in the argument, not just as the whole of
+      // it: `readdirSync(join(root, dir))` is the common spelling and an
+      // earlier version of this rule, which anchored the name to the start
+      // of the argument, could not see it — measured by de-recursing
+      // check-figures' own walk and watching this stay green.
+      const head = arg.slice(0, 120);
+      // The directory argument, up to its closing paren.
+      const dirArg = head.split(")")[0] + ")";
+      // A bound name has to appear as an IDENTIFIER, not inside a string:
+      // `join(root, "src/v2/test")` was being credited to a binding named
+      // `src`, because the word is in the literal. Quotes stripped first,
+      // and the root-literal test below runs on the unstripped text where
+      // a literal is exactly what it is looking for.
+      const idsOnly = dirArg.replace(/"[^"]*"|'[^']*'/g, "");
+      const namesRoot = SOURCE_ROOTS.some((r) => head.includes(r))
+        || [...bound].some((n) => new RegExp(`\\b${n}\\b`).test(idsOnly));
+      if (namesRoot) out.push({ line: i + 1, stmt: stmt.slice(0, 200) });
+    }
+    return out;
+  }
+
+  it("finds the source walks — vacuous otherwise", () => {
+    const total = gates.reduce((n, g) => n + sourceWalks(g.src).length, 0);
+    // The floor. If the detector stops matching, every assertion below
+    // passes over an empty list — this file's own subject, again.
+    expect(total, "the source-root walk detector stopped matching").toBeGreaterThanOrEqual(6);
+  });
+
+  it("every one of them recurses", () => {
+    const offenders = [];
+    for (const { f, src } of gates) {
+      for (const w of sourceWalks(src)) {
+        if (!/recursive:\s*true/.test(w.stmt)) offenders.push(`${f}:${w.line}`);
+      }
+    }
+    expect(
+      offenders,
+      "a gate walks a source root one level deep — a file one directory down is invisible to it, "
+        + "so it counts what it can see and calls that agreement. Pass { recursive: true } and "
+        + "normalise with String(f).split(sep).join('/').",
+    ).toEqual([]);
+  });
+});
+
+// ── the two the rule above cannot see ───────────────────────────────
+//
+// Named explicitly, because the general rule's reach ends where a
+// directory arrives through a chain it cannot follow: `check-purge-
+// listeners` walks `abs`, assigned from a loop variable over an array of
+// roots, and `spec-globals` walks a function PARAMETER. Following either
+// needs real dataflow, which is more machinery than this file should
+// carry for two call sites.
+//
+// A maintained list of two is the honest cost, and it is stated rather
+// than hidden: the rule above covers the rest, these two are pinned by
+// name, and a third of this shape has to be added here by hand — which is
+// why the general rule exists at all and why this list must stay short.
+//
+// `spec-globals` is the one that matters most in the whole class. Its
+// output seeds BOTH `check:globals` and eslint's `no-undef` for the spec
+// layer, so a module it cannot see gets its dangling `window.X` unreported
+// AND its own definitions left out of the globals list — at which point
+// CLAUDE.md's standing advice ("if no-undef fires on a legitimate global,
+// fix the scanner") would be pointing at a scanner that never read the
+// file.
+describe("the two source walks the general rule cannot reach", () => {
+  const named = {
+    "check-purge-listeners.mjs": "readdirSync(abs, { recursive: true })",
+    "spec-globals.mjs": "readdirSync(dir, { recursive: true })",
+  };
+
+  it("both still exist and both recurse", () => {
+    for (const [f, expected] of Object.entries(named)) {
+      const g = gates.find((x) => x.f === f);
+      expect(g, `${f} vanished — this pin no longer covers it`).toBeTruthy();
+      expect(g.src, `${f} walks a source root one level deep`).toContain(expected);
+    }
+  });
+});
+
+// ── the first class, counted instead of listed ──────────────────────
+//
+// The rule at the top of this file catches ONE spelling of a gate reading
+// past a comment: `readFileSync(...).match(` on a single line with no
+// nested parenthesis. It misses `readFileSync(join(root, "a.ts"),
+// "utf8").match(…)`, because `[^)]*` cannot cross the inner `)`, and it
+// misses the two-line `const src = readFileSync(...); … src.match(…)`
+// form — which is the form several gates actually use.
+//
+// Measured 2026-09-07: **24 sites across 17 files** read a file and match
+// against it with nothing stripping comments. Every one is a place where a
+// superseded value parked in a comment above the live declaration is what
+// the gate compares against, which is the defect this file was opened for
+// and which has now been found in nine gates by two different shifts.
+//
+// A CEILING, not a strict ratchet, and the reason is this specific night.
+// A shrink-only baseline fails when the count DROPS, which is right for a
+// single lane and wrong here: the other night shift is fixing gates in
+// this same class on its own branch, so a strict baseline would turn every
+// one of their fixes into a red composed tree. A ceiling stops new ones
+// from being added and never punishes somebody else's repair. Lowering the
+// number as the sites are fixed is the follow-up, not this rule's job.
+//
+// Fixing all 24 is real work: each needs reading before it is wrapped,
+// because stripping is the WRONG direction for a gate hunting FORBIDDEN
+// text — `check-store-copy` proved that earlier this week, where a
+// commented-out placeholder must still fail.
+// 24 → 36 when the detector below learned to see the `read(...)` helper
+// spelling as well as the literal `readFileSync`. TWELVE sites did not
+// appear, they were always there and invisible — which is why this is a
+// ceiling and not a regression. It stays a ceiling rather than a
+// shrink-only ratchet for the reason it was written as one: the other
+// shift repairs gates in this same class on the same nights, and a strict
+// baseline would turn each of its fixes into a red composed tree.
+//
+// AND THE SAME THING AGAIN, 2026-09-08, in the other direction of the
+// call: `RE.exec(src)` and `RE.test(src)` read past a comment exactly as
+// `src.match(RE)` does, and the detector saw only the last of the three.
+// Six more sites appeared, five of them years old and one of them the
+// `topic-budget.mjs` reader whose own comment claimed it "returns null if
+// the constant moves". Measured before and after the widening: 31 → 37,
+// then 36 with that one reader wrapped. The number below did not have to
+// move, which is a coincidence and not a reason to treat it as a target —
+// what it means is that the class was 36 all along and five of the sites
+// were simply unreadable to the gate.
+const UNSTRIPPED_CEILING = 36;
+
+describe("gates that read a file and match against it without stripping comments", () => {
+  /**
+   * Names of same-file helpers that ARE a file read.
+   *
+   * Added because the detector below keyed on the literal `readFileSync`
+   * and most gates here do not write it at the point of use: they define
+   * `const read = (rel) => readFileSync(join(root, rel), "utf8")` once and
+   * call `read(...)` everywhere. `check-figures.mjs`'s BANK_SURFACES
+   * equality check was exactly that shape, and the consequence was
+   * measured rather than argued — dropping "test" from `BANK_SURFACES` in
+   * live.ts while parking the old list in a `// was:` comment above it
+   * printed `check-figures OK` at exit 0, with docs/COSTS.md's cold-boot
+   * row still certified at a number 2.8x the truth. The rule was blind to
+   * the one file it most needed to see.
+   */
+  function readHelpers(src) {
+    const names = new Set();
+    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*\([^)]*\)\s*=>\s*\{?([\s\S]{0,400}?)(?:\n\};|\n\}\n|;\n)/g)) {
+      if (/readFileSync/.test(m[2])) names.add(m[1]);
+    }
+    for (const m of src.matchAll(/function\s+(\w+)\s*\([^)]*\)\s*\{([\s\S]{0,400}?)\n\}/g)) {
+      if (/readFileSync/.test(m[2])) names.add(m[1]);
+    }
+    return [...names];
+  }
+
+  /** Every read-then-match site with no stripper in view. Covers the
+   *  chained form, the nested-call form and the separated-variable form —
+   *  the file's first rule sees only the first of those — and, since the
+   *  helper sweep above, the `read(...)` spelling as well as the literal
+   *  `readFileSync`. */
+  function unstrippedSites(src) {
+    const lines = src.split("\n");
+    const helpers = readHelpers(src);
+    const reads = ["readFileSync", ...helpers].join("|");
+    const trigger = new RegExp(`\\b(${reads})\\s*\\(`);
+    const out = [];
+    for (const [i, line] of lines.entries()) {
+      if (!trigger.test(line)) continue;
+      const win = lines.slice(i, i + 3).join("\n");
+      const chained = new RegExp(`\\b(${reads})\\([\\s\\S]*?\\)\\s*\\n?\\s*\\.(match|matchAll)\\s*\\(`).test(win);
+      const decl = line.match(new RegExp(`(?:const|let|var)\\s+(\\w+)\\s*=\\s*.*\\b(?:${reads})\\s*\\(`));
+      let varHit = 0;
+      if (decl) {
+        // BOTH DIRECTIONS OF THE CALL. `src.match(RE)` and `RE.exec(src)`
+        // are the same read past the same comment, and this saw only the
+        // first — `topic-budget.mjs`'s FEED_PAGE reader used the second
+        // and was invisible to the rule written for it. `.test(src)` too:
+        // a gate asking whether a constant is PRESENT reads a commented-
+        // out one as present.
+        const re = new RegExp(
+          `\\b${decl[1]}\\s*\\.\\s*(match|matchAll)\\s*\\(`
+          + `|\\.(exec|test)\\(\\s*${decl[1]}\\s*[,)]`,
+        );
+        for (let j = i + 1; j < Math.min(lines.length, i + 26); j++) {
+          if (re.test(lines[j])) { varHit = j + 1; break; }
+        }
+      }
+      if (!chained && !varHit) continue;
+      const ctx = lines.slice(Math.max(0, i - 2), varHit ? varHit + 1 : i + 4).join("\n");
+      if (!/strip(Comments|XmlComments)/.test(ctx)) out.push(i + 1);
+    }
+    return out;
+  }
+
+  it("finds them — vacuous otherwise", () => {
+    const total = gates.reduce((n, g) => n + unstrippedSites(g.src).length, 0);
+    // The floor. A detector that stopped matching would make the ceiling
+    // below pass at zero, which is this file's own subject again.
+    expect(total, "the read-then-match detector stopped matching").toBeGreaterThan(10);
+  });
+
+  it("sees a read HELPER, not only the literal readFileSync", () => {
+    // A positive control on the widening itself, because the twelve sites
+    // it uncovered are counted rather than listed — so nothing else here
+    // would notice the helper sweep quietly returning an empty set again.
+    const helperGate = [
+      'const read = (rel) => readFileSync(join(root, rel), "utf8");',
+      'const live = read("src/v2/data/live.ts");',
+      'const m = live.match(/const BANK_SURFACES = \\[([^\\]]+)\\]/);',
+    ].join("\n");
+    expect(unstrippedSites(helperGate), "the helper spelling is invisible again").toHaveLength(1);
+    const stripped = helperGate.replace('read("src/v2/data/live.ts")', 'stripComments(read("src/v2/data/live.ts"))');
+    expect(unstrippedSites(stripped), "a stripped helper read is still counted").toHaveLength(0);
+    // …and check-figures' own site, the one that was measured, is fixed.
+    const cf = gates.find((g) => g.f === "check-figures.mjs");
+    expect(cf.src, "check-figures reads BANK_SURFACES past comments again").toMatch(
+      /const live = stripComments\(read\("src\/v2\/data\/live\.ts"\)\)/,
+    );
+  });
+
+  it("sees RE.exec(src), not only src.match(RE)", () => {
+    // The other positive control, and for the same reason as the helper
+    // one above: the six sites the widening uncovered are counted rather
+    // than listed, so nothing else here would notice it narrowing back.
+    const execGate = [
+      'const src = readFileSync(join(root, "src/v2/data/bankPager.ts"), "utf8");',
+      'const m = /export const FEED_PAGE = (\\d+);/.exec(src);',
+    ].join("\n");
+    expect(unstrippedSites(execGate), "the exec spelling is invisible again").toHaveLength(1);
+    const testGate = execGate.replace(".exec(src)", ".test(src)");
+    expect(unstrippedSites(testGate), "the test spelling is invisible again").toHaveLength(1);
+    const stripped = execGate.replace('readFileSync(join(root, "src/v2/data/bankPager.ts"), "utf8")',
+      'stripComments(readFileSync(join(root, "src/v2/data/bankPager.ts"), "utf8"))');
+    expect(unstrippedSites(stripped), "a stripped exec read is still counted").toHaveLength(0);
+    // …and topic-budget's own site, the one that was measured, is fixed.
+    const tb = gates.find((g) => g.f === "topic-budget.mjs");
+    expect(tb, "topic-budget.mjs vanished — this control no longer covers it").toBeTruthy();
+    expect(tb.src, "topic-budget reads FEED_PAGE past comments again")
+      .toMatch(/const src = stripComments\(readFileSync\(/);
+  });
+
+  it("no new one is added", () => {
+    const found = gates
+      .map((g) => ({ f: g.f, lines: unstrippedSites(g.src) }))
+      .filter((x) => x.lines.length);
+    const total = found.reduce((n, x) => n + x.lines.length, 0);
+    expect(
+      total,
+      `${total} sites read a file and match against it with nothing stripping comments `
+        + `(ceiling ${UNSTRIPPED_CEILING}). A superseded value parked in a comment above the live `
+        + "declaration is what the gate then compares against. Wrap the read in stripComments() — "
+        + "but read the gate first: for one hunting FORBIDDEN text, stripping is the lenient "
+        + `direction. Sites: ${found.map((x) => `${x.f}:${x.lines.join(",")}`).join(" ")}`,
+    ).toBeLessThanOrEqual(UNSTRIPPED_CEILING);
+  });
+});

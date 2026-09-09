@@ -1,15 +1,47 @@
 # Catalog questions — "favourite X" with a thousand options
 
-**Status: built through step 4's machinery.** Written 2026-07-30 as a
+**Status: LIVE (D232, 2026-08-23).**
+Twenty-four pick cards serve from the live bank —
+`content/pick-questions.json`, promoted from the archive through
+`npm run promote` — across pokemon, emoji, elements, countries and
+dogs; the pokemon six joined the same day the owner cleared the
+nominative-use check (see the pilot note below). The sixth domain,
+**colors**, was committed the same day from a parallel thread (#261) —
+catalogue, keys and archive entries all in place, live cards pending
+their own promote run. The seventh, **films**, was committed
+2026-08-23 by the D15 operator run (**D266**) — catalogue and keys in
+place, cards pending their own promote run. Written 2026-07-30 as a
 design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
 (Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
 4's machinery followed (QID key sets, domain-aware validation, the
-Wikidata generator — **D15**). The load-bearing choices live in those
-decision records now; this document keeps the full arguments. What
-remains open: an operator run of `scripts/build-catalog.mjs` to generate
-the films/artists catalogues (needs network access to Wikidata — D15),
-the films/artists demo cards once those files exist, the pre-ship
-trademark check below, and going live per D14.
+Wikidata generator — **D15**). The eighth domain, **athletes**, was
+committed 2026-08-26 (**D308**): 640 sitelink-ranked entries under the
+artists' ratio rule (≥⅓ of occupations athletic, checked against the
+P279* closure under Q2066131) with `content/athlete-review.json` as its
+reviewed-exceptions file — the D267 machinery, one domain over — plus
+its own live card (`pick-pk28`) and the browse-tiles row the pick ask
+carries — for the sitelink-ranked domains at D308, and for every domain
+in its file's own order, paged eight tiles at a time, since **D389**
+(2026-09-06). **Videogames** was
+committed 2026-09-06 by the Sunday domain slot: 1,000 sitelink-ranked
+games under the films shape exactly (direct `P31 Q7889`, QID keys, year
+disambiguation, no curation rule needed — a game's class membership
+does not lie the way a person's P106 does), with two measured deltas
+recorded in the builder: a floor of 15 (40 returns only 176 rows) and
+`"en,mul"` label fallback (plain `"en"` returned Minecraft, Tetris and
+Fortnite as bare QIDs — the Messi failure, one domain over). The
+load-bearing choices
+live in those decision records now; this document keeps the full
+arguments. What remains open: **artists**. The same run generated it and D266 refused
+it — sitelink fame ranks the person and P106 calls anyone who ever
+played or wrote a musician, so ten of the top twenty were Leonardo da
+Vinci, Goethe, Chaplin and company. **D267 built what it waits on**: a
+mechanical rule (at least a third of an entry's occupations musical,
+groups exempt) plus `content/artist-review.json` for the names no rule
+reaches, because no Wikidata property states "famous *for* music" and
+the measurements say none can be made to. The key set stays empty until
+someone rules on the candidates — `node scripts/build-catalog.mjs
+artists --review-list 300` prints them — and then runs the build.
 
 ## The question class
 
@@ -55,7 +87,10 @@ picker UX.
 - **Pokémon is the pilot.** The set is closed, small, and stable; the
   catalogue is a few tens of KB; there is no freshness problem. (One check
   before shipping: name/trademark posture for a nominative "favourite"
-  poll — likely fine, but it gets a real answer, not an assumption.)
+  poll — likely fine, but it gets a real answer, not an assumption.
+  **Answered 2026-08-23: cleared by the owner** — nominative use of the
+  names, no artwork (the art refusal in the imagery table below stands
+  untouched). The six pokemon cards promoted the same day.)
 - **Films and artists are open-ended, so the catalogue is curated, not
   complete.** A generated top-N list (Wikidata sitelink/popularity ranked),
   refreshed by re-running the build script, plus an explicit **"Not
@@ -69,37 +104,119 @@ picker UX.
   (the `check:bundle` argument in `scripts/build-cities.mjs` applies
   verbatim).
 
-## Entity images — where they could come from, and why launch is text-first
+## Entity images — where they come from, and what the owner ruled
+
+**Status: BUILT AND PICTURED (D421, 2026-09-07; every domain at D422 and
+the run itself at D423, 2026-09-08).** Every routed domain has its
+pictures in the tree — 3,676 files, 22.3 MB, counts per domain in
+D423 § 1. Films are the one still on their fallback: no `TMDB_API_KEY`,
+so their 731 are Commons' free posters rather than TMDB's, and the key
+is the owner's row on `OWNER-LIST.md`.
+The owner's ruling, on being told the copyright map below: *"why is it
+limeted by copyright wikipedia uses images cant we use them as well"*,
+then *"i feel if letterbox can do it so can we i think we can atemt it
+and if we recive a complain we take it down."* That is the policy —
+**attempt, and take down on complaint** — and the build is shaped by its
+second half: a picture is a committed file on our own hosting
+(`web/catalog-art/<domain>/<key>.<ext>`, served from `SITE_ORIGIN`),
+so a takedown is `node scripts/build-catalog-art.mjs <domain> --remove
+<key>`, a commit, and the hosting deploy the merge triggers — never an
+app-store release. A device stops drawing the picture within
+Cache-Control's hour, and `check:catalog-art` holds that hour. The
+tree carries the whole pipeline and every domain's pictures. The
+Pokémon landed first, at D422: PokéAPI's GitHub host was the one the
+building session could reach, and the other five needed Wikidata,
+Commons and its thumbnail host, which it could not (D15's reason, one
+artifact over). D423 is the run that fetched them from a session whose
+network policy allowed those hosts — and its § 2 is the part to read
+before the next refresh, because three things stood in the way that no
+amount of correct code avoids: a SEVENTH host nobody had written down
+(`thumb.wikimedia.org`, where Commons now serves thumbnails — D422 § 4
+names `upload.wikimedia.org` and is wrong), Node's `fetch` ignoring
+`HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1`, and a shared cloud IP
+being rate-limited to about one Commons API call a minute. The builder
+now waits a rate limit out instead of dying on it. On 2026-09-08 the owner extended the
+ruling to Pokémon and every other domain (*"i think we do the same
+system for pokemon and all the other"*), and asked whether it would be
+expensive on Firebase; D422 § 3 has the arithmetic (hosting egress
+only, no Firestore read or write, cents at a thousand daily users).
 
 Names and keys are data: CC0 facts (Wikidata) or nominative use in a
 "favourite" poll. **Images are creative works with their own copyright**,
 so the licensing class changes per domain and there is no single "image
-source" to adopt. The honest per-domain map (owner question, 2026-08-01):
+source" to adopt. The honest per-domain map (owner question, 2026-08-01;
+the third column is what D421 made of each row):
 
-| Domain | Image source | Verdict |
+| Domain | Image source | Standing after D421 |
 | --- | --- | --- |
-| Emoji | the character itself | **Solved by construction.** The catalogue stores the glyph in the display name; the platform emoji font renders it. Zero licensing. (Twemoji CC-BY / Noto OFL exist if pixel-identical cross-platform rendering ever matters — it doesn't today.) |
-| Pokémon | official art / game sprites | **Refused, the D15 way.** The artwork is Nintendo/Creatures/Game Freak copyright; PokéAPI *hosts* sprites but hosting is not a licence, and reproducing the art in a commercial store app would be the largest IP exposure in the product — against a famously litigious rights-holder, on top of the nominative-use trademark check the names already owe. Silhouettes and fan art are still derivative works. Names stay text; at most, generic decoration (type-coloured chips) that reproduces nothing. |
-| Films | posters | **Not at launch; TMDB is the route if ever.** Posters are studio copyright; Wikimedia Commons doesn't host them (Wikipedia's fair-use rationales do not transfer to us). The industry-standard path is TMDB's API (posters + required attribution) — that is a terms review plus a network-surface decision (external image CDN vs the app's Firebase-only egress posture), and it gets its own DECISIONS entry post-launch or not at all. |
-| Music artists | Wikidata P18 → Wikimedia Commons | **The one real free-content route.** Many notable artists have CC-licensed portraits on Commons, reachable mechanically: `build-catalog.mjs` already speaks SPARQL, so the build can pull P18 + licence + author per row. Costs that make it post-launch: coverage is partial and uneven (a half-illustrated picker reads as broken), every image needs its attribution shipped in-app, and thumbnails must be rehosted — never hotlinked, never bundled. |
-| People in daily/duel prompts (Messi, Tarantino…) | same Commons route | **Out.** The text is the product; likeness/publicity considerations arrive for zero mechanical benefit to a blind-answer card. |
+| Emoji | the character itself | **Solved by construction, drawn since D308.** The catalogue stores the glyph in the display name; the platform emoji font renders it. Zero licensing. |
+| Colours | the key itself | **Solved by construction, drawn since D308.** The key is the hex plus one, so the tile wears the colour. |
+| Elements | the symbol, in the name | Nothing to picture. |
+| Countries | Wikidata P41 → the flag on Commons | **Free, the builder's `countries` route** (ISO numeric → P299 → P41). Flags are public domain almost without exception; the thumbnail is a PNG render of the SVG. |
+| Athletes · Artists · Video games | Wikidata P18 → Wikimedia Commons (video games also P154, the logo) | **The free-content route, built.** The builder pulls the P18 file, reads its licence and author from Commons' own metadata, admits only what `licenceAllowed` admits (CC0, public domain, CC BY, CC BY-SA, FAL — never NC, ND, GFDL-only or anything unrecognised), and writes the credit beside the key. Coverage is partial and uneven, which is why the generated face stays underneath (D308's pattern is the permanent fallback, the way initials are under a profile photo). One question is not copyright and is recorded rather than decided: Norwegian law protects a person's picture separately (åndsverkloven § 104) and wants consent unless the picture has current and general interest — a famous athlete on a favourite-athlete card is very likely inside that exception, but it is the same judgement D178 made about faces and it is the owner's. |
+| Films | posters | **The tolerated route, built as TMDB.** Posters are studio copyright; Commons does not host them, and Wikipedia's own copies sit under a fair-use rationale its policy confines to one article each — a grid of a thousand posters is the gallery use Wikipedia forbids itself. What the owner's Letterboxd comparison names is the industry route: TMDB's API serves posters with attribution, free for non-commercial use and under a commercial licence otherwise, and studios treat posters as the marketing they are. Tolerance is not a licence, and the terms page names Norway, where there is no general fair-use rule to fall back on — so this row runs under the take-down policy on the record, and the key and the licence question are the owner's (`OWNER-LIST.md` § Decisions). |
+| Video games (covers) | publisher cover art | Same class as posters; the API route is IGDB (a Twitch developer registration), for which the builder has no route yet. The P18 route above catches what Commons has, which for games is mostly logos. |
+| Pokémon | PokéAPI's official artwork, by dex number | **On the pipeline by the owner's word, 2026-09-08 (D422).** The owner cleared the NAMES on 2026-08-23 with the art refusal standing; the 2026-09-07 ruling was about posters, and the session put Pokémon back to the owner with the recommendation to leave it, because Nintendo is the rights-holder in this table whose first letter is not a request. The owner's answer was *"the same system for pokemon and all the other"*, so the `pokeapi` route fetches the 475 px artwork and `toThumb` makes it a 184 px WebP with its transparency kept, credited to Nintendo / Creatures Inc. / GAME FREAK inc. under the tag `PokeAPI` — a ruled source, not a licence, and the credits sheet says whose it is. The refusal that stood in this row for a year is kept as the record of the exposure, and the takedown is the same one command. |
+| Dogs | Commons, found by NAME | **Routed at D422.** A minted key has no entity behind it, but the names are Wikipedia's (`build-dogs.mjs`), so the builder matches each name against Wikidata's English label or alias among the dog-breed classes (Q39367, Q1418384, Q25409459) and takes that item's P18. A miss keeps its face. |
+| Languages · Elements | — | No route on purpose, and the builder says why: a language has no picture, and a photograph of an element is a photograph of a jar. |
+| People in daily/duel prompts (Messi, Tarantino…) | same Commons route | **Out, unchanged.** The text is the product; likeness considerations arrive for zero mechanical benefit to a blind-answer card. |
 
-If any domain ever goes visual, the rules (recorded now so it is a
-decision, not drift):
+**What "we don't do anything that violates copyright" gets wrong, kept
+here so the next reader does not re-derive it:** the right copyright
+protects is the right to copy and to show. Putting a poster in the app
+makes a copy on our hosting and displays it to the public, which are the
+two acts the studio owns, whether or not anything is sold and whether or
+not the studio minds. Whether a rights-holder would ever act is a
+separate question — risk — from whether the act is licensed — law — and
+the owner's ruling is a risk decision, recorded as one. It licenses
+nothing and claims nothing about the law; what it decides is who answers
+a complaint and how fast: with a takedown, within the hour.
 
-1. **Images are sourced at build time by the operator scripts**, with
-   per-file licence, author, and source-URL columns beside the key —
-   never fetched from third parties at runtime, and **never sourced by
-   the farm or any scheduled run** (the D15 "never from model memory"
-   rule, applied to media: every image needs a verifiable licence, which
-   is a human-verifiable-source problem).
-2. **Rehosted on our hosting as sized thumbnails, lazy-loaded** on first
-   picker open — never in the JS bundle (`check:bundle`/D27 applies
-   verbatim), never hotlinked from Commons or anyone's CDN.
-3. **Attribution renders in-app** wherever the images do.
-4. `check:catalogs` extends to bind image and licence columns the same
-   both-directions way it binds keys.
-5. One DECISIONS entry per domain that goes visual.
+The rules for a domain that goes visual (recorded 2026-08-01, made
+concrete by D421 — each is now code, and the gate names the file):
+
+1. **Images are sourced at build time by an operator running
+   `scripts/build-catalog-art.mjs`**, with licence, author and
+   source-URL columns beside the key in `credits.tsv` — never fetched
+   from third parties at runtime, and **never sourced by the farm or any
+   scheduled run** (the D15 "never from model memory" rule, applied to
+   media: every image needs a verifiable licence, which is a
+   human-verifiable-source problem; the source URL is on every row).
+2. **Rehosted on our hosting as sized thumbnails** — every picture
+   re-encoded on the way in by `toThumb` (fitted inside 184 px, EXIF
+   dropped, WebP with alpha, under 64 KB; D422 added the re-encoder
+   because PokéAPI's artwork arrives at 475 px and 100–300 KB), under
+   `web/catalog-art/` — **lazy-loaded** by the tile that draws
+   them — never in the JS bundle (`check:bundle`/D27 applies verbatim;
+   `web/` is not the app), never hotlinked from Commons or anyone's
+   CDN (the viewer's IP, and a picture that could change after it was
+   reported — `avatar.ts`'s third property). Hosting rather than the
+   native package because of the policy's second half: a file in the
+   package comes down with a release and a review; a file on hosting
+   comes down with a commit.
+3. **Attribution renders in-app** wherever the images do —
+   `ui/PickCredits.tsx`, the *Image credits* door under the browse row
+   and under the reveal's two faces, opening into the domain's whole
+   credits list fetched from hosting on first open. For a CC BY picture
+   that door is the licence's one condition; for TMDB it carries the
+   sentence their terms ask for verbatim.
+4. **`check:catalog-art`** binds image ↔ credits row ↔ catalogue key ↔
+   `src/v2/data/catalogArtIndex.ts` ↔ the hosting headers, both
+   directions each, absence included — the same shape `check:catalogs`
+   gives keys.
+5. One DECISIONS entry per domain that goes visual. D421 is the
+   pipeline's and the first run's; Pokémon, if ever, is its own.
+
+**Where a picture draws.** `ui/PickArt.tsx` is the one component: an
+`<img>` over the generated face, transparent until decoded and gone on a
+failed load, so a half-pictured catalogue reads as a row of faces some of
+which are photographs, and a taken-down picture reads as the face it had
+before. The browse row's tiles (`ui/PickTiles.tsx`) and the reveal's
+"your pick" / "the crowd" faces (`world-feed.jsx`'s `renderPick`) draw
+it; the search's result rows do not, and the demo store's invented
+catalogues (`q.catalog`) never will. The app asks the generated index
+before it asks the network, so a key with no picture never fires a
+request, and a domain with none costs nothing at all.
 
 ## The card: a new `pick` type
 
@@ -202,4 +319,6 @@ catalogue is stale, not a prompt to collect strings.
    owner-written like every other answer; a `pure.ts` test for the fold's
    subtraction rule that **fails without the change**.
 4. Films/artists catalogues from Wikidata, only after the Pokémon pilot
-   proves the reveal is worth reading.
+   proves the reveal is worth reading. *(Films: done 2026-08-23, D266.
+   Artists: generated the same day and refused on content — the query
+   is honest and the catalogue it produces is not a music catalogue.)*

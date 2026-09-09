@@ -7,6 +7,7 @@ import React from 'react';
 import { RP_TESTS } from './result-rose.jsx';
 import { Kicker } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_COMPARE_POP } from './compare-pop.js';
 
 // compare-breakdown.jsx — "you vs them" across every assessment, in the SAME
 // visual language as the results profile (result-rose.jsx): per-trait hue
@@ -56,7 +57,13 @@ const CB_ASSESS = [
 // ── alignment as a picture, not a percentage: your dot and theirs, drawn as
 //    close together as you actually are — solid you, washed them, one hue. At
 //    high alignment they land on the same spot and read as one dot in a halo. ──
-function CBAlignGlyph({ align, accent }) {
+// Exported since D193, when the LIVE Compare lens became this drawing
+// rather than a list of questions (ui/LiveCompareLens.tsx). A named export
+// beside the global publication rather than instead of it: the demo's
+// consumers still look this up by name at render time, and D39's ratchet
+// only moves down — a live module reading `window.CBAlignGlyph` would have
+// raised it for a component the ESM graph can hand over directly.
+export function CBAlignGlyph({ align, accent }) {
   const W = 44, H = 22, r = 7, cy = H / 2, cx = W / 2;
   const off = ((100 - align) / 100) * 25;
   const nest = off < 8;
@@ -178,7 +185,15 @@ function CBPoleRows({ dims, poles, hueOf, themV, hi, setHi }) {
 }
 
 // rose + poles as one linked unit — touching a pole row lights its petal
-function CBAssess({ dims, themV, hueOf, poles, themLabel }) {
+//
+// EXPORTED, and it is the seam the live lens hangs on (D193). Everything
+// above it takes props and nothing below it does: `CompareBreakdown` reads
+// the demo's `IS_TEST_RESULTS` and `IS_COMPARE_POP`, while this pair —
+// glyph and assessment — asks only for two profiles and a hue family. So
+// the live lens supplies real dims and a measured `themV` and draws the
+// identical picture, instead of the port growing a second copy of 150
+// lines of SVG that would drift the first time either was touched.
+export function CBAssess({ dims, themV, hueOf, poles, themLabel }) {
   const [hi, setHi] = React.useState(null);
   return (
     <>
@@ -190,8 +205,8 @@ function CBAssess({ dims, themV, hueOf, poles, themLabel }) {
   );
 }
 
-function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popProp }) {
-  const pop = popProp || (window.IS_COMPARE_POP || {})[scope];
+export function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popProp }) {
+  const pop = popProp || IS_COMPARE_POP[scope];
   if (!pop) return null;
   const who = label || pop.label;
 
@@ -247,7 +262,7 @@ function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popP
 // Used on person profiles where vertical space is precious. `aligns` lets the
 // caller pin each card's % to the numbers it shows elsewhere; `extra` appends
 // custom slides ({kind,title,sub,align,body}).
-function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
+export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
   const [idx, setIdx] = React.useState(0);
   const railRef = React.useRef(null);
   if (!pop) return null;
@@ -299,7 +314,7 @@ function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, ex
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10 }}>
         {slides.map((s, i) => (
-          <button key={s.kind} onClick={() => goTo(i)} aria-label={s.title} style={{
+          <button key={s.kind} className="tap44 is-tight" onClick={() => goTo(i)} aria-label={s.title} style={{
             width: 7, height: 7, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
             background: i === idx ? accent : 'var(--rule)', transition: 'background .15s',
           }}></button>
@@ -313,17 +328,5 @@ function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, ex
   );
 }
 
-Object.assign(window, { CompareBreakdown, CompareCarousel });
 
 ;globalThis.CBAlignGlyph = typeof CBAlignGlyph === 'undefined' ? globalThis.CBAlignGlyph : CBAlignGlyph;
-;globalThis.cbAlign = typeof cbAlign === 'undefined' ? globalThis.cbAlign : cbAlign;
-;globalThis.CBRoseOverlay = typeof CBRoseOverlay === 'undefined' ? globalThis.CBRoseOverlay : CBRoseOverlay;
-;globalThis.CBPoleRows = typeof CBPoleRows === 'undefined' ? globalThis.CBPoleRows : CBPoleRows;
-;globalThis.CompareBreakdown = typeof CompareBreakdown === 'undefined' ? globalThis.CompareBreakdown : CompareBreakdown;
-;globalThis.CompareCarousel = typeof CompareCarousel === 'undefined' ? globalThis.CompareCarousel : CompareCarousel;
-;globalThis.CB_INK = typeof CB_INK === 'undefined' ? globalThis.CB_INK : CB_INK;
-;globalThis.cbPetal = typeof cbPetal === 'undefined' ? globalThis.cbPetal : cbPetal;
-;globalThis.cbDot = typeof cbDot === 'undefined' ? globalThis.cbDot : cbDot;
-;globalThis.CB_EXTRA_CFG = typeof CB_EXTRA_CFG === 'undefined' ? globalThis.CB_EXTRA_CFG : CB_EXTRA_CFG;
-;globalThis.cbCfg = typeof cbCfg === 'undefined' ? globalThis.cbCfg : cbCfg;
-;globalThis.CB_ASSESS = typeof CB_ASSESS === 'undefined' ? globalThis.CB_ASSESS : CB_ASSESS;

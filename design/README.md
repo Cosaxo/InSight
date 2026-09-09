@@ -24,6 +24,81 @@ is [`docs/VISION-V28.md`](../docs/VISION-V28.md). Same rule as above
 applies to all three: **none of them re-points this file**, and v18 stays
 what `style-diff.mjs` aims at until a full sync lands.
 
+**A 2026-08-20 standalone followed v28** and was extracted in three
+passes: its People lens at D214, its Map and Oracle redesigns at D215,
+its population chips at D216 — the Patterns tab ported whole
+(`standalone-2026-08-20/` — that directory's README maps every file to
+its port and lists the behaviours the ports refused). Same rule again:
+it does not re-point this file.
+
+**Six more followed in the same numbered series** (`InSight_2`,
+`InSight_3`, `InSight_4`, `InSight_7`, `InSight_9`, `InSight_10` — five,
+six and eight were never uploaded here): the **2026-08-22** upload carried the paid
+question report's design, extracted to `standalone-2026-08-22/` and
+implemented by the report builder (D251); the **2026-08-24** upload
+turns the suggestion board into the paid door, adds the buyer's room,
+splits the place scorecards into locals and visitors, and makes five
+smaller moves — extracted to `standalone-2026-08-24/`, with the plan at
+[`docs/VISION-2026-08-24.md`](../docs/VISION-2026-08-24.md); the
+**2026-08-26** upload adds anonymous answers and private test results
+(the first design to amend D98 itself), co-funded subscription seats
+with a read-only catalog window, the Oracle's "working", and a
+Patterns/person-overlay polish pass — extracted to
+`standalone-2026-08-26/`, with the plan at
+[`docs/VISION-2026-08-26.md`](../docs/VISION-2026-08-26.md); the
+**2026-09-02** upload puts the three Patterns lenses on one round dusk
+instrument with the Map redrawn as a ring, gives every prompt a serif
+voice, splits the two-option ballot into one block with a seam, and
+makes four smaller passes — extracted to `standalone-2026-09-02/`
+(**compiled JSX, not source** — that upload ships only its bundle, and
+the README carries the recipe that makes the diff exact), with the plan
+at [`docs/VISION-2026-09-02.md`](../docs/VISION-2026-09-02.md); and the
+**2026-09-06** upload puts ink on paper — `lens-paper` becomes the
+default and the boxes go (the feed, the result card, the profile, the
+ballot all onto hairline grounds, figures drawing themselves in), a
+12px floor goes under the microtype, the serif voice reaches the
+Circle/1v1 prompts and the Oracle's halves, the lens legends retire
+behind one ⓘ, and the Patterns lens picker docks in the header —
+extracted to `standalone-2026-09-06/` (compiled again, same recipe),
+with the plan at
+[`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md); and the
+**2026-09-07** upload gives the two instruments a second level — the
+Big Five's thirty IPIP-NEO facets and the compass's eighteen positions,
+the compass carrying its own six questions per axis — draws the first
+day of Circle and 1v1, and puts the person overlay's three record
+sections on paper — extracted to `standalone-2026-09-07/` (compiled
+again, same recipe; no stylesheet moved), with the plan at
+[`docs/VISION-2026-09-07.md`](../docs/VISION-2026-09-07.md), which is
+also the plan for how the facets and positions get measured;
+`docs/VISUAL-VISION.md` named it the current vision (D361's rule,
+D415); and the **2026-09-08** upload (`InSight_12`) makes the group a
+CAST — role votes in five scenario packs with the members as the
+options, a rating of the group between two poles every fourth round,
+the crown and the contested pair on the reveal, the cast drawn on the
+Mirror's Groups stop, and the group instrument's fourth dim back —
+extracted to `standalone-2026-09-08/` (compiled and, new with this
+bundle, compacted; the README says what the extraction did and did not
+diff, and carries the bundle's own hashes for the next one), with the
+plan at [`docs/VISION-2026-09-08.md`](../docs/VISION-2026-09-08.md);
+it was the current vision (D434); and the **2026-09-09** upload
+(`InSight_15`, with the owner's brief *how 1v1s and Groups work now*)
+gives the 1v1 a cast round, every role a seat, the group a run that is
+a record, the Groups stop an Overview, the instrument two settings —
+casts per axis, votes per seat — and the person page a Together tab;
+extracted to `standalone-2026-09-09/` (the ten modules the bundle's own
+hashes say moved, the first extraction measured that way), with the
+plan and the questions at
+[`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it is the
+current vision (D436), recorded and not yet built. Each
+directory README is its inventory; none re-points this file.
+
+**One directory here is not an app prototype at all**:
+`identity-2026-08-26/` is the owner's identity canvas — the iris mark,
+its two palettes, the lockups and the compact-variant rule — committed
+verbatim for the same ephemeral-upload reason as the standalones. Its
+inventory README maps each card to the live artifact; the working source
+it feeds is `icon/mark.svg` (below), and D302 records the decision.
+
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
 2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:
@@ -35,6 +110,22 @@ It is a self-contained prototype (React + Babel compiled in-browser, all
 data mocked): open it in a browser and it runs. Treat it as **read-only**
 — design iteration ended with this file, and changes from here happen in
 the real codebase.
+
+## Two directories here are NOT frozen
+
+`read-only reference` describes the standalone revisions above. It does not
+describe these two, and reading it as though it did is the mistake this
+section exists to prevent — they are live sources with builders and gates
+pointed at them:
+
+| Path | What it is | What reads it |
+| --- | --- | --- |
+| `icon/` | `mark.svg`, the single source every app icon and the Play feature graphic is rasterised from | `scripts/gen-icons.mjs`, `scripts/gen-feature-graphic.mjs` |
+| `store/` | The store metadata: `store/listing.json` (marketing copy), `store/app-privacy.json` (the privacy nutrition label that exists twice on purpose), the generated `store/feature-graphic.png` and `store/screenshots/` | `scripts/asc-push.mjs` sends it to App Store Connect; `check:store-listing`, `check:store-forms`, `check:store-copy` and `check:data-inventory` read it |
+
+Editing `store/listing.json` changes what the App Store shows. Editing
+`store/app-privacy.json` changes what the app tells Apple it collects, and
+`check:store-forms` holds it to `docs/STORE-FORMS.md` in both directions.
 
 ## What v18 adds over v17
 

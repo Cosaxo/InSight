@@ -19,13 +19,17 @@
 //    blob too, and the mount-time mirror re-asserts it instead.
 import LIVE from "./live";
 import { countryOf } from "./places";
+import { CITY_OK_LEAF, PROFILE_GENERAL_LS } from "./cityConfirm";
 
 // The profile store's localStorage key. The SHAPE of the blob is owned by
-// profile-general.jsx (loadGen/seed); this module writes exactly one leaf,
-// `vitals.city`, and preserves everything else byte-for-byte. The constant
-// lives here so the two files cannot drift apart — profile-general imports
-// it rather than restating it.
-export const PROFILE_GENERAL_LS = "insight.profileGeneral.v2";
+// profile-general.jsx (loadGen/seed); this module writes exactly two leaves,
+// `vitals.city` and `vitals.cityOk`, and preserves everything else
+// byte-for-byte. The constant is DEFINED in ./cityConfirm and re-exported
+// here so the two files cannot drift apart and profile-general keeps its
+// existing import: cityConfirm has no imports of its own, which is what
+// lets `data/live` read the confirmation at vote time without closing a
+// cycle through this module.
+export { PROFILE_GENERAL_LS };
 
 /**
  * Merge leaves into the profile blob's `vitals`, preserving everything
@@ -51,11 +55,28 @@ export function mergeProfileVitals(next: Record<string, string>): void {
   } catch { /* best-effort — the caller's anchor write still lands */ }
 }
 
-export function setCityAnchor(cityKey: string): void {
+/**
+ * Set "my city is X".
+ *
+ * `confirmed` says the device's own location fix produced this key and the
+ * user kept it (D205) — the difference between a city the phone agrees
+ * with and one somebody scrolled to. It is stored as the KEY rather than a
+ * flag, so picking a different city later invalidates it by simple
+ * comparison and there is no clearing path to forget.
+ *
+ * The default is FALSE, deliberately: every caller that does not say
+ * otherwise is a manual pick, and a confirmation that could be acquired by
+ * forgetting an argument would be worth nothing.
+ */
+export function setCityAnchor(cityKey: string, confirmed = false): void {
   // Demo mode's profile is the sample persona and there is no server to
   // write to — the callers are live-only surfaces, and this guard keeps a
   // test or a stray call from writing a "real" city into demo data.
   if (!LIVE.enabled) return;
-  mergeProfileVitals({ city: cityKey });
+  // Both leaves move together. Writing the city without touching `cityOk`
+  // would leave the previous city's confirmation standing beside a new
+  // city — the exact staleness storing a key instead of a flag is meant to
+  // rule out, reintroduced by the writer.
+  mergeProfileVitals({ city: cityKey, [CITY_OK_LEAF]: confirmed ? cityKey : "" });
   LIVE.saveAnchors({ ...LIVE.anchors(), city: cityKey, country: countryOf(cityKey) });
 }

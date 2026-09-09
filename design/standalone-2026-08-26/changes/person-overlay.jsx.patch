@@ -1,0 +1,90 @@
+--- recorded/person-overlay.jsx
++++ 2026-08-26/person-overlay.jsx
+@@ -240,6 +240,7 @@
+   const [mapOpen, setMapOpen] = React.useState(false);
+   const [, fBump] = React.useReducer((x) => x + 1, 0);
+   React.useEffect(() => (window.FRIENDS ? window.FRIENDS.subscribe(fBump) : undefined), []);
++  React.useEffect(() => (window.DUELS && window.DUELS.subscribe ? window.DUELS.subscribe(fBump) : undefined), []);
+   const fStatus = !p.anon && p.id && window.FRIENDS ? window.FRIENDS.status(p.id) : 'none';
+   const isFriend = fStatus === 'friends';
+   const [confirmRemove, setConfirmRemove] = React.useState(false);
+@@ -420,6 +421,79 @@
+         {/* receipts: the concrete answers the number is made of */}
+         <ReceiptsCard p={p} themColor={themColor} firstName={firstName}></ReceiptsCard>
+ 
++        {/* ─── Play together — the doors: a 1v1 with them, the groups you share ─── */}
++        {!p.anon && p.id && window.DUELS ? (() => {
++          const D = window.DUELS;
++          const duo = D.partners ? D.partners().find((x) => x.id === p.id) : null;
++          const playing = !!(duo && duo.played > 0);
++          const invited = !!(duo && duo.state === 'invited');
++          const goDuo = () => { window.DUO_FOCUS = p.id; if (window.goNav) window.goNav('track:duo'); setTimeout(() => window.dispatchEvent(new CustomEvent('is:duo-focus')), 60); };
++          const goGroup = (gid) => { window.GROUP_FOCUS = gid; if (window.goNav) window.goNav('track:group'); setTimeout(() => window.dispatchEvent(new CustomEvent('is:group-focus')), 60); };
++          const gs = D.groups ? D.groups() : [];
++          const shared = gs.filter((g) => g.members.some((m) => m.id === p.id));
++          const addable = isFriend ? gs.filter((g) => !g.members.some((m) => m.id === p.id)).slice(0, 4) : [];
++          if (!duo && !isFriend && !shared.length) return null;
++          // their named types, read off the shared record (role-data math, their vantage)
++          const pt = window.ROLES && window.ROLES.personTypes ? window.ROLES.personTypes(p.id) : { duo: null, group: null };
++          const typeSpan = (t) => <span title={t.line} style={{ fontWeight: 800, color: 'var(--ink-2)' }}>{t.name}</span>;
++          const lab = (t) => <span style={{ width: 52, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{t}</span>;
++          const mut = { flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' };
++          const pill = { flexShrink: 0, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 999, background: themColor, color: '#fff' };
++          const gchip = (g) => {
++            const mem = g.members.find((m) => m.id === p.id);
++            const pend = !!(mem && mem.pending);
++            return (
++              <button key={g.id} className="press" onClick={() => { if (!pend) goGroup(g.id); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', border: '0.5px solid ' + (pend ? 'var(--rule)' : `color-mix(in oklch, ${themColor} 36%, var(--rule))`), background: pend ? 'var(--surface-2)' : `color-mix(in oklch, ${themColor} 8%, var(--surface-2))`, color: pend ? 'var(--ink-3)' : 'var(--ink)', borderRadius: 999, padding: '5px 12px', cursor: pend ? 'default' : 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700 }}>
++                {g.name}{pend ? <span style={{ fontWeight: 600, fontSize: 11 }}>· invited</span> : null}
++              </button>
++            );
++          };
++          return (
++            <div style={{ marginBottom: 26 }}>
++              <div style={{ marginBottom: 11 }}><Kicker>Play together</Kicker></div>
++              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
++                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
++                  {lab('1v1')}
++                  {duo && !invited ? (
++                    <React.Fragment>
++                      <span style={mut}>{pt.duo ? typeSpan(pt.duo) : null}{pt.duo ? ' · ' : ''}{playing ? duo.played + ' days played' : 'new 1v1 · today’s question is up'}</span>
++                      <button className="press" onClick={goDuo} style={pill}>Open</button>
++                    </React.Fragment>
++                  ) : invited ? (
++                    <React.Fragment>
++                      <span style={mut}>invited · waiting on {firstName}</span>
++                      <button className="press" onClick={() => D.cancelDuo(p.id)} style={{ ...pill, background: 'var(--surface-2)', color: 'var(--ink-2)', border: '0.5px solid var(--rule)' }}>Cancel</button>
++                    </React.Fragment>
++                  ) : isFriend ? (
++                    <React.Fragment>
++                      <span style={mut}>one question a day — read each other</span>
++                      <button className="press" onClick={() => D.startDuo(p.id)} style={pill}>Start</button>
++                    </React.Fragment>
++                  ) : (
++                    <span style={mut}>for friends — add {firstName} first</span>
++                  )}
++                </div>
++                <div style={{ display: 'flex', gap: 11, borderTop: '0.5px solid var(--rule)', paddingTop: 12, alignItems: 'baseline' }}>
++                  {lab('Groups')}
++                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
++                    {shared.length && pt.group ? <span style={{ ...mut, flex: 'none' }}>{typeSpan(pt.group)} in</span> : null}
++                    {shared.length ? shared.map(gchip) : addable.length ? (
++                      <React.Fragment>
++                        <span style={{ ...mut, flex: 'none' }}>add {firstName} to</span>
++                        {addable.map((g) => (
++                          <button key={g.id} className="press" onClick={() => D.addGroupMembers(g.id, [p.id])} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', color: 'var(--ink)', borderRadius: 999, padding: '5px 12px', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700 }}>+ {g.name}</button>
++                        ))}
++                      </React.Fragment>
++                    ) : (
++                      <span style={mut}>none together yet</span>
++                    )}
++                  </span>
++                </div>
++              </div>
++            </div>
++          );
++        })() : null}
++
+         {/* ─── The 1v1 record — the one thing only a duel can tell you: how well
+             each of you actually reads the other. Same dot language as the daily,
+             so a filled dot means the same thing everywhere. ─── */}

@@ -1,0 +1,158 @@
+{
+  "measured": "2026-09-09",
+  "pinned": "2026-09-09",
+  "variant": "base",
+  "fillersOn": "create",
+  "floorFillers": 50,
+  "compileFloorFillers": 80,
+  "compileCeiling": 94,
+  "unit": 8.1,
+  "calibration": [
+    {
+      "weight": 5,
+      "n": 24,
+      "next": "budget",
+      "clean": true,
+      "lo": 7.92,
+      "hi": 8.33
+    },
+    {
+      "weight": 10,
+      "n": 12,
+      "next": "budget",
+      "clean": true,
+      "lo": 7.62,
+      "hi": 8.33
+    }
+  ],
+  "probes": [
+    {
+      "name": "world · all ten anchors at their bounds",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 474,
+      "fillers": 74,
+      "bounded": false
+    },
+    {
+      "name": "duel · own bank",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 59,
+      "bounded": false
+    },
+    {
+      "name": "duel · 1v1 with its guess (the guess clauses)",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 60,
+      "bounded": false
+    },
+    {
+      "name": "duel · pick round (thinnest, D429)",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 57,
+      "bounded": false
+    },
+    {
+      "name": "duel · late answer",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 58,
+      "bounded": false
+    },
+    {
+      "name": "rank",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 485,
+      "fillers": 80,
+      "bounded": false
+    },
+    {
+      "name": "duel · 32-member room",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 608,
+      "fillers": 59,
+      "bounded": false
+    },
+    {
+      "name": "pulse",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 545,
+      "fillers": 64,
+      "bounded": false
+    },
+    {
+      "name": "REFUSE · round already revealed",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 444,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · a guess on a group answer (D437)",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 344,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · entity on a non-catalog question",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 317,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · a second ranking on the same question",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 254,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · optionIdx on a rank question",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 312,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · world answer on a killed question",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 312,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "REFUSE · non-member in a room",
+      "expect": "refused",
+      "verdict": "refused",
+      "cost": 444,
+      "fillers": 94,
+      "bounded": true
+    },
+    {
+      "name": "update · optionIdx edit",
+      "expect": "allowed",
+      "verdict": "allowed",
+      "cost": 192,
+      "fillers": null,
+      "bounded": false
+    }
+  ]
+}

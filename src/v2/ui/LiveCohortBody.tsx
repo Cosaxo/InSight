@@ -52,6 +52,9 @@ const SimilaritySection = React.lazy(() => import("./LiveSimilarityField"));
 // The tab row (D119) — static, because it IS the stop's navigation and a
 // suspense gap where the tabs should be is a stop that looks broken.
 import MirrorLensTabs from "./MirrorLensTabs";
+// The row's own scroll-into-view, shared with the three other stops that
+// have a row (D190).
+import { useLensRowScroll } from "./lensRowScroll";
 // The Answers tab's list, in the prototype's row design (D120). An
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
@@ -99,6 +102,14 @@ function LnNote({ title, children }: { title: string; children: React.ReactNode 
 function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  // The breakdown cap's tail (D400): where a question's hot map is at
+  // its cap without this reader's own city or country, the one shard
+  // that key hashes to is read and merged into the aggregate every fold
+  // below reads. Once per scope per session, and nothing while no
+  // question is at the cap — the store decides, not the stop.
+  React.useEffect(() => {
+    if (scope !== "world") void LIVE.loadOverflow(scope);
+  }, [scope]);
   // The Answers tab's own controls (branch chips, sort, which row is open)
   // moved into LiveAnswerRows at D120 — they belong to the list, and the
   // host had them only because the list used to be inline.
@@ -125,33 +136,17 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // check:globals, and the tab-open tests assert the panel MOUNTS, which it
   // did. Reported from a device, which is the only place it was visible.
   //
+  // The effect is ONE effect now (D190, ui/lensRowScroll.ts): this file and
+  // NearLiveBody each carried their own, and Circle and Groups getting rows
+  // would have made it four copies of something that has already been wrong
+  // once.
+  //
   // Keyed on `tab` rather than the derived `openTab` because this has to be
   // a hook and `openTab` is computed past the `needsCity` early return.
   // They agree in practice: setTab is only ever called with an id from
   // `tabs`, and mirror-tab keys this body per scope, so a tab cannot
   // survive into a scope that lacks it.
-  React.useEffect(() => {
-    if (!tab || !rowRef.current) return;
-    const row = rowRef.current;
-    // The scroller is the app's (.app-body), not ours — walk up to it, and
-    // take the first ancestor that both overflows and can actually scroll.
-    let sp: HTMLElement | null = row.parentElement;
-    while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) {
-      sp = sp.parentElement;
-    }
-    if (!sp) return;
-    const scroller = sp;
-    // 60ms, the prototype's own number. The panel mounts in the same commit
-    // as the tab flip, so measuring now measures the row before the body it
-    // is about to sit above exists — and scrolls to a position that stops
-    // being right one frame later.
-    const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
-        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
-      scroller.scrollTo({ top, behavior: "smooth" });
-    }, 60);
-    return () => clearTimeout(t);
-  }, [tab]);
+  useLensRowScroll(tab, rowRef);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -320,8 +315,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       if (!cell) { empty++; continue; }
       n = agg.total || 0;
     } else {
-      const dim = agg.by?.[scope];
-      if (dim && !cell) empty++;
+      // COUNTED WHETHER OR NOT THE AGGREGATE HAS A MAP FOR THIS SCOPE.
+      // The `dim &&` guard meant a question whose aggregate carries no
+      // `by.city` at all was dropped from the rows AND skipped by this
+      // counter, so the reader got neither the row nor the sentence
+      // explaining its absence — which is the failure this counter exists
+      // to prevent, in its own test file's words: "a question that
+      // vanishes reads as 'not asked here' rather than 'not answered
+      // here'". Reachable, not theoretical: the server's bucket for an
+      // empty anchor is null, so a question answered only by people with
+      // no confirmed city publishes counts and no `by.city` — the state
+      // every city-rated question is in before anyone confirms one.
+      //
+      // "No aggregate at all" stays the third state it is meant to be:
+      // that is the `continue` two lines up, before this.
+      if (!cell) empty++;
       if (cell) n = Object.values(cell).reduce((a, b) => a + b, 0);
     }
     if (!cell || !n) continue;
@@ -460,9 +468,25 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             {reach ? fmtReach(reach) : "—"}
           </span>
           <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", minWidth: 0 }}>
+            {/* READING IS NOT EMPTY, on the largest population claim the
+                app makes. `reach` is 0 whenever the aggregate archive is,
+                and the archive is empty for the whole of a cold first
+                launch before the first snapshot lands — and for the whole
+                SESSION on a live build whose boot never completes. This
+                said "nobody has answered yet" through both, which is an
+                assertion about the world made by a device that has not
+                looked.
+
+                `LIVE.attached` is the store's own word for "the network
+                boot completed this session" (its header names it), and it
+                is what the rest of the app keys re-entry on. The daily has
+                carried a reconnecting pill since D356; this stop, which
+                draws the bigger number, had nothing. */}
             {reach
               ? <>{reach === 1 ? "person has" : "people have"} answered {scope === "world" ? "somewhere" : <>in {shortName}</>}</>
-              : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
+              : LIVE.attached
+                ? <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>
+                : <>counting who has answered…</>}
           </span>
         </div>
         {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D172).
@@ -518,9 +542,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             rows={rows}
             whom={shortName}
             emptyNote={
-              <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
-                No answers here yet — the first one starts the count.
-              </LnNote>
+              /* THE SAME GUARD THE HERO ABOVE CARRIES, and this tab did
+                 not: an empty row list before the network boot completes
+                 is a device that has not looked, not a place with no
+                 answers. One screen used to say "counting who has
+                 answered…" in the header and "No answers here yet — the
+                 first one starts the count" one tap below it, and the
+                 second one is the flat assertion. Persistent for the
+                 session on a boot that never attaches, not just a frame. */
+              LIVE.attached
+                ? <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
+                    No answers here yet — the first one starts the count.
+                  </LnNote>
+                : <LnNote title="Counting who has answered…">
+                    Reading the answers for {scope === "world" ? "today" : shortName}.
+                  </LnNote>
             }
           />
           {!!rows.length && empty > 0 && (

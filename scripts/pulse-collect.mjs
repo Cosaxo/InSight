@@ -11,11 +11,11 @@
 // Node stdlib only, like every deploy-adjacent script here.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   costModel, authCost, writesPerSec, CONTENTION_DAU, B, SCENARIOS,
-  firestoreCost, functionsCost, totalCost,
+  firestoreCost, functionsCost, totalCost, REGIONAL, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -68,7 +68,7 @@ export function collectCost(regional) {
   });
 
   return {
-    region: regional ? "single-region" : "nam5 multi-region",
+    region: regional === REGIONAL ? LOCATION_LABEL : "nam5 multi-region",
     seededBankDocs: bank,
     assumptions: { ...B },
     scenarios,
@@ -190,6 +190,130 @@ export function collectMoney(cost) {
   };
 }
 
+// ── 2b · the guard: usage against revenue (D332) ────────────────
+// The owner's 2026-08-27 ask, monitoring half: say OUT LOUD when the bill
+// is outrunning what the app earns, before an invoice does. The lever half
+// is the read breaker (`npm run budget:mode`, src/v2/data/budgetMode.ts).
+//
+// The comparison is deliberately modelled-cost-at-MEASURED-size, not the
+// scenario table: the scenarios are fixed hypotheticals, and "are we over"
+// is a question about the population we actually have — which the app can
+// finally answer, because the engagement digest (R1/D268) publishes daily
+// actives and the scorecard fetch commits them here. Revenue stays the
+// rate card's number: recorded prices × recorded units, zero until the
+// owner writes one down, which keeps the guard honest about a revenue
+// that does not exist yet.
+//
+// The allowance is the tolerance, not a target. $50/month is COSTS.md's
+// own budget arithmetic ("traction arrived, or something is wrong"): the
+// modelled bill at launch sizes is ~$0–2 plus ~$28 fixed, so a red guard
+// means either the model's inputs moved (users arrived — go price a
+// path) or a term is missing (the model's own correction record, five
+// times over) — and both are an operator's morning, not a quiet drift.
+//
+// What this deliberately is NOT: a measurement of the invoice. The model
+// has been corrected four times for missing terms, so the guard can be
+// wrong the way the model is wrong — the Cloud Billing budget (COSTS.md,
+// console-side) is the control that fires on the OUTCOME, and this row
+// exists so the repo-side console stops needing to be asked.
+
+// How old the measured day may be before it stops being a measurement.
+// Not a taste number: the guard's own measure is the max of the latest day
+// and the SEVEN-day mean, so once the last committed day is older than that
+// window, every input the guard averages is out of it — the figure it
+// prices is a description of a week nobody is living in. The engagement
+// trail moves only when a human runs `npm run scorecard -- --fetch`;
+// nothing schedules it, which is exactly why a frozen file has to be able
+// to say so rather than passing forever.
+export const MEASURE_MAX_AGE_DAYS = 7;
+
+/** The pure verdict, tested without a tree. All inputs in USD/month. */
+export function guardVerdict({
+  allowanceUsd, measuredActives, measuredAgeDays, burnUsd, revenueUsd,
+}) {
+  if (typeof allowanceUsd !== "number") {
+    // No allowance recorded is a question, not a pass — the unpriced-path
+    // rule. The check treats it as unarmed and says how to arm it.
+    return { state: "unarmed" };
+  }
+  if (measuredActives == null) {
+    // No committed engagement trail yet (pre-launch, or the fetch has
+    // never run). Nothing to compare — say so rather than comparing a
+    // scenario and calling it a measurement.
+    return { state: "unmeasured", allowanceUsd };
+  }
+  const netBurnUsd = round2(burnUsd - revenueUsd);
+  const figures = {
+    allowanceUsd,
+    measuredActives,
+    measuredAgeDays: measuredAgeDays ?? null,
+    burnUsd: round2(burnUsd),
+    revenueUsd: round2(revenueUsd),
+    netBurnUsd,
+  };
+  // Over wins over stale, deliberately. An overshoot is true at the size
+  // it was priced at — the population would have to have SHRUNK for it to
+  // be wrong, and the operator has to look either way because both states
+  // page. What staleness can make unbelievable is the PASS, and that is
+  // the reading this state exists for: the same asymmetry the scorecard
+  // has carried since D33, one panel over.
+  if (netBurnUsd > allowanceUsd) return { state: "over", ...figures };
+  if (figures.measuredAgeDays != null && figures.measuredAgeDays > MEASURE_MAX_AGE_DAYS) {
+    return { state: "stale", ...figures };
+  }
+  return { state: "ok", ...figures };
+}
+
+export function collectGuard(regional, money, engagement) {
+  const rates = readJson("monitoring/rates.json");
+  const allowanceUsd = typeof rates.guard?.maxNetBurnUsdPerMonth === "number"
+    ? rates.guard.maxNetBurnUsdPerMonth
+    : null;
+
+  // The measured size: the larger of yesterday's actives and the 7-day
+  // mean, so one quiet day cannot green a guard the week would trip. Null
+  // (never 0) while no digest day exists — absent is not zero, the
+  // engagement panel's own rule.
+  const measured = engagement.present && engagement.days > 0
+    ? Math.max(engagement.latest?.actives ?? 0, Math.ceil(engagement.weekMeanActives ?? 0))
+    : null;
+
+  let burnUsd = null;
+  if (measured != null && allowanceUsd != null) {
+    const { model } = costModel({ regional });
+    // `mature` follows the model's own classification of the scenario
+    // sizes (immature below 5k), so the guard prices a measured 800 DAU
+    // the way the table would price it.
+    const at = model(measured, measured >= 5_000);
+    burnUsd = totalCost(at.cost) + money.fixedUsdPerMonth;
+  }
+
+  // Age of the day the guard is pricing, not of the fetch that wrote the
+  // file: `fetchedOn` moves every time somebody re-runs the fetch, so a
+  // trail that has stopped folding days would keep looking fresh.
+  const measuredOn = engagement.present ? engagement.lastDay ?? null : null;
+  const measuredAgeDays = measuredOn
+    ? Math.floor((Date.now() - Date.parse(`${measuredOn}T00:00:00Z`)) / 86400000)
+    : null;
+
+  const verdict = guardVerdict({
+    allowanceUsd,
+    measuredActives: measured,
+    measuredAgeDays,
+    burnUsd: burnUsd ?? 0,
+    revenueUsd: money.revenueUsdPerMonth,
+  });
+
+  return {
+    ...verdict,
+    measuredOn,
+    basis: "modelled infra cost at the measured actives (max of latest day and 7-day mean, "
+      + "monitoring/engagement.json) plus fixed costs, against recorded revenue "
+      + "(monitoring/rates.json). A model, not an invoice — the Cloud Billing budget is "
+      + "the outcome-side control (docs/COSTS.md).",
+  };
+}
+
 // ── 3 · the question pipeline ───────────────────────────────────
 // The most live panel: nearly all of it computes from committed files
 // today, pre-launch, with no credentials. It also holds the one number in
@@ -199,15 +323,23 @@ export function collectMoney(cost) {
 export function collectPipeline() {
   const daily = readJson("content/daily-questions.json");
   const feed = readJson("content/feed-questions.json");
+  const pick = readJson("content/pick-questions.json");
   const duel = readJson("content/duel-questions.json");
   const learn = readJson("content/learn-questions.json");
   const tests = readJson("content/tests.json");
   const lenses = readJson("content/lenses.json");
   const pulse = readJson("content/pulse-questions.json");
+  const call = readJson("content/call-questions.json");
 
   const banks = [
     { surface: "daily", count: daily.length, source: "content/daily-questions.json" },
     { surface: "feed", count: feed.questions.length, source: "content/feed-questions.json" },
+    // Catalogue picks (D232) — feed-surface docs from their own content
+    // file, promoted out of the pick archive. The two-path bank-size
+    // check caught this row missing the day the bank went live, which
+    // makes it FOUR for four: every new bank has arrived through that
+    // assertion rather than through anybody remembering this list.
+    { surface: "pick", count: pick.questions.length, source: "content/pick-questions.json" },
     { surface: "duel · group", count: duel.group.length, source: "content/duel-questions.json" },
     { surface: "duel · 1v1", count: duel.oneVsOne.length, source: "content/duel-questions.json" },
     // Seeded active:false until the mode-aware client is the fleet (D40
@@ -220,10 +352,27 @@ export function collectPipeline() {
     // many days it runs. The two-path bank-size check in pulse.test.mjs is
     // what caught THIS row missing, same as romantic's above.
     { surface: "pulse", count: pulse.questions.length, source: "content/pulse-questions.json" },
+    // Foresight CALLs (D194). Every one is `active: false` today (D196) —
+    // still bank docs, so still counted, exactly like the romantic pool
+    // two rows up. The two-path bank-size check caught this row missing
+    // too, which makes it three for three: every new bank has arrived
+    // through that assertion rather than through anybody remembering.
+    //
+    // Feed ADS are deliberately NOT here. They are not questions, they are
+    // seeded to v2_ads rather than v2_questions, and this total is checked
+    // against a parse of V2_QUESTIONS — counting them would break the very
+    // agreement this row exists to keep.
+    { surface: "call", count: call.questions.length, source: "content/call-questions.json" },
     {
       surface: "test items",
+      // The core items and, since D416, each instrument's DEEP items (the
+      // Big Five's facets, the compass's positions) — bank docs on the same
+      // surface, in `deep` beside `questions`. The two-path bank-size check
+      // in pulse.test.mjs caught this row lagging the day they landed,
+      // which makes it five for five.
       count: Object.values(tests).reduce(
-        (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0), 0),
+        (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0)
+          + (Array.isArray(t?.deep) ? t.deep.length : 0), 0),
       source: "content/tests.json",
     },
     // The minor instruments' items, seeded on the SAME "test" surface since
@@ -384,7 +533,6 @@ export function collectScorecard() {
     // is most of the bank and says nothing; after launch a stubbornly high
     // number means the deck is not getting through what has been written.
     unserved: cov.unserved ?? 0,
-    belowFloor: cov.belowFloor ?? 0,
     questionsTracked: cov.questions ?? perQuestion.length,
     // The product's own bar, as a distribution rather than an average: a
     // mean evenness hides the shape, and the shape is the thing ("splits,
@@ -425,7 +573,7 @@ export function collectPopulation(pipeline) {
 
   return {
     state: launched ? "live" : "pre-launch",
-    // Derivable today, from the k-floored public mirror the scorecard
+    // Derivable today, from the public aggregate mirror the scorecard
     // already reads. These are FLOORS on real activity, not measurements —
     // a question with no answers has no aggregate document and contributes
     // nothing, so every number here understates.
@@ -433,11 +581,11 @@ export function collectPopulation(pipeline) {
       {
         metric: "answers counted, all published questions",
         value: launched ? sc.totalAnswers : null,
-        source: "content/scorecard.json ← v2_question_aggs (k-floored)",
+        source: "content/scorecard.json ← v2_question_aggs",
         caveat: "unanswered questions have no aggregate document yet",
       },
       {
-        metric: "questions that have cleared the k-floor",
+        metric: "questions carrying at least one answer",
         value: launched ? sc.scoredQuestions : null,
         source: "content/scorecard.json",
         caveat: "the honest proxy for 'is anyone here' before any analytics exist",
@@ -449,19 +597,22 @@ export function collectPopulation(pipeline) {
         caveat: "one answer per user per day on the shared daily makes its total a DAU floor. "
           + "Not yet extracted — the scorecard scores questions, it does not date them",
       },
+      {
+        metric: "DAU, D1/D7/D30 cohort returns, streak deaths — nightly since D268",
+        value: null,
+        source: "monitoring/engagement.json ← v2_engagement_daily ← digestEngagementV2",
+        caveat: "counts ANSWERING accounts — floors, not measurements: a person who opens and "
+          + "answers nothing is invisible at rung 0 (docs/ENGAGEMENT-PLAN.md §2). The "
+          + "engagement panel below draws the trail",
+      },
     ],
     // Unbuilt, not forbidden. The distinction matters: each of these could
     // be built without reversing anything, and each has a real cost.
     blocked: [
-      {
-        metric: "DAU / D1–D7 retention / answers-per-user",
-        unblockedBy: "a server-side counting job over v2_agg_events",
-        cost: "one scheduled function; the collection already exists (qid, uid, at, 90-day TTL) "
-          + "and is already erased with the account",
-        catch: "v2_agg_events was justified as fake-account attribution (D28). Counting distinct "
-          + "uids per day is a NEW PURPOSE for existing data, which needs a recorded decision "
-          + "before it is built — not new collection, but not free either",
-      },
+      // The DAU/retention row that stood here graduated to the live column
+      // on 2026-08-23: D268 is the recorded decision its catch demanded,
+      // and digestEngagementV2 is the counting job. The catch was real and
+      // was honoured in the order it asked for — record first, then build.
       {
         metric: "real spend vs the modelled bill",
         unblockedBy: "a Cloud Billing BigQuery export, or a monthly figure pasted into rates.json",
@@ -480,16 +631,25 @@ export function collectPopulation(pipeline) {
     // "we decided not to" is only useful with the decision attached.
     refused: [
       {
-        metric: "per-user funnels, session analytics, engagement scoring",
-        record: "docs/data-inventory.md — 'No product analytics of any kind ship today'",
-        why: "there is no client event pipeline to read, by design. Adding one is a privacy "
-          + "decision, not a monitoring tweak",
+        metric: "per-user RAW behaviour — event streams, reading history, per-target views",
+        record: "D269, the binding ceiling. The old row here ('per-user funnels, session "
+          + "analytics, engagement scoring') was reversed rung by rung — D268, D270, D271, "
+          + "D272 — each with its record, its rules arms and its store-form move",
+        why: "what ships is bounded by construction: the rollup carries no question id "
+          + "(rules-refused), is readable by nobody including its owner, and expires at 90 "
+          + "days; the shards are unlinkable even to a device. What D269 keeps out is the "
+          + "dossier shapes — logs, sequences, who-viewed-whom, hesitation — and any anchor "
+          + "or Art. 9 slice",
       },
       {
         metric: "retention or engagement sliced by anchor (age, gender, country, education…)",
-        record: "D8 / D18 — the k-floor and complementary suppression",
-        why: "the same suppression that stops a buyer identifying a person stops the owner "
-          + "doing it. That is the guarantee working, not a gap in the tooling",
+        record: "docs/MONITORING.md § Off the table — re-affirmed after D98 as an analytics "
+          + "decision standing on its own; D8",
+        why: "nothing technical stops this since D98 deleted the floor — the anchors are public "
+          + "and the fold is a query away. It stays refused because per-cohort engagement "
+          + "scoring is the behavioural model MONETIZATION.md rules out, and the digest holds "
+          + "the line by construction: its store reads uid, qid and dates, and can reach no "
+          + "anchor",
       },
       {
         metric: "anything sliced by political result",
@@ -497,10 +657,14 @@ export function collectPopulation(pipeline) {
         why: "special-category data. Never sliced by, never published, never leaves the owner doc",
       },
       {
-        metric: "skip / pass / hesitation rates on questions",
-        record: "docs/QUESTION-FARM.md, 'Deliberately out of scope'",
-        why: "server-side telemetry on what a user declined to answer is a behavioural profile "
-          + "with a friendlier name",
+        metric: "per-PERSON skip/pass lists, and hesitation timing anywhere",
+        record: "docs/QUESTION-FARM.md's line, narrowed at D271 the way D163 narrowed this "
+          + "table's last row: per-QUESTION aggregate skip rates now ship (the scorecard's "
+          + "attention columns); a person's list and per-option deliberation timing stay "
+          + "refused under D269",
+        why: "a question's pass rate is a fact about content; a person's passes are a "
+          + "behavioural profile with a friendlier name, and the shards' unlinkability is "
+          + "what keeps the first from ever becoming the second",
       },
       {
         metric: "per-user content selection, ad targeting profiles",
@@ -512,23 +676,179 @@ export function collectPopulation(pipeline) {
   };
 }
 
+// ── 4b · engagement (R1/D268) ───────────────────────────────────
+// The digest trail: anonymous per-day population counts, folded nightly
+// by digestEngagementV2 into v2_engagement_daily and committed here by
+// `npm run scorecard -- --fetch` (one fetch path — the scorecard's own).
+// Everything below is a fold over the committed file; the pure half is
+// exported separately so the arithmetic tests without a tree.
+
+/** Fold an array of v2_engagement_daily day docs into the panel reading.
+ * Null-aware on purpose: a cohort day the digest never folded has no
+ * firstTime count, so its rate is UNKNOWN (null), never 0% — and a `of`
+ * of zero is a known-empty cohort, which is a different fact. */
+export function engagementFromDays(days) {
+  const all = [...(days || [])]
+    .filter((d) => d && typeof d.day === "string")
+    .sort((a, b) => (a.day < b.day ? -1 : 1));
+  // Digest rows only, for the digest's own metrics: a doc holding just
+  // late-shard attention (its day predates the digest's catch-up) has no
+  // `actives`, and reading it as a zero-actives day would be the
+  // absent≠zero failure wearing a new face.
+  const rows = all.filter((d) => typeof d.actives === "number");
+  // The newest attention section, wherever it landed (R2/D270): reach is
+  // devices that used the feature at all — bucketing cannot distort it —
+  // and est is the midpoint estimate, both already scaled by the
+  // sampling rate at fold time.
+  const attnRow = [...all].reverse().find((d) => d.attn && typeof d.attn === "object");
+  const attn = attnRow
+    ? {
+        day: attnRow.day,
+        devices: attnRow.attn.devices ?? 0,
+        features: Object.entries(attnRow.attn.s || {})
+          .map(([key, v]) => ({ key, reach: v?.reach ?? 0, est: v?.est ?? 0 }))
+          .sort((a, b) => b.reach - a.reach),
+        // R4/D271: how many questions carried counts, not the counts
+        // themselves — the per-question table is the scorecard's job.
+        qidCount: Object.keys(attnRow.attn.q || {}).length,
+      }
+    : null;
+  // The person channel's fold (R3/D272), newest day that has one.
+  const peopleRow = [...all].reverse().find((d) => d.people && typeof d.people === "object");
+  const people = peopleRow
+    ? (() => {
+        const p = peopleRow.people;
+        const sessions = p.sessions ?? 0;
+        const rollups = p.rollups ?? 0;
+        return {
+          day: peopleRow.day,
+          rollups,
+          sessions,
+          quiet: p.quiet ?? 0,
+          quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
+          fading: p.fading ?? 0,
+          reachedEnd: p.depthEnd ?? 0,
+          // THE MIRROR-READING THREE (D407). ENGAGEMENT-PLAN.md's rung-0
+          // table lists "the entire Mirror — does anyone open it, which
+          // stops, which lenses" as something rung 0 cannot see, because
+          // "reading is the point and reading writes nothing". These
+          // three are what the client started writing to close that, and
+          // until now nothing folded or drew them.
+          //
+          // Shares against `rollups`, because the question is what
+          // fraction of the people who used the app that day READ it —
+          // a count alone moves with the population and answers nothing.
+          //
+          // NULL ON TWO DIFFERENT FACTS, and this read had only the first.
+          // No denominator is the quietShare rule one line up: no people
+          // is not "nobody read". The second is ABSENCE: every day folded
+          // before this shipped carries a real `rollups` and none of these
+          // three keys, so `?? 0` put an invented numerator over a genuine
+          // denominator and the console printed 0% — stating "nobody
+          // opened the Mirror" across the whole back-catalogue, which is
+          // the one claim this data cannot make. A key's absence has to
+          // reach the renderer, so it is tested BEFORE the denominator.
+          //
+          // A folded day that really saw no readers is a different row and
+          // still prints 0%: the keys are there, holding zero.
+          mirrorRead: p.mirrorRead ?? null,
+          lensOpen: p.lensOpen ?? null,
+          readShare: p.mirrorRead == null || rollups === 0
+            ? null : round2(p.mirrorRead / rollups),
+          lensShare: p.lensOpen == null || rollups === 0
+            ? null : round2(p.lensOpen / rollups),
+          // The feed-depth bracket histogram, low to high. A map on the
+          // wire (FieldValue.increment needs a field path), a list here —
+          // and null, not five zeros, when the day predates the fold. Five
+          // zeros is a shape a reader can take a distribution off; the
+          // absence of the map is not.
+          feedBuckets: p.feedBuckets == null
+            ? null
+            : Array.from({ length: 5 }, (_, i) => p.feedBuckets[`f${i}`] ?? 0),
+        };
+      })()
+    : null;
+  if (!rows.length) {
+    const bare = { days: 0 };
+    if (attn) bare.attn = attn;
+    if (people) bare.people = people;
+    return bare;
+  }
+  const latest = rows[rows.length - 1];
+  const last7 = rows.slice(-7);
+  // Days inside the span the digest never folded — the console draws
+  // these as gaps, never as zeros (the pulse-trail rule; a zero day is a
+  // REAL doc with actives: 0).
+  const spanDays =
+    Math.round((Date.parse(`${latest.day}T00:00:00Z`) - Date.parse(`${rows[0].day}T00:00:00Z`)) / 86400000) + 1;
+  const rate = (r) => {
+    const returned = r?.returned ?? 0;
+    const of = r?.of ?? null;
+    return { returned, of, rate: of == null || of === 0 ? null : round2(returned / of) };
+  };
+  return {
+    days: rows.length,
+    gaps: spanDays - rows.length,
+    firstDay: rows[0].day,
+    lastDay: latest.day,
+    latest: {
+      day: latest.day,
+      actives: latest.actives ?? 0,
+      firstTime: latest.firstTime ?? 0,
+      votes: latest.votes ?? 0,
+      events: latest.events ?? 0,
+      streaksBroken: latest.streaksBroken ?? 0,
+      bySurface: latest.bySurface || {},
+    },
+    weekMeanActives: round2(last7.reduce((a, d) => a + (d.actives || 0), 0) / last7.length),
+    returned: {
+      d1: rate(latest.returned?.d1),
+      d7: rate(latest.returned?.d7),
+      d30: rate(latest.returned?.d30),
+    },
+    attn,
+    people,
+  };
+}
+
+export function collectEngagement() {
+  if (!has("monitoring/engagement.json")) {
+    return {
+      present: false,
+      note: "no committed monitoring/engagement.json — `npm run scorecard -- --fetch` writes it "
+        + "from the public v2_engagement_daily trail once digestEngagementV2 has folded a day "
+        + "(R1/D268). Before the first deploy this is expected: the digest has never run.",
+    };
+  }
+  const raw = readJson("monitoring/engagement.json");
+  return { present: true, fetchedOn: raw.fetchedOn || null, ...engagementFromDays(raw.days) };
+}
+
 // ── 5 · instrumentation ─────────────────────────────────────────
 // "Am I flying blind?" as a count. Scanned rather than listed, so a new
 // function or a new alert policy shows up here without anyone remembering
 // to add it — the failure mode this whole console exists to reduce.
 
 export function collectInstrumentation() {
-  const fnFiles = readdirSync(join(ROOT, "functions/src"))
+  // Recursive, with the sibling gates over this directory.
+  const fnFiles = readdirSync(join(ROOT, "functions/src"), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
   const functions = [];
   for (const f of fnFiles) {
     const src = read(`functions/src/${f}`);
-    // The v2 export surface is what deploys. `export const x = onCall(` /
-    // `onDocumentCreated(` / `onSchedule(` is the whole shape here; a
-    // wrapper form would be missed, which is why the count is reported
-    // beside the file list rather than asserted.
-    for (const m of src.matchAll(/export const (\w+) = (onCall|onDocumentCreated|onSchedule)\b/g)) {
+    // The v2 export surface is what deploys, and the trigger KIND is read
+    // rather than listed. Naming three of them —
+    // onCall/onDocumentCreated/onSchedule — silently dropped the two the
+    // tree grew afterwards: `onDocumentUpdated` (D86's answer-edit fold)
+    // and `onRequest` (the Stripe webhook, D313). Neither has an alert
+    // policy, so the console's "am I flying blind?" panel reported
+    // 40 of 42 functions and the two it could not see were the two least
+    // watched. `check:figures` reads the same surface with `on[A-Z]`, and
+    // now so does this; a wrapper form would still be missed, which is why
+    // the count is reported beside the file list rather than asserted.
+    for (const m of src.matchAll(/export const (\w+) = (on[A-Z]\w+)\b/g)) {
       functions.push({ name: m[1], kind: m[2], file: `functions/src/${f}` });
     }
   }
@@ -545,8 +865,36 @@ export function collectInstrumentation() {
     }
   }
 
+  // WHAT COUNTS AS A POLICY, by SHAPE rather than by name. This filter was
+  // a denylist — every .json in monitoring/ except pulse.json and
+  // rates.json — which meant any new non-policy file dropped in here
+  // silently became a row in the alert table with `undefined` for its name.
+  //
+  // Not hypothetical: the first `scorecard --fetch` to write
+  // monitoring/engagement.json (2026-08-26) produced exactly that, and the
+  // only reason it had never happened before is that no third kind of file
+  // had ever landed in this directory. A denylist that must be edited for
+  // every new file is a denylist that will be forgotten; a Cloud Monitoring
+  // alert policy always carries displayName and conditions, so ask for
+  // those instead and the question stops being maintained by hand.
   const policyFiles = readdirSync(join(ROOT, "monitoring"))
-    .filter((f) => f.endsWith(".json") && f !== "pulse.json" && f !== "rates.json");
+    .filter((f) => f.endsWith(".json"))
+    .filter((f) => {
+      // try/catch because this now parses EVERY .json in the directory,
+      // and one of them is monitoring/pulse.json — machine-written by
+      // scripts/pulse.mjs and gitignored, so the file here most likely to
+      // be caught half-written by an interrupted run. Without the guard an
+      // interrupted `npm run pulse` makes the NEXT `npm run pulse` throw a
+      // JSON syntax error naming a position and no file.
+      //
+      // Shape alone is the right test here, unlike in check-monitoring:
+      // the gate is what must CATCH a policy missing displayName, so it
+      // deliberately admits malformed ones. This only draws a table, and a
+      // row it cannot name is a row headed `undefined`.
+      let p;
+      try { p = readJson(`monitoring/${f}`); } catch { return false; }
+      return typeof p.displayName === "string" && Array.isArray(p.conditions);
+    });
   const policies = policyFiles.map((f) => {
     const p = readJson(`monitoring/${f}`);
     const cond = p.conditions?.[0] || {};
@@ -559,9 +907,10 @@ export function collectInstrumentation() {
           ? `threshold on ${cond.conditionThreshold.filter?.match(/user\/([\w-]+)/)?.[1] || "a metric"}`
           : "unknown",
       enabled: p.enabled === true,
-      // The honest bit. These are committed JSON; nothing in
-      // .github/workflows applies them, so a policy exists in the repo
-      // whether or not it exists in Cloud Monitoring.
+      // The honest bit. These are committed JSON; nothing applies them
+      // AUTOMATICALLY — monitoring.yml is workflow_dispatch only, with
+      // `apply` off by default and never on the deploy path — so a policy
+      // exists in the repo whether or not it exists in Cloud Monitoring.
       appliedByCi: false,
     };
   });
@@ -598,28 +947,34 @@ export function collectInstrumentation() {
     alertedCount: watchedNames.size,
     logMetrics,
     policies,
-    note: "Alert policies are committed JSON, applied by `npm run monitoring:apply` "
-      + "(idempotent, dry-run by default) rather than by any workflow — deliberately, "
-      + "since a pipeline that can rewrite a policy can delete one silently. So a "
-      + "policy listed here is a policy in the REPO, not necessarily one live in Cloud "
-      + "Monitoring: the repo cannot know which, and this column never claims to.",
+    note: "Alert policies are committed JSON, put live by dispatching the Arm "
+      + "monitoring workflow or by `npm run monitoring:apply` (idempotent, dry-run "
+      + "by default). Never on the deploy path — deliberately, since a pipeline "
+      + "that can rewrite a policy can delete one silently in a deploy that was "
+      + "about something else. So a policy listed here is a policy in the REPO, not "
+      + "necessarily one live in Cloud Monitoring: this column reads the tree and "
+      + "never claims otherwise. `npm run observe` is what reads the project.",
   };
 }
 
 // ── assembly ────────────────────────────────────────────────────
 
-export function collect({ regional = false } = {}) {
+export function collect({ regional = REGIONAL } = {}) {
   const cost = collectCost(regional);
   const pipeline = collectPipeline();
+  const money = collectMoney(cost);
+  const engagement = collectEngagement();
   return {
     // Day granularity, not a timestamp: this artifact is committed, and a
     // millisecond in the diff would make every regeneration look like a
     // change to something.
     generatedOn: isoDay(Math.floor(Date.now() / 86400000)),
     cost,
-    money: collectMoney(cost),
+    money,
+    guard: collectGuard(regional, money, engagement),
     pipeline,
     population: collectPopulation(pipeline),
+    engagement,
     instrumentation: collectInstrumentation(),
   };
 }

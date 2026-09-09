@@ -28,6 +28,7 @@
 // prototype does the same (`MFSparse` sits UNDER `MFCanvas`, never instead
 // of it).
 import React from "react";
+import NAV from "../data/nav";
 
 /**
  * The rings and you, with a caption underneath.
@@ -47,16 +48,33 @@ export default function EmptyField({ caption, children, action }: {
    * fill by waiting: City fills as strangers answer and needs no button.
    *
    * The nav lookup lives HERE rather than at the call site because two of
-   * the call sites are spec-layer `.jsx`, where `window.goNav` counts as
+   * the call sites are spec-layer `.jsx`, where `window.goNav` counted as
    * new shared-global coupling and `check:globals` rule 4 only moves down.
    * One typed reader for all of them keeps the meter flat.
+   *
+   * `prime` runs BEFORE the jump, for a door that has to land on something
+   * in particular rather than on a tab (D190): the topics button asks the
+   * feed to open its topic sheet, and the feed reads that on the mount the
+   * jump causes. Before, never after — the screen it lands on is already
+   * looking by the time this returns.
+   *
+   * **And if `prime` returns `true`, there is no jump** (D282). The ask may
+   * turn out to be answerable where the reader is standing — a topic sheet
+   * portals to the app frame above this panel, so a feed already mounted
+   * behind it can simply open the list — and a door that moves you when it
+   * did not have to is the thing being reported. Only an explicit `true`
+   * cancels: a `prime` that returns nothing keeps the jump it has always
+   * had, so the two other call sites are unchanged.
    */
-  action?: { label: string; nav: string };
+  action?: { label: string; nav: string; prime?: () => boolean | void };
 }) {
   const go = () => {
-    const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void };
-    if (w.goNav) w.goNav(action!.nav);
-    else if (w.goTab) w.goTab(action!.nav.split(":")[0]);
+    if (action!.prime && action!.prime() === true) return;
+    // The registry since D248, replacing a `window as unknown as {…}` cast.
+    // The goTab FALLBACK is behaviour, not a guard: it takes the tab id
+    // alone, because a shell without `goNav` cannot honour a nav KEY.
+    if (NAV.can("goNav")) NAV.goNav(action!.nav);
+    else NAV.goTab(action!.nav.split(":")[0]);
   };
   return (
     <div style={{ padding: "6px 0 2px" }}>

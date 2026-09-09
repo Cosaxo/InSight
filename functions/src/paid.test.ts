@@ -1,0 +1,972 @@
+// paid.test.ts — the pure half of the self-serve paid-question loop
+// (paid.ts, D313): what a booking must look like to get in, what the
+// quote arithmetic locks, what the review holds, and — the part a green
+// emulator cannot prove — that the question doc the webhook writes wears
+// exactly the shape the client's bank fetch and the answer rules expect.
+
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { SUGGEST_PER_DAY } from "./suggestions";
+import {
+  BOOKINGS_PER_DAY,
+  AUDIENCE_DIMS_MAX,
+  LIKERT,
+  checkoutLineItem,
+  expirePriorSession,
+  dayPlus,
+  PAID_OPTIONS_MAX,
+  PAID_PROMPT_MAX,
+  MAX_REVIEW_ATTEMPTS,
+  RATING,
+  REVIEW_GUIDELINES,
+  SWEEP_MAX_PAGES,
+  heldPageFrom,
+  SWEEP_PAGE,
+  WINDOW_DAYS,
+  runReviewSweep,
+  paidPurchaseDoc,
+  paidQuestionDoc,
+  parseVerdict,
+  priceQuote,
+  refundEurFor,
+  reviewBooking,
+  goLive,
+  reviewGates,
+  reviewSubject,
+  validatePaidBooking,
+  type PaidBookingPayload,
+  validatePaidLink,
+  PAID_LINK_MAX,
+} from "./paid";
+// One name, one meaning: the day-key helpers live in pure.ts now.
+import { utcDayKey } from "./pure";
+import { PRICING_CARD } from "./pricing";
+
+const BOOKING: PaidBookingPayload = {
+  kind: "question",
+  prompt: "Should the night buses run all night?",
+  type: "binary",
+  options: ["All night", "The hours are fine"],
+  topic: "culture",
+  scope: "city",
+  dims: { city: "Oslo, NO" },
+  wearName: true,
+  budgetEur: null,
+  link: null,
+};
+
+describe("the buyer name is read off a field the profile can actually hold", () => {
+  // The defect this pins was invisible in every other way: reading a
+  // field that does not exist returns undefined, so "wear your name"
+  // simply did nothing — no error, no log, and the composer went on
+  // previewing the name to the buyer. It also blinded the reviewer,
+  // whose rule 8 is about slurs and impersonation IN THE BUYER NAME.
+  //
+  // So the assertion is not the string. It reads the field name out of
+  // paid.ts and holds it against the key allowlist in firestore.rules —
+  // the one place that decides what a v2_users document may contain. A
+  // rename on either side reds this.
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+  const paidSrc = readFileSync(resolve(root, "functions/src/paid.ts"), "utf8");
+  const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
+
+  const allowed = (() => {
+    const block = /match \/v2_users\/\{uid\} \{[\s\S]*?hasOnly\(\[([\s\S]*?)\]\)/.exec(rules);
+    expect(block, "could not find the v2_users key allowlist in firestore.rules").toBeTruthy();
+    return [...block![1].matchAll(/"(\w+)"/g)].map((m) => m[1]);
+  })();
+
+  it("reads a key firestore.rules admits on v2_users", () => {
+    const read = /collection\("v2_users"\)[\s\S]{0,900}?prof\.get\("(\w+)"\)/.exec(paidSrc);
+    expect(read, "could not find the buyer-name profile read in paid.ts").toBeTruthy();
+    expect(allowed).toContain(read![1]);
+  });
+
+  it("and the allowlist is really the profile's, not an empty match", () => {
+    // The vacuity guard: an allowlist this test failed to parse would be
+    // an empty array, and `toContain` on an empty array fails loudly —
+    // but a WRONG block would not. Anchor it on two keys that are the
+    // profile's alone.
+    expect(allowed).toEqual(expect.arrayContaining(["displayName", "anchors", "handle"]));
+    expect(allowed).not.toContain("name");
+  });
+});
+
+describe("a validated booking survives being validated again", () => {
+  // NOT a tidiness property. The validator runs TWICE on every booking:
+  // once on the wire in bookPaidQuestionV2, and again inside reviewGates,
+  // which re-reads the STORED doc (`bookingPayloadOf`) before the model
+  // is called. So anything the validator normalizes has to be acceptable
+  // to the validator, or the booking is declined for the shape the
+  // validator itself gave it — and the buyer reads that sentence as the
+  // reason their question was refused.
+  //
+  // It has happened: the option-count bound ran BEFORE the continuum
+  // forms had their scales substituted, so "scale" (5 Likert steps) and
+  // "rating" (10) passed on the wire with the composer's empty list and
+  // were declined on re-read with "at most 4 options". Two of the five
+  // forms the composer offers could not be sold at all.
+  const round = (input: unknown) => {
+    const first = validatePaidBooking(input);
+    expect(first, `first pass rejected: ${JSON.stringify(first)}`).not.toHaveProperty("error");
+    const ok = (first as { ok: PaidBookingPayload }).ok;
+    const second = validatePaidBooking(ok);
+    expect(second, `second pass rejected: ${JSON.stringify(second)}`).not.toHaveProperty("error");
+    return { ok, again: (second as { ok: PaidBookingPayload }).ok };
+  };
+
+  // Every form the paid composer offers, with the wire shape the composer
+  // actually sends: the continuum forms send NO options, because the app
+  // owns their scales.
+  for (const type of ["binary", "choice", "scale", "rating", "dilemma"]) {
+    it(`holds for a ${type} question`, () => {
+      const wire = type === "scale" || type === "rating"
+        ? { ...BOOKING, type, options: [] }
+        : { ...BOOKING, type };
+      const { ok, again } = round(wire);
+      expect(again).toEqual(ok);
+    });
+  }
+
+  it("and the gates agree with the validator on the stored payload", () => {
+    // The path that actually declined people: reviewGates runs the
+    // validator first, so a payload the validator rejects is a decline
+    // with the validator's own sentence.
+    for (const type of ["scale", "rating"]) {
+      const first = validatePaidBooking({ ...BOOKING, type, options: [] });
+      const stored = (first as { ok: PaidBookingPayload }).ok;
+      expect(reviewGates(stored), `${type} was declined by its own gates`).toBeNull();
+    }
+  });
+
+  it("still refuses five AUTHORED options", () => {
+    // The bound did not go away — it moved behind the substitution, so it
+    // applies to lists a buyer wrote and not to the ones the app minted.
+    expect(validatePaidBooking({ ...BOOKING, type: "choice", options: ["a", "b", "c", "d", "e"] }))
+      .toHaveProperty("error");
+  });
+});
+
+describe("validatePaidBooking", () => {
+  it("accepts the composer's happy path and normalizes it", () => {
+    const r = validatePaidBooking({
+      prompt: "  Should the night buses run all night?  ",
+      type: "binary",
+      options: ["All night", " The hours are fine ", ""],
+      topic: "Culture",
+      scope: "city",
+      dims: { city: "Oslo, NO" },
+      wearName: true,
+    });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.ok).toEqual(BOOKING);
+  });
+
+  it("bounds the prompt and the option count", () => {
+    expect(validatePaidBooking({ ...BOOKING, prompt: "x".repeat(PAID_PROMPT_MAX + 1) }))
+      .toHaveProperty("error");
+    expect(validatePaidBooking({ ...BOOKING, options: ["a", "b", "c", "d", "e"] }))
+      .toHaveProperty("error");
+    expect(PAID_OPTIONS_MAX).toBe(4);
+  });
+
+  it("synthesizes the scales and refuses authored options on them", () => {
+    // The D52 line: a stored optionIdx is a position on the app's own
+    // scale, so a paid scale/rating question must carry EXACTLY the
+    // bank's synthesized labels whatever the client sent.
+    const scale = validatePaidBooking({ ...BOOKING, type: "scale", options: ["My own", "Labels"] });
+    if ("error" in scale) throw new Error(scale.error);
+    expect(scale.ok.options).toEqual(LIKERT);
+    const rating = validatePaidBooking({ ...BOOKING, type: "rating", options: [] });
+    if ("error" in rating) throw new Error(rating.error);
+    expect(rating.ok.options).toEqual(RATING);
+    expect(LIKERT).toEqual(["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]);
+    expect(RATING).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+  });
+
+  it("holds the audience to the published vocabulary, capped at three dims", () => {
+    expect(validatePaidBooking({ ...BOOKING, dims: { city: "Oslo, NO", profession: "chef" } }))
+      .toHaveProperty("error"); // profession is deliberately never a dim (D8)
+    expect(validatePaidBooking({
+      ...BOOKING,
+      scope: "world",
+      dims: { ageBand: "25-34", gender: "female", education: "MA", relationship: "single" },
+    })).toHaveProperty("error"); // four dims — past D228's ceiling
+    expect(AUDIENCE_DIMS_MAX).toBe(3);
+  });
+
+  it("welds the scope to its place dim, both directions", () => {
+    // A "city" ask with no city bucket would match everyone while the
+    // band claims a place; a "world" ask carrying one would price world
+    // and serve a city. Both are the disclosure lying.
+    expect(validatePaidBooking({ ...BOOKING, dims: {} })).toHaveProperty("error");
+    expect(validatePaidBooking({ ...BOOKING, scope: "world", dims: { city: "Oslo, NO" } }))
+      .toHaveProperty("error");
+    const world = validatePaidBooking({ ...BOOKING, scope: "world", dims: { ageBand: "25-34" } });
+    expect("error" in world).toBe(false);
+  });
+
+  it("keeps unknown topics out rather than minting feed vocabulary", () => {
+    const r = validatePaidBooking({ ...BOOKING, topic: "propaganda" });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.ok.topic).toBeNull();
+  });
+
+  it("holds the budget to the card's range in whole euros, and reads a missing one as the cap (D372)", () => {
+    const { minEur, capEur } = PRICING_CARD;
+    const ok = validatePaidBooking({ ...BOOKING, budgetEur: 20 });
+    if ("error" in ok) throw new Error(ok.error);
+    expect(ok.ok.budgetEur).toBe(20);
+    // Outside the range, either way, and not a whole euro: refused with
+    // the range in the sentence, which is what the buyer needs to change.
+    for (const bad of [minEur - 1, capEur + 1, 99.5, "100", NaN]) {
+      const r = validatePaidBooking({ ...BOOKING, budgetEur: bad });
+      expect("error" in r, `budget ${String(bad)} should be refused`).toBe(true);
+      if ("error" in r) expect(r.error).toMatch(new RegExp(`€${minEur}.*€${capEur}`));
+    }
+    // A client from before budgets existed sends none. It showed the cap
+    // as the price, so the cap is what it is quoted — never a smaller
+    // figure it never displayed.
+    const { budgetEur: _b, ...legacy } = BOOKING;
+    void _b;
+    const r = validatePaidBooking(legacy);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.ok.budgetEur).toBeNull();
+    expect(priceQuote("city", PRICING_CARD, r.ok.budgetEur).capEur).toBe(capEur);
+  });
+});
+
+describe("priceQuote", () => {
+  it("prices off the committed card and locks the arithmetic", () => {
+    const q = priceQuote("city", {
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      generated: "2026-08-24", currency: "EUR", fx: {},
+      cohorts: {
+        city: { idx: 0.9, booked: [], nextOpen: null },
+        country: { idx: 0.9, booked: [], nextOpen: null },
+        world: { idx: 0.9, booked: [], nextOpen: null },
+      },
+      estimates: {},
+    });
+    expect(q.ratePerAnswer).toBe(0.144);
+    expect(q.capEur).toBe(320);
+    expect(q.cap).toBe(Math.floor(320 / 0.144)); // 2222
+    expect(q.windowDays).toBe(WINDOW_DAYS);
+  });
+
+  it("makes the buyer's budget the cap, and holds it to the card's range (D372)", () => {
+    const card = {
+      base: 0.1, floorX: 1, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
+      generated: "2026-09-05", currency: "EUR", fx: {}, adBase: 320,
+      cohorts: {
+        city: { idx: 1, booked: [], nextOpen: null },
+        country: { idx: 1.5, booked: [], nextOpen: null },
+        world: { idx: 1, booked: [], nextOpen: null },
+      },
+      estimates: {},
+    };
+    const q = priceQuote("city", card, 100);
+    expect(q.ratePerAnswer).toBe(0.1);
+    expect(q.capEur).toBe(100);
+    expect(q.cap).toBe(1000);
+    // The lifted line buys fewer answers for the same money — the budget
+    // is the constant, the count is what the demand index moves.
+    expect(priceQuote("country", card, 100).cap).toBe(Math.floor(100 / 0.15));
+    // Null is the pre-D372 booking: the card's cap.
+    expect(priceQuote("city", card, null).capEur).toBe(320);
+    // The clamps hold here too, whatever a stored figure says.
+    expect(priceQuote("city", card, 5).capEur).toBe(20);
+    expect(priceQuote("city", card, 5000).capEur).toBe(320);
+  });
+
+  it("holds a card idx to the floor, and to nothing above it (D373)", () => {
+    const card = {
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      generated: "2026-08-24", currency: "EUR", fx: {},
+      cohorts: {
+        city: { idx: 9, booked: [], nextOpen: null },
+        country: { idx: 0.1, booked: [], nextOpen: null },
+        world: { idx: 1, booked: [], nextOpen: null },
+      },
+      estimates: {},
+    };
+    expect(priceQuote("city", card).ratePerAnswer).toBe(1.44); // 0.16 × 9 — crowding has no ceiling
+    expect(priceQuote("country", card).ratePerAnswer).toBe(0.144); // 0.16 × 0.9 floor
+  });
+});
+
+describe("reviewGates", () => {
+  it("passes an honest booking through to the model", () => {
+    expect(reviewGates(BOOKING)).toBeNull();
+  });
+  it("declines duplicate options — one answer wearing two indexes", () => {
+    expect(reviewGates({ ...BOOKING, options: ["All night", "ALL NIGHT"] })).toMatch(/same thing/);
+  });
+  it("declines a prompt with no words in it", () => {
+    expect(reviewGates({ ...BOOKING, prompt: "??!… –" })).toMatch(/write it out/);
+  });
+});
+
+describe("validatePaidLink — the buyer's one link, by shape (D378)", () => {
+  it("takes a whole https address and nothing else", () => {
+    expect(validatePaidLink("https://harboursauna.no/winter")).toEqual({ ok: "https://harboursauna.no/winter" });
+    expect(validatePaidLink("  https://Example.NO/a?b=1  ")).toEqual({ ok: "https://example.no/a?b=1" });
+    // none is none — the field is optional, and blank is not an error
+    expect(validatePaidLink(undefined)).toEqual({ ok: null });
+    expect(validatePaidLink("   ")).toEqual({ ok: null });
+    expect(validatePaidLink("harboursauna.no")).toHaveProperty("error");
+    expect(validatePaidLink("http://harboursauna.no")).toEqual({ error: expect.stringMatching(/https/) });
+    expect(validatePaidLink("javascript:alert(1)")).toHaveProperty("error");
+    expect(validatePaidLink("https://user:pw@harboursauna.no")).toHaveProperty("error");
+    expect(validatePaidLink("https://localhost/x")).toHaveProperty("error");
+    expect(validatePaidLink(`https://harboursauna.no/${"x".repeat(PAID_LINK_MAX)}`)).toHaveProperty("error");
+  });
+
+  it("rides the booking through the validator, the stored reader and the round trip", () => {
+    const withLink = validatePaidBooking({ ...BOOKING, link: "https://harboursauna.no/winter" });
+    if ("error" in withLink) throw new Error(withLink.error);
+    expect(withLink.ok.link).toBe("https://harboursauna.no/winter");
+    const again = validatePaidBooking(withLink.ok);
+    if ("error" in again) throw new Error(again.error);
+    expect(again.ok).toEqual(withLink.ok);
+    expect(validatePaidBooking({ ...BOOKING, link: "ftp://harboursauna.no" })).toHaveProperty("error");
+    // and it is on the question doc, as the audience is — or absent
+    const doc = paidQuestionDoc(withLink.ok, "Olaf", "2026-08-27", "2026-09-24", 1) as { sponsor: Record<string, unknown> };
+    expect(doc.sponsor.link).toBe("https://harboursauna.no/winter");
+    const none = paidQuestionDoc(BOOKING, "Olaf", "2026-08-27", "2026-09-24", 1) as { sponsor: Record<string, unknown> };
+    expect(none.sponsor).not.toHaveProperty("link");
+    // the reviewer reads it
+    expect(JSON.parse(reviewSubject(withLink.ok, "Olaf")).link).toBe("https://harboursauna.no/winter");
+  });
+});
+
+describe("REVIEW_GUIDELINES", () => {
+  // The instruction is a constant so these pins can hold the load-bearing
+  // rules IN the prompt — a guideline that silently falls out of an
+  // edited instruction is the standard failure of prompts under change.
+  it("keeps the rules the product depends on", () => {
+    expect(REVIEW_GUIDELINES).toMatch(/civic and place-scoped policy questions are allowed/i);
+    expect(REVIEW_GUIDELINES).toMatch(/private person/i);
+    expect(REVIEW_GUIDELINES).toMatch(/push-polling/i);
+    expect(REVIEW_GUIDELINES).toMatch(/buyer name or an audience value/i);
+    expect(REVIEW_GUIDELINES).toMatch(/shown to the buyer verbatim/i);
+    // The link clause (D378): the reviewer sees the address, not the
+    // page, and the prompt still carries none.
+    expect(REVIEW_GUIDELINES).toMatch(/one https link[\s\S]{0,200}?after a person has answered/i);
+    expect(REVIEW_GUIDELINES).toMatch(/shortener or redirect/i);
+  });
+  it("serializes the subject with the name only when worn (D228)", () => {
+    expect(JSON.parse(reviewSubject(BOOKING, "Olaf")).buyerName).toBe("Olaf");
+    expect(JSON.parse(reviewSubject({ ...BOOKING, wearName: false }, "Olaf")).buyerName).toBeNull();
+  });
+});
+
+describe("parseVerdict", () => {
+  it("reads a bare verdict and a fenced one", () => {
+    expect(parseVerdict('{"verdict":"approve","reason":null}')).toEqual({ verdict: "approve", reason: null });
+    expect(parseVerdict('```json\n{"verdict":"decline","reason":"Name a public figure instead."}\n```'))
+      .toEqual({ verdict: "decline", reason: "Name a public figure instead." });
+  });
+  it("returns null — hold and retry — for anything unusable", () => {
+    expect(parseVerdict("I think this is fine")).toBeNull();
+    expect(parseVerdict('{"verdict":"maybe"}')).toBeNull();
+    // a decline owes the buyer its why; without one it is not a verdict
+    expect(parseVerdict('{"verdict":"decline"}')).toBeNull();
+  });
+});
+
+describe("paidQuestionDoc — the third pen writes the seed's own shape", () => {
+  const doc = paidQuestionDoc(BOOKING, "Olaf", "2026-08-27", "2026-09-24", 120000);
+
+  it("is a feed question the client's bank fetch will carry", () => {
+    // THIS CASE'S OWN CLAIM STOPPED BEING TRUE the day D316/D321 landed,
+    // hours after this file. Its comment used to read "live.ts filters
+    // `surface in BANK_SURFACES`" — and the feed came out of that list:
+    // the boot fetch now asks for the boot surfaces plus `feed && core`,
+    // and everything else on the feed pages behind the order rankBankV2
+    // publishes from the COMPILED bank, which a document written here at
+    // runtime can never enter. So `surface: "feed"` alone reached nobody,
+    // and the case that was supposed to guarantee delivery kept passing.
+    //
+    // `paid` is the marker the third boot query asks for, paired with the
+    // window so the set is the campaigns RUNNING. Asserted together,
+    // because either alone is the bug back.
+    expect(doc.surface).toBe("feed");
+    expect(doc.paid, "nothing marks this as bought — no boot query reaches it").toBe(true);
+    // splitBanks demands ≥2 options; the answer rules bound optionIdx by
+    // options.size().
+    expect((doc.options as string[]).length).toBeGreaterThanOrEqual(2);
+    expect(doc.from).toBe("2026-08-27");
+    expect(doc.until).toBe("2026-09-24");
+    // updatedAt is the delta-fetch key — the whole no-deploy story
+    expect(doc.updatedAt).toBeDefined();
+  });
+
+  it("is tail, never core, and always disclosed", () => {
+    // `core` would be the wrong way to make it reachable: core is the
+    // Mirror's corpus (D161), which a bought question must not join.
+    expect("core" in doc).toBe(false);
+    expect(doc.sponsor).toBeDefined(); // the PAID band renders from presence
+    expect((doc.sponsor as { buyer?: string }).buyer).toBe("Olaf");
+    expect((doc.sponsor as { audience?: object }).audience).toEqual({ city: "Oslo, NO" });
+  });
+
+  it("books namelessly when the name is not worn (D228)", () => {
+    const anon = paidQuestionDoc({ ...BOOKING, wearName: false }, "Olaf", "2026-08-27", "2026-09-24", 1);
+    expect("buyer" in (anon.sponsor as object)).toBe(false);
+    expect(anon.sponsor).toBeDefined(); // still marked PAID
+  });
+
+  it("omits the audience entirely for an untargeted world ask", () => {
+    const world = paidQuestionDoc(
+      { ...BOOKING, scope: "world", dims: {} }, null, "2026-08-27", "2026-09-24", 1,
+    );
+    expect("audience" in (world.sponsor as object)).toBe(false);
+  });
+});
+
+describe("paidPurchaseDoc — the room reads exactly this", () => {
+  const quote = { ratePerAnswer: 0.144, capEur: 320, cap: 2222, windowDays: 29 };
+  const doc = paidPurchaseDoc("u1", "paidq-b1", BOOKING, quote, "2026-08-27", "2026-09-24", "pi_123");
+
+  it("matches the D288 record shape record-purchase.mjs established", () => {
+    expect(doc.uid).toBe("u1");
+    expect(doc.kind).toBe("question");
+    expect(doc.qid).toBe("paidq-b1");
+    expect(doc.scope).toBe("city");
+    expect(doc.place).toBe("Oslo, NO");
+    expect(doc.dims).toEqual(["city:Oslo, NO"]); // the "k:v" string list
+    expect(doc.window).toEqual({ start: "2026-08-27", until: "2026-09-24" });
+    expect(doc.budget).toEqual({ cap: 2222, capEur: 320, ratePerAnswer: 0.144 });
+    expect(doc.state).toBe("running");
+    expect(doc.reports).toEqual([]);
+    expect(doc.stripePaymentIntent).toBe("pi_123");
+  });
+
+  it("carries no place for a world ask", () => {
+    const world = paidPurchaseDoc(
+      "u1", "q", { ...BOOKING, scope: "world", dims: { ageBand: "25-34" } },
+      quote, "2026-08-27", "2026-09-24", null,
+    );
+    expect(world.place).toBeNull();
+    expect("stripePaymentIntent" in world).toBe(false);
+  });
+});
+
+describe("refundEurFor — the closer's arithmetic", () => {
+  it("refunds the unserved answers at the locked rate", () => {
+    expect(refundEurFor(2222, 320, 0.144, 1000)).toBe(175.97); // (2222-1000)×0.144
+  });
+  it("refunds nothing at or past the cap, and never more than was paid", () => {
+    expect(refundEurFor(2222, 320, 0.144, 2222)).toBe(0);
+    expect(refundEurFor(2222, 320, 0.144, 5000)).toBe(0);
+    expect(refundEurFor(2222, 320, 0.144, 0)).toBeLessThanOrEqual(320);
+    // The clamp, actually reached. The line above satisfies itself: 2222 ×
+    // 0.144 = 319.97, already under the cap, so `Math.min(capEur, …)` could
+    // be deleted with the whole suite green — under the name "never more
+    // than was paid". These two put the raw product ABOVE the cap.
+    expect(refundEurFor(2222, 300, 0.144, 0)).toBe(300);
+    expect(refundEurFor(2222, 300, 0.144, 1000)).toBe(175.97); // unclamped, unchanged
+  });
+  it("treats a negative answer count as zero rather than inventing money", () => {
+    expect(refundEurFor(100, 16, 0.16, -5)).toBe(16);
+  });
+});
+
+describe("utcDayKey", () => {
+  it("speaks the bank's YYYY-MM-DD grain, offset in days", () => {
+    const t = Date.UTC(2026, 7, 26, 23, 30); // late on the 26th UTC
+    expect(utcDayKey(0, t)).toBe("2026-08-26");
+    expect(utcDayKey(1, t)).toBe("2026-08-27");
+    expect(utcDayKey(WINDOW_DAYS, t)).toBe("2026-09-24");
+  });
+});
+
+// The window a buyer paid for, and the one clock read that decides it.
+//
+// RECOVERED IN THE 2026-09-06 NIGHT REVIEW. These three cases were
+// written on the night shift to pin goLive's one-clock-read fix, and they
+// sat inside the file's ad section — so `main`'s D375, deleting the ad
+// lane for reasons that have nothing to do with them, took the tests and
+// left the fix. Nothing went red: the fix is still in paid.ts and every
+// runner was green with it running under nothing again. That is the shape
+// this review exists to catch, and it is why they are here, under
+// utcDayKey, rather than anywhere near a product that no longer exists.
+describe("a paid question's window is one clock read", () => {
+  it("dayPlus speaks the same grain", () => {
+    expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
+    expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
+  });
+
+  it("…the arithmetic", () => {
+    // goLive used to compute both ends from the clock independently —
+    // `utcDayKey(1)` and `utcDayKey(WINDOW_DAYS)`, each reading Date.now()
+    // for itself. Equal on any single day, and NOT equal across a retry
+    // that lands either side of UTC midnight: the buyer paid for
+    // WINDOW_DAYS and got one more or one less.
+    const beforeMidnight = Date.parse("2026-08-26T23:59:59.900Z");
+    const afterMidnight = Date.parse("2026-08-27T00:00:00.100Z");
+
+    // What it does now: the end is derived from the start, so both come
+    // from one reading whichever side of midnight it falls on.
+    for (const t of [beforeMidnight, afterMidnight]) {
+      const start = utcDayKey(1, t);
+      expect(dayPlus(start, WINDOW_DAYS - 1)).toBe(utcDayKey(WINDOW_DAYS, t));
+    }
+
+    // …and the shape it replaced, shown resizing. This is the assertion
+    // that makes the change worth having rather than a tidy-up.
+    const split = dayPlus(utcDayKey(1, beforeMidnight), 0);
+    expect(utcDayKey(WINDOW_DAYS, afterMidnight)).not.toBe(
+      dayPlus(split, WINDOW_DAYS - 1),
+    );
+  });
+
+  it("…and goLive really writes that window, on both documents", () => {
+    // The arithmetic above is the shape; this is the CALL SITE. Between
+    // them they cover different things, and it is worth being exact about
+    // which: this case fails if the window is ever the wrong LENGTH, and
+    // the one above states the divergence the two-clock version produces.
+    // Neither can catch the two-clock shape here directly — it differs
+    // only across a real midnight tick, and fake timers freeze the clock
+    // rather than advancing it between two reads, so there is no way to
+    // force the two calls apart inside one test.
+    //
+    // Both the served question and the purchase row carry the window, so
+    // both are read: a buyer's receipt and the thing they bought must not
+    // disagree about when it ends.
+    const store = new Map<string, Record<string, unknown>>();
+    const ref = (path: string) => ({ path, id: path.split("/").pop() as string });
+    const db = {
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+      async runTransaction(cb: (tx: unknown) => Promise<unknown>) {
+        return cb({
+          get: async (r: { path: string }) => ({
+            exists: store.has(r.path),
+            data: () => store.get(r.path),
+            get: (f: string) => store.get(r.path)?.[f],
+          }),
+          set: (r: { path: string }, data: Record<string, unknown>) => { store.set(r.path, data); },
+          update: (r: { path: string }, data: Record<string, unknown>) => {
+            store.set(r.path, { ...(store.get(r.path) || {}), ...data });
+          },
+        });
+      },
+    };
+    store.set("v2_paid_bookings/b1", {
+      ...BOOKING, uid: "u1", status: "approved", buyerName: null,
+      quote: priceQuote(BOOKING.scope),
+    });
+
+    return goLive(db as unknown as Parameters<typeof goLive>[0], "b1", "pi_1").then((live) => {
+      expect(live, "the webhook did not take the booking live").toBe(true);
+      const q = store.get("v2_questions/paidq-b1") as { from: string; until: string };
+      expect(q, "no question document was written").toBeTruthy();
+      // Tomorrow, and exactly WINDOW_DAYS of serving counting it.
+      expect(q.from).toBe(utcDayKey(1));
+      expect(dayPlus(q.from, WINDOW_DAYS - 1), "the window is not the length that was sold")
+        .toBe(q.until);
+      const purchase = store.get("v2_purchases/u1_b1") as { window: { start: string; until: string } };
+      expect(purchase.window.start).toBe(q.from);
+      expect(purchase.window.until, "the receipt and the question disagree about the end")
+        .toBe(q.until);
+    });
+  });
+});
+
+// ── the ad lane (D315) ──────────────────────────────────────────────────
+
+// ── the two ceilings on this file that cost money when they move ────
+//
+// Both can be set to a million with every suite green. The tests that
+// look like they hold them state them RELATIVE to the constant — e.g.
+// `{ id: "stuck", attempts: MAX_REVIEW_ATTEMPTS }` — so they move with
+// it, and no check gate names either. That is the repo's deliberate
+// pattern for a dial an operator may tune, and these two are the
+// exception their own docstrings describe: they may be tuned, but not
+// SILENTLY, because the direction that costs money is unbounded.
+describe("the review budget, held to the arithmetic it states", () => {
+  it("keeps the retry ceiling at the value whose reasoning is written down", () => {
+    // paid.ts: "Six is three hours at the sweep's half-hour cadence."
+    // Above it, what the bound is for: an unreviewable booking otherwise
+    // "re-reviewed every thirty minutes forever, each attempt a billed
+    // model call". At a million that is a billed call every half hour for
+    // about fifty-seven years, on one stuck row.
+    expect(MAX_REVIEW_ATTEMPTS,
+      "the retry ceiling moved — re-read paid.ts's arithmetic and change this line deliberately").toBe(6);
+    // The sentence, executed: six attempts at the scheduled cadence is
+    // three hours. A change to the SCHEDULE has to face this too.
+    const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "paid.ts"), "utf8");
+    const every = /schedule: "every (\d+) minutes"/.exec(src);
+    expect(every, "the sweep's schedule could not be read — this case lost its target").toBeTruthy();
+    expect(MAX_REVIEW_ATTEMPTS * Number(every![1]) / 60,
+      "six attempts no longer means three hours — the cadence or the ceiling moved alone").toBe(3);
+  });
+
+  it("keeps the daily booking ceiling, and keeps it above the suggestion budget", () => {
+    // paid.ts: "Looser than the old suggestion budget's 3 … tighter than
+    // unlimited (each booking is a Claude review someone pays for — us)."
+    // Both halves of that sentence, executed. It appears in no test at
+    // all otherwise.
+    expect(BOOKINGS_PER_DAY,
+      "the daily booking ceiling moved — each one is a billed review").toBe(5);
+    expect(BOOKINGS_PER_DAY,
+      "the booking budget is no longer looser than the suggestion budget it was priced against")
+      .toBeGreaterThan(SUGGEST_PER_DAY);
+  });
+});
+
+// The ad lane's describes — kind ad, adPriceQuote, paidAdDoc,
+// paidAdPurchaseDoc, the guidelines' ad clause — stood here from D315 to
+// D375, which retired the self-serve ad: the sponsored question is the
+// one paid product. What is pinned now is the refusal.
+describe("the ad lane is retired (D375)", () => {
+  it("refuses an ad booking by name, in the register the door shows", () => {
+    const r = validatePaidBooking({ kind: "ad", advertiser: "Harbour Sauna", headline: "Warm", body: "Open.", scope: "city", dims: { city: "Oslo, NO" } });
+    expect("error" in r).toBe(true);
+    if ("error" in r) expect(r.error).toMatch(/ask a question instead/);
+  });
+
+  it("no longer instructs the reviewer about ads", () => {
+    expect(REVIEW_GUIDELINES).not.toMatch(/FEED AD|"kind":"ad"/);
+  });
+});
+
+describe("runReviewSweep", () => {
+  const store = (rows) => {
+    const state = { reviewed: [], pages: [] };
+    return {
+      state,
+      store: {
+        async heldPage(after, limit) {
+          const from = after ? rows.findIndex((r) => r.id === after) + 1 : 0;
+          const page = rows.slice(from, from + limit);
+          state.pages.push({ after, size: page.length });
+          return page;
+        },
+        async review(bid) { state.reviewed.push(bid); },
+      },
+    };
+  };
+  const held = (n, attempts) =>
+    Array.from({ length: n }, (_, i) => ({ id: `b${String(i).padStart(4, "0")}`, attempts }));
+
+  it("retries a booking under the ceiling", async () => {
+    const { store: st, state } = store(held(3, 0));
+    const res = await runReviewSweep(st);
+    expect(res).toMatchObject({ scanned: 3, retried: 3, stalled: 0 });
+    expect(state.reviewed).toEqual(["b0000", "b0001", "b0002"]);
+  });
+
+  it("stops calling for one past the ceiling, and says how many", async () => {
+    const { store: st, state } = store([
+      { id: "stuck", attempts: MAX_REVIEW_ATTEMPTS },
+      { id: "fresh", attempts: 1 },
+    ]);
+    const res = await runReviewSweep(st);
+    expect(res).toMatchObject({ retried: 1, stalled: 1 });
+    expect(state.reviewed, "a booking past the ceiling was called for again").toEqual(["fresh"]);
+  });
+
+  it("PAGES PAST a full page of stalled bookings to reach a live one", async () => {
+    // The starvation itself. One whole page of unsettleable bookings, all
+    // older than the one that needs retrying — which is exactly the order
+    // the query returns them in.
+    const rows = [...held(SWEEP_PAGE, MAX_REVIEW_ATTEMPTS), { id: "zz_real", attempts: 0 }];
+    const { store: st, state } = store(rows);
+    const res = await runReviewSweep(st);
+    expect(state.reviewed, "a real hold behind a page of stalled ones was never retried")
+      .toEqual(["zz_real"]);
+    expect(res).toMatchObject({ retried: 1, stalled: SWEEP_PAGE });
+    // …and it walked, rather than asking for one bigger page.
+    expect(state.pages.length).toBeGreaterThan(1);
+    expect(state.pages[1].after).toBe(`b${String(SWEEP_PAGE - 1).padStart(4, "0")}`);
+  });
+
+  it("is bounded — a scheduled job may not loop forever", async () => {
+    const rows = held(SWEEP_PAGE * (SWEEP_MAX_PAGES + 3), MAX_REVIEW_ATTEMPTS);
+    const res = await runReviewSweep(store(rows).store);
+    expect(res.scanned).toBe(SWEEP_PAGE * SWEEP_MAX_PAGES);
+  });
+
+  it("stops on a short page rather than asking for an empty one", async () => {
+    const { store: st, state } = store(held(3, 0));
+    await runReviewSweep(st);
+    expect(state.pages.length).toBe(1);
+  });
+});
+
+describe("heldPageFrom — the paging the sweep's own tests cannot see", () => {
+  // runReviewSweep is proved against an injected ReviewSweepStore, so the
+  // adapter that actually talks to Firestore ran under nothing. The bug it
+  // was hiding: a cursor document that has gone away (deleteAccount sweeps
+  // this collection by uid) fell through to a query with no startAfter —
+  // page ONE — so the sweep re-reviewed its own head up to five times,
+  // each retry a billed model call, and never reached what was starved
+  // behind it.
+  const page = (ids: string[]) => ({
+    docs: ids.map((id) => ({ id, get: (f: string) => (f === "reviewAttempts" ? 1 : undefined) })),
+  });
+
+  /** A query that records whether startAfter was applied. */
+  function fakeBase(ids: string[]) {
+    const calls: string[] = [];
+    const q: Record<string, unknown> = {};
+    q.limit = () => q;
+    q.startAfter = (cur: { id: string }) => { calls.push(cur.id); return q; };
+    q.get = async () => page(ids);
+    return { q: q as unknown as FirebaseFirestore.Query, calls };
+  }
+  const fakeDb = (exists: boolean) => ({
+    collection: () => ({ doc: (id: string) => ({ get: async () => ({ id, exists }) }) }),
+  }) as unknown as FirebaseFirestore.Firestore;
+
+  it("reads the first page with no cursor", async () => {
+    const { q, calls } = fakeBase(["b1", "b2"]);
+    const rows = await heldPageFrom(q, fakeDb(true), null, 50);
+    expect(rows).toEqual([{ id: "b1", attempts: 1 }, { id: "b2", attempts: 1 }]);
+    expect(calls, "a first page asked to start after something").toEqual([]);
+  });
+
+  it("advances past the cursor when it is still there", async () => {
+    const { q, calls } = fakeBase(["b3"]);
+    const rows = await heldPageFrom(q, fakeDb(true), "b2", 50);
+    expect(rows.map((r) => r.id)).toEqual(["b3"]);
+    expect(calls, "the cursor was not applied").toEqual(["b2"]);
+  });
+
+  it("ENDS the run when the cursor booking has been deleted", async () => {
+    // Not "starts over". This is the whole finding: the returned page is
+    // empty, so runReviewSweep's loop stops and the rest waits for the
+    // next scheduled run — minutes — instead of the queue re-reviewing
+    // the head it just paid for.
+    const { q, calls } = fakeBase(["b1", "b2"]);
+    const rows = await heldPageFrom(q, fakeDb(false), "gone", 50);
+    expect(rows, "a vanished cursor rewound to page one").toEqual([]);
+    expect(calls).toEqual([]);
+  });
+});
+
+// ── the two status guards nothing could see ─────────────────────────────
+//
+// `reviewBooking` reads the booking, calls the reviewer, then writes the
+// verdict inside a transaction that re-reads it. Both reads refuse
+// anything that is not still `review`, and BOTH GUARDS WERE DELETABLE WITH
+// EVERY RUNNER GREEN: the e2e drives exactly one trigger-fired review per
+// booking and never runs the 30-minute sweep, and `runReviewSweep`'s own
+// tests inject a store whose `review` is a stub.
+//
+// What the guards are worth: without them the sweep re-reviews `declined`
+// and `live` bookings, so a decline the buyer has already read is
+// overwritten by an approve, and a PAID, LIVE booking is written back to
+// approved or declined — stranding a campaign whose purchase row and
+// question doc already exist.
+//
+// No mocking is needed to drive it. `runReviewVerdict` returns
+// approve-on-gates-only when no model key is configured, which is what a
+// test process is, so the verdict is deterministic and no network is
+// touched.
+describe("reviewBooking only ever moves a booking OUT of review", () => {
+  /** The smallest Firestore this function actually uses: one document,
+   *  a transaction that re-reads it, and a record of what was written.
+   *  `reads` lets a case change the status BETWEEN the outer read and the
+   *  transaction's, which is the race the second guard exists for. */
+  function fakeDb(statuses: string[]) {
+    const writes: Record<string, unknown>[] = [];
+    // Reads are counted because the OUTER guard's whole job is to spend
+    // nothing on a booking that is not in review: without it the function
+    // runs on to the reviewer and the transaction, and the transaction's
+    // own guard — the backstop — refuses the write. So the write count
+    // cannot see the outer guard at all; the read count can.
+    const reads: string[] = [];
+    let n = 0;
+    const snapFor = () => {
+      const status = statuses[Math.min(n++, statuses.length - 1)];
+      reads.push(status);
+      return {
+        exists: true,
+        get: (k: string) => (k === "status" ? status : (BOOKING as Record<string, unknown>)[k]),
+      };
+    };
+    const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };
+    return {
+      writes,
+      reads,
+      db: {
+        collection: () => ({ doc: () => ref }),
+        runTransaction: async (fn: (tx: unknown) => Promise<void>) => fn({
+          get: async () => snapFor(),
+          update: (_r: unknown, u: Record<string, unknown>) => { writes.push(u); },
+        }),
+      } as unknown as Parameters<typeof reviewBooking>[0],
+    };
+  }
+
+  it("writes a verdict for a booking that is still in review — the control", async () => {
+    const f = fakeDb(["review", "review"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the ordinary path stopped writing a verdict").toHaveLength(1);
+    expect(f.writes[0].status).toBe("approved");
+  });
+
+  it("writes nothing for a booking that is already LIVE — it has been paid for", async () => {
+    const f = fakeDb(["live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "a paid, live booking was re-reviewed").toEqual([]);
+    // …and it stops at the FIRST read, which is the outer guard's whole
+    // point: past it the function calls the reviewer, and in production
+    // that is a billed model call for a booking already settled.
+    expect(f.reads, "the outer guard let it run on to the reviewer").toHaveLength(1);
+  });
+
+  it("writes nothing for a booking already DECLINED — the buyer has read it", async () => {
+    const f = fakeDb(["declined"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes).toEqual([]);
+  });
+
+  it("writes nothing when the booking leaves review DURING the reviewer call", async () => {
+    // The second guard, and the only one the first cannot stand in for:
+    // in review at the outer read, live by the time the transaction reads
+    // it. That window is exactly as long as the model call.
+    const f = fakeDb(["review", "live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the transaction wrote over a booking that went live mid-review").toEqual([]);
+  });
+});
+
+// ── what the buyer is actually charged ──────────────────────────────────
+//
+// Everything from the amount to the sentence describing it is unreachable
+// in the emulator: `createPaidCheckoutV2` throws `unavailable` at the
+// missing Stripe key one line above, and the e2e asserts exactly that
+// refusal. So the whole block ran under nothing — swapping the cap for the
+// per-answer rate, or the cents multiplier from 100 to 10, left the
+// functions suite and every e2e leg green.
+describe("checkoutLineItem — the amount and what the charge says it is for", () => {
+  // ONE PRODUCT. This block was written on the 2026-09-06 night shift with
+  // an ad half, while D375 was taking the ad off the paid path on main;
+  // the ad cases went with it in the night review rather than being kept
+  // against a branch the caller now refuses outright.
+  const q = priceQuote("city");
+
+  it("charges the cap ONCE — the quantity is part of the amount", () => {
+    // The multiplier used to live at the call site, inside the block the
+    // emulator cannot reach (the callable throws `unavailable` at the
+    // missing Stripe key one line above it, and the e2e asserts exactly
+    // that refusal). Measured: `quantity: 1` -> `quantity: 10` charged a
+    // €50 buyer €500 with the whole functions suite and the functions
+    // build green, while the purchase row still said €50 — so the closer's
+    // refund, clamped to the cap, could never hand the difference back.
+    const li = checkoutLineItem(q);
+    expect(li.quantity, "the buyer's contract was multiplied by something nobody quoted").toBe(1);
+    // …and what Stripe would actually take is the cap, not a multiple of
+    // it. Stated as the product, because that is the number on the card.
+    expect(li.quantity * li.price_data.unit_amount).toBe(Math.round(q.capEur * 100));
+  });
+
+  it("charges the cap, in cents", () => {
+    // The cap, not the per-answer rate: the cap is what is taken, so the
+    // unserved part can be refunded at close. Charging the rate would bill
+    // €0.02 against a €50 booking.
+    //
+    // AGAINST THE QUOTE, NOT AGAINST A LITERAL. This case asserted a bare
+    // `capEur === 320` when it was written on the night shift, and D370's
+    // pricing moved the cap to €50 the same day — so it failed in the
+    // night review for having pinned a number the card is allowed to
+    // change rather than the relationship it must hold. The guard below is
+    // what keeps that from making it vacuous.
+    const li = checkoutLineItem(q).price_data;
+    expect(li.unit_amount).toBe(Math.round(q.capEur * 100));
+    expect(li.currency).toBe("eur");
+    expect(
+      Math.round(q.capEur * 100),
+      "the cap and the per-answer rate round to the same cents, so this "
+      + "case can no longer tell which one is being charged",
+    ).not.toBe(Math.round(q.ratePerAnswer * 100));
+  });
+
+  it("does not lose or gain a factor of ten on the cents", () => {
+    // `* 10` (€3.20) and `* 1000` both leave every other assertion here
+    // intact if the amount is only ever compared to itself, so this
+    // compares against the euro figure the buyer was quoted.
+    expect(checkoutLineItem(q).price_data.unit_amount / 100).toBeCloseTo(q.capEur, 2);
+  });
+
+  it("tells the buyer the window, the rate and the refund", () => {
+    // This sentence is the contract the buyer reads at the moment of
+    // paying. Every number in it comes off the locked quote.
+    const d = checkoutLineItem(q).price_data.product_data;
+    expect(d.name).toBe("InSight paid question");
+    expect(d.description).toContain(`${q.windowDays}-day window`);
+    expect(d.description).toContain(`€${q.ratePerAnswer}`);
+    expect(d.description).toContain(`up to ${q.cap} answers`);
+    expect(d.description).toContain("refunds automatically at close");
+  });
+
+  it("says nothing about an ad, on the one surface a buyer reads", () => {
+    // The products landed on one page once and that is the failure the
+    // split existed for; with the ad gone, the residue would be the same
+    // failure spelled the other way.
+    const d = checkoutLineItem(q).price_data.product_data;
+    expect(d.name).not.toMatch(/ad/i);
+    expect(d.description).not.toMatch(/flat price/i);
+  });
+
+  it("prints the rate without trailing zeros — it is money, not a float dump", () => {
+    const d = checkoutLineItem(q).price_data.product_data;
+    expect(d.description).not.toMatch(/€\d+\.\d*0(\D|$)/);
+  });
+});
+
+// ── the one line between a buyer and paying twice ───────────────────────
+//
+// Pressing Pay a second time mints a second Checkout session, and the
+// first stays payable for Stripe's default day — `web/paid-cancel.html`
+// invites exactly that ("opens a fresh payment page"). If both complete,
+// `goLive` records the second payment and does NOT refund it. Expiring the
+// prior session is the whole of the defence.
+//
+// It lived inside `createPaidCheckoutV2`, one line past the throw for a
+// missing Stripe key — so the emulator cannot reach it and the e2e asserts
+// that refusal instead. Measured before this block existed: swapping
+// `expire` for `retrieve`, which leaves the old session payable, left the
+// whole functions suite, the functions build and every script test green.
+describe("expirePriorSession", () => {
+  const spy = () => {
+    const calls: string[] = [];
+    return {
+      calls,
+      client: { checkout: { sessions: { expire: async (id: string) => { calls.push(id); return {}; } } } },
+    };
+  };
+
+  it("expires the session the booking is holding", async () => {
+    const s = spy();
+    await expirePriorSession(s.client, { sessionId: "cs_prior" }, "b1");
+    expect(s.calls, "the prior session was left payable").toEqual(["cs_prior"]);
+  });
+
+  it("does nothing when the booking holds none", async () => {
+    // The control: "always expire" would throw on a first checkout, where
+    // there is no prior session and `stripe` field at all.
+    const s = spy();
+    await expirePriorSession(s.client, undefined, "b1");
+    await expirePriorSession(s.client, {}, "b1");
+    await expirePriorSession(s.client, { sessionId: "" }, "b1");
+    expect(s.calls).toEqual([]);
+  });
+
+  it("swallows a refusal, because a failure here must not stop the buyer paying", async () => {
+    // Stripe refuses to expire a session that is already complete or
+    // expired — and a session that completed while this ran is exactly the
+    // case goLive's duplicate guard exists for. The caller mints the new
+    // session regardless, so this must not throw.
+    const client = {
+      checkout: { sessions: { expire: async () => { throw new Error("already completed"); } } },
+    };
+    await expect(expirePriorSession(client, { sessionId: "cs_done" }, "b1")).resolves.toBeUndefined();
+  });
+});

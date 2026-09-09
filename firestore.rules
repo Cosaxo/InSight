@@ -41,6 +41,58 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= max);
     }
 
+    // The same bound with the argument written TWICE instead of three
+    // times, for the one caller that pays for it ten times over.
+    //
+    // Firestore expands a rules function by SUBSTITUTING the argument
+    // expression at every use of the parameter — it is a macro, not a
+    // call — and counts every expansion against the hard ceiling of 1,000
+    // evaluated expressions per request. So `isOptionalShortString(
+    // anchors.get("city", null), 80)` evaluates `anchors.get("city", null)`
+    // three times, and `anchors` is itself an argument, so the map lookup
+    // under it expands three times too. Ten anchors, and the answer create
+    // rule was spending most of a request's whole budget proving nobody
+    // sent a 400 KB city.
+    //
+    // Defaulting to "" rather than null is what removes the third use, and
+    // it decides the same cases: an absent key is "" (a string of length 0,
+    // inside any bound, exactly as null passed before), and a present
+    // non-string still fails `is string`. Measured, not reasoned: with this
+    // in place a set() on an existing answer — which evaluates the create
+    // AND the update rule against one budget — stops reporting
+    // PERMISSION_DENIED for running out of expressions.
+    function isShortAnchor(anchors, key, max) {
+      // ONE READ, NOT TWO (RULES-BUDGET-PLAN §4, D433). The map was read
+      // once for `is string` and again for `size()`, ten keys deep on
+      // every answer and every profile write; bound once, it is read
+      // once and both tests see the same value. Same verdicts: an absent
+      // key is still "" (inside any bound), and a present non-string
+      // still fails `is string` before `size()` is asked of it.
+      let v = anchors.get(key, "");
+      return v is string && v.size() <= max;
+    }
+
+    // A moment, or nothing. Written for `v2_users.createdAt`/`updatedAt`,
+    // which the allowlist admitted with NO type, shape or length check of
+    // any kind — so either could carry a 400 KB string, measured.
+    //
+    // That matters because of who reads them. `data/voters.ts` fetches
+    // these documents WHOLE, thirty uids per query, with no field mask —
+    // the client SDK has none — on every Mirror surface that turns a uid
+    // into a name. One free anonymous account parking a megabyte on its
+    // own profile is a megabyte every reader of that person downloads,
+    // and thirty such rows is a thirty-megabyte response on a phone.
+    //
+    // Nothing in the tree writes either field: no client path, no Cloud
+    // Function. That is the "dead allowlist entry" the comment on the
+    // allowlist itself names — "not free, it is a promise the tree cannot
+    // keep" — so this bounds them rather than removing them, because an
+    // older client in the wild may still send one and a number cannot be
+    // a megabyte either way.
+    function isOptionalStamp(value) {
+      return value == null || value is int || value is timestamp;
+    }
+
     // v1 rate-limit ledgers — one doc per sender, holding recent
     // impression-send timestamps. Their writer (sendInboundImpression)
     // was deleted in D13, so nothing creates these any more; existing
@@ -81,21 +133,201 @@ service cloud.firestore {
     // Per-question aggregate counts — EXACT, and a convenience rather
     // than the only population surface: the same numbers are derivable
     // by reading the answers themselves (which any signed-in user may
-    // now do). Written exclusively by the onV2AnswerCreated trigger.
+    // now do). Written by the answer triggers — `onV2AnswerCreated` and,
+    // since D86, `onV2AnswerUpdated`'s -old/+new edit fold — and, for the
+    // `duel-{qid}` documents, by `foldDuelSignal`. It said "exclusively by
+    // the onV2AnswerCreated trigger", which this same file contradicts at
+    // the duel grant below.
     match /v2_question_aggs/{qid} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // The breakdown cap's tail (D400): every city and country cell the
+    // aggregate above evicted or refused at BREAKDOWN_MAX_BUCKETS, in
+    // eight shards per question by bucket hash (`{qid}-{shard}`). The same
+    // exact counts the aggregate publishes, the same posture: any
+    // signed-in reader, written only by the answer trigger and the rebuild
+    // tool through the Admin SDK. No uid, no timing — a count, not a log.
+    match /v2_agg_overflow/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
+    // sponsored questions. An ad is a CARD: text, an advertiser, a window.
+    // It takes no answer, so there is no answer arm anywhere in this file
+    // for it, no aggregate keyed to it and nothing a client could write.
+    //
+    // Read is open to any signed-in user for the same reason the question
+    // bank is: every device downloads the pool whole and decides locally
+    // which one it matches (data/sponsored.ts). That is what keeps the
+    // server from ever being asked who should see what — the moment it
+    // were, a behavioural profile would exist whatever the intentions.
+    match /v2_ads/{adId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Graded Foresight CALLs (D194) — the winning option, or -1 for VOID,
+    // with the aggregate snapshot the grader actually read.
+    //
+    // WRITE IS CLOSED TO EVERYONE, and this is the one line the whole
+    // feature rests on: `outcomeIdx` is the app asserting something, so a
+    // client-writable outcome would make every score in the feature
+    // forgeable in one request. Only resolveCallsV2 (admin SDK, which
+    // bypasses rules) writes here.
+    //
+    // Read is open to any signed-in user, because the outcome is the
+    // grade AND the basis for it — `inputs` carries the counts the
+    // resolver read, so a player can recompute the grade rather than
+    // trust it. The card does exactly that on the device.
+    //
+    // This document's mere EXISTENCE is also load-bearing: isCallAnswer()
+    // refuses an answer once it exists, which is what stops a player
+    // reading a published grade and then "predicting" it.
+    match /v2_call_outcomes/{qid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // The Patterns loadings (v28 §2, trial per D166 §1) — one document,
+    // `loadings`: per-question vectors of K numbers the nightly fit
+    // (`runPatternsFit`, inside `digestEngagementV2`'s nightly pass since
+    // D399 — the scheduled `fitPatternsV2` it used to name is retired;
+    // admin SDK) derives from the vote log, each with the
+    // answer count it rests on. CORE corpus only (D161) — the fit's
+    // eligible set compiles from the bank, so nothing tail-shaped can be
+    // in here to read. Nothing per-person either: the numbers are a
+    // refactoring of counts that already publish per question.
+    //
+    // Write is closed to everyone for the aggregate reason: a client-
+    // writable model would make the whole map forgeable in one request.
+    match /v2_patterns/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // The published serving order (D316) — one document per ranked
+    // surface (`feed`, `learn`): per-topic question orderings the nightly
+    // rankBankV2 (admin SDK) derives from the public aggregates. Global
+    // signal only — volume with landslides sunk — so nothing per-person
+    // is in it or ever enters the fold (D163/D317's line: the server
+    // half of the order is the crowd's, never a profile).
+    //
+    // Write is closed for the v2_patterns reason, one shelf down: a
+    // client-writable order would make what everyone is served forgeable
+    // in one request.
+    match /v2_rank/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Engagement day docs (R1/D268) — the nightly digest's anonymous
+    // population counts (actives, first answerers, cohort returns,
+    // answers by surface), one doc per UTC day plus the fold's own
+    // `meta` cursor. World-readable per D268's adopted default — nothing
+    // per-person is in any of them, and the public read is what lets the
+    // scorecard's credential-free fetch and the pulse console read the
+    // trail. Written by NOBODY but the digest on the admin SDK: a
+    // client-writable count would make the whole trail forgeable in one
+    // request (the v2_patterns posture, one shelf up).
+    match /v2_engagement_daily/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Attention shards (R2/D270) — rung 1's anonymous device tallies:
+    // one create-only doc per device per FINISHED UTC day, under a random
+    // per-write id, holding bucketed feature counts and nothing else. The
+    // nightly fold sums shards into v2_engagement_daily and DELETES them.
+    //
+    // READABLE BY NOBODY, and that is the channel's own promise kept in
+    // rules: a readable shard pile is the raw material of the per-device
+    // funnel this rung exists not to be (ATTENTION.md §6's "an operator
+    // who keeps the raw shards has a funnel" — a READER of them is the
+    // same failure from the other side). Update and delete are refused
+    // too: the fold deletes on the admin SDK, and a client-editable shard
+    // would un-fix the create-only shape.
+    //
+    // The day is a FIELD with the pulse arm's parse-and-bound idiom: an
+    // 8-day back-window (yesterday-flush plus a dormant phone's slack —
+    // the client drops older tallies itself) and 2 days forward for
+    // clock skew. Bucket VALUES are deliberately not bounded here: rules
+    // cannot iterate a map, thirty enumerated clauses would be this
+    // file's most brittle block, and the fold — the only reader — clamps
+    // every value to the 0..4 bucket range in one line instead.
+    match /v2_attention/{shardId} {
+      allow read: if false;
+      allow update, delete: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+          "day", "build", "platform", "sampled", "rate", "s", "qids",
+        ])
+        && request.resource.data.day is string
+        && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && timestamp.date(
+             int(request.resource.data.day[0:4]),
+             int(request.resource.data.day[5:7]),
+             int(request.resource.data.day[8:10]))
+           > request.time - duration.value(8, 'd')
+        && timestamp.date(
+             int(request.resource.data.day[0:4]),
+             int(request.resource.data.day[5:7]),
+             int(request.resource.data.day[8:10]))
+           < request.time + duration.value(2, 'd')
+        && request.resource.data.build is int
+        && request.resource.data.platform in ["ios", "android", "web"]
+        && request.resource.data.sampled == true
+        && request.resource.data.rate is number
+        // FLOOR, not just a ceiling. The fold weighs each shard by
+        // 1 / rate, so `rate > 0` alone let one create add ~1e12 devices
+        // — and ~1e12 to any question's seen/answered counts — to the
+        // world-readable engagement day document, from one free
+        // anonymous account. 0.001 is MIN_SHARD_RATE in
+        // functions/src/engagement.ts, which clamps again on the read;
+        // this is the honest fence at the door.
+        && request.resource.data.rate >= 0.001
+        && request.resource.data.rate <= 1
+        && request.resource.data.s is map
+        && request.resource.data.s.keys().hasOnly([
+          "opens", "slowBoots", "errors",
+          "tabDaily", "tabMirror", "tabPatterns", "overlays",
+          "stopYou", "stopNear", "stopCircle", "stopGroups", "stopCity",
+          "stopCountry", "stopWorld",
+          "lensPeople", "lensCompare", "lensExplore", "lensScores",
+          "feedSeen", "feedPass", "feedDefer",
+          "ansDaily", "ansFeed", "ansTest", "ansLearn", "ansPulse",
+          "ansCall", "ansDuel", "edits",
+          "revealSeen", "notifOpen",
+        ])
+        // The R4 arm, OPEN since D271's adoption: per-question tallies —
+        // bucketed seen/answered/passed/deferred per qid, still fully
+        // anonymous (this doc carries no uid, by the whitelist above),
+        // so the server learns a QUESTION's pass rate and never a
+        // person's passes. Capped INCLUDING the client's overflow cell,
+        // which is why this cap and QIDS_CAP in
+        // src/v2/data/engagement.ts are one number. Held equal by hand,
+        // and now pinned as an EQUALITY: engagement.test.ts reads this
+        // file and compares. It said "pinned by both sides' tests" while
+        // each side only pinned itself — a length here, a literal list
+        // there — so adding a key to one and not the other failed
+        // nothing. Values are clamped by the
+        // fold — the `s` map's reasoning above, one shelf up.
+        && (!("qids" in request.resource.data)
+          || (request.resource.data.qids is map
+            && request.resource.data.qids.size() <= 120));
     }
 
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([
           "city", "country", "ageBand", "age", "gender",
-          "profession", "education", "relationship", "heightBand",
+          "profession", "jobField", "education", "relationship", "heightBand",
         ])
-        && isOptionalShortString(anchors.get("city", null), 80)
-        && isOptionalShortString(anchors.get("country", null), 80)
-        && isOptionalShortString(anchors.get("ageBand", null), 20)
+        && isShortAnchor(anchors, "city", 80)
+        && isShortAnchor(anchors, "country", 80)
+        && isShortAnchor(anchors, "ageBand", 20)
         // The exact age, beside the band rather than instead of it (D155).
         // NOT a breakdown dim and never will be: ~80 distinct values would
         // blow BREAKDOWN_MAX_BUCKETS on its own, which is why the band
@@ -103,12 +335,19 @@ service cloud.firestore {
         // "Ceramicist, 29" reads as somebody, "Ceramicist, 25-34" reads as
         // a cell. 3 chars: a written-out age, never a birthday, and the
         // date itself still never leaves the device.
-        && isOptionalShortString(anchors.get("age", null), 3)
-        && isOptionalShortString(anchors.get("gender", null), 40)
-        && isOptionalShortString(anchors.get("profession", null), 80)
-        && isOptionalShortString(anchors.get("education", null), 80)
-        && isOptionalShortString(anchors.get("relationship", null), 40)
-        && isOptionalShortString(anchors.get("heightBand", null), 20);
+        && isShortAnchor(anchors, "age", 3)
+        && isShortAnchor(anchors, "gender", 40)
+        && isShortAnchor(anchors, "profession", 80)
+        // The breakdown bucket for the profession above (D328), derived
+        // client-side from a closed list of 20. Same pairing as age/ageBand:
+        // the pick names a PERSON and is free to grow past the bucket cap,
+        // the field is what the aggregate slices on and cannot. A length is
+        // all a rule can hold — BREAKDOWN_DIM_VOCAB is the real enforcement,
+        // and check:anchors holds it equal to the client's list.
+        && isShortAnchor(anchors, "jobField", 40)
+        && isShortAnchor(anchors, "education", 80)
+        && isShortAnchor(anchors, "relationship", 40)
+        && isShortAnchor(anchors, "heightBand", 20);
     }
 
     // v2 profile — READABLE BY ANY SIGNED-IN USER (D98). The display
@@ -129,9 +368,37 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
-          "displayName", "anchors", "anon", "createdAt", "updatedAt",
+          // `anon` left this list at D331. It had sat here since the v2
+          // profile was written, with NO writer, NO reader, no validation
+          // and no test — the D258/D280 shape, a key the rules admit that
+          // reaches nobody. It read like an anonymity toggle and there has
+          // never been one, which is worse than no field: D330 was drafted
+          // on the belief that it worked. A dead allowlist entry is not
+          // free, it is a promise the tree cannot keep.
+          "displayName", "anchors", "consent", "createdAt", "updatedAt",
           "testResults", "handle",
         ])
+        // The consent record (D331) — today only `political`, keyed so the
+        // next special-category ask is a sibling rather than a rename.
+        //
+        // The rule holds the SHAPE and nothing else, which is all a rule
+        // can do: `v`/`at` are numbers and `off` is optional. What it
+        // deliberately does NOT try to enforce is that a client cannot
+        // grant itself consent — it can, because it is the client's own
+        // consent to give and withdraw. The control that matters is that
+        // the coordinate is never COMPUTED without it (data/live.ts), and
+        // that is a client decision about a client-derived value either
+        // way. A rule here would be theatre.
+        && (!("consent" in request.resource.data)
+          || (request.resource.data.consent is map
+            && request.resource.data.consent.keys().hasOnly(["political"])
+            && (!("political" in request.resource.data.consent)
+              || (request.resource.data.consent.political is map
+                && request.resource.data.consent.political.keys().hasOnly(["v", "at", "off"])
+                && request.resource.data.consent.political.v is int
+                && request.resource.data.consent.political.at is int
+                && (!("off" in request.resource.data.consent.political)
+                  || request.resource.data.consent.political.off is int)))))
         // `handle` is on the ALLOWLIST but immutable to the client, the
         // same shape testResults.logic has below and for a related
         // reason: claimHandleV2 (admin SDK) owns it, because the claim is
@@ -143,22 +410,69 @@ service cloud.firestore {
         // `handle` in its key set, and hasOnly would refuse it. Leaving it
         // off would mean claiming a handle silently froze your display
         // name forever — the kind of failure that ships green.
-        && (!("handle" in request.resource.data)
-          || (resource != null
-            && request.resource.data.handle == resource.data.get("handle", null)))
-        // testResults.logic is the VERIFIED logic score, written only by
-        // logicSubmitV2 (admin SDK bypasses rules) after server-side
-        // scoring — a client-writable copy would be a forgeable one (D57).
-        // Presence allowed (every client profile write is a merge, so the
-        // key rides along once the callable has written it), mutation not.
+        //
+        // ABSENCE IS NOT A FREE PASS. This read `!("handle" in …) || …`,
+        // so a NON-merge write that simply omitted the field was legal —
+        // every remaining key is on the allowlist, and dropping a handle
+        // looked like never having had one. claimHandleV2's entire
+        // claim-once check is reading this field back, so after the drop
+        // it minted a second handle while the first registry row still
+        // pointed here: one account could hoard names out of a registry
+        // with no rate limit, no rename and no reclaim path (D190), each
+        // one gone from the pool for good, with the profile advertising
+        // only the last. Absence is legal only while there is nothing to
+        // remove.
+        && (("handle" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null))
+          : (resource == null || resource.data.get("handle", null) == null))
+        // testResults is SERVER-ONLY, WHOLE — written only by
+        // `saveTestResultV2` for the four folded kinds and by
+        // `logicSubmitV2` for `logic` (the admin SDK bypasses rules).
+        // `logic` has been server-written since D57 because a
+        // client-writable copy of a VERIFIED score would be a forgeable
+        // one; the other four joined it for size, below. The client may
+        // carry `testResults` along in a merge — every profile write here
+        // is one — but may not CHANGE it.
+        //
+        // WHY THE WHOLE MAP AND NOT A VOCABULARY. D429 (2026-09-09) bounded
+        // which KEYS may appear, and said in its own words that it "does NOT
+        // bound the size inside a legitimate kind; that needs per-kind shape
+        // checks and is its own increment". Those checks cannot be written
+        // here: rules have no quantifier over a list, so `dims` may hold
+        // eight entries whose `label` is a megabyte each and no clause can
+        // see it — on a document `voters.ts` fetches THIRTY of at a time,
+        // whole, with no field mask. Measured against the pre-D429 ruleset:
+        // a 300 KB string in `testResults.big5` was ACCEPTED where a
+        // 61-character display name was refused, and D429 did not move that.
+        //
+        // So the bound moved to where a loop can run — `saveTestResultV2`
+        // (functions/src/testResults.ts), which validates every field and
+        // REBUILDS the value, capping a stored result near 700 bytes. This
+        // clause is the other half: it is what makes the callable the only
+        // writer. `logic` needed exactly this treatment for a different
+        // reason (D57, forgery) and had it alone; the size argument makes it
+        // the rule for all five.
+        //
+        // AND IT IS CHEAPER THAN WHAT IT REPLACES, which matters on this arm
+        // in particular — D429 measured the profile create at 80–140
+        // expressions below the runtime ceiling and named this file's two
+        // ceilings. One equality replaces the vocabulary `hasOnly` AND the
+        // per-key `logic` comparison, because a map that cannot change
+        // cannot gain a key either. The vocabulary is now enforced by the
+        // callable's own `CLIENT_TEST_KINDS`, where it is a list an
+        // exhaustive test can read.
+        //
+        // On CREATE `resource` is null and the key must simply be absent:
+        // a profile is created before any fold has run, and the callable
+        // writes with a merge that creates the field afterwards.
         && (!("testResults" in request.resource.data)
-          || (request.resource.data.testResults is map
-            && request.resource.data.testResults.keys().size() <= 8
-            && (!("logic" in request.resource.data.testResults)
-              || (resource != null
-                && request.resource.data.testResults.logic
-                  == resource.data.get("testResults", {}).get("logic", null)))))
+          || (resource != null
+            && request.resource.data.testResults
+              == resource.data.get("testResults", {})))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
+        && isOptionalStamp(request.resource.data.get("createdAt", null))
+        && isOptionalStamp(request.resource.data.get("updatedAt", null))
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
 
@@ -178,6 +492,121 @@ service cloud.firestore {
       // it, so erasure needs no new arm.
       match /push/{docId} {
         allow read, write: if false;
+      }
+
+      // The Patterns fit's per-person state (v28 §2) — K numbers the
+      // nightly fold carries a person's PUBLIC answers as, so it never
+      // re-reads their history. Derived from nothing that is not already
+      // world-readable, and still closed both ways for the push/ reason:
+      // a path with no read grant cannot be opened by accident, and a
+      // latent vector is a summary nobody signed up to be read AS.
+      // Written only by the nightly Patterns fit (`runPatternsFit`,
+      // inside `digestEngagementV2` since D399; admin SDK). It said
+      // `fitPatternsV2`, which stopped existing at that decision.
+      // deleteAccount's recursive delete of v2_users/{uid} takes it with
+      // the account.
+      match /patterns/{docId} {
+        allow read, write: if false;
+      }
+
+      // The interest profile (D317 phase 1, D322) — this person's FEED
+      // answers counted by topic, written nightly by the taste fold
+      // (`runTasteFold`, inside `digestEngagementV2` since D399 — the
+      // scheduled `fitTasteV2` it used to name is retired; admin
+      // SDK) and read by the OWNER alone: their own device sizes its
+      // topic pages by it (D321), and D163's "a Mirror that secretly
+      // models you is a contradiction in terms" carries over — shown is
+      // the floor, so the owner read is the grant. NOT public, unlike
+      // the answers it derives from: what a person answered is the
+      // product (D98); what the system concluded they are INTO is a
+      // summary nobody signed up to be read as by strangers — the
+      // patterns-state argument, with the one reader the patterns state
+      // does not need. Client write closed: a self-writable profile
+      // would let a device forge its own fetch weighting, which is
+      // harmless today and a sponsored-targeting hole the day audiences
+      // exist. deleteAccount's recursive delete takes it, no new arm.
+      match /taste/{docId} {
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list: if false;
+        allow write: if false;
+      }
+
+      // Engagement, two shapes under one path, split by the ID DISCIPLINE:
+      //
+      //   `_state` (R1/D268) — the digest's bookkeeping (first/last
+      //   active day, streak, and since D272 the trailing fg window).
+      //   Server-written only; it fails the date regex below, so no
+      //   client arm can ever reach it.
+      //
+      //   `{yyyy-mm-dd}` (R3/D272) — the person channel's day rollup:
+      //   sessions, foreground bucket, quiet sessions, dayparts, depth.
+      //   Create-only, owner-only, for a FINISHED day, `folded: false`
+      //   at birth (the fold flips it on the admin SDK — which is also
+      //   why update is denied to clients).
+      //
+      // READABLE BY NOBODY either way — not even the owner (the
+      // push-tokens posture): this is measurement, not a Mirror surface,
+      // and a path with no read grant is not one edit from being
+      // readable. THE hasOnly BELOW IS THE TWO-CHANNEL PIN: no `qids`,
+      // no question id, no field that could carry reading history — the
+      // rules test that smuggles one in and is refused is the plan's
+      // §4.2 enforcement, not decoration. Erased with the account by
+      // deleteAccount's recursive delete (no new arm); expireAt powers
+      // the 90-day TTL (SHIP-CHECKLIST §5's second gcloud line).
+      match /engagement/{docId} {
+        allow read: if false;
+        allow update, delete: if false;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && docId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+          && timestamp.date(
+               int(docId[0:4]), int(docId[5:7]), int(docId[8:10]))
+             > request.time - duration.value(8, 'd')
+          && timestamp.date(
+               int(docId[0:4]), int(docId[5:7]), int(docId[8:10]))
+             < request.time + duration.value(2, 'd')
+          && request.resource.data.keys().hasOnly([
+            "day", "sessions", "fgMin", "quiet", "dayparts", "answers",
+            "feedB", "depthEnd", "stops", "lenses", "folded", "build",
+            "platform", "expireAt",
+          ])
+          && request.resource.data.day == docId
+          && request.resource.data.sessions is int
+          && request.resource.data.sessions >= 0
+          && request.resource.data.sessions <= 300
+          && request.resource.data.fgMin is int
+          && request.resource.data.fgMin >= 0
+          && request.resource.data.fgMin <= 4
+          && request.resource.data.quiet is int
+          && request.resource.data.quiet >= 0
+          && request.resource.data.quiet <= 300
+          && request.resource.data.dayparts is list
+          && request.resource.data.dayparts.size() == 4
+          && request.resource.data.dayparts[0] is int
+          && request.resource.data.dayparts[1] is int
+          && request.resource.data.dayparts[2] is int
+          && request.resource.data.dayparts[3] is int
+          && request.resource.data.answers is int
+          && request.resource.data.answers >= 0
+          && request.resource.data.answers <= 2000
+          && request.resource.data.feedB is int
+          && request.resource.data.feedB >= 0
+          && request.resource.data.feedB <= 4
+          && request.resource.data.depthEnd is int
+          && request.resource.data.depthEnd >= 0
+          && request.resource.data.depthEnd <= 1
+          && request.resource.data.stops is int
+          && request.resource.data.stops >= 0
+          && request.resource.data.stops <= 2000
+          && request.resource.data.lenses is int
+          && request.resource.data.lenses >= 0
+          && request.resource.data.lenses <= 2000
+          && request.resource.data.folded == false
+          && request.resource.data.build is int
+          && request.resource.data.platform in ["ios", "android", "web"]
+          && request.resource.data.expireAt is timestamp
+          && request.resource.data.expireAt > request.time
+          && request.resource.data.expireAt < request.time + duration.value(100, 'd');
       }
 
       // The follow graph (D101) — the Mirror's Circle stop.
@@ -276,7 +705,30 @@ service cloud.firestore {
           // -1 is a clock expiry, which scores as a miss. Anything below
           // that is a client inventing a sentinel of its own.
           && request.resource.data.guess is int
-          && request.resource.data.guess >= -1;
+          && request.resource.data.guess >= -1
+          // …and the id IS the slice, which is what makes the paragraph
+          // above true rather than merely intended. Create-only stops a
+          // verdict being rewritten; it does not stop the same slice being
+          // read again at a DIFFERENT id, and until this clause the id was
+          // client-chosen and never compared to the payload it names. So
+          // "one attempt per slice" was a description of what the client
+          // happened to do, and a client is not a rule.
+          //
+          // The shape is `readId()` in data/foresight.ts verbatim — the
+          // one thing that has ever written here — so this refuses nothing
+          // the app does. It is the world-take bound (`qid + "_" + uid`)
+          // one collection over, and for the same reason: when a document
+          // is one-per-something, the id has to BE that something.
+          //
+          // Residue, recorded rather than closed: an invented qid/dim/
+          // bucket triple still mints a fresh slot, because nothing here
+          // checks that the slice exists. Closing that means a get() on
+          // the question — a billed read on a path with no live surface
+          // (D136 took the lens off the Mirror; the engine stands
+          // unplaced), and the score buys nothing but a number on your own
+          // screen. The re-roll was the hole worth closing.
+          && readId == request.resource.data.qid + "__"
+               + request.resource.data.dim + "__" + request.resource.data.bucket;
         allow update, delete: if false;
       }
 
@@ -295,7 +747,7 @@ service cloud.firestore {
         // cohort is the product's one trick.
         //
         // THE ONE EXCLUSION IS TIMING, NOT PRIVACY. A duel answer
-        // (surface group/duo) is sealed until the next-day reveal — that
+        // (surface group/duo) is sealed until its round's reveal — that
         // is the game, the same way a hand of cards is face-down. Public
         // duel answers would not link any data the reveal does not
         // publish a day later; they would just let a member read the
@@ -309,7 +761,7 @@ service cloud.firestore {
         // the query walks past).
         allow read: if request.auth != null
           && (request.auth.uid == uid
-            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse"]);
+            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"]);
 
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
@@ -338,9 +790,29 @@ service cloud.firestore {
         // literal rewritten to true, so flip day ships a one-word diff
         // whose behavior is pinned in both states.
         function deviceBindEnforced() { return false; }
+        // THE BAR, as a number rather than a boolean (D343). `db` carries
+        // the LEVEL of account requirements the activation callable could
+        // verify — see functions/src/accountLevel.ts, which is the source
+        // of truth this literal must equal (`npm run check:account-level`).
+        //
+        // Raising it here is how the requirements get stricter: every
+        // account below the new value stops counting on the deploy, with
+        // no code change and no migration. That is deliberate power, so
+        // read the daily per-level bind coverage first (velocity.ts,
+        // `bind_coverage`) — it says how many REAL votes each level would
+        // refuse, which is the only honest way to price the move.
+        function requiredAccountLevel() { return 1; }
         function deviceBound() {
           return !deviceBindEnforced()
-            || request.auth.token.get("db", 0) == 1;
+            // `>=`, not `==`: levels subsume, so an account that cleared a
+            // HIGHER bar must not be refused by a lower one. With `==`,
+            // raising the bar to 2 and later lowering it to 1 would refuse
+            // every level-2 account — the strictest users locked out by a
+            // relaxation, which is the exact wrong direction.
+            //
+            // Type-strict either way: a claim carrying a string fails the
+            // comparison rather than passing it, pinned in rules.test.ts.
+            || request.auth.token.get("db", 0) >= requiredAccountLevel();
         }
 
         // World-facing surfaces: one doc per question, id == qid.
@@ -349,23 +821,59 @@ service cloud.firestore {
         // the crowd stat a people-rate — the scheduler's spaced retries
         // have nothing they are allowed to write.
         function isWorldAnswer() {
-          return request.resource.data.keys().hasOnly([
+          return request.resource.data.surface in ["daily", "feed", "test", "learn"]
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["daily", "feed", "test", "learn"]
             && request.resource.data.qid == aid
-            && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            // THE QUESTION, FETCHED ONCE AND HANDED ON. Four get() sites
+            // stood in this arm. Billing already deduped them to one read;
+            // the EXPRESSION budget counts every site, and the answer path
+            // sits within ~140 expressions of Firestore's 1,000 (D429,
+            // RULES-BUDGET-PLAN §0). A missing question errors the get here
+            // exactly as it erred the first site before — same refusal,
+            // same mechanism, one clause earlier.
+            && worldBody(request.resource.data,
+                         get(/databases/$(database)/documents/v2_questions/$(aid)).data);
+        }
+        function worldBody(d, q) {
+          return d.optionIdx < q.options.size()
+            // A rank question takes an ORDER, never an index (D12/D233).
+            // Without this clause a raw-API optionIdx write would pass —
+            // rank docs carry real options, so the size bound holds — and
+            // the vote fold would then clobber the rank aggregate's
+            // {pos, total} with {counts}: the exact wrong-shaped-answer
+            // poisoning D12 pulled the cards for, back through the side
+            // door. Catalog questions never needed the clause because
+            // their options list is empty and the size bound above
+            // already refuses every index.
+            && q.get("type", "") != "rank"
             // Honour the operational kill switch: a question flipped
             // inactive stops accepting answers, not just showing itself.
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("active", true) == true
-            // …and the claimed surface must match the question's own, so a
-            // duel-bank question can't be answered as a world question and
-            // land in the public aggregate. Defaults keep a field-less doc
-            // answerable rather than permanently bricked.
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") in ["daily", "feed", "test", "learn"];
+            && q.get("active", true) == true
+            // …and the claimed surface must BE the question's own —
+            // EQUALITY, not membership of the same list on both sides,
+            // which is the same test twice and no comparison at all.
+            //
+            // The stated case held either way: a duel-bank question carries
+            // "group"/"duo", which is in neither list, so it could never be
+            // answered as world material and land in the public aggregate.
+            // What did not hold is the four world surfaces against each
+            // other, and one of those pairs is load-bearing. The D86 edit
+            // arm below keys on the ANSWER's self-declared surface and
+            // excludes "learn", because first-attempt-only IS D32's
+            // measurement — so a learn question answered as "feed" was an
+            // editable learn answer. `LIVE.vote`'s world-shape lookup (the
+            // `state.callBank.find` fallback) already assumed this
+            // clause was an equality ("would claim surface: daily and rules
+            // would refuse it"); it is one now.
+            //
+            // The default keeps a field-less bank doc answerable rather
+            // than permanently bricked, and under equality that means
+            // answerable as "daily" specifically. The membership check on
+            // the ANSWER's own surface (in the caller) is what still bounds
+            // the pair to the four world names.
+            && q.get("surface", "daily") == d.surface;
         }
 
         // Catalog answers (docs/CATALOG-QUESTIONS.md): one pick from a
@@ -381,79 +889,240 @@ service cloud.firestore {
         // (CATALOG_DOMAINS, functions/src/v2.ts) and an unknown key
         // never aggregates; a thousand-entry `in` list is not a rules
         // construct.
+        // Rank answers (D12 → D233): a ranking is an ORDER, not an index —
+        // `order` is the item indexes in the answerer's sequence, and
+        // there is no optionIdx at all (a synthetic one would let the
+        // answer leak into option-shaped folds, which is D12's poisoning
+        // with extra steps). Rules bound the list — its size must be the
+        // question's own item count — but cannot iterate it (no forall),
+        // so element validation is the trigger's: a malformed permutation
+        // is dropped at fold time, the same trust boundary every catalog
+        // key already crosses. Feed-only: rank questions exist on no
+        // other surface. Create-only forever — the D86 edit arm keys on
+        // the OLD doc carrying optionIdx, which an order answer never
+        // does, so ranks are immutable without a clause naming them.
+        function isRankAnswer() {
+          return request.resource.data.surface == "feed"
+            && request.resource.data.keys().hasOnly([
+              "qid", "surface", "order", "answeredAt", "anchors",
+            ])
+            && request.resource.data.qid == aid
+            && request.resource.data.order is list
+            && request.resource.data.order.size() >= 2
+            // One fetch, handed on (isWorldAnswer says why).
+            && rankBody(request.resource.data,
+                        get(/databases/$(database)/documents/v2_questions/$(aid)).data);
+        }
+        function rankBody(d, q) {
+          return d.order.size() == q.options.size()
+            && q.get("type", "") == "rank"
+            // same kill switch and surface agreement as isWorldAnswer
+            && q.get("active", true) == true
+            && q.get("surface", "daily") == "feed";
+        }
+
         function isCatalogAnswer() {
-          return request.resource.data.keys().hasOnly([
+          // Feed-only since D234's review pass (it read `in ["daily",
+          // "feed", "test"]` from birth): catalog questions exist on no
+          // other surface — the seed emits feed and check:content
+          // refuses the rest — so the wider list only ever admitted
+          // answers to a hand-edited console doc the client fences out
+          // anyway (splitBanks keeps the same feed-narrow line).
+          return request.resource.data.surface == "feed"
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "entity", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["daily", "feed", "test"]
             && request.resource.data.qid == aid
             && request.resource.data.entity is int
             && request.resource.data.entity >= 0
             && request.resource.data.entity < 1000000000
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("type", "") == "catalog"
+            // One fetch, handed on (isWorldAnswer says why).
+            && catalogBody(get(/databases/$(database)/documents/v2_questions/$(aid)).data);
+        }
+        function catalogBody(q) {
+          return q.get("type", "") == "catalog"
             // same kill switch and surface agreement as isWorldAnswer
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("active", true) == true
-            && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") in ["daily", "feed", "test"];
+            && q.get("active", true) == true
+            && q.get("surface", "daily") == "feed";
         }
 
-        // Sealed duel answers: id g_{gid}_{day}. Only members may PLAY,
-        // and only while the day is UNREVEALED — answering after the
-        // reveal would let you see everyone's cards before playing yours.
-        // Both halves are game rules about who is at the table and when
-        // the hand ends; neither is an audience claim about the data,
-        // which is why D98 leaves this function alone.
+        // Sealed duel answers: id g_{gid}_r{n} — one per member per ROUND
+        // (ROUNDS-PLAN, D426). Only members may PLAY, and only a round
+        // that is still open or sealed ahead of it: answering a round that
+        // has already revealed would let you see everyone's cards before
+        // playing yours. Both halves are game rules about who is at the
+        // table and when the hand ends; neither is an audience claim about
+        // the data, which is why D98 leaves this function alone.
+        //
+        // THE DAY IS GONE FROM HERE, and it was never the seal. The seal is
+        // the `surface` value test on the read rule (a sealed answer is
+        // owner-only) plus the round bound below; the day's job was to
+        // advance the game when nobody played, and the round's deadline
+        // does that now (functions/src/v2social.ts, revealRound). What went
+        // with it: the day regex and both timestamp.date() comparisons,
+        // which is fewer expressions on the create path D409 measured.
         function isDuelAnswer() {
+          // GUARDS FIRST, FETCHES AFTER. Until 2026-09-09 this function
+          // opened with `let open = get(group)…`, and a rules function runs
+          // its `let` bindings before its `return` — so every write that
+          // was not a duel paid a group fetch on the way past an arm whose
+          // first real conjunct (`surface in ["group", "duo"]`) would have
+          // rejected it for three expressions. The bindings now live in
+          // duelBody, which is only CALLED once the cheap guards pass, and
+          // the two documents the arm needs are fetched once each as its
+          // arguments — where the old body fetched the question at ten
+          // sites and the group at four (RULES-BUDGET-PLAN §0, D433).
+          //
+          // NO SURFACE GUARD HERE: createArm() routes to this arm on
+          // `surface in ["group", "duo"]`, so a guard repeating it could
+          // never be false — which rules-coverage reported the moment the
+          // router landed. The router is the guard.
           return request.resource.data.keys().hasOnly([
-              "qid", "surface", "optionIdx", "guessIdx",
-              "gid", "day", "answeredAt", "anchors",
+              "qid", "surface", "optionIdx", "guessIdx", "pickUid",
+              "gid", "round", "late", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["group", "duo"]
             && request.resource.data.gid is string
-            && request.resource.data.day is string
-            && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
-            // …and that day must be near NOW. Format-checking alone let a
-            // member pre-seal every future day — guaranteeing their half of
-            // the streak forever and fixing which bank question each future
-            // reveal would use — or backfill any unrevealed past day.
-            //
-            // Bounds are deliberately loose, because a refusal here surfaces
-            // as a vote that vanishes. Back: 4d, so a client flushing a
-            // queue after ~3 days offline still lands whatever the hour.
-            // Forward: 2d, because day keys are UTC while "today" is local,
-            // and UTC+14 is already tomorrow.
-            && timestamp.date(
-                 int(request.resource.data.day[0:4]),
-                 int(request.resource.data.day[5:7]),
-                 int(request.resource.data.day[8:10]))
-               > request.time - duration.value(4, 'd')
-            && timestamp.date(
-                 int(request.resource.data.day[0:4]),
-                 int(request.resource.data.day[5:7]),
-                 int(request.resource.data.day[8:10]))
-               < request.time + duration.value(2, 'd')
-            && aid == "g_" + request.resource.data.gid + "_" + request.resource.data.day
-            && request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && !exists(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)/reveals/$(request.resource.data.day))
+            && request.resource.data.round is int
+            && request.resource.data.round >= 1
+            // NOTHING IN A GROUP IS CALLED (D437 — the owner's 2026-09-09
+            // brief: "The room casts roles and rates itself; that's all").
+            // A guess is a 1v1's, at what the other person said; a group
+            // answer carrying one is refused HERE rather than ignored
+            // downstream, so "no call" is a rule the table keeps and not a
+            // client's manners. D386 admitted it for one week; the fold in
+            // functions/src/pure.ts scores nothing for a group either way.
+            && !(request.resource.data.surface == "group"
+                 && request.resource.data.keys().hasAny(["guessIdx"]))
+            // The id IS the round. string() over an int resolves in rules
+            // — probed in the emulator 2026-09-08 before this was written.
+            && aid == "g_" + request.resource.data.gid + "_r" + string(request.resource.data.round)
             // the answer must reference a real question, and indexes must
             // fit its options ("pick" questions have empty bank options —
-            // their options are the group's members)
+            // their options are the group's members). The exists() guard
+            // precedes the body because the body's argument would error on
+            // a missing document — the one clause this arm reorders, and a
+            // refusal either way.
             && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-            && request.resource.data.optionIdx < duelIndexSpace()
-            && (request.resource.data.get("guessIdx", 0) is int)
-            && request.resource.data.get("guessIdx", 0) >= 0
-            // SAME bound as optionIdx, via the same function — a guess names
-            // an option, so it lives in the same index space. This read
+            && duelBody(request.resource.data,
+                        get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data,
+                        get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data);
+        }
+        function duelBody(d, q, g) {
+          // The open round, off the group document the caller fetched.
+          let open = g.get("round", 1);
+          // Absent reads as "not late" — a value, never an evaluation error
+          // on an unflagged answer to a revealed round.
+          let late = d.get("late", false);
+          return request.auth.uid in g.memberUids
+            // THE ROUND BOUND, off the same group document:
+            //
+            //   round >= open      the round has not revealed. The reveal
+            //                      and the advance of `round` are ONE
+            //                      commit (revealRound), so "still the open
+            //                      round or later" IS "no reveal exists for
+            //                      it" — which is why the exists() on the
+            //                      reveal document that stood here is gone,
+            //                      and with it one billed read per answer.
+            //   round <  open + 5  the LEAD: how far ahead of the open
+            //                      round a member may seal. Some bound has
+            //                      to exist — duelQFor is a function of the
+            //                      round, so an unbounded number lets one
+            //                      client pin which question every future
+            //                      round serves. Five is one sitting (the
+            //                      plan's §5). The literal is ROUND_LEAD in
+            //                      functions/src/pure.ts; rules.test.ts
+            //                      pins the two equal.
+            //
+            // A group with no `round` field is on round 1 (get's default),
+            // the same reading every other reader makes.
+            //
+            // TWO ARMS. The first is the blind answer above, and it is what
+            // a legitimate write short-circuits on. The second is the LATE
+            // answer (ROUNDS-PLAN §4): a member who did not play a round
+            // that has since revealed may still answer it — the owner's
+            // rule, "the remainders after they have answered" — but the
+            // table is world-readable (D98), so their answer is not blind
+            // and the rule says so rather than trusting the client to:
+            //   · it MUST carry `late: true` (an unflagged answer to a
+            //     revealed round is refused, as it always was);
+            //   · it may NOT carry a guess — a guess made with the table
+            //     in view is not a reading of anyone, and refusing the
+            //     field removes the whole class rather than filtering it;
+            //   · it reaches back at most the lead, so a member cannot
+            //     backfill a room's whole history.
+            // The trigger appends it to the reveal marked late, and every
+            // score — the roles fold, the duel signal — leaves it out.
+            // And the blind arm refuses the flag, so "late" can only ever
+            // mean what it says.
+            && (
+              (d.round >= open
+                && d.round < open + 5
+                && late == false)
+              || (d.round < open
+                && d.round >= open - 5
+                && late == true
+                && !d.keys().hasAny(["guessIdx"]))
+            )
+            // Same kill switch and surface agreement as isWorldAnswer, and
+            // for the same reason — this was the ONE answer shape that
+            // checked only that the question existed. Duel votes are not an
+            // inert member-only surface: revealQid derives the day's
+            // question from the members' own answer docs and foldDuelSignal
+            // publishes it into the world-readable duel-{qid} aggregate, so
+            // a question pulled for being broken or harmful kept taking
+            // votes, kept being published in reveals, and kept feeding a
+            // public aggregate.
+            && q.get("active", true) == true
+            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
+            // the round's question with `q.surface === mode`, so the bank a
+            // group can legitimately answer from is exactly the one whose
+            // surface matches the answer's own "group"/"duo". Without it a
+            // group could seal a vote against a daily, feed or catalog
+            // question — and for a catalog question `options` is empty, so
+            // duelIndexSpace() falls through to the member count and the
+            // vote is folded as if it were a "pick".
+            //
+            // For one day (2026-09-08, ROUNDS-PLAN §6.2) a second arm stood
+            // beside this equality admitting a daily or feed question of an
+            // option-index type as a round's content. The owner retired it
+            // on seeing the first such reveal — the feed already asks those
+            // — and the equality is again the whole test (D426's third
+            // amendment). Widen it only as an explicit arm, never by
+            // relaxing this line: the catalog hole above is what the
+            // equality closes. (The arm read the question this function is
+            // handed, so its leaving moves no fetch — D433's fourteen sites
+            // are fourteen still.)
+            && q.get("surface", "daily") == d.surface
+            && (d.get("guessIdx", 0) is int)
+            && d.get("guessIdx", 0) >= 0
+            // SAME bound as optionIdx, and the SAME COMPARISON — a guess
+            // names an option, so it lives in the same index space. This read
             // `guessIdx < 20` while optionIdx had already been widened for
             // exactly that reason: GROUP_CAP is 32, so on a "pick" day in a
             // group of more than 20, a member could be voted for but not
             // guessed. The bug the widening fixed survived in the field
             // beside it because the two bounds were written out twice; one
-            // function means the next change to the index space cannot
-            // reach one and miss the other.
-            && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
+            // bound written once means the next change to the index space
+            // cannot reach one and miss the other.
+            //
+            // Testing the LARGER index once is what makes it one bound. It
+            // is the same test: neither index can be negative here —
+            // guessIdx by the line above, optionIdx by the create rule's
+            // outer block, which is this function's only caller.
+            && (d.optionIdx >= d.get("guessIdx", 0)
+                  ? d.optionIdx
+                  : d.get("guessIdx", 0))
+               < duelIndexSpace(q, g)
+            // D224: on a "pick" day the answer also snapshots WHO its
+            // optionIdx meant — the roster order the answering client
+            // used — because the index alone goes stale the moment the
+            // roster changes. Optional (older clients omit it); when
+            // present it must be a current member's uid, and only a pick
+            // question (empty bank options) may carry one.
+            && (!d.keys().hasAny(["pickUid"])
+              || (d.pickUid is string
+                && q.options.size() == 0
+                && d.pickUid in g.memberUids));
         }
 
         // The daily pulse (D139): the same question answered once per
@@ -468,10 +1137,10 @@ service cloud.firestore {
         // aggregate doc with no changes of its own — that grain is the
         // whole design (docs/NEXT-FUNCTIONALITY.md §2).
         function isPulseAnswer() {
+          // No surface guard: createArm() is it (see isDuelAnswer).
           return request.resource.data.keys().hasOnly([
               "qid", "baseQid", "day", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface == "pulse"
             && request.resource.data.baseQid is string
             && request.resource.data.day is string
             && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
@@ -490,49 +1159,165 @@ service cloud.firestore {
             // The TEMPLATE is what the bank holds — one doc per pulse
             // question forever, never one per day — and it answers for
             // the option bound, the kill switch, and the surface claim.
-            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
-                 .data.get("surface", "daily") == "pulse"
-            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
-                 .data.get("active", true) == true
-            && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
-                  .data.options.size();
+            // Fetched once, handed on (isWorldAnswer says why).
+            && pulseBody(request.resource.data,
+                         get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid)).data);
+        }
+        function pulseBody(d, q) {
+          return q.get("surface", "daily") == "pulse"
+            && q.get("active", true) == true
+            && d.optionIdx < q.options.size();
+        }
+
+        // Foresight CALL, tier A (D194): a prediction sealed now and
+        // graded when it resolves. The doc is an ordinary world answer in
+        // every respect — same five keys, same D29 binding, same public
+        // read — so this function is isWorldAnswer plus ONE clause, and
+        // that clause is the whole reason it is not simply another entry
+        // in that surface list:
+        //
+        //   A CALL CANNOT BE ANSWERED ONCE IT HAS BEEN GRADED. The
+        //   outcome doc is world-readable the moment the resolver writes
+        //   it, so without this a player could read the grade and then
+        //   "predict" it — free points, and every score in the feature
+        //   becomes meaningless. `exists()` on the outcome is the exact
+        //   test, and it costs one document access on the call surface
+        //   alone.
+        //
+        // There is NO seal before that (FORESIGHT-CALLS §8): calls read
+        // like every other card while they are open, and seeing how the
+        // crowd called it is the interesting half rather than a leak.
+        // Answering late — after resolvesAt but before the resolver's next
+        // pass — is fine and deliberately not fenced: the target's
+        // aggregate is still moving, and a rules clause comparing a date
+        // string to request.time would be a second, weaker copy of a
+        // deadline the outcome document already states exactly.
+        //
+        // The D86 edit arm's surface list keeps `call` out, so a sealed
+        // guess cannot be moved afterwards.
+        function isCallAnswer() {
+          // No surface guard: createArm() is it (see isDuelAnswer).
+          return request.resource.data.keys().hasOnly([
+              "qid", "surface", "optionIdx", "answeredAt", "anchors",
+            ])
+            && request.resource.data.qid == aid
+            // One fetch, handed on (isWorldAnswer says why).
+            && callBody(request.resource.data,
+                        get(/databases/$(database)/documents/v2_questions/$(aid)).data)
+            && !exists(/databases/$(database)/documents/v2_call_outcomes/$(aid));
+        }
+        function callBody(d, q) {
+          return d.optionIdx < q.options.size()
+            && q.get("active", true) == true
+            && q.get("surface", "daily") == "call";
         }
 
         // The index space BOTH duel indexes live in: the question's own
         // options, or — for "pick" questions, which carry none, because
-        // their options ARE the group — the member count. Repeated get()s
-        // on one path are deduped within a rules evaluation, so calling
-        // this twice costs no extra document access.
-        function duelIndexSpace() {
-          return get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
-            ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
-            : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size();
+        // their options ARE the group — the member count. Takes the two
+        // documents duelBody already holds; it fetches nothing.
+        function duelIndexSpace(q, g) {
+          return q.options.size() > 0 ? q.options.size() : g.memberUids.size();
+        }
+        // The D86 edit arm's two question reads, as one (isWorldAnswer
+        // says why one fetch and not two).
+        function editOk(q) {
+          return request.resource.data.optionIdx < q.options.size()
+            // Same kill switch as create: a question flipped inactive stops
+            // accepting answer movement of any kind, and edits feed the same
+            // aggregate, so they carry the same D29 device binding.
+            && q.get("active", true) == true;
         }
 
-        allow create: if request.auth != null && request.auth.uid == uid
-          && request.resource.data.answeredAt == request.time
-          && isValidV2Anchors(request.resource.data.get("anchors", {}))
-          && (
-            (request.resource.data.optionIdx is int
-              && request.resource.data.optionIdx >= 0
-              // Outer sanity bound only — the real bound is per-question
-              // below (options.size(), or the group's member count for
-              // "pick" questions). Must clear GROUP_CAP (32,
-              // functions/src/v2social.ts) or members past the 20th become
-              // unpickable on every "pick" day.
-              && request.resource.data.optionIdx < 64
-              && ((isWorldAnswer() && deviceBound())
-                || isDuelAnswer()
-                // Pulse answers feed a published aggregate, so they carry
-                // the same D29 binding the world surfaces do.
-                || (isPulseAnswer() && deviceBound())))
+        // ONE DISCRIMINATOR, ONE ARM (RULES-BUDGET-PLAN §3(c), D433). This
+        // rule was a six-way disjunction, and the instrument
+        // (scripts/rules-budget.mjs) measured what that costs: an ALLOWED
+        // write paid every arm listed before its own, and a REFUSED write
+        // paid all six and the anchors and never fitted the budget — every
+        // refusal in the suite and the e2e was a refusal BY BUDGET,
+        // indistinguishable from a rule saying no (D431). A ternary
+        // evaluates one branch. Each write routes on the field that only
+        // its arm admits (`order` → rank, `entity` → catalog) or on its
+        // surface, and pays its own arm, its binding and the anchors.
+        // Nothing else is reached.
+        //
+        // THE PARTITION IS EXACT, which is what makes this a refactor and
+        // not a rule change: every arm's hasOnly refuses the other arms'
+        // distinguishing keys, and the surface lists are disjoint, so no
+        // write could ever have been accepted by an arm other than the one
+        // it now routes to. `firestore-tests/rules.test.ts` is the proof,
+        // case for case, and rules-coverage's never-false count is the
+        // proof that no clause went dark in the move.
+        function anchorsOk() {
+          // D8's snapshot, validated exactly as before — inside the branch
+          // now, so it is paid once, by exactly the write it validates.
+          return isValidV2Anchors(request.resource.data.get("anchors", {}));
+        }
+        function createArm() {
+          let d = request.resource.data;
+          return ("order" in d)
+            // Rank answers carry `order` (D233): their own branch, the D29
+            // binding, and no optionIdx block.
+            ? (isRankAnswer() && deviceBound() && anchorsOk())
+            : ("entity" in d)
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
             // field out. They feed aggregates, so they carry the D29
             // binding the duel branch is exempt from.
-            || (isCatalogAnswer() && deviceBound())
-          );
+            ? (isCatalogAnswer() && deviceBound() && anchorsOk())
+            // Everything else names an option. Outer sanity bound only —
+            // the real bound is per-question in the arm (options.size(),
+            // or the group's member count for "pick" questions). Must
+            // clear GROUP_CAP (32, functions/src/v2social.ts) or members
+            // past the 20th become unpickable on every "pick" day.
+            : !(d.optionIdx is int && d.optionIdx >= 0 && d.optionIdx < 64)
+            ? false
+            : (d.surface in ["group", "duo"])
+            ? (isDuelAnswer() && anchorsOk())
+            : (d.surface == "pulse")
+            // Pulse answers feed a published aggregate, so they carry
+            // the same D29 binding the world surfaces do.
+            ? (isPulseAnswer() && deviceBound() && anchorsOk())
+            : (d.surface == "call")
+            // A call is exactly what a sybil would want to spam — a
+            // score with a leaderboard behind it — so it binds too.
+            ? (isCallAnswer() && deviceBound() && anchorsOk())
+            : (isWorldAnswer() && deviceBound() && anchorsOk());
+        }
+        allow create: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.answeredAt == request.time
+          // Firestore stops a rule at 1,000 evaluated expressions and
+          // reports the stop as PERMISSION_DENIED, so a rule that runs out
+          // of budget denies exactly like a rule that is false — the
+          // cheapest kind of latent bug: correct today, and silently wrong
+          // the moment a path grows past the ceiling.
+          //
+          // MEASURED, 2026-09-09, three times. D429, by hand: the thinnest
+          // legal creates — D426's world-question duel arm and the pick
+          // round — survived 46 filler conjuncts, which it read as ~130
+          // expressions, and at 85 the ruleset stopped COMPILING
+          // ("Expression is too complex to evaluate safely"), the loud
+          // ceiling. D432, by the instrument (scripts/rules-budget.mjs):
+          // a filler costs ~8 budget units, not 3, so those 46 were ~375
+          // — and every REFUSAL was already over the line, refused by
+          // budget rather than by a rule. D433, after the arms were
+          // routed, their fetches hoisted and the anchors read once: the
+          // thinnest legal create clears by 58 fillers (~470), every
+          // refusal by at least the compile ceiling's 94, and the e2e's
+          // thirteen budget refusals are zero. The table is
+          // scripts/rules-budget-baseline.json. `firestore-tests/
+          // rules.test.ts` § "the heaviest LEGAL create" pins the legal
+          // half as executable cases — all ten anchors at their bounds,
+          // where every other case sends the cheap end — so the day a new
+          // clause crosses the line the suite reds instead of the release.
+          // The filler probe scripts/rules-budget.mjs appends lands on the
+          // line below; keep it the last conjunct. `test:rules` holds the
+          // number (D438): every probe pinned at exactly its measured
+          // headroom, a floor of 50 fillers (~405 units) under all of
+          // them, and the file still loading at 80 — so a clause that
+          // costs expressions moves a pin and says why, and one that
+          // would land under the floor is argued rather than edited in.
+          && createArm();
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,
         // and why each stays:
@@ -546,6 +1331,10 @@ service cloud.firestore {
         //     the `resource.data.optionIdx is int` guard (the OLD doc must
         //     already have one) keeps them out until a delta path for the
         //     canon exists;
+        //   - rank answers (D233): they carry `order`, not `optionIdx`,
+        //     so the same OLD-doc guard keeps them create-only — moving a
+        //     ranking would need a -old/+new delta through the position
+        //     sums, a path nobody has wanted yet;
         //   - the anchors SNAPSHOT and answeredAt: frozen, so an edit moves
         //     which option you hold, never which cohort you were in when
         //     you first answered (D8) — and the aggregate delta stays a
@@ -568,13 +1357,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["optionIdx", "editedAt"])
           && request.resource.data.optionIdx is int
           && request.resource.data.optionIdx >= 0
-          && request.resource.data.optionIdx
-            < get(/databases/$(database)/documents/v2_questions/$(resource.data.qid)).data.options.size()
-          // Same kill switch as create: a question flipped inactive stops
-          // accepting answer movement of any kind, and edits feed the same
-          // aggregate, so they carry the same D29 device binding.
-          && get(/databases/$(database)/documents/v2_questions/$(resource.data.qid))
-               .data.get("active", true) == true
+          && editOk(get(/databases/$(database)/documents/v2_questions/$(resource.data.qid)).data)
           && deviceBound()
           && request.resource.data.editedAt == request.time
           && (!("editedAt" in resource.data)
@@ -610,7 +1393,42 @@ service cloud.firestore {
     // collection anywhere else in future silently joins this grant.
     match /{path=**}/answers/{aid} {
       allow read: if request.auth != null
-        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse"];
+        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"];
+    }
+
+    // ─── the other two collection-group readers ───────────────────────
+    //
+    // A COLLECTION-GROUP QUERY IS BOUND ONLY BY A RECURSIVE-WILDCARD
+    // MATCH. The path grants further down — `v2_users/{uid}/following`
+    // and `v2_groups/{gid}/invites` — bind their own `{uid}`/`{gid}`, so
+    // they say nothing about a query issued across the group, exactly as
+    // the `insight_inbound_impressions` case in firestore-tests spells
+    // out. Both collections had an open path grant, a deployed
+    // COLLECTION_GROUP index, a client query and no rule that could
+    // admit it, so both queries were refused for every user, always. Each
+    // client catches the refusal, so the symptom was a screen that worked
+    // and was empty: no Circle member ever showed as mutual, and no
+    // invitation ever arrived.
+    //
+    // The `to` field is what makes each grant provable. A collection-group
+    // read must carry a matching `where("to","==",…)` or Firestore refuses
+    // the whole query rather than filtering it (D65's measured lesson) —
+    // which is exactly the property wanted here: these are two lookups of
+    // YOUR OWN inbound rows, never a licence to enumerate the follow graph
+    // or everyone's mail. Both fields are pinned equal to their document
+    // id (`following` by its create rule, `invites` by being server-written
+    // under `allow write: if false`), so neither can point somewhere its id
+    // does not.
+    //
+    // Read only, and deliberately: the writes stay on the path-bound rules
+    // where authorship is fenced.
+    match /{path=**}/following/{targetUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+    match /{path=**}/invites/{invitedUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
     }
 
     // App/content metadata — contentRev (bank cache invalidation),
@@ -622,8 +1440,22 @@ service cloud.firestore {
 
     // Server-side aggregate internals — the trigger's working state and
     // its idempotency ledger. Closed to clients because nothing needs it,
-    // not because it hides anything: since D98 the public mirror above
-    // carries the same exact counts, so this collection is bookkeeping.
+    // not because it hides anything.
+    //
+    // What is left in v2_aggs_private is the CATALOG accumulator, and
+    // nothing else — the duel fold's own copy was named here until
+    // 2026-08-26, and D290's first amendment had already collapsed it
+    // ("v2_aggs_private now means exactly one thing"). Two of the three
+    // descriptions were updated at the time and this one was not; rules
+    // BEHAVIOUR was never affected, since the path is `allow read, write:
+    // if false` either way. It used to also hold a byte-identical copy of every
+    // vote, edit and rank aggregate — dead weight once D98 removed the
+    // floor those copies existed to sit above — and that copy is gone: the
+    // published document above is the accumulator on those paths now, which
+    // it can be because `allow write: if false` leaves the trigger as its
+    // only writer. A catalogue keeps its own because the accumulator there
+    // is the whole ~1k-entity map, of which the public board publishes a
+    // bounded top-N — more than publishes, never other than it.
     match /v2_aggs_private/{qid} {
       allow read, write: if false;
     }
@@ -706,7 +1538,7 @@ service cloud.firestore {
       // What the reveal still does is TIMING and convenience — it is
       // written the day after play, which is what keeps the seal above
       // meaningful, and it is one document instead of N answer reads.
-      match /reveals/{day} {
+      match /reveals/{revealId} {
         allow read: if request.auth != null;
         allow write: if false;
       }
@@ -757,17 +1589,84 @@ service cloud.firestore {
     // "anyone who knows your handle can find them". Those are different
     // exposures and this one is deliberate: a handle exists precisely so
     // a friend can find you, and a directory nobody may read cannot do
-    // that. What it is NOT is a listing — there is no query surface here
-    // that enumerates handles, only an exact-id lookup, so the registry
-    // answers "is @olaf someone" and never "who is everyone".
+    // that. What it is NOT is a listing, and that is now the RULE rather
+    // than a description of the client: `read` is `get` + `list`, so
+    // `allow read: if request.auth != null` granted exactly the query
+    // this paragraph said did not exist — one collection read returning
+    // every handle in the app, each holding the uid whose public answers
+    // it unlocks. Nothing asks for that: the app's only registry read is
+    // an exact-id `getDoc` (socialFetch.ts), the one query over it runs
+    // in `deleteAccount` through the Admin SDK, and the surface built for
+    // finding people is the directory below. So the grant is `get`, and
+    // `list` is refused in writing — the registry answers "is @olaf
+    // someone" and cannot be asked "who is everyone".
     //
     // WRITE is server-only. A claim is two writes that must not
     // interleave (take the new key, release the old), and rules cannot
     // express atomicity across two documents: a create-if-absent rule
     // gets uniqueness right and renames wrong.
     match /v2_handles/{handle} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null;
+      allow list: if false;
       allow write: if false;
+    }
+
+    // ─── the people directory (D239) ───────────────────────────────
+    //
+    // WHAT IT IS FOR. D122's registry is keyed on the handle, so it
+    // answers "is @olaf someone" by exact id and nothing else. That is
+    // the right shape for uniqueness and the wrong one for finding a
+    // friend whose handle you do not know — the owner's call is that a
+    // person should be findable by NAME as well, when creating a circle
+    // and when adding to one.
+    //
+    // WHY A SEPARATE COLLECTION, when `v2_users` is already world-read
+    // and therefore already listable by any signed-in account. Two
+    // reasons, and neither is exposure — a name query over v2_users
+    // would reveal nothing an enumeration of it could not already:
+    //
+    //   · SIZE. A client query cannot field-mask, so searching v2_users
+    //     downloads whole profiles — anchors, testResults, the lot. The
+    //     reveal path added a fieldMask for exactly this and OOM'd
+    //     without one; a search box is a worse place to learn it.
+    //   · SHAPE. What a result row draws is a name and a handle. A
+    //     document holding only those two cannot leak a third by
+    //     someone forgetting a projection.
+    //
+    // `nameKey` IS ENFORCED TO BE THE NAME, not merely bounded. Without
+    // the rule below a client could write nameKey "ada" onto the row
+    // that displays "Bob" and answer somebody's search for a friend with
+    // a stranger. Rules can compare it, so they do: what you are found
+    // by and what the result shows are one string, checked here rather
+    // than trusted.
+    match /v2_people/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["name", "nameKey", "handle"])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.nameKey is string
+        && request.resource.data.nameKey == request.resource.data.name.lower()
+        // `handle` on the allowlist but immutable to the client, exactly
+        // as v2_users.handle is and for the same reason: claimHandleV2
+        // (admin SDK) owns it, and because request.resource.data is the
+        // RESULTING document, a later client merge of the name still
+        // presents `handle` in its key set. Leave it off the allowlist
+        // and claiming a handle would silently freeze your name in the
+        // directory forever — a failure that ships green.
+        // …and absence is legal only while there is nothing to remove,
+        // for the reason spelled out on v2_users above: a non-merge write
+        // that omits the field was a legal way to drop it.
+        && (("handle" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null))
+          : (resource == null || resource.data.get("handle", null) == null));
+      // deleteAccount (admin SDK) owns removal — phase 3d. This row is a
+      // top-level document keyed by uid, so phase 1b's recursiveDelete of
+      // v2_users/{uid} does not reach it, the same trap the handle
+      // registry set in 3b.
+      allow delete: if false;
     }
 
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────
@@ -864,17 +1763,92 @@ service cloud.firestore {
           ? (request.resource.data.qid is string
             && request.resource.data.qid.size() >= 1
             && request.resource.data.qid.size() <= 120
-            && takeId == request.resource.data.qid + "_" + request.auth.uid)
+            && takeId == request.resource.data.qid + "_" + request.auth.uid
+            // The same operational kill switch the answer paths honour
+            // seven times over, and for a stronger reason here. Pulling a
+            // question stops it being answered; it does not stop the
+            // PUBLIC THREAD it started, and the thread is where the harm
+            // in a harmful question actually gets said. A world take is
+            // per-question by construction — the world list queries
+            // `gid == "world" && qid == …` — so closing the question
+            // closes exactly one thread and nothing else.
+            //
+            // Not extended to the circle branch below, and that is not an
+            // oversight: a circle's list queries `gid` alone, so its
+            // thread is per-GROUP and a take's qid is metadata on it.
+            // There is no per-question circle thread to close.
+            //
+            // A missing question denies too — get() on an absent document
+            // is null and `.data` on null fails the rule. That closes the
+            // invented-qid hole as a side effect: the id bound above makes
+            // takes one-per-person-per-qid, but nothing made a qid name a
+            // question, so any string minted a fresh empty thread that no
+            // surface could ever list.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("active", true) == true)
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && (!("qid" in request.resource.data) || request.resource.data.qid is string)));
+            // LENGTH TOO, and the sentence below is why it was missed: the
+            // paragraph argues carefully about the id's VALUE — that a
+            // circle id must not collide with somebody's world id — and
+            // says "the id is bounded HERE too", which was true of the
+            // shape and not of the size. The world branch four lines up
+            // caps it at 120; this one only asked that it be a string, so
+            // a 400 KB qid was accepted, measured.
+            //
+            // `text` is capped at 280 on both branches, and `v2_takes` is
+            // readable by any signed-in user as a list query that pulls
+            // whole documents — so an unbounded field here is a download
+            // every reader of that thread pays for.
+            && (!("qid" in request.resource.data)
+              || (request.resource.data.qid is string
+                && request.resource.data.qid.size() <= 120))
+            // The id is bounded HERE too, and not for the same reason as
+            // the world branch above. A circle take is many-per-person, so
+            // there is no one-take bound to enforce — but both branches
+            // write into the SAME collection, so an unconstrained circle id
+            // could be somebody else's world id. Update is denied and
+            // delete is author-only, so one such write permanently squats
+            // the single take that person is allowed on that question, with
+            // no recovery path for them and nothing to rate-limit it: any
+            // free account can make a group and be a member of it.
+            //
+            // The bound is the SHAPE, not the length: a world id always
+            // contains the "_" separator, so an id with none can never be
+            // one. That is the whole invariant, and it survives an auto-id
+            // format change — `doc(collection(db, "v2_takes"))`, the only
+            // thing that has ever written a circle take (postTake,
+            // data/live.ts), mints 20 alphanumerics, and pinning that
+            // literally would tie the rules to an SDK detail instead.
+            && takeId.matches("^[^_]*$")));
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;
-      // Your speech stays yours to withdraw.
+      // Your speech stays yours to withdraw — until a moderator has acted
+      // on it.
+      //
+      // `hidden == false` is the clause the avatar arm below already
+      // carries, for the reason recorded there: on a hidden document the
+      // update AND the delete are both the way back. It was never applied
+      // to the substrate that shape was borrowed from, and on a WORLD take
+      // the gap is a straight bypass — the id is deterministic
+      // (`{qid}_{uid}`, pinned above), so an author could delete a removed
+      // take and re-create it at the SAME id with the same words and
+      // `hidden: false`. clearFlagsFor has already wiped the flags by
+      // then, so it does not re-enter the queue until somebody reports it
+      // afresh. World scope is ENFORCING, not advisory.
+      //
+      // It also keeps the record. `hiddenMeta` lives on this document, so
+      // deleting it destroys the audit trail MODERATION.md says a
+      // maintainer can reverse a removal from.
+      //
+      // What it does NOT block: erasure. deleteAccount runs on the admin
+      // SDK, which rules do not bind — a departing account still takes its
+      // hidden takes with it.
       allow delete: if request.auth != null
-        && resource.data.authorUid == request.auth.uid;
+        && resource.data.authorUid == request.auth.uid
+        && resource.data.hidden == false;
     }
 
     // ── The profile photo's document (D178) ────────────────────────
@@ -982,6 +1956,18 @@ service cloud.firestore {
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
+        // You cannot report your own take, the same refusal the avatar arm
+        // above makes for the same reason: the only thing it achieves is
+        // queueing a moderator to read something you could delete yourself
+        // ("your speech stays yours to withdraw", the delete rule below).
+        //
+        // It is also the cheapest half of a self-inflicted starvation: three
+        // of your own accounts on your own take is the flag floor, and the
+        // queue is ranked by flag count, so it was a way to spend a
+        // moderator's generation on nothing. Costs no extra read — this is
+        // the same get() the gid check one line up already performs.
+        && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.authorUid
+          != request.auth.uid
         // Flaggable by any signed-in user, at every scope. The circle arm
         // used to require membership on the reasoning that "a stranger
         // cannot flag speech they cannot read" — since D98 a stranger can
@@ -1026,6 +2012,45 @@ service cloud.firestore {
     // A list query must filter uid == request.auth.uid or Firestore
     // refuses it wholesale — the D65 value-test shape.
     match /v2_suggestions/{sid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ── Paid purchase records (docs/PAID-PLAN.md §7, D288 §3) ────────
+    //
+    // One row per sale — scope, dims, window, the rate LOCKED at
+    // booking, budget cap, state, report milestones. Written by the
+    // server only: the Stripe webhook at payment time (paid.ts goLive,
+    // D313) and the operator's script for hand contracts
+    // (scripts/record-purchase.mjs) — both admin SDK, so there is no
+    // client write path and rules-side the arm stays closed. The buyer
+    // reads their own rows (the room, PaidMineCard); the demand the
+    // door shows is NOT read from here — scripts/build-pricing.mjs
+    // folds these into the committed content/pricing.json, which is
+    // the public half.
+    // Same list shape as v2_suggestions: a query must filter
+    // uid == request.auth.uid or Firestore refuses it wholesale (D65).
+    match /v2_purchases/{pid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ── Paid-question bookings (paid.ts, D313) ─────────────────────
+    //
+    // The pre-payment half of a self-serve sale: the composed question,
+    // the audience, the automated review's verdict and its note, the
+    // locked quote, the Stripe session id once checkout began. Written
+    // only by the server (bookPaidQuestionV2 and the review/webhook
+    // machinery — the callable holds App Check, the booking budget and
+    // the review order, none of which rules can express). The BUYER
+    // reads their own rows so the door can show
+    // review → approved → live, and a decline with its reason; nobody
+    // else has a door here at all.
+    // Same list shape as v2_suggestions: a query must filter
+    // uid == request.auth.uid or Firestore refuses it wholesale (D65).
+    match /v2_paid_bookings/{bid} {
       allow read: if request.auth != null
         && resource.data.uid == request.auth.uid;
       allow write: if false;

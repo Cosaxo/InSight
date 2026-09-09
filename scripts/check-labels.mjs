@@ -43,9 +43,16 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "src");
+
+// The one place the reference pattern is written. The self-test at the
+// bottom asks THIS function, not a copy of it — a copy would go on passing
+// while the scan used something else, which is the whole failure mode
+// being closed.
+const refPattern = (attr, flags) => new RegExp(`(?<![\\w-])${attr}\\s*=`, flags);
 
 // Attributes whose value NAMES an element elsewhere in the document.
 // htmlFor holds exactly one id; the aria-* ones hold a space-separated list.
@@ -72,11 +79,6 @@ function walk(dir, out = []) {
 // a phantom one. profile-general.jsx has both — its Select comment says
 // "point at it with htmlFor" — so this is load-bearing, not defensive.
 // Newlines are preserved so reported line numbers stay true.
-function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
-}
 
 // Read one JSX attribute value starting at `from` (the index just past `=`).
 // Returns { raw, end } or null.
@@ -133,7 +135,7 @@ for (const file of walk(srcDir)) {
 
   // References: must resolve against the set above.
   for (const [attr, { list }] of Object.entries(REF_ATTRS)) {
-    const refRe = new RegExp(`(?<![\\w-])${attr}\\s*=`, "g");
+    const refRe = refPattern(attr, "g");
     while ((m = refRe.exec(src))) {
       const val = readAttrValue(src, m.index + m[0].length);
       if (!val) continue;
@@ -170,6 +172,59 @@ if (problems.length) {
     + "\n\nFix the pair, do not delete the reference — dropping htmlFor puts the"
     + "\nfinding back on check:a11y's ratchet, which is the same bug wearing a"
     + "\ndifferent hat.",
+  );
+  process.exit(1);
+}
+
+// A NON-EMPTY FLOOR on both halves, the shape check-deploy-targets.mjs
+// already uses ("found NO exported functions, which cannot be right").
+//
+// Without it this gate prints "OK — 0 id reference(s) across 0 files, all
+// resolve" and exits 0, which is the exact sentence a broken walk produces
+// and a reader skims past. Verified by mutation: stubbing readdirSync to []
+// left it at exit 0.
+//
+// BOTH halves, because they break separately. `fileCount` catches a walk
+// that found nothing; `refCount` catches a walk that is healthy while the
+// htmlFor/aria-* regexes are what stopped matching — and it is the second
+// one that is likely, since those patterns are the fiddly part. The
+// reference count is small (11 today) and only moves when someone edits an
+// association, so a floor of 1 is the honest bound: anything higher would
+// fail a legitimate refactor that nested a label instead, which is the
+// shape this gate exists to encourage.
+// …AND THE PATTERNS THEMSELVES, on a sample this file owns.
+//
+// The floor above cannot see one attribute going dark. Measured: disabling
+// the `htmlFor` scan alone drops the count from 11 references to 2 — every
+// pair D35 was about — and a floor of 1 passes happily. Raising the floor
+// is not the answer and the comment above says why: it would fail the
+// nested-label refactor this gate exists to encourage.
+//
+// So the floor stays a floor, and the SCANNER is tested instead — each
+// attribute's pattern against a fixture with a known answer, which
+// constrains the regexes without constraining the app. A pattern that
+// stops matching fails here even if the app has legitimately stopped
+// using that attribute.
+{
+  const SAMPLE = `<label htmlFor="a">x</label><b id="a"/>`
+    + `<i aria-labelledby="a b" aria-describedby="a" aria-controls="a"/>`;
+  const dead = Object.keys(REF_ATTRS).filter((attr) => !refPattern(attr).test(SAMPLE));
+  if (dead.length) {
+    console.error(
+      `check-labels FAILED: the pattern for ${dead.join(", ")} no longer matches `
+      + "its own sample.\nThe scan is broken — the count below would look healthy "
+      + "while that attribute went unchecked everywhere.",
+    );
+    process.exit(1);
+  }
+}
+
+if (fileCount < 40 || refCount < 1) {
+  console.error(
+    `check-labels FAILED: walked ${fileCount} files and found ${refCount} id `
+    + "reference(s), which cannot be right.\nFix this scan rather than letting "
+    + "it pass vacuously — a gate that reports OK on nothing is worse than no "
+    + "gate, because it is also an argument against looking.",
   );
   process.exit(1);
 }

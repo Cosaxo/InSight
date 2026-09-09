@@ -8,7 +8,10 @@
 // window.LIVE's pinned member surface stays untouched).
 //
 // What leaves the device, exactly: the start call (bare, authenticated),
-// and the submit call carrying twelve pick indexes. The server stores the
+// and the submit call carrying one pick index per item — 25 of them for a
+// generated form since D61, and this line said "twelve" long after that,
+// which is the v1/v2 count. Phrased against the form rather than as a
+// number, because `logic-gen.ts` owns it. The server stores the
 // scored result on the owner-only profile doc and folds the first scored
 // attempt per account into an anonymous score histogram. Per-item timings
 // never leave the device — the server records only the attempt duration it
@@ -18,6 +21,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 import { getDb } from "../../lib/firebase";
 import type { Cell } from "./logic-gen";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 export interface VerifiedItem {
   cells: Cell[];
@@ -35,6 +39,13 @@ export interface VerifiedScore {
   marks: boolean[];
   score: number;
   pctile: number;
+  /** the likely range round pctile — the score ± one standard error,
+   *  ranked the same way the score was (D402) */
+  band?: [number, number];
+  /** what the percentile IS: the modelled curve, or a measured rank among
+   *  `n` verified first attempts once the histogram clears the D60 floor */
+  source?: "model" | "measured";
+  n?: number;
   durationMs: number;
   /** disclosed only after scoring — no longer an answer key (D57) */
   seed: number;
@@ -44,13 +55,13 @@ export interface VerifiedScore {
 export async function startVerified(): Promise<VerifiedStart> {
   const db = await getDb();
   if (!getAuth(db.app).currentUser) throw new Error("still signing in — try again in a moment");
-  const res = await httpsCallable(getFunctions(db.app, "us-central1"), "logicStartV2")({});
+  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicStartV2")({});
   return res.data as VerifiedStart;
 }
 
 export async function submitVerified(picks: number[]): Promise<VerifiedScore> {
   const db = await getDb();
-  const res = await httpsCallable(getFunctions(db.app, "us-central1"), "logicSubmitV2")({ picks });
+  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicSubmitV2")({ picks });
   return res.data as VerifiedScore;
 }
 

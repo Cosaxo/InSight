@@ -118,13 +118,14 @@
 
   <span class="kicker">InSight · privacy</span>
   <h1>Privacy policy</h1>
-  <div class="updated">last updated 2026-08-16</div>
+  <div class="updated">last updated 2026-09-08</div>
 
   <p class="lead">
-    InSight asks you one question a day, shows you how everyone else
-    answered, and lets you play the same question against people you know.
-    This page is the long version of what that means for your data — what
-    is stored, who can read it, and how to get rid of all of it.
+    InSight asks you questions, shows you how everyone else answered once
+    you have answered blind, and lets you play the same question against
+    people you know. This page is the long version of what that means for
+    your data — what is stored, who can read it, and how to get rid of all
+    of it.
   </p>
 
   <p>
@@ -148,19 +149,57 @@
     been republished.
   </p>
 
-  <h2>You do not need an account</h2>
+  <h2 id="account">The account, and the three ways in</h2>
 
   <p>
-    The app works the moment you open it. It signs you in anonymously —
-    a random identifier, no email, no name, no phone number. You can use
-    InSight indefinitely without ever telling us who you are.
+    InSight asks you to sign in before you answer anything. Until
+    2026-09-07 it did not, and this section said so; the app changed
+    because an answer is only worth something if it belongs to a person,
+    and an account that dies with a handset — or that anyone can mint a
+    second of in one tap — cannot carry that.
   </p>
 
   <p>
-    Linking a Google account is optional, and it is an <em>upgrade</em>:
-    it keeps the same identifier and the same history, so your answers
-    survive losing your phone. We receive your Google account identifier
-    and nothing else from it.
+    There are three ways in, and you pick one:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Sign in with Apple.</strong> We receive the identifier Apple
+      issues for this app and an email address. If you choose Apple's
+      <em>Hide My Email</em>, that address is a relay Apple owns and your
+      real one never reaches us.
+    </li>
+    <li>
+      <strong>Continue with Google.</strong> We receive your Google account
+      identifier, and the email address and display name Google sends by
+      default.
+    </li>
+    <li>
+      <strong>Email and password.</strong> We receive the address you type.
+      <strong>The password goes to Firebase Authentication, which stores
+      it hashed; this app never sees it and never stores it.</strong>
+      Firebase sends a confirmation link to that address, and the app
+      stays behind its sign-in screen until you open it. The account
+      itself exists from the moment the password is accepted, before
+      anything has looked at the address: if it was mistyped, nothing you
+      do reaches this app, and signing out abandons that account rather
+      than deleting it. A reset link is sent the same way at your
+      request. Apple and Google hand us an address they have already
+      confirmed, so neither of those asks you to do this.
+    </li>
+  </ul>
+
+  <p>
+    The app still creates the session the moment you open it, and signing
+    in <em>attaches an identity to that same session</em> rather than
+    starting a new one — so anything you answered before signing in is
+    kept, with the same identifier behind it. Signing in to an account
+    that already exists is the one exception: two histories are not
+    merged, and the one you were building is left behind. With Apple or
+    Google the app says so on the screen before it happens. With an
+    email address it does not &mdash; signing in to an existing account
+    there takes effect immediately.
   </p>
 
   <h2>What is stored</h2>
@@ -180,8 +219,10 @@
       differently, and it is a game rule rather than a privacy promise: a
       group or 1v1 pick is sealed — readable by nobody but you, including
       us — until the day after, when a server process publishes that
-      day&rsquo;s picks to the people in that group. It is a hand of cards
-      played face-down, not a confidence.
+      day&rsquo;s picks. Once published they read like your other answers:
+      anyone signed in who has that circle&rsquo;s id can see them, not only
+      the people who played. It is a hand of cards played face-down, not a
+      confidence.
     </li>
     <li>
       <strong>A display name, if you set one.</strong> Shown beside every
@@ -217,7 +258,7 @@
       <br />
       Your city is either chosen from a fixed list of places, or — only if
       you tap &ldquo;use my location&rdquo; and allow it — worked out from a
-      single approximate location reading. That reading is matched to the
+      single location reading. That reading is matched to the
       nearest city <em>on your own device</em>, using a list of cities that
       ships inside the app. Your coordinates are not sent to us, not stored,
       and not written down anywhere. What is saved is the city name, exactly
@@ -231,12 +272,20 @@
       We never ask for your religion, health or ethnicity — there is no
       field for any of them anywhere in the app, and none is used in these
       groupings. Two things the law does treat as special categories do
-      exist here, and both are as public as everything else: your gender,
-      if you enter it, and your answers to the app&rsquo;s political
-      questions, along with the political profile the app builds out of
-      them. Those questions slice by city, age and education like every
-      other question. If you would rather that were not public, skip them
-      — passing on a card costs you nothing.
+      exist here. Your gender, if you enter it, is as public as everything
+      else. Political opinion is the other, and it is the one thing in this
+      app that waits for a separate yes.
+      <br />
+      <strong>The political compass is off until you turn it on.</strong>
+      The app can build a six-axis political profile out of the answers you
+      give to its political cards. It does not build one unless you say so
+      — we ask once, near the start, and the answer is yours to change at
+      any time in your account. While it is off, nothing political is
+      computed about you and nothing political is stored on your profile;
+      your answers to those cards still count in the public totals like
+      every other answer. Turn it off later and the compass is deleted from
+      your profile at once. What that cannot reach is a copy someone
+      already took while it was public. Nothing can.
     </li>
     <li>
       <strong>A personality type, once the feed has enough of your test
@@ -246,14 +295,28 @@
       than stored as a label, so it can change as you answer more — and
       for the same reason it applies to <em>everything</em> you have ever
       answered, including answers you gave before you had a type at all.
-      Your political, values and social results are never used to group
-      answers this way; only the Big Five is.
+      Today the groupings drawn this way are the Big Five type and —
+      separately, on the same screen — your verified logic score, in
+      four broad bands, if you have taken the logic test.
+    </li>
+    <li>
+      <strong>A count of people by type, on any of the four
+      tests.</strong> The Mirror can show how many of the people it has
+      seen in your city, your country or the world hold each type &mdash;
+      including each political, values and social type, not only the Big
+      Five. This is a count of <em>people</em>, not a grouping of anyone&rsquo;s
+      answers, and it is computed on your device from results that are
+      already readable to any signed-in user. It is a sample rather than a
+      census: the card states how many people it counted and where. If you
+      would rather not be counted in it, do not take that test &mdash; a
+      result you have not given cannot be typed.
     </li>
     <li>
       <strong>Anything you write.</strong> A &ldquo;take&rdquo; is a short
-      comment on a question, and it <em>carries your display name</em> —
-      to a group&rsquo;s members when posted there, and to everyone when
-      posted to the world, one per person per question. Anyone can report
+      comment on a question, and it <em>carries your display name</em>.
+      Anyone signed in can read it, wherever you posted it &mdash; a take
+      in a circle is not limited to that circle. One per question in the
+      world feed; as many as you like in a circle. Anyone can report
       a take and a moderator can remove it. There is no editing; you can
       delete your own.
     </li>
@@ -284,9 +347,12 @@
     </li>
     <li>
       <strong>A notification token, on phones.</strong> Only if you allow
-      notifications, and only used for the one notification this app
-      sends: your group's day has been revealed. It is stored where no
-      other user can read it.
+      notifications, and only used for the five notifications this app
+      sends: a round in your group or 1v1 has been revealed, it is your
+      turn in a group or 1v1, someone invited you to a
+      group, someone asked to join a group you are in, and a join request
+      of yours was approved. It is stored where no other user can
+      read it.
     </li>
     <li>
       <strong>Data on your device.</strong> A cache of the questions and
@@ -295,18 +361,58 @@
       backup is switched off for this app so it is not copied to your
       Google Drive.
     </li>
+    <li>
+      <strong>An interest profile, derived from your answers.</strong>
+      Each night we count which topics your feed answers fall into and
+      store the counts on your account &mdash; nothing more than that
+      arithmetic. The app uses it for one thing: fetching more fresh
+      questions in the topics you actually answer. Only you can read
+      your profile &mdash; it is never public, never shown to any other
+      user, and never used for advertising &mdash; and deleting your
+      account deletes it. It is built from your answers alone: what you
+      merely scrolled past or skipped stays on your device and is not
+      collected.
+    </li>
+    <li>
+      <strong>If you buy a question or an ad.</strong> A record of the contract is
+      kept on your account — what was asked, the place and window it was
+      bought for, the rate and the cap — and only you can read it. What a
+      buyer receives is the same public numbers everyone reads; there is
+      no private cut. The current prices are published in the app&rsquo;s
+      source and on the page where a question is bought, which quotes from
+      that same committed card; the rate itself is fixed when the question
+      is approved. A bought question may carry the buyer&rsquo;s own link:
+      it is shown only after you have answered, as the site&rsquo;s name,
+      and tapping it opens their site in your browser &mdash; we count
+      nothing, log no tap, and add nothing of yours to the address. The
+      public numbers of a bought question are also served as a web page
+      anyone can open, at an address the buyer can share: it shows the
+      counts, the audience they bought and the window, and never who
+      answered. Deleting your account deletes the record with it.
+      Submitted questions and ads are checked automatically — by our own
+      rules and by an AI reviewer (Anthropic&rsquo;s Claude) that reads only
+      what you typed into the ask — before any payment exists. Payment
+      itself runs on <strong>Stripe</strong>, on the web, as our payment
+      processor: Stripe receives your payment details and we never see
+      them; we keep only the booking, the payment&rsquo;s reference ids
+      and the refund owed if the window under-delivers, which is paid
+      back automatically when it closes.
+    </li>
   </ul>
 
   <h2>What we do not collect</h2>
 
   <p>
-    No coordinates. The app can ask your device for an approximate location
-    if — and only if — you tap &ldquo;use my location&rdquo;, but that
-    reading is turned into a city name on your device and then discarded. No
-    latitude or longitude is ever transmitted to us or stored, so the most
-    precise thing we could ever hold about where you are is the name of a
-    city — or, if you switch on the Near counter, the ~200-metre
-    square described above, which no other user can read. No location
+    No coordinates. The app asks your device for your location only if
+    &mdash; and only if &mdash; you tap &ldquo;use my location&rdquo;, and on a
+    phone that offers the choice it is you who decides how precise that
+    reading is. Either way the reading is turned into a city name on your
+    device and then discarded. No latitude or longitude is ever transmitted
+    to us or stored, so the most precise thing we could ever hold about
+    where you are is the name of a city &mdash; or, if you switch on the
+    Near counter, the ~200-metre square described above, which no other
+    user can read. If you choose the less precise option, the Near counter
+    says it cannot place you rather than guessing a square. No location
     history, no background location, and no working out where you are from
     your IP address.
   </p>
@@ -316,11 +422,10 @@
     single picture you choose, if you choose one: a profile photo is
     optional, off until you add it, and its embedded metadata (including
     any location the camera wrote into it) is stripped on your device
-    before it is uploaded. No advertising
-    identifiers. No third-party analytics or tracking of any kind — there
-    is no product analytics SDK in this app at all. We do not sell or
-    share data with advertisers, because we do not have the kind of data
-    an advertiser would want and do not intend to.
+    before it is uploaded. Today the app ships no advertising
+    identifiers and no third-party analytics SDK, and we do not sell or
+    share personal data with advertisers. If any of that changes, this
+    page changes first.
   </p>
 
   <h2>How the public counts work</h2>
@@ -335,11 +440,81 @@
   </p>
 
   <p>
+    If you change an answer where editing is allowed, the tallies move
+    with you — and the question&rsquo;s public aggregate also counts the
+    change itself, as moves from one option to another. It counts moves,
+    not people, and carries no names: what it adds is the shape of
+    second thoughts on that question.
+  </p>
+
+  <p>
+    We sell reports packaged from these public numbers — a buyer gets
+    the counts, the cuts and the same who-voted list anyone signed in
+    can already read, compiled into a document. A report&rsquo;s cuts
+    include answers grouped by vote-time cohort, by verified logic band,
+    and by each test&rsquo;s matched type and axis bands — the political,
+    values and social results included — all computed from results that
+    are already readable to any signed-in user. A report never contains
+    anything a signed-in user could not read in the app themselves.
+  </p>
+
+  <p>
     There used to be a threshold here, below which a count was withheld,
     and there no longer is one. It was removed on 2026-08-11 along with
     the rest of the model it belonged to — it cannot protect an answer
     that is itself readable, and it was blanking most of what the app
     exists to show.
+  </p>
+
+  <p>
+    The same stored answers also give us our own daily headcount. Each
+    night a server job folds the day&rsquo;s answering into one small
+    public summary — how many people answered, how many were answering
+    for the first time, how many came back, and how the answers split
+    across the app&rsquo;s question types. The summary is counts,
+    computed without your identity in it: it never contains a user id, a
+    display name or a profile detail, and no per-person usage profile is
+    built from it. To count returning people, the job also keeps one
+    private pair of dates per account — the first and most recent day you answered —
+    which no user, you included, can read, and which is deleted with your
+    account.
+  </p>
+
+  <p>
+    Beyond answers, the app sends one small usage tally a day — and it is
+    built not to know who it came from. Once a day is over, your device
+    may send a single summary of which parts of the app it used that day
+    &mdash; the feed, the mirror, a lens, a reveal &mdash; as coarse
+    brackets (&ldquo;1&ndash;2 times&rdquo;, &ldquo;3&ndash;5
+    times&rdquo;), under a fresh random label each day. The tally carries
+    no account, no name and no device id, so it cannot be linked back to
+    you &mdash; or even to your own phone across two days. The tally can
+    include which questions were shown, answered or skipped that day
+    &mdash; in the same coarse brackets, on the same unlinkable label, so
+    what it produces is counts about a question, never a list of what you
+    looked at: nobody can learn that <em>you</em> skipped anything. Each
+    night the raw tallies are added
+    into the same public daily summary and deleted after that nightly
+    fold. Some days your device sends nothing at all: tallies are
+    sampled. There is still no analytics SDK in the app, no advertising
+    identifier, and no usage data shared with anyone (see &ldquo;What we
+    do not collect&rdquo;).
+  </p>
+
+  <p>
+    Separately, your device keeps one small usage note per day under your
+    own account &mdash; how many times you opened the app, roughly how
+    long it was on screen (as a bracket, never minutes), how many
+    sessions passed without answering, and which parts of the day you
+    tend to use it. It exists so the app can notice, in aggregate, when
+    people are drifting away. Three things hold it in check: it never
+    contains a question &mdash; not one id of anything you looked at, and
+    the rules of the database refuse the field outright; no user can read
+    it, you included &mdash; it is measurement, not a profile screen, and
+    what is published from it is only counts of people; and each note
+    deletes itself 90 days after its day, so the account-linked trail is
+    a rolling window, erased entirely &mdash; and immediately &mdash;
+    when you delete your account.
   </p>
 
   <h2>Who can see what</h2>
@@ -356,11 +531,14 @@
     </li>
     <li>
       <strong>Your duel picks:</strong> nobody until the next day&rsquo;s
-      reveal, then the members of that group.
+      reveal, then anyone signed in who has that circle&rsquo;s id.
     </li>
     <li>
-      <strong>Your world takes:</strong> everyone, under your display
-      name. Your group takes: that group, under your display name.
+      <strong>Your interest profile:</strong> only you.
+    </li>
+    <li>
+      <strong>Your world takes and your group takes:</strong> everyone
+      signed in, under your display name.
     </li>
     <li>
       <strong>Your presence square, your notification token, and the fact
@@ -371,8 +549,7 @@
       you, so that reporting cannot be retaliated against.
     </li>
     <li>
-      <strong>Your crash reports:</strong> us, through Sentry, unless you
-      switch them off.
+      <strong>Your crash reports:</strong> us, through Sentry.
     </li>
   </ul>
 
@@ -392,14 +569,15 @@
     Google Cloud infrastructure under Google's terms as our processor.
   </p>
 
-  <h3>Sentry — crash reports, on by default</h3>
+  <h3>Sentry — crash reports</h3>
   <p>
-    Crash reporting is <strong>on by default, and you can switch it off at
-    any time</strong> in the app's privacy panel. While it is on, an error
-    report carries your anonymous account identifier and technical details
-    of the failure — never your email, your name, or a recording of your
-    screen. Note that deleting your account does not remove reports already
-    sent to Sentry; those age out on Sentry's retention schedule.
+    Crash reporting is <strong>on</strong>; there is no in-app switch. (If
+    you turned it off in an older version of the app, that choice is still
+    honoured on this device.) An error report carries your anonymous
+    account identifier and technical details of the failure — never your
+    email, your name, or a recording of your screen. Note that deleting
+    your account does not remove reports already sent to Sentry; those age
+    out on Sentry's retention schedule.
   </p>
 
   <h2>Deleting everything</h2>
@@ -417,16 +595,30 @@
   <p>
     Two things intentionally survive, and neither can identify you: the
     anonymous aggregate counts your answers contributed to (there is no
-    per-person attribution in them to unwind), and — unless you had switched
-    crash reporting off — any error reports already sent, until they age out.
+    per-person attribution in them to unwind), and any error reports
+    already sent, until they age out.
+  </p>
+
+  <p>
+    If you no longer have the app installed, the
+    <a href="delete-account.html">account deletion page</a> carries the
+    same list and a route that does not need the button.
   </p>
 
   <h2>Children</h2>
 
   <p>
     InSight is not directed at children under 13, and we do not knowingly
-    collect data from them. There is little to collect: no account is
-    required and no personal details are requested.
+    collect data from them. Until 2026-09-07 this section said there was
+    little to collect because the app asked for nothing; that stopped
+    being true when signing in became a requirement, and the sentence was
+    removed rather than softened. What signing in hands over is set out
+    under <a href="#account">The account, and the three ways in</a>: an
+    identifier, an email address, the display name Google sends if you
+    use that door, and nothing else that identifies you.
+    If you believe a child under 13 has created an account, write to
+    <a href="mailto:olaftaule01@gmail.com">olaftaule01@gmail.com</a> and it
+    will be deleted.
   </p>
 
   <h2>Security</h2>

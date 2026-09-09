@@ -1,7 +1,9 @@
 // Does every exported Cloud Function appear in the deploy workflow's
 // --only list?
 //
-// That list names 17 functions by hand. A function added to
+// That list names every deployed function by hand — no count here on
+// purpose, because the list grows and a number written beside it goes
+// stale the same way the list itself would. A function added to
 // functions/src/index.ts but not to the string is built, passes every
 // test, goes green — and is never deployed. Same silent shape as
 // storage.rules being configured and deployed by nothing.
@@ -71,13 +73,32 @@ if (!exported.length) {
 }
 
 const workflow = readFileSync(resolve(root, WORKFLOW), "utf8");
-const only = workflow.match(/--only\s+"([^"]*functions:[^"]*)"/);
-if (!only) {
+// COMMENTS OFF FIRST, and every match rather than the first.
+//
+// Two bugs, one shape. This read the file raw and took `.match`, which is
+// the LEFTMOST occurrence — so a `# e.g. --only "functions:…"` line above
+// the step answered for the step, and the live list could be truncated to
+// two names with the gate printing "42 exported functions, all present in
+// --only". Commenting the deploy step out entirely did the same. Measured
+// both ways before this line changed.
+//
+// The `--force` rule at the bottom of this same file already strips
+// comments and says why — "a scanner that reads its own explanation as the
+// thing it forbids is worse than no scanner". Only one of the file's two
+// halves had the fix; this is the other half.
+//
+// Every `--only` is unioned because the deploy is allowed to be split
+// across steps, which is exactly what the --force rule below exists to
+// police: reading one of them would make the gate depend on which step
+// happens to come first.
+const liveWorkflow = workflow.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+const onlyLists = [...liveWorkflow.matchAll(/--only\s+"([^"]*functions:[^"]*)"/g)];
+if (!onlyLists.length) {
   console.error(`check-deploy-targets: no --only list found in ${WORKFLOW}`);
   process.exit(1);
 }
 const deployed = new Set(
-  [...only[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]),
+  onlyLists.flatMap((o) => [...o[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1])),
 );
 
 // …and no deploy may combine --force with a firestore target.
@@ -86,11 +107,15 @@ const deployed = new Set(
 // `shouldDeleteIndexes = options.force` and `shouldDeleteFields =
 // options.force` (lib/firestore/api.js), so `--force --only
 // "firestore:indexes,functions:…"` deletes every index and field override
-// the live project holds that firestore.indexes.json does not name — and
-// that file names exactly one index (the v2_takes list composite, D65).
-// The two the repo asks an operator to create by hand (the v2_agg_events
-// TTL of LAUNCH-RUNBOOK §5.1, and the composite index v2social.ts names
-// for the duel scan) are exactly the shape it removes.
+// the live project holds that firestore.indexes.json does not name. The
+// two the repo asks an operator to create by hand (the v2_agg_events TTL
+// of LAUNCH-RUNBOOK §5.1, and the composite index v2social.ts names for
+// the duel scan) are exactly the shape it removes.
+//
+// This paragraph used to add "and that file names exactly one index (the
+// v2_takes list composite, D65)". It has named more than one for a while —
+// indexes.test.ts is the live account of which query shapes resolve
+// against it — and the argument never rested on the count.
 //
 // The flag is still needed for retry-enabled triggers, hence a split rather
 // than a ban: --force on the functions-only step, no --force on the

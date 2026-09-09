@@ -13,6 +13,15 @@ The source is the maintainer's `InSight_standalone_28.html`, extracted to
 README is the inventory (every module, every patch, how the extraction was
 done). This file is the plan.
 
+**The prototype moved on 2026-08-19 and that directory was re-extracted
+against it.** The thesis did not move — still three tabs, same roster of
+Mirror stops — so nothing below is reopened, and the verdicts in §0 stand.
+Three things in this file are now *narrower or wider* than the build they
+describe, and §0.1 is the list. Read it before picking an item up; the
+inventory in `design/standalone-v28/README.md` is the current state, this
+file's section bodies still describe the August-15 build except where §0.1
+says otherwise.
+
 ## What has been decided
 
 | Record | Item | Answer |
@@ -47,21 +56,41 @@ what is actually left is much smaller than the diff suggested.
 
 | Item | Verdict | Backend half (D167) | The constraint that shapes it |
 | --- | --- | --- | --- |
-| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D166 §1) | none of its own — it is a shell | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. |
+| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D166 §1) · unmounted for v1 (D217) · **back on a data gate** (D265) | none of its own as a shell — but the GATE has one: the fit publishes its drawable-pool count onto `v2_meta/app` | The tab count is the app's thesis sentence — `CLAUDE.md` opened with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. The third tab is now in the bar only when the data can carry it, which is the same sentence one condition further in. |
 | **Patterns · Map** (questions placed by mutual prediction) | **Build — but the engine is a backend item** | **the item IS the backend**: a fold publishing per-question loading vectors | The prototype invents 560 people. A real map needs cross-question co-occurrence, which no aggregate publishes today. |
 | **Patterns · Oracle** (guess your next answer) | **Build, second** | rides Map's publication — no second fold | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. Distinct from [D163](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)'s interest model: that one orders the tail and never leaves the phone; this one guesses an answer from a published fold and shows its working. |
-| **Pulse: one → five, with cadence** | **Approved — all five** (D166 §3) | extend D139: per-day docs × 5 pulses, + cadence | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
-| **Pulses take their turn in the feed** | **Build, with the above** | none — a client interleave rule | The interleave is a feed-lane change; `feed-interleave.ts` already owns exactly this kind of cadence rule. |
-| **Foresight CALL + its feed cards** | **Tier A only** | a resolver that grades a call on our own aggregates | D127 is unchanged by v28: the blocker is resolution integrity, not design. Tier A self-resolves on our own aggregates and is buildable now. |
+| **Pulse: one → five, with cadence** | **BUILT (D203)** | done — and it needed no rules or function change at all; `isPulseAnswer` already keyed on the payload's `baseQid` and the trigger on `event.params.qid` | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
+| **Pulses take their turn in the feed** | **BUILT (D203)** | none — a client cadence rule | Not via `feed-interleave` in the end: a pulse is not dealt into the stream at a cadence measured in CARDS, it is due or not due on a given DAY. `dueToday()` decides, and the due cards sit beside the daily. |
+| **Foresight CALL + its feed cards** | **BUILT (D194), RETIRED (D196)** | shipped: `resolveCallsV2`, then switched off | D127 is unchanged. Tier A works and is not what was wanted: the owner wants predictions about real EVENTS, so the bank is `active: false` and the card is unmounted. What ships in the feed instead is the READ half (D196), gated on having enough fair reads to keep a record worth believing. |
 | **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | none — blocked on bytes, not data | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
 | **Born or built** (heritability rows on the result card) | **REFUSED** (D168) | n/a — and that is the reason it is refused | Population science, not this app's data. Every other number here is recomputable from what people answered; a heritability figure is the app asserting a fact about the world, which D127 already gates. |
 | **What moves together** (cross-test threads on the profile) | **Build** | **none — already real** (folds your own results) | Pure fold over `IS_TEST_RESULTS`; no new reads, no new collection. The cheapest real feature in the file. |
-| **Type-mix system switch** (all four instruments) | **Build** | **none — already real** (test results publish, D98) | D141 shipped the card; this is one control and a persisted key. Does **not** touch D8 — it switches which *result* is charted, not which dim cohorts. |
+| **Type-mix system switch** (all four instruments) | **BUILT (D202)** — and it needed an owner decision this row did not know about | **none — already real** (test results publish, D98) | D141 shipped the card; this was one control and a persisted key. "Does not touch D8" was true and beside the point: **D157 §4** was the binding constraint, and D202 reversed it. See §8. |
 | **The sponsored frame** | **Unchanged: waiting on the paid path** | the paid path itself — now shaped by [D164](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | `paid-data.js` is byte-identical to v24. D164 (landed on main) re-derived the revenue paths against an unbounded feed: scheduled slots not impressions, billed on answers. The card's disclosure design is unaffected — what changed is what it discloses. |
 | **The visual corrections** (nine small ones) | **Build as one pass** | **none — pure visuals** | No decisions in any of them. Best done in a single commit against the patches. |
 | **The tweak teardown** (19 flags settled) | **Adopt as the record** | **none — deletions** | The prototype deleting a flag *is* the decision. The app's cost is dead-branch removal, which is what rule 4 and the compiler want anyway. |
 | **The Arena** | **Dropped for now** (D166 §2) | n/a | 103 lines of CSS for a card that is not in the bundle. Verified orphaned; the owner confirms it was dropped, not lost. The file stays as the record. |
 | ~~Feed windowing, dial/field + breakdowns, compare rose, Near anonymity + switch, Explore deviation, suggestion declines~~ | ~~build~~ **already shipped** | — | Checked file by file; see §6. |
+
+## 0.1 · What the 2026-08-19 build changed about this plan
+
+Re-extracted against the same v18 baseline. Fourteen of the twenty-two
+patches were stale and four modules are new; the full delta is
+`design/standalone-v28/README.md` § "What the later build changed". Only
+these four items change what *this* file tells you to do.
+
+| What | Effect on the plan |
+| --- | --- |
+| **Roles is a new item with no section here** (`role-data.js`, `roles-panel.jsx`) | The August-15 build had no such module, so nothing below plans it. It reads the duel record as an instrument — four dimensions per setting, matched to a named type, registered into the existing test machinery so a role card *is* a result card — and adds a seventh profile subtab. It needs an owner decision before it can ship, like every other item here; see §14. |
+| **The `result-card.jsx` patch is no longer purely the refused section** | §9 and the snapshot README both said the whole patch is Born-or-built and should be dropped whole. That is now wrong: 46 of 69 added lines are the refused section (two hunks), and 23 are an unrelated compact-card `brief` mode. **D168 is unchanged** — but "drop the patch" has to become "drop those two hunks". |
+| **Near stops stating distance at all** | §7's small pass recorded coarse distance bands for anonymous kindred. The later build removes them outright — *"knowing how close a stranger is, is itself a leak"* — and reads alignment as size instead. This is strictly tighter than what was planned, runs the same direction as the presence cell's deny in `firestore.rules`, and costs nothing to honour. |
+| **`g-fore` is renamed Foresight → "Intuition"** | §4/§5 name the map branch "Foresight". The later build calls it Intuition and notes it as "how well you read groups of people" — which is the READ half, and READ is the half that shipped (D196) after CALL was retired. The rename agrees with where the app landed; take it with the branch. |
+
+**What did not move**, checked file by file rather than assumed: the pulse
+roster and its card (§3), the type-mix switch (§8), the trait web (§7.9),
+`question-map.js` (§2's engine), `predict-cards.jsx`, `nature-data.js` and
+the Crossroads pair are byte-identical to the August-15 extraction. Every
+verdict in §0 stands as written.
 
 ## 1 · The structural change: two tabs become three
 
@@ -79,7 +108,11 @@ small (a `TABS` entry, a glyph, an accent, a lazy chunk). Adopting it
 means rewriting that opening paragraph and re-reading D99/D100/D112/D136
 for anything that leaned on "two".
 
-**ADOPTED ON TRIAL (D166 §1).** Build it as though it ships; keep the
+**ADOPTED ON TRIAL (D166 §1)**, unmounted for the v1 release (D217), and
+mounted on a data gate since D265 — the trial is resumed rather than
+verdicted, and the near-end exit below is a REQUEST now: `goNav` answers
+whether it navigated, and the ruler springs back while the gate is shut.
+Build it as though it ships; keep the
 reversal cheap. Three things follow, and they are the whole cost of the
 trial clause:
 
@@ -196,7 +229,7 @@ Cost notes to settle before building, not after:
   the duel reveal, and it belongs in a test the way `surface` pins the
   duel seal.
 
-## 3 · Pulse: one question becomes five, each with a rhythm
+## 3 · Pulse: one question becomes five, each with a rhythm — **BUILT (D203)**
 
 `pulse-data.js` drifted hard past v24. Five pulses — mood · energy ·
 sleep · focus · social — each carrying its own **cadence**: daily · often
@@ -221,6 +254,17 @@ decoration:** a day nobody answered is absent, never zero-filled, never
 bridged; a thin day keeps its count and is listed, not positioned; a day
 the pulse was not scheduled is absent too; no smoothing anywhere. v28 adds
 the fourth clause; the other three are already pinned in `data/pulse.ts`.
+
+**BUILT at [D203](DECISIONS.md#d203--five-pulses-each-with-its-own-rhythm).**
+Three things this section did not anticipate, all recorded there: the
+roster made the reads *cheaper* rather than five times dearer (the card
+needs today, not the window — a naive ×5 would have been 105 ids over a
+30-clause cap); it surfaced two shipped defects the roster would have
+multiplied by five (a template read `hydrate()` had already paid for, and
+an `active` flag that never reached the client, so a killed pulse still
+drew a tappable card); and `worldAnswers` did **not** move, because the
+default cadences ask ~1.29 answers a day against the 1 the model already
+assumes — the ceiling is recorded next to the assumption instead.
 
 **APPROVED — all five, sleep and energy included (D166 §3).** The question
 raised here was that `NEXT-FUNCTIONALITY.md` §"Mood as the first pulse
@@ -253,13 +297,20 @@ one number in the app a reader cannot recompute. v28's clock, its cards
 and its map branch are the *presentation* of a mechanism whose admission
 criteria are already written in `docs/FORESIGHT-CALLS.md`.
 
-The buildable slice, unchanged from NEXT-FUNCTIONALITY §"Predictions":
+The buildable slice, unchanged from NEXT-FUNCTIONALITY §"Predictions" —
+and **shipped at [D194](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute)**:
 
-- **Tier A calls** — self-resolving on our own published aggregates
-  ("will tomorrow's daily split pass 60/40?"). Graded by arithmetic, no
-  operator, no external source. `predict-cards.jsx` is the card for them.
+- **Tier A calls** — self-resolving on our own published aggregates.
+  Graded by arithmetic, no operator, no external source. `predict-cards.jsx`
+  was the card; the live one is `ui/LiveCallCard.tsx`, pinned at the feed
+  head, and it publishes the working: the counts the grade was made from,
+  and whether the device re-running the same test on them agrees.
 - **Tier B** waits on an executable rubric and VOID as a first-class
-  outcome. v28 gives it no new argument.
+  outcome. v28 gives it no new argument, and D194 gives it no code —
+  `rubricFault` refuses `kind: "fetch"` by name.
+- **The clock is not ported.** Ten seconds is the game's pressure; it needs
+  `predict-cards.jsx`'s IntersectionObserver arming, and it is a mechanic
+  rather than data.
 
 The map branch (`map-fore-card.jsx`, `map-groups.js`'s `g-fore`) is
 blocked on the same budget as Crossroads — see §5.
@@ -317,6 +368,35 @@ Checked file by file at extraction time:
 
 ## 7 · The small pass — nine corrections, no decisions
 
+**Measured against the tree 2026-08-19, and it is half-shipped.** The
+verdicts below stand; what changed is that four of the nine are done or
+partly done, and the plan did not say so. This is §6's job arriving late —
+so the state is recorded here per item rather than left for the next
+person to re-derive by patch-reading. **Two were already better in the
+tree than in the patch**, which is the more useful half of the finding: a
+patch is a proposal, and porting one blind would have regressed both.
+
+| # | State | What is actually there |
+| --- | --- | --- |
+| 1 group-daily sealed avatars | **open** | still `opacity: dim ? 0.28 : 1` (`group-daily.jsx:71`) |
+| 2 duo-daily redaction bars | **open** | still one solid block (`duo-daily.jsx:250`), carrying its own note that the block replaced a blur |
+| 3 person-mindmap `MTSwipeRow` + serif title | **open** | zero `MTSwipeRow` uses there against five in `map-bottom-card.jsx`; `mmt-title-serif` still on the node title |
+| 4 `daily-split` drag guard | **DONE, and not from this patch** | the tree shares `OWNS_X` with `swipe-back.js` on both the touch and wheel paths. It deliberately does **not** skip `svg`, and says why: the cards draw roses and day dots in svg, and the axis swipe has to keep working across them. The patch's `SKIP` includes `svg, canvas`, so porting it would have killed the swipe on every card |
+| 5 relmap serif headings | **DONE** | both `SANS` and `SERIF` in `relmap.jsx` are already `'Hanken Grotesk', sans-serif`; the `SERIF` name is vestigial |
+| 6 `WPAL.ink` coverage | **two-thirds done** | `group-mirror.jsx:35` and `group-daily.jsx:48,70` route through it; `person-overlay.jsx:122–125,174` still hold raw `oklch(0.5x …)` |
+| 7 `.rule-dashed` deleted | **DONE 2026-08-19** | and it was **one** live site, not two. The class was a byte-for-byte duplicate of `.rule` — same height, background, border and margin, nothing dashed about it — so switching the one `<hr>` and deleting the rule is a provable no-op, which is why it shipped while the rest of this list did not |
+| 8 passive-meter "profile" label | **open** | `passive-meter.jsx:115` |
+| 9 mirror-field-pops type chips | **open** | no chips on field rows, and note the item has **no hunk** in `mirror-field-pops.jsx.patch` — its source is the new build, not the patch set |
+
+**The seven still open are visual judgement, and that is why they are
+still open.** Each changes what a person sees, none has a test that
+asserts what it should look like, and the tree cannot render the
+prototype to compare against — `scripts/style-diff.mjs` is the tool for
+that and it needs Playwright and a running app (D189). Shipping them from
+a patch file without seeing either result is the blind change this repo's
+house style refuses; do them at a screen, in one commit, against the
+patches.
+
 Best done as one commit against `design/standalone-v28/changes/`:
 
 1. **`group-daily.jsx`** — no half-washed avatars. A row of dimmed discs
@@ -342,18 +422,44 @@ Best done as one commit against `design/standalone-v28/changes/`:
 8. **`passive-meter.jsx`** — the redundant "profile" label goes.
 9. **`mirror-field-pops.jsx`** — type chips on field rows (needs §8).
 
-## 8 · Type-mix — one control
+## 8 · Type-mix — one control — **BUILT (D202)**
 
-The card gains a **system switch**: all four instruments, not just the
-default test, persisted to `insight.typemix.sys`. D141 shipped the card;
-this is a control, a key and a longer label column (politics type names
-run long).
+The card gained a **system switch**: all four instruments, not just the
+default test, persisted to `insight.typeMixSys.v1` (the plan's
+`insight.typemix.sys` was off the tree's `insight.<camelCase>.vN`
+convention on two counts). D141 shipped the card; this was a control, a
+key and a longer label column — 142px for politics and values, whose type
+names run to 24 characters against the Big Five's 17.
 
-**It does not touch D8.** D8 forbids a test result being a *breakdown
-dim* — the thing cohorts are cut by. This switches which result is being
-charted for an already-chosen population. Worth saying in the record when
-it ships, because the two read similarly at a glance and the distinction
-is the whole of D8.
+**This section had the constraint wrong, and the error is worth keeping.**
+
+> ~~**It does not touch D8.** D8 forbids a test result being a *breakdown
+> dim* — the thing cohorts are cut by. This switches which result is being
+> charted for an already-chosen population.~~
+
+Every word of that is true. It is also beside the point: **D8 was never
+what stood in the way.** [D157 §4](DECISIONS.md#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+was — it refused this exact reading for these exact instruments, named
+`TypeMixCard`'s own number as the thing it was refusing, and noted the
+widening was "one parameter" away before declining it anyway. Clearing D8
+and shipping would have been clearing a constraint nobody was blocked on.
+
+The owner reversed D157 §4 ([D202](DECISIONS.md#d202--the-type-mix-reads-every-instrument-and-d157-4-is-reversed)),
+which is a decision this file could recommend but not take. What shipped
+with it, none of which was in this section's plan:
+
+- `web/privacy.html` gains a bullet **describing** the new reading rather
+  than losing the old denial, and `check:policy-claims` pins two rows —
+  the new claim and the surviving one.
+- **The promise that survived got an owner.** Answers still group by the
+  Big Five alone; that was enforced by `typeMix.TYPE_TEST`, the constant
+  D202 demotes to a default, so the scope moved to
+  `data/typeSplit.SPLIT_TEST` — explicit at every call site, with its own
+  cases.
+- **It could not be a port.** The prototype derives its non-Big-Five mixes
+  from authored shares with a per-population wobble; D167 forbids it, so
+  the live fold measures, and the thin/small states are recomputed per
+  instrument because coverage differs by instrument.
 
 ## 9 · Born or built — REFUSED (D168)
 
@@ -389,11 +495,21 @@ result is read as a claim about you. `nature-data.js`'s own header says
 every surface showing it must keep the population framing — and the result
 card is the worst place in the app to try.
 
-**Clean removal, verified:** `window.NATURE` is consumed by
-`result-card.jsx` and nothing else, and all 37 added lines of the v28
-`result-card.jsx` patch are this section. No orphaned store, no
-half-applied patch. Both files stay in `design/standalone-v28/`, marked
-refused, so the idea is not re-proposed as new.
+**Clean removal, verified — but no longer a clean *file*.** `window.NATURE`
+is still consumed by `result-card.jsx` and nothing else, so dropping the
+section leaves no orphaned store. What changed on 2026-08-19 is the patch
+around it: it was +37/−0 and entirely this section, which made *"drop the
+whole patch"* both true and safe. It is now +69/−19 across eight hunks, and
+only two of them are Born-or-built — `@@ -157,10 +157,38 @@` (`NatureRows`,
++29) and `@@ -264,6 +297,23 @@` (the section render, +17). The other six are
+a compact `brief` result-card mode that nothing has refused.
+
+**So the instruction narrows: drop those two hunks, not the file.** Applying
+the patch whole ships a refused surface; skipping it whole silently drops an
+unrelated design change. Neither is what D168 decided.
+
+Both files stay in `design/standalone-v28/`, marked refused, so the idea is
+not re-proposed as new.
 
 **What this does not refuse:** the four instruments' own results (computed
 here from your answers), or authored content generally — question banks,
@@ -420,6 +536,40 @@ conditional. Removing them lowers the coupling count, deletes branches
 the React Compiler currently has to reason about, and shortens the two
 biggest files in the spec layer. Do it as its own commit, after §7, so
 the diff is legible as "deletions only".
+
+**Measured 2026-08-19, and that paragraph is wrong in every clause it
+makes about cost.** `world-feed.jsx` references **none** of these keys.
+Every flag lives in `app-shell.jsx` alone, except three that reach exactly
+one other file each — `markStyle` → `type-marks.jsx`, `lensBoxed` →
+`profile-overlay.jsx`, `feedHier` → `daily-split.jsx`. They are locals and
+props, not shared globals, so rule 4 does not count them and removing them
+lowers the coupling number by **zero**. (Measuring that claim is what
+turned up [D210](DECISIONS.md#d210--rule-5-could-not-fire-and-123-dead-publications-were-behind-it),
+which is the one real thing in this section's vicinity.)
+
+**And the outcome is already shipped.** Every winner listed above is
+already the tree's default: `navMode: "ruler"`, `dockRuler: true`,
+`markStyle: "slice"`, `wpal: "full"`, `lensStyle: "underline"`,
+`quietGround: true`, `feedHier: true`, `mirrorLensTop: false`,
+`lensBoxed: false`. `mirrorFirstRun` is **gone** already — `app-shell.jsx`
+drives the sparse Mirror off the real signal (`FEEDREAD.stats().n < 8`)
+instead, with a note saying the tweak that used to do it is retired. And
+the ten `wf*` feed flags never existed here: `TWEAK_DEFAULTS` says so in
+its own comment, and the `wf*` names in `world-feed.jsx` are helper
+functions, not flags. So the app already **behaves** as this section asks.
+
+**What is actually left is a decision, not engineering, and it goes the
+other way from the rest of this file.** The remaining alternatives —
+`'pill'`/`'bar'` navs, `'ring'`/`'dots'` marks, `'family'`/`'one'`
+palettes — are three `TweakRadio` rows and three branches in
+`app-shell.jsx`, and the tree keeps them **on purpose**: *"the alternatives
+exist so the three navs and the two palettes can still be judged against
+each other, which is what the standalone keeps them for."* §10's verdict
+("adopt as the record") would delete the owner's comparison, and unlike
+every other item here it is not one of the five that graduated at D166–D168
+— so it is a verdict still awaiting adoption, buying no ratchet movement
+and costing a tool. **Do not do it as a cleanup.** If the owner is done
+comparing navs, that is one sentence and then it is three minutes' work.
 
 ## 11 · Sequencing
 
@@ -506,11 +656,11 @@ reason it is now refused: nothing in the app produces that number. See
   absence case. **The cost line moves and belongs in `docs/COSTS.md`
   before the roster ships** — five pulses is five times the per-day docs,
   and the existing note was written for one.
-- **Foresight tier A (§4).** The READ half is live (D126). CALL needs a
-  resolver that grades a sealed call against our own published aggregates
-  — no operator, no external source, which is exactly the tier D127
-  admits. The scheduled-function pattern exists three times already
-  (`moderation.ts`, `v2social.ts`, `velocity.ts`).
+- ~~**Foresight tier A (§4).**~~ **DONE (D194).** `resolveCallsV2` is the
+  fourth scheduled function, in the pattern the three named here set. What
+  the plan did not anticipate is the second half of the honesty story: the
+  grade's INPUTS publish with it and the card re-runs them, so a resolved
+  call keeps the property every other number in the app has.
 
 ### The backend IS the item
 
@@ -558,3 +708,33 @@ Named so the rule is not read as sweeping them in:
 - **The suggestion board's community half**, still *"Preview · sample
   suggestions"*. A real backlog item, but it belongs to the suggestions
   work (D138), not to v28.
+
+## 14 · Roles — the item this plan never had a section for
+
+**BUILT ([D204](DECISIONS.md#d204--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped).)**
+
+`role-data.js` and `roles-panel.jsx` are new to the 2026-08-19 prototype.
+The August-15 build had no such module, which is why every other section
+here predates them and why §0.1 flags Roles as the one item with no plan
+entry.
+
+**What it is.** Your role in a 1v1 and your role in a group, each read as
+an instrument and matched to a named type the way every other test is — so
+a role card is a result card, with the same rose, the same matcher and the
+same nearby-type language. A seventh profile subtab.
+
+**Why it was cheap.** Pure fold over `LIVE.social.revealHistory`, the same
+reveal documents `duelRuns` (D156) and `groupPortrait` already read and the
+duel panel already fetches. No new read, no field, no collection, no
+function — the same "real on arrival" class as the trait web in §13, and it
+would have belonged in that table had it existed on August 15.
+
+**Why it is not the prototype's instrument.** The prototype's group
+reading has a fourth dimension, `cast`, whose only source is a demo-only
+scenario generator. Shipping it would have meant a constant equal to its
+own baseline: no contribution to any match, an identical petal on every
+rose, and a dead axis presented as a measurement — which is what §13's own
+D167 paragraph forbids. It is not computed, and the three group types that
+`cast` alone made distinct went with it. D204 has the arithmetic, including
+what a real `cast` would need (pick questions can ground it; the reveal doc
+does not store the option→uid mapping they would need to be read safely).

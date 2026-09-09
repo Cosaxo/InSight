@@ -20,6 +20,15 @@
 //   5. the mirror of rule 1: a publication nothing reads. That is what a
 //      half-finished conversion leaves behind, and 17 of them had piled
 //      up by D137 because no rule was asking and rule 4 counts reads.
+//   8. an import binding a spec module never uses. `no-unused-vars` is
+//      off for this layer and rightly so, but its reason is about
+//      DECLARATIONS: an import cannot be a publication. 33 dead React
+//      imports and six named bindings were behind that off.
+//   7. a spec module whose components nothing can REACH — neither
+//      exported nor published, so no import and no JSX tag can resolve
+//      them. Rule 5 asks whether a publication has a reader; this asks
+//      whether there is a publication at all. Two files sat inert from
+//      the port until it was added.
 //
 // Rules 1-3 keep the convention SURVIVABLE and rule 5 keeps it HONEST —
 // what is on the bridge is what is still crossing it. Rule 4 is the one
@@ -133,8 +142,45 @@ for (const [name, why] of Object.entries(PUBLISHED_FOR_OUTSIDE)) {
   }
 }
 
+// RULE 5 ASKS A BROADER QUESTION THAN RULE 1, and it has to.
+//
+// `referenced` holds `window.X` reads and JSX tags — the two shapes rule 1
+// and rule 3 need. But the convention's third shape is a BARE CROSS-MODULE
+// CALL (`mfLayout(…)` in a file that never imported it, resolving through
+// global scope at render time), and that is a real consumer this scanner
+// cannot see. Asking rule 5 "is it in `referenced`?" would therefore report
+// live wiring as dead — 138 findings against the 117 that are actually
+// unmentioned, measured when this was written.
+//
+// So rule 5 asks the conservative question instead: **does the name appear
+// anywhere at all outside the file that publishes it?** A word-boundary
+// match, over every scanned file, including strings — deliberately
+// over-generous, because the cost of a false positive here is deleting live
+// wiring and the cost of a false negative is one line of residue.
+const mentionedElsewhere = new Set();
+{
+  // Over the whole of src/, not just the scanned set. `files` is spec + ui +
+  // data, which leaves out src/v2/test — and a mount test reaching a global
+  // (`openVia` does, through `window[name]`) is a consumer like any other.
+  // Eight names separated the two sets when this was written.
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const at = join(dir, e.name);
+    if (e.isDirectory()) return walk(at);
+    return /\.(js|jsx|ts|tsx)$/.test(e.name) ? [at] : [];
+  });
+  const sources = walk(join(root, "src")).map((f) => [f.slice(root.length + 1), readFileSync(f, "utf8")]);
+  for (const name of defined) {
+    const owners = definedBy.get(name) || new Set();
+    const word = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    for (const [rel, src] of sources) {
+      if (owners.has(rel)) continue;
+      if (word.test(src)) { mentionedElsewhere.add(name); break; }
+    }
+  }
+}
+
 for (const name of [...defined].sort()) {
-  if (referenced.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
+  if (mentionedElsewhere.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
   failed = true;
   const where = [...(definedBy.get(name) || [])].join(", ");
   console.error(
@@ -145,6 +191,260 @@ for (const name of [...defined].sort()) {
     + "\n    If it is dead, delete the code. If something outside this scanner"
     + "\n    reads it, add it to PUBLISHED_FOR_OUTSIDE with the reason.",
   );
+}
+
+// ── 6. a publication whose consumers all import (D280) ──────────
+//
+// THE ONE RULE 5 CANNOT ASK, and the gap that shipped a D1 violation.
+//
+// Rule 5 is deliberately over-generous: it asks whether the name appears
+// ANYWHERE outside its publisher, because the convention's third shape is a
+// bare cross-module call this scanner cannot see, and reporting live wiring
+// as dead is the expensive mistake. That generosity has a blind spot with a
+// name: a publisher writing `window.X` while every consumer has converted to
+// `import { X }`. The name is mentioned all over the tree, so rule 5 is
+// satisfied — and the publication reaches nobody, because an ESM binding
+// cannot be reassigned from outside its own module.
+//
+// That is not a hypothetical. D249 converted `world-feed.jsx`'s read of
+// `window.TEST_FEED_QS` into a static import of the DEMO array while
+// `live.ts` went on publishing the LIVE pool to the window. Rule 5 saw the
+// name in four files and said nothing; the app served hash-invented vote
+// counts on a live device for a build. Every other gate was green too,
+// because both halves type-check perfectly and neither throws.
+//
+// The question this rule asks is narrow enough to be safe, and the fourth
+// clause is what makes it so: is the name published to global scope,
+// EXPORTED BY A DIFFERENT FILE, imported from that file somewhere, and read
+// through `window.`/`globalThis.` by nobody outside the publisher?
+//
+// All four together mean two different values are wired to two different
+// sets of consumers under one name, which is the whole of the defect. Drop
+// the third clause and the rule also reports the harmless case — a module
+// that exports a name AND publishes its own copy of it, where the two are
+// the same binding and the publication is only residue. Nine of those are
+// in the tree today; they are D137's class and rule 5's business, not this
+// one's, and folding them in here would bury the finding that matters
+// under eight that do not.
+//
+// Any one window reader anywhere makes this silent, and so does a name
+// nothing imports — that one is rule 5's.
+//
+// The fix, when it fires, is not to put the bridge read back: it is to give
+// the live half somewhere to land, which is what data/testFeed.ts is.
+{
+  const IMPORT_RE = /import\s*(?:type\s*)?\{([^}]*)\}\s*from/g;
+  const EXPORT_RE = /export\s+(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/g;
+  const importedNames = new Set();
+  const exportedBy = new Map();
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const at = join(dir, e.name);
+    if (e.isDirectory()) return walk(at);
+    return /\.(js|jsx|ts|tsx)$/.test(e.name) ? [at] : [];
+  });
+  for (const f of walk(join(root, "src"))) {
+    const src = stripComments(readFileSync(f, "utf8"));
+    for (const m of src.matchAll(IMPORT_RE)) {
+      for (const spec of m[1].split(",")) {
+        // `X`, `X as Y`, `type X` — the imported name is the first word.
+        const first = spec.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0].trim();
+        if (first) importedNames.add(first);
+      }
+    }
+    for (const m of src.matchAll(EXPORT_RE)) {
+      const rel = f.slice(root.length + 1);
+      if (!exportedBy.has(m[1])) exportedBy.set(m[1], new Set());
+      exportedBy.get(m[1]).add(rel);
+    }
+  }
+  for (const name of [...defined].sort()) {
+    if (!importedNames.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
+    const owners = definedBy.get(name) || new Set();
+    // The clause that separates the defect from the residue: somebody OTHER
+    // than the publisher exports this name, so the import and the
+    // publication cannot be the same binding.
+    const exporters = [...(exportedBy.get(name) || [])].filter((f) => !owners.has(f));
+    if (!exporters.length) continue;
+    const readers = (referenced.get(name) || [])
+      .filter((site) => !owners.has(String(site).split(":")[0]));
+    if (readers.length) continue;
+    failed = true;
+    console.error(
+      `✗ window.${name} is published by ${[...owners].join(", ")} and exported`
+      + ` by ${exporters.join(", ")}, and every`
+      + "\n    consumer reaches it by ESM import instead — so the publication"
+      + "\n    lands on a name nothing reads and the importers see whatever"
+      + "\n    their own module last assigned. An imported binding cannot be"
+      + "\n    reassigned from outside its module (D280). Either give the"
+      + "\n    publisher's value a named home the importers call, or delete"
+      + "\n    the assignment if the export is already the whole wiring.",
+    );
+  }
+}
+
+// ── 7. a spec module nothing can reach ──────────────────────────
+//
+// THE RULE BEFORE RULE 5. Rule 5 asks whether a published name has a
+// reader. This asks the question underneath it: is the module on the
+// bridge at all? A spec module has exactly two ways out — an `export`,
+// or an assignment to `window`/`globalThis` that a bare JSX tag can
+// resolve at render time. A file that does neither and still defines
+// components is a file no screen can render, and every other gate is
+// green on it: it parses, it lints, tsc never sees it, spec-index.js
+// imports it so rule 2 is satisfied, and it publishes nothing so rules
+// 1, 3, 5 and 6 have no name to hold.
+//
+// It was not hypothetical. `spec/test-viz.jsx` and
+// `spec/profile-test-viz.jsx` came across in the port and were never
+// wired — five components, 325 lines, unreachable from the first
+// commit. The cost was not bytes (rolldown tree-shakes them; measured
+// at 0 KB of the eager graph either way) but belief: VISION-2026-08-24
+// §6 row 3 recorded a colour change to one of them as BUILT, applied at
+// D287 against a screen that does not exist. Both files are gone; the
+// app's saved-result surface is `spec/result-card.jsx` with
+// `spec/result-rose.jsx`'s rose.
+//
+// SCOPE, narrow on purpose. Only files that DEFINE A COMPONENT — a
+// capitalised function or arrow binding — are candidates. The spec layer
+// is full of legitimate side-effect modules that export nothing and
+// publish nothing because their whole job is a listener attached at
+// import time (`sheet-drag.js`, `scroll-memory.js`, `edge-fade.js`,
+// `sheet-escape.js`, `subnav-thumb.js` — five of them today). Those
+// define no components, so they are not candidates, and the rule needs
+// no allowlist to leave them alone.
+//
+// If this fires, the answer is almost never a new exemption. See
+// RUNTIME_ALLOWLIST's own note in spec-globals.mjs: a name parked as
+// known-dead is how dead code starts looking like a feature flag.
+{
+  const COMPONENT_RE =
+    /^(?:function\s+([A-Z][\w$]*)|const\s+([A-Z][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
+  for (const file of readdirSync(specDir).sort()) {
+    if (!/\.(js|jsx)$/.test(file)) continue;
+    const src = stripComments(readFileSync(join(specDir, file), "utf8"));
+    if (/^\s*export\s/m.test(src)) continue;
+    if (/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
+    if (/Object\.assign\(\s*(?:globalThis|window)\s*,/.test(src)) continue;
+    if (/\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
+    COMPONENT_RE.lastIndex = 0;
+    const components = [...src.matchAll(COMPONENT_RE)].map((m) => m[1] || m[2]);
+    if (!components.length) continue;
+    failed = true;
+    console.error(
+      `✗ src/v2/spec/${file} defines ${components.join(", ")} and neither exports`
+      + "\n    nor publishes anything, so nothing can render them: an import has no"
+      + "\n    binding to take and a JSX tag has no global to resolve. Either wire it"
+      + "\n    (export it, or publish it the way its neighbours do) or delete it."
+      + "\n    A side-effect module is exempt by defining no component, not by an"
+      + "\n    allowlist entry.",
+    );
+  }
+}
+
+// ── 8. an import binding nothing in the file uses ───────────────
+//
+// THE HALF `no-unused-vars` CANNOT DO. eslint.config.js turns that rule OFF
+// for the spec layer, and the reason it gives is correct: a module here
+// "exports" by defining a global the linter never sees consumed, so every
+// top-level declaration reads as unused. But that argument is about
+// DECLARATIONS. An import binding cannot be a publication — it is a name
+// this file asked another module for — so "declared and never mentioned"
+// is unambiguous for imports and only for imports.
+//
+// The blind spot was real: 33 files carried `import React from 'react'`
+// with no `React.` anywhere (the automatic JSX runtime has needed no such
+// import since the port), and six named bindings across two files were
+// imported and never referenced. Nothing could see any of it — tsc does not
+// read .jsx here, eslint was told not to, and rules 1-3 above look for
+// references, not for their absence.
+//
+// THE FIX IS NOT ALWAYS DELETION, which is why this reports the binding and
+// not the line. spec-index.js's order is semantic, and a file's own import
+// can pull a module in EARLIER than spec-index reaches it — daily-split.jsx
+// does exactly that for test-definitions.js and passive-progress.js, nine
+// entries ahead. There the answer is a side-effect import: drop the binding,
+// keep the edge.
+{
+  // The comma after the default binding is OPTIONAL, and leaving it required
+  // was a hole in this rule's first version: `import PLACES from '…'` — a
+  // bare default with no clause after it — matched the pattern with both
+  // groups empty, so the rule read the line, found no names, and passed.
+  // Found by an adversarial re-check of the rule itself, on a live instance.
+  //
+  // AND THE NAMESPACE FORM WAS A SECOND HOLE, found the same way on
+  // 2026-09-09. `import * as X from '…'` has no alternative in the
+  // pattern at all, so the whole declaration was skipped: an unused
+  // namespace binding passed this rule AND eslint — `no-unused-vars` is
+  // off for the spec layer and `tsc -b` never reads `.jsx`, so nothing
+  // else was watching. Measured by appending one to edge-fade.js: named,
+  // default and aliased forms each failed loudly on that file while the
+  // namespace form left `check:globals` at "OK" and eslint at exit 0.
+  // Latent rather than live — 0 unused bindings across the layer's 379
+  // import declarations — but a dead namespace binding still drags its
+  // module into the chunk, which is check:eager-content's class.
+  const IMPORT_RE =
+    /^import\s+(?:\*\s+as\s+([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*))?\s*,?\s*(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
+  // A POSITIVE CONTROL ON THE MATCHER, run before the sweep rather than
+  // written as a test, because this rule has no test file to put one in:
+  // the script has no exports and no entry guard, so importing it runs
+  // the whole gate. Both of this pattern's holes were found by reading
+  // it — a bare default in its first version, the namespace form on
+  // 2026-09-09 — and each time the sweep went on reporting OK. Four
+  // forms, each of which must yield exactly the binding it declares; a
+  // pattern that stops seeing one fails HERE, loudly, instead of going
+  // quiet over the whole layer.
+  const CONTROL = [
+    ['import * as NS from "./x.js";', "NS"],
+    ['import Def from "./x.js";', "Def"],
+    ['import { a as Alias } from "./x.js";', "Alias"],
+    ['import Def2, { b } from "./x.js";', "Def2,b"],
+  ];
+  for (const [line, want] of CONTROL) {
+    IMPORT_RE.lastIndex = 0;
+    const m = IMPORT_RE.exec(line);
+    const got = m
+      ? [m[1], m[2], ...(m[3] ? m[3].split(",").map((x) => x.trim().split(/\s+as\s+/).pop().trim()) : [])]
+        .filter(Boolean).join(",")
+      : "";
+    if (got !== want) {
+      failed = true;
+      console.error(
+        `\u2717 rule 8's import matcher no longer reads ${JSON.stringify(line)}`
+        + `\n    expected the binding(s) ${want}, got ${got || "nothing"}.`
+        + "\n    A form it cannot see is a form it cannot check — every unused"
+        + "\n    binding of that shape passes this rule AND eslint, since"
+        + "\n    no-unused-vars is off for the spec layer and tsc never reads .jsx.",
+      );
+    }
+  }
+
+  for (const file of readdirSync(specDir).sort()) {
+    if (!/\.(js|jsx)$/.test(file)) continue;
+    const src = stripComments(readFileSync(join(specDir, file), "utf8"));
+    IMPORT_RE.lastIndex = 0;
+    for (const m of src.matchAll(IMPORT_RE)) {
+      const names = [];
+      if (m[1]) names.push(m[1]);   // * as X
+      if (m[2]) names.push(m[2]);   // a default binding
+      if (m[3]) {
+        for (const part of m[3].split(",")) {
+          const name = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop().trim();
+          if (name) names.push(name);
+        }
+      }
+      const body = src.replace(m[0], "");
+      for (const name of names) {
+        if (new RegExp(`\\b${name.replace(/\$/g, "\\$")}\\b`).test(body)) continue;
+        failed = true;
+        console.error(
+          `✗ src/v2/spec/${file} imports ${name} and never uses it.`
+          + "\n    Delete the binding. If the IMPORT is what pulls that module in"
+          + "\n    ahead of spec-index.js's own line for it, keep the edge as a"
+          + "\n    side-effect import (`import './x.js';`) — the order is semantic.",
+        );
+      }
+    }
+  }
 }
 
 // ── 4. the migration ratchet ────────────────────────────────────
@@ -186,48 +486,14 @@ for (const name of [...defined].sort()) {
 // deadline here and inventing one would be the kind of figure this repo
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
-  "src/v2/main.jsx": 1,
-  "src/v2/spec/app-shell.jsx": 39,
-  "src/v2/spec/city-overlay.jsx": 2,
-  "src/v2/spec/compare-breakdown.jsx": 1,
-  "src/v2/spec/daily-questions.js": 3,
-  "src/v2/spec/daily-split.jsx": 37,
-  "src/v2/spec/demographics.jsx": 3,
-  "src/v2/spec/duo-daily.jsx": 7,
-  "src/v2/spec/feed-read.js": 2,
-  "src/v2/spec/group-daily.jsx": 3,
-  "src/v2/spec/group-mirror.jsx": 13,
-  "src/v2/spec/group-role-map.jsx": 4,
-  "src/v2/spec/learn-bits.jsx": 1,
-  "src/v2/spec/learn-data.js": 1,
-  "src/v2/spec/learn-progress.js": 4,
-  "src/v2/spec/learn-social.js": 4,
-  "src/v2/spec/lens-cards.jsx": 4,
-  "src/v2/spec/map-bottom-card.jsx": 5,
-  "src/v2/spec/map-learn-card.jsx": 3,
-  "src/v2/spec/map-people.jsx": 4,
-  "src/v2/spec/map-tab.jsx": 21,
-  "src/v2/spec/mirror-field-pops.jsx": 24,
-  "src/v2/spec/mirror-field.jsx": 4,
-  "src/v2/spec/mirror-tab.jsx": 9,
-  "src/v2/spec/passive-meter.jsx": 4,
-  "src/v2/spec/passive-progress.js": 2,
-  "src/v2/spec/person-mindmap.jsx": 10,
-  "src/v2/spec/person-overlay.jsx": 2,
-  "src/v2/spec/place-stats.jsx": 3,
-  "src/v2/spec/profile-general.jsx": 17,
-  "src/v2/spec/profile-overlay.jsx": 10,
-  "src/v2/spec/relmap-panels.jsx": 2,
-  "src/v2/spec/relmap.jsx": 3,
-  "src/v2/spec/result-card.jsx": 17,
-  "src/v2/spec/search-overlay.jsx": 7,
+  "src/v2/spec/app-shell.jsx": 12,
+  "src/v2/spec/daily-split.jsx": 6,
+  "src/v2/spec/map-tab.jsx": 2,
+  "src/v2/spec/mirror-field-pops.jsx": 1,
+  "src/v2/spec/search-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,
-  "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
-  "src/v2/spec/type-marks.jsx": 2,
-  "src/v2/spec/vote-cuts.js": 1,
-  "src/v2/spec/world-feed-data.js": 4,
-  "src/v2/spec/world-feed.jsx": 120,
+  "src/v2/spec/world-feed.jsx": 1,
 };
 
 const coupling = {};

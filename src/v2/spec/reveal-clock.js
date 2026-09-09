@@ -21,6 +21,11 @@ function msToMidnight() {
   n.setHours(24, 0, 0, 0);
   return n - now;
 }
+// The same shape for an explicit instant — read outside the render body,
+// where msToMidnight reads its clock, and re-read on the interval tick.
+function msUntil(until) {
+  return until - Date.now();
+}
 // Minutes are zero-padded past the hour so the string keeps its width as it
 // counts down (12h 9m → 12h 09m); tabular digits below stop the rest from
 // shifting.
@@ -29,10 +34,27 @@ function fmt(ms) {
   const h = Math.floor(m / 60);
   return h > 0 ? h + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm';
 }
-// Converted off the shared-global bridge (D39, "convert on touch"): the
-// duo and group bodies import this by name. The window mirror stays for the
-// consumers that have not moved.
-export function RevealClock({ prefix = 'Reveals in', suffix = '', style }) {
+// Converted off the shared-global bridge (D39, "convert on touch"): every
+// consumer imports this by name — `duo-daily.jsx`, `group-daily.jsx` and
+// `ui/LiveDuelPanel.tsx`, which is all three of them.
+//
+// The `window.RevealClock` mirror that used to sit at the bottom of this
+// file is gone with them. Its comment said it stayed "for the consumers
+// that have not moved", and there were none: the publication reached
+// nobody from the day the third consumer converted.
+//
+// `check:globals` rule 5 could not see it, and this is the exact blind
+// spot D280 wrote down — the rule asks whether the name appears ANYWHERE
+// outside its publisher, and three `import { RevealClock }` lines satisfy
+// that while reading the binding rather than the global. A single writer
+// is what makes removing it safe here (D280's own warning is about a name
+// written from two places); `no-undef` covers the other direction, since
+// a bare tag with no import would already fail the spec layer's lint.
+// `until` (ms since the epoch) counts to a given instant instead of local
+// midnight — a group round's deadline (ROUNDS-PLAN, D426), which the group
+// document states exactly, so this one is a promise about the server after
+// all. Absent, the clock is the local-midnight cue it always was.
+export function RevealClock({ prefix = 'Reveals in', suffix = '', until, style }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   // 30s cadence: the display's finest unit is a minute, so anything faster
   // is a re-render nobody can see. One interval per mounted clock, and only
@@ -41,6 +63,6 @@ export function RevealClock({ prefix = 'Reveals in', suffix = '', style }) {
     const t = setInterval(bump, 30000);
     return () => clearInterval(t);
   }, []);
-  return React.createElement('span', { style: { fontVariantNumeric: 'tabular-nums', ...style } }, prefix + ' ' + fmt(msToMidnight()) + suffix);
+  const ms = typeof until === 'number' && Number.isFinite(until) ? msUntil(until) : msToMidnight();
+  return React.createElement('span', { style: { fontVariantNumeric: 'tabular-nums', ...style } }, prefix + ' ' + fmt(ms) + suffix);
 }
-window.RevealClock = RevealClock;

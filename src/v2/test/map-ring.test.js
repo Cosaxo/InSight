@@ -21,9 +21,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import '../spec/map-layout.js';
+// The named export, not globalThis — the window copy left with the Map's
+// lazy move (v28 §5).
+import { MapTabLayout } from '../spec/map-layout.js';
 
-const { mtClusterLayout } = globalThis.MapTabLayout;
+const { mtClusterLayout } = MapTabLayout;
 
 // A map of `nCats` branches holding `perCat` sub-topics, each with `subs`
 // answers under it — the three levels MapTab actually builds. Typicality is

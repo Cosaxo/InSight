@@ -8,7 +8,18 @@ import { TypeMark, typeColor, typeSplit } from './type-marks.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_matchArchetype } from './archetype-data.js';
 import { PASSIVE } from './passive-progress.js';
+import NAV from '../data/nav';
+// The fold over your own feed answers (D121) — what an instrument reads as
+// when it has no stored result, which in a live build is every instrument.
+// Imported from its one owner rather than re-derived here: `ownProgress`
+// already joins the bank, the definitions and your votes, and a second
+// scorer for the instruments is exactly what D121 removed.
+import { ownProgress } from './result-card.jsx';
+// Imported for `subscribe` alone (see pmDrop) — an import rather than a
+// `window.LIVE` read, so the D39 coupling meter does not move up for it.
+import LIVE from '../data/live';
 
 // passive-meter.jsx — UI for the passive test progress: PassiveRing (one
 // conic ring per test), PassiveMeter (persistent indicator by the feed chips;
@@ -69,25 +80,102 @@ function usePassive() {
   return PASSIVE;
 }
 
-// The colour a test currently READS AS: the type you stand at right now, with
-// its two-tone split — the same value the open sheet and the type mark use.
-// Falls back to the test's category hue before a standing exists.
-// A named export rather than a window publish: nothing outside this file reads
-// it yet, and the bridge only carries names unmoved consumers actually look up.
+// Held per instrument, because this is the one reading here that is not
+// cheap: `ownProgress` joins the bank to the definitions and folds your
+// whole vote map, measured at ~60µs a call on the 110-item bank, and
+// `passiveStanding` runs once per ring, once per marked feed card, on every
+// render. Dropped on the two signals that can move it — LIVE for the votes
+// and the bank, PASSIVE for the local tally and the purge — and both fire
+// synchronously ahead of the re-render they cause (`LIVE.vote` notifies
+// before it returns), so a held signature can never be staler than the
+// screen drawing it.
+//
+// The one place that is not true is a test that writes votes straight into
+// the live FIXTURE, which installs its own `subscribe` over the singleton's
+// and so never reaches this listener: `PASSIVE.poke()` is the drop there.
+let pmSig = {};
+const pmDrop = () => { pmSig = {}; };
+LIVE.subscribe(pmDrop);
+PASSIVE.subscribe(pmDrop);
+
+// Where the fold has got to, as a signature `typeSplit`/`typeColor` can read
+// — or null when there is nothing behind it yet. Null in the demo too, where
+// `ownProgress` returns null by design: test-definitions.js's seed IS the
+// persona's own result, and re-scoring it from the feed would be a second
+// answer to a settled question.
+function passiveSignature(k) {
+  if (k in pmSig) return pmSig[k];
+  const p = ownProgress(k);
+  let sig = null;
+  if (p && p.dims.length) {
+    sig = {};
+    p.dims.forEach((d) => { sig[d.dim] = d.value; });
+  }
+  pmSig[k] = sig;
+  return sig;
+}
+
+// HOW MUCH OF A TEST IS ANSWERED, from the same place the colour beside it
+// comes from.
+//
+// `PASSIVE.done/needed/pct` count `st.seen`, a localStorage tally written
+// at the moment of the tap, against the LOCAL definition's length. On a
+// second device — or after a reinstall — that reads ZERO for a profile the
+// person's own profile tab draws as complete, and it counts nothing the
+// bank served that the definition no longer defines. result-card.jsx
+// already named this and switched itself to the fold; the ring, the sheet
+// row and the per-card tag draw the same fact and were not switched, so
+// inside this file the colour came from the fold and the number came from
+// the device.
+//
+// The fold where there is one, the tally otherwise — which is the demo
+// build (`ownProgress` returns null with LIVE off, by design: the seeded
+// stagger IS the content there) and any instrument the live bank serves
+// no items for.
+export function passiveCount(k) {
+  const p = ownProgress(k);
+  if (!p) return { done: PASSIVE.done(k), needed: PASSIVE.needed(k), pct: PASSIVE.pct(k), full: PASSIVE.complete(k) };
+  const pct = p.total ? Math.round((p.answered / p.total) * 100) : 100;
+  return { done: p.answered, needed: p.total, pct, full: p.total > 0 && p.answered >= p.total };
+}
+
+// The colour a test currently READS AS: where you stand right now, with its
+// two-tone split — the same value the open sheet and the type mark use.
+//
+// TWO SOURCES, in this order. A stored result matches an archetype and the
+// colour is that type's. Without one — which post-D121 is every instrument in
+// a live build, since nothing writes `testResults` any more — it comes from
+// the fold over your own feed answers, through `typeSplit`'s `values` arm:
+// same arithmetic, your own two strongest leanings instead of a named type's,
+// and it lands on the first answer rather than on the last (D230).
+//
+// COLOUR ONLY, and that split is deliberate. A hue says "this is where you
+// lean so far" and moves when the next answer moves it; a NAME is a claim,
+// and passiveProfile.ts refuses one until every axis clears MIN_AXIS_ITEMS.
+// So `standing` stays null on the fold path — the type mark, the type's name
+// and the aria-label that reads it all stay dark, and what fills in early is
+// the colour the row was otherwise spending on a flat category accent.
+//
+// A named export rather than a window publish: the bridge only carries names
+// unmoved consumers look up, and both consumers outside this file import it.
 export function passiveStanding(k) {
   const m = PASSIVE.META[k];
   const R = IS_TEST_RESULTS[k];
-  const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
+  const mt = (R && R.dims) ? IS_matchArchetype(k, R.dims) : null;
   const standing = mt ? mt.list[mt.idx].name : null;
+  if (standing) {
+    return { standing, col: typeColor(k, standing, null, m.accent), sp: typeSplit(k, standing) };
+  }
+  const sig = passiveSignature(k);
   return {
-    standing,
-    col: standing ? typeColor(k, standing, null, m.accent) : m.accent,
-    sp: standing ? typeSplit(k, standing) : null,
+    standing: null,
+    col: sig ? typeColor(k, null, sig, m.accent) : m.accent,
+    sp: sig ? typeSplit(k, null, sig) : null,
   };
 }
 
 function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
-  const p = PASSIVE.pct(k), { col, sp } = passiveStanding(k);
+  const p = passiveCount(k).pct, { col, sp } = passiveStanding(k);
   const deg = p * 3.6;
   // filled arc carries the split as two solid parts, exactly like the sheet's dots
   const fill = sp ? `${sp.deep} 0 ${(deg * sp.ratio).toFixed(2)}deg, ${sp.lift} 0 ${deg.toFixed(2)}deg` : `${col} 0 ${deg.toFixed(2)}deg`;
@@ -99,7 +187,7 @@ function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
 }
 
 // the always-there indicator: one ring per test, filling as you answer
-function PassiveMeter() {
+export function PassiveMeter() {
   const P = usePassive();
   const [open, setOpen] = React.useState(false);
   const [closing, setClosing] = React.useState(false);
@@ -112,13 +200,12 @@ function PassiveMeter() {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
         </span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>profile</span>
       </button>
       {open && host && ReactDOM.createPortal(
         <Sheet onClose={close} closing={closing} label={PM_TITLE}>
             <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>{PM_TITLE}</span>
-              <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
+              <button className="tap44" onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
             </div>
             <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {/* "…— or finish one in a sitting" until D121, which is when
@@ -127,7 +214,7 @@ function PassiveMeter() {
                   that was removed. */}
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in.</div>
               {P.KEYS.map((k) => {
-                const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
+                const m = P.META[k], { done, needed: n, full } = passiveCount(k);
                 // the row takes the colour of the type you currently ARE, so the mark,
                 // its name and the dots read as one thing — the same value the chip's
                 // ring outside is already showing
@@ -136,7 +223,7 @@ function PassiveMeter() {
                 // It goes to the profile's tab for the instrument instead —
                 // the place its axes, its progress and (once there is one)
                 // its type actually live.
-                const go = () => { close(); setTimeout(() => { if (window.openProfileTab) window.openProfileTab(PM_SUB[k] || 'general'); }, 240); };
+                const go = () => { close(); setTimeout(() => { NAV.openProfileTab(PM_SUB[k] || 'general'); }, 240); };
                 return (
                   <button key={k} onClick={go} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : '') + ' \u2014 open in your profile'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: 'pointer', WebkitAppearance: 'none' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -145,7 +232,7 @@ function PassiveMeter() {
                         <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>
                       </div>
                       {/* where you stand right now — provisional while segments are unfilled */}
-                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{TypeMark ? <TypeMark testKey={k} name={standing} size={18}></TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
+                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><TypeMark testKey={k} name={standing} size={18}></TypeMark><span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
                     </div>
                     {/* one dot per question — filled is answered. the count IS the visual; no numbers */}
                     <span ref={pmFrontier(done)} className="h-scroll" aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: PM_DOT_GAP, overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%' }}>
@@ -165,10 +252,10 @@ function PassiveMeter() {
 }
 
 // per-card mark on a test's own feed questions: ring + progress; only q.test cards get one
-function PassiveTag({ q, answered, style }) {
+export function PassiveTag({ q, answered, style }) {
   const P = usePassive(); if (!P) return null;
   const k = P.testFor(q); const m = k && P.META[k]; if (!m) return null;
-  const done = P.done(k), n = P.needed(k), { col } = passiveStanding(k);
+  const { done, needed: n } = passiveCount(k), { col } = passiveStanding(k);
   return (
     <span title={'One of the ' + m.label + " test's own questions — " + done + ' of ' + n + ' answered'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', color: answered ? `color-mix(in oklch, ${col} 75%, var(--ink-2))` : 'var(--ink-3)', flexShrink: 0, whiteSpace: 'nowrap', transition: 'color .25s ease', ...style }}>
       <PassiveRing k={k} size={13} thick={3.2}></PassiveRing>
@@ -177,10 +264,4 @@ function PassiveTag({ q, answered, style }) {
   );
 }
 
-Object.assign(window, { PassiveRing, PassiveMeter, PassiveTag });
 
-;globalThis.usePassive = typeof usePassive === 'undefined' ? globalThis.usePassive : usePassive;
-;globalThis.PassiveRing = typeof PassiveRing === 'undefined' ? globalThis.PassiveRing : PassiveRing;
-;globalThis.PassiveMeter = typeof PassiveMeter === 'undefined' ? globalThis.PassiveMeter : PassiveMeter;
-;globalThis.PassiveTag = typeof PassiveTag === 'undefined' ? globalThis.PassiveTag : PassiveTag;
-;globalThis.PM_LINE = typeof PM_LINE === 'undefined' ? globalThis.PM_LINE : PM_LINE;

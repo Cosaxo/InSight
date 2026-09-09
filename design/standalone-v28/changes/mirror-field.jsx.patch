@@ -1,8 +1,11 @@
 --- v18/mirror-field.jsx
 +++ v28/mirror-field.jsx
-@@ -338,7 +338,9 @@
+@@ -336,9 +336,11 @@
+   } else if (node.kind === 'anon') {
+     av = <MatchRing pct={node.match} color={`oklch(0.5 0.13 ${hue})`} size={52}><MFAnonAv hue={hue} size={38}></MFAnonAv></MatchRing>;
      title = `${(d.role || '').replace(/^\w/, (c) => c.toUpperCase())}, ${d.age}`;
-     sub = d.dist && d.dist.includes('km') ? 'nearby' : (d.dist || 'nearby');
+-    sub = d.dist && d.dist.includes('km') ? 'nearby' : (d.dist || 'nearby');
++    sub = '';
      chips = (d.interests || []).slice(0, 3).map((x) => x.t);
 -    if (d.id && onPerson) action = btn('Portrait →', () => onPerson(d));
 +    // the portrait stays anonymous too — the record carries a real name, so it

@@ -38,6 +38,16 @@ import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // ATTACHED BY DEFAULT, so every case below is about a store that has
+  // finished looking. It was absent from this mock entirely, which meant
+  // `LIVE.attached` read `undefined` — and the whole suite stayed green
+  // when the empty arm's wording changed, because nothing here asserted
+  // it. The two cases at the foot of this file are what closes that.
+  attached: true,
   uid: "u_me",
   myCity: "Oslo, NO",
   deck: () => [] as Array<Record<string, unknown>>,
@@ -55,7 +65,15 @@ const LIVE = vi.hoisted(() => ({
   // the lenses have their own suite; what these cases care about is that
   // the panel still renders its answer rows around them.
   myVotes: () => ({} as Record<string, string>),
+  // The Scores lens's ask rows (D307) — empty here so the stop cases stay
+  // about the stop; the ask arm has its own cases in the lens suite.
+  placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
+  placeAskTotal: () => 0,
+  vote: vi.fn(),
   loadKindred: async () => {},
+  // The cap's tail (D400): the stop kicks the read on mount; nothing in
+  // these cases is at the cap, so the stub is the honest fixture.
+  loadOverflow: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false,
   kindredDepth: () => 0,
@@ -64,6 +82,7 @@ const LIVE = vi.hoisted(() => ({
   // field renders its honest empty state here, which is what these cases
   // should scroll past.
   loadSimilarity: async () => {},
+  loadCityKindred: async () => {},
   similarityLoading: () => false,
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({} as Record<string, unknown>),
@@ -73,6 +92,11 @@ const LIVE = vi.hoisted(() => ({
   // honest empty state and these cases scroll past it.
   anchors: () => ({} as Record<string, string>),
   isFollowing: () => false,
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  follows: () => null as string[] | null,
   setFollowing: async () => {},
   // LIVE.near survives on the mock because the D92 city-derive effect
   // still reads the grant state here; the CARD moved to NearLiveBody
@@ -189,6 +213,26 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   // reads as "this question doesn't exist here".
   const missingLine = (n: number, where: string) =>
     new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
+
+  it("counts one whose aggregate has no city map at all", () => {
+    // The state EVERY city-rated question is in before anybody confirms a
+    // city: the server's bucket for an empty anchor is null, so the
+    // aggregate publishes counts and no `by.city`. The counter skipped
+    // those — it asked for the scope's map first and only counted a
+    // missing cell INSIDE one — so the question was dropped from the rows
+    // and from the sentence, which is the silence this counter exists to
+    // prevent: "a question that vanishes reads as 'not asked here' rather
+    // than 'not answered here'".
+    LIVE.aggFor = (qid) => qid === "q1"
+      ? { by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } }
+      : { counts: { "0": 9, "1": 3 }, total: 12 };
+
+    mountAnswers("city");
+
+    expect(screen.getByText("First question")).toBeTruthy();
+    expect(screen.queryByText("Second question")).toBeNull();
+    expect(screen.getByText(missingLine(1, "Oslo"))).toBeTruthy();
+  });
 
   it("counts and names a question whose city cell is missing", () => {
     LIVE.aggFor = (qid) => qid === "q1"
@@ -312,7 +356,9 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Choose your city/i }));
     fireEvent.change(screen.getByRole("combobox", { name: /Search cities/i }), { target: { value: "Berg" } });
     fireEvent.click(await screen.findByRole("option", { name: /Bergen/i }));
-    expect(setCityAnchor).toHaveBeenCalledWith("Bergen, NO");
+    // The second argument is the D205 confirmation: a list pick is
+    // never one.
+    expect(setCityAnchor).toHaveBeenCalledWith("Bergen, NO", false);
   });
 
   it("still renders the globe without a city", () => {
@@ -759,6 +805,49 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
   });
 
+  it("Country and World do not pay the city's voter fan-out", async () => {
+    // The saving, stated as the number that used to be paid: opening
+    // either of these stops awaited twelve collection-group queries of up
+    // to 200 answers plus the profile reads that resolve their names, for
+    // rows neither stop draws — the place fields read the test aggregates.
+    // This is the Near stop's fix from three nights ago, one stop over.
+    const kindred = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    for (const scope of ["country", "world"] as const) {
+      render(<LiveCohortBody scope={scope} />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(kindred, `${scope} fetched the voter lists it never draws`).not.toHaveBeenCalled();
+      cleanup();
+    }
+  });
+
+  it("…and pay it the moment someone opens People", async () => {
+    // The other half of the case above, and the half its sibling case's
+    // NAME has been promising with nothing behind it.
+    //
+    // "costs nothing for a tab nobody opened, and pays as soon as one is"
+    // is asserted at CITY, where the constellation fetches the voter rows
+    // on arrival — so at that scope the second half is unobservable, and
+    // the People click in it has no assertion after it. The closing review
+    // of 2026-08-31 found the assertion that once stood there had been
+    // deleted rather than reframed when the fan-out moved.
+    //
+    // World is where the property is visible: nothing fetches the rows
+    // until the tab that draws them is opened. LiveMirrorLenses.test.tsx
+    // holds the same property one layer down ("fetches Kindred when People
+    // mounts, and never for another lens") — this is the host half, that
+    // the tab bar actually reaches the mount.
+    const kindred = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    render(<LiveCohortBody scope="world" />);
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(kindred, "the world stop fetched voter rows nobody asked for").not.toHaveBeenCalled();
+    fireEvent.click(tab("People"));
+    await vi.waitFor(() => {
+      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
+    });
+  });
+
   it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
     // The property the old collapsed strip existed for, restated for
     // tabs: People pays for voter lists, so it may not run because the
@@ -784,19 +873,39 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     LIVE.loadKindred = kindred;
     LIVE.loadSimilarity = similarity;
     render(<LiveCohortBody scope="city" />);
-    // Long enough for a lazy chunk to have resolved and its effects to
-    // have run, had one been mounted.
-    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
-    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
+    // WAIT FOR THE FOLD, NOT FOR N MICROTASKS. This was a flush of twenty
+    // resolved promises, "long enough for a lazy chunk to have resolved" —
+    // and it was long enough only because some EARLIER case in this file had
+    // already resolved `SimilaritySection`'s chunk, so it was warm in the
+    // module cache and mounted inside the flush. Run this case before those
+    // and the section has not mounted yet: the field's fold shows 0 calls
+    // and `kindred` shows 0 for the same reason, which is the vacuous half.
+    // Reproduced with `--sequence.shuffle --sequence.seed=4242`.
+    //
     // The accepted cost, unchanged from D135: the field's fold runs on
     // arrival at a stop. Same call count as when it was the landing tab,
-    // because a stop always opened on it.
-    expect(similarity, "the constellation is the head of the stop and its fold did not run").toHaveBeenCalledTimes(1);
+    // because a stop always opened on it. Waiting on that is also what makes
+    // the Kindred assertion below mean something — it now runs against a
+    // frame where the section is definitely mounted, so "not called" is a
+    // statement about the gate rather than about a pending import.
+    await vi.waitFor(() => {
+      expect(similarity, "the constellation is the head of the stop and its fold did not run").toHaveBeenCalledTimes(1);
+    });
+    // KINDRED IS THE CITY FIELD'S OWN COST, and this assertion used to
+    // read the other way — "fetched for a People tab nobody opened" —
+    // which it could only ever prove because `loadSimilarity` is a SPY in
+    // this case. In production that loader awaited the fan-out itself, so
+    // the city stop paid it on arrival and always had; the spy simply hid
+    // where the money went. The loader is scoped to the city field now
+    // (live.ts), so the cost is where the reader can see it: the
+    // constellation this stop opens on is drawn FROM kindred rows, so
+    // arriving at City fetches them, and the case below is the half that
+    // matters — Country and World, which draw place aggregates, do not.
+    await vi.waitFor(() => {
+      expect(kindred, "the city constellation's own rows were never fetched").toHaveBeenCalled();
+    });
 
     fireEvent.click(tab("People"));
-    await vi.waitFor(() => {
-      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
-    });
     // D136 made this STRICTER than it was. While Overview was a tab, moving
     // away and back unmounted and re-mounted the field, so the loader fired
     // again — harmless (loadSimilarity early-returns on `similarityLoading`
@@ -874,22 +983,15 @@ describe("LiveCohortBody · a lens reads its own stop, never the globe", () => {
     fireEvent.click(screen.getByRole("tab", { name }));
   };
 
-  it("Compare scores you against this city, not against the world", async () => {
-    openLens("Compare");
-    // Oslo: 3 of 4 said "No", and "No" is your pick.
-    expect(await screen.findByText(/75% here agreed/)).toBeTruthy();
-    // The globe's number for the same pick. Its presence would mean the
-    // lens is reading agg.counts.
-    expect(screen.queryByText(/10% here agreed/)).toBeNull();
-  });
-
-  it("Compare drops a question this city has not answered", async () => {
-    openLens("Compare");
-    expect(await screen.findByText("Split question")).toBeTruthy();
-    // Answers already reports this one as absent; a lens that shows it
-    // anyway makes two tabs of one screen disagree about the same cohort.
-    expect(screen.queryByText("Absent in Oslo")).toBeNull();
-  });
+  // COMPARE IS NOT IN THIS DESCRIBE ANY MORE (D193), and the property is
+  // not gone with it. The lens stopped taking `LensQuestion[]` from this
+  // host when it became the profile drawing, so there is no longer any
+  // wiring here to get wrong: it reads the bank's TEST items out of the
+  // store directly, and which cell it takes them from is decided inside
+  // `CohortCompare`. The two cases that stood here — "scores you against
+  // this city, not the world" and "drops a question this city has not
+  // answered" — are restated over that fold in LiveMirrorLenses.test.tsx,
+  // where the code they describe now lives.
 
   it("Scores averages this city's ratings, not the world's", async () => {
     openLens("Scores");
@@ -941,15 +1043,122 @@ describe("LiveCohortBody · one answer is a count, not a share", () => {
     expect(screen.queryByText(/exactly the average/i)).toBeNull();
   });
 
-  it("Compare stops calling a tie the majority", async () => {
-    // Two answers, one each way: nobody is in the majority, and the
-    // release counted this row as one.
-    LIVE.aggFor = () => ({ counts: { "0": 1, "1": 1 }, total: 2, by: { city: { "Oslo, NO": { "0": 1, "1": 1 } } } });
+  // D170's third case stood here — "Compare stops calling a tie the
+  // majority", over a 50/50 row the release had counted as a majority.
+  // It went with the reading at D193: Compare no longer folds an option
+  // split at all, so there is no majority test left to get wrong. The two
+  // above are the surviving halves of the same decision and they are the
+  // ones that were always about a NUMBER rather than about a word.
+});
+
+// ── the biggest claim the app makes, before it has looked ──────────
+//
+// The header figure is `reach`, and `reach` is 0 whenever the aggregate
+// archive is — which is the whole of a cold first launch before the first
+// snapshot lands, and the whole SESSION on a live build whose boot never
+// completes. Through both of those the stop read "— nobody has answered
+// yet": an assertion about the world, made by a device that had not
+// looked, on the largest population claim in the app.
+//
+// `LIVE.attached` is the store's own word for "the network boot completed
+// this session". The daily has had a reconnecting pill since D356; this
+// stop had nothing.
+//
+// The mock carried no `attached` at all until now, so this arm's wording
+// could change with the whole suite green. These two are what stops that.
+// ── the headline figure is a MAX, never a sum ───────────────────────
+//
+// `reach` is the largest single-question count in the cohort, and its
+// docstring spends twenty lines on why: one person answers a question at
+// most once (create-only, D5/D86 — an edit MOVES a vote, it never adds
+// one), so the largest single count is a number of DISTINCT PEOPLE.
+// "Summing across questions … would count the same person once per
+// question they answered, which is the mistake this is written out to
+// avoid."
+//
+// Nothing held it. Swapping `Math.max` for `+` left the whole client
+// suite green — 201 files — while the app's largest population claim
+// inflated by a factor of however many questions the cohort holds. And
+// this is not a hypothetical shape: the exact defect shipped one lens
+// over, where an Explore chip read "35-44 · 26" under a header saying
+// "25 people have answered somewhere". That lens got two cases out of
+// it. The hero figure the chip was compared against got none.
+describe("LiveCohortBody · the header counts people, not answers", () => {
+  // Ten people, three questions, all answered by the same ten. A sum
+  // reads 30; the truth is 10.
+  const SAME_TEN = { by: { city: { "Oslo, NO": { "0": 6, "1": 4 } } } };
+
+  it("reads the largest single question, not the total of all of them", () => {
+    LIVE.aggregated = () => [Q("q1", "One"), Q("q2", "Two"), Q("q3", "Three")];
+    LIVE.aggFor = () => SAME_TEN;
+    LIVE.anchors = () => ({ city: "Oslo, NO", country: "NO" });
     render(<LiveCohortBody scope="city" />);
-    fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
-    // The line is a fraction now, not a sentence, so the tie has to show
-    // up as the numerator rather than as a word.
-    const head = await screen.findByText(/least typical first/i);
-    expect(head.textContent).toMatch(/^\s*0\//);
+    const body = document.body.textContent || "";
+    expect(body, "the header summed across questions and counted people once each")
+      .toMatch(/10people have answered/);
+    expect(body, "30 is three questions of the same ten people").not.toMatch(/30people have answered/);
+    expect(body).toMatch(/people have answered/);
+  });
+
+  it("…and still moves when one question really is bigger", () => {
+    // THE CONTROL. Without it, "never 30" also passes on a header wired
+    // to a constant, or to the first row, or to the smallest.
+    LIVE.aggregated = () => [Q("q1", "One"), Q("q2", "Two"), Q("q3", "Three")];
+    LIVE.aggFor = (qid) => (qid === "q2"
+      ? { by: { city: { "Oslo, NO": { "0": 40, "1": 8 } } } }
+      : SAME_TEN);
+    LIVE.anchors = () => ({ city: "Oslo, NO", country: "NO" });
+    render(<LiveCohortBody scope="city" />);
+    const body = document.body.textContent || "";
+    expect(body, "the header ignored the largest question").toMatch(/48people have answered/);
+    expect(body, "68 is the sum again").not.toMatch(/68people have answered/);
+  });
+});
+
+describe("LiveCohortBody · reading is not empty", () => {
+  it("does not say nobody has answered before the store has attached", () => {
+    LIVE.attached = false;
+    try {
+      render(<LiveCohortBody scope="world" />);
+      const body = document.body.textContent || "";
+      expect(body, "the stop asserted an empty world before it had looked")
+        .not.toMatch(/nobody has answered/i);
+      expect(body, "it says nothing at all about the wait").toMatch(/counting who has answered/i);
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("still says it once the store HAS attached and the world really is empty", () => {
+    // The control. Without it, "never says nobody" passes the case above
+    // and deletes a true sentence instead of a premature one.
+    render(<LiveCohortBody scope="world" />);
+    expect(document.body.textContent, "the settled empty state lost its sentence")
+      .toMatch(/nobody has answered yet/i);
+  });
+
+  // …AND THE TAB BODY ONE TAP DOWN, which had the header's hedge above it
+  // and a flat assertion of its own: "No answers here yet — the first one
+  // starts the count." One screen, two answers to the same question, and
+  // the confident one made by a device that had not looked.
+  it("does not say the rows are empty before the store has attached", () => {
+    LIVE.attached = false;
+    try {
+      render(<LiveCohortBody scope="world" />);
+      fireEvent.click(screen.getByRole("tab", { name: /answers/i }));
+      const body = document.body.textContent || "";
+      expect(body, "the answers tab asserted an empty world before it had looked")
+        .not.toMatch(/first one starts the count/i);
+      expect(body).toMatch(/counting who has answered/i);
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("…and says it once the store HAS attached", () => {
+    render(<LiveCohortBody scope="world" />);
+    fireEvent.click(screen.getByRole("tab", { name: /answers/i }));
+    expect(document.body.textContent, "the settled empty rows lost their sentence")
+      .toMatch(/first one starts the count/i);
   });
 });

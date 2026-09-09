@@ -1,0 +1,11 @@
+--- recorded/profile-overlay.jsx
++++ 2026-09-06/profile-overlay.jsx
+@@ -161,7 +161,7 @@
+     testKey: "attachment"
+   });
+   return /*#__PURE__*/React.createElement("div", {
+-    className: "overlay surface-tint",
++    className: "overlay surface-tint profile-ov",
+     style: {
+       '--accent': 'var(--c-people)'
+     }

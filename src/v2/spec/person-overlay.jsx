@@ -6,15 +6,21 @@
 import React from 'react';
 import { PersonMindMap } from './person-mindmap.jsx';
 import { DuoDomains } from './duo-daily.jsx';
-import { ReadRun } from './read-run.jsx';
 import { FRIENDS } from './follows.js';
 import { DUELS } from './duels-data.js';
 import { IS_DATA } from './sample-data.js';
-import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
+import { Av, AnonAv, anonName, Kicker, MatchRing, useDialog } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { WPAL } from './world-palette.js';
+import { IS_matchArchetype } from './archetype-data.js';
+import { AXES, SEATS, MIN_DUO, MIN_GROUP } from '../data/roles';
+import { cueDuel } from '../data/duelCue';
+import NAV from '../data/nav';
+import { CompareCarousel } from './compare-breakdown.jsx';
 
 // Expanded Person profile — a detailed portrait of similarity
-// Replaces the basic PersonOverlay registered in overlays.jsx
+// Replaces the basic PersonOverlay — registration is spec-index.js's
+// `loadOverlays` group
 
 (function () {
 
@@ -91,6 +97,45 @@ function derivePerson(p, me) {
   return { big5, political, morals, chronotype, sleepAvg, closest };
 }
 
+// ─── The instruments turned toward one person (2026-08-26, D437) ───
+// The same role math the Roles panel runs on YOU, read for THEM off the
+// shared record: what YOU said they are, over the cast rounds (the share
+// of casts per axis — trust · spark · judgement · constancy), and their
+// own seat in each group you share (the share of the votes they received
+// per seat), blended by votes. Reads only what the page's record cards
+// already draw — your 1v1 with them, your common groups — so it
+// discloses nothing new. The same floors as the panel: MIN_DUO casts,
+// MIN_GROUP votes.
+const poClamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
+function poPersonTypes(pid) {
+  const out = { duo: null, group: null };
+  const duo = DUELS.partners().find((x) => x.id === pid && x.played > 0);
+  if (duo) {
+    const co = DUELS.castOf(pid);
+    if (co && co.n >= MIN_DUO) {
+      const dims = AXES.map((a, i) => ({ id: a.id, value: poClamp(((co.mine[i] || 0) / co.n) * 100) }));
+      const m = IS_matchArchetype('duo', dims);
+      if (m) out.duo = { ...m.list[m.idx], n: co.n };
+    }
+  }
+  const sharedGs = DUELS.groups().filter((g) => g.members.some((mm) => mm.id === pid && !mm.pending));
+  const items = sharedGs.map((g) => {
+    const A = DUELS.archetypeOf(g.id, pid);
+    if (!A || A.total < MIN_GROUP) return null;
+    return { n: A.total, dims: SEATS.map((st) => ({ id: st.id, value: poClamp((A.shares[st.id] / A.total) * 100) })) };
+  }).filter(Boolean);
+  if (items.length) {
+    const total = items.reduce((a, r) => a + r.n, 0);
+    const dims = SEATS.map((st) => ({
+      id: st.id,
+      value: poClamp(items.reduce((a, r) => a + r.dims.find((d) => d.id === st.id).value * r.n, 0) / total),
+    }));
+    const m = IS_matchArchetype('group', dims);
+    if (m) out.group = { ...m.list[m.idx], n: total };
+  }
+  return out;
+}
+
 // ─── Per-dimension similarity scores (0..100) used in the affinity composer ───
 function affinityBreakdown(me, prof, p) {
   // Big5: invert mean absolute distance (0..100 each axis)
@@ -118,11 +163,13 @@ function affinityBreakdown(me, prof, p) {
 
 // ─── Affinity, broken into bars — the fallback when CompareCarousel is absent ───
 function AffinityBreakdown({ parts }) {
+  // hue-as-text and full-strength bar fills go through the palette gate
+  // (v28: no raw 0.5x ink literals)
   const dims = [
-    { k: 'personality', label: 'Personality', col: 'oklch(0.55 0.13 38)' },
-    { k: 'politics',    label: 'Politics',    col: 'oklch(0.50 0.12 220)' },
-    { k: 'values',      label: 'Values',      col: 'oklch(0.52 0.14 305)' },
-    { k: 'interests',   label: 'Interests',   col: 'oklch(0.55 0.10 145)' },
+    { k: 'personality', label: 'Personality', col: WPAL.ink('oklch(0.55 0.13 38)') },
+    { k: 'politics',    label: 'Politics',    col: WPAL.ink('oklch(0.50 0.12 220)') },
+    { k: 'values',      label: 'Values',      col: WPAL.ink('oklch(0.52 0.14 305)') },
+    { k: 'interests',   label: 'Interests',   col: WPAL.ink('oklch(0.55 0.10 145)') },
   ].map(d => ({ ...d, v: Math.round(parts[d.k]) })).sort((a, b) => b.v - a.v);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -141,6 +188,164 @@ function AffinityBreakdown({ parts }) {
   );
 }
 
+// ─── Together: the doors, the cast, the record ───
+function TogetherSection({ p, me, isFriend, firstName, themColor }) {
+  const duo = DUELS.partners().find((x) => x.id === p.id) || null;
+  const playing = !!(duo && duo.played > 0);
+  const invited = !!(duo && duo.state === 'invited');
+  const goDuo = () => { cueDuel({ mode: 'duo', id: p.id }); NAV.goNav('track:duo'); };
+  const goGroup = (gid) => { cueDuel({ mode: 'group', id: gid }); NAV.goNav('track:group'); };
+  const groups = DUELS.groups();
+  const shared = groups.filter((g) => g.members.some((m) => m.id === p.id));
+  const addable = isFriend ? groups.filter((g) => !g.members.some((m) => m.id === p.id)).slice(0, 4) : [];
+  if (!duo && !isFriend && !shared.length) return null;
+  const pt = poPersonTypes(p.id);
+  const box = (quietBox) => ({
+    border: `0.5px solid ${quietBox ? 'color-mix(in oklch, var(--rule), transparent 20%)' : 'var(--rule)'}`, borderRadius: 16,
+    background: quietBox ? 'transparent' : 'var(--surface-2)', boxShadow: quietBox ? 'none' : 'var(--shadow-card)',
+    color: 'inherit', textAlign: 'left', WebkitAppearance: 'none', appearance: 'none', minWidth: 0,
+  });
+  const cluster = (people, size = 26) => (
+    <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      {people.slice(0, 5).map((m, i) => (
+        <span key={m.me ? 'me' : m.id || i} style={{ display: 'inline-flex', borderRadius: '50%', marginLeft: i ? -size * 0.28 : 0, position: 'relative', zIndex: 6 - i, boxShadow: m.id === p.id ? `0 0 0 2px var(--surface-2), 0 0 0 3.5px ${themColor}` : '0 0 0 2px var(--surface-2)' }}>
+          {m.me ? <Av init={me.initials} hue={38} size={size}></Av> : <Av init={m.init} hue={m.hue} size={size}></Av>}
+        </span>
+      ))}
+      {people.length > 5 ? <span style={{ marginLeft: 7, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>+{people.length - 5}</span> : null}
+    </span>
+  );
+  const fig = (n, unit) => (
+    <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: 'var(--sans)', fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+      {unit ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{unit}</span> : null}
+    </span>
+  );
+  const chev = <span aria-hidden="true" style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 20, lineHeight: 1, color: 'var(--ink-3)' }}>›</span>;
+  const textBtn = (label, onClick) => (
+    <button type="button" className="tap44" onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{ flexShrink: 0, border: 'none', background: 'none', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', padding: '4px 0', cursor: 'pointer', WebkitAppearance: 'none' }}>{label}</button>
+  );
+  const title = { fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+  const typeName = (t) => (t ? <span title={t.line} style={{ color: themColor }}>{t.name}</span> : null);
+  const subLine = (sub) => (sub ? <span style={{ display: 'block', marginTop: 3, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.4, textWrap: 'pretty' }}>{sub}</span> : null);
+  // a wide tile: the people, a figure, a head, a line, a door
+  const wide = (key, { people, figure, head, sub, onClick, right, quietTile }) => {
+    const Tag = onClick ? 'button' : 'div';
+    return (
+      <Tag key={key} className={onClick ? 'press' : undefined} onClick={onClick || undefined} type={onClick ? 'button' : undefined}
+        style={{ ...box(quietTile), display: 'flex', alignItems: 'center', gap: 14, width: '100%', boxSizing: 'border-box', padding: '13px 14px', cursor: onClick ? 'pointer' : 'default' }}>
+        {people ? cluster(people, 30) : null}
+        <span style={{ flex: 1, minWidth: 0 }}>
+          {figure}
+          <span style={{ ...title, display: 'block', marginTop: figure ? 4 : 0 }}>{head}</span>
+          {subLine(sub)}
+        </span>
+        {right !== undefined ? right : onClick ? chev : null}
+      </Tag>
+    );
+  };
+  const duoTile = duo && !invited
+    ? (playing
+      ? wide('duo', { people: [{ me: true }, p], figure: fig(duo.played, duo.played === 1 ? 'round' : 'rounds'), head: <React.Fragment>1v1{pt.duo ? <React.Fragment> · {typeName(pt.duo)}</React.Fragment> : null}</React.Fragment>, sub: pt.duo ? pt.duo.line : null, onClick: goDuo })
+      : wide('duo', { people: [{ me: true }, p], head: '1v1 · new', sub: 'the first round is open', onClick: goDuo }))
+    : invited
+      ? wide('duo', { people: [{ me: true }, p], head: '1v1 · invited', sub: `waiting on ${firstName}`, onClick: null, right: textBtn('Cancel', () => DUELS.cancelDuo(p.id)) })
+      : isFriend
+        ? wide('duo', { people: [{ me: true }, p], head: 'Start a 1v1', sub: 'answer, then guess theirs — revealed when you both have played', onClick: null, right: textBtn('Start', () => DUELS.startDuo(p.id)) })
+        : wide('duo', { people: [{ me: true }, p], head: '1v1', sub: `for friends — add ${firstName} first`, onClick: null, quietTile: true });
+  const groupTiles = shared.length ? shared.map((g, i) => {
+    const mem = g.members.find((m) => m.id === p.id);
+    const pend = !!(mem && mem.pending);
+    const people = [mem, ...g.members.filter((m) => m.id !== p.id)].filter(Boolean);
+    const t = i === 0 ? pt.group : null;
+    const Tag = pend ? 'div' : 'button';
+    return (
+      <Tag key={g.id} className={pend ? undefined : 'press'} type={pend ? undefined : 'button'} onClick={pend ? undefined : () => goGroup(g.id)}
+        aria-label={pend ? undefined : `Open ${g.name}`}
+        style={{ ...box(false), display: 'flex', flexDirection: 'column', alignItems: 'stretch', padding: '12px 13px 12px', cursor: pend ? 'default' : 'pointer' }}>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 28 }}>{cluster(people)}{pend ? null : chev}</span>
+        <span style={{ marginTop: 12 }}>{fig(g.members.length + 1, 'people')}</span>
+        <span style={{ ...title, display: 'block', marginTop: 5 }}>{g.name}</span>
+        {t ? <span style={{ display: 'block', marginTop: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{typeName(t)}</span> : null}
+        {subLine(pend ? `invited · waiting on ${firstName}` : t ? t.line : null)}
+      </Tag>
+    );
+  }) : null;
+  const groupsFallback = shared.length ? null : addable.length ? (
+    <div style={{ ...box(true), display: 'flex', flexDirection: 'column', gap: 9, padding: '13px 14px' }}>
+      <span style={title}>Add {firstName} to a group</span>
+      <span style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+        {addable.map((g) => (
+          <button key={g.id} type="button" className="press" onClick={() => DUELS.addGroupMembers(g.id, [p.id])}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', color: 'var(--ink)', borderRadius: 999, padding: '5px 12px 5px 6px', minHeight: 44, cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700 }}>
+            {cluster(g.members.slice(0, 3), 20)}+ {g.name}
+          </button>
+        ))}
+      </span>
+    </div>
+  ) : (
+    <div style={{ ...box(true), display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px' }}>
+      <span style={{ ...title, flex: 1, color: 'var(--ink-2)', fontWeight: 600 }}>No groups together yet</span>
+    </div>
+  );
+  // what you are to each other — the cast rounds, both directions
+  const co = playing ? DUELS.castOf(p.id) : null;
+  const castBlock = co && co.n > 0 && co.youAre && co.theyAre ? (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: 8 }}><Kicker>What you are to each other</Kicker></div>
+      <div style={{ fontFamily: 'var(--sans)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.3, color: 'var(--ink)', textWrap: 'pretty' }}>
+        You are <span style={{ color: themColor }}>{DUELS.castThem(co.youAre.role.them, firstName, duo.mode === 'romantic')}</span>. {firstName} is {co.theyAre.role.label}.
+      </div>
+      <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', textWrap: 'pretty' }}>
+        {firstName} said so in {co.youAre.n} of {co.n} round{co.n === 1 ? '' : 's'} asked{co.sawIt.total ? ` · you guessed it ${co.sawIt.right} of ${co.sawIt.total}` : ''}
+      </div>
+    </div>
+  ) : null;
+  // how well you read each other — the two rings, the reader line, the
+  // parts of each other you read (deep enough), the same dot language as
+  // the daily
+  let record = null;
+  if (playing) {
+    const drows = DUELS.domainRows(duo);
+    const weak = drows.length >= 2 ? DUELS.weakDomain(duo) : null;
+    const rRate = duo.read.right / Math.max(1, duo.read.total), bRate = duo.readBy.right / Math.max(1, duo.readBy.total);
+    const gapR = rRate - bRate;
+    const readerLine = Math.abs(gapR) < 0.08 ? `You and ${firstName} read each other about equally well.` : gapR > 0 ? `You read ${firstName} better than ${firstName} reads you` : `${firstName} reads you better than you read ${firstName}`;
+    const lead = weak && Math.abs(gapR) >= 0.08 && weak.byRate > bRate + 0.05 ? `${readerLine}, except on ${weak.label}.` : Math.abs(gapR) < 0.08 ? readerLine : readerLine + '.';
+    const ring = (n, tot, color, caption) => (
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <MatchRing pct={(n / Math.max(1, tot)) * 100} color={color} size={78} thick={4} title={`${n} of ${tot}`}>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{n}<span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>/{tot}</span></span>
+        </MatchRing>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', textAlign: 'center' }}>{caption}</span>
+      </span>
+    );
+    record = (
+      <div style={{ marginBottom: 26 }}>
+        <div style={{ marginBottom: 8 }}><Kicker>How well you read each other</Kicker></div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.3, color: 'var(--ink)', textWrap: 'pretty' }}>{lead}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginTop: 18 }}>
+          {ring(duo.read.right, duo.read.total, 'var(--ink)', `you read ${firstName}`)}
+          {ring(duo.readBy.right, duo.readBy.total, themColor, `${firstName} reads you`)}
+        </div>
+        {drows.length >= 2 ? <div style={{ marginTop: 22 }}><DuoDomains rows={drows} themColor={themColor} themName={firstName}></DuoDomains></div> : null}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 11 }}><Kicker>Together</Kicker></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26 }}>
+        {duoTile}
+        {groupTiles ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>{groupTiles}</div> : groupsFallback}
+      </div>
+      {castBlock}
+      {record}
+    </div>
+  );
+}
+
 function PersonOverlay({ p: rawP, onClose, me }) {
   const dlg = useDialog(onClose, rawP && rawP.name ? `${rawP.name} profile` : 'Person profile');
   // Hooks first, unconditionally, ABOVE the `!rawP` guard below. None of
@@ -151,7 +356,10 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   // unconditionally, React blows up on a mismatched hook order far from
   // the edit that caused it.
   const [, fBump] = React.useReducer((x) => x + 1, 0);
-  React.useEffect(() => (FRIENDS ? FRIENDS.subscribe(fBump) : undefined), []);
+  React.useEffect(() => FRIENDS.subscribe(fBump), []);
+  // Play together re-renders on duel state too: Start flips the row to
+  // invited, Cancel back, an accepted invite to Open (2026-08-26)
+  React.useEffect(() => DUELS.subscribe(fBump), []);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   // hoisted for the same reason as the two above: the mind-map still opens
   // full-screen from a tap, and its state must not sit past the early return.
@@ -171,7 +379,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const p = { ...rawP, interests: normInterests };
   const prof = derivePerson(p, me);
   const parts = affinityBreakdown(me, prof, p);
-  const themColor = `oklch(0.55 0.13 ${p.hue})`;
+  const themColor = WPAL.ink(`oklch(0.55 0.13 ${p.hue})`);
 
   const overall = Math.round(p.match);
   const firstName = p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init);
@@ -243,18 +451,13 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           </div>
         </div>
 
-        <hr className="rule-dashed" />
+        <hr className="rule" />
 
         {/* ─── Affinity composer — one compare card per category, swipeable ─── */}
         {(() => {
-          if (!window.CompareCarousel) {
-            return (
-              <div className="card" style={{ marginBottom: 14 }}>
-                <Kicker>What makes the number</Kicker>
-                <div style={{ marginTop: 12 }}><AffinityBreakdown parts={parts} /></div>
-              </div>
-            );
-          }
+          // A whole fallback card used to sit here for the frame in which
+          // compare-breakdown.jsx had not loaded; it is an import now
+          // (D354's sweep) and there is no such frame.
           const rnd = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v)]));
           const to01 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round((v + 100) / 2)]));
           const who = p.anon ? 'them' : (p.name ? p.name.split(' ')[0] : p.init);
@@ -340,7 +543,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           return (
             <div style={{ marginBottom: 20 }}>
               <div style={{ marginBottom: 9 }}><Kicker>What makes the number</Kicker></div>
-              <window.CompareCarousel
+              <CompareCarousel
                 pop={themPop}
                 accent={themColor} label={who}
                 aligns={{ big5: Math.round(parts.personality), political: Math.round(parts.politics), values: Math.round(parts.values) }}
@@ -350,35 +553,16 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           );
         })()}
 
-        {/* ─── The 1v1 record — the one thing only a duel can tell you: how well
-            each of you actually reads the other. Same dot language as the daily,
-            so a filled dot means the same thing everywhere. ─── */}
-        {(() => {
-          const duo = DUELS.partners().find((x) => x.id === p.id && x.played > 0) || null;
-          if (!duo) return null;
-          const row = (label, n, key, color) => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <span style={{ width: 64, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-              <ReadRun days={Array.from({ length: n }, (_, i) => DUELS.duoDay(p.id, n - i)[key])} color={color} size={13}></ReadRun>
-            </div>
-          );
-          // deep enough to split by domain? then WHICH parts you read beats
-          // two aggregate streak rows. Shallow ties keep the simple version.
-          const rows = DUELS.domainRows(duo);
-          const weak = rows.length >= 2 ? DUELS.weakDomain(duo) : null;
-          return (
-            <div style={{ marginBottom: 26 }}>
-              <div style={{ marginBottom: 11 }}><Kicker>How well you read each other</Kicker></div>
-              {rows.length >= 2 && DuoDomains
-                ? <DuoDomains rows={rows} themColor={themColor} themName={firstName}></DuoDomains>
-                : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {row('you', duo.read.total, 'readRight')}
-                    {row(firstName, duo.readBy.total, 'byRight', themColor)}
-                  </div>}
-              {weak ? <div style={{ marginTop: 13, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>Your {weak.noun || weak.label} is where you{'\u2019'}re least legible to {firstName}.</div> : null}
-            </div>
-          );
-        })()}
+        {/* ─── Together (D437, the person page's Together tab of the owner's
+            2026-09-09 design, drawn as a section of this page): the doors —
+            a 1v1 with them, the groups you share, each leading with their
+            nearest named type read off the shared record alone
+            (poPersonTypes above); what you are to each other, from the
+            cast rounds; and how well you read each other, which left the
+            role instrument for here. The jumps cue the viewer
+            (data/duelCue) and walk through NAV — the daily ruler's
+            licensed exit, D166's joint, unchanged. ─── */}
+        {!p.anon && p.id ? <TogetherSection p={p} me={me} isFriend={isFriend} firstName={firstName} themColor={themColor}></TogetherSection> : null}
 
         {/* ─── The map is its OWN screen, not a panel in this scroll: a live
             pannable map wedged into a scrolling page fights the page for every
@@ -451,7 +635,4 @@ window.PersonOverlay = PersonOverlay;
 
 })();
 
-;globalThis.derivePerson = typeof derivePerson === 'undefined' ? globalThis.derivePerson : derivePerson;
-;globalThis.affinityBreakdown = typeof affinityBreakdown === 'undefined' ? globalThis.affinityBreakdown : affinityBreakdown;
-;globalThis.AffinityBreakdown = typeof AffinityBreakdown === 'undefined' ? globalThis.AffinityBreakdown : AffinityBreakdown;
 ;globalThis.PersonOverlay = typeof PersonOverlay === 'undefined' ? globalThis.PersonOverlay : PersonOverlay;

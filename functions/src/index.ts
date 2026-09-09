@@ -19,17 +19,21 @@
 // The rules layer is for client traffic; functions can do anything.
 
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { avatarTarget } from "./moderation";
+import { refundEurFor } from "./paid";
+import { presenceNeighbors } from "./pure";
+import { playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
 // import (not `import "./ops"`) because deleteAccount reads
 // ENFORCE_APP_CHECK; if that ever changes, keep the bare side-effect
 // import rather than dropping the line.
-import { ENFORCE_APP_CHECK } from "./ops";
+import { ENFORCE_APP_CHECK, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 
 initializeApp();
@@ -122,8 +126,23 @@ async function deleteOrphanedModQueue(): Promise<number> {
       orphans.push(q.ref);
       continue;
     }
-    const take = await db.collection("v2_takes").doc(takeId).get();
-    if (!take.exists) orphans.push(q.ref);
+    // AVATARS SHARE THIS QUEUE (D178), namespaced `av_<uid>` so they
+    // cannot collide with a take id — and `v2_takes/av_<uid>` never
+    // exists, so testing every entry against v2_takes read EVERY queued
+    // avatar report as an orphan. Any account deleting itself swept them
+    // all, and accounts are free (D3): a flagged photo could be kept out
+    // of the queue indefinitely, once a day, by a throwaway.
+    //
+    // Same absence-keyed design, asked of the right collection. The
+    // prefix is read through moderation.ts's own `avatarTarget`, which
+    // exists so "the queue build, the verdict and any future consumer
+    // cannot disagree about what an avatar target looks like" — this is
+    // that future consumer, and it disagreed.
+    const face = avatarTarget(takeId);
+    const target = face
+      ? await db.collection("v2_avatars").doc(face).get()
+      : await db.collection("v2_takes").doc(takeId).get();
+    if (!target.exists) orphans.push(q.ref);
   }
   if (!orphans.length) return 0;
   const batch = db.batch();
@@ -156,7 +175,7 @@ async function deleteUserSubtree(uid: string): Promise<number> {
 export const deleteAccount = onCall(
   // Unbounded per-account work, and a partial failure refuses the auth
   // delete — so a timeout here is a job the user can never complete.
-  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
+  { region: FUNCTIONS_REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");
@@ -167,6 +186,8 @@ export const deleteAccount = onCall(
 
     const counts = {
       ownSubtree: 0,
+      // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
+      patternSamples: 0,
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
@@ -177,11 +198,41 @@ export const deleteAccount = onCall(
       // missing rather than that nobody followed them.
       othersFollows: 0,
       handle: 0,
+      // The people directory row (D239). A flat 0/1 rather than a query
+      // count: it is one document at a known id, so a 0 here means the
+      // delete threw, not that nothing matched.
+      peopleRow: 0,
+      // Circles this account had ASKED to join and was never approved
+      // into (D240) — invisible to the membership sweep by definition.
+      pendingJoins: 0,
       invitesTo: 0,
       invitesFrom: 0,
       // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
       // §6) — the author's queued free text, keyed by uid.
       suggestions: 0,
+      // Paid purchase records swept by phase 4e (PAID-PLAN §7, D288 §3) —
+      // the buyer's contract ledger, keyed by uid.
+      purchases: 0,
+      // Paid AD documents taken with them (phase 4e). Not uid-keyed and
+      // not reachable by any query from here — the purchase row is the
+      // only pointer at one, which is why they go in the same phase.
+      paidAds: 0,
+      // Bought QUESTIONS whose byline was emptied (phase 4e). The question
+      // survives as content deliberately; the buyer's display name and
+      // audience dims on it do not, and the purchase row is the only
+      // pointer that can find one. Reported because a zero on an account
+      // that bought a question is the signal that the pointer was gone
+      // before this ran.
+      paidQuestionBylines: 0,
+      // …and how many of those were STILL RUNNING and were stopped with
+      // the byline (phase 4e). Separate from the line above because the
+      // two are different acts: emptying a byline is erasure, stopping a
+      // campaign is the consequence of erasing its targeting. A non-zero
+      // here is an operator's cue that a paid window ended early.
+      paidQuestionsStopped: 0,
+      // Paid-question bookings swept by phase 4f (paid.ts, D313) — the
+      // pre-payment half of a sale, keyed by uid.
+      paidBookings: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -208,10 +259,85 @@ export const deleteAccount = onCall(
       failed.push("ownSubtree");
     }
 
+    // 1a. THE AGG-EVENTS LEDGER, AND IT RUNS FIRST NOW — it used to be
+    //     phase 4c, a dozen phases after the subtree wipe below.
+    //
+    //     The nightly folds (the interest profile, the patterns state,
+    //     the engagement rollup) READ this ledger and WRITE per-uid
+    //     documents under `v2_users/{uid}` from what they find. A fold
+    //     that started while this call was in flight therefore saw the
+    //     erased account's rows and wrote its profile back UNDER a
+    //     subtree that had just been deleted — and nothing could remove
+    //     it afterwards, because the auth user is gone and deleteAccount
+    //     can never run for that uid again. docs/data-inventory.md
+    //     promises the opposite in as many words ("erased with the
+    //     account by deleteAccount's recursive delete — no new arm").
+    //
+    //     Taking the ledger first means a fold that starts at any point
+    //     after this line finds nothing for this uid and writes nothing.
+    //     What it does not cover is a fold that READ the ledger before
+    //     this line and commits after the sweep at the end of this
+    //     function; that residue is named there.
+    //
+    //     What the ledger IS, unchanged by the move: server-only, but
+    //     each entry says this account answered this question at this
+    //     time, which is exactly the attribution D28 added it for.
+    //     Erasure takes the attribution with the account; the tallies it
+    //     fed stay (1b below).
+    //
+    //     An answer still in flight through Eventarc when this runs can
+    //     land its entry AFTER the sweep — bounded residue, gone at TTL,
+    //     recorded in D28 rather than chased with a second pass.
+    try {
+      await deleteQueryDocs(db.collection("v2_agg_events").where("uid", "==", uid));
+    } catch (err) {
+      logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
+      failed.push("aggEvents");
+    }
+
+    // 1a′. THE VOTER SAMPLES (D397) — the one derived, world-readable
+    //     document family that holds uids: `v2_patterns/sample-{qid}`, the
+    //     newest two hundred voters per question, rows keyed by uid so
+    //     this arm is a field delete and never a rewrite of anyone else's
+    //     row. Every sample is checked rather than the ones this
+    //     account's answer map names, because the map and the samples
+    //     are written by the same nightly run and a crash between the two
+    //     writes could leave a row the map does not know about — a few
+    //     hundred reads once per deletion is the price of "gone means
+    //     gone" holding without a caveat. e2e-delete-account.mjs asserts
+    //     it, and that the other voters' rows stay.
+    try {
+      const refs = (await db.collection("v2_patterns").listDocuments())
+        .filter((r) => r.id.startsWith("sample-"));
+      let scrubbed = 0;
+      for (let i = 0; i < refs.length; i += 300) {
+        const snaps = await db.getAll(...refs.slice(i, i + 300));
+        let batch = db.batch();
+        let ops = 0;
+        for (const snap of snaps) {
+          if (!snap.exists) continue;
+          const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+          if (!(uid in rows)) continue;
+          batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
+          scrubbed += 1;
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+      }
+      counts.patternSamples = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] voter sample scrub failed:", err);
+      failed.push("patternSamples");
+    }
+
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
     // user contributed stay — anonymous tallies. The one place
     // that CAN attribute a count to this uid is the agg-events ledger
-    // (D28), and phase 4c deletes it, so the tallies are anonymous again
+    // (D28), taken by phase 1a above, so the tallies are anonymous again
     // the moment this call returns.
     try {
       await db.recursiveDelete(db.collection("v2_users").doc(uid));
@@ -245,8 +371,77 @@ export const deleteAccount = onCall(
     // delete, which turns "too talkative" into an account that can never
     // finish deleting itself.
     try {
-      await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
+      // FLAGS FIRST, THEN THE TAKES THEY NAME — per page.
+      //
+      // This collected the ids as it deleted, and swept their flags after
+      // the whole loop, on the reasoning that "once the take is gone
+      // nothing can find its flags again". True, and that is exactly the
+      // problem: it made the phase depend on state it had already
+      // destroyed. One transient failure anywhere after the loop, then the
+      // user's own retry, and the takes are gone, so the ids come back
+      // empty and their flags are unreachable forever — while the retry
+      // returns `ok` and deletes the auth user, so there is no third run.
+      // Verified against the real handler: the surviving document was a
+      // flag whose id contains the erased uid, in a collection with no TTL
+      // whose counts rank the moderation queue.
+      //
+      // Sweeping each page's flags while its takes still exist makes the
+      // phase resumable: at any failure point, whatever is left is still
+      // queryable by `authorUid`.
+      for (;;) {
+        const snap = await db.collection("v2_takes")
+          .where("authorUid", "==", uid).limit(400).get();
+        if (snap.empty) break;
+        const ids = snap.docs.map((d) => d.id);
+        // Chunked at ten because `in` is a bounded operator, and over ids
+        // rather than a prefix match, which Firestore has no way to
+        // express on a suffix.
+        for (let i = 0; i < ids.length; i += 10) {
+          await deleteQueryDocs(
+            db.collection("v2_flags").where("takeId", "in", ids.slice(i, i + 10)),
+          );
+        }
+        const batch = db.batch();
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        if (snap.docs.length < 400) break;
+      }
+      // Flags this account WROTE.
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // …and flags that NAME it, which the query above cannot see.
+      //
+      // A flag carries the uid of whoever cast it, and separately the thing
+      // it reports. Sweeping only the author left every report AGAINST this
+      // account standing: clearFlagsFor only runs for targets the
+      // moderation queue actually considers, and the queue's floor is
+      // MOD_QUEUE_MIN_FLAGS, so one or two reports on a departed account's
+      // face were residue forever. In the one collection whose stated
+      // posture is that erasure takes "their takes and flags".
+      //
+      // WHAT THIS REACHES IS AVATAR FLAGS, AND ONLY THOSE. The paragraph
+      // here used to say it reached a flag on a world take as well, "since
+      // a world take's id IS qid_uid" — which is true of the id and says
+      // nothing about this query. `isTakeFlag()` in firestore.rules pins a
+      // take flag's fields to exactly ["takeId", "gid", "uid", "at"]: there
+      // is no `target` on one, so this equality cannot match a take flag,
+      // ever. The `target` field exists only on the avatar arm, which
+      // carries it (the rule's own note) so the rule can reach the avatar
+      // document without doing string surgery on an id.
+      //
+      // The reachable residue is therefore: report cast on a world take →
+      // the author deletes their own take (permitted, "your speech stays
+      // yours to withdraw") → the flag is orphaned → the author erases.
+      // The takes loop above finds no take, so `takeId in ids` never names
+      // it, and this cannot see it. Confirmed against the real callable in
+      // the emulator, not reasoned. Closing it needs either a `target` on
+      // take flags (a rules change, and one that must stay OPTIONAL: a
+      // released ruleset applies instantly while installed clients update
+      // over weeks, so requiring the field would refuse every report from
+      // an app already on a phone) or a trigger that clears a take's flags
+      // when the take is deleted, which is what the queue build's own
+      // `settled` sweep already does for targets that clear the floor.
+      // Neither is a comment's call — see the night list.
+      await deleteQueryDocs(db.collection("v2_flags").where("target", "==", uid));
       // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove
       // from Storage, and the reason storage.rules could keep its retired
@@ -273,16 +468,50 @@ export const deleteAccount = onCall(
       // The mix cache next door needs no such sweep: it holds ranked type
       // NAMES and a count, nothing keyed by a uid.
       //
-      // Best-effort by construction, and that is honest rather than
-      // convenient: the cache is derived, expires on its own within
-      // minutes, and a failure here must not fail the phase that deletes
-      // the source of truth.
+      // Best-effort, and now actually so. That sentence stood here with
+      // nothing making it true: there is no inner try in this phase, so a
+      // failed delete of one derived cache document pushed the whole phase
+      // onto `failed` and refused the auth delete — exactly what the
+      // sentence says must not happen. Reordering the clears BEFORE the
+      // presence delete (below) would have made that worse, since the
+      // source of truth would then survive the failure too.
+      //
+      // The catch is what the comment always claimed: the cache is
+      // derived, it expires on its own within minutes, and losing one
+      // sweep of it must not keep an account alive.
+      // …and the same ordering rule, for the same reason: the room caches
+      // are found through the presence document's own cell, so they are
+      // cleared BEFORE it is deleted. Deleting first made the sweep
+      // unrepeatable — a retry read no cell and could never find the
+      // rosters again, leaving the erased uid listed in a room.
       const pres = await db.collection("v2_presence").doc(uid).get();
       const presCell = pres.get("cell");
-      await db.collection("v2_presence").doc(uid).delete();
       if (typeof presCell === "string" && presCell) {
-        await db.collection("v2_presence_room").doc(presCell).delete();
+        // NINE, not one. The cache is keyed by the CALLER's cell while its
+        // roster is folded over that cell's whole 3x3 neighbourhood
+        // (`roomFor(cells, own, qids)` in v2social.ts, where `cells =
+        // presenceNeighbors(cell)` and `own = cell`). presenceNeighbors is
+        // symmetric, so a phone standing in X is listed in
+        // v2_presence_room/{C} for every C in neighbors(X) — and this
+        // deleted X alone, leaving the erased uid in the roster a viewer
+        // one cell over reads, for up to a beat window, while the comment
+        // above said the window was closed.
+        //
+        // Nine deletes on a path that already does far more, and
+        // presenceNeighbors returns fewer than nine near a pole, which is
+        // the whole edge case handled by using it rather than deriving the
+        // block here.
+        const stale = presenceNeighbors(presCell);
+        try {
+          await Promise.all(
+            (stale.length ? stale : [presCell])
+              .map((c) => db.collection("v2_presence_room").doc(c).delete()),
+          );
+        } catch (err) {
+          logger.warn("[deleteAccount] presence room cache sweep failed:", err);
+        }
       }
+      await db.collection("v2_presence").doc(uid).delete();
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
       // its targets by their take being absent. See deleteOrphanedModQueue.
@@ -312,6 +541,35 @@ export const deleteAccount = onCall(
       failed.push("avatarObject");
     }
 
+    // The FOURTH place a reveal names this account, and the only one that
+    // is not keyed by it.
+    //
+    // A pick day's vote snapshots WHO its index meant (D224), so another
+    // member's entry reads `votes.{them}.pickUid = {uid}`. Deleting
+    // `votes.{uid}`, `names.{uid}` and the `members` entry leaves that
+    // one standing — and reveals are `allow read: if request.auth != null`
+    // (firestore.rules, the /reveals/{revealId} match), so it is a pseudonymous
+    // identifier of a deleted account in a document any signed-in user can
+    // read. That is exactly the survivor the `members` comment below
+    // refuses, one field over.
+    //
+    // Returns the update fields rather than writing, so both scrub phases
+    // fold it into the batch they already have.
+    const pickUidScrub = (
+      snap: { get: (f: string) => unknown },
+    ): Record<string, unknown> => {
+      const votes = snap.get("votes");
+      if (!votes || typeof votes !== "object") return {};
+      const out: Record<string, unknown> = {};
+      for (const [voter, v] of Object.entries(votes as Record<string, unknown>)) {
+        if (voter === uid) continue; // that whole entry is deleted anyway
+        if (v && typeof v === "object" && (v as { pickUid?: unknown }).pickUid === uid) {
+          out[`votes.${voter}.pickUid`] = FieldValue.delete();
+        }
+      }
+      return out;
+    };
+
     // 1c. Leave every v2 group: membership, name, and reveal entries all
     // reference the user — right-to-erasure means none may linger. A
     // group left empty is deleted outright (reveals included).
@@ -328,9 +586,15 @@ export const deleteAccount = onCall(
           await g.ref.update({
             memberUids: FieldValue.arrayRemove(uid),
             [`memberNames.${uid}`]: FieldValue.delete(),
-            // The join-time map revealGroupDay scopes reveals by. A uid here
+            // The join-time map revealRound scopes reveals by. A uid here
             // is the same erasure leak as the two fields around it.
             [`memberJoinedAt.${uid}`]: FieldValue.delete(),
+            // …and the rounds they have sealed but not yet seen revealed
+            // (`played`, ROUNDS-PLAN §2.1): the reveal counts these against
+            // the roster, and an erased uid must not stand in a document
+            // every remaining member reads.
+            ...playedRemovals(g.get("played"), uid),
+            ...stampRemoval(g.get("pushAt"), uid),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is
@@ -396,18 +660,47 @@ export const deleteAccount = onCall(
           let batch = db.batch();
           let ops = 0;
           for (const r of page.docs) {
+            // Whole documents are already in hand (this is a `.get()` page,
+            // not a stream of refs), so ask each one whether it mentions
+            // this user before spending a write on it. A group's reveals
+            // run from the day it was created: every day before the user
+            // joined, and every day they did not play, carried none of the
+            // three fields below and bought a write that deleted nothing —
+            // out of the ~7,300 documents the comment above prices for a
+            // year-old account in 20 groups. The check costs no read.
+            //
+            // It also stops arrayRemove from CREATING `members: []` on a
+            // reveal that never had the field, which the unconditional
+            // update did on every such document.
+            //
+            // Nothing is left behind by skipping: a field the snapshot does
+            // not carry is a field this update could not have deleted.
+            const hasVote = r.get(new FieldPath("votes", uid)) !== undefined;
+            const hasName = r.get(new FieldPath("names", uid)) !== undefined;
+            const inMembers = Array.isArray(r.get("members")) && (r.get("members") as string[]).includes(uid);
+            const picks = pickUidScrub(r);
+            if (!hasVote && !hasName && !inMembers && !Object.keys(picks).length) continue;
             batch.update(r.ref, {
+              ...picks,
               [`votes.${uid}`]: FieldValue.delete(),
               [`names.${uid}`]: FieldValue.delete(),
-              // The membership snapshot the reveal read rule gates on
-              // (firestore.rules, the /reveals/{day} match). Scrubbing the
-              // vote and the name but leaving the uid here left a
-              // pseudonymous identifier — and the group-day history it
-              // implies — surviving an erasure request. Removing it costs
-              // the deleted user read access to a reveal they can no longer
-              // authenticate for anyway, and costs no OTHER member
-              // anything: the rule tests `request.auth.uid in members`, so
-              // each entry only ever grants its own owner.
+              // Scrubbing the vote and the name but leaving the uid here
+              // left a pseudonymous identifier — and the group-day history
+              // it implies — surviving an erasure request, in a document
+              // `allow read: if request.auth != null` hands to any signed-in
+              // user (firestore.rules, the /reveals/{revealId} match). That is
+              // the same survivor pickUidScrub refuses one field over.
+              //
+              // This called `members` "the membership snapshot the reveal
+              // read rule gates on … the rule tests `request.auth.uid in
+              // members`" until 2026-08-31. It does not, and has not since
+              // D98 removed the arm — the claim survived in two copies here
+              // while the pickUidScrub comment above, written later, states
+              // the rule correctly and points AT these. What the array is
+              // now is an erasure index: phase 1c-bis's own collection-group
+              // `array-contains` query is its only reader, which is why
+              // removing the entry is safe to do while paging that query —
+              // one pass, and a page already in hand.
               members: FieldValue.arrayRemove(uid),
             });
             if (++ops >= 450) {
@@ -419,6 +712,36 @@ export const deleteAccount = onCall(
           if (ops) await batch.commit();
           if (page.size < 400) break;
           revealCursor = page.docs[page.docs.length - 1];
+        }
+      }
+      // …and the groups this account OWNS but is no longer in, which the
+      // membership query above cannot see. Exactly the gap 1c-bis exists to
+      // close for reveals, one field over: leaveGroupV2 removes a uid from
+      // memberUids and memberNames and deliberately leaves `ownerUid`
+      // standing (D45 — leaving is not an erasure request), so an account
+      // that created a circle and later left it keeps its raw uid on a
+      // document firestore.rules serves whole to every current member, and
+      // to everyone they invite afterwards, forever.
+      //
+      // docs/data-inventory.md enumerates what survives an erasure as a
+      // closed set of three, and web/privacy.html promises in writing that
+      // "two things intentionally survive, and neither can identify you".
+      // This was in neither list, which makes it a defect against a written
+      // promise rather than a judgement call.
+      //
+      // Single-field equality, so no composite index is needed. It runs
+      // AFTER the member loop deliberately: that loop deletes the field for
+      // every group it touches, so those documents no longer match this
+      // query and are not written twice. NOT_FOUND is tolerated for the
+      // same reason it is above — a group deleted underneath us is the
+      // outcome we wanted, and failing here would refuse the auth delete.
+      const owned = await db.collection("v2_groups").where("ownerUid", "==", uid).get();
+      for (const g of owned.docs) {
+        try {
+          await g.ref.update({ ownerUid: FieldValue.delete() });
+        } catch (err) {
+          if ((err as { code?: number | string }).code !== 5
+            && (err as { code?: string }).code !== "not-found") throw err;
         }
       }
     } catch (err) {
@@ -486,17 +809,15 @@ export const deleteAccount = onCall(
         let ops = 0;
         for (const r of page.docs) {
           batch.update(r.ref, {
+            ...pickUidScrub(r),
             [`votes.${uid}`]: FieldValue.delete(),
             [`names.${uid}`]: FieldValue.delete(),
-            // The membership snapshot the reveal read rule gates on
-            // (firestore.rules, the /reveals/{day} match). Scrubbing the
-            // vote and the name but leaving the uid here left a
-            // pseudonymous identifier — and the group-day history it
-            // implies — surviving an erasure request. Removing it costs
-            // the deleted user read access to a reveal they can no longer
-            // authenticate for anyway, and costs no OTHER member
-            // anything: the rule tests `request.auth.uid in members`, so
-            // each entry only ever grants its own owner.
+            // Same scrub, same reason as phase 1c above: a uid left in
+            // `members` is a pseudonymous identifier of a deleted account
+            // in a document any signed-in user can read. `members` is not
+            // an access grant — the reveal read rule is
+            // `allow read: if request.auth != null` — it is the index THIS
+            // phase's `array-contains` query walks.
             members: FieldValue.arrayRemove(uid),
           });
           if (++ops >= 450) {
@@ -511,6 +832,47 @@ export const deleteAccount = onCall(
       if (pass >= PASS_CAP) {
         throw new Error(
           `reveal scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
+        );
+      }
+
+      // …AND THE REVEALS THAT NAME YOU WITHOUT LISTING YOU.
+      //
+      // The pass above walks `members`, which is membership at REVEAL
+      // time. A pick answer copies the picked uid into
+      // `votes.<voter>.pickUid`, validated against membership at ANSWER
+      // time. Answer on a pick day, leave the circle before that night's
+      // reveal, and the two disagree: the uid is in the document, in no
+      // array the query above can see, and the document is readable by any
+      // signed-in account. `web/privacy.html` says deletion removes "your
+      // picks and name inside past group reveals".
+      //
+      // `pickedUids` is written by the reveal builder for exactly this,
+      // and the uid is removed from it in the same write that clears the
+      // pick — otherwise this loop would re-find the same page until
+      // PASS_CAP and throw.
+      for (pass = 0; pass < PASS_CAP; pass++) {
+        const page = await db.collectionGroup("reveals")
+          .where("pickedUids", "array-contains", uid).limit(PAGE).get();
+        if (page.empty) break;
+        let batch = db.batch();
+        let ops = 0;
+        for (const r of page.docs) {
+          batch.update(r.ref, {
+            ...pickUidScrub(r),
+            pickedUids: FieldValue.arrayRemove(uid),
+          });
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+        scrubbed += page.size;
+      }
+      if (pass >= PASS_CAP) {
+        throw new Error(
+          `pick scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
         );
       }
       counts.reveals = scrubbed;
@@ -587,6 +949,45 @@ export const deleteAccount = onCall(
       failed.push("handle");
     }
 
+    // 3c-bis. Pending join requests in circles this account never joined
+    //     (D240). `pending` and `pendingNames` live ON the group document,
+    //     so phase 1c misses them entirely — that phase matches on
+    //     `memberUids`, and the whole point of a pending request is that
+    //     the asker is not in that array. The name is the leak: an erased
+    //     account would sit in a stranger's circle, by name, waiting to
+    //     be approved.
+    //
+    //     `array-contains` on a single field, so Firestore indexes it
+    //     automatically and this needs no index entry.
+    try {
+      const waiting = await db.collection("v2_groups")
+        .where("pending", "array-contains", uid).get();
+      for (const g of waiting.docs) {
+        await g.ref.update({
+          pending: FieldValue.arrayRemove(uid),
+          [`pendingNames.${uid}`]: FieldValue.delete(),
+        });
+      }
+      counts.pendingJoins = waiting.size;
+    } catch (err) {
+      logger.error("[deleteAccount] pending-join wipe failed:", err);
+      failed.push("pendingJoins");
+    }
+
+    // 3d. The people directory (D239). Keyed by uid but a TOP-LEVEL
+    //     document, so phase 1b's recursiveDelete of v2_users/{uid} walks
+    //     straight past it — the same trap 3b describes for the handle
+    //     registry, and worse if missed: the row holds a name, so leaving
+    //     it means an erased account stays findable by the search this
+    //     feature exists to provide.
+    try {
+      await db.doc(`v2_people/${uid}`).delete();
+      counts.peopleRow = 1;
+    } catch (err) {
+      logger.error("[deleteAccount] people directory wipe failed:", err);
+      failed.push("peopleRow");
+    }
+
     // 3c. Circle invitations, BOTH directions (D122) — the same shape as
     //     the inbound follows above, and the same reason it is not
     //     covered by phase 1b: these documents live under someone else's
@@ -639,25 +1040,11 @@ export const deleteAccount = onCall(
       // The suggestion budget (suggestions.ts), same pattern and same
       // reasoning: added with the callable, not after an audit.
       await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
+      // The paid-booking budget (paid.ts, D313), same pattern again.
+      await db.collection("v2_ratelimits").doc(`paidbook_${uid}`).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");
-    }
-
-    // 4c. The aggregate event ledger's entries for this uid. Same
-    //     reasoning as 4b — server-only, but each entry says this account
-    //     answered this question at this time, which is exactly the
-    //     attribution D28 added it for. Erasure takes the attribution
-    //     with the account; the tallies it fed stay (1b).
-    //
-    //     An answer still in flight through Eventarc when this runs can
-    //     land its entry AFTER the sweep — bounded residue, gone at TTL,
-    //     recorded in D28 rather than chased with a second pass.
-    try {
-      await deleteQueryDocs(db.collection("v2_agg_events").where("uid", "==", uid));
-    } catch (err) {
-      logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
-      failed.push("aggEvents");
     }
 
     // 4d. This account's question suggestions (docs/NEXT-FUNCTIONALITY.md
@@ -673,6 +1060,233 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] suggestions wipe failed:", err);
       failed.push("suggestions");
+    }
+
+    // 4e. This account's paid purchase records (PAID-PLAN §7, D288 §3).
+    //     Uid-keyed like everything else the sweep covers; the business
+    //     record of a sale lives with the payment processor (Stripe since
+    //     D313; the hand contract before it), off-app, and the bought
+    //     QUESTION survives as content the way a promoted suggestion
+    //     does — the purchase ROW still goes, and the next pricing.json
+    //     rebuild folds a ledger that no longer names this account.
+    try {
+      // THE AD FIRST, BECAUSE THE ROW IS THE ONLY POINTER AT IT.
+      //
+      // A bought ad (D315) lives in `v2_ads/paidad-{bid}` and is deleted
+      // by exactly one thing: `closePaidCampaignsV2`, which reads `adId`
+      // off the RUNNING PURCHASE ROW. `runSeedAds` was taught to skip
+      // `paidad-` ids, so nothing else touches it. Delete the row first
+      // and the ad becomes immortal — in a collection whose committed
+      // half is empty, so every production ad is one of these, and which
+      // every session downloads whole under an unordered cap. That is the
+      // accumulation the closer's own delete comment says it exists to
+      // prevent, reached by the one path the closer cannot cover: the
+      // buyer erasing their account mid-campaign.
+      //
+      // Read before the sweep rather than deleting from the snapshot:
+      // deleteQueryDocs owns the paging, and a purchase list is bounded by
+      // what one account bought.
+      const bought = await db.collection("v2_purchases").where("uid", "==", uid).get();
+      const adIds = bought.docs
+        .map((d) => String(d.get("adId") ?? ""))
+        .filter((id) => id.length > 0);
+      for (const adId of adIds) {
+        await db.collection("v2_ads").doc(adId).delete();
+      }
+      counts.paidAds = adIds.length;
+      // …AND THE BYLINE OFF THE BOUGHT QUESTION, for the same reason one
+      // line up: the row is the only pointer at it.
+      //
+      // The question itself survives — that is the decision this phase's
+      // header records, and it is not being reversed here. But a bought
+      // question carries `sponsor.buyer` (the buyer's DISPLAY NAME, read
+      // off their profile at booking) and `sponsor.audience` (their dims;
+      // for a city-scoped ask that is the city set on their profile), in
+      // a document any signed-in user can read and nothing ever deletes.
+      // After erasure no pointer to it exists at all, so it is permanent
+      // and unreachable.
+      //
+      // The asymmetry was the tell: the paid AD is deleted here, while
+      // the paid QUESTION — the one actually carrying the person's name —
+      // was not. The header says a bought question survives "the way a
+      // promoted suggestion does", and a promoted suggestion is content
+      // carrying a vintage, never a byline. This makes that true.
+      //
+      // `sponsor` itself stays (the PAID band renders from its presence),
+      // emptied rather than removed. A booking that never went live has
+      // no question document, so a missing one is nothing to strip rather
+      // than a failure — anything else and one abandoned booking would
+      // make the account undeletable.
+      const boughtQids = bought.docs
+        .map((d) => String(d.get("qid") ?? ""))
+        .filter((id) => id.length > 0);
+      // A RUNNING CAMPAIGN STOPS HERE TOO, and this is not tidiness.
+      //
+      // `sponsor.audience` is not only personal data — it is the SERVING
+      // FILTER. `matches()` (data/sponsored.ts) reads `if (!tag) return
+      // true`, so an untagged sponsored question matches every device on
+      // earth. Deleting the field for erasure therefore did not narrow the
+      // campaign, it WIDENED it: a card bought for Oslo went worldwide the
+      // moment its buyer deleted their account, the PAID band flipped from
+      // "City: Oslo, NO" to the empty list it renders as shown-to-everyone,
+      // and the question's public aggregate began mixing a one-city frame
+      // with a global one, with nothing recording the seam.
+      //
+      // Nothing could stop it afterwards either: `closePaidCampaignsV2`
+      // finds its work with `state == "running"` on the purchase rows, and
+      // this same phase is about to delete the row. So the widened card ran
+      // to its `until` and, on the results page, presented itself as having
+      // been asked of everyone.
+      //
+      // RUNNING ONLY. A campaign whose window has closed is past `until`
+      // and already unservable, and `active: false` is read far beyond the
+      // feed — the Mirror's folds drop an inactive question — so retiring a
+      // finished one would take the crowd's own answers off the Mirror to
+      // settle something between the buyer and this app. The answers belong
+      // to the people who wrote them.
+      const runningQids = new Set(
+        bought.docs
+          .filter((d) => d.get("state") === "running")
+          .map((d) => String(d.get("qid") ?? ""))
+          .filter((id) => id.length > 0),
+      );
+      let stripped = 0;
+      let stopped = 0;
+      for (const qid of boughtQids) {
+        const stop = runningQids.has(qid);
+        try {
+          await db.collection("v2_questions").doc(qid).update({
+            "sponsor.buyer": FieldValue.delete(),
+            "sponsor.audience": FieldValue.delete(),
+            // A MARKER, because absence is ambiguous and the ambiguity is
+            // published. `sponsor.buyer` absent means "bought without a
+            // name" (D228) and `sponsor.audience` absent means "bought
+            // untargeted" — both real, deliberate purchases — so a page
+            // reading the stripped document cannot tell those from an
+            // erasure, and the public results page said the buyer "chose
+            // not to wear a name" and that the question was "asked
+            // everyone". Two definite statements, both false, about a
+            // sample that was one city's.
+            //
+            // Not personal data: it is a fact about this QUESTION, that
+            // its provenance is gone. Nothing in it points at anybody.
+            "sponsor.erased": true,
+            // Every servable path in the client is `active !== false`
+            // (data/live.ts), so this is the one field that takes a card
+            // off every surface at once rather than one filter at a time.
+            ...(stop ? { active: false } : {}),
+          });
+          stripped += 1;
+          if (stop) stopped += 1;
+        } catch (err) {
+          // NOT_FOUND (5) is the abandoned-booking case above.
+          if ((err as { code?: number }).code !== 5) throw err;
+        }
+      }
+      counts.paidQuestionBylines = stripped;
+      counts.paidQuestionsStopped = stopped;
+
+      // A RUNNING campaign's row is the only pointer at the money it owes
+      // back, and this sweep is about to delete it.
+      //
+      // closePaidCampaignsV2 finds its work with
+      // `where("state","==","running")` on this same collection, and that
+      // query is the ONLY thing in the system that pays a refund. So a
+      // buyer who erases their account mid-window had the unserved part of
+      // their budget — up to capEur — written off in silence: no refund,
+      // no line anywhere, and the payment intent gone with the row.
+      //
+      // Recorded rather than refunded, deliberately. A Stripe call on the
+      // erasure path is a network round trip inside an operation that must
+      // finish: a hang or a 500 there would leave an account half-deleted,
+      // which is a worse failure than a debt an operator settles. This is
+      // the same posture the closer already takes when it meets a purchase
+      // with no payment path — same metric, same arithmetic, so the two
+      // land in one place.
+      //
+      // In its own try/catch because nothing here may block the sweep
+      // below: recording a debt is strictly better than the silence, and
+      // strictly worse than the erasure completing.
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        for (const d of bought.docs) {
+          if (String(d.get("state") ?? "") !== "running") continue;
+          if (String(d.get("kind") ?? "question") !== "question") continue;
+          const until = String((d.get("window") as { until?: string })?.until ?? "");
+          const budget = (d.get("budget") as {
+            cap: number; capEur: number; ratePerAnswer: number;
+          }) ?? { cap: 0, capEur: 0, ratePerAnswer: 0 };
+          const qid = String(d.get("qid") ?? "");
+          let answers = 0;
+          if (qid) {
+            const agg = await db.collection("v2_question_aggs").doc(qid).get();
+            const c = (agg.exists ? agg.get("counts") : null) as Record<string, number> | null;
+            if (c) answers = Object.values(c).reduce((a, b) => a + (b || 0), 0);
+          }
+          const refundEur = refundEurFor(
+            budget.cap, budget.capEur, budget.ratePerAnswer, answers,
+          );
+          if (refundEur <= 0) continue;
+          logger.warn(
+            `[deleteAccount] ${d.id} erased while running, owing €${refundEur} — settle off-app`,
+            {
+              metric: "paid_refund_offapp",
+              paymentIntent: String(d.get("stripePaymentIntent") ?? ""),
+              qid, answers, until, today,
+            },
+          );
+        }
+      } catch (err) {
+        logger.error("[deleteAccount] running-campaign debt not recorded:", err);
+      }
+
+      counts.purchases = await deleteQueryDocs(
+        db.collection("v2_purchases").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] purchases wipe failed:", err);
+      failed.push("purchases");
+    }
+
+    // 4f. This account's paid-question bookings (paid.ts, D313). The
+    //     pre-payment half of a sale: prompt, audience, the review's
+    //     verdict and note — free text under a uid, covered the way the
+    //     suggestions are. A booking that went LIVE already left its
+    //     durable halves elsewhere (the purchase row, erased above with
+    //     this account; the question doc, which survives as content).
+    try {
+      counts.paidBookings = await deleteQueryDocs(
+        db.collection("v2_paid_bookings").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] paid-booking wipe failed:", err);
+      failed.push("paidBookings");
+    }
+
+    // 4z. SWEEP THE SUBTREE AGAIN, because the phases above take time and
+    //     a nightly fold can commit inside it.
+    //
+    //     Phase 1a removes what those folds read, so a fold starting
+    //     after it writes nothing — but one already mid-run has its rows
+    //     in hand, and a per-uid document it commits between 1b and here
+    //     would otherwise be permanent: the auth user is about to go, and
+    //     this function can never run for that uid again.
+    //
+    //     Ordinarily this deletes nothing and costs one empty recursive
+    //     delete. The failure it exists for is rare and silent, which is
+    //     the combination that earns a cheap second pass.
+    //
+    //     STILL NOT AIRTIGHT, and saying so is the point: a fold that
+    //     read the ledger before 1a and commits after this line leaves a
+    //     document nothing will remove. Closing that needs a tombstone
+    //     the folds consult — which is a uid-keyed record that outlives
+    //     the account, so it is a decision rather than a patch. On the
+    //     night list.
+    try {
+      await db.recursiveDelete(db.collection("v2_users").doc(uid));
+    } catch (err) {
+      logger.error("[deleteAccount] closing v2 subtree sweep failed:", err);
+      failed.push("v2SubtreeSweep");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
@@ -715,7 +1329,13 @@ export {
   createGroupV2,
   declineGroupInviteV2,
   inviteToGroupV2,
+  // joinGroupV2 is the DEPRECATED ALIAS (D240) — same implementation
+  // as requestJoinV2, kept exported so builds already installed keep
+  // working and start asking to join instead of admitting themselves.
   joinGroupV2,
+  requestJoinV2,
+  approveJoinV2,
+  declineJoinV2,
   leaveGroupV2,
   nearbyCountV2,
   nearbyRoomV2,
@@ -730,6 +1350,52 @@ export { activateDeviceV2 } from "./deviceBind";
 // story. Logs flags for manual review; never denies a vote.
 export { ledgerVelocityScan } from "./velocity";
 export { logicStartV2, logicSubmitV2 } from "./logic";
+export { saveTestResultV2 } from "./testResults";
+// D194: Foresight CALL, tier A — the daily pass that grades a sealed
+// prediction against our OWN published aggregate and publishes the numbers
+// it read. No model, no fetch, no judgement anywhere in that path.
+export { resolveCallsV2 } from "./calls";
+// v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
+// loading vectors from the vote log, core corpus only (D161). The fold
+// that has to exist before the Patterns tab may ship (D167). Since D399
+// it runs inside the nightly pass below (`digestEngagementV2`), not as a
+// scheduled function of its own — `fitPatternsV2` is retired.
+// D316: the nightly published serving order — per-topic question order
+// (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
+// paged read path fetches against. Global signal only; no uid enters
+// the fold (D163/D317's line).
+export { rankBankV2 } from "./rank";
+// D317 phase 1 (D322): the per-person interest profile — feed answers
+// counted by topic, nightly, onto v2_users/{uid}/taste/profile. Derived
+// from answers alone (public by D98); the pager sizes topic pages by it
+// and nothing else reads it. Inside the nightly pass since D399;
+// `fitTasteV2` is retired.
+// THE NIGHTLY PASS (D399): one read of yesterday's ledger feeding the
+// engagement digest (R1/D268 — anonymous population counts, one public
+// day doc per UTC day; nothing per-person leaves it), the Patterns fit
+// and the taste fold, then the attention and rollup folds. It keeps the
+// digest's deploy name and heartbeat because the armed alert policy is
+// keyed on them — nightly.ts's header has the reasoning.
+export { digestEngagementV2 } from "./nightly";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";
+// The self-serve paid-question loop (D313): book → automated review →
+// Stripe checkout → the webhook writes the purchase and the live
+// question → the closer refunds what the window did not deliver.
+export {
+  bookPaidQuestionV2, onPaidBookingCreated, sweepPaidReviewsV2,
+  createPaidCheckoutV2, stripeWebhookV2, closePaidCampaignsV2,
+} from "./paid";
+// D290: the replay tool — rebuild a question's aggregate from the answers
+// that made it. The operator half of "answers are the source of truth,
+// aggregates are disposable projections": D28's correction runbook could
+// only ever repair `counts` (the ledger carries no anchors) and only for
+// LEDGER_RETENTION_DAYS. This repairs the breakdown too, at any age, and
+// is the safety net every later projection change rests on.
+export { rebuildAggregateV2 } from "./replay";
+// D379: the shareable results page — a public web page per sponsored
+// question at the hosting rewrite /q/{qid}, rendered here on the admin
+// SDK off the two public documents. onRequest, and no App Check, because
+// it serves the open web; the reasoning is share.ts's header.
+export { resultsPageV2 } from "./share";

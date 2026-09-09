@@ -1,6 +1,152 @@
 --- v18/relmap.jsx
 +++ v28/relmap.jsx
-@@ -683,7 +683,6 @@
+@@ -22,7 +22,7 @@
+         query: '', mode: props.initialView || 'circles', lensAxis: null, layout: 'web',
+         zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, searchOpen: false, drill: [],
+         groups: this.applyNames(DEFAULT_GROUPS), people: this.applyRel(defaultPeople()),
+-        adding: false, newLabel: '', editing: false, dropGroup: null,
++        adding: false, newLabel: '', editing: false, dropGroup: null, dragId: null, dragPt: null,
+       };
+       this.setSvg = (el) => { this.svgEl = el; };
+       ['onPointerDown', 'onPointerMove', 'onPointerUp', 'onWheel'].forEach(m => { this[m] = this[m].bind(this); });
+@@ -141,23 +141,35 @@
+       const n = this.ensureGraph().byId[nodeId];
+       return !!n && !n.isHub;
+     }
+-    // Which circle does this point belong to? Considers hubs *and* their members,
+-    // so dropping onto a cluster of nodes counts as dropping on that circle —
+-    // the whole visible blob is the target, not just the hub dot.
+-    nearestHub(x, y) {
+-      const g = this._g; if (!g) return null;
+-      const P0 = this.state.positions;
+-      let best = null, bd = Infinity;
++    // Which circle does this point belong to? One candidate PER CIRCLE — its hub,
++    // or the centroid of its dots when the hub sits off to one side — so every
++    // circle is reachable from anywhere on the map. (Measuring to the nearest
++    // NODE meant the cluster you were dragging out of always won, and only the
++    // circle you happened to be beside could ever be hit.)
++    groupTargets() {
++      const g = this._g; if (!g) return [];
++      const acc = {};
+       g.nodes.forEach((n) => {
+-        if (n.id === 0) return;
+-        const p = P0[n.id] || n;
+-        // members count from a bit further out than their own radius
+-        const d = Math.hypot(p.x - x, p.y - y) - (n.isHub ? (n.r || 0) + 40 : (n.r || 0) + 10);
+-        if (d < bd) { bd = d; best = n; }
++        if (n.id === 0 || !n.group) return;
++        const a = acc[n.group] || (acc[n.group] = { key: n.group, sx: 0, sy: 0, k: 0, hub: null });
++        if (n.isHub) { a.hub = n; return; }
++        a.sx += n.cx; a.sy += n.cy; a.k++;
++      });
++      return Object.values(acc).map((a) => {
++        const hx = a.hub ? a.hub.cx : null, hy = a.hub ? a.hub.cy : null;
++        const cx = a.k ? a.sx / a.k : hx, cy = a.k ? a.sy / a.k : hy;
++        // the blob's middle: halfway between the hub and its dots' centroid
++        return { key: a.key, x: hx == null ? cx : (hx + cx) / 2, y: hy == null ? cy : (hy + cy) / 2, hubId: a.hub ? a.hub.id : null };
++      });
++    }
++    nearestGroup(x, y) {
++      let best = null, bd = Infinity;
++      this.groupTargets().forEach((t) => {
++        const d = Math.hypot(t.x - x, t.y - y);
++        if (d < bd) { bd = d; best = t; }
+       });
+-      // no distance cap — whichever circle is nearest IS the target. A cap meant a
+-      // drop landing between clusters silently sprang back and read as broken.
+-      return best || null;
++      // no distance cap — whichever circle is nearest IS the target
++      return best;
+     }
+     setRelation(nodeId, key) {
+       const node = this.ensureGraph().byId[nodeId];
+@@ -167,7 +179,7 @@
+       this.saveRel({ by });
+       // clearing the pins lets the layout carry them into their new wedge — the
+       // move is the confirmation, so nothing has to say “saved”
+-      this.setState({ people, positions: {}, dropGroup: null, selectedId: null, hoveredLegend: null });
++      this.setState({ people, positions: {}, dropGroup: null, dragId: null, dragPt: null, selectedId: null, hoveredLegend: null });
+     }
+     cancelAdd() { this.setState({ adding: false, newLabel: '' }); }
+     confirmAdd() {
+@@ -227,14 +239,17 @@
+           return;
+         }
+         if (d.moved > 4) {
++          // people are NOT movable — the map's geometry is the data. Dragging one
++          // aims at a circle and nothing else moves; the person stays put and the
++          // circle under your finger is ringed.
+           const u = this.toUser(e.clientX, e.clientY);
+           const { zoom, panX, panY } = this.state;
+           const lx = (u.x - panX) / zoom, ly = (u.y - panY) / zoom;
+-          const positions = { ...this.state.positions, [d.nodeId]: { x: lx, y: ly } };
+-          const patch = { positions };
+-          const hub = this.nearestHub(lx, ly);
+-          const key = hub ? hub.group : null;
++          const t = this.nearestGroup(lx, ly);
++          const key = t ? t.key : null;
+           d.dropKey = key;
++          const patch = { dragPt: { x: lx, y: ly } };
++          if (this.state.dragId !== d.nodeId) patch.dragId = d.nodeId;
+           if (this.state.dropGroup !== key) patch.dropGroup = key;
+           this.setState(patch);
+         }
+@@ -253,12 +268,8 @@
+         const node = this.ensureGraph().byId[d.nodeId];
+         if (node && node.group !== d.dropKey) { this.setRelation(d.nodeId, d.dropKey); return; }
+       }
+-      // Otherwise snap back. Distance from You encodes closeness, so a person
+-      // never keeps a hand-placed spot — only their circle is yours to change.
+-      if (d.nodeId != null && d.moved >= 5 && this.state.positions[d.nodeId]) {
+-        const positions = { ...this.state.positions }; delete positions[d.nodeId];
+-        this.setState({ positions, dropGroup: null });
+-      } else if (this.state.dropGroup) this.setState({ dropGroup: null });
++      // nothing to snap back — the person never left their spot
++      if (this.state.dropGroup || this.state.dragId != null) this.setState({ dropGroup: null, dragId: null, dragPt: null });
+       if (d.moved < 5) {
+         if (d.nodeId != null) {
+           this.lastTap = null;
+@@ -410,9 +421,11 @@
+         g.nodes.forEach(n => { if (n.id !== 0 && !n.isHub && n.name.toLowerCase().includes(q)) { matchSet.add(n.id); resultCount++; } });
+       }
+ 
+-      const activeId = hoveredId != null ? hoveredId : selectedId;
++      const inHand = st.dragId != null;
++      const activeId = inHand ? st.dragId : (hoveredId != null ? hoveredId : selectedId);
+       let focus = null;
+-      if (matchSet) focus = matchSet;
++      if (inHand) focus = null;
++      else if (matchSet) focus = matchSet;
+       else if (activeId != null) focus = g.adj[activeId];
+       else if (hoveredLegend != null) focus = legendSets[hoveredLegend];
+       else if (st.focusGroup && g.groupHubId[st.focusGroup] != null) focus = new Set([0, g.groupHubId[st.focusGroup], ...g.groupMembers[st.focusGroup]]);
+@@ -614,13 +627,19 @@
+             </g>
+             {/* drop target — while a person is in hand, the circle they would land in
+                 is ringed, so the gesture is aimed rather than guessed */}
+-            {this.state.dropGroup && this.drag ? (() => {
+-              const hub = (this._g.nodes || []).find((x) => x.isHub && x.group === st.dropGroup);
+-              const vn = hub ? v.nodes.find((x) => x.id === hub.id) : null;
+-              if (!vn) return null;
++            {this.state.dropGroup && this.state.dragId != null ? (() => {
++              const t = this.groupTargets().find((x) => x.key === this.state.dropGroup);
++              const vn = t && t.hubId != null ? v.nodes.find((x) => x.id === t.hubId) : null;
++              const src = v.nodes.find((x) => x.id === this.state.dragId);
++              const col = vn ? vn.color : P.ink2;
++              const pt = this.state.dragPt;
+               return (
+-                <circle cx={vn.cx} cy={vn.cy} r={vn.r + 30} fill="none" stroke={vn.color} strokeWidth="2.5"
+-                  strokeDasharray="6 6" opacity="0.95" style={{ pointerEvents: 'none' }}></circle>
++                <g style={{ pointerEvents: 'none' }}>
++                  {vn && <circle cx={vn.cx} cy={vn.cy} r={vn.r + 34} fill="none" stroke={col} strokeWidth="2.5" strokeDasharray="6 6" opacity="0.95"></circle>}
++                  {src && pt && <line x1={src.cx} y1={src.cy} x2={pt.x} y2={pt.y} stroke={col} strokeWidth="1.5" strokeDasharray="3 4" opacity="0.65"></line>}
++                  {src && <circle cx={src.cx} cy={src.cy} r={src.r + 5} fill="none" stroke={col} strokeWidth="2" opacity="0.9"></circle>}
++                  {pt && <circle cx={pt.x} cy={pt.y} r="5" fill={col} opacity="0.9"></circle>}
++                </g>
+               );
+             })() : null}
+             {/* labels last, and haloed — a circle name has to stay readable where
+@@ -683,7 +702,6 @@
        const v = this.computeVals();
        const st = this.state;
        const SANS = "'Hanken Grotesk', sans-serif";
@@ -8,7 +154,7 @@
        const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 13, color: P.ink };
        const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
        const pillBg = { background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow };
-@@ -703,7 +702,7 @@
+@@ -703,7 +721,7 @@
            {!this.props.embedded && (
              <div style={{ position: 'absolute', top: 17, left: 20, right: 62, pointerEvents: 'none' }}>
                <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.faint, marginBottom: 5 }}>Relationship map</div>

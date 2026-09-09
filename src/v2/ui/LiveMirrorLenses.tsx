@@ -11,8 +11,11 @@
 //   People   the cohort's demographic mix (a fold over `agg.by`) and
 //            Kindred, the people whose answers most match yours
 //            (data/cohort.ts `agreement`, over the cached voter lists).
-//   Compare  you against this population, question by question, with the
-//            questions you diverge on most surfaced first.
+//   Compare  you against this population as whole profiles — the
+//            prototype's rose-and-poles drawing over measured axes
+//            (ui/LiveCompareLens.tsx, D193). It shipped as a list of
+//            questions and that was the Answers tab re-sorted; the
+//            section comment on CohortCompare has the account.
 //   Scores   the place scorecard: what this population gives the place it
 //            is standing in, facet by facet, with your own score ticked
 //            onto their bar (D100, corrected at D187).
@@ -43,14 +46,28 @@
 // opened. That one is behind its own tab and fetches on first view.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
+import { cityIsConfirmed } from "../data/cityConfirm";
 import {
-  COHORT_DIMS, DIM_LABEL, divergence, meanScore, mixFor, pctFor, sliceSplit,
+  COHORT_DIMS, DIM_LABEL, divergenceFor, meanScore, mixFor, pctFor,
   type Score,
 } from "../data/cohort";
+import { sharePcts } from "../data/pct";
 // D125: these two lenses printed the raw bucket KEY, so a country row read
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
+
+/**
+ * The smallest cell Explore will rank.
+ *
+ * TWO, and not a larger number chosen here: below two answers a split does
+ * not exist to be measured — one answer is 100/0 by construction rather
+ * than by disagreement — which is the same reasoning `MIN_SHARED` carries
+ * in `data/groupPortrait.ts`. Cells above it are handled the way both
+ * sibling surfaces handle them: by stating what the claim rests on.
+ */
+const EXPLORE_MIN_N = 2;
 import TypeMixCard from "./TypeMixCard";
 // The People lens draws people rather than listing them (D152): the
 // prototype's match ring, a per-person hue, and the place name behind a
@@ -68,6 +85,14 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
 import Avatar from "./Avatar";
+// The Compare tab's whole body (D193). A static import rather than a lazy
+// one: this module IS the lazy lens chunk, so the drawing rides the same
+// fetch the row already pays for when a lens is opened.
+import LiveCompareLens from "./LiveCompareLens";
+// The meaning floors an axis must clear before a PLACE's mean is drawn as
+// that place's centre. Shared with the result cards' "most people" ring
+// rather than re-picked here — one number, one reason (D157).
+import { NORM_MIN_ANSWERS, NORM_MIN_ITEMS } from "../data/testNorms";
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 // D136 removed the Foresight lens from this row, so the import of
 // ./LiveForesightLens went with it. The component and data/foresight.ts
@@ -146,9 +171,10 @@ function LlEmpty({ children }: { children: React.ReactNode }) {
 //     veterans"). Nothing publishes a join date, and a made-up tenure
 //     split is exactly the furniture D1 exists to keep off a live screen.
 //   - Its shared-interest chips ("pottery · fermentation · Murakami").
-//     Stated interests are LOCAL and the viewer's own (data/interests.ts,
-//     D128) — the Mirror is named in that module as a surface that may not
-//     read them, and another person's are not readable at all. The chips
+//     Stated interests do not exist: D173 deleted the levers outright
+//     (reversing D128), so there is nothing to draw rather than something
+//     withheld — the algorithm owns "how much", not a per-topic control.
+//     The chips
 //     here are their frozen ANSWER anchors, which are public (D98) and are
 //     the same source the cohort above them is folded from.
 //   - An exact median age. The anchor is a BAND, so the median is a band,
@@ -173,8 +199,23 @@ function PlKicker({ children }: { children: React.ReactNode }) {
  * than qualifying every number: someone who answered ten questions is in
  * these bars ten times, and calling that a headcount would be the small
  * lie this app is built not to tell.
+ *
+ * AND IT IS EVERYONE'S SHAPE, on every stop. `by` is one dimension deep —
+ * `dim → bucket → counts`, BREAKDOWN_DIMS in functions/src/pure.ts — so
+ * there is no age×city cross to fold and an age histogram for Oslo is not
+ * in the published data at all. Summing `mixFor(by, "ageBand")` sums every
+ * bucket, which is the world. The card drew those numbers under "in Oslo"
+ * on the City and Country stops: not a rounding error, a different
+ * population, presented as the one the reader is standing in.
+ *
+ * So the subtitle names what the numbers are rather than what the stop is.
+ * That sentence is a claim and not furniture — COPY.md §3, the clause the
+ * word-count rule does not reach. The alternative was drawing the card at
+ * World only, which would spend two stops to avoid one line.
  */
-function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+function WhosHere({ qs, shortName, scope }: {
+  qs: LensQuestion[]; shortName: string; scope: "city" | "country" | "world";
+}) {
   const tallyOf = (dim: string): Record<string, number> => {
     const t: Record<string, number> = {};
     for (const q of qs) {
@@ -212,9 +253,18 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
 
   const genderRows = Object.keys(gender).map((b) => ({ b, n: gender[b] })).sort((x, y) => y.n - x.n);
   const genderTotal = genderRows.reduce((a, r) => a + r.n, 0);
+  // `sharePcts` (data/pct.ts), the one rounding rule, because this bar is
+  // a 100%-STACKED one: the same number is the segment's width and the
+  // label printed inside it, so a set that does not sum to 100 is visible
+  // as well as wrong. Rounding each bucket on its own summed to 99 or 101
+  // on about a fifth of real mixes, and `[1, 1, 1]` drew three segments
+  // all labelled 33% with a one-percent gap at the end of the track —
+  // the container clips and paints no background, so the card showed
+  // through it.
+  const genderPcts = sharePcts(genderRows.map((r) => r.n));
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>No ages or genders here yet.</LlEmpty>;
+    return <LlEmpty>Nobody has filled in an age or gender yet.</LlEmpty>;
   }
 
   return (
@@ -224,7 +274,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           Who&rsquo;s here
         </div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
-          in {shortName}
+          {scope === "world" ? <>in {shortName}</> : <>everyone, not just {shortName}</>}
         </div>
       </div>
 
@@ -290,7 +340,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           <PlKicker>Gender</PlKicker>
           <div style={{ display: "flex", height: 26, borderRadius: 7, overflow: "hidden", marginTop: 8 }}>
             {genderRows.map((r, i) => {
-              const pct = Math.round((r.n / genderTotal) * 100);
+              const pct = genderPcts[i];
               return (
                 <span key={r.b} title={`${r.b} · ${pct}%`} style={{
                   width: `${pct}%`, display: "flex", alignItems: "center", justifyContent: "center",
@@ -431,24 +481,36 @@ function PeopleLens({ qs, scope, shortName }: {
   qs: LensQuestion[]; scope: "city" | "country" | "world"; shortName: string;
 }) {
   React.useEffect(() => { void LIVE.loadKindred(); }, []);
+  // The follow buttons on these cards read the follow set when the circle
+  // is not loaded, and this lens is one of the surfaces that never loads
+  // it. One query, session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
 
-  // The ranked people, typed. `kindredPeople` carries the frozen anchors
-  // and the parsed scores from the SAME cached voter rows the ranking is
-  // computed over, so the card costs no read the list has not already
-  // paid for.
-  const people = LIVE.kindredPeople()
+  // The ranked people. `kindredPeople` carries the frozen anchors and the
+  // parsed scores from the SAME cached voter rows the ranking is computed
+  // over, so the card costs no read the list has not already paid for.
+  const ranked = LIVE.kindredPeople()
     .filter((p) => p.like.shared >= 2)
-    .sort((a, b) => b.like.pct - a.like.pct
+    // rate, not pct (D277 §2): the percentage alone puts a 1-of-1 stranger
+    // above a 45-of-50 one. cohort.likenessRate has the measurements.
+    .sort((a, b) => b.like.rate - a.like.rate
       || b.like.shared - a.like.shared
-      || a.uid.localeCompare(b.uid))
-    .map((p) => ({ ...p, type: typeOfPerson(p) }));
+      || a.uid.localeCompare(b.uid));
+  // Typed AFTER the cut, not before. `typeOfPerson` runs the archetype
+  // matcher — ~13 types scored over the person's axes, with its own
+  // allocations — and the list it was mapped over is the whole cached
+  // sample: KINDRED_QUESTIONS × VOTER_FETCH_CAP is up to ~2,400 distinct
+  // people, against the twelve cards below. Nothing between the map and
+  // the slice read `type`, and `.map` cannot change a length, so the two
+  // empty branches keep reading the uncut list and say the same thing.
+  const shown = ranked.slice(0, 12).map((p) => ({ ...p, type: typeOfPerson(p) }));
   const loading = LIVE.kindredLoading();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-      <WhosHere qs={qs} shortName={shortName} />
+      <WhosHere qs={qs} shortName={shortName} scope={scope} />
 
       <div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
@@ -460,18 +522,27 @@ function PeopleLens({ qs, scope, shortName }: {
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, marginBottom: 10, lineHeight: 1.5 }}>
           who answers most like you
         </div>
-        {loading && !people.length ? (
+        {loading && !ranked.length ? (
           <LlEmpty>Matching…</LlEmpty>
-        ) : !people.length ? (
-          <LlEmpty>Fills in as you answer more.</LlEmpty>
+        ) : !ranked.length ? (
+          // Paused before empty (D332): "fills in as you answer more" is a
+          // promise the refused fetch cannot keep.
+          <LlEmpty>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Fills in as you answer more."}</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {people.slice(0, 12).map((p) => <KindredCard key={p.uid} p={p} />)}
+            {shown.map((p) => <KindredCard key={p.uid} p={p} />)}
             {/* The metric, in one sentence, on the screen that uses it —
                 a likeness number nobody can explain is a number nobody
-                should trust. */}
+                should trust.
+
+                "last N" was the wrong word twice over (D277 §2): the
+                twelve were never the most recent — Object.keys order froze
+                them at the first cold boot — and they are now chosen by
+                how divisive each question was, which is not an ordering in
+                time at all. "across N" is what the number is actually
+                over, and it is the same length. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              same picks &divide; shared &middot; last {LIVE.kindredDepth()}
+              same picks &divide; shared &middot; across {LIVE.kindredDepth()}
             </span>
           </div>
         )}
@@ -489,63 +560,59 @@ function PeopleLens({ qs, scope, shortName }: {
 // ── Compare ─────────────────────────────────────────────────────────
 
 /**
- * Compare — you against a cohort, least typical first.
+ * Compare — you against this place, profile against profile (D193).
  *
- * EXPORTED since D177, and it is the only lens body that is: the Near
- * stop's room reads exactly this way (you against the people here), and a
- * second implementation would be a second place for D170's majority test
- * to be got wrong. It asks nothing about scope — a `LensQuestion[]` and a
- * noun — so a cohort the server folded reads the same as one the device
- * did.
+ * WHAT STOOD HERE UNTIL D193: `pctFor` on your own option, question by
+ * question, ranked least-typical first. A correct reading of real counts,
+ * and the wrong one twice over — it is what docs/MIRROR.md has described
+ * this lens as NOT being since D99 ("you against them across every
+ * assessment, in the results profile's own visual language"), and it was
+ * the Answers tab with a different sort, since `LiveAnswerRows` draws the
+ * same population's every question with your pick marked and "62% of Oslo
+ * are with you" underneath. ui/LiveCompareLens.tsx is the drawing; this
+ * is only the part that knows which cells a place is.
+ *
+ * The cells are the stop's own — D170's rule, unchanged by the change of
+ * reading: the City stop folds the city's cell, Country its country's,
+ * World the globe. The FLOORS are testNorms', because a place is a sample
+ * of a place: below them an axis is a handful of people's mood drawn as a
+ * population's centre, which is the failure D157 removed from the result
+ * cards and must not be reintroduced one tab over.
  */
-export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
-  const answered = qs.filter((q) => q.mine >= 0 && q.counts.some((c) => c > 0));
-  if (!answered.length) {
-    return <LlEmpty>Fills in as you answer.</LlEmpty>;
-  }
-  // Ranked by how far you sit from the crowd on your own pick — the
-  // interesting rows are the ones where you are unusual, not the ones
-  // where everyone agrees with you.
-  const rows = answered.map((q) => {
-    const pct = pctFor(q.counts);
-    const n = q.counts.reduce((a, b) => a + b, 0);
-    // "With the majority" means your pick is what this cohort picked MOST
-    // — not that it cleared 50% (D170). The old rule was `mineShare >= 50`
-    // and it was wrong in both directions: on a three-way question the
-    // leading answer can win on 40%, and on a two-way tie at 50/50 nobody
-    // is in the majority, which is exactly what the release showed —
-    // "the majority in 3 of 3" over a row split 50/50.
-    const top = q.counts.reduce((t, v, i) => (v > q.counts[t] ? i : t), 0);
-    const tied = q.counts.filter((v) => v === q.counts[top]).length > 1;
-    return { q, pct, n, mineShare: pct[q.mine] || 0, withMost: !tied && q.mine === top };
-  }).sort((a, b) => a.mineShare - b.mineShare);
+function CohortCompare({ scope, shortName }: {
+  scope: "city" | "country" | "world"; shortName: string;
+}) {
+  // NO LOADER HERE, deliberately. The test-item aggregates this fold
+  // reads are the constellation's, and the constellation is the permanent
+  // head of all three of these stops (D136) — it asks for them on arrival
+  // and never unmounts, so they are in flight before this tab can be
+  // tapped. A courtesy `loadSimilarity()` here would now be REDUNDANT
+  // rather than expensive, and the difference is worth stating because
+  // this note used to argue the second one: it said the call "still
+  // awaits `loadKindred`, which is the People lens's own cost gate", and
+  // that stopped being true on 2026-08-31, when the fan-out moved out of
+  // `loadSimilarity` to the two surfaces that actually read it. The
+  // conclusion survives its own reason — nothing here needs asking twice
+  // (LiveCohortBody.test.tsx pins that the row costs nothing to navigate).
+  const city = LIVE.myCity;
+  const country = city ? (PLACES.parse(city)?.country || "") : "";
+  const key = scope === "city" ? city : country;
+  const cellOf = React.useCallback((qid: string): number[] | null => {
+    const agg = LIVE.aggFor(qid);
+    if (!agg) return null;
+    const raw = scope === "world" ? agg.counts : agg.by?.[scope]?.[key];
+    if (!raw) return null;
+    // Dense to the 5-point scale the instruments are written on — the
+    // same shape testNorms builds for the globe.
+    return Array.from({ length: 5 }, (_, i) => Number(raw[String(i)]) || 0);
+  }, [scope, key]);
 
-  const withMost = rows.filter((r) => r.withMost).length;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* A fraction and a sort order, which is all this line ever carried.
-          The noun stays — CompareLens is the Near stop's room as well as a
-          cohort stop (D177), and there "the people here" is the reading —
-          but the rest was scaffolding around two facts. */}
-      <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        <strong style={{ fontVariantNumeric: "tabular-nums" }}>{withMost}/{rows.length}</strong>
-        {" "}with {shortName} · least typical first
-      </div>
-      {rows.map(({ q, pct, n, mineShare }) => (
-        <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
-          <LlBar pct={pct} labels={q.options} mark={q.mine} />
-          <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong>
-            {/* A share of ONE answer is not a share: with n=1 the only
-                values the arithmetic can produce are 0% and 100%, so
-                "100% here agreed" reports the sample size and nothing
-                else. Arithmetic, not a threshold someone chose. */}
-            {n === 1 ? <> · one answer here so far</> : <> · {mineShare}% here agreed</>}
-          </span>
-        </div>
-      ))}
-    </div>
+    <LiveCompareLens
+      pop={{ basis: "cells", cellOf, minAnswers: NORM_MIN_ANSWERS, minItems: NORM_MIN_ITEMS }}
+      whom={shortName}
+      emptyThem={<>Nobody in {shortName} has answered a test card yet.</>}
+    />
   );
 }
 
@@ -556,30 +623,98 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   const [bucket, setBucket] = React.useState<string>("");
 
   // Buckets available across the questions in view, biggest first.
-  const tally: Record<string, number> = {};
-  for (const q of qs) {
-    for (const b of mixFor(q.by, dim, q.options.length)) tally[b.bucket] = (tally[b.bucket] || 0) + b.n;
-  }
-  const buckets = Object.keys(tally).sort((a, b) => tally[b] - tally[a]);
+  //
+  // Memoised on its inputs (D398). `qs` is rebuilt by the stop on every
+  // store notify — which is when an aggregate can have moved, so that is
+  // not the render being saved. The one being saved is this lens's OWN:
+  // a bucket chip tapped below re-ranks the rows and used to re-tally the
+  // whole archive first, for a `dim` that had not changed.
+  //
+  // THE LARGEST SINGLE-QUESTION COUNT, NOT THE SUM, and the chip prints
+  // this number. Summing across questions counts the same person once per
+  // question they answered — LiveCohortBody writes that out in full for
+  // the hero figure directly above this lens ("Summing across questions
+  // would not be [people] — it would count the same person once per
+  // question they answered, which is the mistake this is written out to
+  // avoid") and takes the max for exactly this reason: one person answers
+  // a question at most once, so the biggest single-question count is a
+  // number of PEOPLE.
+  //
+  // The chip was the sum. So the World stop read "25 people have answered
+  // somewhere" and the Age chips under it read "35-44 · 26" and
+  // "25-34 · 24" — two buckets each larger than the whole population
+  // stated one line above, with no word on the chip saying what it
+  // counted. Measured: twenty people answering three questions each gave
+  // "25-34 · 30" while every row underneath still said "from 10 answers".
+  //
+  // A floor rather than a total, like the hero: somebody who answered only
+  // a question this device holds no aggregate for is not in it. That is
+  // the right direction to be wrong in, and it keeps the chip a number the
+  // reader can put beside the sentence above it.
+  const { tally, buckets } = React.useMemo(() => {
+    const t: Record<string, number> = {};
+    for (const q of qs) {
+      for (const b of mixFor(q.by, dim, q.options.length)) {
+        t[b.bucket] = Math.max(t[b.bucket] || 0, b.n);
+      }
+    }
+    return { tally: t, buckets: Object.keys(t).sort((a, b) => t[b] - t[a]) };
+  }, [qs, dim]);
   const picked = buckets.includes(bucket) ? bucket : buckets[0] || "";
   // The name for the sentences below. `picked` stays the KEY — it is what
   // indexes the fold — and only the copy is resolved (D125).
   const pickedName = picked ? bucketLabel(dim, picked) : "";
 
   // The rows this slice disagrees with everyone about, most first.
-  const rows = picked
+  //
+  // `all`, not `counts` (D170): Explore's slices are cuts of everyone and
+  // its sentence ends "same as everyone", so the globe is the right
+  // baseline on every stop. Compare and Scores read `counts`, which is the
+  // stop's own cohort.
+  //
+  // ONE bucket, not all of them. This asked `divergence` for every bucket
+  // of the dim and `.find`-ed the picked one out — per question, over the
+  // whole archive, on every render — and `sliceSplit` re-read the same
+  // cell a second time to get the split it had already computed.
+  // `divergenceFor` is that expression with the discarded work removed;
+  // it goes null on exactly the condition `sliceSplit` did, and its `pct`
+  // is the split.
+  // THE FLOOR `divergenceFor` ASKS ITS CALLER TO CHOOSE. Its docstring
+  // says why, and this caller had not chosen: "a one-answer bucket is
+  // 100/0 and would top every ranking forever while saying nothing. It
+  // defaults to 0 so the caller has to choose."
+  //
+  // It did exactly that. A question where the picked bucket held ONE
+  // answer scored the largest possible gap and headed the list, above a
+  // fifty-answer question at 10 pts, with no count anywhere near the
+  // sentence — the chip's number is about the BUCKET across every question
+  // in view, never about the question the row is describing, so it can
+  // neither confirm nor contradict what the row says.
+  //
+  // (That last clause used to read "the bucket's total across ALL
+  // questions, which is a different denominator", and it was quoted as
+  // evidence by the commit that then stopped it being a total: the chip is
+  // the largest single-question count now, so it is a number of people
+  // rather than of answers. Still a different denominator from the row's,
+  // which is why the row states its own basis either way — but a comment
+  // cited as proof and left saying the old thing is the documentation
+  // error this repo keeps re-committing, arriving inside the fix for it.)
+  //
+  // Two, not a bigger number invented here: below two answers a "split"
+  // does not exist to be measured — one answer is 100/0 by construction,
+  // not by disagreement — and that is the same reasoning `MIN_SHARED`
+  // carries in groupPortrait. Everything above two is handled the way
+  // both sibling surfaces handle it, by SAYING what it rests on
+  // (LiveBreakdownPanel prints "{n} answers", LiveCircleBody "{n} of your
+  // circle answered"). Whether the bar should be higher than "a split can
+  // exist" is a product judgement, and it has not been taken here.
+  const rows = React.useMemo(() => (picked
     ? qs.map((q) => {
-      const split = sliceSplit(q.by, dim, picked, q.options.length);
-      if (!split) return null;
-      // `all`, not `counts` (D170): Explore's slices are cuts of everyone
-      // and its sentence ends "same as everyone", so the globe is the
-      // right baseline on every stop. Compare and Scores read `counts`,
-      // which is the stop's own cohort.
-      const d = divergence(q.by, dim, q.all, q.options.length)
-        .find((x) => x.bucket === picked);
-      return { q, split, overall: pctFor(q.all), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
-    }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
-    : [];
+      const d = divergenceFor(q.by, dim, picked, q.all, q.options.length, EXPLORE_MIN_N);
+      if (!d) return null;
+      return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx, n: d.n };
+    }).filter(Boolean).sort((a, b) => b!.gap - a!.gap || b!.n - a!.n)
+    : []), [qs, dim, picked]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -620,6 +755,12 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
                 {r!.gap > 0
                   ? <><strong style={{ color: "var(--ink-2)" }}>{r!.gap} pts</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
                   : <>Same as everyone.</>}
+                {/* The basis, on the row that makes the claim (D146). The
+                    chip above carries the bucket's total across every
+                    question, which is not this row's denominator — so
+                    until now the one number near the sentence was the
+                    wrong one. */}
+                {" · from " + r!.n + (r!.n === 1 ? " answer" : " answers")}
               </span>
             </div>
           ))}
@@ -659,32 +800,158 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 // says whether averaging it means anything, and a place question written
 // as a `choice` would otherwise render a confident mean of nothing.
 
+// The second crowd's cell (D288 §2): everyone who is NOT this stop's own
+// cohort — the globe minus the cell, clamped because the two folds are
+// eventually consistent with each other, not atomically.
+const awayCounts = (all: number[], counts: number[]): number[] =>
+  all.map((a, i) => Math.max(0, a - (counts[i] || 0)));
+
+// ── the asks (D307) ─────────────────────────────────────────────────
+//
+// The place questions this viewer has not answered, straight from the
+// bank, answered here through the ordinary vote path — because the only
+// other door to them was the daily rotation, which serves a `rates`
+// question about once in five days and an unanswered scorecard could
+// not fill itself.
+//
+// Blind like the daily it is: the row shows no split. The facet scores
+// above are the PLACE's published averages, visible to every visitor of
+// this lens whether or not they answer — so an ask beside them leaks
+// nothing the card did not already say. The scale is D305's ramp row,
+// one tap, same stored optionIdx as everywhere else.
+function PlaceAsks({ asks, total }: {
+  asks: Array<{ id: string; text: string; optionCount: number }>;
+  /** How many asks the scope still holds for this account — the pool,
+   *  not the page. Since D384 the device fetches a bounded page of ask
+   *  DOCUMENTS but knows every ask ID, so the line below counts the pool
+   *  and stays true on a stop whose pool is larger than the page. */
+  total: number;
+}) {
+  // A cap, not a queue: three at a time keeps the card a card, and the
+  // list recomputes as votes land, so the tail arrives by itself.
+  const show = asks.slice(0, 3);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+      {show.map((a) => (
+        <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          <div style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13.5, color: "var(--ink)", textWrap: "pretty" }}>
+            {a.text}
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {Array.from({ length: a.optionCount }, (_, i) => {
+              const t = Math.round((i * 100) / Math.max(1, a.optionCount - 1));
+              return (
+                <button
+                  key={i}
+                  onClick={() => LIVE.vote(a.id, String(i))}
+                  style={{
+                    flex: "1 1 0", minWidth: 0, height: 44, padding: 0,
+                    border: `1px solid color-mix(in oklch, var(--accent, var(--ink)) ${14 + Math.round(t * 0.26)}%, var(--rule))`,
+                    borderRadius: 11,
+                    background: `color-mix(in oklch, var(--accent, var(--ink)) ${5 + Math.round(t * 0.22)}%, var(--surface-2))`,
+                    fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)",
+                    cursor: "pointer", WebkitAppearance: "none",
+                  }}
+                >{i + 1}</button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {total > show.length && (
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          {total - show.length} more after these.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ScoresLens({ qs, shortName, scope }: {
   qs: LensQuestion[];
   shortName: string;
   scope: "city" | "country" | "world";
 }) {
+  // Whether this reader's own scores reach the city cell (D205). Only the
+  // CITY scope is gated — a country is coarse enough that the timezone
+  // hint D90 already lands it, and gating it would be a second decision
+  // dressed as a consequence of this one.
+  const unconfirmed = scope === "city" && LIVE.enabled && !cityIsConfirmed((LIVE.anchors() || {}).city);
+  // The ask rows recompute off the store's vote map, so a cast vote has
+  // to re-render this card — the qs prop alone only moves when the
+  // aggregates do.
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => LIVE.subscribe(bump), []);
+  const asks = LIVE.enabled ? LIVE.placeAsks(scope) : [];
+  // The pool's size, which is not `asks.length` once the pool is paged
+  // (D384) — the asks are the page this device holds, the total is what
+  // the scope still has for this account.
+  const askTotal = LIVE.enabled ? LIVE.placeAskTotal(scope) : 0;
+  // Which crowd the numbers and the sort describe (D288 §2): a viewing
+  // lens, not a claim about the viewer — the viewer's own crowd is their
+  // anchor's fact, and their tick draws the same either way. Transient on
+  // purpose, like a tab.
+  const [fore, setFore] = React.useState<"here" | "away">("here");
   const rates = qs.filter((q) => q.rates === scope);
+  // Two crowds per row (D288 §2): "live there" = the stop's own cell,
+  // "from elsewhere" = the globe minus it — both from reads this lens
+  // already makes. The world scope keeps one crowd: there, everyone IS
+  // the crowd. A row draws when either crowd scored it; a crowd with no
+  // answers is absent from the row, never a zero dot.
+  const split = scope !== "world";
   const scored = rates
     .filter((q) => ORDINAL_TYPES.has(q.type || ""))
-    .map((q) => ({ q, score: meanScore(q.counts), mine: q.mine >= 0 ? q.mine + 1 : null }))
-    .filter((r): r is { q: LensQuestion; score: Score; mine: number | null } => !!r.score)
-    .sort((a, b) => b.score.mean / b.score.max - a.score.mean / a.score.max);
+    .map((q) => ({
+      q,
+      here: meanScore(q.counts),
+      away: split ? meanScore(awayCounts(q.all, q.counts)) : null,
+      mine: q.mine >= 0 ? q.mine + 1 : null,
+    }))
+    .filter((r) => !!(r.here || r.away))
+    .map((r) => ({ ...r, lead: (fore === "away" ? (r.away ?? r.here) : (r.here ?? r.away)) as Score }))
+    .sort((a, b) => b.lead.mean / b.lead.max - a.lead.mean / a.lead.max);
+  // the ring appears the moment anyone outside has scored anything; until
+  // then the card is exactly the single-crowd card it has always been
+  const anyAway = scored.some((r) => r.away);
+
+  // Whether YOU are one of the people the empty sentence is about to say
+  // do not exist. Mirrors `scored`'s own filter — a question that rates
+  // this stop, ordinal, and answered by you — because the sentence below
+  // is about exactly the rows that filter dropped.
+  const mineOnly = rates.some((q) => ORDINAL_TYPES.has(q.type || "") && q.mine >= 0);
 
   if (!scored.length) {
-    // Two different emptinesses, and collapsing them would hide which one
-    // this is. Neither is "withheld" — that category is gone (D98).
+    // THREE different emptinesses. `scored` drops a row when neither crowd
+    // has a mean, and your own score is not a crowd — so rating a place
+    // nobody else has rated yet, or rating one in the seconds before the
+    // fold lands, emptied this card and printed "Nobody here has scored
+    // Oslo yet." over a score you had just given it. Neither is
+    // "withheld" — that category is gone (D98).
     //
     // The first is now also the shape a pre-D187 bank takes: the questions
     // exist in `content/` and the seeded docs carry no `rates` until an
     // operator reseeds, so the card is empty rather than wrong. That is
     // the direction to be wrong in — the whole point of the change.
+    //
+    // With asks in hand the emptiness is not a wall (D307): the sentence
+    // stays, and the way to change it sits right under it.
     return (
-      <LlEmpty>
-        {rates.length
-          ? <>Nobody here has scored {shortName} yet.</>
-          : <>Nothing scored yet — questions that rate {shortName} land here.</>}
-      </LlEmpty>
+      <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+        <LlEmpty>
+          {/* Before the network boot completes this card has read nothing,
+              so "nobody has scored it" is an assertion about the world made
+              by a device that has not looked — the same hole the cohort
+              hero closed with `LIVE.attached` and this lens did not. */}
+          {!LIVE.attached
+            ? <>Counting who has scored {shortName}…</>
+            : rates.length
+              ? (mineOnly
+                ? <>Just your score so far.</>
+                : <>Nobody here has scored {shortName} yet.</>)
+              : <>Nothing scored yet — questions that rate {shortName} land here.</>}
+        </LlEmpty>
+        {!!asks.length && <PlaceAsks asks={asks} total={askTotal} />}
+      </div>
     );
   }
 
@@ -692,13 +959,65 @@ function ScoresLens({ qs, shortName, scope }: {
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         {/* The one thing the ruler, the tab and the rows do not already
-            say: the crowd and the subject are the same people. Everything
-            else on this line would be a caption for a shape the reader is
-            looking at (docs/COPY.md). */}
+            say: who the raters are — and WHAT THEY RATED, which is the
+            half this line used to get wrong.
+            
+            It flipped to "How {shortName} IS RATED" the moment the ring
+            drew, on the reasoning that with two crowds the raters are no
+            longer the subject. True about who they are; false about what
+            they answered. Every `rates` question in the bank is written
+            SELF-REFERENTIALLY — "Rate the food where you live", "How safe
+            do you feel walking home at night" — deliberately, so one
+            question serves every city on earth and the cohort cell does
+            the scoping (docs/MIRROR.md §3). Nobody outside this place has
+            ever rated THIS place; the app never asks them to. So the ring
+            is a BASELINE — everywhere else answering the same question
+            about their own home — and "how Oslo is rated" was a claim
+            about Oslo that nothing measured (D146).
+            
+            The header now describes the dot, which is the card's subject
+            in both states, and the ring says what it is one line down. */}
         How {shortName} rates itself · best first
       </div>
-      {scored.map(({ q, score, mine }) => {
-        const frac = score.mean / score.max;
+      {unconfirmed && (
+        // The one sentence this card owes a reader whose scores are not in
+        // it (D205). It is a CLAIM and a remedy, not a caption for a shape
+        // — docs/COPY.md §3 — so it earns the sentence the rule would
+        // otherwise refuse. Only on City, and only when the phone has
+        // never agreed: for everyone else the number simply includes them
+        // and there is nothing to explain.
+        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45, textWrap: "pretty" }}>
+          Confirm your city in your profile to have your scores count for {shortName}.
+        </div>
+      )}
+      {scored.map(({ q, here, away, lead, mine }) => {
+        const frac = lead.mean / lead.max;
+        // your-vs-them, phrased once for both grammars. "Them" is the
+        // fore crowd — the chips under the card name it.
+        const yourLine = mine == null
+          ? null
+          /* One answer is not an average, and when you are the one
+             who gave it "exactly the average" is you compared with
+             yourself — which is what the release printed, under the
+             then-heading "How Oslo rated it" (D170). Said as a count
+             instead: true whoever the answer belongs to, which
+             matters because a vote carries the city it was cast
+             from (D8) and this stop shows the city you are in now. */
+          /* …and only for the crowd that CONTAINS your answer. `lead`
+             follows the fore toggle, so at "from elsewhere" this printed
+             "the only answer here so far" beside a line that had just
+             counted the answers here — your vote is never in the away
+             crowd at your own stop, and one answer from elsewhere is one
+             answer to be above or below, which the arm underneath already
+             says correctly. Tested against `here` itself rather than
+             against the toggle, because `lead` falls back to the here
+             crowd for a row that has no away scores at all, and that row's
+             sentence is the true one. */
+          : lead.n === 1 && lead === here
+            ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
+            : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
+              {mine === lead.mean ? <> — exactly the average</>
+                : <> · {Math.abs(Math.round((mine - lead.mean) * 10) / 10)} {mine > lead.mean ? "above" : "below"} them</>}</>;
         return (
           <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -712,43 +1031,125 @@ function ScoresLens({ qs, shortName, scope }: {
                   means opposite things out of 10 and out of 5, and this
                   list mixes both. */}
               <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 15, fontVariantNumeric: "tabular-nums", color: "var(--ink)" }}>
-                {score.mean}
+                {lead.mean}
               </span>
-              <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)" }}>/ {score.max}</span>
+              <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)" }}>/ {lead.max}</span>
             </div>
-            <span style={{ display: "block", height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden", position: "relative" }}>
-              <span style={{ display: "block", height: "100%", width: `${Math.round(frac * 100)}%`, background: "var(--accent)" }}></span>
-              {mine != null && (
-                // Your own score as a tick on their bar rather than a
-                // second bar: the comparison IS the reading, and two bars
-                // make it a lookup.
-                <span aria-hidden="true" style={{
-                  position: "absolute", top: -2, bottom: -2, width: 2.5, borderRadius: 2,
-                  left: `calc(${Math.round((mine / score.max) * 100)}% - 1.25px)`,
-                  background: "var(--ink)",
-                }}></span>
-              )}
-            </span>
+            {!anyAway ? (
+              <span style={{ display: "block", height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden", position: "relative" }}>
+                <span style={{ display: "block", height: "100%", width: `${Math.round(frac * 100)}%`, background: "var(--accent)" }}></span>
+                {mine != null && (
+                  // Your own score as a tick on their bar rather than a
+                  // second bar: the comparison IS the reading, and two bars
+                  // make it a lookup.
+                  <span aria-hidden="true" style={{
+                    position: "absolute", top: -2, bottom: -2, width: 2.5, borderRadius: 2,
+                    left: `calc(${Math.round((mine / lead.max) * 100)}% - 1.25px)`,
+                    background: "var(--ink)",
+                  }}></span>
+                )}
+              </span>
+            ) : (
+              // The two-crowd axis (D288 §2, the 2026-08-24 card): filled
+              // dot = live there, ring = from elsewhere, the span between
+              // them IS the story, your score the same tick as ever. Dots
+              // scale-inset so a 10 sits inside the track, and the crowd
+              // the numbers are not describing dims rather than vanishes.
+              (() => {
+                const S = 11;
+                const x = (s: Score) => Math.round((s.mean / s.max) * 100);
+                const lo = here && away ? Math.min(x(here), x(away)) : x((here ?? away) as Score);
+                const hi = here && away ? Math.max(x(here), x(away)) : lo;
+                const dot = (s: Score, ring: boolean, dim: boolean) => (
+                  <span aria-hidden="true" style={{
+                    position: "absolute", top: "50%", marginTop: -S / 2,
+                    left: `calc(${x(s)}% - ${(x(s) / 100) * S}px)`,
+                    width: S, height: S, borderRadius: "50%", boxSizing: "border-box",
+                    background: ring ? "var(--surface)" : "var(--accent)",
+                    border: ring ? "2.5px solid var(--accent)" : "none",
+                    opacity: dim ? 0.42 : 1, transition: "opacity .25s ease",
+                  }}></span>
+                );
+                return (
+                  <span style={{ display: "block", height: 20, position: "relative" }}>
+                    <span aria-hidden="true" style={{ position: "absolute", top: "50%", marginTop: -0.5, left: 0, right: 0, height: 1, background: "color-mix(in oklch, var(--ink-3) 16%, transparent)" }}></span>
+                    {here && away && (
+                      <span aria-hidden="true" style={{ position: "absolute", top: "50%", marginTop: -2, left: `${lo}%`, width: `${Math.max(hi - lo, 0.6)}%`, height: 4, borderRadius: 99, background: "color-mix(in oklch, var(--accent) 52%, var(--surface-3))" }}></span>
+                    )}
+                    {here && dot(here, false, fore === "away" && !!away)}
+                    {away && dot(away, true, fore === "here" && !!here)}
+                    {mine != null && (
+                      <span aria-hidden="true" style={{
+                        position: "absolute", top: 0, bottom: 0, width: 2.5, borderRadius: 2,
+                        left: `calc(${Math.round((mine / lead.max) * 100)}% - 1.25px)`,
+                        background: "var(--ink)",
+                      }}></span>
+                    )}
+                  </span>
+                );
+              })()
+            )}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-              {mine == null
-                ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated it</>
-                /* One answer is not an average, and when you are the one
-                   who gave it "exactly the average" is you compared with
-                   yourself — which is what the release printed, under the
-                   then-heading "How Oslo rated it" (D170). Said as a count
-                   instead: true whoever the answer belongs to, which
-                   matters because a vote carries the city it was cast
-                   from (D8) and this stop shows the city you are in now. */
-                : score.n === 1
-                  ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
-                  : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
-                    {mine === score.mean ? <> — exactly the average</>
-                      : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
-                    {" "}· {score.n.toLocaleString()} answers</>}
+              {/* the stated basis, both crowds' — a mean without its n
+                  invites the D170 misread whichever crowd it belongs to */}
+              {!anyAway
+                ? (yourLine
+                  ? <>{yourLine} · {lead.n.toLocaleString()} answers</>
+                  : <>{lead.n.toLocaleString()} {lead.n === 1 ? "answer" : "answers"} · you have not rated it</>)
+                : <>
+                  {here ? <>{here.n.toLocaleString()} live there</> : <>none live there</>}
+                  {" · "}
+                  {away ? <>{away.n.toLocaleString()} elsewhere</> : <>none elsewhere</>}
+                  {yourLine ? <> · {yourLine}</> : <> · you have not rated it</>}
+                </>}
             </span>
           </div>
         );
       })}
+      {anyAway && (
+        // Which crowd is fore — a lens over the same marks, never a claim
+        // about the viewer (D288 §2): your anchors decide your crowd, and
+        // at your own stop your marks land with the locals whatever is
+        // fore. The glyphs double as the key, so no legend line.
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, paddingTop: 2 }}>
+          {/* WHAT THE RING MEASURED. A claim, not a caption — docs/COPY.md
+              §3 — and the only thing on this card that a reader cannot
+              work out from the shapes: the ring's people answered the same
+              question about THEIR OWN home, so it is a benchmark and not a
+              second opinion about this place. Drawn only when the ring is,
+              because with one crowd there is nothing to mistake. */}
+          <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.45 }}>
+            The ring is everywhere else rating their own place, not this one.
+          </div>
+          <div style={{ display: "flex", gap: 7 }}>
+          {([["here", "live there", false], ["away", "everywhere else", true]] as const).map(([id, label, ring]) => {
+            const on = fore === id;
+            return (
+              <button key={id} className="press" onClick={() => setFore(id)} aria-pressed={on}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 7, minHeight: 36, padding: "0 13px",
+                  borderRadius: 999, cursor: "pointer", WebkitAppearance: "none",
+                  fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 650,
+                  border: on ? "1px solid var(--accent)" : "1px solid var(--rule)",
+                  background: on ? "color-mix(in oklch, var(--accent) 12%, var(--surface))" : "var(--surface)",
+                  color: on ? "var(--accent-ink, var(--accent))" : "var(--ink-3)",
+                }}>
+                <span aria-hidden="true" style={{ width: 11, height: 11, borderRadius: "50%", boxSizing: "border-box", flexShrink: 0, background: ring ? "var(--surface)" : "var(--accent)", border: ring ? "2.5px solid var(--accent)" : "none" }}></span>
+                {label}
+              </button>
+            );
+          })}
+          </div>
+        </div>
+      )}
+      {/* The unanswered rest, under a hairline (D307) — the scale rows
+          say what they are; a header would caption the control under it
+          (docs/COPY.md). */}
+      {!!asks.length && (
+        <div style={{ borderTop: "0.5px solid var(--rule)", paddingTop: 13 }}>
+          <PlaceAsks asks={asks} total={askTotal} />
+        </div>
+      )}
     </div>
   );
 }
@@ -777,7 +1178,7 @@ function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
   return (
     <div style={{ paddingTop: 14 }}>
       {lens === "people" && <PeopleLens qs={qs} scope={scope} shortName={shortName} />}
-      {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
+      {lens === "compare" && <CohortCompare scope={scope} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} scope={scope} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
     </div>

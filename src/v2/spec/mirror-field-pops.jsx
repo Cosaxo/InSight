@@ -4,10 +4,31 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-import { MirrorLensRow } from './mirror-field.jsx';
 import { IS_DATA, fmtPop } from './sample-data.js';
+import { DAILYQ } from './daily-questions.js';
 import { SCENES } from './scenes.js';
-import { Av, TabSection, MatchRing, Lazy } from './primitives.jsx';
+import { Av, TabSection, MatchRing } from './primitives.jsx';
+// The type's own mark, imported by name (D39) rather than read off the
+// window bag — a window.TypeMark reference would raise this file's rule-4
+// coupling count, and both modules are eager so the ESM graph carries it
+// into the same chunk for free.
+import { TypeMark } from './type-marks.jsx';
+// The Mirror's own parts and the feed's memory, as imports (D354's sweep).
+// Every `window.X &&` beside these reads was a load-order guard; each of
+// these modules evaluates before this one (mirror-tab.jsx's import order,
+// or the eager list), and an imported binding cannot be unset. The two
+// cross-group cards — CircleReadCard from the Map's family, PlaceStatsCard
+// from the feed's — are pulled into this chunk by the import, which is the
+// point: their guard was the one frame in which they might not have
+// landed, and now there is no such frame.
+import { FEEDREAD } from './feed-read.js';
+import { CompareBreakdown } from './compare-breakdown.jsx';
+import { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses } from './mirror-field.jsx';
+import { SegmentExplorer } from './segment-explorer.jsx';
+import { MirrorAnswers } from './mirror-answers.jsx';
+import { DemographicsCard } from './demographics.jsx';
+import { CircleReadCard } from './map-people.jsx';
+import { PlaceStatsCard } from './place-stats.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -19,10 +40,14 @@ const { useState: useStateMFP, useEffect: useEffectMFP } = React;
 const MFP_SECTORS = { family: -128, friends: -50, colleagues: 26, neighbors: 100, acquaintances: 168 };
 
 // ─── kindred strangers in Oslo (mirrors KindredInOslo's roster) ───
+// Types are the v28 roster's (design/standalone-v28/type-mix.js, byName) —
+// authored demo data, Big Five only: the same instrument the live fold
+// enforces (data/typeMix.ts TYPE_TEST) and the only one the prototype's
+// field-row chip ever draws.
 const MFP_KINDRED = [
-  { init: 'AK', name: 'Anders K.', hood: 'Torshov', match: 92, hue: 145, shared: ['ceramics', 'cold swims', 'Pärt'] },
-  { init: 'IM', name: 'Ingrid M.', hood: 'Grünerløkka', match: 89, hue: 38, shared: ['rye baking', 'Solnit', 'fjord walks'] },
-  { init: 'PV', name: 'Petter V.', hood: 'Sagene', match: 85, hue: 250, shared: ['field notes', 'birding', 'silence'] },
+  { init: 'AK', name: 'Anders K.', hood: 'Torshov', match: 92, hue: 145, type: 'The Quiet One', shared: ['ceramics', 'cold swims', 'Pärt'] },
+  { init: 'IM', name: 'Ingrid M.', hood: 'Grünerløkka', match: 89, hue: 38, type: 'The Diplomat', shared: ['rye baking', 'Solnit', 'fjord walks'] },
+  { init: 'PV', name: 'Petter V.', hood: 'Sagene', match: 85, hue: 250, type: 'The Lookout', shared: ['field notes', 'birding', 'silence'] },
 ];
 
 // ─── how like-you each Norwegian city's people run (country zoom) ───
@@ -37,16 +62,16 @@ const MFP_NO_CITIES = [
 
 // ─── kindred strangers across Norway (country zoom) ───
 const MFP_KINDRED_COUNTRY = [
-  { init: 'SB', name: 'Sigrid B.', place: 'Tromsø', match: 94, hue: 200, shared: ['cold swims', 'northern light', 'Pärt'] },
-  { init: 'EH', name: 'Eirik H.', place: 'Bergen', match: 90, hue: 220, shared: ['rye baking', 'rain walks', 'field notes'] },
-  { init: 'LT', name: 'Live T.', place: 'Trondheim', match: 87, hue: 145, shared: ['ceramics', 'birding', 'quiet mornings'] },
+  { init: 'SB', name: 'Sigrid B.', place: 'Tromsø', match: 94, hue: 200, type: 'The Quiet One', shared: ['cold swims', 'northern light', 'Pärt'] },
+  { init: 'EH', name: 'Eirik H.', place: 'Bergen', match: 90, hue: 220, type: 'The Dependable', shared: ['rye baking', 'rain walks', 'field notes'] },
+  { init: 'LT', name: 'Live T.', place: 'Trondheim', match: 87, hue: 145, type: 'The Reader', shared: ['ceramics', 'birding', 'quiet mornings'] },
 ];
 
 // ─── kindred strangers across the world — farther pool, closer matches ───
 const MFP_KINDRED_WORLD = [
-  { init: 'YO', name: 'Yuki O.',  place: 'Osaka · JP',       match: 96, hue: 250, shared: ['ceramics', 'field notes', 'quiet mornings'] },
-  { init: 'RD', name: 'Rui D.',   place: 'Porto · PT',       match: 94, hue: 38,  shared: ['rye baking', 'cold swims', 'old stone'] },
-  { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, shared: ['birding', 'Solnit', 'hills'] },
+  { init: 'YO', name: 'Yuki O.',  place: 'Osaka · JP',       match: 96, hue: 250, type: 'The Quiet One',  shared: ['ceramics', 'field notes', 'quiet mornings'] },
+  { init: 'RD', name: 'Rui D.',   place: 'Porto · PT',       match: 94, hue: 38,  type: 'The Dependable', shared: ['rye baking', 'cold swims', 'old stone'] },
+  { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, type: 'The Host',       shared: ['birding', 'Solnit', 'hills'] },
 ];
 
 // ─── the Kindred lens — the strangers most aligned with you, as a card ───
@@ -66,14 +91,30 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                 <Av init={p.init} hue={p.hue} size={36}></Av>
               </MatchRing>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em' }}>{p.name}</span>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{p.place || p.hood}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
+                  {/* v28 §7.9: the type, as the chip the LIVE KindredCard already
+                      wears (ui/LiveMirrorLenses.tsx, D156) — mark + name, one
+                      shape for demo and live so a badge on a person always
+                      reads the same. Big Five only, and roster-authored: the
+                      demo has no per-person fold to draw from. */}
+                  {p.type && (
+                    <span style={{
+                      marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
+                      border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 999, padding: '2px 9px 2px 4px',
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)',
+                      background: 'var(--surface-2)', whiteSpace: 'nowrap',
+                    }}>
+                      <TypeMark testKey="big5" name={p.type} size={16}></TypeMark>
+                      {p.type}
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                   {p.shared.map(s => (
                     <span key={s} style={{
-                      fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500,
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
                       color: `oklch(0.34 0.13 ${p.hue})`,
                       padding: '2px 9px', borderRadius: 99,
                       background: `oklch(0.95 0.03 ${p.hue})`, border: `0.5px solid oklch(0.85 0.05 ${p.hue})`,
@@ -88,6 +129,66 @@ function KindredLensCard({ people = MFP_KINDRED }) {
           names shown only when both of you opt in
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── the "so what" line — one plain-language read under the field (2026-08-24) ───
+// The design mounts it on Circle and Groups only (its other branches were
+// unreachable at both mount points, so they are not carried here): who
+// mirrors you closest/least, then which topic you are most and least in
+// step with the population on. Folded entirely from what the field
+// already computed — the drawn nodes' match figures, and the same per-
+// audience splits the Answers lens reads.
+function mfpSoWhat(pop, cfg) {
+  const parts = [];
+  const nodes = (cfg.nodes || []).filter((n) => !n.faint && typeof n.match === 'number');
+  const nm = (n) => n.label || (n.data && n.data.name) || '';
+  if (nodes.length >= 2) {
+    const s = nodes.slice().sort((a, b) => b.match - a.match);
+    const top = s[0], low = s[s.length - 1];
+    if (pop === 'circle') parts.push([{ b: nm(top) }, ' mirrors you closest; ', { b: nm(low) }, ' least']);
+    else if (pop === 'groups') parts.push([{ b: nm(top) }, ' is the scene that runs most like you']);
+  }
+  if (cfg.answersAud) {
+    const byCat = new Map();
+    DAILYQ.questions.forEach((q) => {
+      const mine = DAILYQ.myAnswer(q); if (mine == null) return;
+      const d = q.dist && q.dist[cfg.answersAud]; if (!d || d[mine] == null) return;
+      const lift = d[mine] * q.n / 100; // agreement over chance — comparable across question types
+      const t = DAILYQ.categoryPath(q)[0];
+      const e = byCat.get(t) || { s: 0, n: 0 };
+      e.s += lift; e.n += 1; byCat.set(t, e);
+    });
+    const cats = [...byCat.entries()].filter(([, e]) => e.n >= 2)
+      .map(([t, e]) => ({ t, avg: e.s / e.n })).sort((a, b) => b.avg - a.avg);
+    if (cats.length >= 2) {
+      parts.push(['most in step on ', { b: cats[0].t.toLowerCase() }, ', least on ', { b: cats[cats.length - 1].t.toLowerCase() }]);
+    }
+  }
+  return parts;
+}
+
+function MFSoWhat({ pop, cfg }) {
+  const [, bump] = React.useReducer((x) => x + 1, 0);
+  useEffectMFP(() => DAILYQ.subscribe(bump), []);
+  const parts = mfpSoWhat(pop, cfg);
+  // circle refuses even when it has something (2026-09-06, §6.3): "X mirrors
+  // you closest; Y least" ranks the nine people the reader knows BY NAME
+  // under the figure that already draws the same ranking — the one so-what
+  // that repeats its own field, and the one where least reads as a verdict
+  // on a friend. The other populations keep theirs.
+  if (pop === 'circle' || !parts.length) return null; // too thin to say anything — say nothing
+  return (
+    <div style={{ padding: '7px 26px 0', textAlign: 'center' }}>
+      <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'balance' }}>
+        {parts.map((seg, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span style={{ color: 'var(--ink-3)' }}> · </span>}
+            {seg.map((tk, j) => typeof tk === 'string' ? tk : <b key={j} style={{ fontWeight: 800, color: 'var(--ink)' }}>{tk.b}</b>)}
+          </React.Fragment>
+        ))}
+      </span>
     </div>
   );
 }
@@ -201,9 +302,8 @@ function mfpConfig(pop, zoom, mine) {
 // (see the note below). The prototype kept both the dangling branch and the
 // props; taking its parameter list would have re-declared two arguments
 // nothing can read.
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLenses }) {
+export function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   const D = IS_DATA;
-  const [lensOpen, setLensOpen] = useStateMFP('__ov');
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(SCENES.list()));
   const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });
@@ -212,6 +312,34 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   useEffectMFP(() => SCENES.subscribe(() => setMine(new Set(SCENES.list()))), []);
 
   useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
+
+  // relmap.jsx left the eager graph at D200, so Circle's embedded map is not
+  // on screen the first time this renders. The old test — a bare
+  // `typeof RelationshipMap === 'function'` — could not survive that move:
+  // it reads false, Circle draws the generic field canvas instead, and
+  // nothing re-triggers the render that would read it again. So the module
+  // is IMPORTED and its arrival is state.
+  //
+  // An import rather than `window.loadOverlays()` for two reasons: it is
+  // what check:globals asks for (a name that arrives through the ESM graph
+  // is not coupling, and this file's rule-4 count drops by two), and it
+  // names the one module Circle needs rather than the whole overlay group.
+  //
+  // Only Circle asks, and only in DEMO mode — a live build takes
+  // LiveCircleBody (D101) and never renders this component with
+  // `pop === 'circle'` at all, so on the shipping path this effect is dead.
+  const [RelMap, setRelMap] = useStateMFP(null);
+  useEffectMFP(() => {
+    if (RelMap || pop !== 'circle') return undefined;
+    let live = true;
+    // No retry and console.error rather than reportError: main.jsx already
+    // reports a dead chunk once (app-shell's openDeferred says why), and the
+    // fallback here is the field canvas — a real picture, not a blank.
+    import('./relmap.jsx')
+      .then((m) => { if (live) setRelMap(() => m.RelationshipMap); })
+      .catch((e) => { console.error('[InSight] relationship map chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [RelMap, pop]);
 
   const cfg = mfpConfig(pop, worldZoom, mine);
   const [selNode, setSelNode] = useStateMFP(null);
@@ -246,8 +374,8 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   lenses.push({ id: 'answers', label: 'Answers', render: () => <MirrorAnswers audId={cfg.answersAud}></MirrorAnswers> });
   // Kindred + Mix travel together — one "People" lens
   const hasKindred = pop === 'near' || pop === 'world';
-  const hasMix = !!(cfg.makeupAud && window.DemographicsCard);
-  const hasRead = pop === 'circle' && !!window.CircleReadCard;
+  const hasMix = !!cfg.makeupAud;
+  const hasRead = pop === 'circle';
   // A GroupLevelBreakdown lens was guarded here on the same pattern as the
   // GroupCompare one below — and on the same broken premise: nothing in the
   // tree has ever defined GroupLevelBreakdown, so the guard could not pass.
@@ -267,32 +395,26 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   }
   // the member scorecard — city / country / world, fed by rate questions in the feed
   const rateScope = pop === 'world' ? (worldZoom === 'city' ? 'city' : worldZoom === 'country' ? 'country' : 'world') : null;
-  if (rateScope && window.PlaceStatsCard) {
+  if (rateScope) {
     lenses.push({ id: 'scores', label: 'Scores', render: () => <PlaceStatsCard scope={rateScope} accent="var(--accent)"></PlaceStatsCard> });
   }
-  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country' && window.SegmentExplorer) {
+  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country') {
     lenses.push({ id: 'explore', label: 'Explore', render: () => <SegmentExplorer></SegmentExplorer> });
   }
   // The prototype guarded a GroupCompare lens here, but its module
   // (legacy-tabs) is gone in v15 — the guard could never pass, so the
   // branch is gone rather than dead (check:globals would flag it).
-  if (cfg.compare && window.CompareBreakdown) {
+  if (cfg.compare) {
     lenses.push({ id: 'compare', label: 'Compare', render: () => <CompareBreakdown scope={cfg.compare.scope} accent="var(--accent)" label={cfg.compare.label}></CompareBreakdown> });
   }
 
   // Sparse mirror: the population is real, the likeness isn't yet. Field keeps
   // you, the rings and the crowd's mist; the placed dots and every lens wait.
-  const readN = window.FEEDREAD ? (window.FEEDREAD.stats().n || 0) : 0;
+  const readN = FEEDREAD.stats().n || 0;
   const sparse = !!firstRun;
 
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
-  const noCanvas = !sparse && pop === 'circle' && typeof RelationshipMap === 'function';
-  // nav v2: lens row at the top, field as its first tab
-  const topL = !!topLenses && !sparse;
-  const lensList = topL ? [{ id: '__ov', label: 'Overview' }, ...lenses] : lenses;
-  const openId = topL ? (lensList.some((l) => l.id === lensOpen) ? lensOpen : '__ov') : null;
-  const showField = !topL || openId === '__ov';
-  const openLens = topL && openId !== '__ov' ? lenses.find((l) => l.id === openId) : null;
+  const noCanvas = !sparse && pop === 'circle' && !!RelMap;
   const rm = window.RMCore;
   const rmHeader = noCanvas && rm ? { fig: String(rm.defaultPeople().length), unit: 'across ' + rm.DEFAULT_GROUPS.length + ' circles' } : null;
 
@@ -306,34 +428,22 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
       </>)}
       {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
       {rmHeader && <MFHeader kicker="Your circle" fig={rmHeader.fig} unit={rmHeader.unit} right={null}></MFHeader>}
-      {topL && <MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></MirrorLensRow>}
-      {!sparse && !noCanvas && showField && (<>
+      {rmHeader && <MFSoWhat pop="circle" cfg={cfg}></MFSoWhat>}
+      {!sparse && !noCanvas && (<>
         <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' ? (worldZoom === 'world' ? 3 : 4) : undefined}></MFCanvas>
         <MFKey items={cfg.key}></MFKey>
+        {pop !== 'near' && pop !== 'world' && <MFSoWhat pop={pop} cfg={cfg}></MFSoWhat>}
         <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>
       </>)}
-      {noCanvas && showField && (
+      {noCanvas && (
         <div className="rm-embed">
-          <RelationshipMap embedded={true}></RelationshipMap>
+          <RelMap embedded={true}></RelMap>
         </div>
       )}
-      {openLens && (
-        <div key={openId} className="fade-in" style={{ paddingTop: 4 }}>
-          <Lazy minHeight={480}>{openLens.render()}</Lazy>
-        </div>
-      )}
-      {!topL && !sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
+      {!sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
     </div>
   );
 }
 
-Object.assign(window, { MirrorFieldBody });
 
-;globalThis.KindredLensCard = typeof KindredLensCard === 'undefined' ? globalThis.KindredLensCard : KindredLensCard;
-;globalThis.mfpConfig = typeof mfpConfig === 'undefined' ? globalThis.mfpConfig : mfpConfig;
-;globalThis.MirrorFieldBody = typeof MirrorFieldBody === 'undefined' ? globalThis.MirrorFieldBody : MirrorFieldBody;
 ;globalThis.MFP_SECTORS = typeof MFP_SECTORS === 'undefined' ? globalThis.MFP_SECTORS : MFP_SECTORS;
-;globalThis.MFP_KINDRED = typeof MFP_KINDRED === 'undefined' ? globalThis.MFP_KINDRED : MFP_KINDRED;
-;globalThis.MFP_NO_CITIES = typeof MFP_NO_CITIES === 'undefined' ? globalThis.MFP_NO_CITIES : MFP_NO_CITIES;
-;globalThis.MFP_KINDRED_COUNTRY = typeof MFP_KINDRED_COUNTRY === 'undefined' ? globalThis.MFP_KINDRED_COUNTRY : MFP_KINDRED_COUNTRY;
-;globalThis.MFP_KINDRED_WORLD = typeof MFP_KINDRED_WORLD === 'undefined' ? globalThis.MFP_KINDRED_WORLD : MFP_KINDRED_WORLD;

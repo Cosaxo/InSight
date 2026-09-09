@@ -7,14 +7,13 @@
 // destructuring registered both names as LOCALS, so the tags resolved locally,
 // the window bag looked like it had two dead entries, and a rename here would
 // have been caught by nothing. Real imports make the edge visible to both.
-// `window.openPerson` below is still a global read — that owner has not moved.
-import React from 'react';
+// `NAV.openPerson` below is still a global read — that owner has not moved.
 import { RMCore } from './relmap-core.js';
+import NAV from '../data/nav';
 
 // RelationshipMap — the selected-person and selected-circle detail panels.
 const { P } = RMCore;
 const SANS = "'Hanken Grotesk', sans-serif";
-const SERIF = SANS;
 const upLabel = { fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: P.ink3 };
 const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
 
@@ -26,12 +25,12 @@ export function RMPersonPanel({ s, onSelect, onClose }) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 11px 5px 9px', borderRadius: 100, background: s.tint, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: s.color }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color }}></span>{s.groupLabel}
             </span>
-            <button className="press" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <button className="press tap44" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 16 }}>
             <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.initFill, fontFamily: SANS, fontSize: 18, fontWeight: 700 }}>{s.initials}</div>
             <div>
-              <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{s.name}</h2>
+              <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{s.name}</h2>
               <div style={{ fontFamily: SANS, fontSize: 14, color: P.body }}>{s.relationship}</div>
             </div>
           </div>
@@ -89,8 +88,8 @@ export function RMPersonPanel({ s, onSelect, onClose }) {
               </button>
             ))}
           </div>
-          {s.personRecord && window.openPerson && (
-            <button className="press" onClick={(e) => { e.stopPropagation(); window.openPerson(s.personRecord); }}
+          {s.personRecord && NAV.can('openPerson') && (
+            <button className="press" onClick={(e) => { e.stopPropagation(); NAV.openPerson(s.personRecord); }}
               style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 12, border: 'none', cursor: 'pointer', background: s.color, color: P.initFill, fontFamily: SANS, fontSize: 14, fontWeight: 700 }}>
               See {s.name.split(' ')[0]}’s map&nbsp;<span style={{ fontSize: 15, lineHeight: 1 }}>↗</span></button>
           )}
@@ -106,12 +105,12 @@ export function RMHubPanel({ h, onSelect, onDrill, onClose }) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 11px 5px 9px', borderRadius: 100, background: h.tint, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: h.color }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: h.color }}></span>Circle average
             </span>
-            <button className="press" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <button className="press tap44" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 18 }}>
             <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: h.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.initFill, fontFamily: SANS, fontSize: 18, fontWeight: 700 }}>{h.count}</div>
             <div>
-              <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{h.name}</h2>
+              <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{h.name}</h2>
               <div style={{ fontFamily: SANS, fontSize: 14, color: P.body }}>{h.countLabel}</div>
             </div>
           </div>

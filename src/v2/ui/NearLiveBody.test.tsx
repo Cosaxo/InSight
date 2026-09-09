@@ -16,7 +16,7 @@
 // screen taken from a fact about one cell), and that it names nobody.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -40,11 +40,6 @@ const LIVE = vi.hoisted(() => ({
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
-    // D174's three states. The mock defaults to the timed one because
-    // that is what enable() lands on, so a case that only flips `on`
-    // gets the shape a real opt-in produces.
-    mode: () => "session" as "off" | "session" | "always",
-    until: () => Date.now() + 90 * 60_000,
     count: () => null as number | null,
     // D176's room mix — null by default, which is the quiet-street case.
     mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
@@ -354,7 +349,12 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.near.on = () => true;
     LIVE.near.room = () => ({ people: [], qs: {} });
     const { container } = render(<NearLiveBody />);
-    expect(await screen.findByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
+    // The field is lazy, so this waits for the drawing itself. It used to
+    // wait on the canvas's group label — but D244 hides an EMPTY ring from
+    // the accessibility tree, because that label promised "closer to the
+    // centre is more like you" over a ring with nobody on it. The label is
+    // not what this case is about; the ring being drawn at all is.
+    await waitFor(() => expect(container.querySelector("svg")).toBeTruthy());
     // You at the centre, and nobody else — one text node in the whole svg.
     expect(container.querySelectorAll("svg text")).toHaveLength(1);
     // …and the explanation still follows it rather than replacing it.
@@ -381,8 +381,11 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
       cleanup();
       LIVE.near.room = () => null;
       setup();
-      render(<NearLiveBody />);
-      await screen.findByRole("group", { name: /closer to the centre is more like you/i });
+      const { container } = render(<NearLiveBody />);
+      // Same await handle as above, and the same reason (D244): two of the
+      // three states below draw an empty ring, which no longer carries a
+      // group label to find it by.
+      await waitFor(() => expect(container.querySelector("svg")).toBeTruthy());
       // Oslo is the fixture's city everywhere else in this file, so it is
       // the string that would appear if the city fold came back.
       expect(document.body.textContent || "", "Near's field named a city again")
@@ -417,7 +420,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // One of the two placed, and the caption says so rather than implying
     // the field drew the room.
     expect(await screen.findByText(/1 of 2 here/)).toBeTruthy();
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(screen.getByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
     expect(screen.getByText("2,847")).toBeTruthy();
     expect(screen.getByText(/within a few hundred metres · Oslo/)).toBeTruthy();
   });
@@ -557,18 +560,17 @@ describe("NearPresence · the room", () => {
   // beat, and this pins the two ends of that: a real remaining time is
   // rendered, and a not-yet-sampled clock renders the MODE instead of
   // arithmetic on epoch zero.
-  it("shows the session's remaining time without reading the clock in render", async () => {
-    LIVE.near.mode = () => "session";
-    LIVE.near.until = () => Date.now() + 90 * 60_000;
+  // The case that stood here pinned the timed state's countdown chip
+  // (D174). D370 retired the timed state on the owner's word — "near
+  // should only have off and on option" — so what is pinned now is the
+  // absence: the switch is the whole control, and nothing beside it
+  // offers a deadline, a limit or a second mode.
+  it("offers the switch and nothing else about visibility — no chip, no deadline (D370)", () => {
     render(<NearLiveBody />);
-    // Coarse by design (the beat is four minutes), so 90 minutes reads as
-    // "2h" — what matters is that it is a duration and not an epoch.
-    const chip = await screen.findByRole("button", { name: /Visible for .* more/i });
-    expect(chip.textContent).toMatch(/^\d+[hm]$/);
-    // The unsampled-clock frame would print this, six digits of hours from
-    // subtracting nothing from an epoch. If it ever appears, the prop is
-    // being fed a raw deadline again.
-    expect(chip.textContent).not.toMatch(/\d{5}/);
+    expect(screen.queryByRole("button", { name: /Visible for|no deadline|two-hour|limited time/i })).toBeNull();
+    expect(document.body.textContent || "").not.toMatch(/\btimed\b|\balways\b/i);
+    // …and the switch itself is there, once.
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
   });
 
   it("marks a capped basis, because past the cap n is a floor not a size", () => {

@@ -1,6 +1,17 @@
 --- v18/tokens.css
 +++ v28/tokens.css
-@@ -39,6 +39,13 @@
+@@ -25,6 +25,10 @@
+   /* Legible ochre: for ochre TEXT on light ground, and for ochre fills that
+      carry white text. --ochre stays for bars, dots and untexted washes. */
+   --ochre-ink: oklch(0.52 0.135 78);
++  /* Personality-test accent: plum, same split — --test for washes/borders,
++     --test-ink for fills carrying white text. */
++  --test: oklch(0.62 0.16 310);
++  --test-ink: oklch(0.50 0.15 310);
+   /* Accent deep enough to be read as text on the light grounds (>=4.5:1).
+      Re-declared on .app so it tracks the tab accent. */
+   --accent-ink: color-mix(in oklch, var(--accent), var(--ink) 12%);
+@@ -39,6 +43,13 @@
    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
    --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
    --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
@@ -14,7 +25,7 @@
  }
  
  /* ── Voice ── one roman sans throughout; em carries no italic. */
-@@ -285,18 +292,13 @@
+@@ -285,18 +296,13 @@
  
  /* nav v2 — one primary bar of four: glyph over label so it fits a phone and
     keeps 44px targets, instead of a two-item pill plus a second row up top */

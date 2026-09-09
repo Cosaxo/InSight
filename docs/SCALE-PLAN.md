@@ -101,8 +101,10 @@ selection logic evolves or how wrong it gets about someone.
 The half that gets dearer with time is now done, and the half that does
 not is deliberately not:
 
-- **`core` is a declared field on feed questions.** All 82 in
-  `content/feed-questions.json` carry `core: true`; the generator emits it
+- **`core` is a declared field on feed questions.** 86 of the 455 in
+  `content/feed-questions.json` carry `core: true`, and 369 declare
+  `core: false` — **the tail is not hypothetical; it is already more than a
+  third of the feed and growing with every feed run.** The generator emits it
   onto feed entries only (`scripts/gen-v2content.mjs`, emit-when-set beside
   `active`/`until`), and `check:quality` **refuses a feed question that
   does not declare it** — verified by deleting a flag and watching the gate
@@ -137,6 +139,82 @@ One cost, measured because the gate caught it: 82 extra keys grew the
 bank's wire size by ~1 KiB (`check:figures` failed on `COSTS.md`'s figure
 and was corrected). That is a one-time install cost, which is exactly the
 category §2 says bank growth falls into.
+
+### Where the filter goes — every reader, decided 2026-08-19
+
+`SCALE-RUNBOOK.md` 2.1 asked for the split written down per call site,
+because "the Mirror folds core only" is a sentence and not an instruction.
+This is that list. **Read by grep, not by memory** — every row below names
+the line it was read off, and the classification came out of the code
+rather than being applied to it.
+
+**The tail is feed-only.** `isCore` (`data/deck.ts:246`) is
+`q.surface === "feed" ? q.core === true : true`, so the daily, the test
+items, duels, learn and pick cards are core whatever anyone writes on
+them. That single fact decides most of the table: a reader that never
+touches a feed question cannot be diluted, and saying *why* it cannot is
+worth more than a filter it does not need.
+
+**Only three readers walk the archive**, which is the only corpus a tail
+question can enter (`LIVE.aggregated()`, `data/live.ts:3214` — every
+question this device holds a published aggregate for):
+
+| Reader | Verdict | Why |
+| --- | --- | --- |
+| **City / Country / World** — `ui/LiveCohortBody.tsx:275`, and through `lensQs` (:360) all five of that stop's lenses: Answers, People, Compare, Explore, Scores | **core only** | The population portrait §1 exists to protect. Built at 2.2; the lenses inherit it because they derive from the same already-filtered `archive`, which is the reason to apply it once at the corpus rather than five times at the readings |
+| **Circle** — `ui/LiveCircleBody.tsx:134` | **all** | Circle folds the answers of people you chose to follow. That is a fact about *them*, not a claim about a population, so interest-selected serving cannot make it false — the bias §1 minds does not exist here. Recorded at 2.2 as a decision rather than an oversight, and this is its reasoning |
+| **The reading game** — `ui/LiveReadGame.tsx:49` (D196) | **all** | Nothing is averaged across the corpus: each read names its own question and asks you to guess one cohort's split on it, so a tail question adds a playable read rather than thinning an aggregate. The gate here wants a *bigger* pool (`READ_MIN_POOL`), which is the tail's one unambiguous gift |
+
+**Every other reading is bounded by construction.** Listed because the
+next person to read §1 will otherwise go looking for a filter to add, and
+adding one to any of these would be a no-op that reads as a safeguard:
+
+- **The similarity fields, Compare, Scores' axes, Kindred and the place
+  norms** fold `LIVE.testFeedItems()` — `state.feedBank.filter(q =>
+  q.surface === "test" && q.test)` (`data/live.ts:2935`) — through
+  `testItemMeta` (`data/similarity.ts:87`). Call sites:
+  `ui/LiveSimilarityField.tsx:666,766`, `ui/LiveCompareLens.tsx:163`,
+  `data/testNorms.ts:124`, `data/passiveProfile.ts:70`. The four
+  instruments are a fixed bank pinned item-for-item by content parity, and
+  `isCore` cannot call a test item tail. Production grows the feed; it
+  does not grow an instrument.
+- **Near** reads `LIVE.deck()` and the server fold's own cell map
+  (`ui/LiveRoomTabs.tsx:194,211` → `ui/roomShape.ts:33`) — a window of
+  days, never the archive.
+- **Groups** reads reveal documents (`ui/LiveGroupsMirrorBody.tsx:301` →
+  `data/groupPortrait.ts`). Duels never become world aggregates.
+- **The Map's typicality** is one (question × anchor) pair for an answer
+  you tapped (`spec/map-group-stats.js`), and **the who-voted sheet** is
+  one question's (`ui/LiveBreakdownPanel.tsx`). A corpus of one is not a
+  corpus.
+- **The type mix and the passive profile** read published test results and
+  your own votes (`data/typeSplit.ts`, `data/typeMix.ts`,
+  `data/passiveProfile.ts`).
+
+### The premise 2.1 was written on turned out to be false
+
+2.1 warned that `aggregated()` "**also feeds your own answer list**, which
+must keep showing everything you answered, tail included", and called
+hiding a person's own answer from them the worse bug. It would be. It is
+not this one: **no personal answer archive reads `aggregated()` at all.**
+
+Measured — `myVotes()` has exactly one consumer per surface
+(`grep -rn "myVotes()" src/`), and the two that are archives of your own
+answering are the daily record (`spec/mirror-answers.jsx`, over `DAILYQ`)
+and the Map (`spec/map-tab.jsx`, same store). Both are the **daily bank**,
+core by construction, so the filter cannot reach them however the tail
+grows. What `aggregated()` feeds is the *population* readings, on which
+your own answer appears as a mark on a row rather than as the row's
+subject.
+
+So the accepted consequence is narrower than 2.1 feared, and it is stated
+here rather than left to be discovered: after the filter, **a tail
+question you answered does not get a row in the Mirror's Answers tab.**
+That tab is a population reading with your answer marked on it
+(`MIRROR.md` §3), not your archive — your archive is the Map, and the
+card itself still shows your answer and its split. If the Mirror ever
+grows a genuine "everything you have answered" surface, it reads
+`aggregated()` **unfiltered**, and this paragraph is the reason.
 
 ### What makes the rest enforceable rather than aspirational
 
@@ -184,24 +262,60 @@ figure-in-prose shape that goes stale (D39), so the override is committed
 as `scripts/cost-scale.mjs` and the numbers above are its output at
 2026-08-15. No figure in prose outranks the script beside it.
 
-**What trips first is pagination, and it is close.** `live.ts` fetches
-the bank in one unpaginated query bounded by `BANK_LIMIT`;
-`scripts/question-quality.mjs` warns at `BANK_WARN` and then fails, with
-the rule recorded at the call site: **approach it with pagination, never
-another raise.** The reason there is a ceiling at all is specific and
-worth restating, because it reads like an arbitrary limit and is not — a
-query that hits its limit returns a short page and **no error**, so an
-over-sized bank serves users a truncated corpus with nothing failing
-anywhere.
+**What tripped first was pagination, and it is done** (D161, runbook step
+1.1, 2026-08-15). `live.ts` used to fetch the bank in one unpaginated
+query bounded by `BANK_LIMIT = 1500`, and the reason that was a ceiling
+rather than an arbitrary limit is worth keeping: a query that hits its
+limit returns a short page and **no error**, so an over-sized bank served
+a truncated corpus with nothing failing anywhere. `BANK_PAGE = 1000` is a
+page size now, `BANK_MAX_PAGES` bounds the loop, and tripping it reports
+rather than truncating. `bank-cache.test.ts` asserts completeness.
 
-The work is smaller than it looks: the *delta* path already pages against
-an `updatedAt` cursor and already refuses to serve a truncated result
-("a delta that fills the page is not a delta"). Only the cold-start full
-fetch needs paging.
+**BUILT AT D312 — this section describes a ceiling that no longer
+exists, and is kept for its arithmetic.** The bank cache moved to
+IndexedDB on 2026-08-26: `live.ts` reads the `insight.*` keys once as
+migration sources and removes them. `BANK_WARN`/`BANK_FAIL` are gone too —
+`question-quality.mjs` calls them "the retired BANK_FAIL/BANK_WARN pair"
+and the live tripwire is `INSTALL_WARN`.
 
-**Order: paginate before accelerating.** At an order-of-magnitude
-increase the current headroom is weeks, not the year the constant was
-sized for.
+`SCALE-RUNBOOK.md` had this right (§1.2, ticked, "the move happened
+2026-08-26 (D312)") while this page did not — and this page's own header
+says that where the two disagree, THIS one is right and the runbook is
+stale. The authority was inverted, which is worse than either page being
+wrong alone: a reader following the stated precedence would have taken
+the out-of-date answer.
+
+What follows is the measurement that justified the move, in the past
+tense. `question-quality.mjs`'s `BANK_WARN`/`BANK_FAIL` were
+re-pointed at that budget when pagination landed, and they were stated in
+MB for it: **6,000 docs ≈ 1.6 MB, 10,000 ≈ 2.7 MB**, against a ~5 MB
+origin quota shared with ~29 other `insight.*` keys. The failure mode is
+the one this whole section is about — `live.ts` caches the whole bank in
+`insight.bankCache.v2` and **swallows a quota failure**, so crossing the
+budget breaks nothing visibly: it stops caching, and every boot pays a
+full bank fetch forever, with no symptom anywhere.
+
+That is also the line at which §2's own cost table stops being true. The
+identical rows above hold *because* the bank is a one-time install cost
+absorbed by that cache; lose it and bank size starts billing per boot per
+user, which is precisely the regression the table says to watch for.
+
+**The remedy was named at the call site — move the cache to IndexedDB
+before promoting past the budget — and it was done (D312)** — and it is smaller than it sounds,
+because `persistentLocalCache()` already puts Firestore's own document
+cache there. [`BANK-DELIVERY.md`](BANK-DELIVERY.md) is the plan, and it
+carries a finding this section did not have: the cache is the SECOND
+ceiling, not the first. The learn bank is compiled into the JS bundle,
+`check:bundle` has about 39 cards of headroom, and that one is weeks
+away rather than years.**
+
+Both are smaller pieces of work than §1's core/tail split and unrelated
+to it — those are about what a device can hold, this one about what a
+cohort reading may honestly fold.
+
+**Order: the bundle, then the cache, then accelerate.** The cache leaves
+~5,300 questions of headroom, which is years at the lanes' combined
+pace; the bundle leaves about a fortnight.
 
 **Point volume at the surface that can retire.** Feed questions carry
 `active: false` (D52's shape, honoured by `deck.ts`; six duplicates
@@ -254,6 +368,21 @@ rather than applying it.
 scorecard reads published aggregates, and pre-launch there are none. So
 before there are users, review is all there is, and the volume that makes
 this worth building is the volume that cannot be validated yet.
+
+**Taken further at D212 (2026-08-19), owner's direction.** The second
+non-dissolving item above — the human on the merge — is gone for
+question content: the lanes merge their own PRs on green gates, the farm
+promotes its own batches at a fixed pace, and the 1-in-20 audit became a
+standing `check:quality` warning a person spends down on their own clock
+rather than a gate that can stop the lanes. The first item (correlated
+blind spots → sampled audit) survives unchanged, as does everything that
+is not a bank append. D213 took the matching volume step the same day
+(feed daily at a 24/topic target; the duel lane's regulator and
+Routine). The order-of-work items 3 and 4 below are therefore taken —
+review reshaped past what this section proposed, production scaled by
+cadence rather than caps — with item 1 (pagination) already built at
+D161 and the split's fold enforcement still sequenced with first tail
+content.
 
 ## 4 · The interest model — `ATTENTION.md` tier 2, with the gap closed
 
@@ -311,7 +440,14 @@ The idea is sound and its best property is structural: naming a cohort's
 attention as finite makes the cap **the unit of sale**, so inventory
 cannot be quietly inflated without visibly devaluing what was already
 sold. That is the `check:globals` rule-4 ratchet shape, pointed at
-revenue.
+revenue. Since D377 the unit is a PLACE in a density rather than one
+slot — a paid card after every sixth world card (`SPONSOR_EVERY`,
+`data/sponsored.ts`), so inventory grows with how far people scroll
+rather than staying at one card per phone per day — and the argument
+holds as written: the density is one named number, the schedule is
+still computable from the content, and the first three campaigns in a
+scope each hold a place before the crowding price counts anyone
+(`crowdFree`, `content/pricing.json`).
 
 It is buildable here only because of one fact: the feed is served in a
 deterministic order, so **the inventory is computable without telemetry**
@@ -331,7 +467,8 @@ forbids an event per impression outright. So:
   already draws this line; nothing here widens it.
 - **Sponsored content lives in the tail, never the core.** New, and it
   falls straight out of §1: paid questions in the Mirror's corpus would
-  make the honest aggregate a paid-for sample. A sponsor still gets the
+  make the honest aggregate a paid-for sample. **Built and enforced at
+  [D195](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet)** — `check:content` refuses `core: true` on a sponsored question. A sponsor still gets the
   exact public split of their own question — aggregates publish for every
   question — they simply do not get their question woven into everyone's
   Mirror.
@@ -394,6 +531,7 @@ clearing engine — not before.
 | Core grows faster than the population | The ratio gate (§6 item 6) | Until it exists, the Mirror can thin without anyone noticing |
 | Sponsored content reaches the Mirror's corpus | Tail-only placement, same flag as §1 | An operator who flags a sponsored question core |
 | Cost surprise | The model takes production rate as an input; re-run it, do not reason about it | Three behaviour inputs are still guesses (`COSTS.md` says which) |
+| A capped read truncates by NAME, not by recency | `fetchAnswersOf` (`src/v2/data/circle.ts`) caps at 300 answers per followed account, and until D398 carried no `orderBy` — an unordered `limit` takes documents by question id, so past the cap a circle member's likeness was computed from the alphabetically-first slice of what they answered, and it still drew | **Fixed (D398, 2026-09-06).** The row read "cannot bind at ~130 core questions" until 2026-08-31's closing review measured it against the wrong bank: the query asks for `WORLD_ANSWER_SURFACES`, six surfaces totalling 570 answerable questions (daily 130 · feed 166 · test 110 · learn 156 · pulse 5 · call 3 — this row said 644 off two miscounted banks; `circle.ts` has the correction) against a cap of 300. The owner took the index cost with ALGORITHM-REFLECTION §4.6: the query orders by `answeredAt` DESC, the (`surface` ASC, `answeredAt` DESC) COLLECTION-scope composite is in `firestore.indexes.json` and pinned by `indexes.test.ts`, and the cap keeps a member's 300 newest answers. What remains is the cap itself — a heavy answerer is read from their latest 300, which is a slice they chose |
 
 ## 8 · What I would do
 

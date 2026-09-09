@@ -28,12 +28,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 
 import "../spec/consequence-beat.jsx";
 
 const ConsequenceBeat = globalThis.ConsequenceBeat;
 
 // The props daily-split.jsx passes at the real call site, minus the height.
+// This comment was true and the props were NOT: the real call site carried
+// no `counts` until 2026-09-02, so the file below tested the fix on props
+// the daily never sent. The last case in it holds the two together now.
 const PROPS = {
   seed: "q-test",
   options: [
@@ -45,6 +49,89 @@ const PROPS = {
 };
 
 afterEach(cleanup);
+
+// The verdict the beat says out loud, which is a claim about VOTES while
+// the number beside it is a percentage.
+//
+// `sharePcts` never inverts two counts but it can round them to the same
+// integer, so deciding "you're with them" off the percentages told a voter
+// with strictly fewer votes that they had won. The line under the card was
+// fixed earlier the same night; a beat still reading percentages would
+// have contradicted the line it is shown two seconds before.
+describe("the consequence beat's verdict", () => {
+  // Options must match the vector's width — the animation lays out one
+  // camp per option and reads `camps[i]`, so a mismatched pair throws
+  // rather than misreporting.
+  const opts = (n) => Array.from({ length: n }, (_, i) => ({
+    label: ["Absolutely", "Never", "Depends"][i] || `Option ${i}`,
+    color: "oklch(0.52 0.14 40)",
+  }));
+  const say = (pcts, counts, mineIdx) => {
+    const { container } = render(
+      <ConsequenceBeat {...PROPS} options={opts(pcts.length)} pcts={pcts}
+        counts={counts} mineIdx={mineIdx} onDone={() => {}} />,
+    );
+    return container.textContent;
+  };
+
+  it("asks the counts, not the drawn percentages", () => {
+    // 449 and 451 both draw 45%. The voter on 449 did not win.
+    expect(say([45, 45, 10], [449, 451, 100], 0)).toContain("you among them");
+    expect(say([45, 45, 10], [449, 451, 100], 1)).toContain("you\u2019re with them");
+  });
+
+  it("and the daily's TILES lead off the counts too, not the drawn shares", () => {
+    // Same rounding, one line down from the beat. `rp[i] === maxP` was
+    // true for both tiles on 449 against 451 — both draw 50% — so each
+    // got the winner's 25px numeral and full ink, and the chart declared
+    // a tie the votes do not have.
+    //
+    // A source assertion for the beat's reason: reaching these tiles means
+    // answering today's question inside a full app render, and what is
+    // wrong here is which array the comparison reads.
+    const src = readFileSync("src/v2/spec/daily-split.jsx", "utf8");
+    expect(src, "the daily's leading tile is decided off the rounded shares again")
+      .not.toMatch(/fontSize: rp\[i\] === maxP/);
+    expect(src, "the tiles no longer lead off the counts").toMatch(/const leads = \(i\) => counts\[i\] === maxCount;/);
+    expect(src, "the numeral stopped asking `leads`").toMatch(/fontSize: leads\(i\) \? 25 : 15/);
+  });
+
+  it("and the daily's own call site passes them, which it did not", () => {
+    // The cases above prove the COMPONENT reads counts. They say nothing
+    // about whether the daily hands them over, and for as long as this
+    // file has existed it did not — while the comment at the top of it
+    // claimed these were "the props daily-split.jsx passes".
+    //
+    // A source assertion rather than a mount: reaching this beat means
+    // answering today's question inside a full app render, and the
+    // component's own behaviour is already covered three cases up. What
+    // is missing is only the wiring, and this fails when it is undone.
+    const src = readFileSync("src/v2/spec/daily-split.jsx", "utf8");
+    expect(
+      src,
+      "the daily's ConsequenceBeat call dropped `counts` — its verdict is back to breaking ties by index",
+    ).toMatch(/window\.ConsequenceBeat, \{[^}]*pcts: rp, counts,/);
+  });
+
+  it("still prints the percentage it was given", () => {
+    // The number and the verdict answer different questions, and only the
+    // verdict moved. A beat that started printing counts would be a
+    // different bug.
+    expect(say([45, 45, 10], [449, 451, 100], 0)).toContain("45% chose");
+  });
+
+  it("a real tie in counts is with them, on both sides", () => {
+    expect(say([50, 50], [7, 7], 0)).toContain("you\u2019re with them");
+    expect(say([50, 50], [7, 7], 1)).toContain("you\u2019re with them");
+  });
+
+  it("degrades to the percentages when no counts are passed", () => {
+    // The prop is optional on purpose: a caller without counts must behave
+    // exactly as before rather than throw.
+    expect(say([61, 39], undefined, 0)).toContain("you\u2019re with them");
+    expect(say([61, 39], undefined, 1)).toContain("rare side");
+  });
+});
 
 describe("the consequence beat's skip control", () => {
   it("is a real control: focusable, and named", () => {

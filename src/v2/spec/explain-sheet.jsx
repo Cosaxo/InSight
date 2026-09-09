@@ -22,6 +22,28 @@ const { useState } = React;
 // ── the copy ───────────────────────────────────────────────────────────────
 // about: what the whole instrument measures · dims: what each axis means
 const EX = {
+  // the 1v1 and group readings as instruments (2026-08-24; the owner's
+  // 2026-09-09 design's dims since D437) — the Roles panel's roses read
+  // these through the same ⓘ as every test. Both are SHARES: a quarter
+  // each is the neutral, and nothing here is scored against luck.
+  duo: {
+    about: 'What you are to them: which of four things they say is true of you, as a share of the rounds that ask.',
+    dims: {
+      trust:     'How often they say you are the one they tell first.',
+      spark:     'How often they say you are the one who gets them out the door.',
+      judgement: 'How often they say you are the one they ask what to do.',
+      constancy: 'How often they say you are the one who is just always there.',
+    },
+  },
+  group: {
+    about: 'Your seat in the room: every vote you received, by the part it was cast in.',
+    dims: {
+      engine: 'The share of your votes in the roles that get things going.',
+      hands:  'The share in the roles that get it done.',
+      heart:  'The share in the roles that hold the room together.',
+      wild:   'The share in the roles the story happens to.',
+    },
+  },
   big5: {
     about: 'Five broad traits psychologists use to describe personality. Everyone sits somewhere on each one — neither end is better.',
     dims: {
@@ -166,13 +188,15 @@ export function ExplainBtn({ onClick, label }) {
 export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) {
   const [closing, setClosing] = useState(false);
   const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 240); };
-  const ex = EX[dimKey] || { about: '', dims: {} };
+  // a per-setting key ('duo:f1') explains the same instrument as its family
+  // (2026-08-24) — one entry serves every 1v1, not one per pairing
+  const ex = EX[dimKey] || EX[String(dimKey || '').split(':')[0]] || { about: '', dims: {} };
   const sheet = (
     <Sheet onClose={close} closing={closing} label={title + ' — what this measures'}>
       <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
         <span style={{ fontFamily: exSans, fontWeight: 800, fontSize: 15 }}>{title}</span>
         <span style={{ flex: 1, minWidth: 0, fontFamily: exSans, fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kicker}</span>
-        <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', flexShrink: 0 }}>✕</button>
+        <button className="tap44" onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', flexShrink: 0 }}>✕</button>
       </div>
       <div className="wf-sheet-body">
         {ex.about && <p style={{ margin: '2px 0 0', fontFamily: exSans, fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: 'var(--ink)', textWrap: 'pretty' }}>{ex.about}</p>}
@@ -197,6 +221,9 @@ export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) 
                   {d.poles && <span style={{ fontFamily: exSans, fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{d.poles[0]} → {d.poles[1]}</span>}
                 </div>
                 {ex.dims[d.id] && <div style={{ marginTop: 2, fontFamily: exSans, fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-2)', textWrap: 'pretty' }}>{ex.dims[d.id]}</div>}
+                {/* a caller may pin the viewer's own reading under the
+                    definition (2026-08-24) — a word, not a lecture */}
+                {d.note && <div style={{ marginTop: 3, fontFamily: exSans, fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>yours: {d.note}</div>}
               </div>
             ))}
           </div>

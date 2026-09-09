@@ -5,76 +5,46 @@
 // per-person choice; it dies with the account that made it (purge listener
 // below) and starts OFF for every new one.
 //
-// THREE STATES SINCE D174, not a boolean:
-//
-//   off      no presence doc at all. The default, and the only state a
-//            fresh account or a purged one lands in.
-//   session  visible for PRESENCE_SESSION_MIN, then not. The default when
-//            someone first turns it on, because the default IS the
-//            decision — the other two are for people who mean them.
-//   always   no deadline on the SETTING. Not "my position never expires":
-//            every beat still writes an `until` capped at the linger, so
-//            this means "visible whenever the app is open", which is a
-//            small enough claim to stand behind.
-//
-// The session's DEADLINE is the interesting part and it is held here
-// rather than derived. A deadline that lived only in memory would reset
-// every time the app was reopened, which turns "two hours" into "two hours
-// from whenever you last looked" — a longer promise than the one the
-// control makes, and longer in the direction that matters.
-//
-// What actually enforces the deadline is the `until` field live.ts writes
-// on each beat, clamped to it: closing the app ten minutes before the
-// deadline cannot leave a position standing for a further linger. This
-// store decides WHEN; the doc is what makes it true, and firestore.rules
-// caps how far out any client may push it.
+// A SWITCH AGAIN SINCE D370 — off or on, the shape D84 shipped. D174 put a
+// third state between them (`session`: visible for two hours, then not)
+// and made it the default, on the argument that forgetting is the failure
+// mode worth designing against. The owner's call (2026-09-05) retires it:
+// "near should only have off and on option". What `on` means is D174's
+// `always`, unchanged — no deadline on the SETTING, and every beat still
+// writes an `until` capped at the linger (live.ts), so it means "visible
+// whenever the app is open, and for up to three hours after" — small
+// enough to stand behind. The linger, the `until` on the doc and the cap
+// in firestore.rules (D174 §§2–3) all stand; only the timed option and
+// the deadline it needed are gone.
 //
 // The loop, the cell and the count live in live.ts (LIVE.near), which
 // imports this — one direction, no cycle.
 
 const LS = "insight.nearPresence.v1";
-/** The session deadline, epoch ms. Absent unless the mode is `session`. */
+/** D174's session deadline lived here. Read once more to sweep it, never
+ * written again. */
 const LS_UNTIL = "insight.nearPresence.until.v1";
 
-export type NearMode = "off" | "session" | "always";
-
-/** How long the timed option lasts. Mirrors PRESENCE_SESSION_MIN. */
-export const NEAR_SESSION_MS = 120 * 60_000;
-
-function readMode(): NearMode {
+function readOn(): boolean {
   try {
     const raw = localStorage.getItem(LS);
-    // "1" is D84's boolean, and a phone upgrading carries it. Read it as
-    // `always`, which is what it meant: a standing opt-in with no deadline.
-    if (raw === "1" || raw === "always") return "always";
-    if (raw === "session") return "session";
+    // "1" is D84's boolean and is the value written again since D370;
+    // "always" is what D174 wrote for the standing option — same meaning.
+    if (raw === "1" || raw === "always") return true;
+    // A phone upgrading mid-SESSION lands OFF, on purpose: the timed
+    // option was a promise about when you stop being visible, and the
+    // upgrade must not quietly turn two hours into no deadline. The doc
+    // it wrote carries its own `until`, so the server stops counting it
+    // by itself; the keys are swept so the next read is a plain miss.
+    if (raw === "session") {
+      localStorage.removeItem(LS);
+      localStorage.removeItem(LS_UNTIL);
+    }
   } catch { /* fall through to off */ }
-  return "off";
+  return false;
 }
 
-function readUntil(): number {
-  try { return Number(localStorage.getItem(LS_UNTIL)) || 0; } catch { return 0; }
-}
-
-let mode: NearMode = readMode();
-let until: number = readUntil();
-
-/**
- * The mode, with an EXPIRED session reported as off.
- *
- * Checked at the point of use rather than on a timer: a timer does not run
- * while the app is closed, and the one moment this has to be right is the
- * moment the app comes back after being shut for three hours.
- */
-export function nearMode(): NearMode {
-  if (mode === "session" && until && Date.now() >= until) return "off";
-  return mode;
-}
-
-/** Epoch ms the session ends, or 0 when there is no deadline. */
-export function nearUntil(): number {
-  return nearMode() === "session" ? until : 0;
-}
+let on: boolean = readOn();
 
 // No subscriber list. This store carried one, plus a subscribeNearOptIn to
 // feed it, from D84 until D137 — nothing ever subscribed, so the Set was
@@ -82,17 +52,17 @@ export function nearUntil(): number {
 // (live.ts) calls this at the point of use, which is why the subscription
 // was never needed. Re-add both together if that changes.
 export function nearOptedIn(): boolean {
-  return nearMode() !== "off";
+  return on;
 }
 
-export function setNearMode(next: NearMode): void {
-  mode = next;
-  until = next === "session" ? Date.now() + NEAR_SESSION_MS : 0;
+export function setNearOn(next: boolean): void {
+  on = next;
   try {
-    if (next === "off") { localStorage.removeItem(LS); localStorage.removeItem(LS_UNTIL); return; }
-    localStorage.setItem(LS, next);
-    if (until) localStorage.setItem(LS_UNTIL, String(until));
-    else localStorage.removeItem(LS_UNTIL);
+    if (!next) { localStorage.removeItem(LS); localStorage.removeItem(LS_UNTIL); return; }
+    localStorage.setItem(LS, "1");
+    // Nothing writes a deadline any more; a stale one from a D174 build
+    // must not outlive the switch that replaced it.
+    localStorage.removeItem(LS_UNTIL);
   } catch { /* best-effort — the in-memory choice still holds this session */ }
 }
 
@@ -100,5 +70,5 @@ export function setNearMode(next: NearMode): void {
 // without re-writing — the wipe just removed the key, and saving would
 // re-create it.
 if (typeof window !== "undefined") {
-  window.addEventListener("insight:local-purge", () => { mode = "off"; until = 0; });
+  window.addEventListener("insight:local-purge", () => { on = false; });
 }

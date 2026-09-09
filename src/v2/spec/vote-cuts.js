@@ -3,16 +3,17 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
+import { RMLenses } from './relmap-lenses.jsx';
 
 // InSight — VOTECUTS: the one cut list every who-voted breakdown reads from.
 // Demographics first, then the four tests. A test opens into its own subvalues:
 // the overall type, or a single axis split into the same five bands the Circle
-// map colours people by — rm-test-lenses.js owns both, so a cut here and a lens
+// map colours people by — relmap-lenses.jsx owns both, so a cut here and a lens
 // there always mean the same thing.
 // Converted off the shared-global bridge (D39, "convert on touch"):
-// daily-split.jsx imports this by name. The window mirror stays for the
-// who-voted breakdowns that have not moved.
+// daily-split.jsx and world-feed.jsx both import this by name. The window
+// mirror is GONE since D246 — world-feed.jsx was the last global reader,
+// and a publication nothing reads is the residue rule 5 exists to catch.
 export const VOTECUTS = (function () {
   const DEMO = [
     { id: 'friends', label: 'Friends' },
@@ -41,8 +42,8 @@ export const VOTECUTS = (function () {
     { id: 'where',   label: 'Where',  groups: ['Americas', 'Europe', 'Asia', 'Elsewhere'] },
   ];
   const TEST_IDS = ['big5', 'politics', 'values', 'social'];
-  const L = () => window.RMLenses;
-  const T = (id) => { const RL = L(); return RL && RL.TESTS[id] ? RL.TESTS[id] : null; };
+  const L = () => RMLenses;
+  const T = (id) => L().TESTS[id] || null;
 
   function dims() {
     return DEMO.map((d) => ({ id: d.id, label: d.label })).concat(
@@ -108,4 +109,3 @@ export const VOTECUTS = (function () {
 
   return { dims, subs, groups, key, you, centerChip, TEST_IDS };
 })();
-window.VOTECUTS = VOTECUTS;

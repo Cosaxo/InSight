@@ -34,7 +34,8 @@
 
 import { afterEach, beforeAll, expect, vi } from "vitest";
 import React from "react";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import NAV from "../data/nav";
 
 // 15s per test, not the 5s default: every case mounts the FULL app in jsdom,
 // and the v15 revision roughly doubled the spec layer's feed weight — the
@@ -49,6 +50,30 @@ export const SMOKE_TIMEOUT_MS = 15000;
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 // …and the copy it renders in place of the crashed subtree.
 const BOUNDARY_COPY = /This view hit a snag/i;
+
+// REACT'S OWN REPORTS THAT ARE APP BUGS, not test noise.
+//
+// `mountApp` replaces console.error with a no-op, and the checker below
+// only ever looked for the boundary line — so everything else React says
+// went into a black hole, in the one harness that is the spec layer's
+// only runtime net. Two of those are defects a user meets: a render that
+// sets another component's state (the update is dropped or loops, and
+// React names both components), and duplicate or missing keys in a list
+// (rows reorder, state follows the wrong row, an edit lands on a
+// neighbour).
+//
+// AN ALLOWLIST POINTED THE OTHER WAY, deliberately: these three patterns
+// fail, everything else still passes. React's dev build also logs act()
+// warnings that depend on timing, and an assertion that reds on those
+// would make eleven suites flaky rather than honest. Measured 2026-09-09
+// across every App-mounting suite: zero console.error calls of any kind
+// beyond the boundary line, so this starts from an empty set and only
+// ever grows when something real fires.
+const REACT_BUGS = [
+  /Cannot update a component .* while rendering a different component/i,
+  /Encountered two children with the same key/i,
+  /Each child in a list should have a unique "key"/i,
+];
 
 let App;
 let errorSpy;
@@ -66,6 +91,14 @@ export function registerSmokeHooks() {
     // layer — the feed renders on the daily tab, so dropping it costs coverage
     // without failing anything.
     await specIndex.loadWorldFeed();
+    // …and the Mirror (D355), which app-shell mounts through a slot that
+    // renders in the same tick ONLY once this has remembered the module on
+    // data/mirrorChunk. Without it every Mirror case would click the tab
+    // and assert against the empty frame before the slot's import lands.
+    // loadOverlays below awaits this too; it is named here anyway, because
+    // a suite that depends on a load nobody in it names is the one that
+    // breaks confusingly the day the overlays stop waiting.
+    await specIndex.loadMirrorTab();
     // …and the six no-button overlays, for the same reason. Every cross-link
     // case opens one of these, and the openers await this same memoised promise
     // — so strictly this line only removes a wait from the first such case. It
@@ -75,6 +108,12 @@ export function registerSmokeHooks() {
     // it because the module cache is per worker, and after the split no file
     // can assume another already paid for this.
     await specIndex.loadOverlays();
+    // …and the Map (v28 §5), which the Mirror's landing stop lazy-loads.
+    // Awaiting it here mirrors main.jsx's prewarm: the chunk is in the
+    // module cache before any case clicks Mirror, so the lazy body resolves
+    // in a microtask instead of a network beat. Cases that assert on Map
+    // DOM still flush that microtask (see awaitNode below).
+    await specIndex.loadMapTab();
     App = globalThis.App;
   });
 
@@ -100,6 +139,12 @@ export function mountApp() {
     // is to name the undefined global on the first read.
     expect(caught.map((c) => String(c[1])).join(" · "), `${where}: ErrorBoundary caught`).toBe("");
     expect(screen.queryByText(BOUNDARY_COPY), `${where}: boundary fallback rendered`).toBeNull();
+    // …and React's own reports of the two bug classes above, which this
+    // harness used to swallow whole.
+    const reacted = errorSpy.mock.calls
+      .map((args) => args.map((a) => String(a)).join(" "))
+      .filter((line) => REACT_BUGS.some((re) => re.test(line)));
+    expect(reacted.join("\n"), `${where}: React reported an app bug`).toBe("");
   };
 }
 
@@ -110,14 +155,18 @@ export function mountApp() {
 // outside React's event system, and without act() the assertion runs against
 // the frame before the overlay rendered.
 export async function openVia(name, ...args) {
-  expect(typeof window[name], `window.${name} is not installed`).toBe("function");
+  // The REGISTRY since D248, not `window.*` — app-shell registers its doors
+  // into data/nav rather than publishing them, so this asserts the door
+  // exists there. Same guarantee, and it still fails loudly if the shell
+  // stopped registering: `can()` is false and the expect below names it.
+  expect(NAV.can(name), `nav door "${name}" is not registered`).toBe(true);
   // AWAITED act, because these openers are async: each awaits loadOverlays()
   // before setting the state that mounts its overlay (spec-index.js,
   // app-shell's openDeferred). A bare synchronous `act(() => …)` returns before
   // the promise settles, so every assertion would run against the frame BEFORE
   // the overlay rendered — which is the vacuous pass these suites exist to
   // prevent, wearing a new shape.
-  await act(async () => { await window[name](...args); });
+  await act(async () => { await NAV[name](...args); });
 }
 
 // Copy only the opened overlay renders. textContent, not getByText, because
@@ -135,6 +184,132 @@ export function expectOpened(re, where) {
   expect(document.body.textContent, `${where}: overlay never opened`).toMatch(re);
 }
 
+// ── lazy tab bodies ────────────────────────────────────────────────────
+//
+// A React.lazy body (the patterns tab) arrives on its own chunk, so the
+// click alone renders nothing. A fixed sleep is a race — it lost one under
+// full-suite load — so wait for the copy itself, bounded the way growFeed
+// is: a body that never arrives should fail an assertion, not hang a suite.
+export async function awaitText(re, max = 50) {
+  const has = () => re.test(document.body.textContent);
+  if (has()) return;
+  // FLUSH BEFORE SLEEPING. The chunks these wait on are prewarmed in the
+  // beforeAll above, so the common case is an import that resolves in a
+  // MICROTASK and needs React given a turn, not 40 ms of wall clock.
+  //
+  // Counted rather than timed, because the saving is smaller than the
+  // run-to-run noise on any one file and a wall-clock claim would be
+  // unfalsifiable: across `--dir src/v2/test`, 23 of the 26 calls to these
+  // two helpers are satisfied by this flush alone and used to pay a full
+  // tick first. Three still need real ticks, which is what the loop is for.
+  await act(async () => {});
+  for (let i = 0; i < max && !has(); i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  }
+  // Deliberately does NOT throw on exhaustion, unlike growUntil. Every call
+  // site follows this with its own assertion on the same content, and those
+  // messages are better than anything this could raise ("the live pick card
+  // is missing — the mapper dropped the optionless doc"). A throw here would
+  // replace a good message with a generic one.
+}
+
+/**
+ * Drag the daily's card sideways past the commit threshold and release —
+ * the gesture that walks the mode axis one stop, and off one of its ends
+ * when the axis has no next stop that way (D265's near end is the
+ * Patterns tab; the far end is the Mirror).
+ *
+ * `dir` is the finger's direction: 1 drags right (one stop BACK, off the
+ * near end from World), -1 drags left.
+ *
+ * Dispatched on daily-split's own root so it bubbles to the scroller its
+ * listeners are on, and deliberately not on a child: `touchstart` drops
+ * any gesture that starts inside OWNS_X.
+ *
+ * THE CLOCK IS MOVED FORWARD, and that is not a shortcut. A cross-tab
+ * jump marks the nav (swipe-back's `markNav`) and every axis gesture
+ * refuses for COAST_MS = 700 ms afterwards, so a swipe case that runs
+ * within that window of ANY earlier case's tab click is silently
+ * swallowed — it passes alone and fails in the file. Offsetting Date.now
+ * says what the case means: a gesture made a while after the last jump.
+ *
+ * Returns the sliding body element, whose transform is how a spring-back
+ * is visible.
+ */
+export function swipeDaily(dir = 1) {
+  const root = document.querySelector('[data-screen-label="Split daily v2"]');
+  if (!root) throw new Error("swipeDaily: the daily screen is not mounted");
+  const at = (x) => [{ clientX: x, clientY: 400 }];
+  const from = 120, to = from + dir * 120;   // 120px, past the 66px threshold
+  const realNow = Date.now;
+  const spy = vi.spyOn(Date, "now").mockImplementation(() => realNow() + 5000);
+  try {
+    act(() => {
+      fireEvent.touchStart(root, { touches: at(from) });
+      fireEvent.touchMove(root, { touches: at(to) });
+      fireEvent.touchEnd(root, { changedTouches: at(to) });
+    });
+  } finally {
+    spy.mockRestore();
+  }
+  return root.querySelector('[style*="will-change"], [style*="willChange"]') || root.firstElementChild;
+}
+
+// Same wait, keyed on a selector instead of copy — for lazy bodies whose
+// arrival is an element rather than a sentence (the Map's canvas).
+export async function awaitNode(selector, max = 50) {
+  const find = () => document.querySelector(selector);
+  if (find()) return find();
+  await act(async () => {});   // same reason as awaitText above
+  for (let i = 0; i < max && !find(); i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  }
+  return find();
+}
+
+/**
+ * Open the profile or search overlay from the header, and wait for it.
+ *
+ * ASYNC, and that is the app rather than the harness. Both overlays moved
+ * into the after-first-paint chunk at D223, so the header button awaits
+ * `loadOverlays()` before setting the state that mounts one — a click no
+ * longer paints in the same tick. Fourteen call sites asserted
+ * synchronously against a DOM that had not been written yet; one helper is
+ * what stops the fifteenth doing it again.
+ *
+ * Returns the dialog node, which is what most callers actually wanted.
+ */
+export async function openHeaderOverlay(name) {
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${name}$`, "i") }));
+  return awaitNode('[role="dialog"]');
+}
+
+// ── the consequence beat ───────────────────────────────────────────────
+//
+// Answering a feed card plays the beat (spec/consequence-beat.jsx) and the
+// engage row does not mount for either branch until it clears `state.beat`
+// from its own onDone. So any case that asserts on the answered state has to
+// get past it first.
+//
+// CLICK IT, DO NOT OUTWAIT IT. The beat is a real <button> with
+// `onClick={finish}` and `aria-label="Skip"`, and `finish` calls `onDone`
+// synchronously — so the answered state is on screen in the same tick. The
+// cases here used `setTimeout(1200)` against a 1000 ms rAF animation
+// (T5 = 1000 in that file), which is 7.2 s across six playthroughs and a
+// 200 ms margin on a shared runner. This file already argues against exactly
+// that shape one section down, about a fixed 50 ms sleep that "stopped being
+// safe at D119 … and under a loaded runner it lost".
+//
+// ASSERTED, NOT `if (skip)`. A conditional click degrades silently to a
+// no-op the day the beat stops mounting synchronously, which converts a wait
+// into a race — the same failure wearing the opposite hat. queryAll[0]
+// rather than queryBy because a case that answers two cards has two.
+export function settleBeat() {
+  const skip = screen.queryAllByRole("button", { name: "Skip" })[0];
+  expect(skip, "no consequence beat mounted — this settle would be a no-op").toBeDefined();
+  act(() => { fireEvent.click(skip); });
+}
+
 // ── the feed's mounted window ──────────────────────────────────────────
 //
 // The feed mounts a window that grows as its tail comes into range (D136),
@@ -145,10 +320,40 @@ export function expectOpened(re, where) {
 // waits for.
 //
 // So: any case whose SUBJECT is a card rather than the window has to let the
-// window finish first. This awaits growth until the feed stops adding cards,
-// which is the honest thing to wait for — a fixed sleep would be a race, and
-// a fixed number of pages would need editing every time a fixture's card
-// count changed.
+// window grow first.
+//
+// WAIT FOR THE CARD, NOT FOR THE END OF THE FEED — and that is a correction,
+// not a preference. `growFeed` below waits for growth to STOP, which on the
+// demo feed cannot happen: the window opens at WF_PAGE = 8 and adds
+// WF_STEP = 4 per tick against a list that is currently 194 long, so
+// converging needs 47 ticks and the bound is 40. Measured across a full
+// `test:unit`: of twenty growFeed calls, eighteen return in ≤4 iterations
+// (the live fixture's feed is short enough to finish) and two — the only two
+// that mount the DEMO feed — ran all forty and cost 11.6s and 10.4s. They
+// were the two slowest tests in the suite, and the second one is the single
+// case that made `test:coverage` impossible to run over `--dir src` at all.
+//
+// The bound also failed OPEN: falling out of the loop returned normally, so
+// a feed that really had grown forever was indistinguishable from one that
+// settled. This throws instead, which is what the paragraph below always
+// claimed.
+//
+// So the shape is: name the thing the case is actually about. Nearly every
+// caller wants one card on screen, not the whole bank in the DOM.
+export async function growUntil(pred, what = "the awaited condition", max = 60) {
+  for (let i = 0; i < max; i++) {
+    if (pred()) return;
+    // Real timers: the top-up is a setTimeout and these suites do not
+    // install fake ones. 80 > the 60ms debounce, with room for the render.
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  }
+  throw new Error(`growUntil: the feed never reached ${what} in ${max} passes`);
+}
+
+// The settle-for-settle's-sake variant, kept for the callers whose subject
+// IS the window rather than a card in it. Sound only where the list is
+// shorter than max * WF_STEP — which is the live fixture, never the demo
+// bank. Reach for growUntil first.
 //
 // Bounded, because a bug that made the window grow forever should fail a
 // test rather than hang a suite.
@@ -162,8 +367,11 @@ export async function growFeed(max = 40) {
     const n = document.body.innerHTML.length;
     if (n === last) return;
     last = n;
-    // Real timers: the debounce is a setTimeout and these suites do not
-    // install fake ones. 80 > the 60ms debounce, with room for the render.
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
   }
+  throw new Error(
+    `growFeed: the feed was still growing after ${max} passes. Either the `
+    + "window is genuinely runaway, or this caller is on the demo bank and "
+    + "wants growUntil(pred) — see the comment above.",
+  );
 }

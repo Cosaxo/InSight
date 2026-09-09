@@ -4,16 +4,36 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The subtopic store, by NAME rather than through window (D39's convert on
+// touch). It is also what makes this overlay's chunk independent of the
+// feed's: world-subtopics.js moved out of the eager list into loadWorldFeed,
+// and the discover sheet below reads `ST.offers()` — so the module has to
+// arrive with THIS group, not with that one. loadOverlays calls
+// installSubtopicStock() for the same reason.
+import { SUBTOPICS } from './world-subtopics.js';
+// Both deferred with this file (search-overlay moved into loadOverlays at
+// D223), so neither reaches the first frame — world-catalogs is already
+// pulled in by loadWorldFeed for the same reason.
+import { WF_CATALOGS } from './world-catalogs.js';
+import { wfAnsweredOf, wfPcts, wfVotesOf } from './world-feed-math.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
 import { IS_DATA } from './sample-data.js';
 import { SCENES } from './scenes.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
+import NAV from '../data/nav';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in
 // place, so you can vote from search instead of going hunting for the card.
+// The LIVE people section (D237). An ESM import rather than a global:
+// this module is deferred behind loadOverlays(), so the chunk it pulls is
+// not first paint, and a real import is one less name resolved at render
+// time (check:globals rule 4).
+import LivePeopleSearch from '../ui/LivePeopleSearch.tsx';
+import { WORLD_TOPICS } from './world-feed-data.js';
+
 const { useState: useSrchState, useEffect: useSrchEffect, useMemo: useSrchMemo, useRef: useSrchRef } = React;
 
 const SRCH_VOTES_LS = 'insight.feedVotes.v1';
@@ -42,12 +62,18 @@ function srchQScore(q, query, topicLabel) {
   if (t >= 0) best = Math.max(best, 3 + t);
   return best;
 }
+// The feed's own counter, not a fork of it. This was a stale copy that
+// knew about `rank` and `rate` and nothing else, so `dial`, `field` and
+// `pick` — which carry no `options` — scored 0 in both orderings below.
 function srchQVotes(q) {
-  return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : (q.options || []).reduce((a, o) => a + o.count, 0);
+  return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0);
 }
+// The feed's own predicate, not a fork of it. This was the feed's TAIL
+// with the live branch cut off, so an answer that exists only on the
+// server — another device, or a page fetched after boot — read as
+// unanswered in both orderings below and on the row itself.
 function srchAnswered(q, votes) {
-  const v = votes[q.id];
-  return q.type === 'rank' ? !!(v && v.order) : v != null;
+  return wfAnsweredOf(q, votes, LIVE.myVotes ? () => LIVE.myVotes() : null);
 }
 // what you said, in the fewest words that still mean something
 function srchMyPick(q, votes) {
@@ -81,11 +107,20 @@ function SrchHit({ glyph, title, sub, q, onClick }) {
 }
 
 // answered rows carry a silent meter instead of a badge: how big your side was
+//
+// The feed's own share, not a fork of it — the third helper in this file to
+// need that sentence, after `srchQVotes` and `srchAnswered` above. It
+// divided `o.count` by the sum of `o.count`, and a live card's counts have
+// the viewer's own vote SUBTRACTED (data/live.ts's feedCounts says so; the
+// feed adds it back with `wfPcts`). So this meter drew a share of a
+// population the reader was not in: a true 62.5% came out at 60.9%, and
+// when you were the only voter your side was 100% and the bar drew at its
+// 4% floor — "almost nobody agreed with you", about a crowd of one, which
+// is you.
 function SrchShare({ q, votes, color }) {
   const v = votes[q.id];
   if (typeof v !== 'number' || !q.options || !q.options[v]) return null;
-  const total = q.options.reduce((a, o) => a + o.count, 0) || 1;
-  const share = Math.max(0.04, Math.min(1, q.options[v].count / total));
+  const share = Math.max(0.04, Math.min(1, wfPcts(q.options.map((o) => o.count || 0), v).p[v] / 100));
   return (
     <span aria-hidden="true" style={{ width: 40, height: 4, borderRadius: 999, background: 'color-mix(in oklch, ' + color + ' 16%, var(--surface-3))', flexShrink: 0, overflow: 'hidden', display: 'block' }}>
       <span style={{ display: 'block', height: '100%', width: (share * 100).toFixed(1) + '%', background: color, borderRadius: 999 }}></span>
@@ -139,8 +174,8 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
   const query = q.trim().toLowerCase();
   const D = IS_DATA;
-  const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
-  const ST = window.SUBTOPICS;
+  const TOPIC = useSrchMemo(() => Object.fromEntries(WORLD_TOPICS.map((t) => [t.id, t])), []);
+  const ST = SUBTOPICS;
 
   // the label a question wears — the leaf if it has one, else its topic
   const labelOf = (qq) => {
@@ -170,8 +205,14 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       }
       return out;
     }
+    // Door labels join the match text (docs/TAGS-PLAN.md §2): a straddler is
+    // findable by every topic it carries, not only its home's name — the
+    // e-sports card should answer a search for "tech".
+    const extraOf = (x) => [labelOf(x).label]
+      .concat((x.also || []).map((t) => (TOPIC[t] || {}).label || (ST && (ST.get(t) || {}).label) || t))
+      .join(' ');
     return pool
-      .map((x) => ({ x, s: srchQScore(x, query, labelOf(x).label) }))
+      .map((x) => ({ x, s: srchQScore(x, query, extraOf(x)) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s
         || (srchAnswered(a.x, votes) ? 1 : 0) - (srchAnswered(b.x, votes) ? 1 : 0)
@@ -223,9 +264,15 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   // Every one of these people is a sample-data persona, and so is every
   // subtitle ("sister · since birth · 86% match") — claims about nobody.
   // In a live build the section renders empty instead (samplePeople is
-  // false there): v2 has no person-to-person graph (D3), and a real user
-  // reading an invented sister into their search is the D1 fabrication
-  // this store predates.
+  // false there), and a real user reading an invented sister into their
+  // search is the D1 fabrication this store predates.
+  //
+  // The reason used to read "v2 has no person-to-person graph (D3)", which
+  // D101 made false — the follow graph is real and `data/circle.ts` folds
+  // it. The conclusion is unchanged and the correction matters anyway: the
+  // gate is that THESE people are invented, not that no people exist, so
+  // wiring the real graph in here would be a feature rather than the
+  // removal of a limitation.
   const people = useSrchMemo(() => {
     if (samplePeople === false) return [];
     const friends = FRIENDS.list().map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
@@ -234,7 +281,18 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
     return all.filter(p => srchMatch(p.name + ' ' + (p.role || p.rel || '') + ' ' + (p.interests || []).map(i => i.t || i).join(' '), query));
   }, [query, samplePeople]);
 
-  const nothing = !questions.length && !topics.length && !people.length && !dailies.length;
+  // In a live build `people` above is ALWAYS empty (samplePeople is
+  // false), so without asking the live section whether it found
+  // anything, searching a name that resolves would print "nothing found"
+  // directly above the person it found.
+  //
+  // REPORTED, not predicted (D239). It used to be a synchronous
+  // predicate — "does this look like a handle" — which was answerable
+  // because a handle is a shape. A name is not: whether anybody is
+  // called that is a query, and a guess made before it returns is wrong
+  // half the time.
+  const [livePeople, setLivePeople] = useSrchState(false);
+  const nothing = !questions.length && !topics.length && !people.length && !dailies.length && !livePeople;
   const go = (fn) => { onClose(); fn(); };
   const open = (qq) => {
     setOpenQ(openQ && openQ.id === qq.id ? null : qq);
@@ -246,12 +304,26 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   };
 
   const qRow = (qq) => {
-    const isOpen = openQ && openQ.id === qq.id;
+    // The feed's own card, and the feed is a DIFFERENT deferred chunk from
+    // this overlay's — main.jsx starts loadWorldFeed and loadOverlays as
+    // concurrent promises, neither awaiting the other, and a chunk that
+    // fails is never retried for the rest of the session. Unguarded, a tap
+    // on a question hit rendered `undefined` as an element type and the
+    // boundary took the whole search overlay — query, results and all — for
+    // a screen the user opened to read one card. daily-split.jsx guards the
+    // identical read and degrades to no feed node; this is the same
+    // degradation, back to the collapsed row.
+    //
+    // Held in a local rather than guarded in place: `window.X && <window.X>`
+    // is two shared-global references where the tag alone is one, and
+    // check:globals rule 4 may only move down.
+    const WF = window.WorldFeed;
+    const isOpen = WF && openQ && openQ.id === qq.id;
     if (isOpen) {
       return (
         <div key={qq.id} data-openq="1" style={{ position: 'relative', border: '1px solid color-mix(in oklch, var(--accent) 32%, var(--rule))', borderRadius: 18, padding: '4px 12px 8px', margin: '6px 0 10px', background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)' }}>
-          <button className="press" aria-label="Close question" onClick={() => setOpenQ(null)} style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
-          <window.WorldFeed focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
+          <button className="press tap44" aria-label="Close question" onClick={() => setOpenQ(null)} style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
+          <WF focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
             opts={{ pass: false, clock: false, ripple: false, why: false }}
             onVote={() => setVotes(srchVotes())} />
         </div>
@@ -270,14 +342,18 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
           <input ref={ref} value={q} onChange={e => { setQ(e.target.value); setOpenQ(null); }} placeholder="Questions, topics, people…"
             autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} inputMode="search" enterKeyHint="search"
             onKeyDown={e => { if (e.key === 'Escape') onClose(); }} />
-          {q && <button onClick={() => { setQ(''); setOpenQ(null); }} style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 18, height: 18, borderRadius: 999, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>}
+          {q && <button className="tap44" onClick={() => { setQ(''); setOpenQ(null); }} style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 18, height: 18, borderRadius: 999, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>}
         </div>
         <button className="search-cancel" onClick={onClose}>Cancel</button>
       </div>
 
       <div ref={scRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 40px' }}>
+        {/* "a name" is a live build's one false suggestion: people are
+            found by HANDLE there (the registry is keyed on the document id
+            — D122 — so there is no name query to offer), and the only
+            names that match are follows already in memory. */}
         {nothing && (
-          <div className="search-empty">Nothing for “{q}” — try a topic, a name, or a few words of a question</div>
+          <div className="search-empty">Nothing for “{q}” — try a topic, {samplePeople === false ? 'a @handle' : 'a name'}, or a few words of a question</div>
         )}
 
         {!!questions.length && <div className="search-group">{query ? 'Questions' : 'Open questions'}</div>}
@@ -285,7 +361,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
         {!!dailies.length && <div className="search-group">Daily archive</div>}
         {dailies.map((d) => (
-          <button key={d.id} className="search-hit" style={{ alignItems: 'flex-start', gap: 10 }} onClick={() => go(() => window.goTab && window.goTab('track'))}>
+          <button key={d.id} className="search-hit" style={{ alignItems: 'flex-start', gap: 10 }} onClick={() => go(() => NAV.goTab('track'))}>
             <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0, marginTop: 6 }}></span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="hit-t" style={{ display: 'block', lineHeight: 1.3 }}><SrchMark text={d.prompt} q={query} /></span>
@@ -300,11 +376,15 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
           <SrchTopicRow key={t.id} item={t} query={query} onToggle={() => { t.toggle(); setBump((b) => b + 1); }} />
         ))}
 
+        {samplePeople === false && <LivePeopleSearch query={q} onActive={setLivePeople} />}
         {!!people.length && <div className="search-group">{query ? 'People' : 'Friends'}</div>}
+        {/* the sub-line stopped stating distance (2026-08-24) — the same
+            direction Near took: knowing how close a stranger is, is itself
+            a leak, and role · since · match already carry the hit */}
         {people.map(p => (
           <SrchHit key={p.id}
             glyph={p.anon ? <AnonAv hue={p.hue} size={32} /> : <Av init={p.init} hue={p.hue} size={32} />}
-            title={anonName(p)} sub={[p.role || p.rel, p.dist || (p.since ? 'since ' + p.since : null), p.match != null ? Math.round(p.match) + '% match' : null].filter(Boolean).join(' · ')} q={query}
+            title={anonName(p)} sub={[p.role || p.rel, p.since ? 'since ' + p.since : null, p.match != null ? Math.round(p.match) + '% match' : null].filter(Boolean).join(' · ')} q={query}
             onClick={() => go(() => onPerson(p))} />
         ))}
       </div>
@@ -314,7 +394,4 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
 Object.assign(window, { SearchOverlay });
 
-;globalThis.srchMatch = typeof srchMatch === 'undefined' ? globalThis.srchMatch : srchMatch;
-;globalThis.SrchMark = typeof SrchMark === 'undefined' ? globalThis.SrchMark : SrchMark;
-;globalThis.SrchHit = typeof SrchHit === 'undefined' ? globalThis.SrchHit : SrchHit;
 ;globalThis.SearchOverlay = typeof SearchOverlay === 'undefined' ? globalThis.SearchOverlay : SearchOverlay;

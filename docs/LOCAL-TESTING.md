@@ -31,7 +31,7 @@ console of the running app (the seed callable is open in the emulator):
 
 ```js
 const { getFunctions, httpsCallable } = await import("firebase/functions");
-await httpsCallable(getFunctions(undefined, "us-central1"), "seedContentV2")({});
+await httpsCallable(getFunctions(undefined, "europe-west1"), "seedContentV2")({});
 ```
 
 What live mode gives you:
@@ -53,8 +53,9 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 
 `scripts/test-users.mjs` runs synthetic accounts that play the duel loop the
 way a real device does — they sign in, write a profile, join through
-`joinGroupV2`, seal answers at `v2_users/{uid}/answers/g_{gid}_{day}`, and are
-revealed by `revealDuelsNowV2`. Everything goes through the **client SDK**
+`joinGroupV2`, seal answers at `v2_users/{uid}/answers/g_{gid}_r{n}` (one per
+round, ROUNDS-PLAN / D426), and are revealed on the completing answer or by
+`revealDuelsNowV2`'s forced lever. Everything goes through the **client SDK**
 under each account's own session, so firestore.rules applies exactly as it
 does to a real phone; the admin SDK is never used. Emulator only, enforced —
 test users answering world questions would move the exact public counts (D98)
@@ -70,21 +71,19 @@ The 1v1 loop:
 # in the app: Circle tab → create a duo → copy the invite code
 npm run testuser -- join 6CZ3K77N     # a test user joins your duo
 # in the app: answer today's duel question
-npm run testuser -- play              # the test user seals theirs
-npm run testuser -- reveal            # publish the day; the card is on daily
+npm run testuser -- play              # the test user seals the next round (a 1v1 reveals right here)
+npm run testuser -- reveal            # close open rounds now; the card is on daily
 ```
 
 Add `host [NAME] [--mode duo]` to have a test user create the group and hand
 you the code instead, `join --count 5` to fill a group, `world` to give them
 world answers so the aggregates and cohorts have something in them, and
-`history --days 3` to backfill past days of answers and reveals — that is
+`history --rounds 3` to play and reveal three rounds in a row — that is
 what the Groups portrait (mirror → Groups) and the streak read.
 
-Run `history` *before* `reveal`, not after: `lastRevealDay` and `streak` are
-written by whichever reveal commits last, so settling today and then
-backfilling leaves a group whose streak counts the backfill instead of the run
-up to today. Every reveal is still there and readable — only those two fields
-read oddly.
+Each `history` pass plays the next round and closes it, so the streak
+reads as a run up to today whatever order you run things in — under the
+day it mattered, and that paragraph is gone with it.
 
 Two limits the harness states rather than hides:
 
@@ -107,15 +106,49 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 106 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 214 security-rules tests (Firestore + Storage emulators), then the coverage ratchet and the budget gate
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
+npm run test:e2e:all          # all three, on ONE emulator boot — what CI runs
 ```
 
-The three e2e suites each have a `pre` script that builds `functions`
-first, so run them through npm rather than by hand — a raw
-`firebase emulators:exec` will happily run the *previous* build.
+The e2e suites each have a `pre` script that builds `functions` first, so
+run them through npm rather than by hand — a raw `firebase emulators:exec`
+will happily run the *previous* build.
+
+Reach for the three single-driver scripts while working on one: each gets a
+clean database, and the failure output is not buried under the other two.
+`test:e2e:all` is what `backend-checks.yml` runs, because a boot is ~22s and
+paying it three times cost ~48s of every PR and every deploy. It chains the
+drivers in one database, so its ORDER is load-bearing — the workflow
+comment beside that step has the argument, and it is the thing to read
+before adding a count or emptiness assertion to the erasure or moderation
+driver.
+
+**`npm install` at the root does not install the backend's dependencies**,
+and the way that surfaces looks like a broken suite rather than a missing
+install. `npm run test --prefix functions` fails to *load* most of its
+files with
+
+```
+Error: Cannot find package 'firebase-functions/v2/scheduler'
+    imported from functions/src/velocity.ts
+```
+
+and reports most of its files failing to load while every test that did
+run passed. It is a real import error — the package genuinely is not
+there. Run `npm install --prefix functions` and all of them pass; the
+suite is 37 files and 800 cases as of 2026-09-08.
+
+(The shape is what to recognise, not the arithmetic: this said "six of its
+eight files" and "all 228 pass" until 2026-09-08, against a suite four
+times that size. A reader meeting `24 failed | 13 passed` would not have
+matched it to those numbers, which is the one thing this paragraph exists
+to let them do. The counts are not gate-held — `check:figures`'s only
+entry for this file is the rules-test count.) Two installs, two
+`node_modules`, which is why `backend-checks.yml` carries
+`npm ci --prefix functions` as its own step next to the root one.
 
 `npm run test:unit` expects the **demo** defaults, so run it with no `.env` in
 the tree (or one that leaves `VITE_V2_LIVE` unset). With the live-mode `.env`

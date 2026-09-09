@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // subnav-thumb.js — sliding pill for every .subnav segmented control.
 // A single thumb element per nav glides under the active button (FLIP-free:

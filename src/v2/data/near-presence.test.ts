@@ -25,6 +25,9 @@ const h = vi.hoisted(() => ({
   countCalls: 0,
   presenceWrites: [] as Array<{ path: string; data: Record<string, unknown> }>,
   presenceDeletes: [] as string[],
+  // The auth callback live.ts registers for the session, captured so a case
+  // can drive an account SWITCH — the one presence path that had no test.
+  authCb: null as null | ((u: { uid: string } | null) => void),
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -35,11 +38,15 @@ vi.mock("../../lib/firebase", () => ({
   getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => { cb({ uid: "uid_test" }); return () => {}; },
+  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+    h.authCb = cb;
+    cb({ uid: "uid_test" });
+    return () => {};
+  },
 }));
 
 vi.mock("../../lib/sentry", () => ({ reportError: vi.fn(), setSentryUser: vi.fn() }));
-vi.mock("./push", () => ({ registerPushForReveals: () => Promise.resolve() }));
+vi.mock("./push", () => ({ registerPush: () => Promise.resolve() }));
 
 vi.mock("./locate", () => ({
   locateSupported: () => true,
@@ -102,6 +109,10 @@ vi.mock("firebase/firestore", () => {
     writeBatch: () => ({ set: () => {}, update: () => {}, delete: () => {}, commit: () => Promise.resolve() }),
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D357: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
     deleteField: () => ({ __del: true }),
     arrayUnion: (...a: unknown[]) => ({ __union: a }),
     arrayRemove: (...a: unknown[]) => ({ __rm: a }),
@@ -110,12 +121,10 @@ vi.mock("firebase/firestore", () => {
 
 interface NearApi {
   on(): boolean;
-  mode(): "off" | "session" | "always";
-  until(): number;
   count(): number | null;
   updatedAt(): number;
   lastError(): string | null;
-  enable(mode?: "session" | "always"): Promise<{ ok: boolean; reason?: string }>;
+  enable(): Promise<{ ok: boolean; reason?: string }>;
   disable(): Promise<void>;
   refresh(): Promise<void> | void;
 }
@@ -127,9 +136,10 @@ let booted: NearApi | null = null;
 
 async function bootNear(): Promise<NearApi> {
   const mod = await import("./live");
-  const LIVE = mod.default as unknown as { ready: boolean; near: NearApi };
+  const LIVE = mod.default as unknown as { attached: boolean; near: NearApi };
   await mod.initLive(1);
-  await vi.waitFor(() => { expect(LIVE.ready).toBe(true); });
+  // `attached` (D356): boot complete, not merely a deck on screen.
+  await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
   booted = LIVE.near;
   return LIVE.near;
 }
@@ -142,6 +152,7 @@ beforeEach(() => {
   h.countCalls = 0;
   h.presenceWrites = [];
   h.presenceDeletes = [];
+  h.authCb = null;
   try { localStorage.clear(); } catch { /* jsdom always has one */ }
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
@@ -267,64 +278,116 @@ describe("disable() — stop sharing means stop, now", () => {
     expect(near.lastError()).toBeNull();
     expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
   });
+
+  // An account SWITCH looks like the same situation as "stop sharing", and
+  // this suite briefly asserted the same remedy — resetForNewUid deleting
+  // v2_presence/{outgoing}. It does not work, and the test passed anyway
+  // because this harness mocks Firestore: it records the call, never the
+  // rules' answer.
+  //
+  // resetForNewUid runs from the subscribeToAuth callback, which fires
+  // AFTER the SDK has switched currentUser to the incoming account, so the
+  // delete is signed by the new uid — and /v2_presence/{uid} is
+  // `allow delete: if request.auth.uid == uid`. Measured on the emulator:
+  // the outgoing account deleting its own cell succeeds, the incoming one
+  // deleting the outgoing account's is denied.
+  //
+  // So no write is issued, and this pins that. What bounds the exposure is
+  // `until` (capped at PRESENCE_LINGER_MIN in the rules, honoured by
+  // nearbyCountV2); account deletion — the case that matters — is swept
+  // server-side by deleteAccount, not by this path.
+  it("issues no presence delete on an account switch — the rules would refuse it", async () => {
+    const near = await bootNear();
+    await near.enable();
+    expect(h.presenceWrites.length).toBeGreaterThan(0);
+
+    h.authCb!({ uid: "uid_other" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(
+      h.presenceDeletes,
+      "a delete signed by the INCOMING uid is denied by /v2_presence/{uid}",
+    ).toEqual([]);
+  });
 });
 
-// ── the three states, and the promise each one makes (D174) ──────────
+// ── off or on, and what "on" promises (D174 §2, D370) ─────────────────
 //
-// The interesting one is `session`. "Visible for two hours" is a promise
-// about when you STOP being visible, and the thing that keeps it is not
-// the client's timer — a timer does not run while the app is shut. It is
-// the `until` on the doc, clamped to the deadline, which the server counts
-// on and firestore.rules caps.
+// D174 put a timed state between off and on and pinned four cases on it
+// here: the default landing on `session`, a session clamping `until` to
+// its deadline, `always` getting the full linger, and an expired session
+// reading as off with no timer having run. D370 retired the timed state
+// on the owner's word, so three of those cases have no subject. What
+// survives is the promise the on state makes — a bounded `until`, a real
+// margin inside the rules fence — and one new case: the upgrade path, a
+// phone that stored the timed state and comes back to a build without it.
 describe("the visibility states", () => {
   const untilOf = (i = 0) => {
     const u = h.presenceWrites[i].data.until as Date;
     return u instanceof Date ? u.getTime() : Number(u);
   };
 
-  it("lands on the timed state by default, because the default is the decision", async () => {
+  it("turning it on is the whole choice — on, with the full linger and no deadline", async () => {
     const near = await bootNear();
     await near.enable();
-    expect(near.mode()).toBe("session");
-    expect(near.until()).toBeGreaterThan(Date.now());
-  });
-
-  it("clamps a session's `until` to its deadline, never the full linger", async () => {
-    const near = await bootNear();
-    await near.enable("session");
-    // The linger is three hours and the session is two, so a session beat
-    // must write the SHORTER of them. Writing the linger here is what
-    // would leave a phone standing for an extra hour after its deadline —
-    // the whole failure the timed option exists to prevent.
-    const slack = 5 * 60_000;
-    expect(untilOf()).toBeLessThanOrEqual(near.until() + slack);
-    expect(untilOf()).toBeLessThan(Date.now() + 150 * 60_000);
-  });
-
-  it("gives `always` the full linger, and no deadline", async () => {
-    const near = await bootNear();
-    await near.enable("always");
-    expect(near.mode()).toBe("always");
-    expect(near.until(), "always must not carry a session deadline").toBe(0);
-    // Still bounded: "always" is a setting with no end, not a position
-    // that never expires.
+    expect(near.on()).toBe(true);
+    // Still bounded: "on" is a setting with no end, not a position that
+    // never expires. The linger is what makes a pocketed phone keep
+    // standing in the room, and the rules cap it (D174 §2–3).
     expect(untilOf()).toBeGreaterThan(Date.now() + 150 * 60_000);
     expect(untilOf()).toBeLessThanOrEqual(Date.now() + 181 * 60_000);
   });
 
-  it("reports an expired session as off without waiting for a timer", async () => {
+  it("writes `until` a clear margin INSIDE the rules ceiling, not exactly on it", async () => {
+    // THE TWO CLOCKS. firestore.rules caps `until` at `request.time + 180m`
+    // — the SERVER's clock — and this value is computed from the DEVICE's.
+    // With no session deadline to clamp against, writing exactly the
+    // linger made the two 180s cancel and reduced the rule to
+    // `deviceNow <= serverNow`: the only slack was network latency, and
+    // any phone running a little fast had every beat refused, forever,
+    // with a retry button that could not work. Recorded at D181 — for
+    // D174's `always`, which since D370 is every opted-in phone.
+    //
+    // The device-clock condition cannot be reproduced here — the emulator
+    // and this process share one clock — so what is asserted is the
+    // property that makes it survivable: the written deadline sits a real
+    // margin inside the fence rather than on it. The bound below is
+    // deliberately looser than the margin, so this case is about there
+    // BEING one, not about its exact size.
     const near = await bootNear();
-    await near.enable("session");
-    expect(near.mode()).toBe("session");
-    // The app was shut for three hours. Nothing ran; the deadline simply
-    // passed. Reading the mode has to be what notices, because that is the
-    // only thing that happens when the app comes back.
-    vi.setSystemTime(new Date(Date.now() + 3 * 60 * 60_000));
-    try {
-      expect(near.mode()).toBe("off");
-      expect(near.on()).toBe(false);
-    } finally {
-      vi.useRealTimers();
+    await near.enable();
+    const ceiling = Date.now() + 180 * 60_000;
+    expect(untilOf(), "the write sits on the fence, so any fast clock is refused")
+      .toBeLessThan(ceiling - 30_000);
+    // …and it is still nearly the whole linger: this costs a minute of the
+    // three hours, not an hour.
+    expect(untilOf(), "the margin ate into the linger").toBeGreaterThan(Date.now() + 178 * 60_000);
+  });
+
+  it("a phone that stored the timed state comes back OFF, and the keys are swept", async () => {
+    // The upgrade path. A D174 build could leave `session` and a deadline
+    // on disk; reading them as "on" would turn a two-hour promise into no
+    // deadline without anyone choosing that. Off is the only honest
+    // reading, and the presence doc that build wrote expires by its own
+    // `until` on the server.
+    localStorage.setItem("insight.nearPresence.v1", "session");
+    localStorage.setItem("insight.nearPresence.until.v1", String(Date.now() + 60 * 60_000));
+    const near = await bootNear();
+    expect(near.on()).toBe(false);
+    expect(localStorage.getItem("insight.nearPresence.v1")).toBeNull();
+    expect(localStorage.getItem("insight.nearPresence.until.v1")).toBeNull();
+    expect(h.presenceWrites, "an upgraded-off phone must not beat").toHaveLength(0);
+  });
+
+  it("a phone that stored D174's `always` — or D84's `1` — comes back ON", async () => {
+    for (const raw of ["always", "1"]) {
+      vi.resetModules();
+      h.presenceWrites = [];
+      localStorage.clear();
+      localStorage.setItem("insight.nearPresence.v1", raw);
+      const near = await bootNear();
+      expect(near.on(), `stored ${JSON.stringify(raw)} should read as on`).toBe(true);
+      await near.disable();
     }
+    booted = null;
   });
 });

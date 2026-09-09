@@ -7,7 +7,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS, swipeDaily } from "./mount-app.jsx";
+import NAV, { canNav } from "../data/nav";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -77,6 +78,94 @@ describe("the daily's ruler is the nav (v17)", () => {
   });
 });
 
+describe("the tab bar says which tab you are on", () => {
+  it("marks exactly one tab current, and moves the mark when you switch", () => {
+    // The app's PRIMARY navigation was the only ruler in the tree with no
+    // current-tab semantics: `is-active` is a CSS class and the glyph takes
+    // a prop, and a screen reader sees neither. Eight other rulers use
+    // role="tab"/aria-selected and seven secondary pickers use
+    // aria-current — this one told nobody where they were.
+    //
+    // `page` rather than `true` because these are destinations, not tabs
+    // over a single panel: there is no tablist here, and claiming one would
+    // promise arrow-key navigation the bar does not implement.
+    //
+    // Written against three tabs, and the bar is two or three depending on
+    // the data now (D265 — this suite mounts a demo build, so two): the
+    // assertion is "exactly one, and it follows", which is the property
+    // that has to hold at any TABS length.
+    const expectNoBoundary = mountApp();
+    const tabs = () => [...document.querySelectorAll(".tabbar .tab-btn")];
+    const current = () => tabs().filter((b) => b.getAttribute("aria-current") === "page");
+
+    expect(tabs().length, "the tab bar did not render").toBeGreaterThan(1);
+    expect(current().length, "no tab, or more than one, is marked current").toBe(1);
+    expect(current()[0].textContent).toContain("daily");
+
+    const mirror = tabs().find((b) => b.textContent.includes("mirror"));
+    act(() => { fireEvent.click(mirror); });
+    expect(current().length, "switching tabs left the mark on two of them").toBe(1);
+    expect(current()[0].textContent, "the mark did not follow the tab").toContain("mirror");
+    // …and the tab you left is not still claiming to be current.
+    expect(
+      tabs().find((b) => b.textContent.includes("daily")).getAttribute("aria-current"),
+    ).toBeNull();
+    expectNoBoundary("tab bar aria-current");
+  });
+});
+
+// ── the patterns tab below its gate (D265) ────────────────────────────
+//
+// The tab is absent from the bar until the nightly fit has published
+// enough to draw and the viewer has answered enough to be drawn in it
+// (data/patternsReady.ts). These suites mount a DEMO build — no fit, no
+// LIVE at all — so the gate is shut here by construction and stays shut,
+// which makes this file the natural home for the closed half. The open
+// half needs a published signal and lives in smoke-live.
+//
+// What the closed state owes a test: the bar is the two tabs v1 ships,
+// and the nav key is refused QUIETLY — a stale caller (a remembered
+// gesture, an old build's deep link) must land nowhere, not on a
+// boundary, and not on a tab with no button in the bar.
+describe("the patterns tab below its gate (D265)", () => {
+  it("the tab bar carries two tabs and no patterns button", () => {
+    const expectNoBoundary = mountApp();
+    expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(2);
+    expectNoBoundary("two-tab bar");
+  });
+
+  it("the nav key is refused quietly, and says it was refused", () => {
+    const expectNoBoundary = mountApp();
+    // The return value is the half daily-split.jsx reads: its near-end
+    // exit springs back on a refusal instead of leaving the card where
+    // the finger let go.
+    let went;
+    act(() => { went = NAV.goNav("patterns"); });
+    expect(went, "goNav must report a refusal, not swallow it").toBe(false);
+    expect(document.querySelector(".app").getAttribute("data-tab")).not.toBe("patterns");
+    expectNoBoundary("goNav('patterns') below the gate");
+  });
+
+  it("the daily's near end springs back rather than navigating", () => {
+    // THE ACTUAL GESTURE, not goNav standing in for it. daily-split's
+    // near-end branch is the one joint D166 §1 licensed outside the tab,
+    // and it is why `goNav` answers a boolean at all — so a case that
+    // called goNav directly would be testing the shell and calling it
+    // daily-split. Swiped: the World stop is the near end of the axis, so
+    // a rightward drag past the 66px threshold reaches for Patterns and,
+    // with the gate shut, must spring the card back to centre instead of
+    // leaving it where the finger let go.
+    const expectNoBoundary = mountApp();
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:world");
+    const body = swipeDaily(1);
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:world");
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("track");
+    expect(body.style.transform, "the card was left where the finger let go").toBe("translateX(0)");
+    expectNoBoundary("near-end below the gate");
+  });
+});
+
 // ── gesture ownership (the 2026-08 iPhone bugs) ────────────────────────
 //
 // swipe-back.test.js proves the MECHANISM: a touch sequence starting inside
@@ -88,7 +177,7 @@ describe("the daily's ruler is the nav (v17)", () => {
 describe("the surfaces that own their drag are excluded from the axis swipes", () => {
   // One mount for both surfaces: the mirror's default stop is You, which IS the
   // Map, so the ruler and the pan canvas are on screen together.
-  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", () => {
+  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", async () => {
     mountApp();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     const rail = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
@@ -97,8 +186,9 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
       "the ruler lost its data-nopan — releasing a rightward scrub will land on the daily",
     ).not.toBeNull();
     // The canvas renders even before its first fit (the null-view branch), so
-    // this holds in jsdom's zero-size panes.
-    const canvas = document.querySelector(".mmt-canvas");
+    // this holds in jsdom's zero-size panes — but the Map is a lazy body
+    // since v28 §5, so its arrival is awaited rather than assumed.
+    const canvas = await awaitNode(".mmt-canvas");
     expect(canvas, "the Map's canvas did not mount on the You stop").not.toBeNull();
     expect(
       canvas.closest(OWNS_X),
@@ -135,9 +225,9 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
   // inside the profile's scrolling body — the scrim grew as tall as the content
   // and the sheet landed at the bottom of the SCROLL, off-screen. The fix
   // portals it to the app frame; this pins the portal.
-  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", () => {
+  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", async () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     fireEvent.click(screen.getByRole("button", { name: /^lenses$/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /^what .* measures$/i })[0]);
     const scrim = document.querySelector(".wf-scrim");
@@ -147,5 +237,62 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
       "the explain sheet rendered in place — it will surface at the bottom of the scroll, not the screen",
     ).toBe(document.querySelector(".app"));
     expectNoBoundary("profile → lenses → explain sheet");
+  });
+});
+
+// ── the engagement tally stays silent in an unarmed mount (D270) ────────
+// The inertness half of data/engagement.test.ts's first case, asserted
+// where a REAL render exists: these suites never run initLive, so a full
+// mount — the shell's tab/stop/overlay effects included — must tally
+// nothing and write nothing. If this fails, a demo build is collecting.
+describe("the anonymous tally is inert unarmed", () => {
+  it("a full mount and a tab switch write no insight.engagement.v1", async () => {
+    // THE TAB SWITCH REALLY HAPPENS NOW. This called `awaitNode` with a
+    // FUNCTION where it wants a selector string and a label where it wants
+    // a retry count, so `document.querySelector(() => …)` threw on the
+    // first line, `.catch(() => null)` swallowed it, and the click was
+    // skipped — the case asserted inertness across a mount that never left
+    // the daily tab, and the dead retry loop (`0 < "mirror tab button"`)
+    // meant it never even waited. Neither of those selectors is how any
+    // other case in these suites finds that button, either.
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    // Asserted, so the switch cannot go quiet again: the whole point of
+    // this case is what the tally does when the shell's tab, stop and
+    // overlay effects have all run.
+    expect(
+      document.querySelector(".app")?.getAttribute("data-view"),
+      "the tab switch never happened, so this case proves nothing",
+    ).toMatch(/^mirror/);
+    expect(localStorage.getItem("insight.engagement.v1")).toBeNull();
+    expectNoBoundary();
+  });
+});
+
+// ── every door the registry offers is one the shell actually registers ──
+//
+// data/nav.test.ts proves the registry's mechanics against handlers it
+// registers itself, so it cannot see a door that NOTHING registers. That
+// is a real state and this tree was in it: `openSuggestions` stayed a
+// NavHandlers member, a NAV method and a valid NavKey for as long as the
+// suggestions overlay has been deleted — a door a consumer could import,
+// call, and watch silently no-op, with tsc, eslint and check:globals all
+// green because the key existed and its handler was optional.
+//
+// The other direction is covered by the doors' own cases above and in the
+// overlay suite: a door the shell registers and nothing offers is a
+// compile error at the registerNav call.
+describe("the nav registry has no dead doors", () => {
+  it("a mounted shell has registered every door NAV exposes", () => {
+    const expectNoBoundary = mountApp();
+    // `can` is the predicate itself, not a door.
+    const doors = Object.keys(NAV).filter((k) => k !== "can");
+    const dead = doors.filter((k) => !canNav(k));
+    expect(dead, "NAV offers doors the shell never registers").toEqual([]);
+    // The list is not empty for a mount that failed to register anything —
+    // without this, a shell that registered nothing at all would pass by
+    // making `doors` unreachable rather than by wiring it.
+    expect(doors.length).toBeGreaterThan(5);
+    expectNoBoundary();
   });
 });

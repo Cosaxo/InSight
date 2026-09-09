@@ -49,6 +49,9 @@ const LiveRoomTabs = React.lazy(() => import("./LiveRoomTabs"));
 // The tab row — static, because it IS the stop's navigation and a suspense
 // gap where the tabs belong is a stop that looks broken (D119's note).
 import MirrorLensTabs from "./MirrorLensTabs";
+// The row's own scroll-into-view, shared with every other stop that has a
+// row (D190).
+import { useLensRowScroll } from "./lensRowScroll";
 import type { LensTab } from "./lensTabs";
 
 /**
@@ -123,7 +126,7 @@ function NearSwitch({ on, busy, onToggle }: {
   return (
     <button type="button" role="switch" aria-checked={on} disabled={busy}
       aria-label="Share a rough location to count people near you"
-      className="press" onClick={onToggle}
+      className="press tap44" onClick={onToggle}
       style={{
         width: 46, height: 27, flexShrink: 0, padding: 2, borderRadius: 999,
         border: on ? "none" : NB_LINE, cursor: busy ? "default" : "pointer",
@@ -142,59 +145,12 @@ function NearSwitch({ on, busy, onToggle }: {
   );
 }
 
-/**
- * The third state, as a chip rather than a third position on the switch
- * (D174).
- *
- * The control has three meanings — off, visible for a while, visible with
- * no deadline — and a three-position slider in a header corner is a lot of
- * furniture for a choice most people make once. So the switch keeps
- * on/off, which is what a switch is for, and the chip beside it carries
- * the one remaining question: does this end by itself?
- *
- * Turning it on lands on the TIMED state, because the default is the real
- * decision — the other two are for people who mean them, and forgetting is
- * the failure mode worth designing against.
- *
- * The remaining time is coarse ("1h", "20m"), like every other reading on
- * this stop. The beat is four minutes, so a live countdown would be stale
- * between ticks and precise-looking anyway.
- */
-function nbLeft(ms: number): string {
-  if (ms <= 0) return "0m";
-  const m = Math.round(ms / 60_000);
-  return m >= 60 ? `${Math.round(m / 60)}h` : `${Math.max(5, Math.round(m / 5) * 5)}m`;
-}
-
-function NearModeChip({ mode, left, onPick }: {
-  mode: "session" | "always";
-  /**
-   * Milliseconds until the session ends, or null before the parent has
-   * sampled a clock. Passed in rather than derived from a deadline here:
-   * calling Date.now() during render is impure, and the parent already
-   * re-renders on every beat, which is the rate this label needs.
-   */
-  left: number | null;
-  onPick: (m: "session" | "always") => void;
-}) {
-  const timed = mode === "session";
-  return (
-    <button type="button" className="press"
-      aria-label={timed
-        ? (left == null
-          ? "Visible for a limited time — tap to stay visible with no deadline"
-          : `Visible for ${nbLeft(left)} more — tap to stay visible with no deadline`)
-        : "Visible with no deadline — tap to set a two-hour limit"}
-      onClick={() => onPick(timed ? "always" : "session")}
-      style={{
-        flexShrink: 0, border: NB_LINE, borderRadius: 999, padding: "4px 11px",
-        background: "var(--surface-2)", color: "var(--ink-2)", cursor: "pointer",
-        fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11.5, WebkitAppearance: "none",
-      }}>
-      {timed ? (left == null ? "timed" : nbLeft(left)) : "always"}
-    </button>
-  );
-}
+// D174's countdown chip stood here — the "timed" third state drawn beside
+// the switch, with the remaining time coarse to five minutes. D370 retired
+// the state on the owner's word ("near should only have off and on
+// option"), so the switch is the whole control again: what "on" means is
+// D174's `always`, visible whenever the app is open and for up to the
+// linger after, and there is no second question to put beside it.
 
 // ── the Right now card (D84) ─────────────────────────────────────────
 //
@@ -229,23 +185,11 @@ function listNames(names: readonly string[]): string {
 
 function NearPresence() {
   const [, tick] = React.useState(0);
-  // `now` IS STATE, and it has to be: the session chip counts down from a
-  // deadline, and reading the clock during render is impure — the React
-  // Compiler bails out of any component that does it (react-hooks/purity),
-  // which silently costs the memoisation on the whole card. Sampled here
-  // instead, on the same notify that already re-renders this component, so
-  // there is no second timer: the beat is four minutes and the label is
-  // coarse to five, which is why one sample per beat is the right rate
-  // rather than a compromise.
-  //
-  // 0 until the first effect runs, and the chip prints its MODE rather
-  // than arithmetic on an unsampled clock — a frame of "timed" beats a
-  // frame of "479000h".
-  const [now, setNow] = React.useState(0);
-  React.useEffect(() => {
-    setNow(Date.now());
-    return LIVE.subscribe(() => { tick((t) => t + 1); setNow(Date.now()); });
-  }, []);
+  // A sampled `now` lived beside this tick from D174 to D370, feeding the
+  // countdown chip without reading the clock in render (react-hooks/purity
+  // bails the Compiler out of a component that does). The chip is gone
+  // with the timed state, and with it the only reader of a clock here.
+  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
   const [busy, setBusy] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -312,11 +256,7 @@ function NearPresence() {
           bolted above the constellation. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div className="kicker" style={{ marginBottom: 0, flex: 1 }}>Around you</div>
-        {supported && on && near.mode() !== "off" && (
-          <NearModeChip mode={near.mode() as "session" | "always"}
-            left={now ? Math.max(0, near.until() - now) : null}
-            onPick={(m) => { void near.enable(m); }} />
-        )}
+        {/* Off or on, and the switch is all of it (D370). */}
         {supported && (
           <NearSwitch on={on} busy={busy}
             onToggle={() => { if (on) void near.disable(); else void turnOn(); }} />
@@ -475,23 +415,11 @@ function NearLiveBody() {
   const [tab, setTab] = React.useState("");
   const rowRef = React.useRef<HTMLDivElement | null>(null);
   // Opening a tab brings its row to the top of the scroller, the way the
-  // prototype does and the cohort stops already do. 60ms is their number
-  // too: the body mounts in the same commit as the flip, so measuring now
-  // measures the row before the panel it is about to sit above exists.
-  React.useEffect(() => {
-    const row = rowRef.current;
-    if (!tab || !row) return;
-    let sp: HTMLElement | null = row.parentElement;
-    while (sp && sp.scrollHeight <= sp.clientHeight) sp = sp.parentElement;
-    if (!sp) return;
-    const scroller = sp;
-    const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
-        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
-      scroller.scrollTo({ top, behavior: "smooth" });
-    }, 60);
-    return () => clearTimeout(t);
-  }, [tab]);
+  // prototype does and every other stop with a row does — literally the
+  // same effect since D190, which is also where the two versions that used
+  // to differ (this one walked up on height alone, the cohort's on
+  // `overflowY` as well) were reconciled in the cohort's favour.
+  useLensRowScroll(tab, rowRef);
   return (
     <div className="fade-in" style={{
       // Same frame as the cohort stops since D188, and for the same reason:

@@ -14,9 +14,34 @@ import { bindSwipeBack } from './swipe-back.js';
 // the guard could only ever be false during a load-order accident that
 // an import makes impossible. The data conditions beside them (`liveGeo`,
 // the stop id) are unchanged, because those guard data, not loading.
-import LiveGroupsMirrorBody from '../ui/LiveGroupsMirrorBody';
 import NearLiveBody from '../ui/NearLiveBody';
-// Two of them load AFTER first paint, and the reason is the bundle budget
+import NAV from '../data/nav';
+// The store, imported (D354). The two reads below were `window.LIVE` behind
+// an existence guard; an imported binding cannot be unset, so the guard is
+// gone and the data halves (`.enabled`, `.demoInProd`) stay — both are
+// false for the whole of mock mode.
+import LIVE from '../data/live';
+// THE MIRROR'S OWN MODULES, in spec-index.js's order, as side-effect
+// imports (D355). This is the file loadMirrorTab() names, so these twelve
+// ride its chunk and evaluate before this module's body — map-tab.jsx's
+// shape, which carries its six the same way. The order is semantic here
+// exactly as it was in the eager list: group-mirror reads CompareBreakdown
+// and GroupRoleMap by name at render, mirror-field-pops reads the MF*
+// family and SegmentExplorer, demographics.jsx reads DEMOGRAPHICS, and
+// each of those is a global an earlier line publishes. Do not sort these.
+import './compare-pop.js';
+import './demographics.js';
+import './compare-breakdown.jsx';
+import './lens-defs.js';
+import './lens-cards.jsx';
+import './demographics.jsx';
+import './mirror-answers.jsx';
+import './mirror-field.jsx';
+import { MirrorFieldBody } from './mirror-field-pops.jsx';
+import './group-role-map.jsx';
+import { GroupsMirrorBody } from './group-mirror.jsx';
+import './segment-explorer.jsx';
+// Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
 //
 // Circle went first: it and data/circle.ts added 11 KB to the entry chunk,
@@ -24,15 +49,65 @@ import NearLiveBody from '../ui/NearLiveBody';
 // left 3 KB of headroom under so that the next eager addition would have to
 // defer instead of argue. Cohort followed at D119, when the stop's tab row
 // spent the eager graph's last kilobyte (check:bundle, MAX_EAGER_KB).
+// Groups followed at D190, when giving it that row put the eager graph 2 KB
+// off the ceiling — the rule this comment describes, applied to itself.
 //
-// Both are also the right ones to defer ON THE MERITS, for one reason: the
-// Mirror opens on You (the Map). Circle is two stops along and City three,
-// and each needs a network round trip of its own before it can render
-// anything, so the chunk fetch overlaps work the stop was going to do
-// regardless. Deferring the Map or Near would not be — those are what the
-// tab opens with.
+// All three are also the right ones to defer ON THE MERITS, for one reason:
+// the Mirror opens on You (the Map). Circle is two stops along, Groups
+// three and City four, and each needs a network round trip of its own
+// before it can render anything, so the chunk fetch overlaps work the stop
+// was going to do regardless.
+//
+// This paragraph used to end "deferring the Map or Near would not be —
+// those are what the tab opens with", and v28 §5 overrode the Map half:
+// three parked features (Crossroads' mapTree, Foresight's branch, the
+// pulse branch) all need map-tab to grow, and the eager graph had no room
+// to grow it in. What answers the old objection is the prewarm — main.jsx
+// starts loadMapTab() right after first paint, so by the time a thumb
+// reaches the Mirror the chunk is in the module cache and the Suspense
+// fallback is a frame, not a wait. Near stays eager; the objection still
+// holds there.
+//
+// AND THEN THE WHOLE TAB WENT (D355). This file and its twelve siblings
+// ride loadMirrorTab() now, prewarmed by main.jsx in the same breath as the
+// Map — so "Near stays eager" above is true only relative to THIS chunk:
+// NearLiveBody is a static import of this file and arrives with it. The
+// three React.lazy bodies below still defer past this chunk, for the
+// reason already given — each needs a network round trip of its own before
+// it can draw, so its fetch overlaps work the stop does regardless.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
+const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody'));
+// THE SLOT spec-index.js's comment already described, built at last.
+//
+// It was `React.lazy` before, and React.lazy caches a REJECTION: the
+// payload keeps the error and re-throws it on every later render, with no
+// second call to the loader ever. The tab boundary is keyed per tab, so
+// leaving the Mirror and coming back mounts a fresh boundary around the
+// same poisoned lazy and re-throws — one failed chunk fetch turned the
+// Mirror's LANDING stop into "This view hit a snag" for the rest of the
+// session. That is the permanence data/lazy.ts was written to close, on
+// the stop a new account meets first.
+//
+// State and an import instead, which is what mirror-field-pops does for
+// relmap and what the loader comment in spec-index.js has claimed this
+// file does since D200. Re-entering the stop re-attempts; a fetch that
+// keeps failing costs the Map its drawing, not the stop its screen.
+//
+// No retry loop and console.error rather than reportError, for the reason
+// the relmap slot gives: main.jsx already reports a dead chunk once.
+function MapSlot() {
+  const [MapTab, setMapTab] = React.useState(null);
+  React.useEffect(() => {
+    if (MapTab) return undefined;
+    let live = true;
+    import('./map-tab.jsx')
+      .then((m) => { if (live) setMapTab(() => m.MapTab); })
+      .catch((e) => { console.error('[InSight] map chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [MapTab]);
+  return MapTab ? <MapTab /> : null;
+}
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
@@ -95,14 +170,15 @@ const stopAccent = (id) => mirrorAccent((MIRROR_STOPS.find((s) => s.id === id) |
 // Tap a stop, or DRAG along the ruler to scrub through the populations: the
 // mirror follows your finger stop by stop, with a tick as each one passes. The
 // axis is a slider, so it should feel like one; vertical pans still scroll.
-function MirrorPopPicker({ stopId, onPick, big }) {
+function MirrorPopPicker({ stopId, onPick }) {
   const stops = MIRROR_STOPS;
   const n = stops.length;
   const idx = Math.max(0, stops.findIndex(p => p.id === stopId));
   const accent = stopAccent(stopId);
   // 38px of visual ruler, 44px of tap target — the extra 6px reaches UP into the
   // empty gap under the header, so it never steals a tap from the content below
-  const H = big ? 54 : 44;
+  // (the `big` variant left with mirrorLensTop, v28 §10)
+  const H = 44;
   const railRef = React.useRef(null);
   const drag = React.useRef({ on: false, last: idx, moved: false, x0: 0, t0: 0, x1: 0, t1: 0 });
   const [scrubbing, setScrubbing] = React.useState(false);
@@ -116,7 +192,7 @@ function MirrorPopPicker({ stopId, onPick, big }) {
     const j = Math.max(0, Math.min(n - 1, i));
     if (j === drag.current.last) return;
     drag.current.last = j;
-    if (HAPTIC) HAPTIC.tick();
+    HAPTIC.tick();
     onPick(stops[j]);
   };
   const scrub = (clientX) => { const i = stopAt(clientX); if (i != null) goTo(i); };
@@ -134,7 +210,7 @@ function MirrorPopPicker({ stopId, onPick, big }) {
         const carry = Math.min(3, Math.round(Math.abs(v) * 1.6)) * (v > 0 ? 1 : -1);
         if (carry) goTo(d.last + carry);
       }
-      if (HAPTIC) HAPTIC.tap();
+      HAPTIC.tap();
     }
     // `moved` stays set until the click it belongs to is swallowed, so the click
     // that follows a real drag doesn't re-pick whatever stop it lifted over
@@ -175,7 +251,7 @@ function MirrorPopPicker({ stopId, onPick, big }) {
   };
 
   return (
-    <div style={{ margin: big ? '0 0 6px' : '-4px 0 6px' }}>
+    <div style={{ margin: '-4px 0 6px' }}>
       {/* data-nopan: the rail owns this drag (OWNS_X, swipe-back.js). The
           scrub runs on pointer events, but the same touches also reach the
           tab root's swipe-back listener — without the mark, releasing a
@@ -184,26 +260,26 @@ function MirrorPopPicker({ stopId, onPick, big }) {
       <div ref={railRef} data-nopan="" style={{ position: 'relative', display: 'flex', height: H, touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: scrubbing ? 'grabbing' : 'default' }} role="tablist" aria-label="How far the mirror reaches"
         onPointerDown={onDown}>
         {/* the axis itself — one hairline the ticks stand on */}
-        <div style={{ position: 'absolute', left: 6, right: 6, bottom: big ? 20 : 15, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>
+        <div style={{ position: 'absolute', left: 6, right: 6, bottom: 15, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>
         {stops.map((p, i) => {
           const on = i === idx;
           // ticks lengthen as the telescope extends, so the axis reads as a
           // scale rather than as a row of equal buttons
-          const tick = (big ? 5.5 : 4.5) + (i / (n - 1)) * (big ? 8 : 5);
+          const tick = 4.5 + (i / (n - 1)) * 5;
           return (
             <button key={p.id} role="tab" aria-selected={on} aria-label={p.label} onClick={() => { if (drag.current.moved) { drag.current.moved = false; return; } onPick(p); }} style={{
               flex: 1, minWidth: 0, position: 'relative', height: H, border: 'none', background: 'none',
               cursor: 'pointer', WebkitAppearance: 'none', padding: 0,
             }}>
               <span style={{
-                position: 'absolute', left: '50%', bottom: big ? 20 : 15, transform: 'translateX(-50%)',
-                width: on ? (big ? 3.5 : 3) : 1.5, height: on ? (big ? 18 : 12) : tick, borderRadius: 99,
+                position: 'absolute', left: '50%', bottom: 15, transform: 'translateX(-50%)',
+                width: on ? 3 : 1.5, height: on ? 12 : tick, borderRadius: 99,
                 background: on ? accent : 'color-mix(in oklch, var(--ink-3), transparent 45%)',
                 transition: scrubbing ? 'height .12s linear, background .12s, width .12s' : 'height .28s cubic-bezier(0.2,0.8,0.2,1), background .3s, width .2s',
               }}></span>
               <span style={{
                 position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap',
-                fontFamily: 'var(--sans)', fontSize: on ? (big ? 14 : 12) : (big ? 11.5 : 10.5), fontWeight: on ? 800 : 600,
+                fontFamily: 'var(--sans)', fontSize: on ? 13 : 12, fontWeight: on ? 800 : 600,
                 letterSpacing: '-0.02em', color: on ? 'var(--ink)' : 'var(--ink-3)',
                 transition: 'color .2s, font-size .2s',
               }}>{p.label}</span>
@@ -222,29 +298,53 @@ function MirrorPopPicker({ stopId, onPick, big }) {
 
 // ─── the Mirror tab ───
 function MirrorPreviewTag({ popId }) {
-  const L = window.LIVE;
   // Shown in live mode (populations are still demo data) AND when a
   // live build is stuck on the mock fallback (D1: never let sample
   // people pass as real, even offline).
-  const demoInProd = !!(L && L.demoInProd);
-  if (!(L && (L.enabled || demoInProd)) || popId === 'you') return null;
+  // The store is an imported binding since D354, so the `L && …` guards
+  // shift A wrote around `window.LIVE` are dead here — an import cannot be
+  // unset. The data condition below is the live one and stays.
+  const demoInProd = !!LIVE.demoInProd;
+  if (!(LIVE.enabled || demoInProd)) return null;
+  // THE YOU STOP IS EXCLUDED IN LIVE MODE AND NOT ON THE MOCK FALLBACK,
+  // and the difference is the whole point. The exclusion was written
+  // because nothing on that stop was supposed to be sample data — true
+  // while the store is attached, since the anchors are then the reader's
+  // own. `demoInProd` is the branch where it is false: a live build whose
+  // boot did NOT attach falls to `demoList()` (map-anchors.js), so the
+  // stop draws the sample persona — "34 · born 1991", her anchor ring,
+  // "69% of your answers match people your age" over her 92 answers — as
+  // the reader's own profile, on the one stop that wore no tag.
+  //
+  // Two decisions closed this hole before, D66 and D72, and both keyed on
+  // `LIVE.enabled` alone. This is the branch neither reached: enabled is
+  // false here too, so every guard written that way reads it as an
+  // ordinary demo build.
+  //
+  // The wording differs because the claim does. Elsewhere the tag is about
+  // the POPULATION being sample; here it is about the profile at the
+  // centre being someone else's.
+  if (popId === 'you' && !demoInProd) return null;
+  const label = popId === 'you'
+    ? 'Preview · sample profile — reconnecting…'
+    : demoInProd ? 'Preview · sample people — reconnecting…' : 'Preview · sample people until there’s live data here';
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
-        {demoInProd ? 'Preview · sample people — reconnecting…' : 'Preview · sample people until there’s live data here'}
+      <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
+        {label}
       </span>
     </div>
   );
 }
 
-function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, backKey }) {
+export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey }) {
   const p = mirrorPop(pop);
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
   const scaleId = p.id === 'world' ? zoom : p.id;
   // The axis carries the world zooms as stops of its own, so a pick has to
   // set both halves of the old two-level state. (The live City stop is
   // back since D111, so a persisted zoom === 'city' needs no resolving.)
-  const liveGeo = !!(window.LIVE && window.LIVE.enabled);
+  const liveGeo = LIVE.enabled;
   const stopId = p.id === 'world' ? zoom : p.id;
   const pick = (s) => { if (s.pop === 'world') { onPop('world'); onZoom(s.zoom); } else onPop(s.pop); };
   // one horizontal axis across the whole app: a right-swipe here falls back onto
@@ -256,7 +356,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   const backTo = React.useRef(backKey);
   React.useEffect(() => {
     backTo.current = backKey || 'track:world';
-    if (backRef.current) bindSwipeBack(backRef.current, () => window.goNav && window.goNav(backTo.current));
+    if (backRef.current) bindSwipeBack(backRef.current, () => NAV.goNav(backTo.current));
   });
 
   // The ruler is ONE element across every stop — never inside a branch that can
@@ -285,14 +385,19 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   // (LiveGroupsMirrorBody). No Preview tag: nothing on it is sample data,
   // which is the point of the replacement.
   const isGroupsLive = p.id === 'groups' && liveGeo;
-  const isGroups = p.id === 'groups' && !isGroupsLive && typeof window.GroupsMirrorBody === 'function';
+  const isGroups = p.id === 'groups' && !isGroupsLive;
 
   let body;
   if (isYou) {
     // fully retracted — you, alone, visualized: the Map lives here
     body = (
       <div className="tab-swap" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <MapTab />
+        {/* Nothing until it lands, and that is genuinely a frame rather
+            than a wait: main.jsx prewarms loadMapTab() right after first
+            paint, so this import is a module-cache hit. No Suspense —
+            MapSlot resolves into state, so there is nothing to suspend
+            on, and nothing to poison if the fetch fails. */}
+        <MapSlot />
       </div>
     );
   } else if (isGeoLive) {
@@ -326,21 +431,26 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   } else if (isGroupsLive) {
     body = (
       <div key="groups-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
-        <LiveGroupsMirrorBody />
+        {/* null fallback, not a spinner — same reasoning as Circle's and
+            Cohort's: the body's own first frame is its header and tab row,
+            and a spinner in front of that is one loading state too many. */}
+        <React.Suspense fallback={null}>
+          <LiveGroupsMirrorBody />
+        </React.Suspense>
       </div>
     );
   } else if (isGroups) {
     // named groups — their own body: member field + accrued group portrait
     body = (
       <div key="groups-mirror" className="tab-swap mf-flex">
-        <window.GroupsMirrorBody onPerson={onPerson} topLenses={topNav} />
+        <GroupsMirrorBody onPerson={onPerson} />
       </div>
     );
   } else {
     body = (
       <div key={scaleId + '-field'} className="tab-swap mf-flex">
         <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
-          zoomCtl={null} firstRun={firstRun} topLenses={topNav} />
+          zoomCtl={null} firstRun={firstRun} />
       </div>
     );
   }
@@ -356,7 +466,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     <div ref={backRef} className={'fade-in' + (isYou ? '' : ' mf-flex')}
       style={isYou ? { '--accent': accentVar, height: '100%', display: 'flex', flexDirection: 'column' } : { '--accent': accentVar }}>
       <div style={isYou ? { flexShrink: 0, padding: '10px 14px 0' } : { flexShrink: 0 }}>
-        <MirrorPopPicker stopId={stopId} onPick={pick} big={topNav} />
+        <MirrorPopPicker stopId={stopId} onPick={pick} />
       </div>
       {tag}
       {body}
@@ -364,11 +474,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   );
 }
 
-Object.assign(window, { MirrorTab });
-
-;globalThis.MirrorPopPicker = typeof MirrorPopPicker === 'undefined' ? globalThis.MirrorPopPicker : MirrorPopPicker;
-;globalThis.MirrorTab = typeof MirrorTab === 'undefined' ? globalThis.MirrorTab : MirrorTab;
-;globalThis.MIRROR_POPS = typeof MIRROR_POPS === 'undefined' ? globalThis.MIRROR_POPS : MIRROR_POPS;
+// MirrorTab is an EXPORT and no longer a publication (D355): its one
+// reader, app-shell's MirrorSlot, takes it off the module namespace the
+// chunk resolves to — rule 5's honest shape, single writer, no residue.
 ;globalThis.mirrorPop = typeof mirrorPop === 'undefined' ? globalThis.mirrorPop : mirrorPop;
-;globalThis.mirrorAccent = typeof mirrorAccent === 'undefined' ? globalThis.mirrorAccent : mirrorAccent;
-;globalThis.WORLD_ZOOMS = typeof WORLD_ZOOMS === 'undefined' ? globalThis.WORLD_ZOOMS : WORLD_ZOOMS;

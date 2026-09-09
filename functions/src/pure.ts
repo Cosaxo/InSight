@@ -98,9 +98,59 @@ export const RESERVED_HANDLES = new Set([
 
 // ── day-key arithmetic (v2social) ───────────────────────────────
 
+// THE ARGUMENT IS AN OFFSET IN DAYS, not a timestamp, and that distinction
+// is why this comment exists. `functions/src` carried FOUR exports named
+// `utcDayKey` in two incompatible families: this one and paid.ts's took an
+// offset, logic.ts's and velocity.ts's took a millisecond timestamp. So
+// `utcDayKey(0)` meant TODAY in one family and 1970-01-01 in the other,
+// and `utcDayKey(Date.now())` meant a date about 46 million years out.
+// Nothing imported across the families, so it never fired — it was a trap
+// waiting for the first person to import the nearer one.
+//
+// The two timestamp-takers are `utcDayKeyOf` now, and paid.ts's copy is
+// gone in favour of this one, which it was byte-identical to. One name,
+// one meaning. functions/src/exports.test.ts refuses a second export of
+// any name, so the shape cannot come back.
 export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
   const d = new Date(nowMs + offsetDays * 86400000);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * The same grain, from a TIMESTAMP rather than an offset — `utcDayKeyOf(
+ * Date.now())` is today. The name carries the difference because the
+ * shared one did not: both families are `(number) => string`, so calling
+ * either with the other's argument type-checks and silently returns a
+ * date 46 million years out, or 1970.
+ *
+ * One implementation, here, because logic.ts and velocity.ts each had
+ * their own — velocity's built the string field by field and this one
+ * slices an ISO string, which agree on every value either was ever given.
+ */
+export function utcDayKeyOf(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/**
+ * A UTC day key `offsetDays` from `nowMs`, as `YYYY-MM-DD`.
+ *
+ * The nightly folds' signature — the clock first, the offset second — and
+ * deliberately not `utcDayKey` above, which takes them the other way round
+ * and defaults the clock. Both are correct and both are called; what was
+ * wrong is that this one existed TWICE, byte-identical, in engagement.ts and
+ * patterns.ts, two nightly functions whose day keys have to agree with each
+ * other and with the documents the other one wrote.
+ *
+ * It floors to midnight before adding, where `utcDayKey` adds milliseconds
+ * and slices the ISO string. In UTC the two agree — there is no offset to
+ * shift under them — so this is a style difference, not a second answer.
+ */
+const pad = (n: number) => String(n).padStart(2, "0");
+export function utcDay(nowMs: number, offsetDays: number): string {
+  const d = new Date(nowMs);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
 export function prevDayKey(dayKey: string): string {
@@ -108,86 +158,159 @@ export function prevDayKey(dayKey: string): string {
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
 }
 
-// ── the pending-day marker (v2social) ───────────────────────────
+// ── rounds (ROUNDS-PLAN, D426) ──────────────────────────────────
 //
-// `v2_groups/{gid}.pendingDays` is the set of day keys this group has at
-// least one duel answer for and no reveal yet. onV2AnswerCreated adds to it
-// (arrayUnion); the reveal scan removes a day once it has settled it, either
-// by publishing the reveal or by deciding the day did not clear the bar.
+// A ROUND is the unit of 1v1 and group play, not a day. `v2_groups/{gid}`
+// carries the open round's number, who has answered which round, and the
+// open round's clock:
 //
-// It exists so the scheduled scan can ask an INDEXED question — "which
-// groups played yesterday?" — instead of reading every group document 12
-// times a day to find the few that did. It also replaces the older
-// `lastCheckedDay` skip-marker outright, and that is the bigger win: the
-// marker needed a compensating delete from the answer trigger, whose
-// correctness rested on a specific commit ordering between two writers.
-// arrayUnion has no such ordering problem — a late answer re-adds the day
-// whatever else is happening, so the day re-opens by construction rather
-// than by argument.
+//   round            the open round; absent means 1
+//   played           { r7: [uid, …], r8: [uid, …] } — who has sealed an
+//                    answer to which round, written by the answer trigger
+//                    (a blind arrayUnion on the nested path), bounded by
+//                    ROUND_LEAD keys × the member count
+//   roundOpenedAt    when the open round got its FIRST answer
+//   roundDeadlineAt  when it closes regardless — the indexed field the
+//                    scan queries. Absent while nobody has played it: a
+//                    round nobody plays never closes and never burns its
+//                    question, which is what "round" means.
 //
-// How many days to keep. firestore.rules refuses a duel answer for a day
-// more than 4 days behind request.time, so a pending day older than that can
-// never gain another answer and will never settle. 6 is that bound plus
-// headroom for the UTC-vs-local skew the rules' forward window allows.
-export const PENDING_DAYS_KEEP = 6;
+// The answer id is `g_{gid}_r{n}` and the reveal id is `r{n}`. Neither is
+// zero-padded: nothing orders by id (history orders by `revealedAt`), and
+// firestore.rules builds the answer id with string(round), which the
+// emulator probe of 2026-09-08 confirmed resolves.
+//
+// WHAT THE DAY USED TO DO, and what replaces it. The day was never the
+// seal — the sealed answer is owner-only and a create is refused once the
+// round is behind the open one, and neither clause reads a clock. The day
+// did one job: it advanced the game when somebody did not play. The
+// deadline does that job now, and it is not a nicety: a round with nothing
+// to close it freezes a stalled pair forever, which is worse than the
+// limit it replaces.
 
-// The next pendingDays array: `settledDay` dropped, anything older than
-// `oldestKeptDay` dropped, duplicates and non-strings dropped. Day keys are
-// ISO `YYYY-MM-DD`, so a lexicographic compare is a chronological one.
-//
-// Pure, and separately tested, because the failure it prevents is silent:
-// an array that only ever grows turns a duo whose partner never plays into a
-// group document that accretes one string per day forever.
-export function prunePendingDays(
-  current: unknown,
-  settledDay: string,
-  oldestKeptDay: string,
-): string[] {
-  if (!Array.isArray(current)) return [];
+/** How many rounds ahead of the open one a member may seal. ONE constant,
+ *  and firestore.rules carries the same literal — the two are pinned equal
+ *  by rules.test.ts. Some bound must exist: `duelQFor` is a function of
+ *  the round, so an unbounded round number lets one client pin which
+ *  question every future round serves. Five is one sitting — you play a
+ *  handful, they catch up and get a run of reveals — and it is a dial the
+ *  owner can move in a line, where the day was a wall. */
+export const ROUND_LEAD = 5;
+
+/** How long an open round with at least one answer stays open before it
+ *  reveals for whoever played. The day's replacement (see above) — and
+ *  two days rather than one since D437: the owner's 2026-09-09 design says
+ *  48 hours, and a 1v1 keeps closing at it for the one who played (the
+ *  owner's rule of the 8th; the design's "no clock" was the shape that
+ *  let a partner who stopped hold the other's answer forever). */
+export const ROUND_DEADLINE_MS = 48 * 60 * 60 * 1000;
+
+export function roundKey(n: number): string {
+  return `r${n}`;
+}
+
+/** The open round off a raw document field. Absent, null, or anything
+ *  that is not a positive integer reads as round 1 — which is what a
+ *  group created before rounds, or by a createGroupV2 that did not stamp
+ *  it, is on. */
+export function openRound(raw: unknown): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : 1;
+}
+
+/** Who has answered `key`, off the raw `played` map — strings only,
+ *  deduplicated, never a throw on a malformed document. */
+export function playedIn(played: unknown, key: string): string[] {
+  if (!played || typeof played !== "object") return [];
+  const arr = (played as Record<string, unknown>)[key];
+  if (!Array.isArray(arr)) return [];
   const out: string[] = [];
-  for (const d of current) {
-    if (typeof d !== "string") continue;
-    if (d === settledDay) continue;
-    if (d < oldestKeptDay) continue;
-    if (!out.includes(d)) out.push(d);
+  for (const u of arr) if (typeof u === "string" && u && !out.includes(u)) out.push(u);
+  return out;
+}
+
+/** The `played` map after round `keepFrom - 1` has been revealed: every
+ *  key for a round at or past `keepFrom` survives (the new open round and
+ *  anything sealed ahead of it), everything older goes. Pure and tested,
+ *  because the failure it prevents is silent: a map that only grows turns
+ *  every group document into a ledger of every uid that ever played. */
+export function prunePlayed(played: unknown, keepFrom: number): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!played || typeof played !== "object") return out;
+  for (const key of Object.keys(played as Record<string, unknown>)) {
+    const m = /^r(\d+)$/.exec(key);
+    if (!m) continue;
+    const n = Number(m[1]);
+    if (!Number.isInteger(n) || n < keepFrom) continue;
+    const uids = playedIn(played, key);
+    if (uids.length) out[key] = uids;
   }
   return out;
 }
 
-// WHICH DAYS a run looks at, and this is the half that used to be wrong.
-//
-// The scan asked about exactly one day — `utcDayKey(-1)` — and the schedule
-// never passed one, so a group-day was eligible for reveal during the single
-// UTC day after it and never again. That is not the window the rest of the
-// system works in: firestore.rules accepts a duel answer up to FOUR days
-// late (deliberately, so a client flushing a queue after ~3 days offline
-// still lands its vote), and onV2AnswerCreated re-adds the day to
-// `pendingDays` whenever one arrives. So an answer syncing on D+2 re-opened
-// day D, correctly, into a scan that would never ask about day D again.
-// Nothing errored: both members had answered, the day sat pending forever,
-// and the duo's streak stayed at whatever the earlier empty settle left it.
-//
-// The window is PENDING_DAYS_KEEP, because that is already the bound the
-// pruning uses — a pending day older than that can never gain another answer
-// and is dropped. Matching them means the scan asks about exactly the days
-// that can still change, which is the definition `pendingDays` was given.
-//
-// Steady-state cost is five extra indexed queries per run that return
-// nothing. An explicit `dayKey` still means that day alone: the operator
-// lever and the e2e both pass one, and narrowing is what an operator
-// reaching for it during an incident usually wants.
-export function scanDays(dayKey?: string, nowMs: number = Date.now()): string[] {
-  if (dayKey) return [dayKey];
-  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(-(i + 1), nowMs));
+/** Every member has answered. A room of nobody is never complete. */
+export function roundComplete(played: number, members: number): boolean {
+  return members > 0 && played >= members;
+}
+
+/**
+ * Does the open round reveal now?
+ *
+ *   · never with nobody's answer in it — there is nothing to show, and
+ *     advancing would burn the question for no one;
+ *   · when every member has answered (a 1v1: both; a group: all);
+ *   · at the deadline, for whoever played — the owner's rule, 2026-09-08:
+ *     "it gets revealed for the ones that played at the deadline";
+ *   · when an operator forces it (revealDuelsNowV2's lever, the e2e).
+ *
+ * The old both-or-nothing 1v1 is gone with the day: a partner who stops
+ * playing used to seal the other's answer with no reveal, ever, and the
+ * calendar quietly handed out a fresh question anyway. Now the round
+ * closes at its deadline with the one answer in it, and the next opens.
+ */
+export function roundReveals(
+  played: number,
+  members: number,
+  due: boolean,
+  force = false,
+): boolean {
+  return played >= 1 && (force || due || roundComplete(played, members));
 }
 
 // ── reveal conditions + streaks (v2social) ──────────────────────
 
-// The two reveal conditions (decision D5):
-//   group · at least one member answered
-//   duo   · both-or-nothing — both members must have played
-export function shouldReveal(mode: string, played: number): boolean {
-  return mode === "duo" ? played >= 2 : played >= 1;
+/**
+ * May a reveal for `dayKey` move the group's PRESENT-TENSE state — its
+ * streak and its `lastRevealDay`?
+ *
+ * Only if the day is newer than the last one revealed. `utcDayKey` is
+ * `YYYY-MM-DD`, so a string compare is a date compare.
+ *
+ * WHY IT IS NEEDED. Under the day, the scan walked a six-day pending
+ * window NEWEST FIRST and the operator lever covered all of it — so a
+ * run routinely reveals yesterday (streak +1, lastRevealDay = yesterday)
+ * and then reaches a day-before-that that was still pending. Without this,
+ * that older reveal wrote `lastRevealDay = day-2`, REGRESSING it, and
+ * `nextStreak(yesterday, day-2, n)` returns 1 because yesterday is not the
+ * day before day-2. A duo's streak went to 1 for having a gap FILLED IN.
+ *
+ * The next legitimate reveal then computed `nextStreak(day-2, day-1)` and
+ * got 2, so the count recovered from 1 rather than resuming — the loss is
+ * permanent in the only sense that matters to the user, who watched a
+ * 40-day streak become 1.
+ *
+ * The operator's own recovery lever was the sharpest way to trigger it:
+ * `revealDuelsNowV2` with no dayKey zeroed the current streak of any duo
+ * younger than six days or with a settled gap.
+ *
+ * A backfilled day still PUBLISHES its reveal — the reveal doc is the
+ * record of what was answered, and it is written either way. What it stops
+ * doing is claiming to be the present.
+ */
+export function movesPresentState(
+  lastRevealDay: string | null | undefined,
+  dayKey: string,
+): boolean {
+  return typeof lastRevealDay !== "string" || !lastRevealDay || dayKey > lastRevealDay;
 }
 
 // A streak extends only when the previous reveal was for the day
@@ -202,64 +325,42 @@ export function nextStreak(
 
 // Who a day's reveal may be shown to.
 //
-// The reveal doc carries its own `members` array and firestore.rules gates
-// the read on THAT, not on the group's current membership — which is what
-// makes the guarantee retroactive in one direction: joining tomorrow does
-// not hand you every past day, and leaving does not retract the days you
-// played. The array was the membership AT REVEAL TIME, and that is a
-// different thing from membership on the day being revealed.
+// Who a round's reveal records as having been there.
 //
-// The gap it left is one scan wide, every day. Day D is revealed by the D+1
-// scan, which runs `every 120 minutes` — so anyone who joined between
-// 00:00 UTC and that scan was a current member when the snapshot was taken,
-// went into `members`, and could read day D's votes and names for a day they
-// were not in the group for. `revealGroupDay`'s own comment claimed to have
-// closed this by preferring the page snapshot to a fresher read, but both
-// reads happen on D+1, so it only ever closed the seconds between them.
+// The reveal doc carries its own `members` array. It no longer gates the
+// read (D98 retired that), but it is still what `deleteAccount` scrubs on
+// erasure and what the reveal's `names` are drawn against — so it has to
+// say who was in the group FOR THIS ROUND, not who is in it at reveal
+// time. Under the day it was "who joined before the day ended"; under
+// rounds it is who joined before the round OPENED (its first answer).
 //
-// The bound is the END of the day being revealed, not its start: someone who
-// joined midway through day D was there for it and may have played it.
+// …and anyone who DID play the round is included whatever their join
+// time says: the rules admit an answer from any current member, so a
+// member who joined mid-round and sealed one belongs in the reveal that
+// publishes it. Excluding them would publish a reveal containing their
+// own vote that names them nowhere.
 //
-// …and anyone who DID play the day is included whatever their join time
-// says. firestore.rules accepts a duel answer up to four days late, so a
-// member can legitimately land a vote for a day that precedes their join —
-// an offline client flushing a queue, or a fresh group playing a recent day.
-// Excluding them would publish a reveal containing their own vote that they
-// alone cannot read, and "you see the days you played" is the invariant the
-// e2e already asserts.
+// A uid with NO recorded join time is included, and that is not a
+// fallback — it is the correct answer. The field is written by
+// createGroupV2 and the join paths from the day it shipped, so its absence
+// means the member joined before that, which is before any round this
+// function will ever be asked about. Reading absence as "unknown,
+// exclude" would blank every reveal for every group that existed on
+// deploy day.
 //
-// KNOWN RESIDUAL, recorded rather than papered over: that clause is also an
-// unlock. Join a group, backfill an answer for a day inside the four-day
-// window, and the reveal admits you. It is strictly narrower than what this
-// replaces — passive joining now reveals nothing, and the unlock costs a
-// visible vote in the circle's own reveal — but it is not nothing. Closing
-// it means bounding the write, not the read: firestore.rules would have to
-// refuse a duel answer for a day preceding the member's join. That is a
-// change to the densest rule in the file, whose failure mode is a vote that
-// silently vanishes, and it would refuse the legitimate fresh-group case
-// above. Left for a decision of its own (D55 §9).
+// No open time (a round revealed with no clock — an operator's force
+// before any answer stamped one) includes everyone: a reveal scoped too
+// widely is a smaller failure than one that credits nobody.
 //
-// A uid with NO recorded join time is included, and that is not a fallback —
-// it is the correct answer. The field is written by createGroupV2 and
-// joinGroupV2 from the day this shipped, so its absence means the member
-// joined before that, which is necessarily before any day this function will
-// ever be asked about. Reading absence as "unknown, exclude" would blank
-// every reveal for every group that existed on deploy day.
-//
-// Takes plain millis rather than Timestamps so this stays firebase-free like
-// the rest of the module; the caller converts.
+// Takes plain millis rather than Timestamps so this stays firebase-free
+// like the rest of the module; the caller converts.
 export function revealMembersFor(
   members: readonly string[],
   joinedAtMs: Record<string, unknown>,
-  dayKey: string,
+  openedAtMs: number | null | undefined,
   playedUids: readonly string[] = [],
 ): string[] {
-  const dayEnd = Date.parse(`${dayKey}T00:00:00Z`) + 86400000;
-  // Server-generated (utcDayKey), so this is unreachable in the pipeline. It
-  // degrades to the previous behaviour rather than to an empty array: a
-  // reveal nobody can read is a worse failure than one scoped too widely,
-  // and a malformed day key means the reveal is already wrong.
-  if (!Number.isFinite(dayEnd)) return [...members];
+  if (typeof openedAtMs !== "number" || !Number.isFinite(openedAtMs)) return [...members];
   const played = new Set(playedUids);
   return members.filter((uid) => {
     if (played.has(uid)) return true;
@@ -267,7 +368,7 @@ export function revealMembersFor(
       ? joinedAtMs[uid]
       : undefined;
     if (typeof at !== "number" || !Number.isFinite(at)) return true;
-    return at < dayEnd;
+    return at < openedAtMs;
   });
 }
 
@@ -292,8 +393,8 @@ export interface DuelAggState {
   plays: number; // group-days revealed
   total: number; // persons counted — the unit the k-floor applies to
   counts: Record<string, number>; // per-option, bank-option questions only
-  guessTotal: number; // duo guesses cast (both partners may guess)
-  guessMatches: number; // …of which called the partner's actual pick
+  guessTotal: number; // guesses cast — a duo's at the partner, a group's at the room (D386)
+  guessMatches: number; // …of which landed: the partner's actual pick, or an option tied for the top
 }
 
 /**
@@ -343,7 +444,7 @@ export function revealQid(qids: readonly unknown[]): string | null {
  * those actually cast on it.
  *
  * The reveal doc still carries every vote — dropping one there is the
- * "silently discarded" outcome revealGroupDay's transaction is built to
+ * "silently discarded" outcome revealRound's transaction is built to
  * avoid, and a member who played deserves to appear in their group's
  * reveal whatever their client's bank said. But the cross-group aggregate
  * is a different artefact with a different guarantee: it is read as "how
@@ -429,6 +530,13 @@ export function duelAggDelta(
       if (guess === votes[1 - i].optionIdx) guessMatches++;
     }
   }
+  // A GROUP'S VOTES CARRY NO GUESS (D437 — the owner's 2026-09-09 brief:
+  // "Nothing in a group is predicted or called"). For one week (D386) an
+  // arm here scored a member's call on where the room landed, against the
+  // tally with their own vote taken out; the rules refuse the field on the
+  // group surface now, so the arm is gone rather than left to score a
+  // stray field from an older client, and a group's guessTotal is zero by
+  // construction. The scorecard's guess-rate retirement reads duos alone.
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
 }
 
@@ -476,7 +584,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 // Two hard constraints shape everything below.
 //
 // 1. DOCUMENT GROWTH. The counts live inside the existing
-//    v2_aggs_private/{qid} document rather than new per-dimension docs, so
+//    v2_question_aggs/{qid} document rather than new per-dimension docs, so
 //    D7's ~1-write-per-second-per-document ceiling does not move. That only
 //    holds if the document cannot grow without bound — so breakdowns are
 //    restricted to low-cardinality anchors, and each dimension is capped at
@@ -486,7 +594,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 //
 //    `city` was excluded for that same reason until D9 replaced the profile's
 //    free-text city and country boxes with a picker over a fixed catalogue of
-//    10,929 places. Its values are now drawn from a closed vocabulary
+//    ~11k places. Its values are now drawn from a closed vocabulary
 //    ("Oslo, NO"), every one of them verified at build time to fit
 //    BREAKDOWN_MAX_LABEL and to survive breakdownBucket — see
 //    scripts/check-cities.mjs. The bucket cap still applies and matters more
@@ -541,12 +649,18 @@ export const BREAKDOWN_DIMS = [
   "education",
   "relationship",
   "heightBand",
+  // D328. NOT `profession`: the pick is a list of 31 and growing, which is
+  // longer than the cap and therefore exhaustible. This is its derived
+  // FIELD (20 values), the same pair `ageBand` makes with `age`.
+  "jobField",
 ] as const;
 export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
 
-// Per-dimension distinct-value cap. 7 dims x 24 buckets x up to 20 options is
-// ~3.4k integers worst case — tens of KB against Firestore's 1 MiB limit,
-// with room for the plain counts alongside.
+// Per-dimension distinct-value cap. 8 dims x 24 buckets x up to 20 options is
+// ~3.8k integers worst case — tens of KB against Firestore's 1 MiB limit,
+// with room for the plain counts alongside. D328 added the eighth and did
+// not move this number: the cap is what bounds the document, so a new dim
+// costs one dimension's worth and nothing more.
 export const BREAKDOWN_MAX_BUCKETS = 24;
 // Bucket labels are stored as map keys; anything longer is a free-text field
 // that slipped through and should not be minting keys.
@@ -563,9 +677,10 @@ export const BREAKDOWN_MAX_LABEL = 40;
 //
 // Two different defences, because the dimensions are two different shapes.
 //
-// FOUR OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
-// ageBand/gender/education/relationship come from <select>s of 7, 4, 15 and 6
-// values; checking membership means the dimension cannot be exhausted at all,
+// SIX OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
+// ageBand/gender/education/relationship/heightBand/jobField come from
+// <select>s of 7, 4, 15, 6, 6 and 20 values; checking membership means the
+// dimension cannot be exhausted at all,
 // because there are fewer legal buckets than slots. That is the real fix and
 // it is available here and nowhere else — the rules layer cannot hold a
 // vocabulary, and the client choosing from a list says nothing about what a
@@ -577,7 +692,7 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // sub-floor bucket, not the dimension". That was wrong in the same way the
 // city note was right: 24 of them cost the dimension.
 //
-// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — ~11k places and ~249
 // countries against 24 slots — so membership would still leave them
 // exhaustible with real values. Their shapes stay, and the cap itself
 // changed instead: see the eviction rule in foldAnchors.
@@ -618,6 +733,20 @@ export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]
   heightBand: [
     "Under 160 cm", "160-169 cm", "170-179 cm", "180-189 cm",
     "190 cm or taller", "Prefer not to say",
+  ],
+  // D328: derived from the profession pick, never typed — JOB_FIELDS in
+  // src/v2/spec/profile-vitals.js, held equal by check:anchors, which also
+  // proves every JOB_OPTS entry maps into this list. Twenty against a cap
+  // of 24: the headroom is deliberate, so the list can grow before the
+  // unexhaustibility property has to be re-argued.
+  jobField: [
+    "Arts & culture", "Media & writing", "Science, education & research",
+    "Software & IT", "Engineering & architecture", "Healthcare",
+    "Business & finance", "Marketing & sales", "Law & government",
+    "Public sector & nonprofit", "Trades, construction & manufacturing",
+    "Agriculture & environment", "Transport & logistics",
+    "Service & hospitality", "Self-employed", "Student", "Retired",
+    "Homemaker", "Between jobs", "Other",
   ],
 };
 
@@ -671,7 +800,7 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // and that is what made the dimension attackable: a bucket below the floor
 // is suppressed from every publish, so it occupies a slot while showing
 // nobody anything. 24 of those arriving early blanked `city` permanently,
-// and no vocabulary can prevent it there because the catalogue is 10,929
+// and no vocabulary can prevent it there because the catalogue is ~11k
 // places against 24 slots — the attacker only needs real city names.
 //
 // So a sub-floor bucket is evictable and a publishable one is not. The
@@ -714,8 +843,84 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // junk. It has nothing to do with who may see what.
 export const BUCKET_EVICT_BELOW = 5;
 
+/**
+ * What the cap did to a bucket, reported to whoever folds (D398). Both
+ * outcomes ran silently until this callback: an EVICTION drops a
+ * sub-floor bucket from the hot map to admit `bucket`; a REFUSAL keeps
+ * the newcomer out because every slot is published. `total` is the
+ * victim's count, or 0 for a newcomer. Since D400 neither DISCARDS on the
+ * vote path — the cell moves to the tail below — so the `agg_evict` line
+ * the trigger emits per call now reads "this dimension is past the hot
+ * document's cap and its tail is live", which a reader's City stop pays
+ * one shard read per question for; the catalog fold, which takes no
+ * tail, still loses what it reports. Pure code stays pure — this file has
+ * no logger, and the fold's tests read the calls directly.
+ */
+export type OnBucketCap = (
+  kind: "evicted" | "refused",
+  dim: string,
+  bucket: string,
+  total: number,
+) => void;
+
+// ── the tail (D400, ALGORITHM-REFLECTION §4.4 step 2) ─────────────────
+//
+// The cap used to DISCARD: an evicted bucket's partial count was gone and a
+// refused newcomer's answer counted in `total` and in no cohort cell. Now
+// both go to the tail — `v2_agg_overflow/{qid}-{shard}`, every city and
+// country cell the hot document cannot hold — so hot ∪ tail is exact and
+// the fold is commutative everywhere (replay.ts's header wanted exactly
+// this). The hot document stays the size it is: 24 buckets a dimension,
+// the cells almost every reader wants; the long tail lives beside it and
+// a reader opens its OWN shard only when its city is not in the hot 24.
+//
+// WHY SHARDS. A city dimension can hold the whole catalogue — ~11k places
+// — and a single tail document for a question answered from everywhere
+// would be ~550 KB, near Firestore's 1 MiB and far too heavy for a phone
+// to read per question at its City stop. Eight shards by bucket hash keep
+// each under ~70 KB at the catalogue's worst and let the device read the
+// one shard its own city hashes to. The hash is FNV-1a over UTF-16 code
+// units, and the CLIENT computes the same one (src/v2/data/overflow.ts,
+// with the vectors pinned on both sides) — the doc id is derived, never
+// listed.
+//
+// A BUCKET LIVES IN EXACTLY ONE OF THE TWO. Evicted → its whole cell moves
+// to the tail; refused → the newcomer starts in the tail; and a bucket the
+// tail already holds STAYS there — it is counted where it is rather than
+// re-admitted to a hot slot it would then share its count with. What that
+// costs is the "recurrence wins" property the eviction rule had: a value
+// that reaches the tail never climbs back. What it buys is that the client
+// never has to sum two documents for one cell, and the trigger never has
+// to read a shard it did not already need: the tail is consulted only for
+// a bucket the hot map lacks on a dimension AT the cap (`capBoundShards`),
+// which before the cap is never, and the adds are blind merge-increments
+// (v2.ts), so an eviction's victim moves without its shard being read.
+export const OVERFLOW_SHARDS = 8;
+
+/** FNV-1a, 32-bit, over UTF-16 code units — the same function
+ * src/v2/data/overflow.ts computes, mod the shard count. */
+export function overflowShard(bucket: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bucket.length; i++) {
+    h ^= bucket.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h % OVERFLOW_SHARDS;
+}
+
+export const overflowDocId = (qid: string, shard: number): string => `${qid}-${shard}`;
+
+/** Where the fold puts what the hot document cannot hold. `has` answers
+ * for the buckets whose shard the caller read; `add` receives a whole
+ * cell — a refused newcomer's `{ [opt]: 1 }`, or an evicted victim's. */
+export interface BucketTail {
+  has(dim: string, bucket: string): boolean;
+  add(dim: string, bucket: string, cell: Record<string, number>): void;
+}
+
 function evictForNewBucket(
   byDim: Record<string, Record<string, number>>,
+  onEvict?: (victim: string, cell: Record<string, number>) => void,
 ): boolean {
   const keys = Object.keys(byDim);
   if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
@@ -729,8 +934,168 @@ function evictForNewBucket(
     }
   }
   if (victim === null) return false;
+  onEvict?.(victim, byDim[victim]);
   delete byDim[victim];
   return true;
+}
+
+/** Where a bucket's count goes: the hot map, the tail, or — with no tail
+ * offered, the catalog fold's case — nowhere. The cap's two outcomes are
+ * reported through one callback either way, shared by both folds so a
+ * third fold cannot forget the refusal half. */
+function admitBucket(
+  byDim: Record<string, Record<string, number>>,
+  dim: string,
+  bucket: string,
+  onCap?: OnBucketCap,
+  tail?: BucketTail,
+): "hot" | "tail" | "dropped" {
+  if (byDim[bucket]) return "hot";
+  // In the tail it stays — see the header: one home per bucket.
+  if (tail?.has(dim, bucket)) return "tail";
+  const admitted = evictForNewBucket(byDim, (victim, cell) => {
+    onCap?.("evicted", dim, victim, bucketTotal(cell));
+    tail?.add(dim, victim, cell);
+  });
+  if (admitted) return "hot";
+  onCap?.("refused", dim, bucket, 0);
+  return tail ? "tail" : "dropped";
+}
+
+/**
+ * The shards a fold of this answer may need: for each dimension whose hot
+ * map is AT the cap and lacks this answer's bucket, the shard that bucket
+ * hashes to. Empty before any dimension reaches the cap, which is why the
+ * hot path pays nothing until the tail exists — and exact after it, since
+ * a bucket leaves the hot map only by eviction, which admits another, so
+ * a map at the cap stays at the cap and a map under it has never evicted.
+ */
+export function capBoundShards(by: BreakdownCounts | null | undefined, anchors: unknown): number[] {
+  if (!by || !anchors || typeof anchors !== "object") return [];
+  const src = anchors as Record<string, unknown>;
+  const out = new Set<number>();
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const byDim = by[dim];
+    if (!byDim || byDim[bucket]) continue;
+    if (Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) out.add(overflowShard(bucket));
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** shard → dim → bucket → cell, as read (or as accumulated). */
+export type OverflowShards = Map<number, BreakdownCounts>;
+
+/**
+ * A tail over the shards a caller read: `has` looks them up, `add`
+ * accumulates INCREMENTS per shard in `pending` — what the trigger turns
+ * into a blind merge write (v2.ts), what the replay keeps as counts. A
+ * victim's shard need not have been read: its increments are blind too.
+ */
+export function overflowTail(shards: OverflowShards): { tail: BucketTail; pending: OverflowShards } {
+  const pending: OverflowShards = new Map();
+  return {
+    pending,
+    tail: {
+      has(dim, bucket) {
+        return !!shards.get(overflowShard(bucket))?.[dim]?.[bucket];
+      },
+      add(dim, bucket, cell) {
+        const s = overflowShard(bucket);
+        const inc = pending.get(s) ?? {};
+        const byDim = inc[dim] || (inc[dim] = {});
+        const target = byDim[bucket] || (byDim[bucket] = {});
+        for (const [k, n] of Object.entries(cell)) target[k] = (target[k] || 0) + n;
+        pending.set(s, inc);
+      },
+    },
+  };
+}
+
+/**
+ * The edit's -old/+new inside the tail (D86 meets D400): for each
+ * dimension where the answer's bucket lives in the tail rather than the
+ * hot map, the shard's increments — `from: -1, to: +1` — under exactly
+ * retargetAnchors' skip rule: a cell that does not hold the old option is
+ * left alone, increment included, because a count that is not there
+ * cannot be moved and a blind increment would mint a negative one.
+ */
+export function retargetTail(
+  shards: OverflowShards,
+  anchors: unknown,
+  fromIdx: number,
+  toIdx: number,
+): OverflowShards {
+  const out: OverflowShards = new Map();
+  if (!anchors || typeof anchors !== "object") return out;
+  const src = anchors as Record<string, unknown>;
+  const from = String(fromIdx);
+  const to = String(toIdx);
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const s = overflowShard(bucket);
+    const cell = shards.get(s)?.[dim]?.[bucket];
+    if (!cell || !((cell[from] || 0) >= 1)) continue;
+    const inc = out.get(s) ?? {};
+    const byDim = inc[dim] || (inc[dim] = {});
+    byDim[bucket] = { [from]: -1, [to]: 1 };
+    out.set(s, inc);
+  }
+  return out;
+}
+
+// YOU MAY WITHHOLD AN ANCHOR; YOU MAY NOT INVENT ONE (D410).
+//
+// The rules check that an answer's anchors are PLAUSIBLE — ten strings of
+// sane length — never that they are the author's. A hand-written client can
+// file its own answer under any cohort it likes, and every cut the Mirror
+// draws is folded from these. Three consumers read them: this fold, the
+// ledger entry the nightly passes re-read, and the People lens, which
+// describes a person from the anchors on their answer rows.
+//
+// WHY THIS IS NOT IN firestore.rules, which is where it belongs and where it
+// cannot go. A rule comparing the snapshot to the profile document was built
+// and measured, and it refuses two writes that are correct:
+//
+//   1. `answerAnchors(rates)` deliberately BLANKS the city on a question
+//      that rates one, when the city is unconfirmed. The answer's city is
+//      "" while the profile's is "Oslo" — a divergence the app creates on
+//      purpose.
+//   2. The profile mirror is read at boot and on a failed network phase,
+//      and `wake()` does NOT re-read it. So a second device holds a stale
+//      profile for the WHOLE SESSION after an edit elsewhere, and every
+//      answer it writes would be refused for the duration.
+//
+// (2) is what settles it: the window is a session, not a moment, and the
+// failure is a refused answer. No "or blank" allowance reaches it either,
+// because a stale value is not empty. So the check moves to the one place
+// that always sees the truth — the trigger, which reads the author's
+// profile in the batched read it already makes.
+//
+// The shape is not "overwrite with the profile", because that would undo
+// (1). An empty or absent value is a WITHHELD anchor and stays withheld; a
+// non-empty value must be the profile's, or it is replaced by it. A client
+// may say less about itself than its profile does. It may not say
+// something else.
+export function honestAnchors(
+  claimed: unknown,
+  profile: unknown,
+): Record<string, unknown> {
+  const src = (claimed && typeof claimed === "object" ? claimed : {}) as Record<string, unknown>;
+  const truth = (profile && typeof profile === "object" ? profile : {}) as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(src)) {
+    // Withheld: kept exactly as written, so the city-blanking above and an
+    // answer written before any profile existed both survive untouched.
+    if (v === "" || v === null || v === undefined) { out[k] = v; continue; }
+    // Claimed: only the profile can say what it is. A key the profile does
+    // not carry is dropped rather than kept — inventing a whole field is
+    // the same act as changing one.
+    if (Object.prototype.hasOwnProperty.call(truth, k)) out[k] = truth[k];
+  }
+  return out;
 }
 
 // Fold one answer's anchors into the running breakdown. Mutates and returns
@@ -743,16 +1108,23 @@ export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   optionIdx: number,
+  onCap?: OnBucketCap,
+  tail?: BucketTail,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
+  const k = String(optionIdx);
   for (const dim of BREAKDOWN_DIMS) {
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
+    const where = admitBucket(byDim, dim, bucket, onCap, tail);
+    if (where === "dropped") continue;
+    if (where === "tail") {
+      tail!.add(dim, bucket, { [k]: 1 });
+      continue;
+    }
     const cell = byDim[bucket] || (byDim[bucket] = {});
-    const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
   }
   return into;
@@ -829,6 +1201,39 @@ export function retargetAnchors(
   return into;
 }
 
+// ── the edit-flow matrix (D226) ─────────────────────────────────
+//
+// Beside the -old/+new move, the edit itself is a published fact: a
+// from → to count matrix on the same aggregate docs, so "what people first
+// voted before they moved" is a number a report can print instead of a
+// story nobody recorded (docs/PAID-PLAN.md §3 — this is its aggregate
+// half; the per-voter mark stays deliberately unbuilt).
+//
+// It counts MOVES, not people: someone who edits twice appears twice,
+// under two pairs, because moves are what the trigger actually sees —
+// stitching them into per-person journeys would need the per-answer
+// receipt the fold deliberately does not keep. A diagonal cell cannot
+// occur (the trigger returns before folding when from == to), and unlike
+// the counts beside it this map only ever grows: an edit is an event that
+// happened, so there is no -old/+new to commute and no clamp to guard.
+// Erasure posture is the counts' own — deleting an account does not
+// unwind aggregates (index.ts phase 1b) — and the fake-ring correction
+// path can reconstruct a uid's pairs from the ledger's per-event entries
+// (`at`-stamped create idx, then each edit's toIdx) while they live.
+export type EditFlow = Record<string, Record<string, number>>;
+
+export function foldEditFlow(
+  into: EditFlow,
+  fromIdx: number,
+  toIdx: number,
+): EditFlow {
+  const from = String(fromIdx);
+  const row = into[from] || (into[from] = {});
+  const to = String(toIdx);
+  row[to] = (row[to] || 0) + 1;
+  return into;
+}
+
 // A bucket's total across every option — the quantity the floor is applied
 // to. Named for the bucket rather than the "cell" this used to say, because
 // `cell` was doing duty for both this and the per-option numbers inside it,
@@ -898,8 +1303,10 @@ export type CatalogSpec =
 
 /**
  * The stored form of a catalog answer's entity, or null to never
- * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure
- * like meetsKFloor: the specs live in v2.ts (CATALOG_DOMAINS), the
+ * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure —
+ * it names no catalogue itself (the comparison here used to be to
+ * `meetsKFloor`, deleted with the floors at D98): the specs live in
+ * v2.ts (CATALOG_DOMAINS), the
  * committed catalogues are cross-checked against them by
  * scripts/check-pokedex.mjs and scripts/check-catalogs.mjs.
  */
@@ -919,25 +1326,21 @@ export function catalogEntityKey(value: unknown, spec: CatalogSpec): string | nu
 export type CanonCounts = Record<string, number>;
 
 /**
- * The publishable leaderboard: entities at or above the floor, capped at
- * topN, everything else folded into `rest`. Null means nothing finer than
- * the total may be published.
+ * The published leaderboard: the `topN` biggest entities, with everything
+ * else summed into `rest`. Never null — an empty board is an empty
+ * catalogue question, not a suppression.
  *
- * Three rules beyond the plain floor, each with a reader in mind:
+ * One rule beyond the plain cut, with a reader in mind: key "0" ("Not
+ * listed") is counted in the total but NEVER enumerated — the moment it
+ * would lead a board, the catalogue is stale, not newsworthy.
  *
- * - Key "0" ("Not listed") is counted but NEVER enumerated — the moment it
- *   would lead a board, the catalogue is stale, not newsworthy.
- * - Ties at the topN boundary fold entirely: publishing 2 of 4 entities
- *   that share the boundary count would rank equals arbitrarily, and the
- *   arbitrary half would look like a standing.
- * - Complementary suppression, tie-group flavoured: exactly one folded
- *   entity is recoverable as `total - published`, so the smallest published
- *   COUNT (the whole tie group at that count, to keep the no-split rule)
- *   folds with it. Conservative on purpose: a nonzero "Not listed" count
- *   inside `rest` would often mask the hole, but "often" is not a floor.
+ * THIS BLOCK USED TO DESCRIBE A DIFFERENT FUNCTION. It promised a
+ * k-floor, boundary tie-group folding, complementary suppression and a
+ * `null` return — every one of them deleted by D98, and three of them
+ * contradicted by the note directly below it while the signature
+ * contradicted the fourth. A JSDoc block is what an editor shows on
+ * hover, so it was the version a caller would code against.
  */
-// The published leaderboard: the `topN` biggest entities, with everything
-// else summed into `rest`.
 //
 // This was `publishableCanon`, and it did three more things, all of which
 // D98 deleted:
@@ -976,6 +1379,39 @@ export function canonTopN(
   return { top, rest: total - shown };
 }
 
+// ─── rank answers: the order fold (D12 → D233) ──────────────────────────
+//
+// A ranking is an order, not an index. The published aggregate is one
+// number per item — the SUM of the (0-based) positions every answerer
+// gave it — plus the total, and that pair is enough to publish a crowd
+// order (sort by mean position, ascending). A full permutation histogram
+// stays unpublished for document-size and honesty-of-display reasons:
+// n! cells is not a reveal, and D12's original disclosure argument for
+// withholding it dissolved with the floors at D98.
+//
+// Element validation lives here rather than in rules because rules can
+// bound a list but not iterate it (no forall) — the same trust boundary
+// catalog keys cross. Null means "never aggregate this": wrong length,
+// non-integers, out-of-range indexes and duplicates are all the same
+// wrong shape, and a fold that guessed at repairs would be counting
+// answers nobody gave.
+export function validRankOrder(order: unknown, itemCount: number): number[] | null {
+  if (!Array.isArray(order) || order.length !== itemCount || itemCount < 2) return null;
+  const seen = new Set<number>();
+  for (const v of order) {
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v >= itemCount) return null;
+    if (seen.has(v)) return null;
+    seen.add(v);
+  }
+  return order as number[];
+}
+
+/** Fold one validated order into the per-item position sums, in place. */
+export function foldRankOrder(pos: number[], order: number[]): number[] {
+  for (let p = 0; p < order.length; p++) pos[order[p]] += p;
+  return pos;
+}
+
 // ─── catalog breakdowns: how each segment orders the canon (D17) ────────
 //
 // D14 deferred per-anchor breakdowns for catalog questions with the
@@ -1000,6 +1436,7 @@ export function foldCanonAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   entityKey: string,
+  onCap?: OnBucketCap,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -1008,8 +1445,11 @@ export function foldCanonAnchors(
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
     // Same bucket cap and the same eviction rule as foldAnchors — the
-    // slots are just as attackable here, and for the same reason.
-    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
+    // slots are just as attackable here, and for the same reason. No tail:
+    // the published catalog `by` is a lossy projection of the board by
+    // design (D17), so a complete tail of it would complete nothing a
+    // reader can see; the discard here is the one D398's alert still means.
+    if (admitBucket(byDim, dim, bucket, onCap) !== "hot") continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;
@@ -1024,13 +1464,13 @@ export function foldCanonAnchors(
  * document is now its only job (D98 removed the floors that used to
  * follow it).
  *
- * Two deliberate conservatisms, recorded in D17:
- * - the floor then applies to the SHOWN total (top-N answers in the
- *   bucket), not the bucket's true cohort — a bucket can be suppressed
- *   more than strictly necessary, never less;
- * - entities outside the global top-N do not exist here. A segment's own
- *   favourite that never made the global board is not published — the
- *   D14 arithmetic, not an oversight.
+ * One deliberate conservatism, recorded in D17 and outliving the floors
+ * that surrounded it: entities outside the global top-N do not exist
+ * here. A segment's own favourite that never made the global board is not
+ * published — the D14 arithmetic, not an oversight.
+ *
+ * (The bullet that stood beside it described what the FLOOR was applied
+ * to. D98 removed the floor and left the sentence.)
  */
 export function canonBreakdownFor(
   entBy: BreakdownCounts,
@@ -1137,12 +1577,21 @@ export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> 
 /**
  * The same tally, one page at a time.
  *
- * `v2_flags` has no upper bound — MOD_ADVISORY makes the keep-verdict sweep
- * that deletes flags dead code, nothing else deletes them, and there is no
- * TTL — so the caller pages through it and folds each page in rather than
- * materialising the collection. What is retained is one entry per DISTINCT
- * take, which is smaller than the flag count by however many people flagged
- * the same take, and is the smallest thing the queue can be built from.
+ * `v2_flags` has no upper bound, so the caller pages through it and folds
+ * each page in rather than materialising the collection.
+ *
+ * The reason is NOT that nothing deletes flags. This said MOD_ADVISORY made
+ * the keep-verdict sweep dead code — true when it was written, false since
+ * D83, and never true of the settled-target sweep in the nightly build,
+ * which has never consulted that flag. What is actually unbounded is what
+ * never SETTLES: an escalated take's flags are kept as the evidence a human
+ * will read, and a flagged take below the queue floor is never judged. Add
+ * no TTL and the growing set of takes ever flagged, and the ceiling is
+ * still absent — for a different reason than this paragraph gave.
+ *
+ * What is retained here is one entry per DISTINCT take, which is smaller
+ * than the flag count by however many people flagged the same take, and is
+ * the smallest thing the queue can be built from.
  */
 export function tallyFlagsInto(
   counts: Map<string, number>,
@@ -1156,19 +1605,77 @@ export function tallyFlagsInto(
 }
 
 /**
+ * The earliest flag time per take, folded a page at a time beside the tally.
+ *
+ * Exists for the queue's TIE-BREAK, and the tie-break is a control rather
+ * than a tidiness: at the flag floor most takes sit on exactly `minFlags`,
+ * so whatever breaks that tie decides the whole queue below the busy head.
+ * That used to be the take id ascending — and a take id is CLIENT-CHOSEN
+ * (`qid + "_" + uid`, with qid a free 1-120 char string), so anyone could
+ * mint `!`-prefixed ids and sort themselves to the front of every
+ * generation for the price of three flags each.
+ *
+ * `at` is server-written (`request.resource.data.at == request.time` in the
+ * flag create rule), so it is the one field on a flag the flagger cannot
+ * choose. EARLIEST, not latest: oldest-waiting-first is FIFO, it drains a
+ * backlog instead of starving it, and — the reason it is not the other
+ * direction — an attacker with fresh accounts can always make a take
+ * NEWLY flagged and can never make it older.
+ *
+ * Non-numeric and missing stamps are skipped rather than defaulted: a take
+ * with no usable time sorts last among its tie (Infinity below) instead of
+ * jumping the queue on a zero.
+ */
+export function tallyFirstFlagInto(
+  firstAt: Map<string, number>,
+  flags: readonly { takeId: unknown; at: unknown }[],
+): Map<string, number> {
+  for (const f of flags) {
+    if (typeof f.takeId !== "string" || !f.takeId) continue;
+    if (typeof f.at !== "number" || !Number.isFinite(f.at)) continue;
+    const held = firstAt.get(f.takeId);
+    if (held === undefined || f.at < held) firstAt.set(f.takeId, f.at);
+  }
+  return firstAt;
+}
+
+/**
  * Fold raw flag counts into the queue: takes at or above the flag
- * threshold, most-flagged first (id ascending on ties so equal inputs
- * give equal queues), capped at k.
+ * threshold, most-flagged first, capped at k.
+ *
+ * Ties break on the earliest flag (tallyFirstFlagInto, above) and then on
+ * the id, so equal inputs still give equal queues. `firstAt` is optional
+ * only so the pinned cases that predate it keep reading as they were
+ * written; the live caller always passes it.
+ *
+ * WHAT k IS NOT: the queue size. Entries whose target has vanished or is
+ * already hidden are dropped by the CALLER, which is the only side that can
+ * see a take document — so cutting to the queue size here handed those
+ * slots to nobody (moderation.ts sliced 25, then `continue`d past the dead
+ * ones and queued fewer). k is the CANDIDATE window; the caller stops at
+ * the real size once it has that many live entries.
  */
 export function buildModQueueFrom(
   flagCounts: Record<string, number>,
   minFlags: number,
   k: number,
+  firstAt?: ReadonlyMap<string, number>,
 ): { takeId: string; flags: number }[] {
+  const at = (id: string): number => firstAt?.get(id) ?? Infinity;
+  // Subtraction would be wrong here, not merely inelegant: two takes with
+  // no usable stamp are both Infinity and `Infinity - Infinity` is NaN,
+  // which is falsy, so the id tie-break would fire by accident rather than
+  // by decision. Comparing gives a total order with no NaN in it.
+  const byAge = (x: string, y: string): number => {
+    const ax = at(x), ay = at(y);
+    return ax === ay ? 0 : ax < ay ? -1 : 1;
+  };
   return Object.keys(flagCounts)
     .map((takeId) => ({ takeId, flags: flagCounts[takeId] }))
     .filter((r) => r.flags >= minFlags)
-    .sort((a, b) => b.flags - a.flags || (a.takeId < b.takeId ? -1 : 1))
+    .sort((a, b) => b.flags - a.flags
+      || byAge(a.takeId, b.takeId)
+      || (a.takeId < b.takeId ? -1 : 1))
     .slice(0, k);
 }
 
@@ -1316,6 +1823,47 @@ export const SEEDED_FIELDS = [
   // renaming one is refused rather than written, which is correct: every
   // stored walk is one of those names.)
   "title", "intro", "hue", "nodes", "endings",
+  // The rest of what the payload writes (D234). Three of these were
+  // always in the payload and never here (`mode`, `branch`, `sub`) — an
+  // edit to a daily's subject path could not reach a stored doc, because
+  // a field the compare ignores is a field the skip below freezes at
+  // create. The other nine were in neither place: SCHEMA-V2.md promised
+  // them on the doc and every client reader (isCore, the Scores tag/rates
+  // pair, the feed's until/sponsor/also) read hydrated docs that could
+  // not carry them — dark in production while every test seeded its own
+  // fixtures green. `sponsor` and `rubric` are objects and ride the same
+  // structural arm nodes/endings forced; `also`/array values ride the
+  // element-wise compare. Adding compare fields makes the next reseed
+  // rewrite exactly the docs whose stored form lacks them — the one-time
+  // repair, not a phantom.
+  "mode", "branch", "sub", "tag", "rates", "core", "until", "also",
+  "sponsor", "tier", "resolvesAt", "rubric",
+  // `from` (D231's window-open, the `until` twin) joined at the D231/D234
+  // merge: it arrived in a parallel thread with exactly the D234 gap —
+  // promised by the schema, read by the client's serving filter, written
+  // by nothing — and the merge is where the two threads first saw each
+  // other.
+  "from",
+  // The card's background (D281) and the learn card's own metadata
+  // (D284). Both were live in the generator and in neither the payload
+  // nor this list — D234's exact failure, twice more, and the second one
+  // would have emptied Learn on every live device: the client drops a
+  // card with no `c` rather than guessing an answer key, and no card
+  // would ever have got one. Held here now by `check:seed-fields`, which
+  // compares this list against what gen-v2content actually emits.
+  "bg", "c", "t", "p", "k", "w",
+  // The group as a cast (D434, the owner's 2026-09-08 design): a pick's
+  // scenario pack and the role it casts, and a rate question's two poles.
+  // `scen` and `role` are objects and ride the structural arm; `poles` is
+  // an array and rides the element-wise compare. Compared, because the
+  // card draws all three: a repacked role has to reach the standing doc.
+  "scen", "role", "poles",
+  // The cast round (D437): the four them forms and the four axes.
+  "them", "dims",
+  // The instruments' deep items (D416): the facet or position an item
+  // scores and its keying, on the document so the device joins by id.
+  // Compared so a re-filed or re-keyed item reaches the standing doc.
+  "facet", "invert",
 ] as const;
 
 /**
@@ -1346,6 +1894,44 @@ function seedValueMatches(a: unknown, b: unknown): boolean {
     return bk.every((k) => k in ao && seedValueMatches(ao[k], bo[k]));
   }
   return (a ?? null) === (b ?? null);
+}
+
+/**
+ * Seeded fields whose stored MAP has keys the new payload does not — the
+ * ones that must be cleared before the merge, or they survive it.
+ *
+ * `batch.set(ref, payload, { merge: true })` merges map fields key by key
+ * rather than replacing them. Verified against the emulator, not assumed:
+ * storing `{a:1,b:2}` and merge-setting `{a:1}` reads back `{a:1,b:2}`,
+ * while an ARRAY in the same write is replaced wholesale. So a Crossroads
+ * story that drops a node keeps it forever, `seedDocMatches` keeps seeing
+ * the difference, and the seed rewrites that document on every run —
+ * churning `updatedAt`, which is the incremental cursor every returning
+ * device reads the bank with.
+ *
+ * The same defect as the field-level one recorded beside the caller
+ * ("`merge: true` cannot remove a field", D234's amendment), one level
+ * down. `nodes` and `endings` are the object-valued seeded fields today
+ * (D136); this asks the payload what shape it is rather than naming them,
+ * so a third one is covered on the day it lands.
+ */
+export function seedMapClears(
+  prior: Record<string, unknown> | null | undefined,
+  payload: Record<string, unknown>,
+): string[] {
+  if (!prior) return [];
+  const plain = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === "object" && !Array.isArray(v);
+  const out: string[] = [];
+  for (const f of SEEDED_FIELDS) {
+    const want = payload[f];
+    const have = prior[f];
+    // Only when BOTH sides are maps. A field that changed type, or that is
+    // being deleted outright, is already handled by the caller.
+    if (!plain(want) || !plain(have)) continue;
+    if (Object.keys(have).some((k) => !(k in want))) out.push(f);
+  }
+  return out;
 }
 
 /**
@@ -1395,6 +1981,12 @@ export function seedDocMatches(
 // questions), never to a shipped question's option list.
 export interface SeedOptionConflict {
   qid: string;
+  /**
+   * Which frozen field changed. Absent means `options`, which is what every
+   * conflict was until catalogue questions turned out to have none — see
+   * the `domain` and `type` arms below.
+   */
+  field?: "options" | "domain" | "type";
   stored: string[];
   desired: string[];
 }
@@ -1418,8 +2010,56 @@ export function seedOptionConflict(
   const b = desired.options;
   if (!Array.isArray(a) || !Array.isArray(b)) return null;
   const same = a.length === b.length && a.every((v, i) => v === b[i]);
-  if (same) return null;
-  return { qid, stored: a.map(String), desired: b.map(String) };
+  if (!same) return { qid, field: "options", stored: a.map(String), desired: b.map(String) };
+
+  // …AND THE CATALOGUE DOMAIN, because for the one surface whose answers
+  // are catalogue keys the options check above can never fire.
+  //
+  // A catalog question ships `options: []` on both sides by construction,
+  // so `same` is true and the freeze returned null — for exactly the
+  // questions whose stored answers are keys rather than indices. `domain`
+  // IS seeded (it is in SEEDED_FIELDS), so a re-domained pick card passed
+  // the freeze and every stored `entity` silently re-keyed against a
+  // different catalogue. The small key spaces overlap — pokemon 1–1025,
+  // elements 1–118, dogs 1–554 — so "35" that meant Clefairy comes back as
+  // Bromine, in the trigger's validation and in the client's name
+  // resolution alike. That is precisely the failure D52's mechanism exists
+  // to prevent, one field over.
+  //
+  // Absent, null and "" are one value here: a question that never carried
+  // a domain and still does not has nothing to protect, and refusing that
+  // would wedge the seed for every non-catalogue question in the bank.
+  const dStored = typeof stored.domain === "string" ? stored.domain : "";
+  const dDesired = typeof desired.domain === "string" ? desired.domain : "";
+  if (dStored !== dDesired) {
+    return { qid, field: "domain", stored: [dStored || "(none)"], desired: [dDesired || "(none)"] };
+  }
+
+  // …AND THE TYPE, which is the outermost of the three: it decides what a
+  // stored answer even IS. `optionIdx` for vote/binary/choice, an order
+  // string for rank, `entity` for catalog, a bucket for dial. Change it on
+  // a question people have answered and every stored answer is re-read
+  // under the new rule — a catalogue key becomes an option index, a rank's
+  // order becomes nonsense, and the published aggregate is folded from
+  // then on as though it had always been the new form.
+  //
+  // Nothing else catches it. `options` is equal on both sides for a
+  // vote→catalog change (a catalog question ships `options: []`, so does
+  // an emptied vote), and `domain` is equal whenever neither side is a
+  // catalogue. It reaches the rules too: `isCatalogAnswer` gates on
+  // `type == "catalog"`, so a retyped question changes which answer shapes
+  // production accepts, silently and immediately.
+  //
+  // Same argument as `domain` one field over, and the same measurement
+  // behind it: across all 33 commits that have ever touched the feed bank,
+  // no existing question's type has changed once. This refuses something
+  // that has never legitimately happened, which is what a freeze is for.
+  const tStored = typeof stored.type === "string" ? stored.type : "";
+  const tDesired = typeof desired.type === "string" ? desired.type : "";
+  if (tStored !== tDesired) {
+    return { qid, field: "type", stored: [tStored || "(none)"], desired: [tDesired || "(none)"] };
+  }
+  return null;
 }
 
 /** One line per conflict, for the log and the operator's error. */
@@ -1427,7 +2067,13 @@ export function describeSeedOptionConflicts(
   conflicts: readonly SeedOptionConflict[],
 ): string {
   return conflicts
-    .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
+    // The field is named only when it is NOT options, so the line an
+    // operator has read a hundred times is unchanged and the new one says
+    // which freeze it tripped.
+    .map((c) => {
+      const where = c.field && c.field !== "options" ? ` (${c.field})` : "";
+      return `${c.qid}${where}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`;
+    })
     .join("; ");
 }
 
@@ -1507,16 +2153,10 @@ export function presenceNeighbors(cell: string): string[] {
  */
 export const PRESENCE_LINGER_MIN = 180;
 
-/**
- * The "visible for a while" option's length (D174's middle state).
- *
- * Shorter than the linger on purpose: the session is a promise about
- * WHEN YOU STOP BEING VISIBLE, and `until` is what makes it exact. A
- * client in session mode clamps every `until` it writes to the session's
- * deadline, so closing the app ten minutes before the deadline cannot
- * leave the position standing for a further linger.
- */
-export const PRESENCE_SESSION_MIN = 120;
+// `PRESENCE_SESSION_MIN = 120` stood here from D174 to D370 — the length of
+// the timed option, which the client clamped every `until` to. The option
+// is gone (the owner: off and on only), so is the deadline, and a constant
+// nothing reads is the drift this file is otherwise careful about.
 
 /**
  * Typed phones a neighbourhood needs before the room's mix is drawn at all
@@ -1552,6 +2192,73 @@ export const ROOM_MIN_TYPED = 8;
  * typed crowd rather than its size, which is why `capped` exists below.
  */
 export const ROOM_SAMPLE_CAP = 60;
+
+/**
+ * How many presence docs one fold may SCAN before it samples.
+ *
+ * THE BUG THIS EXISTS FOR is the one roomMixFor's own note warned about
+ * and then walked into: "Firestore orders a query with no explicit
+ * `orderBy` by document id… Key presence by something ordered (a cell
+ * prefix, a timestamp) and this stops being true silently." The query
+ * carries `where("until", ">", now)`, and an inequality IS an ordering —
+ * Firestore sorts by that field first — so the limit took the N
+ * SOONEST-EXPIRING presences, not a sample. Probed on the emulator (360
+ * docs over nine cells, `until` spread 5–179 minutes out): the sixty
+ * returned were exactly the sixty smallest, topping out at 33 minutes
+ * against a population reaching 179. At a festival — the case this
+ * feature exists for — that is a reading of the people about to leave,
+ * presented as the room.
+ *
+ * So the fold scans wider and samples from what it scanned. Five times
+ * the mix's sample and twelve times the roster's, which moves the point
+ * where the bias returns from 60 and 24 to 300, and costs presence reads
+ * only: these documents are one per person, and the roster's expensive
+ * half — every sampled person's answers — still folds over
+ * ROOM_PEOPLE_CAP people.
+ *
+ * IT DOES NOT ABOLISH THE BIAS, and the no-silent-caps rule means saying
+ * so: above 300 present phones in one 3x3 block the scan is still the
+ * soonest-expiring 300, and the sample is drawn from those. What the
+ * reading already declares is `capped`, which stays exactly as true.
+ */
+export const ROOM_SCAN_CAP = 300;
+
+/**
+ * A deterministic uniform sample of `n` from `items`.
+ *
+ * Seeded rather than `Math.random()` so a fold is testable and so two
+ * calls inside one beat window agree — the cached document is what a
+ * second caller reads, but a cache miss that races must not produce a
+ * visibly different room.
+ *
+ * Partial Fisher-Yates: only the first `n` positions have to be settled,
+ * so this is O(n) rather than O(items). Returns a copy, never the input.
+ */
+export function sampleN<T>(items: readonly T[], n: number, seed: string): T[] {
+  if (n <= 0 || !items.length) return [];
+  if (items.length <= n) return items.slice();
+  // FNV-1a over the seed, then xorshift32. Neither is cryptographic and
+  // neither needs to be: nobody bets on this, and the property wanted is
+  // "uncorrelated with expiry time", which any decent mixer gives.
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let state = (h >>> 0) || 1;
+  const rnd = () => {
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17;
+    state ^= state << 5; state >>>= 0;
+    return state / 4294967296;
+  };
+  const out = items.slice();
+  for (let i = 0; i < n; i++) {
+    const j = i + Math.floor(rnd() * (out.length - i));
+    const t = out[i]; out[i] = out[j]; out[j] = t;
+  }
+  return out.slice(0, n);
+}
 
 export interface RoomMix {
   /** Type names, most common first, at most three. No shares, ever. */
@@ -1649,8 +2356,59 @@ export const ROOM_PEOPLE_CAP = 24;
  */
 export const ROOM_QUESTION_CAP = 8;
 
+/**
+ * How many questions ONE CELL'S WINDOW may accumulate.
+ *
+ * `ROOM_QUESTION_CAP` bounds a single call; nothing bounded the window.
+ * The cell's cached map gains a key for every distinct question anybody
+ * asks about until the four-minute window turns over, and each new key
+ * costs a batched read over `ROOM_PEOPLE_CAP` people — so the ceiling was
+ * the whole question bank, seven hundred keys on a document every caller
+ * in that cell reads, and about seventeen thousand billed reads to get
+ * there. Eight at a time, from any signed-in account, with nothing
+ * refusing.
+ *
+ * 64 is generous for the honest case and still bounds the window: the
+ * day's deck is the same list for everyone, callers differ only in how
+ * far through it they have scrolled, and a window is four minutes. It
+ * bounds a cell-window at 64 × 24 reads rather than at the bank.
+ *
+ * A SOFT bound, deliberately. Past it the room serves what it has already
+ * folded instead of refusing the call — an honest client never reaches it,
+ * and one that does gets a slightly thinner grid rather than an error on a
+ * surface whose own failure rule is "leave the stop with its number".
+ */
+export const ROOM_WINDOW_QUESTION_CAP = 64;
+
 /** A qid → {optionIdx → count} map, the shape v2_question_aggs uses. */
 export type RoomCounts = Record<string, Record<string, number>>;
+
+/**
+ * The questions one call may fold, given what the cell's window already holds.
+ *
+ * A FUNCTION, and it takes the window's OWN map, because the bound above
+ * shipped as arithmetic at the call site and the arithmetic was dead. It
+ * measured the headroom against the cached entries this call had asked for
+ * — an intersection with the request, so at most `ROOM_QUESTION_CAP` of
+ * them — and then trimmed a list that was already shorter than the limit it
+ * was trimming to. `64 - 8` never cut anything, so the window still grew a
+ * key per novel question until it held the bank: the exact ceiling the
+ * constant was added to close.
+ *
+ * The window's size is the size of what the CELL holds, which is the map on
+ * the document. Nothing else can measure it, which is why this takes it.
+ */
+export function roomWindowMisses(
+  qids: readonly string[],
+  held: Readonly<Record<string, unknown>> | null | undefined,
+  cap: number = ROOM_WINDOW_QUESTION_CAP,
+): string[] {
+  const have = new Set(held ? Object.keys(held) : []);
+  // A window already at the cap folds nothing new — it serves what it has,
+  // which is the soft bound the constant's own note describes.
+  const room = Math.max(0, cap - have.size);
+  return qids.filter((q) => !have.has(q)).slice(0, room);
+}
 
 /**
  * Tally one question's picks into the aggregate shape.
@@ -1693,15 +2451,200 @@ export function tallyPicks(picks: readonly (number | null | undefined)[]): Recor
  * a bad one here would be a path injection into a getAll, so it is
  * refused rather than escaped.
  */
-export function roomQids(raw: unknown, cap: number = ROOM_QUESTION_CAP): string[] {
+export function roomQids(
+  raw: unknown,
+  cap: number = ROOM_QUESTION_CAP,
+  known?: (qid: string) => boolean,
+): string[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   for (const q of raw) {
     if (typeof q !== "string") continue;
     const id = q.trim();
     if (!id || id.length > 120 || id.includes("/") || id === "." || id === "..") continue;
+    // MUST NAME A QUESTION, when the caller can say what one is.
+    //
+    // The shape checks above are not a bound on cost. Each id the room has
+    // not already folded costs a getAll over ROOM_PEOPLE_CAP answer refs —
+    // and Firestore bills a missing document in a batchGet — so eight
+    // unknown ids are ~192 billed reads. A folded id is CACHED, which is
+    // what makes the honest case cheap and the dishonest one unbounded: a
+    // caller sending eight FRESH invented ids every time never hits the
+    // cache and pays the full fold on every call, from one anonymous
+    // account, with no rate limit on this path.
+    //
+    // The same strings also become field names on the shared, server-only
+    // room document, which the fold merges into — so invented ids grow a
+    // document every caller in that cell reads, eight at a time, until it
+    // passes 1 MiB and the write starts failing into a catch that
+    // swallows it.
+    //
+    // The caller passes the bank, so this is a lookup rather than a guess.
+    if (known && !known(id)) continue;
     seen.add(id);
     if (seen.size >= cap) break;
   }
   return [...seen];
+}
+
+// ── push fan-out (v2social) ─────────────────────────────────────
+
+/**
+ * Bounds on a stored FCM token, applied before it reaches FCM.
+ *
+ * WHAT ACTUALLY ENFORCES THE REST, because this said "rules cap the token
+ * array at 10 entries but never check what is IN them, so a client can
+ * store ten ~1MB strings in its own profile" and both halves stopped
+ * being true at D98. Tokens left the profile for
+ * `v2_users/{uid}/push/tokens`, which is `allow read, write: if false` —
+ * no client can store anything there at all (firestore.rules, and
+ * rules.test.ts pins both the shut door and the profile not keeping a
+ * back way in). There is no rules clause capping the array; the cap of
+ * ten is a server literal, `nextFcmTokens(…, 10)` in v2social.ts,
+ * reachable only through `registerPushToken`, which already rejects
+ * anything failing `isPlausibleFcmToken`.
+ *
+ * So this is the second, looser bound, applied at SEND time to whatever
+ * is already stored — length only, no format regex, which is the part
+ * most likely to silently kill every notification the day FCM changes
+ * its token shape. It bounds send cost, not what is stored.
+ */
+export const FCM_TOKEN_MIN = 20;
+export const FCM_TOKEN_MAX = 4096;
+
+/** FCM's own per-call ceiling for sendEachForMulticast. */
+export const FCM_BATCH = 500;
+
+export interface PushFanout {
+  /**
+   * token -> the uids whose push document carries it.
+   *
+   * A LIST, not one uid: the same device can hold tokens for more than
+   * one account, and a token FCM reports dead has to be pruned from every
+   * document it lives on. Otherwise the array grows one ghost per
+   * reinstall/rotation forever and every send fans out to them.
+   */
+  owners: Map<string, string[]>;
+  /** uids that carried at least one token this refused — the caller logs them. */
+  malformed: string[];
+}
+
+/**
+ * Collect the tokens a multicast should target, from one entry per uid.
+ *
+ * Pairing uid to tokens is the CALLER's job and deliberately so: the
+ * reveal sender reads push subdocuments whose every id is the literal
+ * string "tokens" (D98), so there the uid is recoverable only from
+ * getAll's preserved ordering. That subtlety belongs at its call site,
+ * not in here.
+ *
+ * Pure, so the bounds and the dedupe are testable without an emulator —
+ * and worth testing, because both failures are silent: an over-long token
+ * fails the whole batch, and a token counted twice is a duplicate push.
+ */
+export function fcmFanout(entries: readonly { uid: string; tokens: unknown }[]): PushFanout {
+  const owners = new Map<string, string[]>();
+  const malformed: string[] = [];
+  for (const { uid, tokens } of entries) {
+    if (!Array.isArray(tokens)) continue;
+    let bad = false;
+    for (const t of tokens as unknown[]) {
+      if (typeof t !== "string" || t.length < FCM_TOKEN_MIN || t.length > FCM_TOKEN_MAX) {
+        bad = true;
+        continue;
+      }
+      const list = owners.get(t) || [];
+      // A uid listed twice for one token would prune it twice and, worse,
+      // read as two devices in any future per-recipient accounting.
+      if (!list.includes(uid)) list.push(uid);
+      owners.set(t, list);
+    }
+    if (bad) malformed.push(uid);
+  }
+  return { owners, malformed };
+}
+
+/** Split tokens into FCM-sized batches. Never truncates — see FCM_BATCH. */
+export function fcmBatches(tokens: readonly string[], size: number = FCM_BATCH): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < tokens.length; i += size) out.push(tokens.slice(i, i + size));
+  return out;
+}
+
+// ── turns: who is told "your turn" (ROUNDS-PLAN §7.4, D426) ─────────────
+//
+// A round is a volley, and a volley with no nudge is a game where nobody
+// knows it is their move. The answer trigger tells the OTHER members a
+// round waits for them; the reveal tells everyone the round is out and,
+// to whoever has not sealed the next one, that it is waiting. Both mark
+// the person told with a stamp on the group document (`pushAt[uid]`),
+// and the person's own answer clears it — so it is ONE push per TURN:
+// a partner who plays five rounds ahead sends one nudge, not five; a room
+// of thirty-one is not told thirty-one times that Ada played; and a
+// reveal that already said "round 8 is waiting for you" is not followed by
+// "Bo answered — your turn" about the same round.
+
+export interface TurnRecipient {
+  uid: string;
+  /** Rounds waiting for them, which the body names. */
+  waiting: number;
+}
+
+/** `played` with `uid` sealed into `key` — the trigger's own answer, which
+ *  the group document does not show until its update commits. */
+export function mergePlayed(played: unknown, key: string, uid: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (played && typeof played === "object") {
+    for (const k of Object.keys(played as Record<string, unknown>)) out[k] = playedIn(played, k);
+  }
+  const here = out[key] || [];
+  out[key] = here.includes(uid) ? here : [...here, uid];
+  return out;
+}
+
+/**
+ * Rounds waiting for `uid`: from the open round to the lead's edge, the
+ * ones somebody else has sealed and `uid` has not. What a nudge's body
+ * names — *Leo played 4 rounds — your turn.*
+ */
+export function roundsWaitingFor(played: unknown, open: number, uid: string): number {
+  let n = 0;
+  for (let r = open; r < open + ROUND_LEAD; r++) {
+    const who = playedIn(played, roundKey(r));
+    if (who.length && !who.includes(uid)) n++;
+  }
+  return n;
+}
+
+function hasStamp(pushAt: unknown, uid: string): boolean {
+  return !!pushAt && typeof pushAt === "object"
+    && Object.prototype.hasOwnProperty.call(pushAt, uid);
+}
+
+/**
+ * Who an answer should tell "your turn": every other member who has not
+ * sealed the OPEN round, has a round waiting for them, and carries no
+ * stamp — i.e. has not been told since their own last answer. `played`
+ * must already include the answer being written (mergePlayed).
+ */
+export function turnRecipients(
+  played: unknown,
+  open: number,
+  members: readonly string[],
+  pushAt: unknown,
+  sender: string,
+): TurnRecipient[] {
+  const openPlayers = playedIn(played, roundKey(open));
+  const out: TurnRecipient[] = [];
+  for (const uid of members) {
+    if (uid === sender || openPlayers.includes(uid) || hasStamp(pushAt, uid)) continue;
+    const waiting = roundsWaitingFor(played, open, uid);
+    if (waiting > 0) out.push({ uid, waiting });
+  }
+  return out;
+}
+
+/** Whether `uid` carries a turn stamp — the trigger clears it on their answer. */
+export function isStamped(pushAt: unknown, uid: string): boolean {
+  return hasStamp(pushAt, uid);
 }

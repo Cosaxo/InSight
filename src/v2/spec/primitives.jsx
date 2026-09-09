@@ -15,6 +15,7 @@
 // scripts/check-spec-globals.mjs guards that wiring, and its rule 4
 // counts what is left.
 import React from 'react';
+import { pushBackLayer } from '../data/backLayers';
 
 // Shared primitives — small components used across tabs
 const { useState, useEffect, useMemo, useRef } = React;
@@ -215,11 +216,39 @@ export function useDialog(onClose, label) {
 
 // The bottom-sheet pattern: scrim + sheet + grab handle, with the dialog
 // semantics already attached. `children` land inside the sheet.
-export function Sheet({ onClose, closing, label, children }) {
+//
+// `lift` (px) raises the whole thing — scrim floor and sheet with it — so
+// the app chrome below stays visible AND tappable: the scrim no longer
+// covers it, so taps land on the real controls underneath. The topic
+// sheet passes the tab bar's height here (D211): it is a destination you
+// are SENT to from other screens, and arriving somewhere whose way out is
+// hidden reads as being trapped. Content sheets (voters, takes) pass
+// nothing and keep covering the bar, which is the ordinary sheet grammar.
+export function Sheet({ onClose, closing, label, lift, children }) {
   const dlg = useDialog(onClose, label);
+  // Android back closes the sheet instead of quitting the app. useDialog
+  // above gives it Escape (D24); this is the platform's other back, and it
+  // needs its own mechanism because the back button is not a DOM event a
+  // focused dialog can receive — see data/backLayers.ts for what fell
+  // through before.
+  //
+  // A ref plus an empty dep list, deliberately: `onClose` is a fresh arrow
+  // on nearly every call site, so depending on it would push and pop the
+  // layer on every parent render and the stack's order would stop meaning
+  // anything. Registered once per mounted sheet, removed on unmount.
+  const closeRef = useRef(onClose);
+  // Refreshed in an effect rather than assigned during render: the latter is
+  // a react-hooks/refs error, and the rule is right — a ref written during
+  // render is invisible to the compiler's memoization. Depless, so it runs
+  // after every commit and the layer always closes through the CURRENT
+  // handler; the registration below stays keyed on nothing so the stack
+  // does not churn.
+  useEffect(() => { closeRef.current = onClose; });
+  useEffect(() => pushBackLayer(() => closeRef.current()), []);
   return (
     <div
       className={'wf-scrim' + (closing ? ' is-closing' : '')}
+      style={lift ? { bottom: lift } : undefined}
       // The backdrop dismisses on click, but it is NOT a control: the
       // sheet's own Close button and Escape are the real paths, and giving
       // this a button role would announce a duplicate of both. presentation
@@ -231,7 +260,10 @@ export function Sheet({ onClose, closing, label, children }) {
       // removes both.
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="wf-sheet" {...dlg}>
+      {/* Lifted, the sheet sits on chrome that already clears the home
+          indicator, so the native safe-area padding it normally carries
+          (.native-shell .wf-sheet) would be dead space inside it. */}
+      <div className="wf-sheet" style={lift ? { paddingBottom: 0 } : undefined} {...dlg}>
         <div className="wf-sheet-grab"></div>
         {children}
       </div>

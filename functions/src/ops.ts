@@ -9,6 +9,7 @@
 // SEED_ADMIN_UIDS (same contract seedContentV2 has used all along).
 
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions";
 import { setGlobalOptions } from "firebase-functions/v2/options";
 
 export function seedAdmins(): string[] {
@@ -16,6 +17,49 @@ export function seedAdmins(): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** The uids that are BOTH operator and moderator.
+ *
+ *  WHY THIS IS A FUNCTION AND NOT A COMMENT. `ops.test.ts` already asserts
+ *  that the two allowlists are separate instruments — an operator is not
+ *  thereby a moderator — and it passes, because it tests the MECHANISM:
+ *  two variables, read independently. It cannot see the VALUES, which is
+ *  where the separation actually has to hold.
+ *
+ *  It does not hold. Read out of the deploy log on 2026-08-25 (run
+ *  32883038909, "Write functions runtime env"): `SEED_ADMIN_UIDS` and
+ *  `MOD_UIDS` are the same single uid. So moderation.ts's own claim —
+ *  "least privilege cuts both ways: an operator uid is not thereby a
+ *  moderator, and a leaked moderator credential cannot seed content or
+ *  trigger reveals" — describes the wiring and not the deployment, and a
+ *  green test sat in front of that for as long as it has been true.
+ *
+ *  Runbook 5.7 is the fix and it is one variable edit. Until it happens the
+ *  honest thing is to say so where it can be seen, rather than to keep a
+ *  test that proves the harmless half. */
+export function operatorModeratorOverlap(): string[] {
+  const mods = new Set(
+    (process.env.MOD_UIDS || "").split(",").map((s) => s.trim()).filter(Boolean),
+  );
+  return seedAdmins().filter((uid) => mods.has(uid));
+}
+
+// Said once per cold start, in production only. A configuration warning
+// that fires on every instance is the point: it stops the moment the
+// second uid exists, and until then nothing else in the system mentions
+// that the two credentials are one credential. Not an HttpsError and not a
+// refusal — refusing would take moderation offline to punish a
+// misconfiguration, which is worse than the misconfiguration.
+if (process.env.FUNCTIONS_EMULATOR !== "true") {
+  const both = operatorModeratorOverlap();
+  if (both.length) {
+    logger.warn(
+      `[ops] ${both.length} uid(s) hold BOTH operator and moderator rights `
+        + "— least privilege is nominal, not deployed (runbook 5.7)",
+      { metric: "operator_moderator_overlap", count: both.length },
+    );
+  }
 }
 
 export function assertOperator(request: CallableRequest): void {
@@ -36,9 +80,11 @@ export function assertOperator(request: CallableRequest): void {
 //     to soft-disable if client attestation is ever misconfigured —
 //     flipping a deploy env var beats shipping a code change during
 //     an incident.
-// The client side is already wired (src/lib/appcheck.ts): reCAPTCHA
-// v3 on web via VITE_APPCHECK_RECAPTCHA_SITE_KEY, DeviceCheck / Play
-// Integrity on native. Debug builds register a debug token.
+// The client side is src/lib/appcheck.ts: debug tokens on web (D337 —
+// no public web client, so reCAPTCHA stays unprovisioned), DeviceCheck /
+// Play Integrity on native, BRIDGED into the JavaScript SDK that makes
+// the calls. That bridge was missing until 2026-09-06 (D388), so while
+// this was ON every phone that reached an enforced callable was refused.
 export const ENFORCE_APP_CHECK =
   process.env.FUNCTIONS_EMULATOR !== "true" &&
   process.env.APPCHECK_ENFORCE !== "false";
@@ -61,10 +107,35 @@ export const ENFORCE_APP_CHECK =
 //
 // NOTE: the emulator ignores memory, timeout and concurrency entirely.
 // The only real verification is post-deploy:
-//   gcloud functions describe <name> --gen2 --region us-central1 \
+//   gcloud functions describe <name> --gen2 --region europe-west1 \
 //     --format="value(serviceConfig.timeoutSeconds,serviceConfig.availableMemory)"
+
+/**
+ * WHERE EVERY FUNCTION RUNS (D201).
+ *
+ * One constant, imported by all fourteen modules that define functions, for the
+ * reason `db.ts` is one accessor rather than 37 literal edits: this value
+ * was spelled out in ten places on this side and eight on the client's, and
+ * a move that reaches some of them is worse than one that reaches none —
+ * the client would call a region nothing serves and every callable would
+ * 404 as `internal`.
+ *
+ * `europe-west1`, matching the database (D165). It was `us-central1` while
+ * the database was `nam5`, stayed there when the database moved, and D200
+ * measured what the split was costing before deciding to close it.
+ *
+ * CHANGING THIS IS A MIGRATION, NOT AN EDIT. A function's region is part of
+ * its identity, so a deploy CREATES the new one and must DELETE the old —
+ * and while both exist, both Firestore triggers fire. The event-ledger
+ * dedup in v2.ts does not save you: it keys on the CloudEvent id, which
+ * makes a retry of one trigger safe and says nothing about a second
+ * subscription delivering its own event for the same write. docs/
+ * DEPLOYMENT.md § Moving the functions has the procedure and the check.
+ */
+export const FUNCTIONS_REGION = "europe-west1";
+
 setGlobalOptions({
-  region: "us-central1",
+  region: FUNCTIONS_REGION,
   memory: "512MiB",
   // 8 minutes. Deliberately not 540 (the gen-2 max): the scheduler's
   // attemptDeadline should not be exactly equal to the function's own wall
@@ -97,7 +168,7 @@ setGlobalOptions({
 // NOTE: the emulator ignores all of this (see the note above), so CI proves
 // only that the values are set, never that they are right. The check after a
 // deploy is:
-//   gcloud functions describe <name> --gen2 --region us-central1 \
+//   gcloud functions describe <name> --gen2 --region europe-west1 \
 //     --format="value(serviceConfig.availableMemory,serviceConfig.timeoutSeconds)"
 
 // Bounded work, sub-second in practice: a couple of indexed queries and one

@@ -39,15 +39,70 @@
 // (`enabled: false`, no network), which is what the paragraph above rules out.
 
 import realLive from "../data/live";
+import { publishTestFeed, resetTestFeed } from "../data/testFeed";
+import { publishLearnBank, resetLearnBank } from "../data/learnBank";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
+import { agreementOf } from "../data/cohort";
 
 type Dict = Record<string, unknown>;
 
 export interface LiveFixtureOptions {
   /** Cards below the k-floor render no share numeral and no fill (D11). */
   tooSmall?: boolean;
+  /**
+   * Make TODAY's card the ordinal one.
+   *
+   * The deck's rating question is `daily-001` — yesterday — and the live
+   * deck draws today's card only, with no day dots to page back through.
+   * So the rating card's own render was unreachable from any mount test,
+   * which is how its floored arm shipped drawing the first voter's single
+   * answer as a full-height column while the numeral beside it was
+   * withheld. This swaps the two so a case can vote the rating card and
+   * read what it drew.
+   */
+  ratingToday?: boolean;
+  /**
+   * A THIRD DAY in the deck, with the day labels a real deck carries.
+   *
+   * The default deck is two cards both stamped "Today", which is enough
+   * for everything that only asks whether an archive exists — and not
+   * enough for the day dots. Their fallback list of weekday names is
+   * frozen to a Thursday, and it first disagrees with a real label at the
+   * THIRD position (index 2 is "Tue"), so with two cards a dot that
+   * ignored the card's own label and a dot that read it could not be told
+   * apart. Opt-in, so no existing mount gains a card it was not written
+   * for.
+   */
+  deckDays?: boolean;
+  /**
+   * The state one fold LATER: every drawn count zero, but the aggregate
+   * has published — because the only answer in it is the viewer's own,
+   * and `countsFor` subtracts the viewer back out once the trigger has
+   * folded them (data/deck.ts). `noCountsYet` stays FALSE here, since it
+   * is `agg.total > 0` and that total counts the viewer.
+   *
+   * `tooSmall` cannot express it: it sets the counts to zero AND
+   * `noCountsYet` to true, which is the window BEFORE the fold. The gap
+   * between the two is where the daily and the feed printed "100% · 1
+   * vote" over a crowd of nobody, a couple of seconds after the write.
+   */
+  soloVoter?: boolean;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
+  /**
+   * A warm-painted session whose reconcile failed (D356): the REAL deck
+   * off this device's caches, `attached` false, a boot reason set. The
+   * daily's last-sync pill is the only thing that reads the combination.
+   */
+  stale?: boolean;
+  /**
+   * Override the published `counts` on every aggregate. The default splits
+   * cleanly, which is exactly what a case about ROUNDING cannot use: a
+   * reading taken off percentages and one taken off counts agree on it,
+   * so the case would pass either way. Pass a vector whose top two counts
+   * round to the same integer to tell them apart.
+   */
+  aggCounts?: Record<string, number>;
   /** The viewer's city anchor, "" for a profile that has not picked one. */
   myCity?: string;
   /**
@@ -70,22 +125,189 @@ export interface LiveFixtureOptions {
    * to D50's selfOnly acknowledgment.
    */
   lensBank?: boolean;
+  /**
+   * Mark the LAST world card as sponsored (D195). Off by default and
+   * opt-in for a reason: the shipped bank carries no sponsored question,
+   * so a fixture that always did would be the only place in the tree
+   * where a paid card exists — and every other live case would be
+   * asserting against a feed nobody serves.
+   */
+  sponsored?: boolean;
+  /** The sponsored card's link (D378), when `sponsored` — an https
+   * address the answered face prints as its domain. Off by default for
+   * the same reason: no shipped question carries one. */
+  sponsorLink?: string;
+  /**
+   * Put one ad in the pool (D197). Off by default and opt-in for the same
+   * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
+   * that always carried one would be the only place in the tree where an
+   * ad exists — and every other live case would assert against a feed
+   * nobody is served.
+   */
+  adCard?: boolean;
+  /**
+   * Append one live catalogue-pick card (D14 gone live) after the vote
+   * cards. Opt-in, but for feedCards' reason rather than sponsored's —
+   * the shipped bank DOES carry pick cards now; appending one to every
+   * case would just shift the card counts existing assertions hold.
+   * pickCanon/pickSegs/pickSeg above serve its board.
+   */
+  pickCard?: boolean;
+  /**
+   * Append one live rank card (D233), shaped as buildFeedGlobals emits
+   * it: items, a DERIVED crowd (1-based rank per item), votes from the
+   * agg total. Opt-in for pickCard's reason. `tooSmall` empties the
+   * crowd to null — the first-voter state, where the card must render
+   * your order without a crowd column.
+   */
+  rankCard?: boolean;
+  /**
+   * Publish one live TEST item into the feed's test stream (D280), shaped
+   * as buildFeedGlobals emits it: a bank id, the instrument key the
+   * progress row folds on, and counts from the aggregate.
+   *
+   * Opt-in for pickCard's reason and one more. The pool this replaces is
+   * the DEMO one — a hundred-odd cards whose counts are a hash of the
+   * question id — and until D280 it reached a live feed whatever this
+   * fixture did, because the store published onto `window` and the feed
+   * had been converted to import the demo array. Off, the live feed
+   * carries no test cards at all, which is what every case in this suite
+   * has always claimed to be asserting against.
+   */
+  testCard?: boolean;
+  /**
+   * Publish one live LEARN card (D284), in the engine's own vocabulary —
+   * the shape `buildLearnBank` translates a bank document into.
+   *
+   * Opt-in, and the DEFAULT is the case that matters: with this off the
+   * fixture publishes an EMPTY live bank, which is what a live build with
+   * no seeded learn documents actually has. Before D284 the bundle carried
+   * the whole card bank, so a live build served 146 demo cards whatever the
+   * backend held — the same class of thing D280 fixed for test cards.
+   */
+  learnCard?: boolean;
+  /**
+   * Give the LAST world card a background (D281) — the paragraph the
+   * card's `i` opens. Opt-in like the rest: most of the bank carries
+   * none, and a fixture that always did would have the "About this
+   * question" arm of that button untested everywhere.
+   */
+  background?: boolean;
+  /**
+   * Give the DAILY (daily-000) a background (D306) — the same slot the
+   * feed's `i` got at D281, read through buildS's bg carry. Opt-in so the
+   * default mount keeps pinning the daily sheet's no-background arm.
+   */
+  dailyBg?: boolean;
+  /**
+   * Give the LAST world card a current-events window (D231). Opt-in for
+   * the same reason `sponsored` is — a window is a property of one topic,
+   * and a fixture that always carried one would have every other live case
+   * asserting against a card the feed only serves for a week.
+   *
+   * The dates are computed from the run's own clock so the assertion is
+   * the same on any day: opens today, closes in three, which is four days
+   * left and a full ring.
+   *
+   * The card keeps the fixture's `culture` topic rather than taking `now`,
+   * and that is the test environment rather than a shortcut: these suites
+   * mount a DEMO build, whose channel list is the prototype's fixed six
+   * (world-feed-data.js reads the build flag at module scope, which is why
+   * world-channels.test.js re-imports to test the other side). A `now`
+   * card matches no demo channel and never reaches the pool. What is being
+   * pinned here is the ring, and a window is a property of the CARD — the
+   * topic that may carry one is check:quality's rule, held in the bank.
+   */
+  windowed?: boolean;
+  /**
+   * The Patterns tab's mount gate as the fit would have published it
+   * (D265) — `{ pool, basis, mine }`, straight through to
+   * `patternsSignal()`. Absent by default, which is the state every other
+   * live case was written against: no fit has run, so the bar is two tabs
+   * and the third one is not there to be found.
+   *
+   * Opt-in rather than always-on for `sponsored`'s reason: an app whose
+   * gate is open is one particular app, and every case that is not about
+   * the gate should be asserting against the one the fit has not reached
+   * yet.
+   */
+  patterns?: { pool?: number; basis?: number; mine?: number };
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
+
+/** A UTC day key `n` days from now — live.ts's own arithmetic (D231). */
+const dayKey = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 // The feed card's prompt and options, exported so a test can target the feed
 // rather than the daily deck card sharing the screen with it. Strings chosen
 // to appear nowhere else in the spec layer's demo data.
 export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
+
+/**
+ * The third day's label under `deckDays`.
+ *
+ * Exported rather than repeated in the test, for the reason
+ * split-stage.test.js is worth reading first: a test holding its own copy
+ * of a fixture constant passes when the fixture moves and the app does not.
+ * Deliberately NOT the weekday the dots' frozen fallback prints at this
+ * position — that is the whole discrimination.
+ */
+export const FIXTURE_THIRD_DAY = "Fri";
 /** The fixture Crossroads story's title — unique, so a query binds to the card. */
 export const PATH_TITLE = "Fixture Crossroads: the forked road";
+
+// The pick card's prompt (D14) — unique for FEED_PROMPT's reason: a test
+// must be able to say which card it has hold of.
+export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
+
+// The daily card's published option counts, EXPORTED so a test asserting a
+// total built from them moves when they move. smoke-live.test.jsx used to
+// hand-copy this array, which made its "the fixture's daily counts changed"
+// guard `12 + 8 + 5 === 25` — a constant compared with itself, green for
+// any fixture. Measured: changing the fixture to [12, 8, 6] left that
+// guard green and failed the case on a different assertion with the wrong
+// diagnosis.
+export const DAILY_COUNTS = [12, 8, 5];
+
+// The rank card's prompt (D233), same rule.
+export const RANK_PROMPT = "Fixture rank card: order the fixtures";
+
+// The live TEST item's prompt and options (D280), same rule again — and
+// here the uniqueness is load-bearing rather than convenient: the whole
+// point of the case is telling a bank item apart from a demo one, and the
+// demo pool's prompts are the real instruments' wording.
+export const TEST_ITEM_PROMPT = "Fixture test item: the bank's own, not the demo pool's.";
+
+// The live LEARN card (D284), unique for the same reason and with the same
+// weight: the demo sample's prompts are the real cards' wording, so the
+// prompt is what tells a bank card apart from a compiled-in one.
+export const LEARN_CARD_PROMPT = "Fixture learn card: which bank is this from?";
+export const LEARN_CARD_OPTIONS = ["The seeded bank", "The bundle", "Neither", "Both"];
+export const TEST_ITEM_OPTIONS = [
+  "Strongly agree", "Agree", "Neutral", "Disagree", "Strongly disagree",
+];
+
+// The background paragraph (D281), unique for FEED_PROMPT's reason — and
+// long enough to be one: the gate's own floor is 90 characters, so a
+// three-word fixture string would pin a shape the bank cannot contain.
+export const BG_TEXT =
+  "Fixture background: the durable facts this question cannot be answered without, "
+  + "stated plainly and taking no side between the options on the card.";
+
+// The daily's own background (D306) — distinct from BG_TEXT so a test can
+// tell which sheet it is reading, same 90-character floor for the same
+// reason.
+export const DAILY_BG_TEXT =
+  "Fixture daily background: who or what this question names, stated plainly "
+  + "for a reader meeting the subject for the first time.";
 
 function liveQuestion(
   id: string,
   prompt: string,
   tooSmall: boolean,
+  soloVoter: boolean,
   // D100's bank fields. Defaulted rather than required so the two
   // existing call sites stay readable, but supplied by both — a fixture
   // where every question shares one branch and no ordinal type would
@@ -110,13 +332,27 @@ function liveQuestion(
     options: ["Yes", "No", "Both"].map((label, i) => ({
       id: String(i),
       label,
-      count: tooSmall ? 0 : [12, 8, 5][i],
+      count: (tooSmall || soloVoter) ? 0 : DAILY_COUNTS[i],
       color: OPTION_COLORS[i % OPTION_COLORS.length],
     })),
     comments: [],
     friends: [],
     live: true,
     tooSmall,
+    // …AND THE FIELD THE APP ACTUALLY READS. `tooSmall` is this fixture's
+    // own vocabulary and nothing in src/v2/spec, src/v2/ui or src/v2/data
+    // consults it — the deck's real shape carries `noCountsYet`, which
+    // `buildS` derives from `hasPublishedCounts(agg)` (data/deck.ts). The
+    // fixture's other three builders (the pick, rank and duel cards) have
+    // always emitted it; this one, which is the DAILY, did not. So
+    // `mountLive({ tooSmall: true })` set every option's count to zero and
+    // still handed the daily a card that said the crowd had published —
+    // and the first-voter state on the app's front door was unreachable
+    // from any mount test. That is why it went unseen.
+    // NOT `tooSmall || soloVoter`: the whole point of the solo case is
+    // that the aggregate HAS published (its total is 1 — you), so the
+    // floor keyed on this flag alone lifts while every count is zero.
+    noCountsYet: tooSmall,
     test: null,
   };
 }
@@ -137,15 +373,66 @@ export interface LiveHandle {
 
 export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const tooSmall = !!opts.tooSmall;
+  const soloVoter = !!opts.soloVoter;
+  const aggCounts = opts.aggCounts;
+  // One Crossroads story (D136), shaped as the store folds it: eight
+  // per-ending counts in PATH_ENDINGS order, and a total. The counts are
+  // lopsided on purpose — a flat eight would make every branch the same
+  // width, so a card that ignored `counts` entirely and drew a uniform
+  // tree would look correct. `tooSmall` empties them, which is this
+  // fixture's way of asking for the nobody-has-finished-this-yet arm.
+  //
+  // ONE object behind both doors (D341): `pathQs` serves it to the Map's
+  // Walks branch, and the feed pool below carries it as a member — the
+  // same split the app has, so a fixture drift between the two would be
+  // the drift the real build cannot have.
+  const pathStory = {
+    id: "feed-fixture-path",
+    title: PATH_TITLE,
+    intro: "A fixture story, three forks deep.",
+    hue: 20,
+    nodes: Object.fromEntries(
+      ["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
+        k, { q: `Fork ${k === "_" ? "opening" : k}`, a: [{ t: `${k} left` }, { t: `${k} right` }] },
+      ]),
+    ),
+    endings: Object.fromEntries(
+      ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)))
+        .map((k) => [k, { name: `Ending ${k}`, line: `The ${k} road ends here.` }]),
+    ),
+    counts: tooSmall ? [0, 0, 0, 0, 0, 0, 0, 0] : [40, 5, 10, 5, 20, 5, 10, 5],
+    total: tooSmall ? 0 : 100,
+    live: true as const,
+  };
   const votes: Record<string, string> = {};
   const listeners = new Set<() => void>();
   const deck = [
-    liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
+    {
+      ...liveQuestion(
+        "daily-000", "Would you rather know, or be known?", tooSmall, soloVoter,
+        "Mind", opts.ratingToday ? "rating" : "binary",
+      ),
+      // D306: the daily's About sheet leads with a background when the
+      // question carries one — opt-in, so the default mount keeps the
+      // no-background arm honest.
+      ...(opts.dailyBg ? { bg: DAILY_BG_TEXT } : {}),
+    },
     // A second branch and an ordinal type, so the archive the Mirror
     // reads exercises the branch filter and the Scores lens rather than
     // only their "nothing here" arms.
-    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, "Morals", "rating"),
+    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, soloVoter, "Morals", "rating"),
   ];
+  if (opts.deckDays) {
+    // The labels a real deck carries. `liveQuestion` stamps "Today" on
+    // every card, which is fine while nothing reads the label as a claim
+    // about WHICH day — the dots do, and index 2 is where their frozen
+    // fallback ("Tue") parts company with the truth.
+    deck[1] = { ...deck[1], dayLabel: "Yesterday" };
+    deck.push({
+      ...liveQuestion("daily-002", "Does a rule nobody has tested still bind?", tooSmall, soloVoter, "Morals", "binary"),
+      dayLabel: FIXTURE_THIRD_DAY,
+    });
+  }
 
   const social: Dict = {
     todayKey: () => "2026-07-30",
@@ -155,18 +442,34 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // data wearing a live badge — the exact thing D9 removed.
     groups: () => [],
     todayQ: () => null,
+    roundQ: () => null,
+    // The first run's group preview (D437): the bank's first role vote —
+    // none in a fixture, so the screen keeps its World stand-in.
+    roleVotePreview: () => null,
+    groupBankCounts: () => ({ roles: 0, ratings: 0 }),
+    roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
+    voteLate: async () => {},
     myDuelVote: () => null,
+    myDuelCall: () => null,
     revealFor: () => null,
     revealHistory: () => [],
+    // Settled: a mount test is about the drawn frame, not the cold one.
+    revealHistoryLoading: () => false,
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
-    joinGroup: async () => ({ gid: "g_test", name: "Test" }),
+    requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
+    approveJoin: async () => ({ ok: true }),
+    declineJoin: async () => ({ ok: true }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
     // Handles and invitations (D122). Empty and inert for the same reason
     // the groups and takes below are: a seeded invitation would be sample
     // data wearing a live badge, and "nobody has invited you" IS the live
     // surface a new account opens on.
     whoIs: async () => null,
+    // The name half of finding somebody (D239). Empty, like every
+    // other read here — a fixture that returned people would put
+    // invented names in a live-mode smoke test.
+    searchPeople: async () => [],
     claimHandle: async (handle: string) => ({ handle }),
     inviteToGroup: async () => ({ ok: true }),
     acceptInvite: async () => ({ gid: "g_test", name: "Test" }),
@@ -182,6 +485,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // badge. The empty list IS the live-mode surface a circle with nothing
     // written in it shows.
     takes: () => [],
+    // Settled: a mount test is about what the screen draws once the
+    // read has landed, not about the frame before it.
+    takesLoading: () => false,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
@@ -194,10 +500,6 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const near: Dict = {
     supported: () => true,
     on: () => false,
-    // D174's three states. `session` is what enable() lands on, so a
-    // fixture that flips `on` gets the shape a real opt-in produces.
-    mode: () => "session",
-    until: () => Date.now() + 90 * 60_000,
     count: () => null,
     // D176's room mix — null by default, which is the quiet-street case.
     mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
@@ -218,12 +520,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const LIVE: Dict = {
     enabled: true,
     ready: true,
+    // Attached and not stale by default: a session the server has been
+    // heard from. `stale` models the warm paint whose reconcile failed
+    // (D356) — the store's own transitions between the two are pinned in
+    // data/warm-boot.test.ts against the real store, not here.
+    attached: !opts.stale,
+    stale: !!opts.stale,
     feedReady: true,
     demoInProd: !!opts.demoInProd,
-    // Non-empty only in the demoInProd case, matching the real store: the
+    // Non-empty only where a boot failed, matching the real store: the
     // label is what a failed boot leaves behind, and a fixture that always
     // carried one would let a test assert the reason is shown while live.
-    bootError: opts.demoInProd ? "auth/network-request-failed — fixture" : "",
+    bootError: opts.demoInProd || opts.stale ? "auth/network-request-failed — fixture" : "",
     uid: "u_fixture",
     displayName: "Tester",
     // No handle: an account that has not claimed one is the state a new
@@ -236,6 +544,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     updateAvailable: false,
     updateRequired: false,
     updateUrl: "",
+    // The read breaker (D332) is off in the fixture — the mount tests walk
+    // the crowd surfaces, not their paused states, which the panel suites
+    // pin one by one.
+    budgetPaused: false,
     stats: { bankSource: "fixture", aggsFetched: 2, answersFetched: 0 },
     social,
     near,
@@ -247,6 +559,16 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // The archive entries carry the bank fields the pager's do not, so
     // the Answers lens's branch chips and Scores have something to read.
     aggregated: () => deck,
+    // The Patterns pool's feed half. Empty rather than invented: the tab's
+    // live mount is asserted on its honest empty state (no loadings doc in
+    // jsdom), so fixture feed questions here would be furniture nothing
+    // reads.
+    coreFeedAggregated: () => [],
+    // The Scores lens's ask rows (D307). Empty by default: the fixture
+    // deck's one rating question already carries a vote in most cases,
+    // and the ask arm has its own unit suite (LiveMirrorLenses.test.tsx).
+    placeAsks: () => [],
+    placeAskTotal: () => 0,
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set
@@ -254,7 +576,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     aggFor: () => (tooSmall
       ? { tooSmall: true }
       : {
-        counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false,
+        counts: aggCounts ?? { 0: 12, 1: 8, 2: 5 },
+        total: aggCounts
+          ? Object.values(aggCounts).reduce((a, b) => a + b, 0)
+          : 25,
+        tooSmall: false,
         // A real breakdown, not `{}`. It was empty for as long as
         // nothing rendered from it, and that made the Mirror's
         // geographic stops paint ZERO answer rows under the fixture —
@@ -291,7 +617,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     circle: () => [
       {
         uid: "u_other", name: "Ada", mutual: true,
-        like: { shared: 2, same: 1, pct: 50 },
+        like: agreementOf(1, 2),
         answers: { "daily-000": 1, "daily-001": 0 },
       },
     ],
@@ -343,7 +669,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // ranked row rather than only the empty state.
     loadKindred: async () => {},
     kindred: () => [
-      { uid: "u_other", name: "Ada", like: { shared: 6, same: 5, pct: 83 } },
+      { uid: "u_other", name: "Ada", like: agreementOf(5, 6) },
     ],
     kindredLoading: () => false,
     kindredDepth: () => 6,
@@ -356,6 +682,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // test should see from a fixture with no test-item aggregates.
     loadSimilarity: async () => {},
     similarityLoading: () => false,
+    // The cells basis asks whether the aggregates have been READ before it
+    // states that a place has answered nothing. The fixture has them, so
+    // "ready" — the loading and failed arms are driven per case.
+    testAggsState: () => "ready" as "loading" | "ready" | "failed",
+    kindredState: () => "ready" as "loading" | "ready" | "failed",
     testFeedItems: () => [],
     myTestResults: () => ({
       big5: { title: "Big Five", dims: [
@@ -369,13 +700,29 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     kindredPeople: () => [
       {
         uid: "u_other", name: "Ada", city: opts.myCity ?? "Oslo, NO",
-        like: { shared: 6, same: 5, pct: 83 },
+        like: agreementOf(5, 6),
         results: { big5: { O: 80, C: 50, E: 45, A: 60, N: 50 } },
       },
     ],
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),
+    // The mount gate's two numbers (D265). Absent unless a case asks:
+    // `{}` is "no fit has published", which reads as a closed gate through
+    // patternsReady's own defaults rather than through a second branch.
+    patternsSignal: () => ({ ...(opts.patterns ?? {}) }),
+    // no answers in the fixture's corpus by default — the evidence is empty
+    // and every device solve stays at the origin, the honest cold state
+    answeredIndex: () => ({}),
+    // the nightly samples (D397): none in the fixture, so a fold falls back
+    // to the live rows the fixture already serves
+    loadVoterSample: async () => {},
+    // the cap's tail (D400): no question in the fixture is near the cap
+    loadOverflow: async () => {},
+    votersOrSample: () => [
+      { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
     // The daily pulse (D139): the fixture mirrors the real pair — the
@@ -386,6 +733,23 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       if (!votes[aid]) votes[aid] = String(optionIdx);
       return Promise.resolve();
     },
+    // The roster as the bank hands it over (D203). Two pulses on purpose:
+    // one on the default daily cadence and one that is not, so a fixture
+    // mount exercises the "not scheduled today" absence rather than only
+    // the answered/missed pair.
+    pulseQs: () => ([
+      { id: "pulse-pace", prompt: "What pace was today?", options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
+      { id: "pulse-sleep", prompt: "How did you sleep?", options: ["Badly", "Patchy", "OK", "Well", "Deeply"] },
+    ]),
+    // No pending pulse answer in the fixture: its votes are seeded, so the
+    // fold has counted them. The real store returns the option index only
+    // while `unaggregated` still holds it.
+    pulsePending: () => null,
+    // Same reason, one question wider: the fixture's votes are seeded as
+    // folded, so nothing here is unaggregated and every question answers
+    // null. A case that wants the other side of the fold overrides this
+    // member on the store it was handed, the way feed-insight-round does.
+    votePending: () => null,
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {
@@ -393,32 +757,69 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       }
       return out;
     },
-    // One Crossroads story (D136), shaped exactly as buildFeedGlobals emits
-    // it: eight per-ending counts in PATH_ENDINGS order, and a total. The
-    // counts are lopsided on purpose — a flat eight would make every branch
-    // the same width, so a card that ignored `counts` entirely and drew a
-    // uniform tree would look correct.
-    //
-    // `tooSmall` empties them, which is this fixture's way of asking for the
-    // nobody-has-finished-this-yet arm: total 0, no tree, no share chips.
-    pathQs: () => [{
-      id: "feed-fixture-path",
-      title: PATH_TITLE,
-      intro: "A fixture story, three forks deep.",
-      hue: 20,
-      nodes: Object.fromEntries(
-        ["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
-          k, { q: `Fork ${k === "_" ? "opening" : k}`, a: [{ t: `${k} left` }, { t: `${k} right` }] },
-        ]),
-      ),
-      endings: Object.fromEntries(
-        ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)))
-          .map((k) => [k, { name: `Ending ${k}`, line: `The ${k} road ends here.` }]),
-      ),
-      counts: tooSmall ? [0, 0, 0, 0, 0, 0, 0, 0] : [40, 5, 10, 5, 20, 5, 10, 5],
-      total: tooSmall ? 0 : 100,
-      live: true as const,
+    // The Map's Walks branch reads the story from here (D341: the CARD no
+    // longer does — it receives the feed item below as a prop).
+    pathQs: () => [pathStory],
+    // Catalogue picks (D14 gone live). The fixture mirrors the real
+    // quartet: a create-only entity write into the shared votes map, and
+    // the three board reads in the demo store's shapes. One two-row board
+    // so the reveal has something to lay out; `tooSmall` empties it, the
+    // freshly-live state where the viewer's own pick is the whole crowd.
+    votePick: (qid: string, entity: number) => {
+      if (!votes[qid]) votes[qid] = String(entity);
+    },
+    pickCanon: () => (tooSmall
+      ? { top: [], rest: 0, total: 0, restEntities: 0, restBelowFloor: false }
+      : {
+          top: [{ entity: 128514, count: 9 }, { entity: 10084, count: 4 }],
+          rest: 3, total: 16, restEntities: 0, restBelowFloor: false,
+        }),
+    pickSegs: () => (tooSmall ? [] : [{ dim: "ageBand", bucket: "18-24" }]),
+    pickSeg: (_qid: string, dim: string, bucket: string) => (
+      !tooSmall && dim === "ageBand" && bucket === "18-24"
+        ? { rows: [{ entity: 128514, count: 5 }, { entity: 10084, count: 2 }], cohort: 7 }
+        : null),
+    // Rank answers (D233): the create-only order write, into the shared
+    // votes map in the store's own joined form.
+    voteRank: (qid: string, order: number[]) => {
+      if (!votes[qid]) votes[qid] = order.join(",");
+    },
+    // Foresight CALL, tier A (D194). One open call, ungraded — the state
+    // the feed head shows most of the time, and the one the mount tests
+    // care about (the card renders, and it renders REAL bank shape rather
+    // than a demo cast). The grades map is present-but-empty-valued rather
+    // than null: null means "nothing read yet", in which state the card
+    // deliberately draws nothing, and a fixture that left it there would
+    // make every live mount test pass against an absent card.
+    callQs: () => [{
+      id: "call-fixture",
+      surface: "call",
+      seq: 0,
+      type: "call",
+      prompt: "Will the fixture question end up lopsided?",
+      options: ["It will", "It stays close"],
+      topic: null,
+      test: null,
+      active: true,
+      tier: "A",
+      resolvesAt: "2099-01-01",
+      rubric: { kind: "agg" as const, qid: "feed-fixture", test: "topShareAtLeast" as const, threshold: 60 },
+      counts: tooSmall ? [0, 0] : [61, 39],
     }],
+    callOutcomes: () => ({ "call-fixture": null }),
+    loadCallOutcomes: () => Promise.resolve(),
+    // Feed ads (D197). Empty by default, exactly like the shipped pool —
+    // `adCard` opts one in, so every other live case keeps asserting
+    // against the feed real users actually get.
+    feedAds: (): unknown[] => (opts.adCard
+      ? [{
+        id: "ad-fixture", seq: 0, advertiser: "Fixture Transit",
+        headline: "Night buses now run until three.",
+        body: "Every Friday and Saturday, on the four city lines.",
+        until: "2099-01-01", audience: { city: "Oslo, NO" },
+      }]
+      : []),
+    loadAds: () => Promise.resolve(),
     // (qid, optionId) — both strings. The spec layer calls this as
     // `window.LIVE.vote(id, String(val))`, and the first draft of this
     // fixture took a question OBJECT: the surface pin cannot catch that,
@@ -445,11 +846,29 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
+    // D331. Defaults to CONSENTED in the fixture, deliberately: every
+    // mount test that draws a political surface should exercise the path
+    // that publishes, and the refusal path has its own cases in
+    // political-consent.test.ts. A fixture defaulting to off would make
+    // the compass silently absent everywhere and read as a broken fold.
+    politicalConsented: () => true,
+    // Answered as well as consented — the fixture consents, so both are
+    // true. A decline is the case profileSetup's own suite covers.
+    politicalAnswered: () => true,
+    setPoliticalConsent: () => Promise.resolve(),
+    syncPassiveResults: () => {},
+    loadCityKindred: async () => {},
     // Learn (D32): the fixture answers nothing and has no aggregates, so
     // every learn reveal renders the ESTIMATE path with its label — which
     // is exactly the honest cold-start state the live tests should see.
     learnAnswer: () => {},
     learnAgg: () => null,
+    // …and NOT pending. The fixture's null is a settled absence — there is
+    // nothing to fetch — so its cards render the honest "nobody has
+    // answered" state rather than the "Counting…" one. A fixture that
+    // answered `true` here would leave every live learn card waiting
+    // forever on a read that is not happening.
+    learnAggLoading: () => false,
     // Nothing written this session, so nothing pending — the fixture's
     // reveals read exactly what `learnAgg` gives them.
     learnMine: () => null,
@@ -457,10 +876,20 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // null: the fixture has no aggregates, so the honest state it renders
     // is the labelled estimate.
     loadLearnAggs: async () => {},
+    emailCreate: async () => {},
+    abandonSignIn: async () => {},
+    accountEmail: null,
+    needsEmailVerify: false,
+    refreshVerification: async () => true,
+    sendVerification: async () => {},
+    emailReset: async () => {},
+    emailSignIn: async () => {},
+    linkApple: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture
-    // renders — the branch the privacy panel and profile overlay both
-    // describe in copy.
+    // renders — the identity row's "anonymous session" branch
+    // (profile-overlay.jsx, D344 amendment). A case that needs the linked
+    // branch flips this in its prep.
     linked: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
@@ -477,8 +906,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const saved: Dict = {
     LIVE: w.LIVE,
     WORLD_FEED_QS: w.WORLD_FEED_QS,
-    TEST_FEED_QS: w.TEST_FEED_QS,
     WORLD_FEED_COMMENTS: w.WORLD_FEED_COMMENTS,
+    // TEST_FEED_QS is NOT here any more: since D280 the test pool travels
+    // through data/testFeed.ts rather than the window, and `restore()`
+    // hands it back with resetTestFeed(). A saved window key would have
+    // restored a value nothing reads.
   };
 
   // defineProperty, not Object.assign: four real members (stats, appBuild,
@@ -547,9 +979,124 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       })),
       live: true,
       tooSmall,
+      // D195: the disclosure travels ON the card, so world-feed's dispatch
+      // reads the same field buildFeedGlobals emits.
+      ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" }, ...(opts.sponsorLink ? { link: opts.sponsorLink } : {}) }, until: "2099-01-01" }
+        : {}),
+      // D231: the ask window travels ON the card too, for the same reason
+      // — world-feed reads the fields buildFeedGlobals emits.
+      ...(opts.windowed && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { from: dayKey(0), until: dayKey(3) }
+        : {}),
+      // D281: the background rides ON the card too — same rule again, the
+      // feed reads the field buildFeedGlobals emits.
+      ...(opts.background && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { bg: BG_TEXT }
+        : {}),
     }),
   );
-  w.TEST_FEED_QS = [];
+  // The Crossroads story rides the pool as a member (D341), the shape
+  // buildFeedGlobals emits: the story's fields plus its home topic (the
+  // bank's `topic`, 'dilemma' — an always-on channel), the prompt search
+  // reads, and the `n` the "top" sort keys on.
+  (w.WORLD_FEED_QS as Dict[]).push({
+    ...pathStory, cat: "dilemma", type: "path", prompt: PATH_TITLE,
+    n: tooSmall ? 0 : 100,
+  });
+  // The live pick card, shaped exactly as buildFeedGlobals emits it: no
+  // options (the catalogue is the answer space), `n` from the agg total,
+  // and the domain one of the committed catalogues — emoji, matching the
+  // entities pickCanon above answers with.
+  if (opts.pickCard) {
+    (w.WORLD_FEED_QS as Dict[]).push({
+      id: "pick-fixture",
+      cat: "fav",
+      type: "pick",
+      domain: "emoji",
+      prompt: PICK_PROMPT,
+      n: tooSmall ? 0 : 16,
+      live: true,
+      noCountsYet: !!tooSmall,
+    });
+  }
+  // The live rank card (D233), buildFeedGlobals' own shape. The crowd is
+  // pre-derived (the store does that, not the card) — null in the
+  // tooSmall/first-voter arm, where renderRank must show your order and
+  // no crowd column rather than crashing on q.crowd[it].
+  if (opts.rankCard) {
+    (w.WORLD_FEED_QS as Dict[]).push({
+      id: "rank-fixture",
+      cat: "culture",
+      type: "rank",
+      prompt: RANK_PROMPT,
+      items: ["Alpha", "Beta", "Gamma", "Delta"],
+      crowd: tooSmall ? null : [1, 3, 2, 4],
+      // The crowd the order rests on — the aggregate's nine rankings less
+      // the viewer's own, which `rankCrowd` subtracts out of the order.
+      // `votes` is the whole aggregate and would overstate the crowd by
+      // one, which is exactly the distinction the card now prints.
+      crowdN: tooSmall ? 0 : 8,
+      votes: tooSmall ? 0 : 9,
+      live: true,
+      noCountsYet: !!tooSmall,
+    });
+  }
+  // The live test pool, through the publisher the store itself uses
+  // (D280). This used to be `w.TEST_FEED_QS = []`, which asserted nothing
+  // once D249 pointed the feed at the demo import instead — the fixture
+  // said "no demo test cards here" and the mounted app served a hundred of
+  // them, with hash-invented counts, through every case in this suite.
+  // Empty by default so a live feed holds exactly the cards a case asked
+  // for; `testCard` adds one bank item, shaped as buildFeedGlobals emits
+  // it, for the cases that need a real one to bind on.
+  publishTestFeed(
+    opts.testCard
+      ? [{
+        id: "test-political-99",
+        cat: "test",
+        type: "vote",
+        test: "political",
+        prompt: TEST_ITEM_PROMPT,
+        options: TEST_ITEM_OPTIONS.map((label, j) => ({
+          label,
+          count: tooSmall ? 0 : [11, 7, 5, 3, 2][j],
+        })),
+        live: true,
+        noCountsYet: !!tooSmall,
+      }]
+      : [],
+  );
+  // The live learn bank. Empty by default — see `learnCard` — and that
+  // default is the assertion: a live build serves the cards its backend
+  // holds, never the sample compiled in for the demo build.
+  //
+  // SIX cards, not one, and the number is the scheduler's rather than a
+  // taste call: `learn-progress.js`'s GAP is 4, so a case that walks a
+  // card's spacing has to be able to plan four others without repeating.
+  // A one-card bank is a degenerate pool no real backend has.
+  publishLearnBank(
+    opts.learnCard
+      ? Array.from({ length: 6 }, (_, i) => ({
+        id: `fixlearn${i + 1}`,
+        f: "cell",
+        q: i === 0 ? LEARN_CARD_PROMPT : `${LEARN_CARD_PROMPT} (${i + 1})`,
+        // Distinct labels per card, which is what the bank has and what a
+        // test needs: the reveal cases find a row by its option's
+        // accessible name, and six cards sharing one option set puts four
+        // identical buttons on screen at once.
+        a: i === 0 ? LEARN_CARD_OPTIONS : LEARN_CARD_OPTIONS.map((o) => `${o} ${i + 1}`),
+        // Varied, like the bank's own: `LEARN_ORDER` permutes at render,
+        // so an authored index is invisible to a reader either way — but
+        // a fixture whose answer is always index 0 would pass a test that
+        // reads the first button and calls it correct.
+        c: i % LEARN_CARD_OPTIONS.length,
+        t: (i + 1) % LEARN_CARD_OPTIONS.length,
+        p: 50 + i * 4,
+        k: `The bank, not the bundle (${i + 1})`,
+      }))
+      : [],
+  );
   w.WORLD_FEED_COMMENTS = {};
 
   return {
@@ -558,6 +1105,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     votes,
     restore() {
       restoreLive();
+      resetTestFeed();
+      resetLearnBank();
       for (const [k, v] of Object.entries(saved)) {
         if (k === "LIVE") continue;          // restoreLive owns that one
         if (v === undefined) delete w[k];

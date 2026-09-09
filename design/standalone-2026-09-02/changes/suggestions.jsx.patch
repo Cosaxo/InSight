@@ -1,0 +1,281 @@
+--- recorded-built/suggestions.jsx
++++ 2026-09-02-built/suggestions.jsx
+@@ -108,6 +108,26 @@
+ }
+ const SG_TYPES = [['binary', 'this or that'], ['dilemma', 'dilemma'], ['choice', 'multiple choice'], ['scale', 'scale']];
+ 
++// quiet spec chips — pricing law as scannable tokens instead of a paragraph
++function SgTok({
++  children
++}) {
++  return /*#__PURE__*/React.createElement("span", {
++    style: {
++      border: '0.5px solid var(--rule)',
++      background: 'var(--surface)',
++      borderRadius: 999,
++      padding: '3px 9px',
++      fontFamily: 'var(--sans)',
++      fontSize: 10.5,
++      fontWeight: 700,
++      color: 'var(--ink-2)',
++      whiteSpace: 'nowrap',
++      fontVariantNumeric: 'tabular-nums'
++    }
++  }, children);
++}
++
+ // ── your submissions: status first, and a decline that states the standard it
+ // missed, the number behind it, and the way forward.
+ function SgMine({
+@@ -293,8 +313,8 @@
+ function SgRateRow({
+   scope,
+   name,
+-  note,
+-  onPick
++  onPick,
++  i
+ }) {
+   const P = window.WF_PAID;
+   const M = P.MARKET;
+@@ -302,7 +322,7 @@
+   const nBooked = d.booked.filter(Boolean).length;
+   const firstOpen = d.booked.indexOf(0);
+   return /*#__PURE__*/React.createElement("button", {
+-    className: "card press",
++    className: "card press sg-rise",
+     onClick: onPick,
+     style: {
+       width: '100%',
+@@ -310,103 +330,138 @@
+       textAlign: 'left',
+       display: 'flex',
+       flexDirection: 'column',
+-      gap: 10,
+-      padding: '13px 15px 14px',
++      gap: 11,
++      padding: '14px 15px 15px',
+       cursor: 'pointer',
+       WebkitAppearance: 'none',
+-      appearance: 'none'
++      appearance: 'none',
++      animationDelay: (i || 0) * 70 + 'ms'
+     }
+   }, /*#__PURE__*/React.createElement("div", {
+     style: {
+       display: 'flex',
+-      alignItems: 'baseline',
+-      gap: 8
++      alignItems: 'flex-start',
++      gap: 10
++    }
++  }, /*#__PURE__*/React.createElement("span", {
++    style: {
++      flex: 1,
++      minWidth: 0
+     }
+   }, /*#__PURE__*/React.createElement("span", {
+     style: {
++      display: 'block',
+       fontFamily: 'var(--sans)',
+-      fontSize: 15.5,
++      fontSize: 17.5,
+       fontWeight: 800,
+-      letterSpacing: '-0.2px',
++      letterSpacing: '-0.02em',
++      lineHeight: 1.1,
+       color: 'var(--ink)'
+     }
+   }, name), /*#__PURE__*/React.createElement("span", {
+     style: {
++      display: 'flex',
++      alignItems: 'baseline',
++      gap: 6,
++      marginTop: 5,
++      flexWrap: 'wrap'
++    }
++  }, /*#__PURE__*/React.createElement("span", {
++    style: {
+       fontFamily: 'var(--sans)',
+-      fontSize: 11,
++      fontSize: 10.5,
++      fontWeight: 800,
++      letterSpacing: '0.09em',
++      textTransform: 'uppercase',
++      color: d.tone
++    }
++  }, d.word), /*#__PURE__*/React.createElement("span", {
++    style: {
++      fontFamily: 'var(--sans)',
++      fontSize: 10.5,
+       fontWeight: 600,
+-      color: 'var(--ink-3)'
++      color: 'var(--ink-3)',
++      fontVariantNumeric: 'tabular-nums'
+     }
+-  }, note), /*#__PURE__*/React.createElement("span", {
++  }, nBooked, " of 14 booked \xB7 \xD7", M.idx[scope], " today"))), /*#__PURE__*/React.createElement("span", {
+     style: {
+-      flex: 1
++      flexShrink: 0,
++      textAlign: 'right'
+     }
+-  }), /*#__PURE__*/React.createElement("span", {
++  }, /*#__PURE__*/React.createElement("span", {
+     style: {
++      display: 'block',
+       fontFamily: 'var(--sans)',
+-      fontSize: 15,
++      fontSize: 22,
+       fontWeight: 800,
+-      letterSpacing: '-0.2px',
++      letterSpacing: '-0.03em',
++      lineHeight: 1,
+       color: 'var(--ink)',
+       fontVariantNumeric: 'tabular-nums'
+     }
+   }, P.fmt(M.rate(scope))), /*#__PURE__*/React.createElement("span", {
+     style: {
++      display: 'block',
++      marginTop: 3,
+       fontFamily: 'var(--sans)',
+-      fontSize: 10.5,
+-      fontWeight: 600,
++      fontSize: 9,
++      fontWeight: 700,
++      letterSpacing: '0.08em',
++      textTransform: 'uppercase',
+       color: 'var(--ink-3)'
+     }
+-  }, "/ answer")), /*#__PURE__*/React.createElement("div", {
++  }, "per answer"))), /*#__PURE__*/React.createElement("div", {
+     "aria-label": nBooked + ' of the next 14 days booked',
+     style: {
+       display: 'flex',
+-      gap: 2.5
++      gap: 3,
++      alignItems: 'flex-end',
++      height: 16
+     }
+-  }, d.booked.map((b, i) => /*#__PURE__*/React.createElement("span", {
+-    key: i,
++  }, d.booked.map((b, j) => /*#__PURE__*/React.createElement("span", {
++    key: j,
+     "aria-hidden": "true",
++    className: "sg-tick",
+     style: {
+       flex: 1,
+-      height: 7,
+-      borderRadius: 2,
+-      background: i === firstOpen ? 'var(--accent)' : b ? 'color-mix(in oklch, var(--ink) 72%, var(--surface-3))' : 'var(--surface-3)'
++      borderRadius: 3,
++      animationDelay: (i || 0) * 70 + j * 22 + 'ms',
++      height: b ? 16 : 7,
++      background: j === firstOpen ? 'var(--accent)' : b ? 'color-mix(in oklch, ' + d.tone + ' 85%, var(--surface-3))' : 'var(--surface-3)'
+     }
+   }))), /*#__PURE__*/React.createElement("div", {
+     style: {
+       display: 'flex',
+       alignItems: 'center',
+-      gap: 8,
+-      flexWrap: 'wrap'
++      gap: 8
+     }
+   }, /*#__PURE__*/React.createElement("span", {
+     style: {
+       fontFamily: 'var(--sans)',
+       fontSize: 10.5,
+-      fontWeight: 800,
+-      letterSpacing: '0.09em',
+-      textTransform: 'uppercase',
+-      color: d.tone
+-    }
+-  }, d.word), /*#__PURE__*/React.createElement("span", {
+-    style: {
+-      fontFamily: 'var(--sans)',
+-      fontSize: 11.5,
+       fontWeight: 600,
+       color: 'var(--ink-3)'
+     }
+-  }, nBooked, " of 14 days booked \xB7 \xD7", M.idx[scope], " today"), /*#__PURE__*/React.createElement("span", {
++  }, "the next 14 days \u2014 tall is booked"), /*#__PURE__*/React.createElement("span", {
+     style: {
+       flex: 1
+     }
+   }), /*#__PURE__*/React.createElement("span", {
+     style: {
++      display: 'inline-flex',
++      alignItems: 'center',
++      gap: 5,
++      borderRadius: 999,
++      padding: '4px 10px',
++      background: 'color-mix(in oklch, var(--accent) 9%, transparent)',
++      border: '0.5px solid color-mix(in oklch, var(--accent) 30%, var(--rule))',
+       fontFamily: 'var(--sans)',
+-      fontSize: 11.5,
++      fontSize: 11,
+       fontWeight: 750,
+-      color: 'var(--accent-ink)'
++      color: 'var(--accent-ink)',
++      whiteSpace: 'nowrap'
+     }
+-  }, "next open ", d.nextOpen)));
++  }, "next open ", d.nextOpen, " \u2192")));
+ }
+ function SgRateBoard({
+   onPick
+@@ -418,6 +473,7 @@
+     window.addEventListener('is-currency', f);
+     return () => window.removeEventListener('is-currency', f);
+   }, []);
++  const toks = [P.fmt(P.MARKET.base) + ' base', '× demand — sold ÷ available', 'recomputed daily', 'floor ×' + P.MARKET.floorX, 'ceiling ×' + P.MARKET.ceilX, 'billed per answer', 'capped ' + P.fmt(P.PRICE.capEur)];
+   return /*#__PURE__*/React.createElement("div", {
+     style: {
+       display: 'flex',
+@@ -447,29 +503,38 @@
+   }, "prices are public")), /*#__PURE__*/React.createElement(SgRateRow, {
+     scope: "city",
+     name: sgPlace().city,
+-    note: "one paid slot a day",
++    i: 0,
+     onPick: () => onPick('city')
+   }), /*#__PURE__*/React.createElement(SgRateRow, {
+     scope: "country",
+     name: sgPlace().country,
+-    note: "one paid slot a day",
++    i: 1,
+     onPick: () => onPick('country')
+   }), /*#__PURE__*/React.createElement(SgRateRow, {
+     scope: "world",
+     name: "Everyone",
+-    note: "one paid slot a day",
++    i: 2,
+     onPick: () => onPick('world')
+   }), /*#__PURE__*/React.createElement("div", {
+     style: {
+-      margin: '0 2px',
++      display: 'flex',
++      flexWrap: 'wrap',
++      alignItems: 'center',
++      gap: 5,
++      margin: '2px 2px 0'
++    }
++  }, toks.map(t => /*#__PURE__*/React.createElement(SgTok, {
++    key: t
++  }, t))), /*#__PURE__*/React.createElement("div", {
++    style: {
++      margin: '-3px 2px 0',
+       fontFamily: 'var(--sans)',
+-      fontSize: 11.5,
++      fontSize: 10.5,
+       fontWeight: 600,
+       color: 'var(--ink-3)',
+-      lineHeight: 1.5,
+-      textWrap: 'pretty'
++      lineHeight: 1.5
+     }
+-  }, "The line is ", P.fmt(P.MARKET.base), " \xD7 the cohort's demand index \u2014 sold \xF7 available person-days, recomputed daily, floored \xD70.9 and ceilinged \xD72.5. The line you lock at booking is the line you keep; billed per answer, capped at ", P.fmt(P.PRICE.capEur), "."));
++  }, "The line you lock at booking is the line you keep."));
+ }
+ function SgDoorChip({
+   on,

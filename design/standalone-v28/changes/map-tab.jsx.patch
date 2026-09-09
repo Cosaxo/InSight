@@ -63,7 +63,27 @@
  
    // active branches: any that hold at least one answer — renames applied
    const allCats = useMemo(() => {
-@@ -182,7 +222,12 @@
+@@ -172,17 +212,31 @@
+   const anchors = useMemo(() => (window.MapAnchors ? window.MapAnchors.list() : []), []);
+   const AR = 170;
+   const laid = useMemo(() => {
+-    const { pos: p, fields: f } = mtClusterLayout(nodes, cats);
++    const { pos: p, fields: f, rings: rg } = mtClusterLayout(nodes, cats);
++    // a group holding a single branch collapses a level: the branch cloud sits
++    // on the group's own disc, so no orphan hub dot floats between them
++    if (openGroup && cats.length === 1 && p[cats[0].id]) {
++      const c0 = p[cats[0].id], dx = -c0.x, dy = -c0.y;
++      Object.keys(p).forEach((k) => { if (k !== 'root') p[k] = { x: p[k].x + dx, y: p[k].y + dy }; });
++      (f || []).forEach((fl) => { fl.x += dx; fl.y += dy; });
++      (rg || []).forEach((r) => { r.x += dx; r.y += dy; });
++    }
+     anchors.forEach((a, i) => {
+       const ang = -Math.PI / 2 + (i * 2 * Math.PI) / (anchors.length || 1);
+       p['ax-' + a.id] = { x: Math.cos(ang) * AR, y: Math.sin(ang) * AR };
+     });
+-    return { pos: p, fields: f };
++    return { pos: p, fields: f, rings: rg || [] };
+   }, [nodes, cats, anchors]);
    const pos = laid.pos;
  
    // ── selection ──────────────────────────────────────────────────────────────
@@ -74,10 +94,40 @@
 +    if (s) { try { delete window.MAP_SELECT; } catch (e) {} return s; }
 +    return null;
 +  });     // 'root' | catId | nodeId | 'ax-<anchor>'
++  const cardTouch = useRef(null); // swipe start on the bottom card
    const [cut, setCut] = useState(null);     // time-scrub position (null = off)
    const scrubAnim = useRef(null);
    const [hlCat, setHlCat] = useState(null); // spotlit branch id
-@@ -565,6 +610,9 @@
+@@ -532,6 +586,28 @@
+     fitRing();
+   };
+ 
++  // swipe the bottom card left/right → hop to the nearest dot in that direction.
++  // Siblings first (the same fan/branch), then anything selectable — so a swipe
++  // walks the neighbourhood without ever needing to re-aim at a 10px dot.
++  const swipeNext = (dir) => {
++    const cur = sel ? nodes.find((n) => n.id === sel && !n.quiet) : null;
++    if (!cur || !pos[cur.id]) return;
++    const p0 = pos[cur.id];
++    const pick = (list) => {
++      let best = null, bd = Infinity;
++      list.forEach((n) => {
++        if (n.id === cur.id || n.quiet || !pos[n.id]) return;
++        const dx = (pos[n.id].x - p0.x) * dir;
++        if (dx < 8) return;
++        const d = dx + Math.abs(pos[n.id].y - p0.y) * 1.6; // prefer straight-across hops
++        if (d < bd) { bd = d; best = n; }
++      });
++      return best;
++    };
++    const hit = pick(nodes.filter((n) => n.parentId === cur.parentId)) || pick(nodes);
++    if (hit) selectItem(hit.id);
++  };
++
+   // semantic back — one level out per tap: answer → its branch → group → all groups
+   const stepBack = () => {
+     if (selNode) {
+@@ -565,6 +641,9 @@
    const ringRecede = !!hlCat && !selNode;
    // the ring is a mode, not furniture — closed until You or an answer asks for it
    const ringOpen = sel === 'root' || !!selAnchor || !!(selNode && selNode.daily && !selNode.learn);
@@ -87,7 +137,74 @@
    // labels counter-scale so on-screen type never drops below reading size
    const hubFs = Math.min(48, Math.max(13, 13 / (catScale * view.z)));
    const centerFs = Math.min(48, Math.max(13.5, 13.5 / (centerScale * view.z)));
-@@ -705,7 +753,7 @@
+@@ -598,16 +677,18 @@
+       if (n.quiet) return;   // group level: mass without labels
+       // a spotlit branch owns the stage — never let dimmed branches' labels ghost through
+       if (hlSet && !hlSet.has(n.id) && sel !== n.id) return;
+-      // topic labels surface a beat earlier than answer chips — structure first
+-      const zThr = n.sub ? MT_ZLAB * 0.6 : MT_ZLAB;
++      // topic labels surface a beat earlier than answer chips — structure first;
++      // bullseye extremes (sharpest / blind spot) speak at fit zoom, the middles
++      // hold their tongue until you lean in
++      const zThr = n.ext ? MT_ZLAB * 0.45 : n.fore && n.gi != null ? MT_ZLAB * 1.5 : n.sub ? MT_ZLAB * 0.6 : MT_ZLAB;
+       if (!(z >= zThr || sel === n.id || (hlSet && hlSet.has(n.id)))) return;
+       const txt = String(n.daily ? n.tag : n.label);
+-      const w = n.sub ? 14 + txt.length * 6 : 20 + txt.length * 6.8;
++      const w = (n.sub ? 14 + txt.length * 6 : 20 + txt.length * 6.8) + (n.ctx ? 6 + n.ctx.length * 5 : 0);
+       // the real label is side-anchored: it hangs left or right of the dot
+       const sx = p.x * z + view.x;
+       const labL = sx > (ref.current ? ref.current.clientWidth : 480) / 2;
+       const x0 = labL ? sx - 8 - w : sx + 8;
+-      const pri = sel === n.id ? -1e6 : n.sub ? -1e5 + (n.age ?? 0) : (n.age ?? 999);
++      const pri = sel === n.id ? -1e6 : n.ext ? -2e5 + (n.age ?? 0) : n.sub ? -1e5 + (n.age ?? 0) : (n.age ?? 999);
+       cands.push({ id: n.id, x0, x1: x0 + w, y: p.y * z, pri });
+     });
+     cands.sort((a, b) => a.pri - b.pri);
+@@ -619,19 +700,21 @@
+     return keep;
+   })();
+ 
++  // the collapsed solo branch: its hub and spoke stay off — the group disc IS the hub
++  const soloCat = openGroup && cats.length === 1 ? cats[0].id : null;
+   // edges: branch → sub → answer — trunks to topics, twigs to answers
+   const edges = [];
+   // spokes: You → each branch hub — faint gravity lines so the whole map reads
+   // as one system radiating from You, not a scatter of unconnected islands
+   cats.forEach((c) => {
+-    if (!pos[c.id] || !pos.root) return;
++    if (!pos[c.id] || !pos.root || c.id === soloCat) return;
+     edges.push({ from: 'root', to: c.id, hue: c.hue, w: 1.6, spoke: true });
+   });
+   nodes.forEach((n) => {
+     if (!pos[n.id] || !pos[n.parentId]) return;
+     const catId = mtTopCat(n, byId);
+     const cat = cats.find((c) => c.id === catId);
+-    edges.push({ from: n.parentId, to: n.id, hue: cat ? cat.hue : 250, w: n.sub ? 2.2 : 1.3 });
++    edges.push({ from: n.parentId, to: n.id, hue: !n.quiet && n.hue != null ? n.hue : cat ? cat.hue : 250, w: n.sub ? 2.2 : 1.3 });
+   });
+ 
+   // ---- card ----
+@@ -682,6 +765,19 @@
+               ></div>
+             );
+           }) : null}
++          {/* Reads bullseye — hairline accuracy rings around the hub; closer = sharper */}
++          {laid.rings.map((rg) => {
++            const rcat = cats.find((c) => c.id === rg.id);
++            const rdim = hlSet && !hlSet.has(rg.id);
++            return rg.radii.map((r, i) => (
++              <div
++                key={rg.id + '-' + i}
++                className="mmt-ring"
++                style={{ '--hue': rcat ? rcat.hue : 300, width: r * 2, height: r * 2, opacity: rdim ? 0.15 : 1 - i * 0.28, transform: `translate(${rg.x}px, ${rg.y}px) translate(-50%, -50%)` }}
++                aria-hidden="true"
++              ></div>
++            ));
++          })}
+           <svg className="mmt-edges" viewBox="-1800 -1800 3600 3600" style={{ left: -1800, top: -1800, width: 3600, height: 3600 }}>
+             {edges.map((e, i) => {
+               let op = 0.75;
+@@ -705,7 +801,7 @@
  
            {/* centre — you, ringed by your profile anchors */}
            {anchorsOn && !openGroup ? (
@@ -96,7 +213,7 @@
            ) : null}
            <div
              className={'mmt-node mmt-center' + (openGroupDef ? ' is-group' : '') + (sel === 'root' ? ' is-sel' : '') + (selAnchor || ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-solo')}
-@@ -730,7 +778,7 @@
+@@ -730,7 +826,7 @@
              const isFilter = effFilter === a.id;
              const soft = (selAnchor && !isSel) || ringRecede;
              const lab = showALab || isSel || sel === 'root' || !!selNode;
@@ -105,7 +222,82 @@
              return (
                <div
                  key={a.id}
-@@ -866,6 +914,10 @@
+@@ -752,7 +848,7 @@
+           {/* branch hubs */}
+           {cats.map((c) => {
+             const p = pos[c.id];
+-            if (!p) return null;
++            if (!p || c.id === soloCat) return null;
+             const isSel = sel === c.id;
+             const cnt = catCount(c.id);
+             const hubSz = 13 + Math.min(cnt, 12) * 1.5;
+@@ -761,13 +857,14 @@
+             return (
+               <div
+                 key={c.id}
+-                className={'mmt-node mmt-hub' + (isSel ? ' is-sel' : '') + (hlSet && !hlSet.has(c.id) ? ' is-dim' : '') + (hubLab ? '' : ' is-nolab')}
++                className={'mmt-node mmt-hub' + (isSel ? ' is-sel' : '') + (hlSet && !hlSet.has(c.id) ? ' is-dim' : '') + (hubLab ? '' : ' is-nolab') + (c.waiting ? ' is-wait' : '')}
+                 data-screen-label={c.label}
+                 style={{ '--hue': c.hue, transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${catScale})` }}
+                 onClick={(e) => { e.stopPropagation(); selectCat(c.id); }}
+               >
+                 <span className="mmt-hub-dot" style={{ width: hubSz, height: hubSz }}></span>
+                 <span className="mmt-hub-label" style={{ fontSize: hubFs }}>{c.label}</span>
++                {c.badge ? <span className="mmt-hub-badge" style={{ fontSize: Math.max(9.5, hubFs * 0.7) }}>{c.badge}</span> : null}
+               </div>
+             );
+           })}
+@@ -782,8 +879,9 @@
+             const age = n.age ?? 30;
+             const fresh = recency && n.daily && age <= 7;
+             const off = hidden && hidden.has(n.id);
+-            // strict size ladder — hub > answer > topic; new dots land large and settle
+-            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
++            // strict size ladder — hub > answer > topic; new dots land large and
++            // settle. Foresight reads size by evidence: more reads logged = heavier dot
++            const sz = n.person ? 17 : n.ev != null ? 9 + Math.min(n.ev, 24) * 0.3 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
+             const showLab = !n.quiet && labKeep.has(n.id);
+             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
+             return (
+@@ -793,7 +891,7 @@
+                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
+                   + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.age === 0 ? ' is-today' : '')}
+                 style={{
+-                  '--hue': cat ? cat.hue : 250,
++                  '--hue': !n.quiet && n.hue != null ? n.hue : cat ? cat.hue : 250,
+                   width: sz, height: sz,
+                   transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${itemScale})`,
+                 }}
+@@ -803,7 +901,7 @@
+                 {n.person
+                   ? <span className="mmt-pdot" style={{ '--deg': Math.round((n.score || 0) * 360) + 'deg' }}></span>
+                   : <span className="mmt-ddot"></span>}
+-                <span className="mmt-dlab" style={{ fontSize: n.sub ? dotFs * 0.9 : dotFs }}>{n.daily ? n.tag : n.label}</span>
++                <span className="mmt-dlab" style={{ fontSize: n.sub ? dotFs * 0.9 : dotFs }}>{n.daily ? n.tag : n.label}{n.ctx ? <span className="mmt-dlab-ctx">{' · ' + n.ctx}</span> : null}</span>
+               </div>
+             );
+           })}
+@@ -857,7 +955,18 @@
+ 
+       {/* bottom card */}
+       {sel ? (
+-        <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
++        <div
++          className="mmt-card mmt-ui"
++          style={{ '--hue': cardHue }}
++          onTouchStart={(e) => { cardTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
++          onTouchEnd={(e) => {
++            const t0 = cardTouch.current; cardTouch.current = null;
++            if (!t0 || !e.changedTouches || !e.changedTouches[0]) return;
++            const dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y;
++            // a clear horizontal fling, not a scroll: swipe left = the dot to the right
++            if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.4) swipeNext(dx < 0 ? 1 : -1);
++          }}
++        >
+           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
+           {sel === 'root' ? (
+             <MTRootCard count={allAnswers.length} anchorCount={anchors.length}></MTRootCard>
+@@ -866,6 +975,10 @@
            ) : selCat ? (
              selCat.id === 'circle-read' && window.MTPeopleCard ? (
                <MTPeopleCard onPick={selectItem} key="people"></MTPeopleCard>
@@ -116,7 +308,18 @@
              ) : (
              <MTBranchCard
                cat={selCat}
-@@ -892,7 +944,13 @@
+@@ -874,7 +987,9 @@
+             ></MTBranchCard>
+             )
+           ) : selIsSub ? (
+-            selNode.learn && window.MTLearnSubCard ? (
++            selNode.fore && window.MTForeDimCard ? (
++              <window.MTForeDimCard node={selNode} onPick={selectItem} key={selNode.id}></window.MTForeDimCard>
++            ) : selNode.learn && window.MTLearnSubCard ? (
+               <MTLearnSubCard
+                 node={selNode}
+                 rows={answers.filter((n) => n.parentId === selNode.id).sort((a, b) => a.age - b.age)}
+@@ -892,7 +1007,13 @@
              ></MTSubCard>
              )
            ) : selNode ? (

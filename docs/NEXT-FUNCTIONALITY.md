@@ -32,8 +32,8 @@ Two discoveries reshaped the owner's list more than any opinion could:
 
 | Idea | Verdict | Size | The constraint that shapes it |
 | --- | --- | --- | --- |
-| Current events | **Build, on the feed** | S–M | Daily questions cannot retire (positional deck; D97 records the gap). The feed already has `active:false` and a topic taxonomy. |
-| Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' day-keyed id (`g_{gid}_{day}`) is the working precedent to copy. |
+| Current events | **BUILT (D231)** | S–M | Daily questions cannot retire (positional deck; D97 records the gap). The feed already has `active:false` and a topic taxonomy. |
+| Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' composite id (`g_{gid}_{day}` when this was written; `g_{gid}_r{n}` since D426) is the working precedent to copy. |
 | Mood as the first pulse question | **Decide separately** | S on top | Mood tracking moves the store forms (Health is "not collected" today) and makes a public per-person series — both are owner decisions, not engineering. |
 | Types focus | **Build tier 1 now; tier 2 is a real decision** | M / L | Tier 1 rides data that is already public. Tier 2 (type as a breakdown dim) amends the standing "a test result is never a breakdown dim" claim (D8, `docs/data-inventory.md`). |
 | Height | **Build** — a banded anchor, the age-band pattern | M | Bands, never centimetres, server-side; the device folds and discards the number the way `locate.ts` folds coordinates. |
@@ -41,13 +41,20 @@ Two discoveries reshaped the owner's list more than any opinion could:
 | Facial symmetry | **Refuse** | — | The anonymous variants fail the same trilemma (§4), and the measurement itself is junk on a phone camera regardless of where the result goes. |
 | Genetics | **Refuse for now** (the owner already said "future") | — | Art. 9 data cannot live in a world-readable profile; an acceptable version is a separate consented tier, i.e. a different product posture. |
 | Suggest a question | **Build — the shortest distance to value** | M | The UI, the dedup gate and the `community` provenance source all exist; what is missing is a collection, a callable and the human gate wiring. |
-| Paid featured questions | **Build the contract path now; self-serve later** | S then L | Already the recorded primary revenue intent (`docs/MONETIZATION.md`). The notes refuse a *delivery* auction and precise targeting; a price auction over capped, disclosed slots survives both (§6). |
-| Predictions (Foresight CALL) | **Designed in already; tier A buildable now** | M | The blocker was never stakes or money — it is resolution integrity (D127). Tier A self-resolves on the app's own aggregates; tier B is how news predictions arrive. |
+| Paid featured questions | **BUILT, and unsold (D195)** | S then L | Already the recorded primary revenue intent (`docs/MONETIZATION.md`). The machinery ships — disclosure band, one-card cap, on-device audience match, `until` window, `sponsor` provenance — with zero sponsored questions in the bank, because inventing a buyer is D1 pointed at money. The notes still refuse a *delivery* auction and precise targeting; a price auction over capped, disclosed slots survives both (§6) and is still a note. |
+| Predictions (Foresight CALL) | **BUILT then RETIRED (D194 → D196)** | M | The blocker was never stakes or money — it is resolution integrity (D127). Tier A self-resolves on the app's own aggregates and the device re-grades it, and it turned out not to be the wanted game: a prediction is about the world. Retired in service, machinery intact, waiting on a real-event (tier B) design. |
 
 ## 1 · Current events — a category that stops being asked
 
 **The wanted thing:** questions about what is happening now, which stop
 showing up once they are stale.
+
+*Status 2026-08-23: **BUILT** — D231 is the record. The `now` topic, both
+window ends, the bounds, the CALL refusal, the farm exclusion, the card's
+real ring and a first batch of six are live. Two things below did not
+survive contact and D231 carries both: the archive bullet's surface no
+longer exists (see the strikethrough note there), and `until` gained a
+partner rather than staying one field.*
 
 **Verdict: build it on the feed, not the daily.** The daily deck is
 positional and epoch-based (`computeDeckIds`, `src/v2/data/deck.ts`) —
@@ -87,9 +94,25 @@ switch the lane off entirely.
   the Mirror is the product — and the answer rows should print the ask
   window ("asked 12–19 Aug") so a reader a year later knows which crowd
   this was. That is a `ui/LiveAnswerRows.tsx` / `cohortLabels.ts`-sized
-  change.
+  change. **Not built, and not for want of trying (D231):** those rows
+  read `LIVE.aggregated()` filtered to `coreCorpus`, which is the DAILY
+  bank — a feed question has not been able to reach them since D161, and
+  a windowed question is permanently non-core. The feed's own answered
+  drawer cannot hold one either, because `fresh()` filters the bank at
+  hydrate. The standing limit, and its priced fix, are in D231.
 
-**Two boundaries, both already recorded elsewhere:**
+**Three boundaries. The first is the owner's and binds hardest:**
+
+- **No tragedies (D235).** This app does not put suffering to a vote —
+  terror attacks the named example, and mass-casualty events, atrocities
+  and a named person's killing with them. News skews to catastrophe, so
+  this lane meets one most weeks and the pressure to ask the obvious
+  question peaks exactly when asking it is worst. It is not a rule against
+  serious news: sanctions, a verdict, an economic shock are ordinary
+  questions. `check:quality`'s `tragedy` tripwire catches the
+  unambiguous cases; the judgement is still the writer's, because the same
+  prompt is fine in a quiet week and grotesque in the week of an attack.
+
 
 - **An opinion about the news is content; a prediction is a CALL.**
   "Should X resign?" is an ordinary feed question. "Will X win on
@@ -166,8 +189,9 @@ pinned in rules, day format validated, bounded to a −4d/+2d window of
 - **The aggregate trigger needs no changes.** `onV2AnswerCreated`'s vote
   branch never reads the question doc — rules did the validating — so it
   will fold composite qids into per-day aggregate docs
-  (`v2_aggs_private/{qid_day}`, `v2_question_aggs/{qid_day}`) exactly as
-  it folds everything else, anchors breakdown included. Per-day docs are
+  (`v2_question_aggs/{qid_day}` — one document, since the vote branch's
+  private mirror collapsed into the published one) exactly as it folds
+  everything else, anchors breakdown included. Per-day docs are
   the right grain anyway: a single growing series doc would fight the
   1 MiB ceiling *and* the egress bill (the published agg ships whole per
   delivery — `docs/COSTS.md`), where per-day docs stay the size of any
@@ -588,17 +612,18 @@ ordinary question, arriving through a human contract path with
 invoicing outside the repo. So: sell contract-path deals as soon as
 there is traffic worth buying; the disclosure mark + `sponsor`
 provenance + window/tag fields are the first real build (S, mostly §1's
-machinery); a self-serve in-app purchase flow is the last build (L), and
-commerce should stay on the web/contract side regardless — the app
-displays disclosed content, it does not run a checkout.
+machinery); a self-serve purchase flow is the last build (L) — **built
+at D313 (2026-08-26)**, and exactly on this note's own terms: commerce
+stayed on the web side (Stripe Checkout in the system browser; the app
+displays disclosed content and opens a URL, it still runs no checkout).
 
 ## 7 · Order of work
 
 1. **Suggestions v1** (§6) — no schema collisions, mostly existing
    patterns, and it starts the community flywheel the other lanes want.
-2. **Current events on the feed** (§1) — small once §6 exists to feed
-   it; the ongoing cost is editorial, so gate the ship on being willing
-   to keep the topic alive.
+2. ~~**Current events on the feed** (§1)~~ — **done, D231.** The
+   ongoing cost is editorial and it starts now: the topic is live with
+   six questions, the longest of which closes 3 September.
 3. **Height** (§4) — the first new anchor dim; exercises the checklist
    §3 tier 2 will reuse.
 4. **Types tier 1** (§3) — visible product on data already public.
@@ -617,8 +642,10 @@ displays disclosed content, it does not run a checkout.
 
 **Not doing, restated:** facial symmetry; genetics under the current
 posture; weight/BMI without its own record; current events on the daily
-surface (blocked on an epoch-safe retire design D97 already names);
-farm-authored current events.
+surface (blocked on an epoch-safe retire design D97 already names).
+~~Farm-authored current events~~ — reversed at D351: the now lane
+writes them, from stories found by searching and corroborated across
+outlets, never from memory.
 
 ## 8 · The design handoff — what needs a designed visual, what does not
 
@@ -702,8 +729,11 @@ ratchet).
 
 **Status: design settled with the owner 2026-08-15. Step 1 of the build
 order below is SHIPPED — see [D174](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
-for the three-state control, the three-hour linger and the `until` cap.
-Everything else here is still design.** It began
+for the three-state control, the three-hour linger and the `until` cap —
+and the control has since gone back to two states on the owner's word
+([D370](DECISIONS.md#d370--near-is-a-switch-again-off-or-on-and-the-timed-option-retires)):
+off or on, the linger and the cap unchanged. Everything else here is
+still design.** It began
 as *"when you are at a party or some sort of social event you can see what
 type of persons are around you"* and was worked out over a long exchange;
 what follows is where it landed, including the two places the owner
@@ -768,16 +798,23 @@ Bands to draw, tightest first: **same room · same block · a few streets
 away.** Recency gets bands too — **"here now" · "here in the last hour"** —
 and that second one is doing real work, see the linger below.
 
-### Visibility: off · 2 hours · always
+### Visibility: off · on
 
-The owner's three-state control, and the shape that makes the always
-option safe enough to offer honestly rather than grudgingly:
+**As built.** This section said *off · 2 hours · always* from
+2026-08-15, and D174 shipped it that way; on 2026-09-05 the owner
+retired the middle state (D370 — *"near should only have off and on
+option"*). What stands is the switch, and "on" is exactly what the
+always row below described:
 
 | State | What it means |
 | --- | --- |
 | **Off** (default) | No presence doc. Turning off **deletes it immediately** — that promise may never be on a timer. |
-| **On, 2 hours** | Default when first enabled. The beat stops at the deadline. |
-| **On, always** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+| **On** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+
+The two-hour row is gone, not folded in: a timed promise was a promise
+about when you stop being visible, and the owner had already pushed
+back on time-boxing at all (D174 §1). The linger below is what bounds
+the position now, and it always was.
 
 Two properties hold in every state:
 
@@ -798,11 +835,16 @@ would open Near at a party and see an empty room, because everyone else's
 app is shut. The feature would be dead on arrival. Find My and Snap Map
 keep a last-known position for exactly this reason.
 
-The machinery exists: `PRESENCE_TTL_MIN` (10 today) is the server's
-freshness window, so the linger is **one constant**.
+The machinery exists, and the linger is **one constant**. **Done at
+D174**, like the subsection beside it and like this section's own build
+order says at step 1 — this paragraph alone kept the pre-D174 wording.
+The constant is `PRESENCE_LINGER_MIN = 180` (`functions/src/pure.ts`);
+`PRESENCE_TTL_MIN`, named here as "10 today", was renamed in the same
+record and does not exist.
 
-**Set it to about 3 hours**, per the owner's "slightly longer" — long
-enough that a venue stays populated between pocket-checks, short enough
+What it asked for, and what shipped: **about 3 hours**, per the owner's
+"slightly longer" — long enough that a venue stays populated between
+pocket-checks, short enough
 that closing the app in bed does not leave you at home all night. It is
 one number and should be re-tuned from real use rather than defended.
 
@@ -867,6 +909,7 @@ of strangers.
    `presenceBeat` returns early on `document.hidden`. What shipped beside
    the control and the linger is `until` on the presence doc, so the timed
    option is exact rather than approximate, capped in `firestore.rules`.
+   The control went back to two states at D370; `until` and its cap stay.
 2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
    ([D175](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
    It was not a constant: the old ~1 km cell was the ceiling of the COARSE

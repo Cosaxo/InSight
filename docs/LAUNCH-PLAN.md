@@ -164,10 +164,16 @@ QUESTION-FARM.md gains one section per pool that has none today:
 
 ### W1.4 Catalogue completion (3–4 sessions; the designated deferral candidate)
 
-1. **Operator errand (networked machine):** `node scripts/build-catalog.mjs
-   films` and `artists`; commit `public/films.txt`, `public/artists.txt`, and
-   the regenerated `functions/src/catalogKeys.ts`. `check:catalogs` is the
-   acceptance gate. Never hand-write keys (D15).
+1. ~~**Operator errand (networked machine):**~~ **half done 2026-08-23
+   (D266).** `public/films.txt` and the regenerated
+   `functions/src/catalogKeys.ts` are committed; `check:catalogs` passed as
+   the acceptance gate. `artists` ran too and was refused on content — the
+   generated catalogue is a canon of famous people who once touched music,
+   not of musicians — so it needed a curation rule before a rerun, not
+   another networked machine. D267 built the rule and the reviewed
+   exception file it needs; what is left for artists is a ruling over
+   `node scripts/build-catalog.mjs artists --review-list 300`, then the
+   build. Never hand-write keys (D15).
 2. **Demo cards:** new `PICK_QS` + `CROWD` entries in
    `src/v2/spec/pick-data.js` using real committed keys — delegable to the
    daily catalog Routine once the catalogues exist.

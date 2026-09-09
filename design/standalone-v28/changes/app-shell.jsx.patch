@@ -1,17 +1,18 @@
 --- v18/app-shell.jsx
 +++ v28/app-shell.jsx
-@@ -1,33 +1,19 @@
- 
+@@ -1,32 +1,18 @@
  const { useState, useEffect } = React;
  
 +// Settled experiments have been folded into the design; what stays here is
 +// live state (which tab, which population) plus the two demo controls.
  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
    "density": "compact",
-   "tab": "track",
-   "mirrorPop": "you",
+-  "tab": "track",
+-  "mirrorPop": "you",
 -  "lensStyle": "underline",
 -  "accents": "now",
++  "tab": "patterns",
++  "mirrorPop": "circle",
    "worldZoom": "world",
 -  "wfReveal": true,
 -  "wfRipple": true,
@@ -40,7 +41,7 @@
  // Hand-drawn-feel SVG glyphs — each one a small ink illustration
  function NavGlyph({ id, active }) {
    const stroke = active ? 'var(--ink)' : 'var(--ink-3)';
-@@ -53,47 +39,42 @@
+@@ -52,47 +38,42 @@
        </svg>
      );
    }
@@ -109,7 +110,7 @@
  ];
  
  // Overlays that ship.
-@@ -157,7 +138,9 @@
+@@ -156,7 +137,9 @@
    useEffect(() => {
      window.openSuggestions = () => { setOv('suggest'); };
      window.openLogicTest = () => { closeAll(); setOv('logic'); };
@@ -120,7 +121,7 @@
    }, []);
  
    useEffect(() => {
-@@ -181,7 +164,7 @@
+@@ -180,7 +163,7 @@
        // arriving after the switch and stepped the daily one stop further
        window.NAV_AT = Date.now();
        closeAll();
@@ -129,7 +130,7 @@
        setDailyMode(it.mode); setTab('track');
      };
      // open the test flow — straight into a specific test, or the picker
-@@ -212,31 +195,26 @@
+@@ -211,31 +194,26 @@
    useEffect(() => { const v = validTab(t.tab); if (v !== tab) setTab(v); }, [t.tab]);
    useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
  
@@ -170,7 +171,7 @@
                  <div className="h-dockslot">
                    <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">
                      {DOCK_STOPS.map((s) => (
-@@ -261,28 +239,17 @@
+@@ -260,28 +238,17 @@
          <div className="app-body">
            <ErrorBoundary key={'tab-' + tab} onReset={() => { setTab('track'); setTweak('tab', 'track'); }}>
              <div className="tab-swap" key={tab}>
@@ -204,7 +205,7 @@
                <button key={id} className={"tab-btn" + (tab === id ? ' is-active' : '')}
                  onClick={() => {
                    if (window.HAPTIC && tab !== id) window.HAPTIC.tick();
-@@ -304,7 +271,7 @@
+@@ -303,7 +270,7 @@
          <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
            {person && <PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
            {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
@@ -213,7 +214,7 @@
            {ov === 'suggest' && <SuggestOverlay onClose={() => setOv(null)} />}
            {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
            {ov === 'test' && <TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
-@@ -314,32 +281,12 @@
+@@ -313,32 +280,12 @@
        </div>
  
        <TweaksPanel>

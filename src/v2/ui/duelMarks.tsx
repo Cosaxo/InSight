@@ -21,8 +21,12 @@ import { groupInitials, markHue, personInitials } from "./marks";
 // Round, because the circle mark below is square: at rail size the SHAPE is
 // what tells you whether you are looking at a person or a group, before the
 // colour or the letters resolve.
-export function DuelAv({ uid, name, size = 22, dim, title }: {
-  uid: string; name?: string; size?: number; dim?: boolean; title?: string;
+// No dim/faded state on either mark since v28 §7.1: a half-washed disc read
+// as broken, so the done/waiting cue is the rail's pending dot — shape, not
+// saturation — the same rule the demo rails follow in group-daily.jsx and
+// duo-daily.jsx.
+export function DuelAv({ uid, name, size = 22, title }: {
+  uid: string; name?: string; size?: number; title?: string;
 }) {
   const init = personInitials(name || "");
   return (
@@ -31,7 +35,7 @@ export function DuelAv({ uid, name, size = 22, dim, title }: {
       display: "flex", alignItems: "center", justifyContent: "center",
       fontFamily: "var(--sans)", fontWeight: 800, fontSize: Math.round(size * 0.4),
       color: "#fff", background: `oklch(0.52 0.13 ${markHue(uid)})`,
-      opacity: dim ? 0.28 : 1, boxShadow: "0 0 0 1.5px var(--surface-2)",
+      boxShadow: "0 0 0 1.5px var(--surface-2)",
       // An account with no display name gets a dot rather than a letter —
       // inventing an initial from the uid would be a name we made up.
       letterSpacing: init ? "normal" : "0",
@@ -40,8 +44,8 @@ export function DuelAv({ uid, name, size = 22, dim, title }: {
 }
 
 // ── a circle ─────────────────────────────────────────────────────
-export function GroupMark({ gid, name, size = 34, faded }: {
-  gid: string; name?: string; size?: number; faded?: boolean;
+export function GroupMark({ gid, name, size = 34 }: {
+  gid: string; name?: string; size?: number;
 }) {
   return (
     <span aria-hidden="true" style={{
@@ -50,7 +54,6 @@ export function GroupMark({ gid, name, size = 34, faded }: {
       fontFamily: "var(--sans)", fontWeight: 800, fontSize: Math.round(size * 0.38),
       letterSpacing: "-0.02em",
       color: "#fff", background: `oklch(0.52 0.12 ${markHue(gid)})`,
-      opacity: faded ? 0.4 : 1, transition: "opacity .18s",
     }}>{groupInitials(name || "")}</span>
   );
 }

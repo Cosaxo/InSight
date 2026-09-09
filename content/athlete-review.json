@@ -1,0 +1,119 @@
+{
+  "_README": [
+    "Hand-reviewed exceptions to the athletes catalogue's mechanical rule",
+    "(scripts/build-catalog.mjs athletes — the artists' D266/D267 shape,",
+    "one domain over). NOT seeded to Firestore and not a question bank —",
+    "build input only, listed in check-content.mjs's NOT_SEEDED.",
+    "",
+    "The rule keeps anyone at least a third of whose Wikidata occupations",
+    "are athletic (the P279* closure under Q2066131). Like the artists'",
+    "rule it does not finish, and in the same direction: P106 records",
+    "what a person DID, never what they are KNOWN FOR, and the list grows",
+    "with fame — so the raw rule dropped Serena Williams (2 of 7,",
+    "actor/writer/businessperson beside tennis) and Pelé (2 of 7,",
+    "actor/composer/politician beside football), while keeping Ursula",
+    "von der Leyen (1 of 3: physician, politician, equestrian).",
+    "",
+    "HOW TO FILL IT. `node scripts/build-catalog.mjs athletes",
+    "--review-list 200` prints the ranked candidates with the fraction",
+    "that decided each. Then:",
+    "  reject — in the catalogue, famous for something else. Needs `why`.",
+    "  admit  — famous FOR sport, dropped by the ratio. No reason needed;",
+    "           the name is the reason.",
+    "",
+    "Every qid must be one the generator itself produced — applyReview()",
+    "can only drop a row or restore one from the candidate pool, never",
+    "mint a key — and the builder fails loudly on an entry whose subject",
+    "left the pool. check:catalogs holds both sides against the committed",
+    "catalogue. Keys are Wikidata QID numeric parts: 11459 means Q11459."
+  ],
+  "reject": [
+    {
+      "qid": 60772,
+      "name": "Ursula von der Leyen",
+      "why": "Famous as a politician and Commission president; the equestrian occupation is biography, not the fame."
+    }
+  ],
+  "admit": [
+    {
+      "qid": 12897,
+      "name": "Pelé"
+    },
+    {
+      "qid": 11459,
+      "name": "Serena Williams"
+    },
+    {
+      "qid": 10520,
+      "name": "David Beckham"
+    },
+    {
+      "qid": 4457,
+      "name": "Franz Beckenbauer"
+    },
+    {
+      "qid": 79031,
+      "name": "Mike Tyson"
+    },
+    {
+      "qid": 33817,
+      "name": "Edmund Hillary"
+    },
+    {
+      "qid": 47778,
+      "name": "Gary Lineker"
+    },
+    {
+      "qid": 179051,
+      "name": "Kareem Abdul-Jabbar"
+    },
+    {
+      "qid": 41244,
+      "name": "Andriy Shevchenko"
+    },
+    {
+      "qid": 169452,
+      "name": "Shaquille O'Neal"
+    },
+    {
+      "qid": 134183,
+      "name": "Magic Johnson"
+    },
+    {
+      "qid": 171583,
+      "name": "Bobby Charlton"
+    },
+    {
+      "qid": 170328,
+      "name": "Eric Cantona"
+    },
+    {
+      "qid": 78489,
+      "name": "Niki Lauda"
+    },
+    {
+      "qid": 80306,
+      "name": "Giorgio Chiellini"
+    },
+    {
+      "qid": 155164,
+      "name": "Imran Khan"
+    },
+    {
+      "qid": 131374,
+      "name": "Alexander Alekhine"
+    },
+    {
+      "qid": 178865,
+      "name": "Mikhail Botvinnik"
+    },
+    {
+      "qid": 173714,
+      "name": "Max Euwe"
+    },
+    {
+      "qid": 102331,
+      "name": "Sócrates"
+    }
+  ]
+}

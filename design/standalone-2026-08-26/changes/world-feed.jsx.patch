@@ -1,0 +1,276 @@
+--- recorded/world-feed.jsx
++++ 2026-08-26/world-feed.jsx
+@@ -5,6 +5,8 @@
+ // One hue per topic; results encode as bar length, not numbers-everywhere.
+ 
+ const WF_LS = 'insight.feedVotes.v1';
++const WF_ANON_LS = 'insight.feedAnon.v1';
++function wfAnonLoad() { try { return JSON.parse(localStorage.getItem(WF_ANON_LS) || '{}') || {}; } catch (e) { return {}; } }
+ const WF_REPLIES_LS = 'insight.feedReplies.v1';
+ const WF_TAKES_LS = 'insight.feedTakes.v1';
+ const WF_PASS_LS = 'insight.feedPass.v1';
+@@ -177,16 +179,24 @@
+     </div>
+   );
+ }
+-const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
++const WF_FRIENDS = [{ name: 'Alex', init: 'A', hue: 'oklch(0.55 0.1 40)', act: 0.5 }, { name: 'Mia', init: 'M', hue: 'oklch(0.55 0.1 325)', act: 0.42 }, { name: 'Jordi', init: 'J', hue: 'oklch(0.55 0.1 235)', act: 0.34 }, { name: 'Sara', init: 'S', hue: 'oklch(0.55 0.1 150)', act: 0.26 }, { name: 'Noah', init: 'N', hue: 'oklch(0.55 0.1 275)', act: 0.2 }, { name: 'Elif', init: 'E', hue: 'oklch(0.55 0.1 85)', act: 0.14 }];
++// a friend appears on a question ONLY if they answered it (act = how much of the
++// feed each friend actually does). Most cards carry 0-2 friends, many carry none —
++// that silence is what keeps friend marks from becoming furniture.
++const wfDid = (q, f) => wfHash('did:' + q.id + ':' + f.name) < f.act;
++const wfFrAv = (f, D, k) => (
++  <span key={f.name} title={f.name} style={{ width: D, height: D, borderRadius: '50%', marginLeft: k ? -Math.round(D * 0.28) : 0, flexShrink: 0, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(D * 0.56), background: f.hue, color: '#fff', boxShadow: '0 0 0 1.5px var(--surface)', position: 'relative', zIndex: 4 - k }}>{f.init}</span>
++);
++const wfFrNone = (txt) => <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>{txt}</div>;
+ 
+ class WorldFeed extends React.Component {
+-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, shown: WF_PAGE };
++  state = { votes: wfLoad(), anon: wfAnonLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, shown: WF_PAGE };
+ 
+   // every new behaviour is a switch, so each one can be judged on its own
+   get opts() {
+     const o = this.props.opts || {};
+     const on = (k) => o[k] !== false;
+-    return { reveal: on('reveal'), ripple: on('ripple'), pass: on('pass'), clock: on('clock'), v2: on('v2'), signals: on('signals'), crossfire: on('crossfire'), counter: on('counter'), why: on('why'), hier: !!o.hier };
++    return { reveal: on('reveal'), ripple: on('ripple'), pass: on('pass'), clock: on('clock'), v2: on('v2'), signals: on('signals'), crossfire: on('crossfire'), counter: on('counter'), why: on('why'), hier: !!o.hier, friends: o.friends === false ? 'off' : (o.friends || 'rows') };
+   }
+   setPass(id, on) {
+     this.setState((s) => {
+@@ -200,7 +210,7 @@
+   // derivation the who-voted sheet uses, so the dots and the sheet agree
+   friendSides(q, counts) {
+     const total = counts.reduce((a, b) => a + b, 0) || 1;
+-    return WF_FRIENDS.map((f) => {
++    return WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => {
+       const r = wfHash(q.id + ':' + f.name); let acc = 0, oi = counts.length - 1;
+       for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) { oi = i; break; } }
+       return { ...f, oi };
+@@ -713,7 +723,7 @@
+     const ranked = C.items.slice().sort((a, b) => b.count - a.count);
+     const headShare = ranked.reduce((a, i) => a + (i.count / C.picks) * 100, 0);
+     const overall = ranked[0];
+-    const groups = dim === 'friends' ? WF_FRIENDS.map((f) => ({ label: f.name, init: f.init })) : WF_GRP(dim, axis);
++    const groups = dim === 'friends' ? WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => ({ label: f.name, init: f.init })) : WF_GRP(dim, axis);
+     const line = (g) => {
+       const r = wfPickGroup(q.id, cutKey + ':' + g.label, ranked, headShare);
+       const win = r[0];
+@@ -743,7 +753,7 @@
+       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+         {this.renderCutChips(q, dim)}
+         <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+-          <span style={{ flex: 1, minWidth: 0 }}>{nDiv ? nDiv + ' of ' + groups.length + ' put someone else first' : 'Every group agrees'}</span>
++          <span style={{ flex: 1, minWidth: 0 }}>{!groups.length ? 'None of your friends has answered this one yet' : nDiv ? nDiv + ' of ' + groups.length + ' put someone else first' : 'Every group agrees'}</span>
+           <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 130 }}>{overall.name}</span>
+         </div>
+         <div style={{ display: 'flex', flexDirection: 'column' }}>{groups.map(line)}</div>
+@@ -895,9 +905,10 @@
+                     <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
+                     {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>· you</span>}
+                   </div>
+-                  {!v2 && fr.length > 0 && (
+-                    <button onClick={() => this.openSheet(q, T, 'stats', 'friends')} aria-label={fr.map((f) => f.name).join(', ') + ' picked ' + o.label} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }}>
+-                      {fr.map((f) => <span key={f.name} title={f.name} style={{ width: 9, height: 9, borderRadius: '50%', background: col, boxShadow: '0 0 0 1.5px var(--surface)' }}></span>)}
++                  {this.opts.friends === 'rows' && fr.length > 0 && (
++                    <button onClick={() => this.openSheet(q, T, 'stats', 'friends')} aria-label={fr.map((f) => f.name).join(', ') + ' picked ' + o.label} style={{ display: 'flex', alignItems: 'center', padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none', animation: fresh ? 'chipPop .35s var(--ease-spring) .55s both' : 'none' }}>
++                      {fr.slice(0, 2).map((f, k) => wfFrAv(f, big ? 17 : 15, k))}
++                      {fr.length > 2 && <span style={{ marginLeft: 4, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)' }}>+{fr.length - 2}</span>}
+                     </button>
+                   )}
+                   {/* every side carries its number — one read of the split, not just the winner's */}
+@@ -929,7 +940,26 @@
+     if (!q.options) return <span style={quiet}></span>;
+     const mine = this.state.votes[q.id];
+     const { total } = wfPcts(q.options.map((o) => o.count), mine);
+-    return <span style={quiet}>{wfFmt(total)} {q.type === 'predict' ? 'calls' : 'votes'}</span>;
++    return (
++      <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
++        <span style={quiet}>{wfFmt(total)} {q.type === 'predict' ? 'calls' : 'votes'}</span>
++        {this.renderFrFoot(q, T)}
++      </span>
++    );
++  }
++
++  // footer placement (tweak: friends='footer') — identity only, docked by the
++  // vote count; who picked what stays in the sheet.
++  renderFrFoot(q, T) {
++    if (this.opts.friends !== 'footer' || !q.options || this.state.votes[q.id] == null) return null;
++    const fr = this.friendSides(q, q.options.map((o) => o.count));
++    if (!fr.length) return null;
++    return (
++      <button className="press" onClick={() => this.openSheet(q, T, 'stats', 'friends')} aria-label={'How your friends voted: ' + fr.map((f) => f.name).join(', ')} style={{ display: 'flex', alignItems: 'center', border: 'none', background: 'none', padding: '2px 0', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }}>
++        {fr.slice(0, 3).map((f, k) => wfFrAv(f, 18, k))}
++        {fr.length > 3 && <span style={{ marginLeft: 4, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)' }}>+{fr.length - 3}</span>}
++      </button>
++    );
+   }
+ 
+   // one quiet line: the scale of the vote, where you sit, and — briefly — where
+@@ -939,7 +969,10 @@
+     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
+     return (
+       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
+-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{wfFmt(total)} votes{p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog'}</span>
++        <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
++          <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{wfFmt(total)} votes{p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog'}</span>
++          {this.renderFrFoot(q, T)}
++        </span>
+         {rip && <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
+       </div>
+     );
+@@ -1088,6 +1121,40 @@
+     return q.type === 'rank' ? !!(v && v.order) : v != null;
+   }
+ 
++  // ── anonymous voting — a whisper of a toggle: your pick still moves the
++  // count, but carries no name into takes, faces, or friend cuts. One 20px
++  // dot of chrome while the question is open; a quiet stamp once answered.
++  toggleAnon(id) {
++    this.setState((s) => {
++      const anon = { ...s.anon, [id]: !s.anon[id] };
++      if (!anon[id]) delete anon[id];
++      try { localStorage.setItem(WF_ANON_LS, JSON.stringify(anon)); } catch (e) {}
++      return { anon };
++    });
++  }
++  renderAnonBtn(q, answered) {
++    const on = !!this.state.anon[q.id];
++    const glyph = (
++      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
++        <path d="M4.5 12.5h15"></path>
++        <path d="M7.5 12.5l1.3-5a1.8 1.8 0 0 1 1.75-1.35h2.9a1.8 1.8 0 0 1 1.75 1.35l1.3 5"></path>
++        <circle cx="8.6" cy="16.7" r="2.1"></circle><circle cx="15.4" cy="16.7" r="2.1"></circle>
++        <path d="M10.7 16.7h2.6"></path>
++      </svg>
++    );
++    if (answered) {
++      if (!on) return null;
++      return <span title="Answered anonymously — hidden when others view your map" aria-label="Answered anonymously — hidden when others view your map" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'color-mix(in oklch, var(--ink) 9%, transparent)', color: 'var(--ink-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{glyph}</span>;
++    }
++    return (
++      <button className="press tap44" onClick={(e) => { e.stopPropagation(); this.toggleAnon(q.id); }} aria-pressed={on}
++        aria-label={on ? 'Anonymous is on — this answer won\u2019t show when others view your map' : 'Vote anonymously'} title={on ? 'Anonymous — hidden when others view your map' : 'Vote anonymously — it won\u2019t show on your map to others'}
++        style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: on ? 'none' : '0.5px solid var(--rule)', background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitAppearance: 'none', padding: 0, transition: 'background .15s ease, color .15s ease' }}>
++        {glyph}
++      </button>
++    );
++  }
++
+   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
+   renderEngage(q, T, big) {
+     const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
+@@ -1226,7 +1293,8 @@
+     if (!window.feedInsight || !q.options) return null;
+     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
+     const counts = q.options.map((o) => o.count);
+-    const ins = window.feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
++    // rows mode already shows friends on the tiles — never say the same thing twice on one card
++    const ins = window.feedInsight(q, counts, mine, wfHash, this.opts.friends === 'rows' ? null : this.friendSides(q, counts));
+     if (!ins) return null;
+     // rhythm: every card ending on the same bordered line turned the fact into
+     // furniture. A strong one always lands; a merely-true one waits until the
+@@ -1244,7 +1312,8 @@
+     // v2: one hue — side reads as filled vs hairline-outlined, not a second colour
+     const dot = (idx, k) => <span key={k} aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', boxSizing: 'border-box', flexShrink: 0, background: v2 ? (idx === 0 ? T.color : 'transparent') : wfOpt(T.color, idx, n), border: v2 && idx !== 0 ? '1.5px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : 'none' }}></span>;
+     const text = ins.kind === 'friends'
+-      ? (v2 ? (ins.of - ins.same) + ' of ' + ins.of + ' friends disagree' : (ins.of - ins.same) + ' of ' + ins.of + ' friends went the other way')
++      ? (ins.of === 1 ? ins.sides[0].name + (v2 ? ' disagrees' : ' went the other way')
++        : (v2 ? (ins.of - ins.same) + ' of ' + ins.of + ' friends disagree' : (ins.of - ins.same) + ' of ' + ins.of + ' friends went the other way'))
+       : ins.group + (ins.kind === 'flip' ? (q.options.length > 2 ? ' flips it to ' + q.options[ins.sideIdx].label : ' flips it') : ' leans ' + q.options[ins.sideIdx].label);
+     // full width, and it wraps rather than truncating — the line has to be readable
+     if (v2) return (
+@@ -1687,7 +1756,7 @@
+         )}
+         {dim === 'friends' ? (
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+-            {WF_FRIENDS.map((f) => {
++            {WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => {
+               const a = wfRateAvg(q.id, 'f:' + f.name, avg);
+               const s = Math.round(a);
+               return (
+@@ -1702,6 +1771,7 @@
+                 </div>
+               );
+             })}
++            {!WF_FRIENDS.some((f) => wfDid(q, f)) && wfFrNone('None of your friends has rated this one yet.')}
+           </div>
+         ) : (
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+@@ -1746,7 +1816,7 @@
+         )}
+         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+           {dim === 'friends'
+-            ? WF_FRIENDS.map((f) => track(f.name, null, this.dialGrpAvg(q, 'f:' + f.name)))
++            ? (WF_FRIENDS.some((f) => wfDid(q, f)) ? WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => track(f.name, null, this.dialGrpAvg(q, 'f:' + f.name))) : wfFrNone('None of your friends has answered this one yet.'))
+             : WF_GRP(dim, axis).map((g) => track(g.label, g.color, this.dialGrpAvg(q, cutKey + ':' + g.label)))}
+         </div>
+         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', padding: '0 40px 0 104px' }}>
+@@ -1768,7 +1838,7 @@
+     const dim = this.state.dims[q.id] || 'friends';
+     const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
+     const v = this.state.votes[q.id];
+-    const grps = dim === 'friends' ? WF_FRIENDS.map((f) => ({ label: f.name, short: f.init, key: 'f:' + f.name })) : WF_GRP(dim, axis).map((g) => ({ label: g.label, short: g.label, color: g.color, key: cutKey + ':' + g.label }));
++    const grps = dim === 'friends' ? WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => ({ label: f.name, short: f.init, key: 'f:' + f.name })) : WF_GRP(dim, axis).map((g) => ({ label: g.label, short: g.label, color: g.color, key: cutKey + ':' + g.label }));
+     const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
+     return (
+       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+@@ -1914,10 +1984,10 @@
+     const total = counts.reduce((a, b) => a + b, 0);
+     const myVote = this.state.votes[q.id];
+     const mySide = typeof myVote === 'number' ? myVote : null;
+-    // friends pick sides deterministically, weighted by the real split
+-    const pick = (name) => { const r = wfHash(q.id + ':' + name); let acc = 0; for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) return i; } return counts.length - 1; };
+-    const friends = WF_FRIENDS.map((f) => ({ ...f, oi: pick(f.name) }));
+-    const same = mySide == null ? null : friends.filter((f) => f.oi === mySide).length;
++    // same derivation as the card marks (friendSides) — the two must agree
++    const friends = this.friendSides(q, counts);
++    const notYet = WF_FRIENDS.filter((f) => !wfDid(q, f));
++    const same = mySide == null || !friends.length ? null : friends.filter((f) => f.oi === mySide).length;
+     // the world's own split — it becomes the header bar (legend + baseline in one)
+     // and every group's seam is read against it
+     const op = counts.map((c) => Math.round((c / total) * 100));
+@@ -1931,14 +2001,15 @@
+         {this.renderCutChips(q, dim)}
+         {dim === 'friends' ? (
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+-            <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>{same != null ? same + ' of ' + friends.length + ' friends are on your side' : 'How your friends voted'}</div>
++            <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>{!friends.length ? 'None of your friends has answered this one yet' : same != null ? same + ' of ' + friends.length + (friends.length === 1 ? ' friend is' : ' friends are') + ' on your side' : 'How your friends voted'}</div>
+             {friends.map((f) => (
+               <div key={f.name} style={{ background: 'var(--surface)', border: WF_LINE, borderRadius: 12, padding: '9px 11px', display: 'flex', alignItems: 'center', gap: 10 }}>
+-                <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, background: wfShade(T.color, f.oi), color: wfShadeText(f.oi) }}>{f.init}</span>
++                <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, background: f.hue, color: '#fff' }}>{f.init}</span>
+                 <span style={{ flex: 1, fontWeight: 800, fontSize: 13.5 }}>{f.name}</span>
+                 <span style={{ background: wfShade(T.color, f.oi), color: wfShadeText(f.oi), fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.options[f.oi].label}</span>
+               </div>
+             ))}
++            {friends.length > 0 && notYet.length > 0 && <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 4px 0', textWrap: 'pretty' }}>{notYet.map((f) => f.name).join(', ')} {notYet.length === 1 ? "hasn't" : "haven't"} answered this one.</div>}
+           </div>
+         ) : (
+         <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap }}>
+@@ -2002,7 +2073,8 @@
+     const tot1 = p1.reduce((a, b) => a + b, 0);
+     const firstOf = (name) => { const r = wfHash(q.id + ':first:' + name); let acc = 0; for (let k = 0; k < items.length; k++) { acc += p1[k] / tot1; if (r < acc) return k; } return 0; };
+     const top = items[0];
+-    const nTop = WF_FRIENDS.filter((f) => firstOf(f.name) === 0).length;
++    const rkFr = WF_FRIENDS.filter((f) => wfDid(q, f));
++    const nTop = rkFr.filter((f) => firstOf(f.name) === 0).length;
+     const GRID = { display: 'grid', gridTemplateColumns: `84px repeat(${N}, 1fr)`, gap: 5, alignItems: 'center' };
+     const cellCol = (share) => `color-mix(in oklch, ${T.color} ${Math.min(100, Math.round(share * 1.7))}%, var(--surface-3))`;
+     return (
+@@ -2030,7 +2102,7 @@
+             </div>
+           );
+         })}
+-        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', marginTop: 4 }}>{nTop} of {WF_FRIENDS.length} friends had {top.label.toLowerCase()} first.</div>
++        {rkFr.length ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', marginTop: 4 }}>{nTop} of {rkFr.length} {rkFr.length === 1 ? 'friend' : 'friends'} had {top.label.toLowerCase()} first.</div> : null}
+       </div>
+     );
+   }
+@@ -2196,6 +2268,7 @@
+         ) : (
+           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="About this question" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
+         )}
++        {this.renderAnonBtn(q, answered)}
+         {F.closing && this.renderClock(T)}
+         <span style={{ flex: 1 }}></span>
+         {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}

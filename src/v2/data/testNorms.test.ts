@@ -29,12 +29,12 @@ import {
   hasNorm,
   resetNormCache,
   sampleAxes,
-  testAvg,
   testNorm,
 } from "./testNorms";
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_TESTS } from "../spec/test-definitions.js";
+import { agreementOf } from "./cohort";
 
 // The store is the singleton every consumer imports, so these cases drive
 // it the way NearLiveBody.test.tsx does: swap the members, restore them
@@ -102,7 +102,7 @@ const person = (dims: Record<string, number>, uid: string): KindredPerson => ({
   uid,
   name: uid,
   city: "",
-  like: { pct: 0, shared: 0, same: 0 },
+  like: agreementOf(0, 0),
   results: parseTestResults(
     { big5: { title: "Big Five", taken: "x", dims: Object.entries(dims).map(([id, value]) => ({ id, label: id, value })) } },
     CORE_TEST_KINDS,
@@ -125,15 +125,15 @@ describe("a live build measures or refuses", () => {
   it("refuses every axis when the bank has no aggregates at all", () => {
     live(bank("O", 5), {});
     expect(testNorm("big5").src).toBe("measured");
-    expect(testAvg("big5")).toEqual({});
+    expect(testNorm("big5").avg).toEqual({});
     expect(hasNorm("big5")).toBe(false);
   });
 
   it("never falls back to the authored constants when it refuses", () => {
-    // The whole point of the seam. A caller reading `testAvg` on a young
+    // The whole point of the seam. A caller reading the averages on a young
     // install gets nothing to draw — not 60, which is what shipped.
     live(bank("O", 5), {});
-    expect(testAvg("big5").O).toBeUndefined();
+    expect(testNorm("big5").avg.O).toBeUndefined();
   });
 
   it("scores an axis with enough answers behind enough items", () => {
@@ -152,7 +152,7 @@ describe("a live build measures or refuses", () => {
   it("refuses an axis under the answer floor", () => {
     const items = bank("O", 3);
     live(items, aggs("O", 3, 2, 1));
-    expect(testAvg("big5").O).toBeUndefined();
+    expect(testNorm("big5").avg.O).toBeUndefined();
   });
 
   it("refuses an axis carried by a single item", () => {
@@ -160,7 +160,7 @@ describe("a live build measures or refuses", () => {
     // question's mean, not the axis's.
     const items = bank("O", 1);
     live(items, aggs("O", 1, 2, NORM_MIN_ANSWERS * 10));
-    expect(testAvg("big5").O).toBeUndefined();
+    expect(testNorm("big5").avg.O).toBeUndefined();
   });
 
   it("re-reads when the aggregate coverage changes", () => {
@@ -171,7 +171,7 @@ describe("a live build measures or refuses", () => {
     expect(hasNorm("big5")).toBe(false);
     const filled = aggs("O", 3, 4, NORM_MIN_ANSWERS);
     L.aggFor = (qid: string) => (filled[qid] as never) ?? null;
-    expect(testAvg("big5").O).toBe(100);
+    expect(testNorm("big5").avg.O).toBe(100);
   });
 });
 
@@ -192,6 +192,34 @@ describe("axisRank counts people instead of assuming a spread", () => {
     expect(rank).toEqual({ outOfTen: 9, people: NORM_MIN_PEOPLE, above: true });
   });
 
+  it("says nothing rather than 'higher than 5 in 10'", () => {
+    // The comment beside this used to claim that choosing a side before
+    // rounding prevented the middle from printing as five. It does not: at
+    // an even split both sides round to five, and so does anything from
+    // 45% to 55% — the widest band on the axis. "Higher than 5 in 10" is
+    // the same unsupportable sentence the 1..9 clamp refuses at the ends.
+    L.enabled = true;
+    // Exactly half below, half above.
+    L.kindredPeople = () => [...crowd(10, 10, "lo"), ...crowd(10, 90, "hi")];
+    expect(axisRank("big5", "O", 50)).toBeNull();
+    // …and the band around it, not only the exact tie: 13 of 25 below is
+    // 52%, which rounds to five on the high side, and 12 of 25 is 48%,
+    // which rounds to five on the low one.
+    L.kindredPeople = () => [...crowd(13, 10, "lo"), ...crowd(12, 90, "hi")];
+    expect(axisRank("big5", "O", 50)).toBeNull();
+    L.kindredPeople = () => [...crowd(12, 10, "lo"), ...crowd(13, 90, "hi")];
+    expect(axisRank("big5", "O", 50)).toBeNull();
+  });
+
+  it("still speaks once the reading is off the middle", () => {
+    // The contrast, or the case above would pass on a function that had
+    // simply stopped answering.
+    L.enabled = true;
+    L.kindredPeople = () => [...crowd(13, 10, "lo"), ...crowd(7, 90, "hi")];
+    const rank = axisRank("big5", "O", 50);
+    expect(rank).toMatchObject({ outOfTen: 7, above: true });
+  });
+
   it("reads the low side as a low-side share, not its complement", () => {
     // 8 of 20 below you → you are under the median, and the sentence is
     // "lower than 6 in 10", not "higher than 4 in 10".
@@ -200,6 +228,33 @@ describe("axisRank counts people instead of assuming a spread", () => {
     const rank = axisRank("big5", "O", 50);
     expect(rank?.above).toBe(false);
     expect(rank?.outOfTen).toBe(6);
+  });
+
+  it("does not count people level with you against you", () => {
+    // THE MIDRANK. `below` was strictly `<`, so everyone who scored
+    // EXACTLY what you scored was counted on the far side — and axis
+    // values are rounded 0..100 off short Likert axes, so an exact tie is
+    // the common case, not an edge.
+    //
+    // Eight below, four level, eight above: a reading dead in the middle.
+    // It printed "lower than 6 in 10 of the 20 people counted here".
+    L.enabled = true;
+    L.kindredPeople = () => [...crowd(8, 10, "lo"), ...crowd(4, 50, "eq"), ...crowd(8, 90, "hi")];
+    expect(
+      axisRank("big5", "O", 50),
+      "a middle reading was printed as a rank, by counting the people level with it against it",
+    ).toBeNull();
+  });
+
+  it("…and a tie group does not silence a reading that is genuinely off-centre", () => {
+    // THE CONTROL. Half-credit must not turn into "any tie means null":
+    // sixteen below, four level, nothing above is a high reading, and it
+    // still has to speak. (16 + 2) / 20 = 90%.
+    L.enabled = true;
+    L.kindredPeople = () => [...crowd(16, 10, "lo"), ...crowd(4, 50, "eq")];
+    const rank = axisRank("big5", "O", 50);
+    expect(rank, "a clear reading went quiet because some people tied").not.toBeNull();
+    expect(rank).toMatchObject({ outOfTen: 9, people: 20, above: true });
   });
 
   it("never claims 10 in 10 or 0 in 10", () => {

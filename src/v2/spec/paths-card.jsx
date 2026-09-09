@@ -14,7 +14,10 @@
 // story comes from paths-data.js and its branch shares are authored. The
 // card reads whichever it has and NEVER mixes them — `srcOf` returns one
 // shape, and the only thing that differs downstream is where `flow` comes
-// from and whether a choice writes to the server.
+// from and whether a choice writes to the server. Since D341 the feed
+// hands the card its item as a prop — a story is a MEMBER of the stream,
+// dealt in like any question, several at once when the bank holds
+// several — and the item's `live` flag is the source switch.
 //
 // THE CSS FAMILY WAS RENAMED, and the rename is the point rather than
 // taste. The prototype draws this card's head, title, rule, chips and
@@ -57,7 +60,9 @@ const ppInk = (h) => WPAL.ink(`oklch(0.52 0.14 ${h})`);
 // sources compute it differently and a component that reached for one of
 // them would be right in exactly one mode.
 function PathsTree({ st, walk, flow }) {
-  const W = 372, H = 236, xs = [16, 128, 240, 352];
+  // 176 tall since 2026-09-02, and the forks reach the full width: the
+  // tree is context under a story, not the story
+  const W = 372, H = 176, xs = [12, 130, 248, 362];
   const yOf = (key) => {
     const d = key.length; if (!d) return H / 2;
     let idx = 0; for (const ch of key) idx = idx * 2 + (ch === 'B' ? 1 : 0);
@@ -74,22 +79,36 @@ function PathsTree({ st, walk, flow }) {
         const mx = (x1 + x2) / 2;
         const f = flow(k);
         const on = walk.startsWith(k);
+        // The walked road is the only strong ink; every other branch is a
+        // quiet tint whose width is the crowd's flow. At ×20 the busy
+        // branches were as loud as the road through them, so the tree read
+        // as a tangle of rivers rather than as one path through a faint
+        // delta — the road is what the card is about, and it is drawn
+        // again on top below so nothing crosses it.
         return <path key={k} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
-          stroke={on ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 56%)'}
-          strokeWidth={Math.max(1.4, f * 20)} strokeLinecap="round" opacity={on ? 1 : 0.9}></path>;
+          stroke={on ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 64%)'}
+          strokeWidth={on ? 3.5 : Math.max(1.1, f * 9)} strokeLinecap="round" opacity={on ? 1 : 0.9}></path>;
+      })}
+      {keys.filter((k) => walk.startsWith(k)).map((k) => {
+        const x1 = xs[k.length - 1], y1 = yOf(k.slice(0, -1)), x2 = xs[k.length], y2 = yOf(k);
+        const mx = (x1 + x2) / 2;
+        return <path key={'r' + k} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
+          stroke="var(--pp-ink)" strokeWidth="3.5" strokeLinecap="round"></path>;
       })}
       <circle cx={xs[0]} cy={H / 2} r="4.5" fill="var(--pp-ink)"></circle>
       {keys.filter((k) => k.length === 3).map((k) => (
         <circle key={k} cx={xs[3]} cy={yOf(k)} r={k === walk ? 5 : 2.6} fill={k === walk ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 40%)'}></circle>
       ))}
-      {end && <text x={xs[3] - 10} y={yOf(walk) + (yOf(walk) < 18 ? 14 : -9)} textAnchor="end" fontSize="10.5" fontWeight="800" fill="var(--pp-ink)">{end.name}</text>}
+      {/* the ending's name left the field for the card (2026-09-02): it is
+          the answer this story arrived at, and on the field it was a label
+          squeezed against the right edge of the tree */}
     </svg>
   );
 }
 
 /**
- * The one story this card is showing, in one shape, from whichever source
- * exists — plus how to read the crowd out of it.
+ * The story this card is showing, in one shape, from whichever source the
+ * feed item names — plus how to read the crowd out of it.
  *
  * `flow(key)` is the share of people standing at `key`. Live it is real:
  * the endings under that branch over the total. Demo it is the product of
@@ -97,15 +116,42 @@ function PathsTree({ st, walk, flow }) {
  * answers yet — the card draws the walk without a tree rather than
  * dividing by zero, because "every branch is 0% wide" is not a truthful
  * picture of an empty question.
+ *
+ * `demoId` is read only when `live` is null: a demo feed item carries just
+ * the id (paths-data.js holds the content), while a live item carries the
+ * bank doc's fields — the two-sources-never-mixed rule of D136, with the
+ * feed item as the switch instead of pathQs()'s head.
  */
-function srcOf(live) {
+function srcOf(live, demoId) {
   if (live) {
     // The bank doc as it stands, plus its per-ending counts. `total` is
-    // summed here rather than carried on the doc: the store folds the counts
-    // on call (see LIVE.pathQs) and one more field would be one more thing
-    // for the two sides to disagree about.
+    // summed here rather than carried on the doc: the feed item's fold
+    // (buildFeedGlobals) and the Map's (LIVE.pathQs) both hand counts
+    // over, and one more field would be one more thing for the sides to
+    // disagree about.
     const counts = live.counts || [];
     const total = counts.reduce((a, b) => a + b, 0);
+    // YOU ARE IN THE CROWD YOU ARE BEING COMPARED TO.
+    //
+    // `counts` is the published aggregate, which excludes the reader's own
+    // ending until the fold has run — and the reveal is the whole payload
+    // of this card, so its one number was wrong for every reader and wrong
+    // in one direction: it always made their road rarer than it was. Ten
+    // others finished, one of them where you did, and the card said "1 in
+    // 10 walks your road" when counting yourself makes it 2 of 11 — 1 in 6.
+    // The error is exactly one vote in `total + 1`, so it is LARGEST when a
+    // story is new, which is when the card is most likely to be read.
+    //
+    // The gate stays on the CROWD's total, not the crowd plus you: a story
+    // only you have finished must still draw no tree, or `flow` becomes
+    // non-null for a crowd of one and the card prints "you and 100% ended
+    // here" over yourself. The "You are the first to reach the end of this
+    // one" arm below is that case, and it stays reachable.
+    const mineIdx = live.id && LIVE.myVotes ? Number(LIVE.myVotes()[live.id]) : NaN;
+    const add = Number.isInteger(mineIdx) && mineIdx >= 0 && mineIdx < PATH_ENDINGS.length ? mineIdx : -1;
+    // A half-finished walk has no stored vote and adds nothing — to either
+    // side of the fraction.
+    const withMe = total + (add >= 0 ? 1 : 0);
     return {
       id: live.id,
       title: live.title || live.prompt,
@@ -113,12 +159,13 @@ function srcOf(live) {
       hue: typeof live.hue === 'number' ? live.hue : 20,
       nodes: live.nodes || {}, endings: live.endings || {}, live: true,
       flow: total > 0
-        ? (key) => PATH_ENDINGS.reduce((s, e, i) => s + (e.startsWith(key) ? counts[i] : 0), 0) / total
+        ? (key) => PATH_ENDINGS.reduce((s, e, i) => s + (e.startsWith(key) ? counts[i] + (i === add ? 1 : 0) : 0), 0) / withMe
         : null,
       total,
     };
   }
-  const st = PATHS.stories()[0];
+  const st = PATHS.storyOf(demoId);
+  if (!st) return null;
   return {
     id: st.id, title: st.title, intro: st.intro, hue: st.hue,
     nodes: st.nodes, endings: st.endings, live: false,
@@ -127,19 +174,23 @@ function srcOf(live) {
   };
 }
 
-export function PathsCard() {
+/**
+ * One Crossroads story, as a card in the feed. `q` is the feed item the
+ * stream dealt this card — a bank doc's fields when live, an id-bearing
+ * stub when demo (D341: a story is a feed QUESTION, placed by the feed's
+ * own ordering like any other, several at once when the bank holds
+ * several; D136's pinned singleton read pathQs()[0] and could never show
+ * the second story — the limit D185 §6 recorded).
+ */
+export function PathsCard({ q }) {
   const [, force] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => PATHS.sub(force), []);
 
-  // Walking a road again over a standing answer. Live only, and it exists
-  // because the two records disagree on purpose for the length of the walk:
-  // clearing the local walk cannot clear the SERVER's ending, so without
-  // this flag `answered` below would put the finished tree straight back
-  // and "Walk again" would do nothing visible.
-  const [rewalk, setRewalk] = React.useState(false);
-
-  const live = LIVE.pathQs ? (LIVE.pathQs()[0] || null) : null;
-  const st = srcOf(live);
+  const live = q && q.live ? q : null;
+  const st = srcOf(live, q && q.id);
+  // An id the demo store cannot name draws nothing rather than someone
+  // else's story — same honesty rule as MTPathsCard below.
+  if (!st) return null;
 
   // Where the walk lives. Demo: the local store, which is the only record.
   // Live: the SERVER's answer is the record once a walk is finished — so a
@@ -149,7 +200,7 @@ export function PathsCard() {
   const localWalk = PATHS.walkOf(st.id);
   const mine = live && LIVE.myVotes ? LIVE.myVotes()[live.id] : null;
   const answered = mine != null ? (PATH_ENDINGS[Number(mine)] || '') : '';
-  const walk = rewalk ? localWalk : (answered || localWalk);
+  const walk = answered || localWalk;
   const done = walk.length >= 3;
 
   const node = done ? null : nodeAt(st.nodes, walk);
@@ -162,30 +213,24 @@ export function PathsCard() {
     const next = PATHS.choose(st.id, i);
     // The third fork is the answer. Live, that is when it goes to the
     // server — through the ordinary vote path, so the fold, the ledger, the
-    // by-cells and the voters panel all carry it with no special case. A
-    // second finished walk after "Walk again" is a D86 EDIT of the same
-    // answer, not a new one: you moved where you ended up.
+    // by-cells and the voters panel all carry it with no special case.
     if (!live || next.length < 3) return;
     const idx = PATH_ENDINGS.indexOf(next);
     if (idx < 0) return;
+    // A WALK IS FINAL (D211). "Walk again" stood here and re-walking wrote
+    // a D86 edit of the standing answer — a redo control on a card whose
+    // whole reveal is how rare your road was, moving the results it had
+    // just shown you. The only write is the first one. A standing answer
+    // at this point means a vote hydrated mid-walk (another device's, or
+    // this one's arriving late): the server's record wins and the local
+    // walk drops, the same snap-back a refused edit used to take —
+    // showing the raced walk would be showing an answer nobody stored.
     const prior = LIVE.myVotes ? LIVE.myVotes()[live.id] : null;
     if (prior == null) {
       if (LIVE.vote) LIVE.vote(live.id, String(idx));
-    } else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(live.id, String(idx)))) {
-      // A refused edit (D86's 60s cooldown) leaves the standing answer as
-      // the record, so drop the local walk and fall back to it — the same
-      // snap-back setDial does with a bucket. Showing the walk the server
-      // refused would be showing an answer nobody stored.
+    } else if (Number(prior) !== idx) {
       PATHS.reset(st.id);
     }
-    // Either way the walk is finished and the server owns it again.
-    setRewalk(false);
-  }
-
-  function again() {
-    HAPTIC.tick();
-    PATHS.reset(st.id);
-    setRewalk(true);
   }
 
   const style = { '--pp-c': ppC(st.hue), '--pp-ink': ppInk(st.hue) };
@@ -226,20 +271,119 @@ export function PathsCard() {
               </div>
             )}
           <div className="pp-end">
-            <b>{end.name}</b>
+            {/* the ending is the answer this story arrived at, so it wears
+                the prompt voice. 500, not the design's 600: the tree ships
+                one Spectral weight (styles.css says why), and a synthesised
+                bold serif is worse than the real 500 */}
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500, letterSpacing: '-0.01em', lineHeight: 1.1, color: 'var(--pp-ink)' }}>{end.name}</div>
             <div className="pp-line">{end.line}</div>
             {flow && (
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>
-                <span className="pp-chip">you and {Math.round(myShare * 100)}% ended here</span>
-                <span className="pp-chip">1 in {Math.max(2, Math.round(1 / myShare))} walks your road</span>
+                {myShare > 0 ? (
+                  <>
+                    {/* "<1" when the true share rounds to zero: a card that
+                        says "you and 0% ended here" to the person standing
+                        there is wrong the way MapStats' nulls exist to
+                        prevent (D72), and 1/0 printed "1 in Infinity". */}
+                    <span className="pp-chip">you and {Math.round(myShare * 100) || '<1'}% ended here</span>
+                    <span className="pp-chip">1 in {Math.max(2, Math.round(1 / myShare))} walks your road</span>
+                  </>
+                ) : (
+                  // A crowd exists (flow is non-null) but none of it ended
+                  // where you did. Since the reader is now counted in their
+                  // own share, this is the TRANSIENT only: the window
+                  // between finishing a walk and the vote being stored,
+                  // where `myVotes()` has nothing to fold back in. It used
+                  // to have a second, permanent reading — a finished walk
+                  // nobody else ever followed — and that one is gone,
+                  // because you are no longer absent from your own count.
+                  <span className="pp-chip">you&rsquo;re the first to end here</span>
+                )}
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="pp-again" onClick={again}>Walk again</button>
-          </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── the Map's Crossroads branch (v28 §5, D207) ─────────────────────────
+//
+// paths-data.js's header note #2 recorded why mapTree stayed unbuilt: the
+// eager map had no room and reading the store off the bridge would spend
+// the ratchet. D207 moved both budgets — the Map is lazy and this file is
+// an import away — so the fold lives HERE rather than in the store,
+// because it needs this card's live/demo source discipline (srcOf): live,
+// a finished walk is the SERVER's answer (recoverable on any device) and
+// the crowd share folds from real counts or is ABSENT; demo, both come
+// authored. `typ` carries the walk's rarity, so an uncommon road drifts
+// to the map's edge with no number printed.
+const walkFor = (sid) => {
+  if (LIVE.enabled && LIVE.myVotes) {
+    const mine = LIVE.myVotes()[sid];
+    if (mine != null) return PATH_ENDINGS[Number(mine)] || '';
+  }
+  return PATHS.walkOf(sid);
+};
+const demoSrc = (d) => ({
+  id: d.id, title: d.title, hue: d.hue, nodes: d.nodes, endings: d.endings,
+  flow: (key) => PATHS.flowOf(d.id, key),
+});
+
+export function pathsMapTree() {
+  const srcs = LIVE.enabled
+    ? (LIVE.pathQs ? LIVE.pathQs() : []).map((q) => srcOf(q))
+    : PATHS.stories().map(demoSrc);
+  const done = srcs.map((s) => ({ s, w: walkFor(s.id) })).filter((x) => x.w.length >= 3);
+  if (!done.length) return { cats: [], nodes: [] };
+  const cats = [{ id: 'path-walks', label: 'Walks', hue: 200, walk: true }];
+  const nodes = done.map(({ s, w }, i) => {
+    const end = s.endings[w] || {};
+    const f = s.flow ? s.flow(w) : null;
+    return {
+      id: 'path-' + s.id, parentId: 'path-walks', walk: true, daily: true, sid: s.id,
+      label: s.title + ' → ' + (end.name || ''), tag: s.title, ans: end.name || '', prompt: s.title,
+      // no flow (a live story nobody has answered into yet) → no rarity
+      // claim, same rule as the card's own tree
+      note: f ? '1 in ' + Math.max(2, Math.round(1 / f)) : '',
+      age: i, typ: f == null ? 0.5 : Math.max(0.05, Math.min(0.95, f * 2)), maj: false,
+    };
+  });
+  return { cats, nodes };
+}
+
+// the Map's Crossroads leaf: the walked road, small — tree, ending, rarity
+export function MTPathsCard({ node }) {
+  let st = null;
+  if (LIVE.enabled) {
+    const q = LIVE.pathQs ? LIVE.pathQs().find((x) => x.id === node.sid) : null;
+    if (q) st = srcOf(q);
+  } else {
+    const d = PATHS.storyOf(node.sid);
+    if (d) st = demoSrc(d);
+  }
+  if (!st) return null;
+  const walk = walkFor(st.id);
+  if (walk.length < 3) return null;
+  const end = st.endings[walk] || {};
+  const f = st.flow ? st.flow(walk) : null;
+  return (
+    <div style={{ '--pp-c': ppC(st.hue), '--pp-ink': ppInk(st.hue), '--hue': st.hue }}>
+      <div className="mmt-kicker"><span className="mmt-dot"></span>Crossroads</div>
+      <div className="mmt-title" style={{ marginTop: 4 }}>{st.title}</div>
+      {/* the tree needs a flow to draw branch widths — absent means the
+          walk shows as its ending alone rather than a tree of invented
+          widths (srcOf's own rule) */}
+      {st.flow ? <PathsTree st={st} walk={walk} flow={st.flow}></PathsTree> : null}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginTop: 6, flexWrap: 'wrap' }}>
+        <b style={{ fontFamily: 'var(--sans)', fontSize: 14.5, color: 'var(--ink)' }}>{end.name || ''}</b>
+        {f ? (
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+            1 in {Math.max(2, Math.round(1 / f))} walks this road
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

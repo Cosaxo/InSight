@@ -8,14 +8,51 @@
 //   · every reading carries its n
 //   · two instruments only: you (the hue) and them (neutral)
 import React from "react";
+import { cueMap } from "../data/mapCue";
 import PULSE from "../data/pulse";
 
-export default function PulseTrends({ compact }: { compact?: boolean }): React.ReactElement | null {
+// `mapLink` is passed by the daily's pulse card and NOT by the Map's own
+// pulse leaf, which renders this same reading — a "see it on the Map" link
+// on the Map would be a door into the room you are standing in.
+export default function PulseTrends({ compact, pid, mapLink }: { compact?: boolean; pid?: string; mapLink?: boolean }): React.ReactElement | null {
   const [, bump] = React.useState(0);
+  const id = pid || PULSE.first();
+  // WHETHER THE CROWD'S HALF OF THIS READING IS ENTITLED TO SPEAK YET.
+  // `aggFor` answers null for "fetched, nobody answered" and "never
+  // fetched" alike, and every crowd-side sentence below folded both into
+  // a confident zero: "20 days with no answers in Oslo — nothing to
+  // compare, not a zero", "Oslo: 0 answers placed across 0 of 21 days",
+  // "12 days in — not a trend yet". About a city that had answered every
+  // day for three weeks. The catch below called that "the absence
+  // honestly", which is the opposite of what it did: it listed a read
+  // that had not happened as a crowd that had not answered — and on a
+  // failed read, forever, because the effect's deps never change.
+  //
+  // LOCAL state driven off the promise, plus ONE store accessor so a warm
+  // re-open does not flicker — the shape the house took twice already
+  // (5e1491d0, and the Near panel before it). Your own line, the gaps and
+  // the skip row are folds over days(), already in hand, and keep drawing
+  // throughout: it is the crowd's half that waits, not the panel.
+  const [crowd, setCrowd] = React.useState<"reading" | "read" | "failed">(
+    () => (PULSE.trendReady(id) ? "read" : "reading"));
   React.useEffect(() => {
-    void PULSE.ensureLive().catch(() => { /* the panel lists the absence honestly */ });
-    return PULSE.subscribe(() => bump((x) => x + 1));
-  }, [bump]);
+    let alive = true;
+    // The 21-day window, for THIS pulse, on the tap that opened the
+    // reading (D203). The card's own fetch is today-only; a roster that
+    // pulled five windows on every open would be 105 ids over a 30-clause
+    // cap, for data the first screen never draws.
+    //
+    // `ensureTrend` is called UNCONDITIONALLY, as it always was: it returns
+    // at its own first line when the window is already in hand, so skipping
+    // it here buys nothing and drops the fetch a suite case pins by name.
+    // `trendReady` decides what may be DRAWN, never whether to ask.
+    if (!PULSE.trendReady(id)) setCrowd("reading");
+    void PULSE.ensureTrend(id).then(
+      () => { if (alive) setCrowd(PULSE.trendReady(id) ? "read" : "failed"); },
+      () => { if (alive) setCrowd("failed"); });
+    const un = PULSE.subscribe(() => bump((x) => x + 1));
+    return () => { alive = false; un(); };
+  }, [bump, id]);
   const [scopeId, setScopeId] = React.useState("city");
   const [sel, setSel] = React.useState(PULSE.DAYS - 1);
   const [w, setW] = React.useState(342);
@@ -26,9 +63,10 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
 
   const HUE = "var(--pulse)";
   const N = PULSE.DAYS;
-  const steps = PULSE.STEPS;
-  const days = PULSE.days();
-  const sc = PULSE.scope(scopeId);
+  const steps = PULSE.steps(id);
+  const q = PULSE.q(id);
+  const days = PULSE.days(id);
+  const sc = PULSE.scope(id, scopeId);
   const ser = sc.series;
 
   const answered = days.filter((d) => d.v != null);
@@ -39,18 +77,34 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
     if (Math.abs(diff) < 0.05) level++; else if (diff > 0) above++; else below++;
   });
 
-  // your gaps — runs of three or more days with nothing, drawn as voids,
+  // your gaps — runs of three or more ASKS with nothing, drawn as voids,
   // never dips. With fewer than two answers there is no line yet, so
   // nothing can break: day one stays a clean frame, not one grey box.
+  //
+  // A day the cadence did not ask on is NOT a gap (D203's fourth honesty
+  // rule). Counting it as one is the specific lie the rule exists to stop:
+  // a weekly pulse answered every Sunday would otherwise draw three grey
+  // voids and report "you skipped 18 days" about a question nobody put.
+  // The run therefore walks scheduled days and bridges the rest.
   const gaps: { a: number; b: number }[] = [];
   if (answered.length >= 2) for (let i = 0; i < N; i++) {
-    if (days[i].v != null) continue;
-    let j = i; while (j + 1 < N && days[j + 1].v == null) j++;
-    if (j - i + 1 >= 3) gaps.push({ a: i, b: j });
+    if (!days[i].scheduled || days[i].v != null) continue;
+    let j = i, miss = 1;
+    while (j + 1 < N && (!days[j + 1].scheduled || days[j + 1].v == null)) {
+      j++;
+      if (days[j].scheduled) miss++;
+    }
+    if (miss >= 3) gaps.push({ a: i, b: j });
     i = j;
   }
-  const skipped = days.filter((d) => d.v == null && !d.today).length;
-  const zeroDays = ser.filter((s) => s.n === 0);
+  const skipped = days.filter((d) => d.scheduled && d.v == null && !d.today).length;
+  // SCHEDULED DAYS ONLY. An unscheduled day comes back as `n: 0` because
+  // the crowd's answers are not placed on a day this reading has no row
+  // for — the store says so where it builds them — and counting those as
+  // "no answers in <place>" says something about people out of days nobody
+  // was asked. On a weekly cadence that was eighteen of twenty-one days.
+  const zeroDays = ser.filter((s) => s.scheduled && s.n === 0);
+  const askedN = ser.filter((s) => s.scheduled).length;
   const thinDays = ser.filter((s) => s.thin);
   const placedN = ser.filter((s) => s.placed);
   const totalN = placedN.reduce((a, s) => a + s.n, 0);
@@ -78,14 +132,17 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
 
   const d = days[sel], s = ser[sel];
   const grey = "var(--ink-3)";
+  // Four readings below are the crowd's, and only these four.
+  const read = crowd === "read";
+  const unreadWord = crowd === "failed" ? "Couldn’t read " + sc.label + "." : "Reading " + sc.label + "…";
 
   const scopeRow = (
     <div style={{ display: "flex", gap: 6 }}>
-      {PULSE.SCOPES.map((id) => {
-        const on = id === scopeId;
-        const label = PULSE.scope(id).label;
+      {PULSE.SCOPES.map((sid) => {
+        const on = sid === scopeId;
+        const label = PULSE.scope(id, sid).label;
         return (
-          <button key={id} className="press" onClick={() => setScopeId(id)} aria-pressed={on}
+          <button key={sid} className="press tap44" onClick={() => setScopeId(sid)} aria-pressed={on}
             style={{ flex: 1, minWidth: 0, height: 34, borderRadius: 999, cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "1px solid " + (on ? "var(--ink)" : "var(--rule)"), background: on ? "var(--ink)" : "var(--surface-2)", color: on ? "var(--surface)" : "var(--ink-2)" }}>
             {label}
           </button>
@@ -97,13 +154,30 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
   // ── the reading, or the honest reason there isn't one yet ──
   const headline = answered.length === 0 ? (
     <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, lineHeight: 1.2, letterSpacing: "-0.03em" }}>Your line starts when you answer today.</span>
+  ) : !read ? (
+    <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, lineHeight: 1.2, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{unreadWord}</span>
   ) : comparable.length < 3 ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, letterSpacing: "-0.03em" }}>
         {answered.length === 1 ? "One day in — not a trend yet." : answered.length + " days in — not a trend yet."}
       </span>
+      {/* WHICH THING IS SHORT, and it is not always yours (D146). The
+          branch is `comparable.length < 3` — days you answered AND the
+          crowd cleared PULSE.THIN — while the sentence above counts
+          `answered.length`, and this line used to say "Answer again
+          tomorrow and the line starts" whatever the reason.
+          When the crowd is the blocker, answering again does nothing:
+          the scope defaults to your city and needs THIN answers PER DAY,
+          so "10 days in — not a trend yet. Answer again tomorrow" was
+          told to somebody who had answered every one of those ten. */}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-        Answer again tomorrow and the line starts.
+        {answered.length < 3
+          ? "Answer again tomorrow and the line starts."
+          : comparable.length === 0
+            ? "No day has " + PULSE.THIN + " answers behind it yet — the line starts when the crowd fills in."
+            : "Only " + comparable.length + " of them " + (comparable.length === 1 ? "has" : "have")
+              + " " + PULSE.THIN + " answers behind " + (comparable.length === 1 ? "it" : "them")
+              + " — the line starts when the crowd fills in."}
       </span>
     </div>
   ) : (
@@ -128,12 +202,12 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
       <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: d.v != null ? HUE : "transparent", boxShadow: d.v != null ? "none" : "inset 0 0 0 1px color-mix(in oklab, " + HUE + " 50%, var(--surface-2))" }}></span>
-          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(d.v) : "you skipped"}</span>
+          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(id, d.v) : "you skipped"}</span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 10, height: 2, borderRadius: 1, background: grey, opacity: 0.55 }}></span>
           <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12.5, color: "var(--ink-3)" }}>
-            {s.n === 0 ? "no answers" : s.placed ? (s.mean as number).toFixed(1) + " · n " + PULSE.fmtN(s.n) : "n " + s.n + " · too few"}
+            {!read ? (crowd === "failed" ? "couldn’t read" : "reading…") : s.n === 0 ? "no answers" : s.placed ? (s.mean as number).toFixed(1) + " · n " + PULSE.fmtN(s.n) : "n " + s.n + " · too few"}
           </span>
         </span>
       </span>
@@ -198,7 +272,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
       mark: <span style={{ display: "flex", alignItems: "center", gap: 2.5 }}><span style={{ width: 5, height: 2, borderRadius: 1, background: HUE }}></span><span style={{ width: 5, height: 2, borderRadius: 1, background: HUE }}></span></span>,
       text: "you didn’t answer on " + skipped + (skipped === 1 ? " day" : " days") + " — the line breaks there" + (gapRows.length ? " (" + gapRows.join(", ") + ")" : ""),
     },
-    zeroDays.length > 0 && {
+    read && zeroDays.length > 0 && {
       key: "zero",
       mark: <span style={{ width: 9, height: 9, borderBottom: "1px solid " + grey, opacity: 0.55 }}></span>,
       text: zeroDays.length + (zeroDays.length === 1 ? " day" : " days") + " with no answers in " + sc.label + " — nothing to compare, not a zero",
@@ -220,10 +294,10 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         </div>
       ))}
       {!missing.length && (
-        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>Nothing — every day here has both sides.</span>
+        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>{read ? "Nothing — every day here has both sides." : unreadWord}</span>
       )}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", paddingTop: 1 }}>
-        {sc.label}: {PULSE.fmtN(totalN)} answers placed across {placedN.length} of {N} days · you: {answered.length}
+        {read ? sc.label + ": " + PULSE.fmtN(totalN) + " answers placed across " + placedN.length + " of " + askedN + " days · " : ""}you: {answered.length}
       </span>
     </div>
   );
@@ -234,10 +308,10 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         {!compact && (
           <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: HUE }}></span>
-            <span className="kicker" style={{ marginBottom: 0 }}>{PULSE.Q.kicker} · 3 weeks</span>
+            <span className="kicker" style={{ marginBottom: 0 }}>{(q ? q.kicker : "pulse")} · 3 weeks</span>
           </span>
         )}
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{PULSE.Q.text}</span>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{q ? q.text : ""}</span>
         {headline}
       </div>
       {scopeRow}
@@ -246,6 +320,12 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         {chart}
       </div>
       {panel}
+      {mapLink && (
+        <button className="press" onClick={() => cueMap({ group: "g-self", sel: pid || PULSE.first() })}
+          style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: HUE }}>
+          on the Map →
+        </button>
+      )}
     </div>
   );
 }

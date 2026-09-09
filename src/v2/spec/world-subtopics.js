@@ -3,7 +3,8 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
+// The pool's own live/demo guard, defined once there — see demoPoolOpen.
+import { demoPoolOpen } from './world-feed-data.js';
 
 // world-subtopics.js — the second level of the topic tree. A topic (Sport) can
 // split into subtopics (Tennis, Football, Running) once each can be STOCKED;
@@ -15,17 +16,37 @@ import React from 'react';
 //     an equal, and depth lives only in the discover sheet.
 //   · following a parent gives you everything under it; following a leaf gives
 //     you only the leaf.
-window.WORLD_SUBTOPICS = [
+const WORLD_SUBTOPICS = [
   { id: 'sub_tennis',   parent: 'sport', label: 'Tennis' },
   { id: 'sub_football', parent: 'sport', label: 'Football' },
   { id: 'sub_running',  parent: 'sport', label: 'Running' },
+  // Born 2026-09-09 by the feed lane's breadth share (D428) — each the
+  // most popular uncovered niche of its parent, argued in PR #-of-day;
+  // birth handful is the day's tagged questions plus counted retags.
+  { id: 'sub_mind',      parent: 'bigq',    label: 'The mind' },
+  { id: 'sub_etiquette', parent: 'culture', label: 'Etiquette' },
+  { id: 'sub_deals',     parent: 'dilemma', label: 'Deals' },
+  { id: 'sub_work',      parent: 'event',   label: 'Work & money' },
+  { id: 'sub_eatingout', parent: 'food',    label: 'Eating out' },
 ];
 
 // ── background knowledge ────────────────────────────────────────────────────
-// Only for questions that cannot be answered honestly without a fact. Rules:
-// definitions and events, never arguments (those live in the reveal), and never
-// more than ~40 words. If a question needs more than that, rewrite the question.
-window.WORLD_BG = {
+// Only for questions that cannot be answered honestly without a fact — and,
+// since D306, for a named subject the reader may be meeting for the first
+// time (who Mozart was, what a trolley problem is). Rules: definitions,
+// events and the subject's who/what, never arguments (those live in the
+// reveal), and never more than ~40 words. If a question needs more than
+// that, rewrite the question.
+// Converted (D249). No window mirror: world-feed.jsx was the only reader.
+//
+// SCOPE since D306: this map serves the DEMO pool. The bank's own
+// questions carry `bg` on the seeded doc (content/*.json → the seed), so
+// a live card never reads this map unless its id happens to be one the
+// demo pool shares — and for those ids the bank copy wins (WF_BGTEXT
+// reads q.bg first). The f/s entries below are the demo twins of texts
+// that now also live in the bank; editing one is editing furniture, the
+// bank copy is the product's.
+export const WORLD_BG = {
   // ── main pool ──
   f06: 'E-sports were a medal event at the 2022 Asian Games, and the IOC has run separate Olympic Esports events since 2021 without adding them to the Olympic programme.',
   f11: 'Cultivated meat is grown from animal cells in a tank, with no slaughter. Singapore approved sale in 2020 and the US in 2023; volumes are tiny and costs still far above farmed meat.',
@@ -54,11 +75,15 @@ window.WORLD_BG = {
   r02: 'Thick foam midsoles with a stiff carbon plate return enough energy to have reset road records since 2017. World Athletics now caps road-shoe sole thickness and allows one plate.',
 };
 // the tennis scene asks t04's question in its own words — same fact behind it
-window.WORLD_BG.s03 = window.WORLD_BG.t04;
+WORLD_BG.s03 = WORLD_BG.t04;
 
 // ── the stocked leaves ──────────────────────────────────────────────────────
-(function () {
-  const QS = [
+//
+// The questions that make each leaf followable. A module-local const, and
+// `installSubtopicStock()` below is what puts them in the pool — this used
+// to be an IIFE that pushed at module scope, which is the whole reason a
+// 17 KB demo module had to load before first paint.
+const WORLD_SUB_QS = [
     // ─── Tennis ───
     { id: 't01', cat: 'sport', sub: 'sub_tennis', type: 'vote', prompt: 'The surface that brings out the best tennis?', options: [{ label: 'Clay', count: 1900 }, { label: 'Grass', count: 2400 }, { label: 'Hard', count: 1100 }] },
     { id: 't02', cat: 'sport', sub: 'sub_tennis', type: 'vote', prompt: 'Best-of-five sets belongs in the past.', options: [{ label: 'Keep five', count: 2600 }, { label: 'Three is enough', count: 1500 }] },
@@ -97,19 +122,44 @@ window.WORLD_BG.s03 = window.WORLD_BG.t04;
     { id: 'r08', cat: 'sport', sub: 'sub_running', type: 'vote', prompt: 'Ultras are more about eating than running.', options: [{ label: 'It is an eating contest', count: 1600 }, { label: 'It is running', count: 1100 }] },
     { id: 'r09', cat: 'sport', sub: 'sub_running', type: 'vote', prompt: 'Almost anyone could run a sub-3 marathon with enough training.', options: [{ label: 'Anyone could', count: 900 }, { label: 'Talent decides', count: 2500 }] },
     { id: 'r10', cat: 'sport', sub: 'sub_running', type: 'vote', prompt: 'Pace groups ruin the race.', options: [{ label: 'They ruin it', count: 800 }, { label: 'They save it', count: 2000 }] },
-  ];
+];
+
+/**
+ * Put the leaf stock in the demo pool. Called by `loadWorldFeed()` and by
+ * `loadOverlays()` — both, because both groups have a member that needs it
+ * and neither may depend on the other having run: the feed renders these
+ * cards, and search-overlay.jsx's discover sheet asks `SUBTOPICS.offers()`,
+ * which is "only the stocked leaves" and reads the pool to decide. Two
+ * callers cost nothing; the work happens once.
+ *
+ * REFUSED ON A LIVE SESSION, through the same predicate joinDemoStock uses
+ * and for the same reason. This used to run at module scope, before
+ * `initLive`, where `buildFeedGlobals` would replace whatever it wrote;
+ * `main.jsx` runs `initLive().finally(() => … loadWorldFeed())`, so it runs
+ * after the live boot now and would otherwise push thirty demo sport
+ * questions into the published pool — IN PLACE, which no later republish
+ * would undo, because `push` mutates the array live.ts handed over.
+ *
+ * `offers()` already tolerates the gap this opens in demo mode: its comment
+ * says it recomputes per call "because the pool changes under it at boot".
+ * This is that, one loader later.
+ */
+let stockInstalled = false;
+export function installSubtopicStock() {
+  if (stockInstalled || !demoPoolOpen()) return;
+  stockInstalled = true;
   const pool = (window.WORLD_FEED_QS = window.WORLD_FEED_QS || []);
   const have = new Set(pool.map((q) => q.id));
-  QS.forEach((q) => { if (!have.has(q.id)) pool.push(q); });
+  WORLD_SUB_QS.forEach((q) => { if (!have.has(q.id)) pool.push(q); });
   // the existing general sport question about VAR is really a football question
   const var04 = pool.find((q) => q.id === 'f04');
   if (var04) var04.sub = 'sub_football';
-})();
+}
 
 // ── follow state — a leaf is followed exactly like a topic ──────────────────
-window.SUBTOPICS = (function () {
+export const SUBTOPICS = (function () {
   const LS = 'insight.subtopics.v1';
-  const ALL = window.WORLD_SUBTOPICS;
+  const ALL = WORLD_SUBTOPICS;
   const BY = {};
   ALL.forEach((s) => { BY[s.id] = s; });
   const listeners = new Set();
@@ -124,7 +174,7 @@ window.SUBTOPICS = (function () {
     if (!set) set = SUB_LIVE_BUILD ? new Set() : new Set(['sub_tennis']);        // one leaf followed from day one (demo)
     return set;
   }
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } }); };
   // The purge (data/live.ts, D51): null the cache and ensure() re-derives
   // from storage — now empty, so the day-one default — instead of the
   // previous account's leaf follows surviving to be saved back.
@@ -153,3 +203,6 @@ window.SUBTOPICS = (function () {
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
 })();
+// The window mirror is gone: search-overlay.jsx imports the binding by name
+// now, so nothing looked this up through global scope any more and
+// check:globals rule 5 would have called the publication residue.

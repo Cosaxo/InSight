@@ -72,7 +72,7 @@
 //                      auth user (rules require sign-in to read the
 //                      public mirror; no answers are written, so it never
 //                      touches aggregates or the D28 ledger).
-//   --input <file>     read a JSON dump { qid: {counts,total,tooSmall} }
+//   --input <file>     read a JSON dump { qid: {counts,total} }
 //                      (operator export, or a test fixture).
 //   (no args)          re-print the summary from the committed
 //                      content/scorecard.json — the farm's read path.
@@ -81,10 +81,16 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { splitQualityOf, rollupProduction } from "./scorecard-metrics.mjs";
+import {
+  splitQualityOf, rollupProduction, creditShares,
+  attentionFromTrail, ATTENTION_WARNING, isScoredAgg, isMeasured,
+} from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
+// The engagement digest's committed trail (R1/D268) — written on --fetch
+// beside the scorecard, read by the pulse console (pulse-collect.mjs).
+const ENGAGEMENT_OUT = join(root, "monitoring", "engagement.json");
 
 const args = process.argv.slice(2);
 const FETCH = args.includes("--fetch");
@@ -170,7 +176,37 @@ async function fetchAggs() {
     }
     pageToken = body.nextPageToken || "";
   } while (pageToken);
-  return aggs;
+  return { aggs, idToken, project };
+}
+
+// The engagement digest's trail (R1/D268) rides the SAME fetch —
+// deliberately one fetch path, not two: MONITORING.md already rejected a
+// second fetch against the same project as a drift pair, and this reader
+// reuses the anonymous token the aggregate read just minted. The trail is
+// world-readable by design (v2_engagement_daily; anonymous counts, no
+// uid anywhere), which is what lets this stay credential-free. The `meta`
+// cursor doc is the fold's own bookkeeping and is dropped here.
+async function fetchEngagementDays(idToken, project) {
+  const days = [];
+  let pageToken = "";
+  do {
+    const url =
+      `https://firestore.googleapis.com/v1/projects/${project}/databases/${DB_ID}/documents/v2_engagement_daily` +
+      `?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
+    const res = await fetch(url, { headers: { authorization: `Bearer ${idToken}` } });
+    if (!res.ok) {
+      console.error(`scorecard: engagement read failed (${res.status}): ${await res.text()}`);
+      process.exit(1);
+    }
+    const body = await res.json();
+    for (const d of body.documents || []) {
+      if (d.name.split("/").pop() === "meta") continue;
+      days.push(decode({ mapValue: { fields: d.fields || {} } }));
+    }
+    pageToken = body.nextPageToken || "";
+  } while (pageToken);
+  days.sort((a, b) => (String(a.day) < String(b.day) ? -1 : 1));
+  return days;
 }
 
 // ── scoring ──
@@ -195,19 +231,24 @@ function score(aggs) {
     const n = q.options ? q.options.length : q.type === "rating" ? 10 : 5;
     const agg = aggs[qid];
     const served = idx < daysElapsed;
-    const total = agg && agg.tooSmall === false ? Number(agg.total || 0) : 0;
-    const sh = agg && agg.tooSmall === false ? optionShares(agg.counts || {}, n) : null;
+    const total = isScoredAgg(agg) ? Number(agg.total || 0) : 0;
+    const sh = isScoredAgg(agg) ? optionShares(agg.counts || {}, n) : null;
     rows.push({
       qid,
       surface: "daily",
       topic: q.cat[0],
+      // Carried topics, home first (docs/TAGS-PLAN.md §3). The daily has no
+      // doors — its `alts` are placement candidates, not reach — so the list
+      // is one long here; it exists so the rollup below reads every surface
+      // through one shape.
+      topics: [q.cat[0]],
       type: q.type,
       prompt: q.prompt,
       served,
       total,
       evenness: sh ? splitQualityOf(q.type, sh, n) : null,
       optionShares: sh ? sh.map(round3) : null,
-      signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : served ? "no-answers" : "unserved",
+      signal: isScoredAgg(agg) ? "scored" : served ? "no-answers" : "unserved",
     });
   });
   feed.questions.forEach((q) => {
@@ -215,19 +256,30 @@ function score(aggs) {
     const qid = `feed-${q.id}`;
     const n = q.options ? q.options.length : (q.items || []).length;
     const agg = aggs[qid];
-    const total = agg && agg.tooSmall === false ? Number(agg.total || 0) : 0;
-    const sh = agg && agg.tooSmall === false ? optionShares(agg.counts || {}, n) : null;
+    const total = isScoredAgg(agg) ? Number(agg.total || 0) : 0;
+    const sh = isScoredAgg(agg) ? optionShares(agg.counts || {}, n) : null;
     rows.push({
       qid,
       surface: "feed",
       topic: q.cat,
+      // Home plus `also` doors (docs/TAGS-PLAN.md §3): the rollup credits a
+      // row's answers across these in conserved shares. `topic` above stays
+      // the home alone — it is what the retirement lane and the run-log
+      // tallies name a question by.
+      topics: [q.cat, ...(q.also || [])],
+      // A paid question keeps its per-question row — the buyer bought the
+      // honest split, and the retirement lane still reads grades — but the
+      // topic rollup below skips it: production allocation must not be
+      // buyable any more than the Mirror's corpus is (D195, extended by
+      // docs/TAGS-PLAN.md §3 from the corpus to the production signal).
+      ...(q.sponsor ? { sponsored: true } : {}),
       type: q.type,
       prompt: q.prompt,
       served: true, // the feed serves continuously
       total,
       evenness: sh ? splitQualityOf(q.type, sh, n) : null,
       optionShares: sh ? sh.map(round3) : null,
-      signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : "no-answers",
+      signal: isScoredAgg(agg) ? "scored" : "no-answers",
     });
   });
 
@@ -247,23 +299,50 @@ function score(aggs) {
     }
   }
 
-  // Topic rollups — the demand signal lanes 1–2 read.
+  // Topic rollups — the demand signal lanes 1–2 read. Two different counts
+  // on purpose (docs/TAGS-PLAN.md §3):
+  //
+  //   · `questions`/`scored`/grades count MEMBERSHIP — a straddler sits in
+  //     every topic it carries, because that is the pool whose audience
+  //     actually meets it (the filter shows it there, feed-budget counts it
+  //     there). Membership is not a partition, so these columns can sum
+  //     past the bank size; a reader adding them is re-counting straddlers.
+  //   · `answers` is CREDITED in conserved shares (creditShares: home 2,
+  //     each door 1, normalized) — summing it across topics equals summing
+  //     answers across questions, exactly, so tagging can redistribute
+  //     demand but never mint it. scorecard-metrics.test.mjs pins the
+  //     property; the share reasoning lives at creditShares itself.
+  //
+  // Sponsored rows are excluded outright: a paid question keeps its
+  // per-question row above, but the demand signal the lanes read must not
+  // be buyable (D195's line, extended from the Mirror's corpus to the
+  // production signal).
   const topics = {};
   for (const r of rows) {
-    const t = (topics[r.topic] ||= {
-      questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
-    });
-    t.questions++;
-    if (r.signal === "scored") {
-      t.scored++;
-      t.answers += r.total;
-      t.evenSum += r.evenness ?? 0;
-      if (r.grade === "strong") t.strong++;
-      if (r.grade === "landslide") t.landslides++;
+    if (r.sponsored) continue;
+    for (const { topic, share } of creditShares(r.topics ?? [r.topic])) {
+      const t = (topics[topic] ||= {
+        questions: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0,
+      });
+      t.questions++;
+      if (r.signal === "scored") {
+        t.scored++;
+        t.answers += r.total * share;
+        // `measured`, not `scored`, is the mean's denominator — see
+        // isMeasured in scorecard-metrics.mjs. A dial has no options, so
+        // its evenness is null however many people answered it.
+        if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
+        if (r.grade === "strong") t.strong++;
+        if (r.grade === "landslide") t.landslides++;
+      }
     }
   }
   for (const t of Object.values(topics)) {
-    t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+    t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
+    // Credited answers are fractional by construction (a 2/3 share of 31
+    // answers); one decimal keeps the committed artifact readable without
+    // hiding that they are shares rather than raw counts.
+    t.answers = +t.answers.toFixed(1);
     delete t.evenSum;
   }
 
@@ -271,19 +350,19 @@ function score(aggs) {
   // for the same reason grades are: daily and feed totals never compare.
   const types = { daily: {}, feed: {} };
   for (const r of rows) {
-    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0 });
+    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0 });
     t.questions++;
     if (r.signal === "scored") {
       t.scored++;
       t.answers += r.total;
-      t.evenSum += r.evenness ?? 0;
+      if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
       if (r.grade === "strong") t.strong++;
       if (r.grade === "landslide") t.landslides++;
     }
   }
   for (const surf of Object.values(types)) {
     for (const t of Object.values(surf)) {
-      t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+      t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
       delete t.evenSum;
     }
   }
@@ -323,7 +402,7 @@ function score(aggs) {
     const qid = `learn-${card.id}`; // the client's answer key (live.ts)
     const n = card.a.length;
     const agg = aggs[qid];
-    const isScored = agg && agg.tooSmall === false;
+    const isScored = isScoredAgg(agg);
     const sh = isScored ? optionShares(agg.counts || {}, n) : null;
     const total = isScored ? Number(agg.total || 0) : 0;
     const measuredP = sh ? sh[card.c] : null;
@@ -341,7 +420,7 @@ function score(aggs) {
       // is wrong; a fully-correct crowd says nothing about `t`.
       trapShare: wrongShare ? round3(sh[card.t] / wrongShare) : null,
       wrongCount: wrongShare === null ? 0 : Math.round(total * wrongShare),
-      signal: agg ? (isScored ? "scored" : "below-floor") : "no-answers",
+      signal: isScored ? "scored" : "no-answers",
     });
   });
   const learnFields = {};
@@ -373,10 +452,12 @@ function score(aggs) {
 
   // ── the duel surface: its own ledger, because the units differ ──
   // Aggregates arrive from the reveal-time fold (D40 part 3) as
-  // `duel-<qid>` docs: plays are group-days, totals are persons, and for
-  // 1v1 the guess-match rate is the duel analogue of evenness — matches
-  // near 100% mean no tension (a dead question), matches near chance
-  // (1/options) mean no tells (noise); the good zone is the band between.
+  // `duel-<qid>` docs: plays are group-days, totals are persons, and the
+  // guess-match rate — a 1v1's guess at the partner, a group's call on
+  // where the room lands (D386) — is the duel analogue of evenness:
+  // matches near 100% mean no tension (a dead question), matches near
+  // chance (1/options) mean no tells (noise); the good zone is the band
+  // between.
   // Rows never join the daily/feed grading or leaders: plays are
   // cumulative like feed totals and rank only against each other.
   const duelRows = [];
@@ -384,7 +465,7 @@ function score(aggs) {
     const qid = `duel-${docId}`;
     const n = (q.options || []).length;
     const agg = aggs[qid];
-    const isScored = agg && agg.tooSmall === false;
+    const isScored = isScoredAgg(agg);
     const sh = isScored && n >= 2 ? optionShares(agg.counts || {}, n) : null;
     const guessTotal = isScored ? Number(agg.guessTotal || 0) : 0;
     duelRows.push({
@@ -396,15 +477,15 @@ function score(aggs) {
       total: isScored ? Number(agg.total || 0) : 0,
       // Duel options are unordered — the categorical bar, or null for
       // pick questions (whose per-option counts are deliberately never
-      // aggregated) and below-floor rows.
+      // aggregated) and unanswered rows.
       evenness: sh ? splitQualityOf("choice", sh, n) : null,
       guessTotal,
       guessMatches: isScored ? Number(agg.guessMatches || 0) : 0,
       guessMatchRate:
         guessTotal > 0 ? round3(Number(agg.guessMatches || 0) / guessTotal) : null,
       chance: n >= 2 ? round3(1 / n) : null,
-      signal: agg
-        ? (isScored ? "scored" : "below-floor")
+      signal: isScoredAgg(agg)
+        ? "scored"
         : q.active === false ? "unserved" : "no-answers",
     });
   };
@@ -433,6 +514,10 @@ function score(aggs) {
   }
 
   const scored = rows.filter((r) => r.signal === "scored");
+  // `?? 0` is right HERE and wrong in a mean (isMeasured, and the three
+  // rollups above). This is a ranking of best splits: a row with no
+  // measurable split sorts to the bottom, which is what it deserves. The
+  // same expression in an average invents a landslide instead.
   const byScore = scored
     .slice()
     .sort((a, b) => (b.evenness ?? 0) * b.total - (a.evenness ?? 0) * a.total);
@@ -442,7 +527,10 @@ function score(aggs) {
     coverage: {
       questions: rows.length,
       scored: scored.length,
-      belowFloor: rows.filter((r) => r.signal === "below-floor").length,
+      // No `belowFloor`. D98 removed the floor; a row is scored when its
+      // aggregate document exists (isScoredAgg), so the count could only be
+      // 0 forever — and a permanently-zero number that a renderer explains
+      // in prose is how a retired concept survives its own retirement.
       unserved: rows.filter((r) => r.signal === "unserved").length,
     },
     topics,
@@ -468,7 +556,6 @@ function score(aggs) {
       coverage: {
         cards: learnRows.length,
         scored: learnScored.length,
-        belowFloor: learnRows.filter((r) => r.signal === "below-floor").length,
       },
       fields: learnFields,
       // Advisory for the learn lane's PR bodies — like retireProposals,
@@ -482,7 +569,6 @@ function score(aggs) {
       coverage: {
         questions: duelRows.length,
         scored: duelScored.length,
-        belowFloor: duelRows.filter((r) => r.signal === "below-floor").length,
         unserved: duelRows.filter((r) => r.signal === "unserved").length,
       },
       modes: duelModes,
@@ -500,9 +586,19 @@ function score(aggs) {
 function summarize(card) {
   const c = card.coverage;
   console.log(
-    `scorecard: ${c.scored}/${c.questions} scored (${c.belowFloor} below floor, ` +
-      `${c.unserved} unserved) · generated ${card.generatedAt}`,
+    `scorecard: ${c.scored}/${c.questions} scored (${c.unserved} unserved) ` +
+      `· generated ${card.generatedAt}`,
   );
+  if (card.attention) {
+    const rated = (card.perQuestion || []).filter((q) => q.attnPass != null);
+    const top = [...rated].sort((a, b) => b.attnPass - a.attnPass).slice(0, 3);
+    console.log(
+      `  attention (D271): ${rated.length} question(s) with a rated pass rate over ` +
+        `${card.attention.daysWithQ} day(s)` +
+        (top.length ? ` · most passed: ${top.map((q) => `${q.qid} ${Math.round(q.attnPass * 100)}%`).join(", ")}` : ""),
+    );
+    console.log(`  ⚠ ${card.attention.warning}`);
+  }
   const staleDays = (Date.now() - Date.parse(card.generatedAt)) / 864e5;
   if (staleDays > 14) {
     console.log(`  ⚠ ${Math.floor(staleDays)} days old — treat demand signals as advisory (D33)`);
@@ -553,8 +649,46 @@ function summarize(card) {
 }
 
 if (FETCH || INPUT) {
-  const aggs = INPUT ? JSON.parse(readFileSync(resolve(INPUT), "utf8")) : await fetchAggs();
+  let aggs;
+  let live = null;
+  if (INPUT) {
+    aggs = JSON.parse(readFileSync(resolve(INPUT), "utf8"));
+  } else {
+    live = await fetchAggs();
+    aggs = live.aggs;
+  }
   const card = score(aggs);
+  if (live) {
+    const days = await fetchEngagementDays(live.idToken, live.project);
+    // Day granularity on the stamp, the pulse artifact's reasoning: this
+    // file is committed, and a millisecond would make every refetch look
+    // like a change to something.
+    const trail = { fetchedOn: new Date().toISOString().slice(0, 10), days };
+    writeFileSync(ENGAGEMENT_OUT, JSON.stringify(trail, null, 2) + "\n");
+    console.log(`scorecard: wrote ${ENGAGEMENT_OUT} (${days.length} day(s))`);
+    // R4/D271: the attention columns — the denominator the scorecard
+    // never had. Merged BEFORE the card writes, so the committed artifact
+    // the farm reads carries seen→answer and pass rates beside evenness,
+    // with the D33 warning stored on the card rather than trusted to
+    // whoever renders it.
+    const att = attentionFromTrail(days);
+    if (Object.keys(att.qids).length) {
+      for (const row of card.perQuestion || []) {
+        const a = att.qids[row.qid];
+        if (a) {
+          row.attnSeen = a.seen;
+          row.attnConv = a.conv;
+          row.attnPass = a.passRate;
+        }
+      }
+      card.attention = {
+        daysWithQ: att.daysWithQ,
+        truncatedDevices: att.truncatedDevices,
+        basis: "bucket-midpoint estimates from sampled anonymous shards (D271)",
+        warning: ATTENTION_WARNING,
+      };
+    }
+  }
   writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
   console.log(`scorecard: wrote ${OUT}`);
   summarize(card);

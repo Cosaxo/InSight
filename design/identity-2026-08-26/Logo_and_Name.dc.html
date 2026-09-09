@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; font-family: 'Hanken Grotesk', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: oklch(0.52 0.14 235); text-decoration: none; border-bottom: 1px solid oklch(0.52 0.14 235 / 0.35); }
+  a:hover { color: oklch(0.52 0.14 40); border-bottom-color: oklch(0.52 0.14 40 / 0.5); }
+</style>
+</helmet>
+
+<section style="background: oklch(0.965 0.004 75); background: {{ pageBg }}; color: oklch(0.216 0.011 70); color: {{ fg }}; padding: 56px 56px 72px; min-height: 100vh; box-sizing: border-box">
+
+  <header style="display: flex; flex-direction: column; gap: 10px; max-width: 640px; margin-bottom: 40px">
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55">InSight · identity</div>
+    <h1 style="font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1.1">InSight</h1>
+    <p style="font-size: 15.5px; line-height: 1.5; margin: 0; opacity: 0.7; text-wrap: pretty">The iris mark, the InSight name. Below: the lockups, the icon at real home-screen sizes, and a compact variant — below ~24px the outer ring muddies, so the small mark drops to hexagon + pupil.</p>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+
+    <div id="3a" style="width: 372px; box-sizing: border-box; padding: 22px; border-radius: 20px; background: oklch(0.994 0.0025 80); background: {{ cardBg }}; border: 1px solid oklch(0.905 0.006 74); border-color: {{ ruleC }}; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; padding: 3px 7px; border-radius: 6px; background: oklch(0.52 0.14 195 / 0.14); color: oklch(0.52 0.14 195)">3a</span>
+        <span style="font-size: 12px; letter-spacing: 0.02em; opacity: 0.5">Lockups</span>
+      </div>
+      <div style="padding: 36px 24px; border-radius: 14px; background: oklch(0.965 0.004 75); background: {{ wellBg }}; display: flex; flex-direction: column; align-items: center; gap: 30px">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px">
+          <svg viewBox="0 0 100 100" style="width: 92px; height: 92px; display: block">
+            <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="1.8" stroke-linejoin="round"></path>
+            <circle cx="50" cy="16" r="5" fill="oklch(0.52 0.14 40)"></circle>
+            <circle cx="70" cy="22.5" r="5" fill="oklch(0.53 0.14 85)"></circle>
+            <circle cx="82.3" cy="39.5" r="5" fill="oklch(0.52 0.14 150)"></circle>
+            <circle cx="82.3" cy="60.5" r="5" fill="oklch(0.52 0.14 195)"></circle>
+            <circle cx="70" cy="77.5" r="5" fill="oklch(0.52 0.14 235)"></circle>
+            <circle cx="50" cy="84" r="5" fill="oklch(0.52 0.14 282)"></circle>
+            <circle cx="30" cy="77.5" r="5" fill="oklch(0.52 0.14 40)"></circle>
+            <circle cx="17.7" cy="60.5" r="5" fill="oklch(0.53 0.14 85)"></circle>
+            <circle cx="17.7" cy="39.5" r="5" fill="oklch(0.52 0.14 150)"></circle>
+            <circle cx="30" cy="22.5" r="5" fill="oklch(0.52 0.14 195)"></circle>
+            <circle cx="50" cy="33" r="5.5" fill="oklch(0.52 0.14 282)"></circle>
+            <circle cx="64.7" cy="41.5" r="5.5" fill="oklch(0.52 0.14 8)"></circle>
+            <circle cx="64.7" cy="58.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+            <circle cx="50" cy="67" r="5.5" fill="oklch(0.52 0.14 235)"></circle>
+            <circle cx="35.3" cy="58.5" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+            <circle cx="35.3" cy="41.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+            <circle cx="50" cy="50" r="7.5" fill="oklch(0.216 0.011 70)"></circle>
+          </svg>
+          <span style="font-size: 27px; font-weight: 700; letter-spacing: -0.03em">InSight</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 13px">
+          <svg viewBox="0 0 100 100" style="width: 44px; height: 44px; display: block; flex: none">
+            <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="2" stroke-linejoin="round"></path>
+            <circle cx="50" cy="16" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+            <circle cx="70" cy="22.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+            <circle cx="82.3" cy="39.5" r="5.5" fill="oklch(0.52 0.14 150)"></circle>
+            <circle cx="82.3" cy="60.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+            <circle cx="70" cy="77.5" r="5.5" fill="oklch(0.52 0.14 235)"></circle>
+            <circle cx="50" cy="84" r="5.5" fill="oklch(0.52 0.14 282)"></circle>
+            <circle cx="30" cy="77.5" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+            <circle cx="17.7" cy="60.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+            <circle cx="17.7" cy="39.5" r="5.5" fill="oklch(0.52 0.14 150)"></circle>
+            <circle cx="30" cy="22.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+            <circle cx="50" cy="33" r="6" fill="oklch(0.52 0.14 282)"></circle>
+            <circle cx="64.7" cy="41.5" r="6" fill="oklch(0.52 0.14 8)"></circle>
+            <circle cx="64.7" cy="58.5" r="6" fill="oklch(0.53 0.14 85)"></circle>
+            <circle cx="50" cy="67" r="6" fill="oklch(0.52 0.14 235)"></circle>
+            <circle cx="35.3" cy="58.5" r="6" fill="oklch(0.52 0.14 40)"></circle>
+            <circle cx="35.3" cy="41.5" r="6" fill="oklch(0.52 0.14 195)"></circle>
+            <circle cx="50" cy="50" r="8" fill="oklch(0.216 0.011 70)"></circle>
+          </svg>
+          <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.035em">InSight</span>
+        </div>
+      </div>
+      <p style="font-size: 12.5px; line-height: 1.45; margin: 0; opacity: 0.62; text-wrap: pretty">Stacked for splash and marketing, horizontal for in-app headers. Wordmark stays Hanken Grotesk 700, tight tracking, capital I and S.</p>
+    </div>
+
+    <div id="3b" style="width: 372px; box-sizing: border-box; padding: 22px; border-radius: 20px; background: oklch(0.994 0.0025 80); background: {{ cardBg }}; border: 1px solid oklch(0.905 0.006 74); border-color: {{ ruleC }}; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; padding: 3px 7px; border-radius: 6px; background: oklch(0.52 0.14 235 / 0.14); color: oklch(0.52 0.14 235)">3b</span>
+        <span style="font-size: 12px; letter-spacing: 0.02em; opacity: 0.5">App icon · real sizes</span>
+      </div>
+      <div style="padding: 26px 20px; border-radius: 14px; background: oklch(0.965 0.004 75); background: {{ wellBg }}; display: flex; flex-direction: column; gap: 24px">
+        <div style="display: flex; align-items: flex-end; gap: 18px">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <div style="width: 96px; height: 96px; border-radius: 22px; background: oklch(0.216 0.011 70); padding: 13px; box-sizing: border-box">
+              <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+                <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.55 0.012 70)" stroke-width="1.8" stroke-linejoin="round"></path>
+                <circle cx="50" cy="16" r="5" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="70" cy="22.5" r="5" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="82.3" cy="39.5" r="5" fill="oklch(0.64 0.14 150)"></circle>
+                <circle cx="82.3" cy="60.5" r="5" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="70" cy="77.5" r="5" fill="oklch(0.60 0.14 240)"></circle>
+                <circle cx="50" cy="84" r="5" fill="oklch(0.60 0.16 288)"></circle>
+                <circle cx="30" cy="77.5" r="5" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="17.7" cy="60.5" r="5" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="17.7" cy="39.5" r="5" fill="oklch(0.64 0.14 150)"></circle>
+                <circle cx="30" cy="22.5" r="5" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="50" cy="33" r="5.5" fill="oklch(0.60 0.16 288)"></circle>
+                <circle cx="64.7" cy="41.5" r="5.5" fill="oklch(0.62 0.16 12)"></circle>
+                <circle cx="64.7" cy="58.5" r="5.5" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="50" cy="67" r="5.5" fill="oklch(0.60 0.14 240)"></circle>
+                <circle cx="35.3" cy="58.5" r="5.5" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="35.3" cy="41.5" r="5.5" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="50" cy="50" r="7.5" fill="oklch(0.975 0.003 80)"></circle>
+              </svg>
+            </div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">96</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <div style="width: 64px; height: 64px; border-radius: 15px; background: oklch(0.216 0.011 70); padding: 9px; box-sizing: border-box">
+              <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+                <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.55 0.012 70)" stroke-width="2.2" stroke-linejoin="round"></path>
+                <circle cx="50" cy="16" r="5.5" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="70" cy="22.5" r="5.5" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="82.3" cy="39.5" r="5.5" fill="oklch(0.64 0.14 150)"></circle>
+                <circle cx="82.3" cy="60.5" r="5.5" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="70" cy="77.5" r="5.5" fill="oklch(0.60 0.14 240)"></circle>
+                <circle cx="50" cy="84" r="5.5" fill="oklch(0.60 0.16 288)"></circle>
+                <circle cx="30" cy="77.5" r="5.5" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="17.7" cy="60.5" r="5.5" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="17.7" cy="39.5" r="5.5" fill="oklch(0.64 0.14 150)"></circle>
+                <circle cx="30" cy="22.5" r="5.5" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="50" cy="33" r="6" fill="oklch(0.60 0.16 288)"></circle>
+                <circle cx="64.7" cy="41.5" r="6" fill="oklch(0.62 0.16 12)"></circle>
+                <circle cx="64.7" cy="58.5" r="6" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="50" cy="67" r="6" fill="oklch(0.60 0.14 240)"></circle>
+                <circle cx="35.3" cy="58.5" r="6" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="35.3" cy="41.5" r="6" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="50" cy="50" r="8" fill="oklch(0.975 0.003 80)"></circle>
+              </svg>
+            </div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">64</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: oklch(0.216 0.011 70); padding: 6px; box-sizing: border-box">
+              <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+                <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.55 0.012 70)" stroke-width="2.6" stroke-linejoin="round"></path>
+                <circle cx="50" cy="24" r="8" fill="oklch(0.60 0.16 288)"></circle>
+                <circle cx="72.5" cy="37" r="8" fill="oklch(0.62 0.16 12)"></circle>
+                <circle cx="72.5" cy="63" r="8" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="50" cy="76" r="8" fill="oklch(0.60 0.14 240)"></circle>
+                <circle cx="27.5" cy="63" r="8" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="27.5" cy="37" r="8" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="50" cy="50" r="10.5" fill="oklch(0.975 0.003 80)"></circle>
+              </svg>
+            </div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">44</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <div style="width: 29px; height: 29px; border-radius: 7px; background: oklch(0.216 0.011 70); padding: 4px; box-sizing: border-box">
+              <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+                <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.55 0.012 70)" stroke-width="3" stroke-linejoin="round"></path>
+                <circle cx="50" cy="24" r="9" fill="oklch(0.60 0.16 288)"></circle>
+                <circle cx="72.5" cy="37" r="9" fill="oklch(0.62 0.16 12)"></circle>
+                <circle cx="72.5" cy="63" r="9" fill="oklch(0.72 0.14 85)"></circle>
+                <circle cx="50" cy="76" r="9" fill="oklch(0.60 0.14 240)"></circle>
+                <circle cx="27.5" cy="63" r="9" fill="oklch(0.62 0.15 40)"></circle>
+                <circle cx="27.5" cy="37" r="9" fill="oklch(0.62 0.12 195)"></circle>
+                <circle cx="50" cy="50" r="11.5" fill="oklch(0.975 0.003 80)"></circle>
+              </svg>
+            </div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">29</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 18px">
+          <div style="width: 96px; height: 96px; border-radius: 22px; background: oklch(0.994 0.0025 80); border: 1px solid oklch(0.885 0.007 74); padding: 13px; box-sizing: border-box">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+              <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="1.8" stroke-linejoin="round"></path>
+              <circle cx="50" cy="16" r="5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="70" cy="22.5" r="5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="82.3" cy="39.5" r="5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="82.3" cy="60.5" r="5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="70" cy="77.5" r="5" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="50" cy="84" r="5" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="30" cy="77.5" r="5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="17.7" cy="60.5" r="5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="17.7" cy="39.5" r="5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="30" cy="22.5" r="5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="33" r="5.5" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="64.7" cy="41.5" r="5.5" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="64.7" cy="58.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="67" r="5.5" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="35.3" cy="58.5" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="35.3" cy="41.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="7.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+          </div>
+          <div style="width: 64px; height: 64px; border-radius: 15px; background: oklch(0.994 0.0025 80); border: 1px solid oklch(0.885 0.007 74); padding: 9px; box-sizing: border-box">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+              <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="2.2" stroke-linejoin="round"></path>
+              <circle cx="50" cy="16" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="70" cy="22.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="82.3" cy="39.5" r="5.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="82.3" cy="60.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="70" cy="77.5" r="5.5" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="50" cy="84" r="5.5" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="30" cy="77.5" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="17.7" cy="60.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="17.7" cy="39.5" r="5.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="30" cy="22.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="33" r="6" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="64.7" cy="41.5" r="6" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="64.7" cy="58.5" r="6" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="67" r="6" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="35.3" cy="58.5" r="6" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="35.3" cy="41.5" r="6" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="8" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 10px; background: oklch(0.994 0.0025 80); border: 1px solid oklch(0.885 0.007 74); padding: 6px; box-sizing: border-box">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+              <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="2.6" stroke-linejoin="round"></path>
+              <circle cx="50" cy="24" r="8" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="72.5" cy="37" r="8" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="72.5" cy="63" r="8" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="76" r="8" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="27.5" cy="63" r="8" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="27.5" cy="37" r="8" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="10.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+          </div>
+          <div style="width: 29px; height: 29px; border-radius: 7px; background: oklch(0.994 0.0025 80); border: 1px solid oklch(0.885 0.007 74); padding: 4px; box-sizing: border-box">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; display: block">
+              <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="3" stroke-linejoin="round"></path>
+              <circle cx="50" cy="24" r="9" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="72.5" cy="37" r="9" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="72.5" cy="63" r="9" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="76" r="9" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="27.5" cy="63" r="9" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="27.5" cy="37" r="9" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="11.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <p style="font-size: 12.5px; line-height: 1.45; margin: 0; opacity: 0.62; text-wrap: pretty">Ink tile is the primary icon; paper tile for light contexts. At 44 and below the icon switches to the compact mark automatically.</p>
+    </div>
+
+    <div id="3c" style="width: 372px; box-sizing: border-box; padding: 22px; border-radius: 20px; background: oklch(0.994 0.0025 80); background: {{ cardBg }}; border: 1px solid oklch(0.905 0.006 74); border-color: {{ ruleC }}; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; padding: 3px 7px; border-radius: 6px; background: oklch(0.52 0.14 282 / 0.14); color: oklch(0.52 0.14 282)">3c</span>
+        <span style="font-size: 12px; letter-spacing: 0.02em; opacity: 0.5">Compact mark · tiny surfaces</span>
+      </div>
+      <div style="padding: 26px 20px; border-radius: 14px; background: oklch(0.965 0.004 75); background: {{ wellBg }}; display: flex; flex-direction: column; gap: 22px">
+        <div style="display: flex; align-items: flex-end; gap: 20px">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 72px; height: 72px; display: block">
+              <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="2.4" stroke-linejoin="round"></path>
+              <circle cx="50" cy="24" r="8" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="72.5" cy="37" r="8" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="72.5" cy="63" r="8" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="76" r="8" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="27.5" cy="63" r="8" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="27.5" cy="37" r="8" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="10.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">compact 72</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 32px; height: 32px; display: block">
+              <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="3" stroke-linejoin="round"></path>
+              <circle cx="50" cy="24" r="9" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="72.5" cy="37" r="9" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="72.5" cy="63" r="9" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="76" r="9" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="27.5" cy="63" r="9" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="27.5" cy="37" r="9" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="11.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">32</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 22px; height: 22px; display: block">
+              <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="3.4" stroke-linejoin="round"></path>
+              <circle cx="50" cy="24" r="10" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="72.5" cy="37" r="10" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="72.5" cy="63" r="10" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="76" r="10" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="27.5" cy="63" r="10" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="27.5" cy="37" r="10" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="12.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">22</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 16px; height: 16px; display: block">
+              <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="4" stroke-linejoin="round"></path>
+              <circle cx="50" cy="24" r="11" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="72.5" cy="37" r="11" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="72.5" cy="63" r="11" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="76" r="11" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="27.5" cy="63" r="11" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="27.5" cy="37" r="11" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="13.5" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">16</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 20px">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 72px; height: 72px; display: block">
+              <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="2" stroke-linejoin="round"></path>
+              <circle cx="50" cy="16" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="70" cy="22.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="82.3" cy="39.5" r="5.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="82.3" cy="60.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="70" cy="77.5" r="5.5" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="50" cy="84" r="5.5" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="30" cy="77.5" r="5.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="17.7" cy="60.5" r="5.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="17.7" cy="39.5" r="5.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="30" cy="22.5" r="5.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="33" r="6" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="64.7" cy="41.5" r="6" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="64.7" cy="58.5" r="6" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="67" r="6" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="35.3" cy="58.5" r="6" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="35.3" cy="41.5" r="6" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="8" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">full 72</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 32px; height: 32px; display: block">
+              <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="2.6" stroke-linejoin="round"></path>
+              <circle cx="50" cy="16" r="6.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="70" cy="22.5" r="6.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="82.3" cy="39.5" r="6.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="82.3" cy="60.5" r="6.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="70" cy="77.5" r="6.5" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="50" cy="84" r="6.5" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="30" cy="77.5" r="6.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="17.7" cy="60.5" r="6.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="17.7" cy="39.5" r="6.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="30" cy="22.5" r="6.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="33" r="7" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="64.7" cy="41.5" r="7" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="64.7" cy="58.5" r="7" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="67" r="7" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="35.3" cy="58.5" r="7" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="35.3" cy="41.5" r="7" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="9" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">32</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px">
+            <svg viewBox="0 0 100 100" style="width: 22px; height: 22px; display: block">
+              <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="oklch(0.62 0.012 70)" stroke-width="3" stroke-linejoin="round"></path>
+              <circle cx="50" cy="16" r="6.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="70" cy="22.5" r="6.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="82.3" cy="39.5" r="6.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="82.3" cy="60.5" r="6.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="70" cy="77.5" r="6.5" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="50" cy="84" r="6.5" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="30" cy="77.5" r="6.5" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="17.7" cy="60.5" r="6.5" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="17.7" cy="39.5" r="6.5" fill="oklch(0.52 0.14 150)"></circle>
+              <circle cx="30" cy="22.5" r="6.5" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="33" r="7" fill="oklch(0.52 0.14 282)"></circle>
+              <circle cx="64.7" cy="41.5" r="7" fill="oklch(0.52 0.14 8)"></circle>
+              <circle cx="64.7" cy="58.5" r="7" fill="oklch(0.53 0.14 85)"></circle>
+              <circle cx="50" cy="67" r="7" fill="oklch(0.52 0.14 235)"></circle>
+              <circle cx="35.3" cy="58.5" r="7" fill="oklch(0.52 0.14 40)"></circle>
+              <circle cx="35.3" cy="41.5" r="7" fill="oklch(0.52 0.14 195)"></circle>
+              <circle cx="50" cy="50" r="9" fill="oklch(0.216 0.011 70)"></circle>
+            </svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.5">22</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size: 12.5px; line-height: 1.45; margin: 0; opacity: 0.62; text-wrap: pretty">Top row: compact mark — hexagon + pupil, six dots, holds down to 16px favicon. Bottom row: full mark for comparison — fine at 32, muddy at 22. Rule: full mark above 24px, compact below.</p>
+    </div>
+
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;ground&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;paper&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;paper&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Presentation&quot;},&quot;lineWeight&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1.6,&quot;min&quot;:1,&quot;max&quot;:5,&quot;step&quot;:0.2,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Mark&quot;},&quot;showLockups&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Presentation&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    var dark = (this.props.ground ?? 'paper') === 'dark';
+    return {
+      lw: this.props.lineWeight ?? 1.6,
+      showLockups: this.props.showLockups ?? true,
+      pageBg: dark ? 'oklch(0.185 0.008 70)' : 'oklch(0.965 0.004 75)',
+      fg: dark ? 'oklch(0.955 0.004 80)' : 'oklch(0.216 0.011 70)',
+      cardBg: dark ? 'oklch(0.235 0.009 70)' : 'oklch(0.994 0.0025 80)',
+      wellBg: dark ? 'oklch(0.205 0.008 70)' : 'oklch(0.965 0.004 75)',
+      ruleC: dark ? 'oklch(0.32 0.009 70)' : 'oklch(0.905 0.006 74)',
+    };
+  }
+}
+</script>
+</body>
+</html>

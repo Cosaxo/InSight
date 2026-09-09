@@ -1,0 +1,107 @@
+/* patterns.css — the Patterns tab shell: ruler, sub-row, notes.
+   Map lens chrome is at the foot; the Oracle lens carries its own (oracle.css). */
+.pt-wrap{display:flex;flex-direction:column;gap:12px;padding-top:2px}
+.pt-stack{display:flex;flex-direction:column;gap:12px}
+/* lens swaps slide the way you moved on the ruler — the axis is a place, not a list */
+.pt-slide-r{animation:ptInR .34s cubic-bezier(.2,.8,.2,1) both}
+.pt-slide-l{animation:ptInL .34s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ptInR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes ptInL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pt-slide-r,.pt-slide-l{animation-duration:.01s}}
+/* the oracle is one question at a time, filling to the tabbar. The scroller
+   reserves 148px for a bar ~70 tall, which both stops the fill short and
+   leaves a page that scrolls to reveal nothing — so this tab reserves only
+   the clearance it needs, and the lens fills the rest exactly. */
+.app[data-tab="patterns"]>.app-body{padding-bottom:34px}
+.tab-swap:has(>.pt-wrap){display:flex;flex-direction:column;min-height:100%}
+.tab-swap:has(>.pt-wrap) .pt-wrap{flex:1;min-height:0}
+.pt-wrap:has(.or-lens) .pt-stack{flex:1;min-height:0}
+/* one sub-row under the lens tabs, same height whichever lens is open */
+.pt-sub{min-height:31px;display:flex;align-items:center}
+.pt-pops{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:1px 0}
+.pt-pops>*{flex-shrink:0}
+.pt-pop{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:12px;font-weight:650;padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.pt-pop em{font-style:normal;font-size:10.5px;font-weight:750;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pt-pop.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.pt-pop.is-on em{color:color-mix(in oklch,var(--surface),transparent 25%)}
+.pt-dot{width:7px;height:7px;border-radius:999px;flex:none}
+/* oracle's sub-row: how far through the pool you are */
+.pt-prog{display:flex;align-items:center;gap:10px;width:100%;padding:0 2px}
+.pt-progtrack{flex:1;height:5px;border-radius:999px;background:color-mix(in oklch,var(--rule),var(--surface) 35%);overflow:hidden}
+.pt-progtrack i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.pt-prognum{font-size:12px;font-weight:750;color:var(--ink-2);font-variant-numeric:tabular-nums;flex:none}
+.pt-prognum em{font-style:normal;font-weight:650;color:var(--ink-3)}
+.pt-note{font-size:12.5px;color:var(--ink-3);padding:0 2px;line-height:1.45;text-wrap:pretty}
+.pt-kick{font-size:10.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.pt-cat{display:inline-flex;align-items:center;font-size:10.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.pt-next{margin-top:14px;width:100%;padding:12px;border-radius:999px;border:none;background:var(--ink);color:var(--surface);font:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
+.pt-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 16px}
+.pt-done>div{font-size:19px;font-weight:750;color:var(--ink)}
+.pt-done>p{font-size:13px;color:var(--ink-3);margin:5px 0 0}
+.pt-done .pt-next{margin-top:16px}
+.pt-svgcard{padding:6px 4px 2px}
+.pt-svg{display:block;width:100%}
+.pt-svg text{font-family:inherit}
+.pt-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:650;padding:5px 11px;border-radius:999px}
+
+/* ── Map lens — every question, placed by what it predicts (question-map.jsx) ── */
+.qm-card{padding:8px 6px 0}
+.qm-tlab{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;pointer-events:none;transition:opacity .3s ease}
+.qm-svg{display:block;width:100%;touch-action:manipulation}
+.qm-key{display:flex;gap:18px;margin-top:10px;border-top:1px solid color-mix(in oklch,var(--rule),var(--surface) 40%);padding:11px 2px 2px;font-size:11.5px;font-weight:650;color:var(--ink-3);animation:qmEdge .25s ease both}
+.qm-meta{display:flex;align-items:center;gap:10px;margin-top:14px}
+.qm-keybtn{width:20px;height:20px;border-radius:50%;border:1px solid var(--rule);background:none;color:var(--ink-3);font-size:10px;font-weight:800;font-style:italic;font-family:inherit;line-height:1;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
+.qm-keybtn.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.qm-key span{display:inline-flex;align-items:center;gap:6px}
+.qm-line{width:16px;height:0;border-top:1.5px solid var(--ink-3);flex:none}
+.qm-line.is-dash{border-top-style:dashed}
+.qm-read{min-height:132px;display:flex;flex-direction:column;justify-content:center}
+.qm-qhead{display:flex;align-items:center;gap:8px}
+.qm-yours{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qm-prompt{font-size:17.5px;font-weight:750;line-height:1.28;color:var(--ink);margin:9px 0 0;text-wrap:pretty}
+.qm-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.qm-opt{border:1.4px solid var(--rule);background:var(--surface);border-radius:12px;padding:11px 9px;font:inherit;font-size:14px;font-weight:650;color:var(--ink);min-height:46px;cursor:pointer;text-align:center;text-wrap:balance;transition:transform .18s var(--ease-spring),border-color .15s ease}
+.qm-opt:hover{border-color:var(--accent);transform:translateY(-1px)}
+.qm-says{display:flex;flex-direction:column;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid color-mix(in oklch,var(--rule),transparent 40%)}
+.qm-say{display:flex;flex-direction:column;gap:7px}
+.qm-saytext{font-size:13px;line-height:1.42;color:var(--ink-2);text-wrap:pretty}
+.qm-saytext b{font-weight:800;color:var(--ink)}
+.qm-saybar{position:relative;display:block;height:9px;border-radius:999px;background:color-mix(in oklch,var(--rule),var(--surface) 50%);overflow:hidden}
+.qm-saybar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.qm-saybar em{position:absolute;top:-2px;bottom:-2px;width:2px;border-radius:1px;background:color-mix(in oklch,var(--ink),var(--surface) 30%)}
+.qm-break{font-size:12.5px;font-weight:750;color:var(--accent-ink,var(--accent))}
+.qm-idle{display:flex;align-items:baseline;gap:11px;padding:6px 2px}
+.qm-idle b{font-size:34px;font-weight:800;line-height:.92;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;flex:none}
+.qm-idle span{font-size:13px;font-weight:600;line-height:1.4;color:var(--ink-2);text-wrap:pretty}
+.qm-top{display:flex;flex-direction:column;align-items:flex-start;gap:7px;border:0;background:none;font:inherit;text-align:left;padding:2px;cursor:pointer;color:var(--ink)}
+.qm-toplab{font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:999px}
+.qm-topsay{font-size:13.5px;font-weight:600;line-height:1.42;color:var(--ink-2);text-wrap:pretty}
+.qm-topsay b{font-weight:750;color:var(--ink)}
+.qm-foot{font-size:11px;font-weight:650;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
+.qm-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid color-mix(in oklab,var(--accent) 42%,var(--ink-3));flex:none;box-sizing:border-box}
+.qm-dot.is-fill{background:color-mix(in oklab,var(--accent) 68%,var(--ink-2));border-color:transparent}
+.qm-svg circle{transition:opacity .3s ease}
+.qm-svg line{animation:qmEdge .35s ease both}
+@keyframes qmEdge{from{opacity:0}}
+.qm-pulse{transform-box:fill-box;transform-origin:center;animation:qmPulse 1.9s ease-out infinite;pointer-events:none}
+.qm-bloom{transform-box:fill-box;transform-origin:center;animation:qmBloom .9s ease-out both;pointer-events:none}
+@keyframes qmBloom{from{transform:scale(.45);opacity:.65}to{transform:scale(2.7);opacity:0}}
+.qm-pop{transform-box:fill-box;transform-origin:center;animation:qmPop .5s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes qmPop{0%{transform:scale(.55)}60%{transform:scale(1.22)}100%{transform:scale(1)}}
+.qm-svg line.qm-drawin{stroke-dasharray:1;animation:qmDraw .6s cubic-bezier(.22,.8,.3,1) both}
+@keyframes qmDraw{from{stroke-dashoffset:1;opacity:0}to{stroke-dashoffset:0}}
+@keyframes qmPulse{0%{transform:scale(1);opacity:.6}70%,100%{transform:scale(1.9);opacity:0}}
+.qm-nextlab{font-size:10.5px;font-weight:800;letter-spacing:.02em;pointer-events:none}
+.qm-base{position:relative;display:block;height:15px;margin-top:2px}
+.qm-say:last-child{padding-bottom:3px}
+.qm-base > span{position:absolute;transform:translateX(-50%);font-size:10.5px;font-weight:650;color:var(--ink-3);white-space:nowrap}
+.qm-tie{display:grid;grid-template-columns:11px 1fr;column-gap:10px;align-items:center;width:100%}
+.qm-tie-dot{width:11px;height:11px;border-radius:50%;box-sizing:border-box;justify-self:center}
+.qm-tie-rail{width:2px;align-self:stretch;justify-self:center;margin:-5px 0;border-radius:2px;opacity:.4}
+.qm-tie-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;line-height:1.35;color:var(--ink-2);padding:1px 0}
+.qm-tie-row em{font-style:normal;min-width:0;text-wrap:pretty}
+.qm-tie-pick{font-size:12px;font-weight:750;padding:3px 10px;border-radius:999px;white-space:nowrap;flex:none}
+.qm-tie-then{display:flex;align-items:baseline;gap:6px;font-size:10.5px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;padding:7px 0}
+.qm-tie-then b{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:.9;font-variant-numeric:tabular-nums}
+.qm-prog{flex:1;height:4px;border-radius:999px;background:color-mix(in oklch,var(--rule),var(--surface) 50%);overflow:hidden}
+.qm-prog i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .6s ease}

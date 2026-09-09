@@ -3,113 +3,44 @@
    Treat as the design-token source until split into modules. */
 
 /* cyrillic-ext */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/ad70a88f-605a-4046-b619-54c476672152.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/640572a1-4d7b-4a8d-9669-cfbb1e3194cc.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/ac77c83b-5d18-4fec-930c-5632142a87c4.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
 /* latin */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/6c9c433b-d9b9-48cd-936f-0ff613272b55.woff2") format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 /* cyrillic-ext */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/ad70a88f-605a-4046-b619-54c476672152.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/640572a1-4d7b-4a8d-9669-cfbb1e3194cc.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/ac77c83b-5d18-4fec-930c-5632142a87c4.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
 /* latin */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/6c9c433b-d9b9-48cd-936f-0ff613272b55.woff2") format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 /* cyrillic-ext */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/ad70a88f-605a-4046-b619-54c476672152.woff2") format('woff2');
-  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
-}
 /* vietnamese */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/640572a1-4d7b-4a8d-9669-cfbb1e3194cc.woff2") format('woff2');
-  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
-}
 /* latin-ext */
-@font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/ac77c83b-5d18-4fec-930c-5632142a87c4.woff2") format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
+/* latin */
+/* ── The prompt voice (2026-09-02) ──────────────────────────────────────
+   Spectral, the one place the app speaks in a second face: every question
+   a person answers is set in it, and UI, figures and captions stay sans.
+   The design (design/standalone-2026-09-02/) draws it at 500 almost
+   everywhere; VISION-2026-09-02 §2.1 has the sites.
+
+   ONE FILE, and the arithmetic is why. Hanken Grotesk ships as four
+   subsets that every weight reuses; Spectral is static per weight, at
+   ~21 KB a subset. The font ceiling in check:bundle is 96 KB against 64
+   KB in the tree, so 500-latin alone (23 KB) fits with room and a second
+   weight or the latin-ext subset would not. What that costs, stated
+   rather than discovered: a prompt carrying a Central-European letter
+   (ł, ő, ș) falls back to Georgia for that glyph — the bank is English
+   and Norwegian, whose æ ø å are all inside this subset — and the one
+   place the design asks for 600 (the Crossroads ending) is drawn at 500
+   rather than letting the browser synthesise a bold serif. Adding the
+   other faces is a font-ceiling conversation, not a silent import. */
 /* latin */
 @font-face {
-  font-family: 'Hanken Grotesk';
-  font-style: italic;
-  font-weight: 600;
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
   font-display: swap;
-  src: url("/fonts/6c9c433b-d9b9-48cd-936f-0ff613272b55.woff2") format('woff2');
+  src: url("/fonts/09efe0ee-8628-46d3-b071-4ac2b22a0955.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Hanken Grotesk';
@@ -304,7 +235,7 @@
   --rule: oklch(0.905 0.006 74);
   --ink: oklch(0.216 0.011 70);
   --ink-2: oklch(0.41 0.011 68);
-  --ink-3: oklch(0.51 0.010 68);
+  --ink-3: oklch(0.472 0.010 68); /* was 0.51 — lifted for AA contrast on the 10-11px captions it carries (2026-08-24) */
   --accent: var(--c-around);
   /* One accent family: every tab hue shares the same oklch lightness+chroma,
      so switching tabs reads as one app changing mood, not four apps. */
@@ -338,6 +269,11 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
   --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
+  /* The prompt voice — the one place the app speaks in a second face.
+     Every question people answer is set in it; UI, figures and captions
+     stay sans. The fallbacks matter on a device before the swap: Georgia
+     is on iOS, and `serif` is whatever Android resolves. */
+  --serif: 'Spectral', Georgia, 'Times New Roman', serif;
   /* Every text field in the app is set from this, and it may not go below
      16px. Not a taste call — it is the number iOS uses.
 
@@ -367,8 +303,16 @@
   --field-size: 16px;
 }
 
-/* ── Voice ── one roman sans throughout; em carries no italic. */
-.app em { font-style: normal; }
+/* ── Voice ── one roman sans throughout; em carries no italic.
+   LOAD-BEARING SINCE THE ITALIC FACES WENT (D223). `em` is a styling hook
+   here, not an emphasis: the wordmark, the figure numbers, a word in a
+   title. There is no italic in the font set any more, so without this the
+   browser SYNTHESISES an oblique by shearing the roman — which is worse
+   than the real italic was and appears on the app's own name. Overlays
+   render inside .app so the descendant selector already reaches them;
+   named anyway, because that nesting is not a thing this rule should
+   depend on. */
+.app em, .overlay em { font-style: normal; }
 
 /* Per-tab accent lives inline in InSight.html (track + mirror only). */
 
@@ -471,6 +415,11 @@
   transition: color 0.4s ease;
   font-weight: 800;
 }
+/* The horizontal lockup (D302): compact iris + wordmark. Scoped to
+   .h-center rather than .h-title because overlay headers reuse .h-title
+   for plain text titles, which need no flex and must not inherit a gap. */
+.h-center .h-title { display: inline-flex; align-items: center; gap: 7px; }
+.h-center .h-title svg { display: block; flex: none; }
 /* small round icon button (header search etc.) */
 .icon-btn {
   width: 32px; height: 32px;
@@ -486,7 +435,7 @@
 .icon-btn:active { transform: scale(0.92); }
 .h-meta {
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -586,16 +535,18 @@
   color: var(--ink-3);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 600;
+  /* 500/700 since 2026-09-02, and the active pill loses its inset ring:
+     the fill already says which tab is open, and the ring made the bar
+     the loudest thing on a screen whose content is the point. */
+  font-weight: 500;
   letter-spacing: 0.01em;
   text-transform: capitalize;
   position: relative;
   transition: color 0.25s ease, background 0.25s ease;
 }
 .tab-btn.is-active {
-  font-weight: 750;
+  font-weight: 700;
   background: color-mix(in oklch, var(--accent) 13%, var(--surface-2));
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 20%, transparent);
 }
 .tab-btn .glyph {
   height: 22px;
@@ -612,26 +563,19 @@
 
 /* nav v2 — one primary bar of four: glyph over label so it fits a phone and
    keeps 44px targets, instead of a two-item pill plus a second row up top */
-.tabbar[data-n="4"] .tab-group { gap: 2px; max-width: 100%; }
-.tabbar[data-n="4"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
-.tabbar[data-n="4"] .tab-btn.is-active { font-weight: 800; }
 
-/* Hand-drawn rule */
+/* Rule */
 .rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
-.rule-dashed {
-  height: 0.5px;
-  background: var(--rule);
-  border: none;
-  margin: 14px 0;
-}
 
 /* Kicker — THE micro-label tier, app-wide. One spec (matches the edition's
-   edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */
+   edMicro): sans 700 · 12px · 0.07em · uppercase · ink-3. 10.5/0.09em until
+   the 2026-09-06 design put a 12px floor under every piece of microtype
+   (VISION-2026-09-06.md §1) — the floor eased the tracking with it. */
 .kicker {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-3);
   margin-bottom: 4px;
@@ -641,10 +585,10 @@
    inline forms the app kept re-inventing — legend keys, axis captions, row keys.
    Same spec, one place, so two micro-labels in the same row can't disagree
    about size, weight or tracking. Swatch colour comes in as --lgc. */
-.klabel { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
+.klabel { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
 .klabel--accent { color: var(--accent-ink); }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 16px; }
-.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 .lg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box; background: var(--lgc, var(--ink-3)); box-shadow: inset 0 0 0 0.5px color-mix(in oklch, var(--ink) 16%, transparent); }
 .lg-dot[data-hollow] { background: var(--surface); border: 1.6px solid var(--lgc, var(--ink-3)); }
 
@@ -683,6 +627,35 @@ button.card:active,
 .card[role="button"]:active {
   transform: translateY(0) scale(0.988);
   box-shadow: var(--shadow-card);
+}
+
+/* The profile on paper (2026-09-06 §6.3): inside the profile overlay —
+   the account sheet behind its gear included, one door, one language —
+   every card flattens to a hairline SECTION: no box, a bottom rule. The
+   prototype said this with seven !importants; scoping outranks the .card
+   family without them, which also means a card's own inline padding or
+   margin still wins — deliberately, because the repo's profile has cards
+   the prototype never drew (TestProgress's full-bleed padding:0, the
+   General tab's own rhythm), and those exceptions are theirs to keep. */
+.profile-ov .card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 18px 2px;
+  margin-bottom: 0;
+}
+/* compact tightens .card at three classes deep, which would out-rank the
+   section padding above and hand these boxless sections the BOX's inset */
+.app.compact .profile-ov .card { padding: 18px 2px; }
+/* a section is not a raised thing: no lift, no lift shadow, and the hover
+   accent stays off the one border it has left */
+.profile-ov button.card:hover, .profile-ov .card[role="button"]:hover,
+.profile-ov button.card:active, .profile-ov .card[role="button"]:active {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--rule);
 }
 
 /* Unified sub-tab segmented nav (tabs / profile / genome) */
@@ -739,26 +712,6 @@ button.card:active,
   box-shadow: 0 1px 3px rgba(20,20,40,0.14), 0 0 0 0.5px color-mix(in oklch, var(--seg-fill, var(--ink)) 26%, transparent);
 }
 
-/* Daily mode switcher (World · Group · 1v1) — quiet underline tabs; one
-   pill tier fewer on the page so filters and the tabbar stand apart */
-.sd-switch { position: relative; display: flex; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
-.sd-switch-btn { position: relative; z-index: 1; flex: 1; min-height: 42px; padding: 8px 4px; border: none; background: none; cursor: pointer; font-family: var(--sans); font-size: 13.5px; font-weight: 650; letter-spacing: 0.01em; color: var(--ink-3); display: inline-flex; align-items: center; justify-content: center; transition: color 0.18s ease, transform 0.22s var(--ease-spring); }
-.sd-switch-btn:active { transform: scale(0.96); }
-.sd-switch-btn.is-on { color: var(--sw-acc, var(--ink)); font-weight: 800; }
-.sd-thumb { position: absolute; z-index: 0; bottom: -0.5px; left: 0; width: calc(100% / var(--sw-n, 3)); display: flex; justify-content: center; transition: transform 0.32s var(--ease-spring); }
-
-/* …and the same switcher once DailySplit portals it into the app header:
-   narrower, shorter, and without the rule, because the header already has
-   one under it. The switcher is the same element, so the sliding thumb
-   (now sized by --sw-n for N modes) keeps working. */
-.h-modeslot { flex: 1; min-width: 0; display: flex; justify-content: center; }
-/* fluid, capped — a fixed width would push the header's right group out of frame */
-.h-modeslot .sd-switch { width: 100%; max-width: 200px; border-bottom: none; }
-.h-modeslot .sd-switch-btn { min-height: 32px; padding: 3px 1px; font-size: 12.5px; letter-spacing: -0.01em; }
-
-/* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
-   filled result reveal after answering feels like a real payoff. */
-.sd-opt:hover { background: color-mix(in oklch, var(--opt, var(--ink)) 6%, var(--surface)) !important; border-color: color-mix(in oklch, var(--opt, var(--rule)) 28%, var(--rule)) !important; }
 
 /* Pill (wax-seal) */
 .pill {
@@ -787,7 +740,7 @@ button.card:active,
   border: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
   color: var(--accent);
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -910,7 +863,10 @@ button.card:active,
    animation (throttled/backgrounded tab) never hides it. JS removes it at 3s. */
 @keyframes toastFade { 0% { opacity: 1; transform: translateY(4px); } 10% { transform: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
 
-/* Mirror lens row (Answers · People · Compare) — three styles via data-lens-style */
+/* Mirror lens row (Answers · People · Compare) — underline tabs. The judged
+   alternatives (segmented, chips) left with the v28 teardown (§10); the
+   data-lens-style attribute stays because every rule below keys off it and
+   logic-test.jsx sets it locally too. */
 .mm-lensrow { position: relative; display: flex; }
 .mm-lensbtn { position: relative; z-index: 1; flex: 1; min-height: 44px; padding: 10px 8px; border: none; background: transparent; cursor: pointer; font-family: var(--sans); font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--ink-2); transition: color 0.18s ease, transform 0.22s var(--ease-spring); }
 @media (hover: hover) { .mm-lensbtn:hover { color: var(--ink-2); } }
@@ -918,30 +874,19 @@ button.card:active,
 .mm-lensbtn.is-on { color: var(--accent-ink); font-weight: 800; }
 .mm-lensthumb { position: absolute; z-index: 0; transition: transform 0.32s var(--ease-spring), opacity 0.18s ease; }
 .mm-lensthumb.is-off { opacity: 0; }
-/* 1 · segmented — pill track, sliding thumb, hairline separators */
-[data-lens-style="segmented"] .mm-lensrow { padding: 3px; border-radius: 999px; background: color-mix(in oklch, color-mix(in oklch, var(--surface-3) 88%, var(--accent)) 93%, var(--ink)); border: 0.5px solid color-mix(in oklch, var(--rule), transparent 30%); }
-[data-lens-style="segmented"] .mm-lensbtn { border-radius: 999px; }
-[data-lens-style="segmented"] .mm-lensthumb { top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); border-radius: 999px; background: var(--surface-2); box-shadow: 0 1px 4px color-mix(in oklch, var(--shadow-ink, var(--ink)) 16%, transparent), 0 0 0 0.5px color-mix(in oklch, var(--accent) 32%, transparent); }
-[data-lens-style="segmented"] .mm-lensbtn + .mm-lensbtn::before { content: ''; position: absolute; left: 0; top: 13px; bottom: 13px; width: 0.5px; background: color-mix(in oklch, var(--ink-3) 38%, transparent); transition: opacity 0.18s ease; }
-[data-lens-style="segmented"] .mm-lensbtn.is-on::before, [data-lens-style="segmented"] .mm-lensbtn.is-on + .mm-lensbtn::before { opacity: 0; }
-/* 2 · underline — quiet text tabs, accent bar slides beneath */
 [data-lens-style="underline"] .mm-lensrow { border-top: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
+/* …and on paper (2026-09-06 §6.3) a full top+bottom hairline: the row is a
+   ruled band in the page, not a floating trio. :not() is the design's own
+   guard for the prototype's promoted-to-top variant (see MirrorLensTabs.tsx
+   for why no live caller renders it) — kept verbatim so the rule above still
+   describes that variant, and because it is also what outranks it here. */
+[data-lens-style="underline"] .mm-lensrow:not(.mm-lensrow-top) { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 /* no resting tick under closed lenses — three short grey dashes read as broken
    underlines, not as inactive tabs. Weight + the sliding accent bar carry state. */
 [data-lens-style="underline"] .mm-lensbtn { min-height: 44px; font-size: 14.5px; }
 [data-lens-style="underline"] .mm-lensbtn.is-on { color: var(--ink); }
 [data-lens-style="underline"] .mm-lensthumb { left: 0; bottom: 0; height: 3px; width: calc(100% / var(--n)); }
 [data-lens-style="underline"] .mm-lensthumb::after { content: ''; position: absolute; left: 50%; bottom: 0; width: 34px; margin-left: -17px; height: 2.5px; border-radius: 99px; background: var(--accent); }
-/* 3 · chips — each lens its own hue, dot + tinted fill when open */
-[data-lens-style="chips"] .mm-lensrow { gap: 7px; }
-[data-lens-style="chips"] .mm-lensthumb { display: none; }
-[data-lens-style="chips"] .mm-lensbtn { --lh: 75; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; border-radius: 999px; border: 0.5px solid color-mix(in oklch, var(--rule), transparent 10%); background: var(--surface-2); color: var(--ink-2); }
-[data-lens-style="chips"] .mm-lensbtn[data-lens="answers"] { --lh: 155; }
-[data-lens-style="chips"] .mm-lensbtn[data-lens="people"] { --lh: 250; }
-[data-lens-style="chips"] .mm-lensbtn[data-lens="explore"] { --lh: 320; }
-[data-lens-style="chips"] .mm-lensbtn::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: oklch(0.62 0.12 var(--lh)); opacity: 0.75; transition: opacity 0.18s ease; }
-[data-lens-style="chips"] .mm-lensbtn.is-on { background: color-mix(in oklch, oklch(0.62 0.12 var(--lh)) 12%, var(--surface-2)); border-color: oklch(0.62 0.12 var(--lh) / 0.5); color: oklch(0.36 0.12 var(--lh)); }
-[data-lens-style="chips"] .mm-lensbtn.is-on::before { opacity: 1; }
 
 /* Bare button — strips the UA chrome so a <button> lays out like the <div>
    it replaced. For the many spec-layer rows, tiles and chips that were
@@ -960,15 +905,20 @@ button.card:active,
    with left:% + translate(-50%) becomes a full-width box). Sites that need
    it in a plain block context set width themselves — cf. .mmt-astat-row. */
 
-/* nav v2 — the lens row promoted above the content: it reads as the screen's
-   tabs, with the field itself as the first one, instead of hiding at the edge */
-.mm-lensrow-top { margin: 2px 0 4px; }
-[data-lens-style="underline"] .mm-lensrow-top { border-top: none; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
-[data-lens-style="underline"] .mm-lensrow-top .mm-lensbtn { min-height: 46px; font-size: 14.5px; }
 
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
 .press:active { transform: scale(0.95); }
+
+/* The paid door's rate rows (2026-09-02): each row rises in, and its
+   day-strip ticks pop up one after another so the fortnight reads as a
+   measurement being taken rather than as a static bar. Reduced motion
+   turns both off — they carry no information the still frame lacks. */
+.sg-rise { animation: sgRise 0.44s var(--ease-out) both; }
+@keyframes sgRise { from { opacity: 0; transform: translateY(10px); } }
+.sg-tick { transform-origin: bottom; animation: sgTick 0.5s var(--ease-spring) both; }
+@keyframes sgTick { from { transform: scaleY(0.15); } }
+@media (prefers-reduced-motion: reduce) { .sg-rise, .sg-tick { animation: none !important; } }
 @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
 
 /* Vote reveals — result settles in, bars grow, chips pop.
@@ -985,6 +935,14 @@ button.card:active,
 @keyframes popIn { from { opacity: 0; transform: translateY(9px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes barIn { from { width: 0; } }
 @keyframes chipPop { from { transform: scale(0.5); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the daily's ballot: two paper halves on one hairline row (2026-09-06,
+   daily-split.jsx). The pressed half tints and underlines in its own
+   side's hue (--oc, set inline per option) — the one place the option's
+   colour survives the boxless redraw before the reveal wears it. The
+   transform:none beats .press's own :active scale: the halves are one
+   block, and one shrinking half would break the seam. */
+.ds-half { transition: background .16s ease, box-shadow .16s ease; }
+.ds-half:active { transform: none; background: color-mix(in oklch, var(--oc) 9%, transparent); box-shadow: inset 0 -3px 0 var(--oc); }
 @keyframes tilePick { 0% { transform: scale(0.96); } 55% { transform: scale(1.012); } 100% { transform: none; } }
 /* a duel tile's share rises from its own floor — the fill IS the number */
 @keyframes wfFillUp { from { height: 0; } }
@@ -1035,6 +993,14 @@ button.card:active,
 .wf-sheet-body { overflow-y: auto; padding: 4px 16px 24px; scrollbar-width: none; }
 .wf-sheet-body::-webkit-scrollbar { display: none; }
 @keyframes wfScrimIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* The Groups stop's role map (D437, ui/LgRoleMap.tsx): a satellite fades in
+   and drifts on a seeded path; a picked shared role's dashed thread flows.
+   Declared once here rather than in a <style> the component would re-mount. */
+@keyframes lgIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lgDrift { to { transform: translate(var(--dx), var(--dy)); } }
+@keyframes lgFlow { to { stroke-dashoffset: -18; } }
+@media (prefers-reduced-motion: reduce) { .lg-sat { animation: none !important; } }
 @keyframes wfSheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 /* sheet dismiss — scrim fades, sheet slides down, then unmounts */
 .wf-scrim.is-closing { animation: wfScrimIn 0.22s ease reverse both; }
@@ -1114,7 +1080,7 @@ button.card:active,
 }
 .search-group {
   font-family: var(--sans);
-  font-size: 11px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ink-3);
   margin: 18px 2px 8px;
@@ -1178,33 +1144,19 @@ button.card:active,
   font-family: var(--sans); font-style: normal; font-weight: 600; font-size: 13px;
 }
 
-/* ── Test overlay ─────────────────────────────────────────── */
-/* Selection cards — gentle lift + accent edge on hover */
-.test-pick-card {
-  transition: transform 0.22s var(--ease-spring), box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.test-pick-card:hover {
-  transform: translateY(-1.5px);
-  box-shadow: var(--shadow-lift);
-}
-.test-pick-card:active { transform: translateY(0) scale(0.99); box-shadow: var(--shadow-card); }
-
-@media (hover: none) { .kb-hint { display: none; } }
+/* The sit-down test overlay's own rules stood here — `.test-pick-card`'s
+   hover lift and `.kb-hint` — until the flow itself went at D121 and the
+   four core instruments started filling from the feed. Nothing in the app
+   has carried either class since; this is a first-paint stylesheet with
+   about 5 KB of headroom under check:bundle's blocking-CSS ceiling, so
+   selectors for a deleted screen are not free. */
 
 /* Overlay headers shouldn't wrap their title (e.g. "Big Five", "Take a test") */
 .overlay .app-header .h-title { white-space: nowrap; }
 
-/* Question card eases in on advance / back — transform-only & vertical so
-   content is never clipped or invisible if the animation is reset
-   (screenshots, throttled tabs), matching the app's tab-swap convention */
-@media (prefers-reduced-motion: no-preference) {
-  .q-slide { animation: qRise 0.26s var(--ease-out) both; }
-  .q-slide-back { animation: qRise 0.26s var(--ease-out) both; }
-}
-@keyframes qRise {
-  from { transform: translateY(9px); }
-  to   { transform: none; }
-}
+/* `.q-slide` / `.q-slide-back` and their `qRise` keyframes went with the
+   same overlay (D121): they eased the question card between steps of a flow
+   that no longer exists. */
 
 /* result-rose reveal — petals grow out from the centre, staggered */
 @media (prefers-reduced-motion: no-preference) {
@@ -1253,8 +1205,8 @@ button.card:active,
 .app :focus:not(:focus-visible), .overlay :focus:not(:focus-visible) { outline: none; }
 /* elements that already draw their own edge get the ring tight to it */
 .tab-btn:focus-visible, .subnav-btn:focus-visible, .pill:focus-visible,
-.wf-chip:focus-visible, .mm-lensbtn:focus-visible, .h-dockstop:focus-visible,
-.sd-switch-btn:focus-visible { outline-offset: 1px; }
+.wf-chip:focus-visible, .mm-lensbtn:focus-visible,
+.h-dockstop:focus-visible { outline-offset: 1px; }
 .avatar-btn:focus-visible, .icon-btn:focus-visible { outline-offset: 3px; }
 /* fields whose wrapper already carries the focus state — the ring would draw a
    second box inside the first */
@@ -1271,7 +1223,7 @@ button.card:active,
    shouldn't blue-select the nav. Real content stays selectable, so a question
    or a comment can still be copied. */
 .app button, .overlay button, .wf-sheet button,
-.kicker, .tabbar, .subnav, .stamp, .h-dockruler, .sd-switch,
+.kicker, .tabbar, .subnav, .stamp, .h-dockruler,
 .mm-lensrow, .search-group, .fig-num, .app-header .h-title {
   -webkit-user-select: none; user-select: none;
 }
@@ -1302,7 +1254,7 @@ button.card:active,
 /* 7 · Hover is a mouse state. On a touch screen the lift/tint sticks to the
    last thing tapped, so the pointer-driven transforms stand down there. */
 @media (hover: none) {
-  button.card:hover, .card[role="button"]:hover, .test-pick-card:hover,
+  button.card:hover, .card[role="button"]:hover,
   .icon-btn:hover, .avatar-btn:hover, .press:hover { transform: none; box-shadow: var(--shadow-card); }
   .search-hit:hover { background: none; }
 }
@@ -1334,6 +1286,13 @@ button.card:active,
    changes nothing you can see. */
 .tap44 { position: relative; }
 .tap44::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 34px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+/* …and the tight variant, for controls in a ROW of their own kind. The feed's
+   counter pager is 7px dots on a 5px gap — a 12px pitch — so the 34px box
+   above would have each dot's hit area covering two neighbours, and a tap
+   near an edge would land on the wrong page. That is worse than a small
+   target, not better: a miss you can retry beats a hit on the wrong control.
+   Height still 44; width tracks the pitch. */
+.tap44.is-tight::after { width: max(100%, 12px); }
 /* The two chips live inside clipping scrollers (an edge mask, an overflow
    collapse), so a pseudo hit box gets cut off — they grow their own box
    instead. Both were also the odd height in their row: the meter chip stood
@@ -1346,7 +1305,7 @@ button.card:active,
    swipe nudge, and the rose petals growing. Their finished state is the base
    style, so switching them off simply shows the result. */
 @media (prefers-reduced-motion: reduce) {
-  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"], [style*="qRise"] { animation: none !important; }
+  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"] { animation: none !important; }
   .app *, .overlay * { scroll-behavior: auto !important; }
 }
 
@@ -1364,6 +1323,10 @@ button.card:active,
    frame; now the edge dissolves — but only on a side that actually has more
    to show (edge-fade.js sets data-ef). A rail that fits stays crisp. */
 .h-scroll[data-ef], .rm-axisrow[data-ef], .mmt-swipe[data-ef], .cb-rail[data-ef], .subnav--scroll[data-ef], .mmt-chips[data-ef], .mmt-fchips[data-ef] { --ef: 28px; }
+/* the map's branch rail dissolves over a longer run (2026-09-06 §6.3) —
+   its chips are wider than the other rails', and at 28px the last one
+   still read as cut rather than as continuing */
+.mmt-chips[data-ef] { --ef: 48px; }
 .h-scroll[data-ef="r"], .rm-axisrow[data-ef="r"], .mmt-swipe[data-ef="r"], .cb-rail[data-ef="r"], .subnav--scroll[data-ef="r"], .mmt-chips[data-ef="r"], .mmt-fchips[data-ef="r"] {
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
   mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
@@ -1397,33 +1360,13 @@ button.card:active,
 /* the band's scrim is set inline in renderDuel (one value over photography, a
    lighter one over generated art) — nothing to override here */
 
-/* ── Accent ramp experiments · Tweaks → Aesthetic → Accents ──────────────────
-   Grounded in "Accent ramp study.html", which solves each hue against the sRGB
-   boundary. The flat :root ramp writes C .14 at L .52 for all seven — a value
-   three of them cannot hold (World .108, Groups .104, Likeness .086 are clipped
-   and ship as something duller and hue-shifted) and four of them could far
-   exceed (violet 282 can hold .277). One number, two opposite errors.
-
-   acc-daily  — the front-door option. Violet alone goes to the .20 house
-     ceiling; petrol drops to the .086 it can actually hold, so the daily's
-     scene palette stops shipping a colour nobody wrote. Lightness untouched,
-     so contrast is unchanged and no ink twin is needed.
-   acc-family — the whole set at one lightness, each hue at its own ceiling.
-     L .555 is the brightest shared lightness where white-on-fill still clears
-     4.5:1, and it sits inside World's own .545–.655 band, so chrome and feed
-     stop reading as two systems. City lands at 4.4:1 — the one ink twin owed. */
-.app.acc-daily { --c-today: oklch(0.52 0.20 282); --c-likeness: oklch(0.52 0.086 195); }
-.app.acc-family {
-  --c-today:    oklch(0.555 0.200 282);
-  --c-around:   oklch(0.555 0.170 40);
-  --c-world:    oklch(0.555 0.115 235);
-  --c-city:     oklch(0.555 0.149 150);
-  --c-groups:   oklch(0.555 0.111 85);
-  --c-people:   oklch(0.555 0.200 8);
-  --c-likeness: oklch(0.555 0.092 195);
-  --pulse:      oklch(0.555 0.135 282);
-  --c-city-ink: oklch(0.52 0.144 150);
-}
+/* ── Accent ramp ─────────────────────────────────────────────────────────────
+   'now' — the flat :root ramp — won the v28 teardown (§10) over two judged
+   alternatives grounded in "Accent ramp study.html" (acc-daily: per-hue chroma
+   against the sRGB boundary; acc-family: one shared lightness, each hue at its
+   own ceiling). The study's arithmetic is real — the flat C .14 at L .52 clips
+   three hues and undersells four — but neither remedy earned the second system
+   it created, so the ramp stays :root's and nothing overrides it here. */
 
 
 /* ═══ next style block ═══ */
@@ -1458,6 +1401,25 @@ button.card:active,
 .mmt-edges path { transition: opacity 0.3s ease; }
 .mmt-limb { stroke: oklch(0.68 0.09 var(--hue)); }
 .app.dark .mmt-limb { stroke: oklch(0.5 0.08 var(--hue)); }
+/* ink-in (2026-09-06 §6.3): the constellation draws onto the page instead
+   of appearing whole — limbs and spokes as strokes (map-tab sets
+   pathLength=1 and a small per-limb delay inline), answer dots as a fade
+   delayed by distance from the hub. Same keyframe family, by NAME, as
+   ui/patterns.css's — the bodies are identical on purpose: patterns.css
+   rides the lazy Patterns chunk, so whichever sheet loads second redefines
+   the names with the same frames and neither can shift the other's motion.
+   inkIn declares only `from`, so the resting frame is the cascade's own —
+   which is what lets is-off (the time scrub) and is-dim keep their
+   opacities, and mmtFreshHalo stays clear anyway (it animates .mmt-ddot,
+   the child). */
+@keyframes inkDraw { from { stroke-dashoffset: 1; opacity: 0; } to { stroke-dashoffset: 0; } }
+@keyframes inkIn { from { opacity: 0; } }
+@keyframes inkDot { from { opacity: 0; transform: scale(0.2); } }
+.mmt-edges path.mmt-ink { stroke-dasharray: 1; animation: inkDraw 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+.mmt-dotnode { animation: inkIn 0.4s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .mmt-edges path.mmt-ink, .mmt-dotnode { animation: none; }
+}
 
 /* territory fields — one soft hue landmass per branch */
 .mmt-field { display: none; }
@@ -1567,7 +1529,7 @@ button.card:active,
 }
 .app.dark .mmt-anchor-dot { background: oklch(0.68 0.12 var(--hue)); box-shadow: 0 0 0 3px var(--surface-2); }
 .mmt-anchor-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap;
   color: oklch(0.42 0.09 var(--hue));
   padding: 1.5px 7px; border-radius: 999px;
   background: color-mix(in oklch, var(--surface) 82%, transparent);
@@ -1667,7 +1629,7 @@ button.card:active,
 .mmt-dlab {
   position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
   pointer-events: none; white-space: nowrap;
-  font-size: 10.5px; font-weight: 700; color: oklch(0.40 0.09 var(--hue));
+  font-size: 12px; font-weight: 700; color: oklch(0.40 0.09 var(--hue));
   padding: 2.5px 9px; border-radius: 999px;
   background: oklch(0.95 0.03 var(--hue));
   opacity: 0; transition: opacity 0.18s ease;
@@ -1675,7 +1637,7 @@ button.card:active,
 }
 /* topic labels — quiet structural text, never confusable with answer pills */
 .mmt-dotnode.is-leaf .mmt-dlab {
-  font-size: 10px; font-weight: 650; letter-spacing: -0.005em; text-transform: none;
+  font-size: 12px; font-weight: 650; letter-spacing: -0.005em; text-transform: none;
   color: var(--ink-2); background: none; padding: 2.5px 0; border-radius: 0;
   text-shadow: 0 1px 3px var(--surface), 0 0 7px var(--surface);
 }
@@ -1735,7 +1697,7 @@ button.card:active,
 /* floating chrome */
 .mmt-chip {
   position: absolute; top: 10px; left: 12px; z-index: 4;
-  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-3);
   background: color-mix(in oklch, var(--surface) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1745,7 +1707,7 @@ button.card:active,
 }
 .mmt-clearhl {
   position: absolute; top: 10px; right: 12px; z-index: 4;
-  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-2); cursor: pointer;
   background: color-mix(in oklch, var(--surface-2) 88%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1779,7 +1741,7 @@ button.card:active,
 /* locked-details hint — a quiet floating pill, bottom-centre (not in flow) */
 .mmt-hint {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4;
-  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-3); white-space: nowrap;
   background: color-mix(in oklch, var(--surface) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1808,15 +1770,21 @@ button.card:active,
   position: absolute; top: 9px; right: 9px;
   width: 26px; height: 26px; border-radius: 50%;
   border: 1px solid var(--rule); background: var(--surface); color: var(--ink-3);
-  font-size: 11px; cursor: pointer;
+  font-size: 12px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.2s var(--ease-spring), color 0.15s ease, border-color 0.15s ease;
 }
 .mmt-card-x:hover { color: var(--ink); border-color: var(--ink-3); }
 .mmt-card-x:active { transform: scale(0.88); }
+/* 26px drawn, 44 tall to press. Same trick and same reason as .tap44 above —
+   these sit on the Map's cards, where the drawn size is the design and the
+   hit box is not. Its own rule rather than the class because the card is a
+   transform container, so a pseudo on a positioned child is the reliable
+   shape here. */
+.mmt-card-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 34px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 .mmt-kicker {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--sans); font-size: 11.5px; font-weight: 600; letter-spacing: 0;
+  font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0;
   color: oklch(0.52 0.08 var(--hue));
   margin-bottom: 7px;
 }
@@ -1861,7 +1829,7 @@ button.card:active,
 .mmt-matchtext b { font-size: 13.5px; font-weight: 750; letter-spacing: -0.005em; color: var(--ink); }
 .mmt-matchtext span { font-size: 12px; line-height: 1.35; color: var(--ink-3); text-wrap: pretty; }
 .mmt-dbar-wrap { position: relative; margin-top: 22px; }
-.mmt-dbar-mark { position: absolute; top: -15px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 800; letter-spacing: 0.01em; }
+.mmt-dbar-mark { position: absolute; top: -15px; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 800; letter-spacing: 0.01em; }
 .mmt-dbar-mark::after { content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-top: 4px solid currentColor; }
 .mmt-dbar-mark.is-you { color: oklch(0.48 0.12 var(--hue)); }
 .mmt-dbar-mark.is-most { color: var(--ink-3); }
@@ -1914,7 +1882,7 @@ button.card:active,
 .app.dark .mmt-ridge-col.is-peak::before { border-color: oklch(0.68 0.12 var(--hue)); }
 .mmt-ridge-foot {
   display: flex; justify-content: space-between; margin-top: 8px;
-  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
 }
 .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.50 0.09 var(--hue)); font-weight: 500; }
 .app.dark .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.78 0.08 var(--hue)); }
@@ -1930,7 +1898,7 @@ button.card:active,
 /* anchor card — your actual stat, before the group breakdown */
 .mmt-astat { margin: 2px 0 0; }
 .mmt-astat-big { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); padding-right: 26px; }
-.mmt-astat-sub { margin-top: 3px; font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-sub { margin-top: 3px; font-family: var(--sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .mmt-astat-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 13px; padding: 8px 4px; }
 .mmt-astat-lab { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mmt-astat-bar { height: 5px; border-radius: 99px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: visible; }
@@ -1944,7 +1912,7 @@ button.card:active,
 .app.dark .mmt-astat-bar i { background: oklch(0.74 0.10 var(--hue)); }
 /* where the group sits on this axis — hollow ring, shown on every row */
 .mmt-astat-legend { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 11px; }
-.mmt-astat-legkey { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-legkey { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
 .mmt-astat-legkey .lk-you { width: 9px; height: 9px; border-radius: 50%; background: oklch(0.62 0.12 var(--hue)); box-shadow: 0 0 0 2px var(--surface-2); }
 .mmt-astat-legkey .lk-them { width: 11px; height: 11px; border-radius: 50%; box-sizing: border-box; background: var(--surface-2); border: 2px solid oklch(0.605 0.118 var(--hue)); }
 .app.dark .mmt-astat-legkey .lk-them { border-color: oklch(0.74 0.10 var(--hue)); }
@@ -1973,11 +1941,11 @@ button.card:active,
 .mmt-astat-x { padding: 5px 8px 10px 107px; display: grid; gap: 7px; }
 .mmt-astat-ends {
   display: flex; justify-content: space-between; gap: 8px;
-  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--ink-3);
 }
 .mmt-astat-key { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.mmt-astat-blurb { font-size: 11.5px; color: var(--ink-2); min-width: 0; }
+.mmt-astat-blurb { font-size: 12px; color: var(--ink-2); min-width: 0; }
 .mmt-astat + .mmt-matchhead { margin-top: 19px; padding-top: 16px; border-top: 0.5px solid var(--rule); }
 
 /* anchor card — match headline + typical-vs-you list */
@@ -2000,11 +1968,11 @@ button.card:active,
 }
 .mmt-mrow-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .mmt-mchip {
-  font-size: 11.5px; font-weight: 700; padding: 3.5px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; padding: 3.5px 9px; border-radius: 999px;
   white-space: nowrap;
 }
 .mmt-mchip i {
-  font-style: normal; font-weight: 500; font-size: 10px; margin-right: 4px;
+  font-style: normal; font-weight: 500; font-size: 12px; margin-right: 4px;
 }
 .mmt-mchip.is-you { color: white; background: oklch(0.605 0.118 var(--hue)); }
 .mmt-mchip.is-them { color: var(--ink-3); border: 1px solid color-mix(in oklch, var(--ink) 22%, transparent); }
@@ -2014,12 +1982,16 @@ button.card:active,
 .mmt-samehead {
   display: flex; align-items: center; gap: 6px; margin-top: 14px; padding: 0;
   background: none; border: none; cursor: pointer;
-  font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink-3);
 }
-.mmt-samehead-chev { font-size: 10px; transition: transform 0.15s ease; }
+.mmt-samehead-chev { font-size: 12px; transition: transform 0.15s ease; }
 .mmt-samehead.is-open .mmt-samehead-chev { transform: rotate(180deg); }
 .mmt-matchlist.is-quiet .mmt-mrow-q { color: var(--ink-3); }
+/* The percentage's basis, when the thin guard has dropped rows from it —
+   quieter than the bar it sits under, in the voice the differ/agree
+   headings use. */
+.mmt-matchbasis { margin-top: 6px; font-size: 11.5px; line-height: 1.4; color: var(--ink-3); }
 .mmt-allsame { margin-top: 12px; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
 /* live mode has no cohort behind a Map answer (D72) — the honest state that
    replaces the group bars, the match headline and the differ list. Quiet by
@@ -2063,7 +2035,7 @@ button.card:active,
 .mmt-slim-ct {
   flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--sans); font-size: 10px; font-weight: 500;
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
   background: oklch(0.95 0.03 var(--hue)); color: oklch(0.42 0.09 var(--hue));
 }
 .app.dark .mmt-slim-ct { background: oklch(0.295 0.045 var(--hue)); color: oklch(0.82 0.07 var(--hue)); }
@@ -2095,18 +2067,18 @@ button.card:active,
 .mpc-av {
   width: 24px; height: 24px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--sans); font-weight: 800; font-size: 9.5px; color: #fff;
+  font-family: var(--sans); font-weight: 800; font-size: 12px; color: #fff;
   background: oklch(0.52 0.13 var(--phue, 28));
 }
 .mpc-name { flex: 1; min-width: 0; font-family: var(--sans); font-weight: 700; font-size: 13.5px; color: var(--ink); }
 .mpc-gaps { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .mpc-gap { font-family: var(--sans); font-size: 12.5px; font-weight: 500; line-height: 1.4; color: var(--ink-2); }
 .mpc-gap b { font-weight: 750; color: var(--ink); }
-.mpc-align { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink-3); margin-top: 8px; }
+.mpc-align { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--ink-3); margin-top: 8px; }
 .mpc-pair { display: flex; align-items: stretch; gap: 12px; margin: 10px 0 4px; }
 .mpc-side { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .mpc-side + .mpc-side { align-items: flex-end; border-left: 0.5px solid var(--rule); }
-.mpc-lab { font-family: var(--sans); font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
+.mpc-lab { font-family: var(--sans); font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
 .mpc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
 .mpc-open {
   border: none; background: none; padding: 4px 0; cursor: pointer; -webkit-appearance: none;
@@ -2186,7 +2158,7 @@ button.card:active,
 .pp-svg text { font-family: inherit; }
 .pp-head { display: flex; align-items: center; gap: 8px; }
 .pp-kick {
-  font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--pp-ink);
 }
 .pp-name { font-size: 20px; font-weight: 800; color: var(--ink); margin: 9px 0 3px; line-height: 1.2; }
@@ -2211,7 +2183,6 @@ button.card:active,
 .pp-choice:hover { border-color: var(--pp-ink); transform: translateY(-1px); }
 .pp-choice::after { content: "→"; margin-left: auto; color: var(--pp-ink); font-weight: 800; }
 .pp-end { margin-top: 6px; }
-.pp-end b { font-size: 18px; font-weight: 800; color: var(--ink); }
 .pp-line { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-top: 3px; text-wrap: pretty; }
 .pp-chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2219,11 +2190,7 @@ button.card:active,
   background: color-mix(in oklch, var(--pp-c), var(--surface) 82%);
   color: var(--pp-ink);
 }
-.pp-again {
-  margin-top: 12px; width: 100%; padding: 10px; border-radius: 999px;
-  border: 1.4px solid var(--rule); background: none; color: var(--ink-3);
-  font: inherit; font-size: 13.5px; font-weight: 750; cursor: pointer;
-}
+/* .pp-again left with the "Walk again" control (D211) — a walk is final. */
 @media (prefers-reduced-motion: reduce) {
   .pp-choice { transition: border-color 0.15s ease; }
   .pp-choice:hover { transform: none; }
