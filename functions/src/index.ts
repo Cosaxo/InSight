@@ -1387,6 +1387,7 @@ export { activateDeviceV2 } from "./deviceBind";
 // RUNBOOK 4.4 (nightly.ts) — `ledgerVelocityScan` is no longer a function
 // of its own; the project's copy is deleted by hand (OWNER-LIST.md).
 export { logicStartV2, logicSubmitV2 } from "./logic";
+export { saveTestResultV2 } from "./testResults";
 // D194: Foresight CALL, tier A — the daily pass that grades a sealed
 // prediction against our OWN published aggregate and publishes the numbers
 // it read. No model, no fetch, no judgement anywhere in that path.

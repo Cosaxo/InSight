@@ -58,14 +58,49 @@ const PAGE = 5000;
 export type LedgerDayReader = (dayKey: string) => Promise<LedgerDayEntry[]>;
 
 /**
- * `readLedgerDay`, remembered per day for the life of one nightly pass.
+ * `readLedgerDay`, remembered for the life of one nightly pass — but for
+ * `keep` days at a time, not for all of them.
+ *
  * Three stores built over one of these read the ledger once between them
- * (D399). A read that FAILS is forgotten, so the next fold that asks
- * retries rather than inheriting the rejection — the folds are isolated
- * from one another's failures in nightly.ts, and a poisoned memo would
- * undo that.
+ * (D399), and on an ordinary night that is exactly what still happens:
+ * one day is owed, all three folds ask for it, one read. A read that
+ * FAILS is forgotten, so the next fold that asks retries rather than
+ * inheriting the rejection — the folds are isolated from one another's
+ * failures in nightly.ts, and a poisoned memo would undo that.
+ *
+ * WHY IT IS BOUNDED. The three folds run in SEQUENCE, each walking its
+ * own owed days oldest-first, so an unbounded memo holds every day of a
+ * catch-up at once — and a catch-up is precisely the night after the
+ * pass missed one, which is the run that must not die. Measured
+ * 2026-09-09 with the real reader against a paging fake, retained heap
+ * after three GCs at 30,000 entries a day over a 7-day catch-up:
+ *
+ *     one reader per day (the pre-D399 shape)   10.3 MB
+ *     one unbounded memo (D399 as written)      70.9 MB   6.9x
+ *
+ * ~236 bytes retained per entry, which agrees with patterns.ts's own
+ * measured ~290. At COSTS.md's ~5 world answers per user per day, 50k
+ * DAU is ~250k entries a day ≈ 59 MB per resident day: a 3-day catch-up
+ * is ~177 MB and a 7-day one ~410 MB, on LIGHT_UNBOUNDED's 256 MiB,
+ * before the per-uid maps and the vectors. The OOM re-reads the same
+ * days tomorrow and dies identically — nothing advances a cursor until
+ * the end — which is the permanent wedge patterns.ts's header describes.
+ *
+ * THE TRADE, stated because it is a real cost and not a free win: with
+ * `keep = 1`, a catch-up reads each day once per fold instead of once,
+ * so a 7-day recovery costs 21 day-reads rather than 7. Reads on the
+ * rare path against a wedge that never clears itself. The ordinary
+ * night — one owed day — is unchanged in both reads and memory.
+ *
+ * The alternative that keeps both is to iterate DAYS outermost across
+ * the three folds instead of folds outermost; that is a rewrite of three
+ * folds' internals, and it is the way through if the read cost on
+ * catch-ups ever matters.
  */
-export function memoLedgerReader(db: Firestore): LedgerDayReader {
+export function memoLedgerReader(db: Firestore, keep = 1): LedgerDayReader {
+  // Insertion-ordered, which is what makes the eviction below an LRU
+  // without a second structure: re-asking for a held day does not move
+  // it, and it does not need to — the folds walk days in one order.
   const days = new Map<string, Promise<LedgerDayEntry[]>>();
   return (dayKey) => {
     let pending = days.get(dayKey);
@@ -73,6 +108,13 @@ export function memoLedgerReader(db: Firestore): LedgerDayReader {
       pending = readLedgerDay(db, dayKey);
       days.set(dayKey, pending);
       pending.catch(() => { days.delete(dayKey); });
+      // Evicting a PENDING promise is safe: whoever already holds it
+      // still gets its value, it simply stops being reused. With the
+      // folds in sequence there is never more than one in flight.
+      while (days.size > Math.max(1, keep)) {
+        const oldest = days.keys().next().value as string;
+        days.delete(oldest);
+      }
     }
     return pending;
   };

@@ -11,7 +11,7 @@ vi.mock("../data/catalogArtIndex", () => ({
   CATALOG_ART: { athletes: { jpg: [615] }, films: { jpg: [44578] }, pokemon: { webp: [25] } },
 }));
 
-import PickCredits from "./PickCredits";
+import PickCredits, { CREDITS_PAGE } from "./PickCredits";
 import { resetCatalogArtForTests } from "../data/catalogArt";
 import { SITE_ORIGIN } from "../data/siteOrigin";
 
@@ -70,6 +70,46 @@ describe("PickCredits", () => {
     expect(screen.getByText(/^Pikachu/).textContent).not.toContain("·");
     expect(screen.queryByText(/not endorsed or certified by TMDB/)).toBeNull();
     expect(screen.queryByText(/Wikimedia Commons/)).toBeNull();
+  });
+
+  it("draws a page at a time, not the whole manifest", async () => {
+    // The door under a tile row that was itself PAGED for this reason.
+    // Measured on the committed manifest before this: one tap on Image
+    // credits committed 1,025 `<li>` and 2,055 DOM nodes for the Pokédex
+    // (172 KB of TSV), on the card the tiles had already been paged to
+    // keep small. The licence asks that the attribution be reachable, not
+    // that all of it is mounted.
+    const N = CREDITS_PAGE * 2 + 5;
+    const rows = Array.from({ length: N }, (_, i) =>
+      `${i + 1}\t${i + 1}.jpg\tAthlete ${i + 1}\tPhotographer\tCC BY-SA 3.0\thttps://commons.wikimedia.org/wiki/File:A${i + 1}.jpg`);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => `# ${N} entries.\n${rows.join("\n")}\n` })));
+    render(<PickCredits domain="athletes" accent="var(--ink)" />);
+    fireEvent.click(screen.getByRole("button", { name: "Image credits" }));
+    await waitFor(() => expect(screen.getByText(/^Athlete 1$|^Athlete 1 /)).toBeTruthy());
+
+    const items = () => document.querySelectorAll("li").length;
+    expect(items(), "the whole manifest was committed at once").toBe(CREDITS_PAGE);
+    const more = () => document.querySelector("[data-credits-more]") as HTMLButtonElement | null;
+    expect(more(), "no way to reach the rest — the licence needs it reachable").toBeTruthy();
+    expect(more()!.textContent).toBe(`+${N - CREDITS_PAGE} more`);
+
+    fireEvent.click(more()!);
+    expect(items()).toBe(CREDITS_PAGE * 2);
+    expect(more()!.textContent).toBe(`+${N - CREDITS_PAGE * 2} more`);
+
+    fireEvent.click(more()!);
+    expect(items(), "the last page did not land").toBe(N);
+    expect(more(), "the door stayed open on a list with nothing left").toBeNull();
+  });
+
+  it("shows a short list whole, with no door to nowhere", async () => {
+    // The control: a domain under one page must not grow a "+0 more".
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => ATHLETES })));
+    render(<PickCredits domain="athletes" accent="var(--ink)" />);
+    fireEvent.click(screen.getByRole("button", { name: "Image credits" }));
+    await waitFor(() => expect(screen.getByText(/^Lionel Messi/)).toBeTruthy());
+    expect(document.querySelectorAll("li").length).toBe(1);
+    expect(document.querySelector("[data-credits-more]")).toBeNull();
   });
 
   it("says so when hosting cannot be reached, instead of an empty box", async () => {

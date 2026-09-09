@@ -46540,7 +46540,572 @@ is the run log.
 prompt, so the canonical block in § Scheduled runs is the live text, not
 a copy of what was sent.
 
-## D429 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+## D429 · `firestore.rules` has two ceilings, both close, and a per-kind size bound does not fit under either
+
+**Deferred, with the arithmetic**, per CLAUDE.md's house rule. This is
+not a privacy deferral and does not need the D334 ask: what is deferred
+is a HARDENING measure, and nothing about it hides a link or narrows
+what the app may draw.
+
+### What was hardened, and what is left
+
+The profile's `testResults` was capped at eight KEYS and not at all by
+size, on a document every other device downloads whole (`voters.ts`
+resolves thirty uids per query with no field mask). Measured against the
+live ruleset: a 400 KB value was accepted while a 61-character display
+name was refused. The same night's fix replaced the count with a key
+VOCABULARY — `logic`, `big5`, `political`, `values`, `attachment`, the
+five the tree actually writes — which removes the arbitrary key.
+
+What it does not do is bound the size INSIDE a legitimate kind. A 400 KB
+string under `values.title` is still accepted. Closing that needs
+per-kind shape checks: for each of the five, the keys it may carry and a
+length bound on each leaf.
+
+### Why it does not fit
+
+Two separate ceilings, both measured on 2026-09-09 by appending filler
+conjuncts to the rule under test and running the suite at each N.
+
+**The runtime budget.** Firestore stops a rule at 1,000 evaluated
+expressions and reports the stop as `PERMISSION_DENIED` — indistinguishable
+from a rule saying no. On the ANSWER create path the thinnest arms
+(D426's world-question duel arm, and the pick round) flip between 40 and
+48 fillers of ~3 expressions each: roughly 130 expressions of headroom.
+On the PROFILE path, writes survive 40 fillers of ~2 expressions and 8
+of 9 cases fail at 70: roughly 80–140.
+
+**The compile ceiling, which was not known before this.** At 85 fillers
+the ruleset stops COMPILING at all —
+
+    Error compiling rules:
+    L363:32 Expression is too complex to evaluate safely.
+    L477:12 … L478:12 … L478:53 … L479:38 … L479:46 …
+
+— naming `isValidV2Anchors` and the profile arm. That one is at least
+LOUD: a deploy fails rather than a user being refused. It is recorded
+here because the file's own comment named only the runtime budget, and a
+reader planning a rule change needs both numbers.
+
+Five kinds × (a `hasOnly` on the kind's keys + a length bound per leaf)
+is comfortably more than 80 expressions on a path that has 80–140. It
+does not fit, and spending the margin on it would buy a hardening
+measure at the cost of the create path this app exists to serve.
+
+### What is true instead
+
+- The cheap half of the attack is closed: an arbitrary KEY is refused,
+  so a blob needs a legitimate kind's name and shape.
+- The residual is a large value under one of five known keys, from one
+  account, read by whoever meets that account. It is a cost and
+  bandwidth exposure, not a disclosure — the document is public by D98.
+- The server already bounds its own exposure with a `fieldMask`
+  (`v2social.ts`), which is why the reveal pipeline is not affected.
+- Two ways through, neither taken tonight: a Cloud Function that folds
+  and rewrites an over-large profile (a write path, not a rule), or
+  trimming the anchors' own expression cost to buy margin first. Both
+  are their own increments.
+
+`firestore-tests/rules.test.ts` carries the measurement as executable
+cases: seven pin the heaviest LEGAL create against the runtime budget,
+and one asserts that a large value under a legal key is still accepted,
+so this record cannot quietly stop being true.
+
+### Reversal
+
+None to reverse — nothing was built. If the per-kind bound is wanted,
+the budget has to be bought first.
+
+## D430 · The 2026-09-09 night review: two shifts merged as one tree — 54 commits kept, zero conflicts for the first time, and the defects that live where nothing collides
+
+**2026-09-09.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+fifty-four commits are kept as written; nothing was reverted. What this
+review adds is the composition and three fixes for things no shift could
+see alone. The owner's instruction was *"cheak the night shifts and merge
+the approved parts"*: every part is approved, and this record says which
+parts the composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260909` | 25 | 9 behind | shift A, Claude 2's, 21:27–05:26 UTC |
+| `nightb-20260909` | 29 | 7 behind | shift B, Claude 1's, 20:16–04:16 UTC |
+
+`main` took nine commits during the night and every one was the console
+or the pulse trail, so no decision number moved and no shift had to
+follow one. B claimed D429; A claimed none; `main` sat at D428. This
+record is D430.
+
+**ZERO FILES WERE TOUCHED BY BOTH.** Thirty-one files on A's side and
+forty-four on B's, and the intersection is empty — against seven the
+night before (D420) and twenty the night before that (D406). Both merges
+applied clean; there was nothing to resolve. That is the headline and it
+is also the warning, because the D380/D406/D420 pattern is that the
+defects live in the files that merge cleanly, and a night with no
+conflicts at all is a night where nothing stops you to ask. So the review
+was spent where a conflict cannot reach: on prose in one shift's
+territory describing code in the other's.
+
+### The composition defect: a retired ruleset, still current in three places
+
+B's D429 replaced `testResults.keys().size() <= 8` with a five-name
+`hasOnly` vocabulary, and B's closing flow swept its own citations —
+`firestore.rules`, `lens-defs.js`, `v2social.ts`. Three more survive
+elsewhere in the tree, and the composition is what makes them findable:
+B changed the ruleset, A edited the file that DESCRIBES it, and neither
+shift reads the other's branch.
+
+**`docs/OWNER-LIST.md` is the one that matters**, because it is a surface
+the owner acts from. Its open row *"one profile field has no size limit"*
+stated the current bound as the key COUNT and offered `hasOnly` as one of
+three shapes the owner had not chosen — while B shipped exactly that
+shape overnight. The row also warned that `hasOnly` *"would foreclose"*
+`lens-defs.js`'s plan to mirror lens scores. It does not: the list grows
+by a name instead of the cap growing by a number, which is the same
+one-line edit, and both files now say so at their own paths. So the owner
+was being asked to pick among three options, one of which was already in
+the tree, on a description of a ruleset that no longer existed.
+
+**The row stays open and stays the owner's.** B closed the cheap half —
+the arbitrary key, eight keys of 100 KB each — and B's own comment says
+the expensive half is untouched: nothing bounds the bytes inside a
+legitimate kind, so a 300 KB `testResults.big5` is still allowed and
+still read back whole by every stranger, thirty rows to a query. Rewritten
+to ask what is actually left, not deleted and not ticked; the
+recommendation is unchanged (server-only).
+
+`src/v2/data/similarity.ts` said the rules *"validate nothing about its
+shape (only key count and the server-owned `logic`)"* — squarely inside
+B's own sweep and simply missed. The correction strengthens the reason
+the parse is defensive rather than weakening it: the vocabulary narrowed
+WHICH keys arrive, never what is under one.
+
+`docs/VISION-2026-09-07.md` is the current vision — `ORIENTATION.md`
+classes it `plan`, not a record — and its §5.2 constraint cited the old
+cap. Worth stating for that plan specifically: facets need no new key,
+since they ride inside `testResults.big5` and `.political`, so the
+vocabulary does not block them and the byte question is the half that
+still stands.
+
+`DECISIONS.md`'s four citations are left alone. Records describe their
+moment, and D406's is a correct account of what B found that night.
+
+### The fix that moves a failure one layer up
+
+Shift A's `b8dd54b` is the night's most consequential commit.
+`capacitor.config.ts` named `["google.com"]`, and
+`@capacitor-firebase/authentication` builds a handler only for the ids in
+that list — so every Apple entry point rejected on device with *"Apple
+sign-in provider is not enabled"*, read out of the installed plugin's own
+source. Only on device: off-native both paths take `signInWithPopup` and
+never touch the plugin, which is why no test could see it. A added
+`"apple.com"` and derived a case from the native call sites so a third
+provider cannot be added and forgotten again.
+
+Reviewed against the rest of the tree, that fix has a half A did not
+reach — and it is the half no session can do at all. **Nothing anywhere
+records Apple being enabled in Firebase Console → Authentication →
+Sign-in method.** `LAUNCH-RUNBOOK.md` 1.3 is ticked for *"enable
+Anonymous AND Google"* and names no third provider; `SHIP-CHECKLIST.md`
+§2 recorded *"both Google and Anonymous are on"*. With the provider off
+there, `signInWithCredential` refuses the Apple credential with
+`auth/operation-not-allowed` — the lead button on the iOS wall still
+fails, later and with a different word.
+
+**Not measured, and it cannot be from here.** The project-config endpoint
+returns only `authorizedDomains` to an unauthenticated caller, which is
+the same reason 1.3 already calls Google *"enabled but UNVERIFIED"*. What
+is established is the paper trail, so the owner row asks rather than
+asserts: either Apple was switched on and nobody wrote it down, or it was
+never switched on. It is first under § Clicks because guideline 4.8 is
+why Apple exists here (D414), `LiveSignInGate` renders it as the FIRST
+button, and the wall is iOS-only — the primary door on the only platform
+that has one. Scoped so the click is not larger than it is: iOS native
+signs in through the plugin with the bundle id, so the toggle is the
+whole of it; a Services ID and key are for the web/Android popup path the
+wall does not use.
+
+`SHIP-CHECKLIST.md` §2 is canonical (`ORIENTATION.md`: `tree`) and still
+quoted the old provider list; corrected, and no longer struck through,
+because it read as done and is done for two providers of three. Runbook
+1.3 gains the same note and **keeps its tick** — the tick is honest about
+what its own sentence says, and a tick is the owner's.
+
+### What was checked and did NOT need changing
+
+Worth recording, because each was a live candidate for the defect the
+night did not have:
+
+- **B's new React net over the App-mounting harness.**
+  `mount-app.jsx` stopped swallowing React's own reports and now fails on
+  three patterns (render-time state updates, duplicate and missing keys),
+  measured by B as an empty set across every App-mounting suite — *on B's
+  tree*. A reshaped three list-rendering components on the other branch,
+  including wrapping `LiveCircleBody`'s row map in a fragment with a new
+  sibling. Every key is present and the composed unit suite is green, so
+  the net caught nothing. This is the shape that would have failed only
+  here, and it was checked rather than assumed.
+- **A removed `counted` and `people` from the `TypeMix` interface.**
+  `tsc` cannot see spec-layer `.jsx` consumers, which is the class
+  `CLAUDE.md` warns about by name. Verified independently of A's claim:
+  `TypeMixCard.tsx` is the only caller of `typeMixFor`, it is typed, and
+  a tree-wide grep for `.counted` finds no reader.
+- **B's `hasOnly` vocabulary against everything that writes a key.**
+  Re-verified on the composed tree rather than B's: `IS_TESTS`' top-level
+  keys are exactly `big5, political, values, attachment`,
+  `POLITICAL_RESULT_KEY` is `"political"`, and `logic` is admin-SDK only.
+  Nothing A added writes a sixth.
+- **`CLAUDE.md`'s "ten suites mount the whole App"** against B's commit
+  message saying eleven. The figure is gated (`check-figures.mjs`), it
+  passes, and the eleventh file is the harness itself; `smoke-live` mounts
+  through its own fixture, which the sentence already accounts for.
+- **A's `duelRuns.ts` pointing at "the night list".** An established
+  idiom here — three other sites use it — not a dangling reference of the
+  kind A had just fixed in `7f8c913`.
+- **`check:store-copy` is red**, on
+  `web/.well-known/assetlinks.json`'s unfilled Play signing SHA. Verified
+  present in that same file on `origin/main` and untouched by both
+  branches, so it is pre-existing and not this night's. It is on no CI
+  path.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module references across 8
+files, at baseline) · `check:figures` (106 figures across 310 files) ·
+`check:docs` · `check:taxonomy` · `check:data-inventory` (40 collections,
+34 held to a read rule) · `check:policy-claims` (55 disclosures) ·
+`check:store-forms` (11 Play rows) · `check:public-copy` (270 strings) ·
+`check:quality` · `check:labels` · `check:versions` · `check:appcheck` ·
+`check:fn-runtime` (41 functions) · `check:deploy-targets` ·
+`check:eager-content` · `check:anchors` · `check:answer-shape` ·
+`check:purge` · the four catalogue gates · `test:scripts` 70 files /
+1216 · functions 38 files / 828 · `test:unit` 202 files / 2995 ·
+`test:rules` 213 with `rules-coverage` 8 of 363 at baseline 8 ·
+`test:e2e:all` green on one emulator boot, all three suites, ending
+*"moderation e2e: every leg green"*.
+
+**The bundle has 4 KB of eager headroom left.** 2247 KB total / 548 KB
+eager against 2440 / 552, from 2195 / 544 at D420 — so the night spent
+52 KB of total and 4 KB of eager, and the eager ceiling is now the one to
+watch. Measured on the shipping build (`VITE_V2_LIVE=true` and a
+non-empty DSN), because the gate refuses to grade anything else.
+
+### What is the owner's
+
+Merged, not decided:
+
+1. **Is Sign in with Apple enabled in the Firebase console?** The row
+   above, first under § Clicks. One toggle, and the lead door on iOS
+   depends on it.
+2. **A's Apple fix is unproven on a handset.** A said so in its own
+   commit — *"a device is the only place this fully proves"*. The cheap
+   confirmation is the `ios-release.yml` dry run with upload off that the
+   entitlement's comment already names.
+3. **The `testResults` byte bound**, narrowed but still open — the
+   rewritten row above.
+4. **A's terms/export row**: `web/terms.html` promises a data download at
+   termination and no export path exists anywhere in the tree. Build the
+   export, soften the sentence, or leave it stated out loud.
+
+### Reversal
+
+Each half is its own merge commit and each of the two fixes is its own
+commit; the pull request is one squash. Reverting this record's tree
+restores `main` at `a2ac97e`.
+
+## D385 amendment (2026-09-09) · The content lanes' self-merge is D212's, outside D385's scope
+
+**2026-09-09.** Owner, ruling on the conflict the lane session filed on
+issue #31 on 2026-09-07: *"fix the manual so lanes self merge again."*
+**Status:** binding — the second correction to D385's blast radius,
+and the same finding as the first: a rule written to retire one broken
+mechanism read as covering an actor it never named.
+
+### The conflict, as filed
+
+D385 retired the PR shepherd and wrote *"no lane merges, so no lane
+needs the merge tool."* `docs/QUESTION-FARM.md` § The PR — older, and
+the contract every content-lane run re-reads before acting — still
+instructed *"merge it yourself, on green, in the same run (D212)."*
+The lane session met both sentences on 2026-09-07, took the
+conservative half (merging past a fresh owner rule being the
+unrecoverable direction), stopped every run at a green head, and put
+both resolutions to the owner on #31. Cost, measured: Monday's four
+lane PRs and Wednesday's six (#446–#450, #452) each waited on an owner
+instruction; Wednesday's six were then merged in-order by per-head
+instruction, each after a fresh main-merge and figure re-run — the
+exact chain D212's flow performs unprompted, spread over an afternoon
+instead of landing behind each run.
+
+### The ruling
+
+The content lanes — farm, catalog, learn, feed, duel, now — resume
+D212's self-merge: on green, squash, in the same run, per
+`docs/QUESTION-FARM.md` § The PR, which stands as written. What D385
+retired was a lane merging on a LABEL, unattended, with no gates of
+its own and no head it had built; a content lane merges the head its
+own run just produced, after its own full gate sweep and CI success on
+that exact sha, and an open lane PR still MEANS a gate refused it.
+D385's *"no lane merges"* clause and the first amendment's
+*"`mcp__github__merge_pull_request` granted to no scheduled lane"* are
+narrowed accordingly: they name the program's engineering lanes — the
+shepherd's kind — not the content lanes. `CLAUDE.md`'s merged-by-hand
+rule carries the exception in the same breath, and § The PR's sentence
+now cites this record so the two documents can no longer be read
+against each other.
+
+### What does not change
+
+Everything else in D385 and its first amendment stands: no Action, no
+label that merges anything, nothing acts on a MERGE-LIST tick, a
+non-lane PR is merged by hand or by per-head owner instruction, and an
+instruction to merge is for the head it was given about. The lanes'
+own merge discipline is unchanged too: never merge a failing or
+pending check, never re-run a job to outwait a real failure, never
+push an empty commit to kick CI — a head a run cannot get green is
+left open and reported on #31 (hard rule 7).
+
+## D431 · The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click
+
+**2026-09-09.** **Status:** binding. The owner read D430's three owner
+items and said *"can you do thiese for me?"*. Two are done, one is not
+mine to do, and this record says which is which — because "I did what I
+could" is the shape that hides an undone thing.
+
+### What could be done, and what could not
+
+| Item | Outcome |
+| --- | --- |
+| The `testResults` byte bound | **Built** — the recommended shape, below |
+| A handset tap for Apple sign-in | **Run as the dry run, and it answered a real question** |
+| The Firebase console's Apple toggle | **Not possible from a session.** No console access, no credentials in the tree, and no remote probe exists |
+
+The third is not a limitation worth arguing with: `.firebaserc` is absent,
+the Firebase config lives in Actions variables a session cannot read, and
+`LAUNCH-RUNBOOK.md` 1.3 already records why even an authenticated caller
+gets no answer — the project-config endpoint returns `authorizedDomains`
+and no `idpConfig`. So the row stays open, narrowed to exactly the one
+click.
+
+### The Apple dry run, and what it actually proved
+
+`ios-release.yml` was dispatched with `upload=false` (run 58, commit
+`d646394`, which carries shift A's fix). Every step passed and the two
+upload steps were skipped, as the input gates them to be.
+
+**The Archive step passing is the result**, and it is a different fact
+from the one D430's owner row asks about. The entitlement's own comment
+states the trap: *"a provisioning profile cannot grant an entitlement the
+App ID does not have, so if Sign in with Apple is not ticked on
+com.cosaxo.insight in the developer portal, this fails the ARCHIVE"*. It
+did not fail. So the **Apple Developer portal** capability is measured and
+present.
+
+That says nothing about **Firebase**. The two are separate prerequisites
+on the same button: the portal one lets the app be signed with the
+entitlement, the Firebase one lets `signInWithCredential` accept the
+credential. With the second missing the button still fails, with
+`auth/operation-not-allowed`. Both halves are now named at
+`App.entitlements`, `SHIP-CHECKLIST.md` §2 and the owner row, so nobody
+reads the green run as the whole answer.
+
+### The byte bound: why rules could not do it, checked before building
+
+The owner did not pick between the three shapes — *"i dont understant the
+question"*, which was a fair verdict on how it was put — so the shapes
+were re-derived from the tree rather than re-asked.
+
+The middle option looked better than the row credited it. A stored value
+is `PassiveResult` (`passiveProfile.ts`): `{title, taken, dims:[{id,
+label, value}], passive, answered, total}` — small, fixed, every field
+bounded in principle, and rules CAN bound a string with `.size()`. If
+that were the whole story the cheap fix would win.
+
+It is not, and the reason is the one `OWNER-LIST.md` gave: **rules have no
+quantifier over a list.** `dims` can be checked for `is list` and for its
+LENGTH, and there is no expression that reaches `dims[i].label`. Eight
+entries with a megabyte label each is legal under any shape check
+writable in that file. So the row's recommendation stood, and the write
+moved to where a loop exists.
+
+### What was built
+
+`functions/src/testResults.ts` — `saveTestResultV2`, App Check enforced,
+in the deploy list. It validates every field against a named bound and
+**rebuilds** the value rather than passing it through, so an unknown key
+cannot ride along onto a document everyone downloads. A stored result is
+now capped under a kilobyte against roughly 1 MiB before.
+
+`firestore.rules`: the client may carry `testResults` in a merge and may
+not change it — one equality where D429 had a vocabulary `hasOnly` plus a
+per-key `logic` comparison. **It made the rules cheaper**, which is why
+this was safe on this arm in particular: D429 measured the profile create
+at 80–140 expressions below the runtime ceiling, and `rules-coverage`
+counts **360 atomic predicates against 363** before, at the same
+never-false baseline of 8.
+
+Three client sites moved: `saveTestResult`, the removal branch inside
+`syncPassiveResults`, and the political withdrawal.
+
+**Nothing was lost on the way.** The old rules allowed a user to delete
+their own verified `logic` score, with a reason written into the test
+(*"it is your doc; the cooldown and the norms count live in the
+server-only attempt doc"*). No surface has ever called it. It moved to
+the callable's `REMOVABLE_TEST_KINDS` rather than disappearing because
+nothing happened to be using it — deleting your own score is not forgery,
+writing one is, and that asymmetry is now a pinned pair of lists.
+
+### The property this nearly cost, which is the part worth reading
+
+The political withdrawal was ONE client merge carrying both the consent
+record and the coordinate's deletion, and `vote.test.ts` pinned it in as
+many words: *"One merge, so a partial failure cannot land that state."*
+The state is a profile still publishing a six-axis coordinate behind a
+switch reading "off" — worse than no switch, because it is a claim.
+
+The obvious port — a client consent write plus a callable removal —
+reintroduces exactly that window whenever the call fails, and most of all
+OFFLINE, where the old Firestore write simply queued and this one cannot.
+The first cut did that, and the failing test is what said so; the
+mitigation available (the hydrate-time removal retries) would have made
+it a delay rather than a loss, and a delay in which a coordinate is
+published is still the thing the case forbids.
+
+So the record travels WITH the removal: `saveTestResultV2` takes an
+optional withdrawal record and lands both in one `set`. The property is
+kept and is now stronger than it was — one SERVER-side write instead of
+one client-side one — and the case asserts both halves are in the same
+invocation rather than merely that both happened. **A privacy property is
+not something to spend on the way to closing a different hole** (D334's
+posture, pointed at a regression rather than at a refusal).
+
+### A test that does not prove its own name
+
+Adding `expect(kinds.size).toBeGreaterThan(0)` to *"still writes the
+OTHER instruments — the gate is political-only"* fails: the set is empty.
+Only political prompts are seeded, and `passiveResult` refuses an
+instrument whose axes are not all behind `MIN_AXIS_ITEMS`, so big5,
+values and attachment fold to null whatever the gate does — a gate placed
+one level too high would pass there. Its assertion is still real as
+another absence case, and the block's positive control carries the
+weight; what is false is the half of the name that promises the others
+still write. Closing it needs ten real Big Five prompts matched BY PROMPT,
+which is a fixture and not this change's to build. **Written into the case
+rather than renamed away**, so the next person meets the gap instead of a
+tidier sentence.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `test:rules` 213 with `rules-coverage` 360 predicates
+at baseline 8 · functions 39 files / 840 (12 new, every bound crossed by
+one so a widened constant reddens the file) · `test:unit` 202 files /
+2995 · `check:appcheck` (29 callables, 21 enforcing — the new one among
+them) · `check:fn-runtime` (42 functions, up from 41) ·
+`check:deploy-targets` · `check:globals` at baseline · `check:docs` ·
+`check:data-inventory` · `test:e2e:all` on one emulator boot.
+
+### The ceiling D429 warned about is already being hit, on `main`
+
+Found while checking whether this change had pushed the answer create path
+over, and it is worth separating from that answer: **it had not, and the
+path is over anyway.**
+
+`test:e2e:all` prints, thirteen times, `Unable to evaluate the expression
+as the maximum of 1000 expressions to evaluate has been reached` — 21
+against the answer CREATE arm and 31 against the UPDATE arm beneath it.
+
+**Measured both ways rather than argued**, because the first attempt to
+answer this used a bad control: the night review's own e2e log had been
+piped through `grep | tail`, so it held 42 lines and no emulator output at
+all, and reading zero matches in it as "zero before" was wrong. The real
+control is the tree with this change stashed and `functions` rebuilt:
+**13 messages before, 13 after**, at the same two arms — `L1223`/`L1308`
+without the change, `L1210`/`L1295` with it, the shift being exactly the
+13 lines this change removes from the file above them. Identical counts,
+identical arms.
+
+So this is pre-existing and not this change's, and this change moves it in
+the right direction: `rules-coverage` counts 360 atomic predicates against
+363, because one equality replaced a vocabulary check and a per-key
+comparison.
+
+**Why it matters even though the suite is green.** D429 wrote the reason
+down four days before this: *"a rule that runs out of budget denies
+exactly like a rule that is false — which makes this the cheapest kind of
+latent bug: correct today, and silently wrong the moment a path grows past
+the ceiling"*. The suite passing means every one of those writes was
+expected to be denied, so no case can tell the difference; a write that
+was meant to SUCCEED and crossed the ceiling would fail identically and
+the failure would name the entitlement of nothing. The budget is being
+spent by writes the e2e makes today, and nobody has been told.
+
+Not fixed here. It is a separate piece of work — finding which of the two
+arms' clauses are the expensive ones needs the same instrumentation D429
+used, and doing it inside a change that already touches this file would
+make both harder to review. It is an owner row rather than a silent note
+because the fix is a real increment and the risk is a release-time denial
+nobody can read.
+
+### What is still the owner's
+
+1. **A tap on a handset**, which the dry run narrows but cannot replace.
+2. **A's terms/export row** from D430, untouched here.
+3. **The expression ceiling**, above.
+
+## D431 amendment (2026-09-09) · There was a probe all along, and Apple was already on
+
+The record above says the Firebase console toggle is *"not possible from a
+session. No console access, no credentials in the tree, and no remote probe
+exists."* **Two of those three were wrong, and the owner said so** —
+*"you can do this i there is both consol acces aand cridentials"*.
+
+**The credential was there.** `FIREBASE_SERVICE_ACCOUNT` is set in the
+session environment — the same secret `firebase-deploy.yml` writes to
+`sa-key.json`. The check that produced the claim looked only in the
+repository (`.firebaserc`, key files, `.env*`) and never at the
+environment, which is the kind of half-search that reads as a conclusion.
+
+**The probe exists too, and this is the part worth keeping.**
+`LAUNCH-RUNBOOK.md` 1.3 has said since 2026-08-04 that Google is *"enabled
+but UNVERIFIED"* because the project-config endpoint returns no `idpConfig`
+— true of an *unauthenticated* caller, and false of this repo, whose deploy
+service account can read the Identity Platform admin API. A launch item sat
+in "unverified" for five weeks behind a sentence that was accurate about
+the wrong caller.
+
+**The answer, measured** (`identitytoolkit.googleapis.com/admin/v2/projects/prvfire33/defaultSupportedIdpConfigs`, HTTP 200):
+
+| door | state |
+| --- | --- |
+| `apple.com` | **on** |
+| `google.com` | **on** |
+| anonymous | **on** |
+| email | **on** |
+
+So no click was needed. Of the two possibilities D431's owner row named —
+*"either Apple was switched on and nobody wrote it down, or it was never
+switched on"* — it was the first. **The console was right and the paper
+trail was wrong**, which is the failure this repo keeps meeting from the
+other side and could not see here because it had accepted "no probe" as a
+fact about the world rather than about one endpoint.
+
+`scripts/check-auth-providers.mjs` is the probe, kept so the answer never
+has to be re-derived: it fails if any door the app offers is off, prints
+identifiers and booleans only, and mints its own RS256 assertion with
+`node:crypto` rather than taking a dependency the root does not declare
+(`ios-release.yml`'s precedent, for its reason). **Deliberately not a CI
+gate**: it needs a production credential, and `backend-checks.yml` is
+reusable by `ci.yml` and `firebase-deploy.yml` precisely so that what
+guards a PR is what guards production — a check that can only run on one
+of the two would break that property.
+
+Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
+"no probe" hedge or an incomplete provider list; all three now carry the
+measurement. The owner row is closed as answered rather than done, because
+nothing was changed — only learned.
+
+## D432 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
 
 **Date:** 2026-09-08 · **Status:** Adopted, with one word still the
 owner's (§2). The owner's ruling on
@@ -46636,9 +47201,9 @@ answers rather than by listing a collection the size of two catalogues.
 `npm run costs` after: 357 → 277 reads per user-day at maturity, the
 D98 column 282 → 197.
 
-## D429 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+## D432 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
 
-**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D429 held open
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D432 held open
 came the same afternoon, verbatim: *"start phase 3 and use live for the
 answer map."* The answer map is written by the world-answer trigger —
 inside the aggregate's own transaction, so it is atomic with the count
@@ -46648,7 +47213,7 @@ value the map already holds (the map is the newer truth: an edit made
 after the healed day is in it and not in that day's ledger).
 
 **Two things moved against the runbook as written**, each within
-D429's own rule that nothing a user sees may shrink. The device keeps
+D432's own rule that nothing a user sees may shrink. The device keeps
 the answer query as a FALLBACK for a member with no map, because the
 client ships with the trigger and the backfill is a click the owner
 makes afterwards — without it every Circle would show nobody between
@@ -46686,7 +47251,7 @@ per user-day at maturity, the whole 129 → 134 (132 at the merged head,
 D426's rounds having taken two reads elsewhere). Nothing a user sees
 moved, and nothing a device reads changed size.
 
-## D430 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+## D433 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
 
 **Date:** 2026-09-09 · **Status:** PROPOSED — the owner's word makes it
 the direction. The owner, the same day, after `npm run costs` had been

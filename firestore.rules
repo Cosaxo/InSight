@@ -420,18 +420,50 @@ service cloud.firestore {
           ? (resource != null
             && request.resource.data.handle == resource.data.get("handle", null))
           : (resource == null || resource.data.get("handle", null) == null))
-        // testResults.logic is the VERIFIED logic score, written only by
-        // logicSubmitV2 (admin SDK bypasses rules) after server-side
-        // scoring — a client-writable copy would be a forgeable one (D57).
-        // Presence allowed (every client profile write is a merge, so the
-        // key rides along once the callable has written it), mutation not.
+        // testResults is SERVER-ONLY, WHOLE — written only by
+        // `saveTestResultV2` for the four folded kinds and by
+        // `logicSubmitV2` for `logic` (the admin SDK bypasses rules).
+        // `logic` has been server-written since D57 because a
+        // client-writable copy of a VERIFIED score would be a forgeable
+        // one; the other four joined it for size, below. The client may
+        // carry `testResults` along in a merge — every profile write here
+        // is one — but may not CHANGE it.
+        //
+        // WHY THE WHOLE MAP AND NOT A VOCABULARY. D429 (2026-09-09) bounded
+        // which KEYS may appear, and said in its own words that it "does NOT
+        // bound the size inside a legitimate kind; that needs per-kind shape
+        // checks and is its own increment". Those checks cannot be written
+        // here: rules have no quantifier over a list, so `dims` may hold
+        // eight entries whose `label` is a megabyte each and no clause can
+        // see it — on a document `voters.ts` fetches THIRTY of at a time,
+        // whole, with no field mask. Measured against the pre-D429 ruleset:
+        // a 300 KB string in `testResults.big5` was ACCEPTED where a
+        // 61-character display name was refused, and D429 did not move that.
+        //
+        // So the bound moved to where a loop can run — `saveTestResultV2`
+        // (functions/src/testResults.ts), which validates every field and
+        // REBUILDS the value, capping a stored result near 700 bytes. This
+        // clause is the other half: it is what makes the callable the only
+        // writer. `logic` needed exactly this treatment for a different
+        // reason (D57, forgery) and had it alone; the size argument makes it
+        // the rule for all five.
+        //
+        // AND IT IS CHEAPER THAN WHAT IT REPLACES, which matters on this arm
+        // in particular — D429 measured the profile create at 80–140
+        // expressions below the runtime ceiling and named this file's two
+        // ceilings. One equality replaces the vocabulary `hasOnly` AND the
+        // per-key `logic` comparison, because a map that cannot change
+        // cannot gain a key either. The vocabulary is now enforced by the
+        // callable's own `CLIENT_TEST_KINDS`, where it is a list an
+        // exhaustive test can read.
+        //
+        // On CREATE `resource` is null and the key must simply be absent:
+        // a profile is created before any fold has run, and the callable
+        // writes with a merge that creates the field afterwards.
         && (!("testResults" in request.resource.data)
-          || (request.resource.data.testResults is map
-            && request.resource.data.testResults.keys().size() <= 8
-            && (!("logic" in request.resource.data.testResults)
-              || (resource != null
-                && request.resource.data.testResults.logic
-                  == resource.data.get("testResults", {}).get("logic", null)))))
+          || (resource != null
+            && request.resource.data.testResults
+              == resource.data.get("testResults", {})))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isOptionalStamp(request.resource.data.get("createdAt", null))
         && isOptionalStamp(request.resource.data.get("updatedAt", null))
@@ -1227,6 +1259,20 @@ service cloud.firestore {
           // out of budget denies exactly like a rule that is false — which
           // makes this the cheapest kind of latent bug: correct today, and
           // silently wrong the moment a path grows past the ceiling.
+          //
+          // MEASURED, 2026-09-09, and there are TWO ceilings (D429).
+          // Runtime: the thinnest allow arms here — D426's world-question
+          // duel arm and the pick round — clear the 1,000 by roughly 130
+          // expressions; the profile arm above by 80–140. Compile: past
+          // about 170 more expressions the ruleset stops compiling at all
+          // ("Expression is too complex to evaluate safely", naming
+          // isValidV2Anchors and the profile arm), which is the LOUD one —
+          // a deploy fails rather than a person being refused.
+          // `firestore-tests/rules.test.ts` § "the heaviest LEGAL create"
+          // pins the runtime half as executable cases: they send all ten
+          // anchors at their bounds, where every other case in that file
+          // sends the cheap end, so the day a new clause crosses the line
+          // the suite reds instead of the release.
           && isValidV2Anchors(request.resource.data.get("anchors", {}));
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,

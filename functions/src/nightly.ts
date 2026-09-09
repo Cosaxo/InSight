@@ -37,10 +37,22 @@
 // invocation is red in the function's own error metrics as well.
 //
 // THE BUDGET. NIGHTLY (ops.ts) is 1 GiB and 480 s — it was LIGHT_UNBOUNDED's
-// 256 MiB until DATA-EFFICIENCY-RUNBOOK 1.3, for the reason ops.ts gives. The day's entries are
-// ~200 bytes each in memory: 20 k at 5 k DAU, 200 k (40 MB) at 50 k, held
-// once instead of once per fold — the peak is what any one of the three
-// functions already had. Time is the three folds' in sequence; today
+// 256 MiB until DATA-EFFICIENCY-RUNBOOK 1.3, for the reason ops.ts gives. The
+// day's entries are ~200 bytes each in memory (~236 measured, retained; ~470
+// with the runbook 2.1 stamp on the row): 20 k at 5 k DAU, 200 k (40 MB) at
+// 50 k, held once instead of once per fold — the peak is what any one of the
+// three functions already had, PER RESIDENT DAY. That last clause was
+// missing and it mattered: the folds run in sequence, each walking its own
+// owed days, so an unbounded memo held every day of a catch-up at once —
+// ~410 MB on a 7-day recovery at 50 k DAU, on a 256 MiB instance, and the
+// OOM re-read the same days the next night and died identically.
+// `memoLedgerReader` keeps ONE day now; the ordinary night is unchanged and
+// a catch-up re-reads instead of piling up (the velocity scan, runbook 4.4,
+// walks its whole days oldest first, so the day it leaves in the memo is
+// yesterday — the one every fold after it asks for). See its own comment
+// for the measurement and the trade. What no memo bounds is the DAY itself:
+// at hundreds of answers a person a day the one resident day is what runs
+// out, near 16,000 DAU — SCALE-ARCHITECTURE.md §1. Time is the three folds' in sequence; today
 // each is seconds. If the sum ever nears the ceiling the lever is
 // `timeoutSeconds` on this one function (gen 2 allows an hour for a
 // schedule), not a fourth function — splitting the pass is what this file

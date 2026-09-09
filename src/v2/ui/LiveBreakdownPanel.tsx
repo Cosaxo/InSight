@@ -743,8 +743,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
           : !typeRows.length
             ? (
               <LbNote>
-                None of the {split.sampleN.toLocaleString()} answers here carries a Big Five yet —
-                it fills in as people answer test cards.
+                {/* "this session has read", not "here" — `sampleN` is
+                    `voters.length`, the bounded newest page, and on a
+                    question with thousands of answers this note sat under
+                    a header printing the real total. The populated arm
+                    below has always said it the honest way; the note is
+                    gated on there BEING rows, so the empty branch was
+                    exactly the one that lost it (D146). */}
+                None of the {split.sampleN.toLocaleString()} answers this session has read
+                {" "}carries a Big Five yet — it fills in as people answer test cards.
               </LbNote>
             )
             : (
@@ -764,8 +771,12 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
           : !logicRows.length
             ? (
               <LbNote>
-                None of the {lsplit.sampleN.toLocaleString()} answers here carries a verified
-                logic score yet — it fills in as people take the logic test.
+                {/* Same basis as the Big Five note above, for the same
+                    reason: `sampleN` is the session's page, not the
+                    question's answers. */}
+                None of the {lsplit.sampleN.toLocaleString()} answers this session has read
+                {" "}carries a verified logic score yet — it fills in as people take the
+                logic test.
               </LbNote>
             )
             : (

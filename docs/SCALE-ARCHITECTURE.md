@@ -1,6 +1,6 @@
 # The log-first structure: hundreds of answers a day, millions of users
 
-**Status: design only — proposed 2026-09-09 (D430) on the owner's word the same day —
+**Status: design only — proposed 2026-09-09 (D433) on the owner's word the same day —
 *"i think we should from the start look on how we can design a system
 that scales to hundreds of answers a day and millions of users remember
 we can use other systems like bigquery."*** Every figure below is

@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 44 `await getDb()` sites in this file did not change
+// deliberately: the 42 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -3791,6 +3791,19 @@ function roundsOf(g: Record<string, unknown> & { id: string }) {
   return { open, next, sealed, lead: ROUND_LEAD };
 }
 
+/**
+ * A round's question BY ID — the duel bank first, then the world (a world
+ * question served as a round, ROUNDS-PLAN §6.2). The reveal card, the
+ * roles fold and the late-answer write all look it up by the same door;
+ * `SOCIAL.bankQ` is this function under its public name.
+ */
+function roundQById(qid: string) {
+  const q = state.duelBank.find((x) => x.id === qid);
+  if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
+  const w = feedById(qid) || dailyById(qid);
+  return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "world" } : null;
+}
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3799,12 +3812,7 @@ const SOCIAL = {
     return g ? roundsOf(g) : null;
   },
   bankQ(qid: string) {
-    const q = state.duelBank.find((x) => x.id === qid);
-    if (q) return { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" };
-    // A world question served as a round (ROUNDS-PLAN §6.2) — the reveal
-    // card and the roles fold look it up by the same door.
-    const w = feedById(qid) || dailyById(qid);
-    return w ? { id: w.id, prompt: w.prompt, options: w.options, kind: "world" } : null;
+    return roundQById(qid);
   },
   /**
    * The world's split on a question this device already holds the
@@ -3815,7 +3823,25 @@ const SOCIAL = {
   worldSplit(qid: string): { counts: number[]; total: number } | null {
     const q = feedById(qid) || dailyById(qid);
     if (!q || !hasPublishedCounts(state.aggs[qid])) return null;
-    const counts = countsFor(q.options, voteCtx(qid));
+    const ctx = voteCtx(qid);
+    const counts = countsFor(q.options, ctx);
+    // THE VIEWER'S OWN VOTE, BACK IN — `wfPcts`'s +1, which every surface
+    // that prints a crowd percentage applies and which `countsFor`'s own
+    // comment says the UI layer owes it ("the UI layer adds its own +1").
+    // The reveal's World column divided these raw, so the one person
+    // guaranteed to have answered the question was the one person missing
+    // from the crowd. It fires in the case `ensureWorldSplit` below calls
+    // normal: the cache holds the aggregates of questions you have
+    // ANSWERED. Measured on one aggregate — a viewer on option 0 of a
+    // crowd split 1–1 read 0% / 100%, and a viewer who was the only voter
+    // made the column vanish entirely.
+    //
+    // Unconditional on the option, in both directions of `pending`: not
+    // pending, the aggregate holds the vote and countsFor took it out;
+    // pending, the aggregate does not hold it yet and countsFor left it
+    // out. Either way exactly one is owed.
+    const mine = typeof ctx.mine === "string" ? Number(ctx.mine) : NaN;
+    if (Number.isInteger(mine) && mine >= 0 && mine < counts.length) counts[mine] += 1;
     const total = counts.reduce((a, b) => a + b, 0);
     return total > 0 ? { counts, total } : null;
   },
@@ -4249,13 +4275,34 @@ const SOCIAL = {
    * it to the reveal marked, and no fold counts it. Reaches back at most
    * the lead. The card offers it under a reveal you have no vote in.
    */
-  voteLate(gid: string, round: number, optionIdx: number): Promise<void> {
+  voteLate(gid: string, round: number, optionIdx: number, qid?: string): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
     const uid = state.uid;
     if (!g || !uid) return Promise.resolve();
     const open = openRoundOf(g);
     if (!(round < open && round >= open - ROUND_LEAD)) return Promise.resolve();
-    const q = duelQFor(g, round);
+    // THE REVEAL'S OWN QID, not a recomputation. The card renders these
+    // buttons from `bankQ(reveal.qid)`, so `optionIdx` indexes THAT
+    // question's options — while this used to re-derive the round's
+    // question with `duelQFor`, which is a hash over the CURRENT bank and
+    // world pool: `(gHash + round + len * 1000) % len`. One question
+    // appended to either pool remaps every past round, and a late answer
+    // is by definition given after its round revealed, reaching back the
+    // whole lead. Measured: round 3 moved duo-037 → duo-023 on a bank
+    // that grew by one, and an unloaded world pool swapped an even
+    // round's kind outright.
+    //
+    // The consequence is silent. `optionIdx` names one question's option
+    // and `qid` another, the trigger stamps the mismatch as `vote.qid`
+    // (D71's shape), and the "Answered after the reveal" row draws the
+    // label off the DRIFTED question — so the room reads back a different
+    // option of a different prompt. If the drifted question is a `pick`,
+    // line below writes `pickUid: memberUids[optionIdx]`, publishing a
+    // pick of a person the user never chose.
+    //
+    // `duelQFor` stays the blind path's authority: it is right for a
+    // round nobody has revealed yet, which has no `qid` to carry.
+    const q = (qid ? roundQById(qid) : null) || duelQFor(g, round);
     if (!q) return Promise.resolve();
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
@@ -6327,6 +6374,28 @@ const LIVE = {
     if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
     profileChanged();
     publishTestResults();
+    // A WITHDRAWAL IS ONE WRITE, STILL — it just runs on the server now.
+    // `testResults` became server-only (D431: rules cannot bound a nested
+    // map's size), and splitting this into a client consent merge plus a
+    // callable removal would have reintroduced exactly the state this
+    // method was built to make impossible: a profile still publishing the
+    // coordinate behind a switch reading "off". So the record travels WITH
+    // the removal and `saveTestResultV2` lands both in one `set`.
+    //
+    // Granting is unchanged and stays a client write: it touches no test
+    // result, so there is nothing to keep atomic with it.
+    if (!on) {
+      if (!state.uid) return;
+      await callable("saveTestResultV2", {
+        kind: POLITICAL_RESULT_KEY,
+        result: null,
+        politicalConsent: rec,
+      });
+      // No re-fold on the way out: the withdrawal's whole point is that
+      // nothing is computed from here. The grant arm below re-folds, for
+      // the D277 reason its own comment gives.
+      return;
+    }
     const db = await getDb();
     const uid = state.uid;
     if (!uid) return;
@@ -6346,7 +6415,6 @@ const LIVE = {
         // Removed explicitly, with the same `deleteField()` this write
         // already uses one line down for the published coordinate.
         consent: { political: on ? { ...rec, off: deleteField() } : rec },
-        ...(on ? {} : { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } }),
       },
       { merge: true },
     );
@@ -6363,16 +6431,24 @@ const LIVE = {
     // while the boot's profile read was in flight must not make the boot
     // discard the read.
     saveOwnProfile();
+    // THROUGH THE SERVER, because rules cannot bound this field's SIZE.
+    // `v2_users` is world-readable and voters.ts fetches thirty of them
+    // whole per query, so a megabyte parked here is a megabyte every
+    // reader downloads — and rules have no quantifier over a list, so
+    // `dims[i].label` cannot be bounded by any `allow` clause. D429
+    // bounded which KEYS may appear and said the size was its own
+    // increment; this is that increment. `saveTestResultV2` validates
+    // every field and rebuilds the value, and the rules now refuse a
+    // client write to `testResults` outright.
+    //
+    // The local mirror above is written FIRST and unconditionally, so the
+    // screen does not wait on the network and an offline fold still shows
+    // its result. `syncPassiveResults` re-attempts on the next hydrate,
+    // which is what makes a dropped call recoverable rather than lost.
     void (async () => {
       try {
-        const db = await getDb();
-        const uid = state.uid;
-        if (!uid) return;
-        await setDoc(
-          doc(db, "v2_users", uid),
-          { testResults: { [kind]: result } },
-          { merge: true },
-        );
+        if (!state.uid) return;
+        await callable("saveTestResultV2", { kind, result });
       } catch (err) {
         reportError(err, { where: "saveTestResult" });
       }
@@ -6462,21 +6538,25 @@ const LIVE = {
             delete state.profile.testResults[POLITICAL_RESULT_KEY];
             saveOwnProfile(); // the same rule as saveTestResult: not an edit
             wrote = true;
+            // Through the callable, like every other write to this field
+            // (saveTestResult says why). `result: null` is its remove arm,
+            // and this site is the reason that arm exists: a coordinate a
+            // pre-gate build published has to come down, and the client can
+            // no longer take it down itself.
             void (async () => {
               try {
-                const db = await getDb();
-                const uid = state.uid;
-                if (!uid) return;
-                await setDoc(
-                  doc(db, "v2_users", uid),
-                  { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } },
-                  { merge: true },
-                );
+                if (!state.uid) return;
+                await callable("saveTestResultV2", {
+                  kind: POLITICAL_RESULT_KEY,
+                  result: null,
+                });
               } catch (err) {
-                // The local delete stands either way, so the screen never
-                // shows a coordinate this account has not consented to.
-                // The next boot retries; the server is re-read then.
-                reportError(err, { where: "syncPassiveResults.politicalPurge" });
+                // The local delete above stands either way, so the screen
+                // never shows a coordinate this account has not consented
+                // to. The next boot retries — this block runs on every
+                // hydrate — which is what makes a failed call a delay
+                // rather than a coordinate left standing.
+                reportError(err, { where: "syncPassiveResults.removePolitical" });
               }
             })();
           }

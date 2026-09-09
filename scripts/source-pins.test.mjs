@@ -333,6 +333,17 @@ describe("the two source walks the general rule cannot reach", () => {
 // shrink-only ratchet for the reason it was written as one: the other
 // shift repairs gates in this same class on the same nights, and a strict
 // baseline would turn each of its fixes into a red composed tree.
+//
+// AND THE SAME THING AGAIN, 2026-09-08, in the other direction of the
+// call: `RE.exec(src)` and `RE.test(src)` read past a comment exactly as
+// `src.match(RE)` does, and the detector saw only the last of the three.
+// Six more sites appeared, five of them years old and one of them the
+// `topic-budget.mjs` reader whose own comment claimed it "returns null if
+// the constant moves". Measured before and after the widening: 31 → 37,
+// then 36 with that one reader wrapped. The number below did not have to
+// move, which is a coincidence and not a reason to treat it as a target —
+// what it means is that the class was 36 all along and five of the sites
+// were simply unreadable to the gate.
 const UNSTRIPPED_CEILING = 36;
 
 describe("gates that read a file and match against it without stripping comments", () => {
@@ -379,7 +390,16 @@ describe("gates that read a file and match against it without stripping comments
       const decl = line.match(new RegExp(`(?:const|let|var)\\s+(\\w+)\\s*=\\s*.*\\b(?:${reads})\\s*\\(`));
       let varHit = 0;
       if (decl) {
-        const re = new RegExp(`\\b${decl[1]}\\s*\\.\\s*(match|matchAll)\\s*\\(`);
+        // BOTH DIRECTIONS OF THE CALL. `src.match(RE)` and `RE.exec(src)`
+        // are the same read past the same comment, and this saw only the
+        // first — `topic-budget.mjs`'s FEED_PAGE reader used the second
+        // and was invisible to the rule written for it. `.test(src)` too:
+        // a gate asking whether a constant is PRESENT reads a commented-
+        // out one as present.
+        const re = new RegExp(
+          `\\b${decl[1]}\\s*\\.\\s*(match|matchAll)\\s*\\(`
+          + `|\\.(exec|test)\\(\\s*${decl[1]}\\s*[,)]`,
+        );
         for (let j = i + 1; j < Math.min(lines.length, i + 26); j++) {
           if (re.test(lines[j])) { varHit = j + 1; break; }
         }
@@ -415,6 +435,27 @@ describe("gates that read a file and match against it without stripping comments
     expect(cf.src, "check-figures reads BANK_SURFACES past comments again").toMatch(
       /const live = stripComments\(read\("src\/v2\/data\/live\.ts"\)\)/,
     );
+  });
+
+  it("sees RE.exec(src), not only src.match(RE)", () => {
+    // The other positive control, and for the same reason as the helper
+    // one above: the six sites the widening uncovered are counted rather
+    // than listed, so nothing else here would notice it narrowing back.
+    const execGate = [
+      'const src = readFileSync(join(root, "src/v2/data/bankPager.ts"), "utf8");',
+      'const m = /export const FEED_PAGE = (\\d+);/.exec(src);',
+    ].join("\n");
+    expect(unstrippedSites(execGate), "the exec spelling is invisible again").toHaveLength(1);
+    const testGate = execGate.replace(".exec(src)", ".test(src)");
+    expect(unstrippedSites(testGate), "the test spelling is invisible again").toHaveLength(1);
+    const stripped = execGate.replace('readFileSync(join(root, "src/v2/data/bankPager.ts"), "utf8")',
+      'stripComments(readFileSync(join(root, "src/v2/data/bankPager.ts"), "utf8"))');
+    expect(unstrippedSites(stripped), "a stripped exec read is still counted").toHaveLength(0);
+    // …and topic-budget's own site, the one that was measured, is fixed.
+    const tb = gates.find((g) => g.f === "topic-budget.mjs");
+    expect(tb, "topic-budget.mjs vanished — this control no longer covers it").toBeTruthy();
+    expect(tb.src, "topic-budget reads FEED_PAGE past comments again")
+      .toMatch(/const src = stripComments\(readFileSync\(/);
   });
 
   it("no new one is added", () => {

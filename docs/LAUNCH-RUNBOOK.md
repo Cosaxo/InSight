@@ -25,8 +25,8 @@ still excuses it for an iOS build. **For an iOS launch the count is
 zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 136
-questions of 1145 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 138
+questions of 1264 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1145 questions land in `v2_questions` — idempotent and, since D34,
+      1264 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1145** after the K=5 test expansion, D103's
+      and the bank is **1264** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -383,12 +383,34 @@ arithmetic.
       is alive, and the scorecard fetch (`QUESTION-FARM.md` Phase A) is
       unblocked. `SHIP-CHECKLIST §2`.
 
-      **Google is enabled but UNVERIFIED.** The project-config endpoint
-      returns only `authorizedDomains` to an unauthenticated caller, no
-      `idpConfig`, so there is no remote probe for it. It is verified by
-      tapping *Link Google* in the app — which 0.1 requires anyway, since
-      the seed gate matches a Google-account uid. Treat 0.1 succeeding as
-      the proof.
+      **THERE IS A REMOTE PROBE AFTER ALL, and everything here is on.**
+      This said Google was *"enabled but UNVERIFIED"* because *"the
+      project-config endpoint returns only `authorizedDomains` to an
+      unauthenticated caller, no `idpConfig`, so there is no remote probe
+      for it"*. True about an unauthenticated caller, and false about this
+      repo: the deploy service account already in `FIREBASE_SERVICE_ACCOUNT`
+      reads the Identity Platform admin API, which returns exactly that
+      missing `idpConfig`. Measured 2026-09-09 against `prvfire33`
+      (HTTP 200): **apple.com on, google.com on, anonymous on, email on.**
+      `node scripts/check-auth-providers.mjs` re-runs it and fails if any
+      door the app offers is off — not a CI gate, because it needs a
+      production credential the PR path does not have.
+
+      So Google is verified, and so is Apple, which this item never named.
+      Tapping *Link Google* in the app is still the end-to-end proof and
+      0.1 requires it anyway; what changed is that a wrong answer no longer
+      waits for a handset to reveal it.
+
+      **APPLE IS A THIRD PROVIDER THIS ITEM NEVER NAMED, and it is on.**
+      The tick above is left as it is because it is honest about what it
+      says — Anonymous and Google. D414 added Apple's door, night shift A
+      wired the native provider list to reach it (`capacitor.config.ts`,
+      previously `["google.com"]` only), and nothing in the tree recorded
+      whether the provider itself was enabled — so it went to the owner as
+      a click. It was already on: the probe above reads
+      `apple.com enabled=true`. The gap was the paper trail rather than the
+      console, which is why the probe is the fix and the click was not
+      needed.
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
       Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak
@@ -1107,7 +1129,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1145 seeded questions are live regardless.
+      working, not a leak — the 1264 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first

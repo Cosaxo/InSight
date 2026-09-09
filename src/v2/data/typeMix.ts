@@ -71,12 +71,10 @@ export interface TypeMix {
   ranked: TypeRow[];
   thin: TypeRow[];
   absent: TypeRow[];
-  counted: number;
   /** Everyone the session's voter cache holds for this scope. */
   sampleN: number;
   /** The subset with a readable Big Five result — the mix's real basis. */
   typedN: number;
-  people: TypedPerson[];
 }
 
 interface ArchetypeSystem { list: { name: string; line: string }[] }
@@ -200,22 +198,31 @@ export function typeMixFor(
 ): TypeMix {
   const sys = isTypeSystem(kind) ? kind : TYPE_TEST;
   const sample = (LIVE.kindredPeople() as KindredPerson[]).filter((p) => inScope(p, scope));
-  const people: TypedPerson[] = sample
-    .map((p) => ({ ...p, type: typeOfParsed(p.results, sys) }))
-    .filter((p) => p.type != null)
-    // Likeness order, the People lens's own: most-agreeing first.
-    .sort((a, b) => (b.like?.pct ?? 0) - (a.like?.pct ?? 0));
+  // TYPES, not people. This used to build a `TypedPerson[]` — a spread
+  // per person, then a sort — and return it as `people`, alongside
+  // `counted`, which was `typedN` under a second name. Neither was read
+  // by the card (its five reads are ranked/thin/absent/sampleN/typedN) or
+  // by any test, so the whole scoped voter cache was mapped and sorted on
+  // every render for nothing.
+  //
+  // The sort is the part worth naming: it ordered on `like.pct`, and it
+  // was the LAST site in the tree still doing that. D277 §2 replaced that
+  // comparator everywhere it decides an order a reader sees, because the
+  // printed percentage cannot break the tie honestly — 1 of 1 is 100% and
+  // 45 of 50 is 90%. Deleting it removes the last copy rather than
+  // leaving a stale one to be found and imitated.
+  const typed = sample
+    .map((p) => typeOfParsed(p.results, sys))
+    .filter((t): t is string => t != null);
   const counts = new Map<string, number>();
-  for (const p of people) counts.set(p.type as string, (counts.get(p.type as string) ?? 0) + 1);
+  for (const t of typed) counts.set(t, (counts.get(t) ?? 0) + 1);
   const rows: TypeRow[] = typeNames(sys).map((name) => ({ name, n: counts.get(name) ?? 0 }));
   return {
     ranked: rows.filter((r) => r.n >= TYPE_THIN).sort((a, b) => b.n - a.n),
     thin: rows.filter((r) => r.n > 0 && r.n < TYPE_THIN).sort((a, b) => b.n - a.n),
     absent: rows.filter((r) => r.n === 0),
-    counted: people.length,
     sampleN: sample.length,
-    typedN: people.length,
-    people,
+    typedN: typed.length,
   };
 }
 

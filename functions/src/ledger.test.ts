@@ -203,6 +203,49 @@ describe("memoLedgerReader (D399)", () => {
     expect(gets()).toBe(2);
   });
 
+  it("holds ONE day, so a catch-up cannot pile every owed day into memory", async () => {
+    // The three folds run in SEQUENCE, each walking its own owed days —
+    // so an unbounded memo holds every day of a catch-up at once, and a
+    // catch-up is exactly the night after the pass missed one. Measured
+    // with the real reader against a paging fake, 30,000 entries a day
+    // over 7 days: 10.3 MB retained per-day, 70.9 MB memoised, 6.9x. At
+    // 50k DAU that is ~410 MB on a 256 MiB instance, and the OOM
+    // re-reads the same days tomorrow and dies identically.
+    const { db, gets } = countingDb();
+    const ledgerDay = memoLedgerReader(db);
+    await ledgerDay("2026-09-01");
+    await ledgerDay("2026-09-02");
+    expect(gets()).toBe(2);
+    // …and day 1 is gone, so the second fold's walk re-reads it rather
+    // than the pass carrying both. That is the trade, and it is the point.
+    await ledgerDay("2026-09-01");
+    expect(gets(), "an evicted day was still held").toBe(3);
+  });
+
+  it("the ordinary night is unchanged: one owed day, one read, three folds", async () => {
+    // The case that keeps the bound from costing anything on the path
+    // that runs 364 nights in 365. D399's saving is intact wherever it
+    // was actually saving.
+    const { db, gets } = countingDb();
+    const ledgerDay = memoLedgerReader(db);
+    await ledgerDay("2026-09-05");
+    await ledgerDay("2026-09-05");
+    await ledgerDay("2026-09-05");
+    expect(gets(), "the ordinary night started paying per fold").toBe(1);
+  });
+
+  it("keeps more when asked, so the bound is a choice and not a limit", async () => {
+    const { db, gets } = countingDb();
+    const ledgerDay = memoLedgerReader(db, 3);
+    for (const d of ["2026-09-01", "2026-09-02", "2026-09-03"]) await ledgerDay(d);
+    expect(gets()).toBe(3);
+    await ledgerDay("2026-09-01");
+    expect(gets(), "a day inside the window was evicted").toBe(3);
+    await ledgerDay("2026-09-04");   // evicts the oldest
+    await ledgerDay("2026-09-01");
+    expect(gets(), "the window did not slide").toBe(5);
+  });
+
   it("forgets a read that failed, so the next fold retries instead of inheriting the rejection", async () => {
     const { db, gets } = countingDb(true);
     const ledgerDay = memoLedgerReader(db);

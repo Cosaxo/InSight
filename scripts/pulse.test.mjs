@@ -216,7 +216,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   });
 
   it("the answer map's write per world answer is in the model AND in both branches of the trigger (DATA-EFFICIENCY-RUNBOOK 3.2)", () => {
-    // One merged write per world answer, live (D429 amendment). The model
+    // One merged write per world answer, live (D432 amendment). The model
     // charges it as a constant; the trigger has to write it on the create
     // AND on the edit, or a moved answer stays where it was in every
     // Circle that reads the map. Counted off the source, comments out.
