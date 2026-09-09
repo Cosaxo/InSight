@@ -2,7 +2,8 @@
 
 **Status: measured 2026-09-08 — §§1–5 read the tree and production as
 they stood that morning, §6 is the ordered to-do list and builds
-nothing.** Written on the owner's ask of 2026-09-07 (*"do a in depth
+nothing; §8 is the re-read of 2026-09-09, after a day that built four of
+§6's items and a structure this page had not priced.** Written on the owner's ask of 2026-09-07 (*"do a in depth
 analyses of cost and what could be improved i dont want a unexpected
 firebase bill that i cant pay"*) against `3f49530`, and amended the same
 day on the owner's two corrections: App Check enforcement is done and
@@ -48,7 +49,10 @@ console it is in §7 rather than asserted.
 - **The three things to do first** are all small (§6): put a spend limit
   on the Anthropic workspace and confirm whether its key is even set;
   wire the budget's notification to the read breaker; delete the two
-  zombie nightly functions.
+  zombie nightly functions. *(2026-09-09: the wire is built and waits on
+  two clicks; the review has a project-wide ceiling in code; the model
+  prices the database the app is on. §8 has the rest, and the four
+  things the day's own work could have billed.)*
 
 ## 1 · The bill as it is, not as modelled
 
@@ -390,18 +394,22 @@ default to the billing account's admins and users. Both are §6 O4.
 
 ## 5 · The gaps, in one table
 
-| # | Gap | If it bites | Fix | Who |
-| ---: | --- | --- | --- | --- |
-| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner |
-| 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code |
-| 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code |
-| 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code |
-| 5 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code |
-| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner |
-| 7 | Alert notes on the `nam5` sheet; evictions policy unarmed | the wrong number at 3 am; a blind spot | edit the JSON; dispatch *Arm monitoring* | code + owner |
-| 8 | No billing export to BigQuery | no invoice to diff the model against | console toggle | owner |
-| 9 | Pulse guard blind on a stale fold | the early warning is silent | schedule the fetch | code |
-| 10 | Budget recipients and a first page unverified | the backstop may be mailing nobody | test page; check the billing-account roles | owner |
+| # | Gap | If it bites | Fix | Who | 2026-09-09 |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); two clicks after the deploy; the detach is an owner row |
+| 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code | **code done** (C3: 50 calls a day, 1,024 tokens); O1 still the owner's |
+| 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code | done |
+| 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code | **done** (C1) |
+| 5 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code | open (C7, O5) |
+| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner | open (O2; three now — `ledgerVelocityScan` retired at runbook 4.4) |
+| 7 | Alert notes on the `nam5` sheet; evictions policy unarmed | the wrong number at 3 am; a blind spot | edit the JSON; dispatch *Arm monitoring* | code + owner | open (C5) |
+| 8 | No billing export to BigQuery | no invoice to diff the model against | console toggle | owner | open (O4) |
+| 9 | Pulse guard blind on a stale fold | the early warning is silent | schedule the fetch | code | open (C6) |
+| 10 | Budget recipients and a first page unverified | the backstop may be mailing nobody | test page; check the billing-account roles | owner | open (O3) |
+| 11 | The answer log's erasure: a DELETE is a pass over the whole table, one per deleted account | $747 a month at a million users, the largest line at ten million | one statement a night for the day's accounts; the immediate one only under a gibibyte | code | **bounded** (§8.2); the cheaper shape is an owner sentence (A.9) |
+| 12 | The log's append bills a kilobyte a row on the API it ships on | $143 a month at a million users against $0 | the Storage Write API (A.8) | code | priced; open until the line matters |
+| 13 | The profile fan-out amplified one client write into thousands of operations | hundreds of dollars a day from one attested account | three fan-outs an hour per account, the rest healed at night | code | **bounded** (§8.2) |
+| 14 | Phase B's Redis is a fixed monthly line from the hour it exists | $36–196 a month with two users | a start condition, not a date | code, then owner | **written** into the runbook; an owner row to move it |
 
 ## 6 · What to do, in order
 
@@ -430,7 +438,8 @@ default to the billing account's admins and users. Both are §6 O4.
 
 ### Code — each its own pull request, with its test and its pin
 
-- **C1 · The model reads the database id.** `scripts/cost-arith.mjs`
+- **C1 · The model reads the database id** — **done 2026-09-09** (§8.1).
+  `scripts/cost-arith.mjs`
   reads `FIRESTORE_DB_ID` from `functions/src/db.ts` the way it reads
   `FIRESTORE_LOCATION`, and the daily allowance is zero for a named
   database; a fixed floor term (scheduler jobs counted off the
@@ -444,11 +453,15 @@ default to the billing account's admins and users. Both are §6 O4.
   took the two paid schedules down to `LIGHT_UNBOUNDED` (§3.E). Still
   open from this row: a longer cache on the 404 branch, and the path as
   the only place a `qid` is read.
-- **C3 · The review's ceiling.** In `functions/src/paid.ts`: a global
+- **C3 · The review's ceiling** — **done 2026-09-09** for the counter and
+  the tokens; the log metric's policy under `monitoring/` is still open
+  (§8.1). In `functions/src/paid.ts`: a global
   daily counter in `v2_ratelimits` beside the per-account one, `max_tokens`
   sized to the verdict, and a `paid_review_call` log metric with a policy
   under `monitoring/` on calls a day; `check:monitoring` holds the chain.
-- **C4 · The budget acts.** `scripts/apply-budget.mjs` adds a
+- **C4 · The budget acts** — **built 2026-09-09**, two clicks after the
+  deploy (§8.1); the detach is not built and is an owner row.
+  `scripts/apply-budget.mjs` adds a
   `notificationsRule.pubsubTopic`; a Pub/Sub-triggered function sets
   `budgetMode` to 1 at the 100 % message (one merged field write, D332's
   shape) and, only if the owner rules so after reading §3.A's table,
@@ -494,3 +507,149 @@ Console-only facts, listed so they are read rather than assumed:
 - The names of the eight `europe-west1` functions the deploy list does
   not name — `npm run observe -- --functions` prints them with their
   triggers, which is what decides whether any of them bills.
+
+## 8 · Re-read 2026-09-09: what the day built, what it could have billed, and what stands
+
+Written the evening after §§0–7, on the same ask, against the tree as
+merged with `main` that evening. Between the morning's measurement and
+this section the branch built DATA-EFFICIENCY-RUNBOOK phases 1–4, the
+log-first structure's phase A (D441) and four of §6's items — and each
+of those is code that can bill, which this page had not read. Every
+figure below is `npm run costs`, `costs:target` or `costs:structure`'s;
+none is typed.
+
+### 8.1 · What closed, and what it took
+
+- **C1, the premise.** `scripts/cost-arith.mjs` reads `FIRESTORE_DB_ID`
+  off `functions/src/db.ts` and nets nothing on a named database; the
+  scheduler floor is counted off the `onSchedule` sites. The launch row
+  went **$0.00 → $0.54**, 500 DAU $0.32 → $1.93, 5,000 DAU $9.97 → $13,
+  under $3 above that — the allowance was worth about $2.40 a month at
+  every size, most of it the egress quota. The sentences it broke are
+  retired on `COSTS.md` and `COST-COMPARISON.md`; `pulse.test.mjs` pins
+  the id to the tree so the premise cannot go stale the way the region
+  did (D200). `cost-compare.mjs` had gone on pricing `nam5` by default,
+  D200's premise one script over; it reads the tree now.
+- **C4, the wire.** `functions/src/budget.ts` sets the read breaker at
+  100 % of the budget from the budget's own Pub/Sub notification, in the
+  fields `scripts/budget-mode.mjs` reads and releases, and releases only
+  what it set and only when the next month arrives under the line.
+  `scripts/apply-budget.mjs` attaches the topic. **Two clicks after the
+  deploy** (`OWNER-LIST.md`): dispatch *Arm budget* again, then grant the
+  budget's service agent Publisher on the topic — the one grant the
+  Budgets API cannot make for itself. Until the grant the function sees
+  nothing, and the mail is still the backstop. The billing detach is not
+  built; its arithmetic is the owner's row.
+- **C3, the ceiling.** `REVIEW_CALLS_PER_DAY` (50) bounds the model calls
+  the whole project makes in a day; a refused slot holds the booking
+  without counting an attempt. `max_tokens` is 1,024, the verdict's size,
+  where it was the model's maximum. O1 — the workspace spend limit and
+  whether the key is set at all — is still the owner's, and still the
+  control that holds whatever the code does.
+- **Still open from §6:** C5 (the alert notes on the `nam5` sheet), C6
+  (the fetch's schedule), C7 (deploys rebuilding only what changed), C8
+  (query-size conditions, optional), and every owner click O1–O6. None
+  of them is a way to a bill you cannot pay; C7 is the only one with a
+  recurring dollar figure on it (§3.E).
+
+### 8.2 · What the day's own work could have billed
+
+Four things, each found by reading the new code the way §3 read the old,
+and each bounded in the same pull request.
+
+1. **The answer log's erasure was priced as free and is a pass over the
+   whole table.** Phase A erases an account's rows with a DELETE, and
+   BigQuery bills a DELETE for every column of every partition it
+   touches — an account whose answers span the year touches every
+   partition, so one statement costs the table's size at $6.25 a TiB
+   whether it removes one account or five hundred. The table is small
+   for a long time, and a deletion costs the 10 MB minimum today; at a
+   million people answering a hundred times a day the year's table is 4
+   TiB and a statement is $27, so a statement per deletion would have
+   been the largest line on the bill. **Bounded:** the night deletes
+   every pending account in one statement (pages of 500), the immediate
+   statement runs only while the table is under a gibibyte (off its
+   metadata, nothing billed), and the table is clustered by person first
+   while that is still free to choose. `npm run costs:target` carries
+   the line: **$37 a month at 50,000 × 100/day, $747 at a million, the
+   largest line at ten million** — which is why runbook A.9 exists (an
+   erased-ids table joined out of every fold, purged monthly, a
+   thirtieth of the cost) and is the owner's sentence, because it moves
+   the privacy page's "within a day". The privacy promise is unchanged
+   by any of this. *Assumed, not verified from here:* Google's DML
+   pricing rule as read before this sandbox, and whether a DELETE prunes
+   by cluster as a SELECT does (the docs host is blocked from here); the
+   batch bounds the cost either way.
+2. **The append bills a kilobyte a row.** `table.insert` is the legacy
+   streaming API: $0.05 a GiB with a **1 KB minimum per row** and no free
+   allowance, for a 120-byte row — `COSTS.md`'s morning note priced the
+   bytes and not the minimum. About $3 a month at 500,000 DAU today;
+   $143 a month at a million users answering a hundred times a day
+   against $0 on the Storage Write API. Priced as built, with the Write
+   API figure printed beside it; runbook A.8 is the move, before the
+   line matters.
+3. **The profile fan-out was the largest amplifier of one client write in
+   the deploy.** Since runbook 2.1, a stamp change (a rename, a test
+   retaken) reads the account's answers and rewrites its row in every
+   sample that holds one — a few thousand operations for an account that
+   has answered a few thousand times, about half a cent a change — and a
+   profile document takes a write a second. One attested account flipping
+   its name all day: on the order of **$300–500**; every hostile account
+   together, at the trigger's instance cap: about **$1,400 a day**. App
+   Check enforcement does not cover it — this is a real device driving
+   the app's own write. **Bounded:** three fan-outs an hour per account
+   (`v2_ratelimits/fanout_{uid}`, the sliding window every other budget
+   uses, erased with the account); past that a `pending` marker the
+   nightly pass heals from the profile as it is then, so the last name of
+   a burst still lands within a day and a real rename — a handful per
+   account lifetime — never notices.
+4. **Phase B's Redis is a fixed line, not a per-user one.** Memorystore
+   bills the instance from the hour it exists: $196 a month at the size
+   the model picks for the keyspace, about $36 for the smallest, with two
+   users as with fifty thousand. The runbook ordered B "before the wall"
+   without a floor under it; it now starts when the contention alert has
+   fired or measured actives pass ~5,000, on the smallest instance the
+   keyspace allows — a condition the owner can move (`OWNER-LIST.md`).
+
+Read and found bounded, for the record: the two backfills (one read per
+existing answer, dry by default, operator-only); the per-city samples
+(30,000 pairs a night at most, ~$0.04); the streamed candidate scan
+(four reads per fitted person a night, $0.18 at 50,000 DAU, runbook 4.3b
+when the population passes ~100,000); the reconcile's own query (three
+day partitions of one column, cents); the budget function (about fifty
+document reads a day). The reconcile holds three days of ids in memory
+and shares the nightly pass's wall (~16,000 DAU at a hundred answers a
+day, `SCALE-ARCHITECTURE.md` §1) rather than adding one below it.
+
+### 8.3 · The picture, this evening
+
+The bill today is still about a dollar a month, and the model now says
+so instead of $0.00. What could make it differ, in order of size, and
+what stands in the way of each:
+
+| Vector | Bound | What stands |
+| --- | --- | --- |
+| Reads nobody in the app issued | closed by App Check enforcement (§3.A) | the switch, the owner's, 2026-09-08 |
+| A real device driving the app's own queries and writes | the app's per-session shape (§3.G), the fan-out's hourly budget (8.2) | the caps, each read by the model from source |
+| The hours between a budget mail and a person | the read breaker sets itself at 100 % (C4) | two clicks; then the budget's own 20–30 minute cadence is the delay |
+| The paid review's model calls | 50 a day project-wide, 1,024 tokens a call (C3) | the workspace spend limit (O1) holds whatever the code does |
+| Deploy-rate costs | ~40–60 build-minutes a deploy against 2,500 free (§3.E) | nothing yet — C7 is the fix, tens of dollars a month at the current merge rate |
+| The log's erasure, ingest and phase B's counters | one pass a night, the kilobyte priced, a start condition (8.2) | nothing more today; two owner sentences at scale |
+| The three retired nightly functions | cents, and a night's data loss if one writes | the delete (O2) |
+
+The hard stop — detaching billing from the same notification at a higher
+threshold — is still not built, still Google's documented shape, and
+still the owner's call: `OWNER-LIST.md` has the arithmetic and asks for
+a threshold.
+
+### 8.4 · What this section could not verify from here
+
+- Google's DML pricing wording and cluster pruning for DELETE (8.2.1);
+  the docs host is blocked from this sandbox, the pricing page truncated.
+- That `firebase deploy` creates the Pub/Sub topic for a v2
+  `onMessagePublished` trigger whose topic does not exist; the applier
+  names the create command if the API refuses the topic.
+- The budget service agent's address
+  (`billing-budget-alert@system.gserviceaccount.com`, Google's documented
+  one); the console's *Connect a Pub/Sub topic* makes the same grant if
+  the address is wrong.
