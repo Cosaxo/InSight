@@ -580,7 +580,8 @@ same inventory and should not be re-derived in a hurry.
 | Personal info → Gender | Yes | No | Optional | App functionality |
 | Location → Approximate location | Yes | No | **Optional** | App functionality |
 | Location → Precise location | **Yes** (D175) | No | **Optional** | App functionality |
-| App activity, Web browsing, Contacts, Photos, Financial, Purchases | **No** | — | — | — |
+| Photos and videos → Photos | **Yes** (D178) | No | **Optional** | App functionality |
+| App activity, Web browsing, Contacts, Financial, Purchases | **No** | — | — | — |
 | App info & performance → Crash logs | Yes | No | **Required** (on with no in-app switch since D211 — Play's "users can choose" definition no longer holds, so the honest answer moved from Optional to Required with it) | App functionality |
 | Advertising ID / any ads box | **No** | — | — | — |
 
