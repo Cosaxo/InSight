@@ -966,8 +966,12 @@ service cloud.firestore {
           // the two documents the arm needs are fetched once each as its
           // arguments — where the old body fetched the question at ten
           // sites and the group at four (RULES-BUDGET-PLAN §0, D433).
-          return request.resource.data.surface in ["group", "duo"]
-            && request.resource.data.keys().hasOnly([
+          //
+          // NO SURFACE GUARD HERE: createArm() routes to this arm on
+          // `surface in ["group", "duo"]`, so a guard repeating it could
+          // never be false — which rules-coverage reported the moment the
+          // router landed. The router is the guard.
+          return request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx", "pickUid",
               "gid", "round", "late", "answeredAt", "anchors",
             ])
@@ -1124,8 +1128,8 @@ service cloud.firestore {
         // aggregate doc with no changes of its own — that grain is the
         // whole design (docs/NEXT-FUNCTIONALITY.md §2).
         function isPulseAnswer() {
-          return request.resource.data.surface == "pulse"
-            && request.resource.data.keys().hasOnly([
+          // No surface guard: createArm() is it (see isDuelAnswer).
+          return request.resource.data.keys().hasOnly([
               "qid", "baseQid", "day", "surface", "optionIdx", "answeredAt", "anchors",
             ])
             && request.resource.data.baseQid is string
@@ -1183,8 +1187,8 @@ service cloud.firestore {
         // The D86 edit arm's surface list keeps `call` out, so a sealed
         // guess cannot be moved afterwards.
         function isCallAnswer() {
-          return request.resource.data.surface == "call"
-            && request.resource.data.keys().hasOnly([
+          // No surface guard: createArm() is it (see isDuelAnswer).
+          return request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
             && request.resource.data.qid == aid
