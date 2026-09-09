@@ -1,6 +1,6 @@
 # The log-first structure: hundreds of answers a day, millions of users
 
-**Status: design only — ADOPTED 2026-09-09 (D433's amendment; *"that sound like a good direction lets do that"*, the same evening), phase A built that night (`LOG-FIRST-RUNBOOK.md`). Proposed that afternoon on the owner's word —
+**Status: design only — ADOPTED 2026-09-09 (D439's amendment; *"that sound like a good direction lets do that"*, the same evening), phase A built that night (`LOG-FIRST-RUNBOOK.md`). Proposed that afternoon on the owner's word —
 *"i think we should from the start look on how we can design a system
 that scales to hundreds of answers a day and millions of users remember
 we can use other systems like bigquery."*** Every figure below is

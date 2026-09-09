@@ -245,7 +245,7 @@ one rule, so each is individually visible and greppable:
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
-That count is **28 across 11 files**. It is quoted here rather than left to
+That count is **21 across 8 files**. It is quoted here rather than left to
 the reader because this section previously claimed 42 long after the number
 had moved — a stale figure in the one paragraph whose job is to size the
 debt.
@@ -1054,7 +1054,7 @@ added. Twenty-three providers, forty-seven files, 128 sites:
 
 | Provider | Names | Where it went |
 | --- | --- | --- |
-| `group-daily.jsx` | `GDAv`, `GroupDailyBody` | duo-daily, group-mirror, group-role-map, daily-split |
+| `group-daily.jsx` | `GDAv`, `GroupDailyBody` (and, since D437, the whole rounds shell — `RoundStack`, `CardFrame`, the sheets, the run, the ballots) | duo-daily, group-mirror, group-role-map, daily-split |
 | `passive-meter.jsx` | `PassiveTag`, `PassiveMeter` | daily-split, world-feed, app-shell |
 | `mirror-field.jsx` | the `MF*` family, `MirrorLenses` | mirror-field-pops, group-mirror |
 | `map-bottom-card.jsx` · `map-people.jsx` · `map-learn-card.jsx` | the `MT*` cards | map-tab, mirror-field-pops |

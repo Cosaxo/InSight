@@ -190,7 +190,7 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
-      // The answer log's rows (log.ts, D433 phase A, phase 1a″): 1 when the
+      // The answer log's rows (log.ts, D439 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
       // buffer refused it and the nightly reconcile carries the marker —
       // gone within a day either way, which is the privacy page's word.
@@ -303,7 +303,7 @@ export const deleteAccount = onCall(
       failed.push("aggEvents");
     }
 
-    // 1a″. THE ANSWER LOG (log.ts, D433 phase A) — the ledger's mirror in
+    // 1a″. THE ANSWER LOG (log.ts, D439 phase A) — the ledger's mirror in
     //     BigQuery, which keeps rows past the ledger's TTL and so holds the
     //     attribution longest. One DML statement now; where BigQuery
     //     refuses because the rows are still in its streaming buffer, a

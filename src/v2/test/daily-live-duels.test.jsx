@@ -4,8 +4,9 @@
 // comment — "on live this module is never needed at all" — while
 // componentDidMount asked for it on every daily mount.
 //
-// `duels-data.js` pulls `content/duel-questions.json`, the duel lane's
-// whole bank (16.7 KB), which is exactly why it is loaded on demand
+// `duels-data.js` pulled `content/duel-questions.json`, the duel lane's
+// whole bank (16.7 KB then; since D435 it carries the bank's fixed sample,
+// `content/duel-sample.json`), which is exactly why it is loaded on demand
 // instead of imported. The pending-count read far below is gated
 // (`liveDuels ? null : duels(…)`); the subscribe in componentDidMount was
 // not, so the gate held on one of the two call sites and the module
@@ -63,7 +64,7 @@ describe("the daily's duel store is a demo dependency only", () => {
     await new Promise((r) => { setTimeout(r, 0); });
     expect(
       sub,
-      "a live build subscribed to the demo duel store — which means it fetched content/duel-questions.json for a store nothing live reads",
+      "a live build subscribed to the demo duel store — which means it fetched content/duel-sample.json for a store nothing live reads",
     ).not.toHaveBeenCalled();
   });
 

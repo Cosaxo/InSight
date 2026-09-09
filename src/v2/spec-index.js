@@ -48,7 +48,10 @@ import './spec/map-anchors.js';
 import './spec/map-group-stats.js';
 // duels-data.js is NOT here any more — the last edge holding the DUEL
 // LANE's bank (content/duel-questions.json, which a scheduled Routine
-// appends to) in first paint. It publishes no global: its nine consumers
+// appends to) in first paint. (Since D435 it imports the bank's generated
+// sample, content/duel-sample.json, whose size the lane cannot move — but
+// it is the DEMO store, which a live build never reads, so it stays out
+// of first paint for that reason now.) It publishes no global: its nine consumers
 // hold it as a module binding, and every one of them is now either a
 // deferred surface or reaches it dynamically — daily-split's pending
 // counts and app-shell's DevTweaks reset both load it on demand, and the

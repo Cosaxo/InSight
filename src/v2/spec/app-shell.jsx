@@ -6,10 +6,12 @@
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
 // duels-data.js is NOT imported here, and the reason is the same one
-// daily-questions.js left first paint for. It pulls
+// daily-questions.js left first paint for. It pulled
 // content/duel-questions.json — the DUEL LANE's bank, a file a scheduled
 // Routine appends to — so a static import here made writing a duel question
-// a start-up cost for every phone. Its one use below is a DevTweaks
+// a start-up cost for every phone. (It carries the bank's fixed sample
+// since D435, but it is the DEMO store, and a live build has no use for
+// it at any size.) Its one use below is a DevTweaks
 // callback: a developer resetting today's duel, already behind a Suspense
 // boundary and a build-time guard, and about as far from first paint as a
 // code path gets.

@@ -1,5 +1,5 @@
 # Load every existing answer into the BigQuery answer log
-# (SCALE-ARCHITECTURE.md phase A, D433) — once, after the deploy that
+# (SCALE-ARCHITECTURE.md phase A, D439) — once, after the deploy that
 # carried the trigger's own append, with that deploy's day as the cutoff.
 #
 # WHY THIS EXISTS. `backfillLogV2` is an operator callable, and an operator

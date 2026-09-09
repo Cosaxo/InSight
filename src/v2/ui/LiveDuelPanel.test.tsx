@@ -50,6 +50,9 @@ const LIVE = vi.hoisted(() => {
       ? { open: 1, next: null as number | null, sealed: [1], lead: 5 }
       : { open: 1, next: 1 as number | null, sealed: [] as number[], lead: 5 }),
     roundQ: (gid: string, round: number) => { void gid; void round; return Q0 as Record<string, unknown> | null; },
+    // The first run's group preview (D437): the bank's first role vote, or
+    // null before the cast has reached the device.
+    roleVotePreview: () => null as { prompt: string; scen: { id: string; label: string; hue: number }; role: { id: string; label: string } } | null,
     revealFor: () => null as Record<string, unknown> | null,
     // Day browsing (D156). The card draws one dot per readable reveal and
     // folds the duo's read-runs out of the same list, so the mock answers
@@ -73,10 +76,6 @@ const LIVE = vi.hoisted(() => {
     declineJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
     voteLate: async (gid: string, round: number, idx: number, qid?: string) => { void gid; void round; void idx; void qid; },
-    worldSplit: (qid: string) => { void qid; return null as { counts: number[]; total: number } | null; },
-    loadPartnerAnswers: async (gid: string) => { void gid; },
-    ensureWorldSplit: (qid: string) => { void qid; },
-    partnerAnswer: (gid: string, qid: string) => { void gid; void qid; return null as number | null; },
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
     todayKey: () => "2026-07-30",
@@ -339,90 +338,248 @@ describe("LiveDuelPanel · a late answer (ROUNDS-PLAN §4)", () => {
   });
 });
 
-describe("LiveDuelPanel · a world question as the round (ROUNDS-PLAN §6.2)", () => {
-  const W = { id: "feed-f02", prompt: "VAR made football better.", options: ["Better", "Worse"], kind: "world" };
+describe("LiveDuelPanel · the group as a cast (D434)", () => {
+  const CREW = { ...DUO, id: "g2", name: "The Crew", mode: "group", memberUids: ["u_me", "u_ada", "u_bo"], memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" } };
+  const ROLE = {
+    id: "group-gr0", prompt: "Who plans the whole thing?", options: ["Me", "Ada", "Bo"], kind: "pick",
+    scen: { id: "heist", label: "Bank Heist", hue: 25 }, role: { id: "mastermind", label: "the mastermind" },
+  };
+  const RATE = {
+    id: "group-gs0", prompt: "This group’s energy?", kind: "rate", poles: ["Calm", "Chaos"],
+    options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"],
+  };
+  beforeEach(() => { LIVE.social.groups = () => [CREW]; });
 
-  it("in a 1v1 the guess is still asked when the partner has NOT answered it in public", () => {
-    LIVE.social.todayQ = () => W;
-    render(<LiveDuelPanel mode="duo" />);
-    // The kicker says which round it is; no note until there is no guess.
-    expect(screen.getByText("· World")).toBeTruthy();
-    expect(screen.queryByRole("note")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Worse" }));
-    expect(screen.getByText(/And Ada picked/)).toBeTruthy();
-  });
-
-  it("…and seals without a guess when she has — a guess would be a lookup", async () => {
-    LIVE.social.todayQ = () => W;
-    LIVE.social.partnerAnswer = () => 0;
-    const calls: Array<[number, number | undefined]> = [];
-    LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
-    render(<LiveDuelPanel mode="duo" />);
-    expect(screen.getByRole("note").textContent).toMatch(/Ada already answered this in the World feed, so there is no guess this round/);
-    fireEvent.click(screen.getByRole("button", { name: "Worse" }));
-    await waitFor(() => expect(calls).toEqual([[1, undefined]]));
-    expect(screen.queryByText(/And Ada picked/)).toBeNull();
-  });
-
-  it("a group's world round takes no call on the room", async () => {
-    LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
-    LIVE.social.todayQ = () => W;
+  it("a role vote names its pack in the kicker, leads every option with its member, and seals on the one tap", async () => {
+    LIVE.social.todayQ = () => ROLE;
     const calls: Array<[number, number | undefined]> = [];
     LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
     render(<LiveDuelPanel mode="group" />);
-    fireEvent.click(screen.getByRole("button", { name: "Better" }));
-    await waitFor(() => expect(calls).toEqual([[0, undefined]]));
+    expect(screen.getByText("· Bank Heist")).toBeTruthy();
+    // three options, each a member: the two others' marks and your pill
+    expect(screen.getByRole("button", { name: "Ada" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bo" })).toBeTruthy();
+    // your own option is your pill and the word, so its name reads "you You"
+    expect(screen.getByRole("button", { name: "you You" })).toBeTruthy();
+    // nothing in a group is called (D437): the tap IS the vote, no guess
+    fireEvent.click(screen.getByRole("button", { name: "Ada" }));
+    // Ada is the second member (memberUids order), so index 1 — and no guess
+    await waitFor(() => expect(calls).toEqual([[1, undefined]]));
     expect(screen.queryByText(/And the room lands on/)).toBeNull();
   });
 
-  it("the reveal draws the world's split under the pair, off the cached aggregate", () => {
-    LIVE.social.bankQ = () => W;
-    LIVE.social.worldSplit = () => ({ counts: [38, 62], total: 100 });
+  it("a rating asks between two poles on five steps, and seals on the one tap with no call", async () => {
+    LIVE.social.todayQ = () => RATE;
+    const calls: Array<[number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (_gid: string, idx: number, guess?: number) => { calls.push([idx, guess]); };
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByText("· Rate the group")).toBeTruthy();
+    const ballot = screen.getByRole("group", { name: "Calm to Chaos" });
+    expect(within(ballot).getAllByRole("button")).toHaveLength(5);
+    fireEvent.click(within(ballot).getByRole("button", { name: "mostly Chaos" }));
+    await waitFor(() => expect(calls).toEqual([[3, undefined]]));
+    expect(screen.queryByText(/And the room lands on/)).toBeNull();
+  });
+
+  it("names one holder when a leave has moved the ballot under the votes — by the snapshots, as the Mirror does", () => {
+    LIVE.social.bankQ = () => ROLE;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    // The roster was [me, Ada, Bo, Cy] when u_me voted index 3 (Cy); Bo
+    // left; Ada voted index 2, which is Cy now. Two indexes, one person:
+    // the second review of #456 read "Cy and Cy share the mastermind" here
+    // while the Votes lens said Cy held it 2–0.
     LIVE.social.revealFor = () => ({
-      round: 2, day: "2026-09-08", qid: "feed-f02",
-      votes: { u_me: { optionIdx: 1, guessIdx: 1 }, u_ada: { optionIdx: 1, guessIdx: 1 } }, names: { u_ada: "Ada" },
+      round: 1, day: "2026-09-08", qid: "group-gr0", members: ["u_me", "u_ada", "u_cy"],
+      votes: { u_me: { optionIdx: 3, pickUid: "u_cy" }, u_ada: { optionIdx: 2, pickUid: "u_cy" } },
+      names: { u_ada: "Ada", u_cy: "Cy" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(reveal.textContent).toMatch(/Cy is the mastermind/);
+    expect(reveal.textContent).not.toMatch(/share/);
+    // one held row, not two rows for one person
+    expect(reveal.querySelectorAll("[data-held]")).toHaveLength(1);
+  });
+
+  it("…and the held row is that person too: named by the snapshot, your chip on it, a late vote on the row its snapshot names", () => {
+    LIVE.social.bankQ = () => ROLE;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    // The same leave: the live roster is [me, Ada, Bo] and the reveal's was
+    // [me, Ada, Cy]. Bo, who left, answered late at index 1, naming Cy.
+    LIVE.social.revealFor = () => ({
+      round: 1, day: "2026-09-08", qid: "group-gr0", members: ["u_me", "u_ada", "u_cy"],
+      votes: {
+        u_me: { optionIdx: 3, pickUid: "u_cy" },
+        u_ada: { optionIdx: 2, pickUid: "u_cy" },
+        u_bo: { optionIdx: 1, pickUid: "u_cy", late: true },
+      },
+      names: { u_ada: "Ada", u_cy: "Cy", u_bo: "Bo" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    const held = reveal.querySelectorAll("[data-held]");
+    expect(held).toHaveLength(1);
+    // the row reads "Cy" — not "Bo", the LIVE roster's name at the row's index
+    expect(held[0].textContent).toMatch(/Cy/);
+    expect(held[0].textContent).not.toMatch(/Bo/);
+    // your vote is on it, whatever index it was cast at
+    expect(held[0].textContent).toMatch(/you/);
+    // Bo's late vote sits on Cy's row, marked, and the late list says Cy —
+    // not "Ada", the live roster at index 1
+    expect(within(held[0] as HTMLElement).getByTitle("Bo · late")).toBeTruthy();
+    const lateList = within(reveal).getByLabelText("Answered after the reveal");
+    expect(lateList.textContent).toMatch(/Cy/);
+    expect(lateList.textContent).not.toMatch(/Ada/);
+  });
+
+  it("a role vote's reveal crowns who the room named, off the snapshots, in the pack's words", () => {
+    LIVE.social.bankQ = () => ROLE;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => ({
+      round: 1, day: "2026-09-08", qid: "group-gr0",
+      votes: {
+        // a guess on a group vote is an older client's (D386's week); the
+        // reveal draws the vote and says nothing about a call
+        u_me: { optionIdx: 1, pickUid: "u_ada", guessIdx: 1 },
+        u_ada: { optionIdx: 1, pickUid: "u_ada" },
+        u_bo: { optionIdx: 0, pickUid: "u_me" },
+      },
+      names: { u_ada: "Ada", u_bo: "Bo" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(within(reveal).getByText("· Bank Heist")).toBeTruthy();
+    // the verdict names the cast, not "the room landed on"
+    expect(reveal.textContent).toMatch(/Ada is the mastermind/);
+    expect(reveal.textContent).not.toMatch(/The room landed on/);
+    // …and nothing in a group is called (D437)
+    expect(reveal.textContent).not.toMatch(/you called/);
+    // the held row is first and marked
+    const held = reveal.querySelector("[data-held]");
+    expect(held).not.toBeNull();
+    expect(held!.textContent).toMatch(/Ada/);
+  });
+
+  it("a rating's reveal says where the group landed, with the poles and the marks", () => {
+    LIVE.social.bankQ = () => RATE;
+    LIVE.social.roundInfo = () => ({ open: 5, next: 5, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => ({
+      round: 4, day: "2026-09-08", qid: "group-gs0",
+      votes: { u_me: { optionIdx: 4 }, u_ada: { optionIdx: 3 }, u_bo: { optionIdx: 2 } },
+      names: { u_ada: "Ada", u_bo: "Bo" },
+    });
+    render(<LiveDuelPanel mode="group" />);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(within(reveal).getByText("· Rate the group")).toBeTruthy();
+    // mean step 3 → "mostly Chaos" · 75
+    expect(reveal.textContent).toMatch(/The group lands on\s*mostly Chaos\s*· 75/);
+    expect(within(reveal).getByLabelText("How the group rated itself")).toBeTruthy();
+    expect(within(reveal).getByLabelText("the group · 75")).toBeTruthy();
+    // no call was asked, so none is scored
+    expect(reveal.textContent).not.toMatch(/called/);
+  });
+
+  it("the run is a record: a dot per vote in the pack's ink whose caption names who, a square per rating (D437)", () => {
+    const bank: Record<string, unknown> = { "group-gr0": ROLE, "group-gs0": RATE };
+    LIVE.social.bankQ = (qid: string) => (bank[qid] as Record<string, unknown>) || null;
+    LIVE.social.roundInfo = () => ({ open: 3, next: 3, sealed: [], lead: 5 });
+    LIVE.social.revealHistory = () => [
+      { round: 2, day: "2026-09-08", qid: "group-gs0", votes: { u_me: { optionIdx: 2 }, u_ada: { optionIdx: 2 } } },
+      { round: 1, day: "2026-09-08", qid: "group-gr0", votes: { u_me: { optionIdx: 0, pickUid: "u_me" }, u_ada: { optionIdx: 0, pickUid: "u_me" }, u_bo: { optionIdx: 1, pickUid: "u_ada" } } },
+    ];
+    LIVE.social.revealFor = () => ({ round: 2, day: "2026-09-08", qid: "group-gs0", votes: { u_me: { optionIdx: 2 }, u_ada: { optionIdx: 2 } } });
+    render(<LiveDuelPanel mode="group" />);
+    // option 0 took two votes whose snapshots both name u_me: the caption
+    // says so, and the dot is a dot whoever it named
+    expect(screen.getByTitle(/Bank Heist · You are the mastermind/)).toBeTruthy();
+    expect(screen.getByTitle(/rated the group/)).toBeTruthy();
+    expect(screen.queryByTitle(/named you|named someone else/)).toBeNull();
+  });
+
+  it("the run's caption names someone else when the room did — a record, not a score", () => {
+    const bank: Record<string, unknown> = { "group-gr0": ROLE };
+    LIVE.social.bankQ = (qid: string) => (bank[qid] as Record<string, unknown>) || null;
+    LIVE.social.roundInfo = () => ({ open: 2, next: 2, sealed: [], lead: 5 });
+    LIVE.social.revealHistory = () => [
+      { round: 1, day: "2026-09-08", qid: "group-gr0", votes: { u_me: { optionIdx: 1, pickUid: "u_ada" }, u_ada: { optionIdx: 1, pickUid: "u_ada" }, u_bo: { optionIdx: 0, pickUid: "u_me" } } },
+    ];
+    LIVE.social.revealFor = () => ({ round: 1, day: "2026-09-08", qid: "group-gr0", votes: { u_me: { optionIdx: 1, pickUid: "u_ada" }, u_ada: { optionIdx: 1, pickUid: "u_ada" }, u_bo: { optionIdx: 0, pickUid: "u_me" } } });
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByTitle(/Bank Heist · Ada is the mastermind/)).toBeTruthy();
+    expect(screen.getByLabelText(/The cast so far/)).toBeTruthy();
+  });
+});
+
+describe("LiveDuelPanel · the cast round (D437)", () => {
+  const CAST = {
+    id: "duo-073", kind: "cast", prompt: "Most days, {name} is…",
+    options: ["the one you tell first", "the one who gets you out the door", "the one you ask what to do", "the one who is just always there"],
+    them: ["the one {name} tells first", "the one who gets {name} out the door", "the one {name} asks what to do", "the one who is just always there"],
+    dims: ["trust", "spark", "judgement", "constancy"],
+  };
+
+  it("asks about them by name, then asks what they said you are over the them forms — and writes once", async () => {
+    LIVE.social.todayQ = () => CAST;
+    const calls: Array<[string, number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => { calls.push([gid, idx, guess]); };
+    render(<LiveDuelPanel mode="duo" />);
+    // the prompt carries Ada's name, never the placeholder
+    expect(screen.getByText("Most days, Ada is…")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/\{name\}/);
+    fireEvent.click(screen.getByRole("button", { name: "the one you tell first" }));
+    expect(calls).toEqual([]);
+    expect(screen.getByText(/You said Ada is/)).toBeTruthy();
+    expect(screen.getByText("And Ada said you are…?")).toBeTruthy();
+    // the guess is over the them forms
+    fireEvent.click(screen.getByRole("button", { name: "the one Ada asks what to do" }));
+    await vi.waitFor(() => expect(calls.length).toBe(1));
+    expect(calls[0]).toEqual(["g1", 0, 2]);
+  });
+
+  it("the reveal leads with what each of you is to the other, and calls the guess over the them forms", () => {
+    LIVE.social.bankQ = () => CAST;
+    LIVE.social.roundInfo = () => ({ open: 5, next: 5, sealed: [], lead: 5 });
+    LIVE.social.revealFor = () => ({
+      round: 4, day: "2026-09-09", qid: "duo-073",
+      votes: { u_me: { optionIdx: 0, guessIdx: 2 }, u_ada: { optionIdx: 2, guessIdx: 1 } },
     });
     render(<LiveDuelPanel mode="duo" />);
-    // The three columns (request 12, state 8): every option, your pill,
-    // their mark, and the World's share.
-    const cols = screen.getByLabelText("The world's split").textContent || "";
-    expect(cols).toMatch(/Better.*38%/);
-    expect(cols).toMatch(/Worse.*62%/);
+    const reveal = screen.getByTestId("ld-reveal");
+    expect(within(reveal).getByText("Most days, Ada is…")).toBeTruthy();
+    // they said I am option 2, said of me in its them form; I said they are option 0
+    expect(within(reveal).getByTestId("ld-cast-line").textContent)
+      .toBe("You are the one Ada asks what to do. Ada is the one you tell first.");
+    // my call (2) landed — their answer was 2 — and reads as a them form;
+    // theirs (1) missed my 0 and reads as the answer as written
+    expect(reveal.textContent).toMatch(/✓ the one Ada asks what to do/);
+    expect(reveal.textContent).toMatch(/the one who gets you out the door/);
+    expect(reveal.textContent).not.toMatch(/\{name\}/);
   });
+});
 
-  it("draws no world line on a room's own question", () => {
-    LIVE.social.bankQ = () => ({ id: "duo-000", prompt: "?", options: ["a", "b"], kind: "classic" });
-    LIVE.social.worldSplit = () => null;
-    LIVE.social.revealFor = () => ({ round: 1, day: "2026-09-08", qid: "duo-000", votes: { u_ada: { optionIdx: 1 } }, names: { u_ada: "Ada" } });
-    render(<LiveDuelPanel mode="duo" />);
-    expect(screen.queryByLabelText("The world's split")).toBeNull();
-  });
-
-  // The plan priced the third column at zero, and the cache it assumed
-  // holds only what you answered in the feed (ROUNDS-PLAN §0a). So the
-  // reveal ASKS for a world question's split — once, by qid — and never
-  // for a room's own question, which no world aggregate describes.
-  it("the reveal asks the store for a world question's split it does not hold", () => {
-    LIVE.social.bankQ = () => W;
-    LIVE.social.worldSplit = () => null;
-    const asked: string[] = [];
-    LIVE.social.ensureWorldSplit = (qid: string) => { asked.push(qid); };
-    LIVE.social.revealFor = () => ({
-      round: 2, day: "2026-09-08", qid: "feed-f02",
-      votes: { u_me: { optionIdx: 1, guessIdx: 1 }, u_ada: { optionIdx: 1, guessIdx: 1 } }, names: { u_ada: "Ada" },
+describe("LiveDuelPanel · the first run draws a real role vote (D437)", () => {
+  it("previews the bank's first role vote when the bank has one", () => {
+    LIVE.social.groups = () => [];
+    LIVE.social.roleVotePreview = () => ({
+      prompt: "Who plans the whole thing?", scen: { id: "heist", label: "Bank Heist", hue: 25 }, role: { id: "mastermind", label: "the mastermind" },
     });
-    render(<LiveDuelPanel mode="duo" />);
-    expect(asked).toEqual(["feed-f02"]);
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByText("Who plans the whole thing?")).toBeTruthy();
+    expect(screen.getByText("· Bank Heist")).toBeTruthy();
+    expect(screen.getByText("the mastermind")).toBeTruthy();
+    expect(screen.getByText(/A role a round\./)).toBeTruthy();
+    expect(screen.getByText("Who the room names, round by round")).toBeTruthy();
+    expect(screen.queryByText(/World question stands in/)).toBeNull();
   });
 
-  it("…and not for a room's own question", () => {
-    LIVE.social.bankQ = () => ({ id: "duo-000", prompt: "?", options: ["a", "b"], kind: "classic" });
-    LIVE.social.worldSplit = () => null;
-    const asked: string[] = [];
-    LIVE.social.ensureWorldSplit = (qid: string) => { asked.push(qid); };
-    LIVE.social.revealFor = () => ({ round: 1, day: "2026-09-08", qid: "duo-000", votes: { u_ada: { optionIdx: 1 } }, names: { u_ada: "Ada" } });
-    render(<LiveDuelPanel mode="duo" />);
-    expect(asked).toEqual([]);
+  it("falls back to the World stand-in copy before the cast has reached the bank", () => {
+    LIVE.social.groups = () => [];
+    LIVE.social.roleVotePreview = () => null;
+    render(<LiveDuelPanel mode="group" />);
+    // no deck in this fixture, so no stand-in either — but never a role
+    // vote made up here (D1)
+    expect(screen.queryByText(/A role a round\./)).toBeNull();
+    expect(screen.getByRole("button", { name: "Start a group" })).toBeTruthy();
   });
 });
 
@@ -481,10 +638,11 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("a group answers, then reads the room — and still writes once (D386)", async () => {
-    // Until D386 a group sealed on the first tap: there was nothing to
-    // guess. Now the second tap is a call on where the room will land,
-    // and the pick waits for it exactly as a duo's does — one create.
+  it("a group seals on the one tap — nothing in a group is called (D437)", async () => {
+    // For one week (D386) a group's second tap was a call on where the
+    // room would land. The owner's 2026-09-09 brief removed it, and the
+    // rules refuse a guess on the group surface, so the tap IS the vote:
+    // one create, no guess, no morph.
     const calls: Array<[string, number, number | undefined]> = [];
     LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => {
       calls.push([gid, idx, guess]);
@@ -492,11 +650,9 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     render(<LiveDuelPanel mode="group" />);
     fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
-    expect(calls, "the pick wrote before the call on the room existed").toEqual([]);
-    expect(screen.getByText(/And the room lands on…\?/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Tea" }));
     await vi.waitFor(() => expect(calls.length).toBe(1));
-    expect(calls[0]).toEqual(["g1", 0, 1]);
+    expect(calls[0]).toEqual(["g1", 0, undefined]);
+    expect(screen.queryByText(/And the room lands on/)).toBeNull();
   });
 });
 
@@ -1089,7 +1245,9 @@ describe("LiveDuelPanel · the pair's read-runs", () => {
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     LIVE.social.revealHistory = () => [hist("2026-08-12", 1, 0)];
     render(<LiveDuelPanel mode="group" />);
-    expect(screen.getByLabelText("Your calls on where the room lands")).toBeTruthy();
+    // The group's one run is the cast's record since D437: a dot per vote
+    // in the pack's ink, a square per rating — never the pair's two runs.
+    expect(screen.getByLabelText(/The cast so far/)).toBeTruthy();
     expect(screen.queryByLabelText(/How well/)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 // apply-bigquery.test.mjs — the table body is the schema file, partitioned
-// and clustered the way log.ts and SCALE-ARCHITECTURE.md say (D433).
+// and clustered the way log.ts and SCALE-ARCHITECTURE.md say (D439).
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { datasetBody, tableBody, readSchema, DATASET, TABLE, LOCATION } from "./apply-bigquery.mjs";

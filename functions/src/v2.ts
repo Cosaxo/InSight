@@ -604,6 +604,15 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The group as a cast (D434): a role vote's scenario pack and the
+      // role it casts, and a rating's two poles. Emit-when-set — the older
+      // group kinds and every other surface carry none of the three.
+      ...(q.scen ? { scen: q.scen } : {}),
+      ...(q.role ? { role: q.role } : {}),
+      ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
+      // The cast round (D437): the four *them* forms and the four axes.
+      ...(Array.isArray(q.them) ? { them: q.them } : {}),
+      ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
       // The instruments' deep items (D416): which sub-scale an item scores
       // and how it is keyed, on the document — the device joins these by
       // id rather than by prompt text, which is what keeps the 156 new
@@ -984,7 +993,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // The cap's discards from the attempt that commits — reset per
       // attempt, logged once the transaction returns (logBucketCaps).
       const capped: BucketCapEvent[] = [];
-      // THE ANSWER LOG (log.ts, D433 phase A): the row this commit will
+      // THE ANSWER LOG (log.ts, D439 phase A): the row this commit will
       // have earned, built where the ledger entry is and appended after
       // the transaction returns — never inside it, and never on the
       // redelivery that returns above without writing the ledger. Same

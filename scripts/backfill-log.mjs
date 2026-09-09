@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // backfill-log.mjs — load every existing answer into the BigQuery answer
-// log (SCALE-ARCHITECTURE.md phase A, D433), from a terminal or the
+// log (SCALE-ARCHITECTURE.md phase A, D439), from a terminal or the
 // Backfill answer log workflow.
 //
 //   node scripts/backfill-log.mjs --before 2026-09-10            # dry run: count only
