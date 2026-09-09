@@ -3,8 +3,6 @@
 // Validates that pick-data.js crowd and segment data are well-formed and match
 // the pick-questions.json catalogue. Accumulates errors and reports the first 20.
 
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -166,7 +164,7 @@ export function checkPickCrowds(readFile) {
 }
 
 // CLI entry point
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
   const readFile = (relativePath) => {
