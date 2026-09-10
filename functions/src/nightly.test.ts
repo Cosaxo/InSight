@@ -42,9 +42,10 @@ function healthy(): NightlyRunners & { ran: string[]; deadlines: number[]; deadl
       };
     },
     taste: async () => { ran.push("taste"); return { days: 1, counted: 4, people: 2 }; },
-    velocity: async () => {
+    velocity: async (deadlineAt: number) => {
       ran.push("velocity");
-      return { entries: 7, uids: 3, volumeFlags: 0, cadenceFlags: 0, clusterFlags: 0, burstFlags: 0, sharedDays: 1, tailRows: 2 };
+      deadlineOf.velocity = deadlineAt;
+      return { entries: 7, uids: 3, volumeFlags: 0, cadenceFlags: 0, clusterFlags: 0, burstFlags: 0, sharedDays: 1, tailRows: 2, authScanned: 3, authTotal: 3 };
     },
     answerMaps: async (deadlineAt: number) => { ran.push("answerMaps"); deadlineOf.answerMaps = deadlineAt; return { day: "2026-09-05", people: 3, healed: 0, entries: 0, stopped: false, unreached: 0 }; },
     // `left` is on both of these because the pass BRANCHES on it — the
@@ -120,6 +121,34 @@ describe("runNightlyPass", () => {
     expect(r.deadlineOf.fanout).toBe(now + FANOUT_HEAL_SLICE_MS);
   });
 
+
+  it("says so when the birth-cluster scan saw only part of the population", async () => {
+    // The other three velocity signals fold a ledger this pass already
+    // read; this one asks Admin Auth about every active account, one
+    // round trip per hundred. Stopping there does not leave work undone
+    // the way a heal does — it changes what the fold's own output MEANS,
+    // because "no clusters" computed over whoever sorted first is not
+    // the sentence the heartbeat is read as saying.
+    const r = healthy();
+    r.velocity = async () => ({
+      entries: 7, uids: 900, volumeFlags: 0, cadenceFlags: 0, clusterFlags: 0, burstFlags: 0,
+      sharedDays: 1, tailRows: 2, authScanned: 300, authTotal: 900,
+    });
+    const { log, lines } = recorder();
+    await runNightlyPass(r, log);
+    const line = lines.find((l) => l.fields.metric === "velocity_auth_partial");
+    expect(line, "a partial cluster scan passed for a clean one").toBeTruthy();
+    expect(line!.level).toBe("warn");
+    expect(line!.msg).toMatch(/300 of 900 active accounts/);
+  });
+
+  it("…and says nothing when it saw everyone — the control", async () => {
+    const r = healthy();
+    const { log, lines } = recorder();
+    await runNightlyPass(r, log);
+    expect(lines.some((l) => l.fields.metric === "velocity_auth_partial"),
+      "an ordinary night warned about a scan that finished").toBe(false);
+  });
 
   it("says so when the map heal stops on the clock, even though it healed nothing", async () => {
     // The heal's own log line speaks only when it HEALED — in steady

@@ -79,7 +79,7 @@ import {
 import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
 import { ANSWER_MAP_HEAL_SLICE_MS, runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
-import { runVelocityScan, firestoreVelocityStore } from "./velocity";
+import { VELOCITY_AUTH_SLICE_MS, runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
 import { FANOUT_HEAL_SLICE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
 
@@ -99,7 +99,7 @@ export interface NightlyRunners {
   /** D54's velocity scan (runbook 4.4) — the seventh, its whole days off
    *  the same reader and the partial day its own read. It logs its own
    *  flags and heartbeat (`velocity_scan`). */
-  velocity: () => ReturnType<typeof runVelocityScan>;
+  velocity: (deadlineAt: number) => ReturnType<typeof runVelocityScan>;
   /** The answer log's reconcile (log.ts, D447 phase A) — the eighth, off
    *  the same ledger read: yesterday's entries the BigQuery table lacks,
    *  and the erasures the day deferred. Skips itself where there is no
@@ -186,7 +186,19 @@ export async function runNightlyPass(
   // The velocity scan (runbook 4.4) speaks for itself — its flags and its
   // `velocity_scan` heartbeat are logged inside the runner, unchanged
   // from the scheduled function's, so the silence policy keeps counting.
-  await attempt("velocity", r.velocity);
+  const vel = await attempt("velocity", () => r.velocity(sliceDeadline(VELOCITY_AUTH_SLICE_MS)));
+  // A CLUSTER SCAN THAT SAW PART OF THE POPULATION IS NOT A CLEAN NIGHT.
+  // The other three signals fold the ledger this pass already read; the
+  // birth-cluster one asks Admin Auth about every active account, one
+  // round trip per hundred, and stopping there means "no clusters" was
+  // computed over whoever sorted first. Said out loud, because an absence
+  // of flags is the whole output of this fold on an ordinary night.
+  if (vel && vel.authScanned < vel.authTotal) {
+    log.warn(
+      `[velocity] the birth-cluster scan read ${vel.authScanned} of ${vel.authTotal} active accounts before the pass's clock — its "no clusters" covers that many`,
+      { metric: "velocity_auth_partial", scanned: vel.authScanned, total: vel.authTotal },
+    );
+  }
   // The heal speaks only when it healed: in steady state the trigger
   // wrote every entry live and the heal's read finds nothing missing, so
   // a line every night would be a heartbeat for the absence of work. A
@@ -302,7 +314,7 @@ export const digestEngagementV2 = onSchedule(
       digest: () => runEngagementDigest(firestoreEngagementStore(db, ledgerDay), now),
       patterns: () => runPatternsFit(firestorePatternsStore(db, ledgerDay), now),
       taste: () => runTasteFold(firestoreTasteStore(db, ledgerDay), now),
-      velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
+      velocity: (deadlineAt) => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now, logger, { deadlineAt }),
       answerMaps: (deadlineAt) => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now, { deadlineAt }),
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
       fanout: (deadlineAt) => runFanoutHeal(firestoreFanoutHealStore(db), { deadlineAt }),
