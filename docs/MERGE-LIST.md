@@ -40,11 +40,12 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-10T10:17:41Z -->
+<!-- console:generated 2026-09-10T10:41:59Z -->
 
 ## Open
 
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 248 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#473** · a session · *what:* Both night shifts composed into one tree. · *how:* Every one of the 60 commits is kept as written; nothing was reverted.** What this PR adds is the composition and three fixes for things no shift could see alone. · CI running (9 pending) · current with main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 249 behind main · opened 2026-09-01 · stage **new**
 - [ ] **night-20260910** (no PR yet) · Claude 2's night shift · 31 commits · last 05:32 UTC 2026-09-10
 - [ ] **nightb-20260910** (no PR yet) · Claude 1's night shift B · 29 commits · last 04:12 UTC 2026-09-10
 
