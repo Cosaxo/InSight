@@ -1441,7 +1441,18 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
       // Re-claiming your own handle is a no-op rather than an error: the
       // client retries on a dropped response, and a retry that reports
       // "taken" about your own name is the worst possible message.
-      if (snap.get("uid") === uid) return;
+      // …and it REPAIRS the directory row on the way out. It used to
+      // return here, one statement short of the write below, and D440's
+      // `allow delete` made that reachable rather than theoretical: the
+      // owner may delete their own row, `writeDirectoryRow` does exactly
+      // that when a display name is cleared, and the client cannot put
+      // the handle back — `handle` is immutable to it on that document
+      // (the ternary in firestore.rules). So clearing a name and setting
+      // one again left the end state this file's own rules comment calls
+      // wrong: "an account findable by name and not by the address it
+      // just took", with nothing in the system able to fix it. The write
+      // is idempotent and already inside this transaction.
+      if (snap.get("uid") === uid) { writeRow(); return; }
       throw new HttpsError("already-exists", "that handle is taken");
     }
     tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
