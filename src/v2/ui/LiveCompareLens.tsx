@@ -168,6 +168,16 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
   // fetch is a no-op when everything is cached, so the flag simply never
   // becomes visible on a warm open.
   const [reading, setReading] = React.useState(false);
+  // …and whether the read FAILED, which `reading` alone cannot say: it
+  // goes false when the fetch RETURNS, thrown or not, and `loadNames`
+  // swallows. Held beside its sibling for the same reason the sibling is
+  // held here — the store has no flag for name resolution — and it is
+  // the people basis's twin of `testAggsState`, which the cells basis
+  // beneath already uses. Without it a failed profile batch drew
+  // "Nobody here has finished a test yet" about a room where everyone
+  // had, which is the sentence this file's own comment says the cells
+  // basis was fixed for.
+  const [namesFailed, setNamesFailed] = React.useState(false);
   React.useEffect(() => {
     // Clearing on the way OUT matters as much as setting on the way in.
     // The cleanup below drops `live`, so a fetch still in flight when the
@@ -176,10 +186,13 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
     // return without clearing it either. The flag then stayed true for
     // the life of the mount and the lens said "Reading…" forever, with
     // nothing left to read. A no-op when it is already false.
-    if (!uidKey) { setReading(false); return; }
+    if (!uidKey) { setReading(false); setNamesFailed(false); return; }
     let live = true;
     setReading(true);
-    void LIVE.loadNames(uidKey.split(",")).finally(() => { if (live) setReading(false); });
+    setNamesFailed(false);
+    void LIVE.loadNames(uidKey.split(","))
+      .then((ok) => { if (live) setNamesFailed(!ok); })
+      .finally(() => { if (live) setReading(false); });
     return () => { live = false; };
   }, [uidKey]);
   // After the hooks: an early return above them would change the hook
@@ -254,7 +267,7 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
           ? <>Fills in as you answer the test cards in your feed.</>
           : (reading || cellsState === "loading") && !themN
             ? <>Reading…</>
-            : cellsState === "failed" && !themN
+            : (cellsState === "failed" || (pop.basis === "people" && namesFailed)) && !themN
               ? <>Couldn’t read the scores here. Close and reopen to try again.</>
               : !themN
                 ? emptyThem

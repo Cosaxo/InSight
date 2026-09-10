@@ -103,3 +103,29 @@ describe("loadRevealHistory", () => {
     expect(LIVE.social.revealHistoryLoading("g_fail")).toBe(false);
   });
 });
+
+describe("loadNames", () => {
+  beforeEach(() => { h.dbPending = true; h.dbThrows = false; });
+
+  it("ANSWERS a failed profile read — the same word, one loader over", () => {
+    // The store swallows a name-resolution failure by design: it is not a
+    // price a lens should charge. What it did not do was tell the ONE
+    // caller that cares — LiveCompareLens flipped its local `reading`
+    // flag false on a failure with no scores in hand, and its people
+    // basis then said "Nobody here has finished a test yet" about a room
+    // where everyone had. Same shape as the reveal history above, same
+    // answer, and the promise not to throw is unchanged: this resolves.
+    h.dbThrows = true;
+    h.dbPending = false;
+    return expect(LIVE.loadNames(["u_a", "u_b"])).resolves.toBe(false);
+  });
+
+  it("…and a list already in hand is not a read that failed", () => {
+    // The control. `loadNames` returns before touching the network when
+    // every uid is cached, and "nothing to do" must not read as "the
+    // read broke" — that would put the failure copy on every warm open.
+    h.dbThrows = true;
+    h.dbPending = false;
+    return expect(LIVE.loadNames([])).resolves.toBe(true);
+  });
+});

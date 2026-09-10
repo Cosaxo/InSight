@@ -5487,17 +5487,28 @@ const LIVE = {
   // author name, so this is what turns them from "Someone" into people.
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
-  async loadNames(uids: readonly string[]): Promise<void> {
+  // ANSWERS whether the read landed, and still never throws — two
+  // callers `void` it. The swallow is right (a name resolution failing is
+  // not a price a lens should charge) and it left the ONE caller that
+  // cares unable to tell: LiveCompareLens flipped its local `reading`
+  // flag false on a failure with `state.scores` still empty, and its
+  // people basis then said "Nobody here has finished a test yet" about a
+  // room where everyone had. The same shape the reveal-history loader
+  // carried, and the same answer. Nothing already cached is "ok": there
+  // was no read to fail.
+  async loadNames(uids: readonly string[]): Promise<boolean> {
     const want = uids.filter((u) => u
       && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)
         || !(u in state.logicPcts)));
-    if (!want.length) return;
+    if (!want.length) return true;
     try {
       const db = await getDb();
       await resolveNames(db, want, state.names, state.scores, state.faces, state.logicPcts);
       saveProfileCache();
+      return true;
     } catch (err) {
       reportError(err, { where: "loadNames" });
+      return false;
     } finally {
       notify();
     }

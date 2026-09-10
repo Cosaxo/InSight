@@ -664,7 +664,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     removeAvatar: async () => {},
     flagAvatar: async () => {},
     flaggedAvatar: () => false,
-    loadNames: async () => {},
+    // Answers, like the store: `false` is a failed profile read and
+    // Compare draws it as one.
+    loadNames: async () => true,
     // Kindred (D99): one overlapping person, so a live mount renders a
     // ranked row rather than only the empty state.
     loadKindred: async () => {},
