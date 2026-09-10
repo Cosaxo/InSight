@@ -168,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Ten jobs — verified rather than assumed,
+**What the environment gates.** Eleven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -179,7 +179,8 @@ this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
 same way and in the same commit — and the ninth and tenth,
-`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09.)
+`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09, and the
+eleventh, `delete-retired-functions.yml`, on 2026-09-10.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
