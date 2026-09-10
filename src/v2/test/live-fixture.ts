@@ -455,6 +455,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.
     revealHistoryLoading: () => false,
+    // Settled AND read: the empty history above is a room that has not
+    // played, not one this fixture failed to read for.
+    revealHistState: () => "ready" as const,
     // Answers the word the store answers ("ok" | "failed" | "busy"), not
     // `undefined` — LiveRolesPanel branches on it. Inert here only
     // because this fixture hands back no groups, so the loop that reads

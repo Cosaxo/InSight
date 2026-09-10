@@ -417,6 +417,14 @@ const state = {
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
   revealHistLoaded: {} as Record<string, boolean>,
+  // …and the third state the pair above cannot hold, for the reason the
+  // sentence above gives: a failed query leaves `revealHistLoaded` unset
+  // ON PURPOSE so a later call retries, which makes it indistinguishable
+  // from a room whose history has never been asked for. The loader
+  // ANSWERS "failed" and one caller listens; this is the same answer
+  // where every caller can read it. `takesFailed` is the same field one
+  // surface over.
+  revealHistFailed: {} as Record<string, true>,
   // My CALL on each duel answer — answer id → guessIdx — kept beside the
   // pick, which `votes` holds alone. The card's sealed list (request 12)
   // says "you: Ignore · called Answer" for every round waiting on the
@@ -3971,6 +3979,12 @@ const SOCIAL = {
       // unconditional since D98 — so it is reported, where the per-key
       // version swallowed permission-denied as the ordinary late-joiner
       // case. Transient (offline, deadline) is reported the same way.
+      // …and recorded where every caller can read it, not only the one
+      // that keeps the answer. The Groups Mirror stop `void`s this call,
+      // so a refused read left it drawing "no rounds revealed yet" under
+      // the room's own name — the definite claim the arming notify two
+      // blocks up exists to stop, arriving by the other door.
+      state.revealHistFailed[gid] = true;
       reportError(err, { where: "revealHistory", gid });
     } finally {
       state.revealHistLoading[gid] = false;
@@ -3995,6 +4009,30 @@ const SOCIAL = {
    */
   revealHistoryLoading(gid: string): boolean {
     return !!state.revealHistLoading[gid];
+  },
+  /**
+   * Has this room's reveal history been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The finish of the sentence `revealHistoryLoading` above starts, and
+   * the same shape as `takesState`, `kindredState`, `testAggsState`. The
+   * loader already answers "failed" to its caller — but only `void`ing
+   * callers were left, one of them the Groups Mirror stop, which then
+   * printed "no rounds revealed yet" about a room it had failed to read.
+   * An answer a caller may drop is a fact the store should keep.
+   *
+   * 'ready' also covers "never asked": a room nobody loaded has no
+   * failure to report, and the load is on-demand by design.
+   */
+  revealHistState(gid: string): "loading" | "ready" | "failed" {
+    if (state.revealHistLoading[gid]) return "loading";
+    // A history that HAS been read is settled, whatever came before it —
+    // derived from the settled flag rather than by clearing the mark on
+    // the retry's arm, because a derivation from a value the success
+    // path already sets cannot drift out of step with it, and no harness
+    // in this tree can resolve a reveal-history read to catch it if it
+    // did (reveal-history-arm.test.ts records why).
+    if (state.revealHistLoaded[gid]) return "ready";
+    return state.revealHistFailed[gid] ? "failed" : "ready";
   },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     type Row = Record<string, unknown> & { day: string; id: string };
@@ -8023,6 +8061,7 @@ function resetForNewUid(uid: string): void {
   state.revealHist = {};
   state.revealHistLoading = {};
   state.revealHistLoaded = {};
+  state.revealHistFailed = {};
   state.duelCalls = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a

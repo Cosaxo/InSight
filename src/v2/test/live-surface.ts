@@ -239,6 +239,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "revealHistoryLoading",
+  // …and the reader that finishes its sentence, for the caller that
+  // `void`s the loader's own answer rather than keeping it.
+  "revealHistState",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
   // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
