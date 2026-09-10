@@ -396,7 +396,7 @@ default to the billing account's admins and users. Both are §6 O4.
 
 | # | Gap | If it bites | Fix | Who | 2026-09-09 |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); two clicks after the deploy; the detach is an owner row |
+| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); the attach is the owner's console click (2026-09-10); the detach is an owner row |
 | 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code | **code done** (C3: 50 calls a day, 1,024 tokens); O1 still the owner's |
 | 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code | done |
 | 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code | **done** (C1) |
@@ -459,8 +459,9 @@ default to the billing account's admins and users. Both are §6 O4.
   daily counter in `v2_ratelimits` beside the per-account one, `max_tokens`
   sized to the verdict, and a `paid_review_call` log metric with a policy
   under `monitoring/` on calls a day; `check:monitoring` holds the chain.
-- **C4 · The budget acts** — **built 2026-09-09**, two clicks after the
-  deploy (§8.1); the detach is not built and is an owner row.
+- **C4 · The budget acts** — **built 2026-09-09**; the attach is one
+  click of the owner's, in the console (§8.1, measured 2026-09-10); the
+  detach is not built and is an owner row.
   `scripts/apply-budget.mjs` adds a
   `notificationsRule.pubsubTopic`; a Pub/Sub-triggered function sets
   `budgetMode` to 1 at the 100 % message (one merged field write, D332's
@@ -534,11 +535,16 @@ none is typed.
   100 % of the budget from the budget's own Pub/Sub notification, in the
   fields `scripts/budget-mode.mjs` reads and releases, and releases only
   what it set and only when the next month arrives under the line.
-  `scripts/apply-budget.mjs` attaches the topic. **Two clicks after the
-  deploy** (`OWNER-LIST.md`): dispatch *Arm budget* again, then grant the
-  budget's service agent Publisher on the topic — the one grant the
-  Budgets API cannot make for itself. Until the grant the function sees
-  nothing, and the mail is still the backstop. The billing detach is not
+  `scripts/apply-budget.mjs` attaches the topic over the API — and from
+  the deploy credential that PATCH is refused (2026-09-10, run
+  34477868495): the Budgets API demands `pubsub.topics.setIamPolicy` on
+  the topic of whoever attaches one, which project Editor lacks, and the
+  script's message first misread the 403 as the billing-account role.
+  **One click after the deploy** (`OWNER-LIST.md`): the console's
+  *Connect a Pub/Sub topic to this budget*, which attaches and grants the
+  service agent Publisher in the same action; the dry dispatch then reads
+  "exists and matches". Until the click the function sees nothing, and
+  the mail is still the backstop. The billing detach is not
   built; its arithmetic is the owner's row.
 - **C3, the ceiling.** `REVIEW_CALLS_PER_DAY` (50) bounds the model calls
   the whole project makes in a day; a refused slot holds the booking
@@ -631,7 +637,7 @@ what stands in the way of each:
 | --- | --- | --- |
 | Reads nobody in the app issued | closed by App Check enforcement (§3.A) | the switch, the owner's, 2026-09-08 |
 | A real device driving the app's own queries and writes | the app's per-session shape (§3.G), the fan-out's hourly budget (8.2) | the caps, each read by the model from source |
-| The hours between a budget mail and a person | the read breaker sets itself at 100 % (C4) | two clicks; then the budget's own 20–30 minute cadence is the delay |
+| The hours between a budget mail and a person | the read breaker sets itself at 100 % (C4) | one console click; then the budget's own 20–30 minute cadence is the delay |
 | The paid review's model calls | 50 a day project-wide, 1,024 tokens a call (C3) | the workspace spend limit (O1) holds whatever the code does |
 | Deploy-rate costs | ~40–60 build-minutes a deploy against 2,500 free (§3.E) | nothing yet — C7 is the fix, tens of dollars a month at the current merge rate |
 | The log's erasure, ingest and phase B's counters | one pass a night, the kilobyte priced, a start condition (8.2) | nothing more today; two owner sentences at scale |

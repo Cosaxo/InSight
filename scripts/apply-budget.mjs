@@ -232,6 +232,35 @@ const topicHint = (message) => (/topic/i.test(String(message))
 const describe = `"${NAME}": ${AMOUNT}/month on projects/${projectNumber} (${PROJECT}), `
   + `emails at ${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")} to the billing account's admins and users, `
   + `notifications to ${TOPIC}`;
+/** A refused WRITE (create or retune) has two readings since the wire
+ *  (D448), and the API's "The caller does not have permission" is all it
+ *  says for either:
+ *    - roles/billing.costsManager on the billing account: budgets are a
+ *      billing-account resource, and project Editor says nothing there;
+ *    - pubsub.topics.setIamPolicy on the topic: the Budgets API demands it
+ *      of the CALLER whenever notificationsRule.pubsubTopic is set (it
+ *      makes the service agent's publisher grant on the caller's behalf),
+ *      and project Editor does not carry that either.
+ *  The first dispatch with the topic (2026-09-10) was the second: the role
+ *  had been granted on 2026-08-27 and this script had CREATED the budget
+ *  with it, so the canned costsManager line named the wrong grant, the
+ *  second time this branch did (the disabled API was the first). So a 403
+ *  now says both, with the tell: a budget this credential could list and
+ *  create is one the role is already in place for. Any other refusal keeps
+ *  the one line, and topicHint still reads the message for a missing topic. */
+const writeFix = (r) => (r.status !== 403
+  ? `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`
+  : `    two grants read as this 403, and the message does not say which:\n`
+    + `    - roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}: already in place\n`
+    + `      wherever this credential could list and create the budget, which leaves\n`
+    + `    - pubsub.topics.setIamPolicy on ${TOPIC}: the Budgets API demands it of the caller whenever a\n`
+    + `      topic is attached, and project Editor does not carry it.\n`
+    + `    the way through that needs no new role: connect the topic in the console (Billing -> Budgets &\n`
+    + `    alerts -> "${NAME}" -> Manage notifications -> Connect a Pub/Sub topic to this budget -> ${BUDGET_TOPIC}),\n`
+    + `    which attaches it AND makes the publisher grant; this script's dry run then reads "exists and\n`
+    + `    matches". Or grant the credential the topic's admin once and re-dispatch with apply:\n`
+    + `      gcloud pubsub topics add-iam-policy-binding ${BUDGET_TOPIC} --project ${PROJECT} --member serviceAccount:${sa.client_email} --role roles/pubsub.admin`);
+
 const grantNote = `\n\nThe one grant the API cannot make: the budget's service agent must be allowed to publish\n`
   + `to the topic (functions/src/budget.ts reads it) — run once, in Cloud Shell:\n  ${PUBLISHER_GRANT}`;
 
@@ -261,7 +290,7 @@ if (!existing) {
   const r = await googleFetch(budgetsUrl, token, { method: "POST", body: wanted });
   if (!r.ok) {
     die(`creating the budget returned ${r.status}: ${r.message}\n`
-      + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`
+      + writeFix(r)
       + topicHint(r.message));
   }
   console.log(`created budget ${describe}${currencyNote(r.body)}\n\n`
@@ -290,7 +319,7 @@ if (!existing) {
   );
   if (!r.ok) {
     die(`retuning the budget returned ${r.status}: ${r.message}\n`
-      + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`
+      + writeFix(r)
       + topicHint(r.message));
   }
   console.log(`retuned budget "${NAME}" — was ${have}; now ${AMOUNT}/month at `

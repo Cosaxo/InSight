@@ -2373,18 +2373,20 @@ That is a tester-count problem, not a workflow problem.
       before submitting: type a wrong address, create, and check that the
       doors come back.
 
-- [ ] **5.17 Stand the budget's wire up — two clicks after the deploy
-      (`COST-EXPOSURE.md` §6 C4, 2026-09-09).** `functions/src/budget.ts`
+- [ ] **5.17 Stand the budget's wire up — one click after the deploy
+      (`COST-EXPOSURE.md` §6 C4, 2026-09-10).** `functions/src/budget.ts`
       sets the D332 read breaker when the month's spend reaches the
-      budget; the deploy creates its topic. Then: GitHub → Actions → **Arm
-      budget** → dry, then `apply` (it attaches `budget-alerts` to the
-      budget and prints the grant); then in Cloud Shell the grant the API
-      cannot make —
-      `gcloud pubsub topics add-iam-policy-binding budget-alerts --project prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com --role roles/pubsub.publisher`.
-      Proof: within half an hour a `budget_message` line on
-      `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The budget's wire).
-      What it does not do: detach billing — that is the owner's row on
-      `OWNER-LIST.md`, with the arithmetic.
+      budget; the deploy creates its topic. Then, in the console: Billing
+      → Budgets & alerts → "InSight" → Manage notifications → *Connect a
+      Pub/Sub topic to this budget* → `budget-alerts` → Save — the one
+      action that attaches the topic and grants its service agent
+      Publisher. The API path (*Arm budget* with `apply`) is refused from
+      the deploy credential, which lacks `pubsub.topics.setIamPolicy` on
+      the topic (measured 2026-09-10); its dry run is the check afterwards
+      ("exists and matches"). Proof: within half an hour a `budget_message`
+      line on `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The
+      budget's wire). What it does not do: detach billing — that is the
+      owner's row on `OWNER-LIST.md`, with the arithmetic.
 
 ## Phase 6 — Submit
 
