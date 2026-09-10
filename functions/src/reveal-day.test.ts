@@ -134,6 +134,44 @@ beforeEach(() => {
   store.set("v2_questions/qB", { options: ["a", "b", "c"] });
 });
 
+describe("the roster the transaction read", () => {
+  // The page scan and the transaction are two reads with a window between
+  // them, and `leaveGroupV2` and `deleteAccount` phase 1c both land in it:
+  // they scrub `pushAt.{uid}` and `memberNames.{uid}` and take the uid off
+  // `memberUids`. A reveal built on the PAGE's roster wrote all of it back.
+  // For an erased account that is a uid re-minted on a live group document
+  // after gone means gone, plus a push to a group they are no longer in.
+  it("does not re-mint a member who left between the two reads", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"] }, streak: 0,
+      memberNames: { u1: "Bo", u2: "Ada", u3: "Gone" },
+      ...DUE,
+    });
+    // …and by the time the transaction reads the group, u3 is off it.
+    fresh.set(`v2_groups/${GID}`, {
+      ...store.get(`v2_groups/${GID}`)!, memberUids: ["u1", "u2"],
+    });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+
+    expect(
+      await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot),
+    ).toBe(true);
+
+    const rev = store.get(`v2_groups/${GID}/reveals/${KEY}`) as Doc;
+    expect(rev.members, "the reveal recorded a uid the group no longer has")
+      .toEqual(["u1", "u2"]);
+    expect(Object.keys(rev.names as Doc).sort(),
+      "a stray name outlives the erasure sweep that walks `members`")
+      .toEqual(["u1", "u2"]);
+    // …and the settle update, which is what the push fan-out reads.
+    const g = store.get(`v2_groups/${GID}`) as Doc;
+    expect(Object.keys(g), "the erased member was stamped for the next round")
+      .not.toContain("pushAt.u3");
+  });
+});
+
 describe("a reveal that lost the race", () => {
   it("folds nothing, because a retried attempt must not inherit the first's verdict", async () => {
     store.set(...answer("u1", "qA", 0));
