@@ -4212,6 +4212,21 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // THE PENDING MIRROR (D357), which the duel paths were written
+    // outside of. Its closing rule is that a surface writing an answer
+    // outside the five named paths marks and clears the mirror the same
+    // way "or its offline answer is the pre-D357 answer" — and a duel
+    // round is exactly where that costs most. Answer offline, relaunch:
+    // the answer is in the SDK's queue and in this process's memory,
+    // neither of which the warm boot reads, and `roundsOf` gates the
+    // round on `state.votes[aid]` alone — so the round is offered again,
+    // the queue flushes the first create, and the second tap is a full
+    // overwrite of an existing duel answer, which D86 does not admit.
+    // The room is then sealed with an option the user has been told did
+    // not save. `learnAnswer` is outside the mirror WITH a written
+    // reason; these two had none.
+    state.inflight[aid] = true;
+    markPending(aid, String(optionIdx));
     if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
     notify();
     return (async () => {
@@ -4238,9 +4253,14 @@ const SOCIAL = {
           if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        // Through the same helper the five paths use, so the mirror is
+        // cleared with the vote rather than left behind to be restored
+        // on the next boot as an answer the server refused.
+        rollbackPending(aid);
         delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
@@ -4288,6 +4308,10 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // The mirror, for voteDuel's reason — a late answer is written the
+    // same way and re-offered the same way.
+    state.inflight[aid] = true;
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4307,9 +4331,11 @@ const SOCIAL = {
           if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "duelVoteLate", gid });
         throw err;
