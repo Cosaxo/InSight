@@ -27,6 +27,7 @@ import {
 // imports it. `DuoBody` still publishes through the window bag, so the export
 // is hoisted out of the IIFE rather than the IIFE unwound.
 let DuoDomainsImpl;
+let DuoBodyImpl;
 (function () {
   const { useState, useEffect, useReducer } = React;
   const LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
@@ -324,8 +325,14 @@ let DuoDomainsImpl;
   }
 
   Object.assign(window, { DuoBody });
+  DuoBodyImpl = DuoBody;
   DuoDomainsImpl = DuoDomains;
 })();
 
 // A live binding, not a wrapper component — see person-mindmap.jsx.
 export { DuoDomainsImpl as DuoDomains };
+// AND THE BODY ITSELF, so `daily-split.jsx` can React.lazy it the way it
+// lazies the group body beside it instead of reading a global at render
+// time. The window publication stays: `duels-rounds.test.jsx` mounts
+// through it, so this is a second reader rather than a conversion.
+export { DuoBodyImpl as DuoBody };

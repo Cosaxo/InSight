@@ -487,7 +487,12 @@ for (const name of [...defined].sort()) {
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
   "src/v2/spec/app-shell.jsx": 12,
-  "src/v2/spec/daily-split.jsx": 6,
+  // 5 since the duo body came off the bridge: `daily-split.jsx` read
+  // `window.DuoBody` at render time and now React.lazies the module, the
+  // way it already lazied the group body beside it. The publication stays
+  // for `duels-rounds.test.jsx`, so this is a reader converted rather than
+  // a name retired.
+  "src/v2/spec/daily-split.jsx": 5,
   "src/v2/spec/mirror-field-pops.jsx": 1,
   "src/v2/spec/search-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,

@@ -81,10 +81,12 @@ export const FORMAT_ONLY = new Set(["places", "fav"]);
 // written at the other file's tier.
 export const TIER = { palette: 0.52, wire: 0.55 };
 
-// The closest two hues on the feed ring sit today (25 and 40). The gate
-// holds the row no tighter than it already is: a created hue must not make
-// any neighbouring pair closer than the closest pair that already ships.
-export const HUE_MIN_GAP = 15;
+// The closest two hues on the feed ring may sit — declared beside `hueFor`
+// in topic-budget.mjs and re-exported here, because the generator is what
+// has to obey it. It lived here and `hueFor` never read it, so from the
+// ring's twentieth topic on the lane was handed a hue this rule refuses.
+export { HUE_MIN_GAP } from "./topic-budget.mjs";
+import { HUE_MIN_GAP } from "./topic-budget.mjs";
 
 const oklch = (s) => {
   const m = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)/.exec(String(s ?? ""));

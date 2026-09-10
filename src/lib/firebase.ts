@@ -21,6 +21,9 @@
 
 import type { User } from "firebase/auth";
 import type { FirebaseConfig } from "./firebaseImpl";
+// Already in the entry chunk (live.ts imports it statically), so the
+// value import below costs first paint nothing.
+import { reportError } from "./sentry";
 
 export type { User } from "firebase/auth";
 
@@ -170,10 +173,34 @@ export async function googleSignOut(): Promise<void> {
 export function subscribeToAuth(cb: (user: User | null) => void): () => void {
   let cancelled = false;
   let unsub: (() => void) | null = null;
-  impl().then((m) => {
-    if (cancelled) return;
-    unsub = m.subscribeToAuth(cb);
-  }).catch(() => { /* not configured — nothing to watch */ });
+  // THE CATCH USED TO BE BARE, and its comment named a case that cannot
+  // reach it: "not configured" is known synchronously from
+  // `firebaseEnabled`, so the only rejections that arrive here are real —
+  // a chunk fetch that failed on a blip, a deploy swapping the asset
+  // mid-session, `init` throwing. `impl()` repairs itself for the NEXT
+  // caller; this subscription has no next caller. It is wired once per
+  // session behind a flag (live.ts's `authWired`, purchases.ts), so one
+  // bad moment left the app with no auth observer for the life of the
+  // page — and live.ts says at its own call site what that costs: the
+  // store samples `uid` once and never watches it, so a sign-out into a
+  // different account "kept the PREVIOUS account's votes in memory and
+  // rendered them as the new account's". Silently.
+  //
+  // So: retry once, then report. The retry is the cheap half of `impl()`'s
+  // own argument — it cleared its memo before rethrowing, and a module the
+  // bundler has already fetched resolves from its own cache, so a failure
+  // in `init` rather than in the fetch succeeds on the second attempt.
+  const wire = (again: boolean): void => {
+    impl().then((m) => {
+      if (cancelled) return;
+      unsub = m.subscribeToAuth(cb);
+    }).catch((err) => {
+      if (cancelled || !firebaseEnabled) return; // the demo: no auth to watch
+      if (again) { wire(false); return; }
+      reportError(err, { where: "subscribeToAuth" });
+    });
+  };
+  wire(true);
   return () => {
     cancelled = true;
     unsub?.();

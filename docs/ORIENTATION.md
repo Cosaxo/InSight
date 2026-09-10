@@ -265,7 +265,7 @@ everything else: the static gates, and where each one runs.
 | `check:public-copy` | ci | The retired pre-D98 privacy vocabulary **reappearing** in copy a user reads |
 | `check:store-forms` | ci | The privacy nutrition label, which exists twice on purpose, agreeing with itself |
 | `check:quality` | ci | Question form and provenance (D97), the place-scope tripwire, and the id/bank headroom |
-| `check:neighbors` | ci | Near-duplicate questions across the banks (D63) |
+| `check:neighbors` | ci | Near-duplicate questions inside each surface's dedup domain, never across them (D63) |
 | `check:taxonomy` | ci | A category is written at every site or not at all (D424) — the feed's palette against its wire list, `CAT_META` against `map-branches.js`, hue distinctness, and the proposal ledger |
 | `check:cities` | ci | The city catalogue's rows and name lengths — a malformed one is pickable and then absent from every breakdown |
 | `check:ios-spm` | ci | The npm alias that keeps the iOS SwiftPM graph resolvable |

@@ -195,7 +195,19 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
    * (VISION-2026-09-06 §2.4). */
   guide?: boolean;
 }): React.ReactElement {
-  const [sel, setSel] = React.useState<number | null>(null);
+  // THE SELECTION IS A QUESTION, NOT A POSITION. `items` is re-derived from
+  // the store on every notify — an aggregate page landing adds questions,
+  // a retirement removes one — so a stored INDEX names a different question
+  // the moment the pool moves and no question at all once it shrinks past
+  // the index. Both were reachable from the tab: the open card, its option
+  // buttons and the `LIVE.vote` under them all followed the swap, and
+  // `nearOf` reached an undefined row and threw the whole tab into the
+  // ErrorBoundary. Derived per render rather than memoised — a `findIndex`
+  // over the pool is nothing, and a memo here would need `items` in its
+  // deps, which is the stale-by-one-notify shape this replaces.
+  const [selQ, setSelQ] = React.useState<string | null>(null);
+  const selIdx = selQ == null ? -1 : items.findIndex((p) => p.q.id === selQ);
+  const sel = selIdx >= 0 ? selIdx : null;
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
 
   // Geometry recomputes only when the pool changes (a vote landing, the
@@ -212,7 +224,11 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
 
   const inTopic = (i: number) => topic === "all" || items[i].q.cat === topic;
   const catHue = (i: number) => catHueOf(items[i]?.q.cat);
-  const nb = sel == null ? null : nearOf(geo.U, sel, 3);
+  // `geo` is memoised on `version` while `sel` is derived from `items`, so
+  // the row guard is the belt for the invariant that memo's eslint-disable
+  // asserts: if the two ever disagree, this draws nothing instead of
+  // throwing.
+  const nb = sel == null || !geo.U[sel] ? null : nearOf(geo.U, sel, 3);
   const near = nb ? new Set(nb.map((x) => x.j)) : null;
   const rest = geo.edges.filter((l) => inTopic(l.i) && inTopic(l.j));
   // The denominator the idle card prints, filtered the same way `rest` is.
@@ -234,7 +250,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
 
   // The selected question's own links, said out loud — each an exact 2×2
   // fetched on demand and cached for the session (rows shared per qid).
-  const selId = sel != null && items[sel] ? items[sel].q.id : null;
+  const selId = sel != null ? items[sel].q.id : null;
   const [says, setSays] = React.useState<{ id: string; rows: { j: number; s: PairSay | null; failed: boolean }[] } | null>(null);
   React.useEffect(() => {
     if (selId == null || !nb) { setSays(null); return; }
@@ -261,6 +277,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   React.useEffect(() => {
     if (!top) { setTopSay(null); return; }
     const key = `${items[top.i].q.id}>${items[top.j].q.id}`;
+    setTopSay(null);
     let on = true;
     void PATTERNS.say(items[top.i].q.id, items[top.j].q.id)
       .then((s) => { if (on) setTopSay({ key, s }); })
@@ -269,10 +286,23 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the pair's ids name the fetch; items follow `version`
   }, [top ? `${top.i}:${top.j}` : null, version]);
 
-  const pick = (i: number) => { setSel((s) => (s === i ? null : i)); };
+  const pick = (i: number) => { const id = items[i]?.q.id ?? null; setSelQ((s) => (s === id ? null : id)); };
   const q = sel != null ? items[sel] : null;
   const nAns = items.filter((x) => x.mine != null).length;
-  const chain = top && topSay && topSay.s ? topSay.s : null;
+  // KEYED, LIKE ITS SIBLING. `topSay` has always carried the pair it was
+  // fetched for and nothing compared it, and the effect above does not
+  // clear it before refetching — so while `say()` is in flight for a new
+  // pair (a real read; the session cache misses on a pair not yet opened)
+  // the card drew the PREVIOUS pair's pick, percentage and basis sentence
+  // under the new pair's question text. Reachable by changing the topic
+  // filter while the Map is idle, and it states an exact count — "counted
+  // over the N people in both samples" — for a pair the device has read
+  // nothing about, which is the one thing D146 exists to stop.
+  //
+  // The `says` effect ten lines up already does both halves: it clears on
+  // entry and gates its render on `says.id === q.q.id`. This is that.
+  const chain = top && topSay && topSay.key === `${items[top.i].q.id}>${items[top.j].q.id}`
+    ? topSay.s : null;
   const topicWord = topic === "all" ? "" : ` in ${catLabel(topic)}`;
 
   if (!items.length || !RG.pts.length) {
@@ -293,7 +323,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
         <div className="ln-field">
           <svg className="ln-svg" viewBox={`0 0 ${S} ${S}`} role="img"
             aria-label="Every question on a ring, grouped by topic; lines join questions whose answers predict each other"
-            onClick={() => { if (sel != null) setSel(null); }}>
+            onClick={() => { if (sel != null) setSelQ(null); }}>
             <g>
               {shown.map((l, k) => {
                 const a = RG.pts[l.i], b = RG.pts[l.j];

@@ -571,6 +571,17 @@ describe("v2 profile", () => {
     await refused(setDoc(mine, {
       testResults: { big5: deleteField() },
     }, { merge: true }));
+    // …AND THE WHOLE MAP, which is the case this one only looked like.
+    // Removing a SUB-KEY was always refused, because the resulting map
+    // differs from the stored one; removing the map itself made the key
+    // ABSENT, and the clause was written as "absent OR unchanged", so it
+    // passed — every verified logic score and every political-consent
+    // coupling deletable through the ordinary profile write path.
+    // Measured 2026-09-10, both allowed.
+    await refused(updateDoc(mine, { testResults: deleteField() }));
+    // The same removal wearing a different hat: a non-merge `setDoc` that
+    // simply leaves the key out.
+    await refused(setDoc(mine, { displayName: "Ada" }));
 
     // The display name's own 60-char cap. It went untested from the day it
     // was written: this case checked the unknown-field and stranger-write

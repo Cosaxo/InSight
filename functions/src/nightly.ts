@@ -220,8 +220,12 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
 }
 
 export const digestEngagementV2 = onSchedule(
-  // Nightly, off the top-of-hour herd and clear of the velocity scan
-  // (03:47), which keeps its own read of the same ledger. Cost is one
+  // Nightly, off the top-of-hour herd. It was also timed clear of the
+  // velocity scan — its own 03:47 function, which kept its own read of
+  // this same ledger — and that half is spent: runbook 4.4 folded the scan
+  // into THIS pass, so there is nothing left to stand clear of and the
+  // time is the herd alone. (velocity.ts's own header says so; this line
+  // was the copy that did not hear.) Cost is one
   // paged read of the day's entries for all three ledger folds together,
   // plus each fold's own per-person state reads and writes — COSTS.md's
   // rows, and scripts/cost-arith.mjs's LEDGER_PASS_READS_PER_ENTRY.
