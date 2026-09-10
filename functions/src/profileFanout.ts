@@ -65,6 +65,35 @@ export const PROFILE_FANOUT_PER_HOUR = 3;
 /** Accounts the nightly heal takes a night — a page, bounded like every
  * other nightly fold; the rest wait a day. */
 export const FANOUT_HEAL_CAP = 500;
+/** …and how far INTO THE PASS it may still be starting accounts. THE CAP
+ * IS A COUNT, WHICH IS NOT A TIME: each account restamped here pages its
+ * whole answers collection and then reads and rewrites every sample
+ * holding its row — a few thousand operations for an account that has
+ * answered a few thousand times (the header) — so five hundred of them
+ * is not a bounded duration. This runner sits ahead of both engagement
+ * folds in a 480-second pass, and `attempt()` catches a throw, not a
+ * deadline, so an overrun here takes them with it.
+ * `ROLLUP_FOLD_BUDGET_MS` exists because that already happened once, in
+ * as many words — "the two used to be one number, which meant the first
+ * page was the night".
+ *
+ * A DEADLINE IN THE PASS, NOT A STOPWATCH IN THE FOLD, and that is the
+ * whole point of the shape. A fold-local budget answers "how long may
+ * THIS fold run", which permits it to start late and finish past the
+ * invocation's own ceiling — 300 seconds counted from t=250 ends at
+ * t=550, and the check can never fire before the kill. This is measured
+ * against the pass's own start, so it means what it says: by 150 seconds
+ * in, stop starting accounts. The rollup fold claims 300 of the 480 by
+ * name; 150 leaves that claim intact with 30 to spare for the attention
+ * fold between them.
+ *
+ * Stopping loses nothing — every account's work commits before the next
+ * one starts, and the ones not reached keep their markers, which is
+ * exactly what the cap already means. A night where the folds ahead have
+ * already spent the 150 heals nobody and SAYS so (`stopped`), which is
+ * the honest outcome: the alternative is running past and killing the
+ * two folds behind it. */
+export const FANOUT_HEAL_DEADLINE_MS = 150_000;
 export const FANOUT_BUDGET_PREFIX = "fanout_";
 /** The budget ledger's id under `v2_ratelimits`, keyed by uid so the
  * erasure arm can name it. */
@@ -128,6 +157,12 @@ export interface FanoutHealSummary {
    *  is not being kept. Same shape and same reason as the log
    *  reconcile's `left`. */
   left: boolean;
+  /** True when the TIME BUDGET ended the run with accounts of the page
+   *  still unhealed — a different fact from `left`, which is about the
+   *  page being full. The rollup fold keeps the same two apart for the
+   *  same reason: one says the queue is long, the other says the night
+   *  was short, and only the second is a warning about this pass. */
+  stopped: boolean;
 }
 
 /**
@@ -137,7 +172,17 @@ export interface FanoutHealSummary {
  * gone profile is an erased account whose rows the erasure arm already
  * scrubbed — its marker is cleared and nothing is read for it.
  */
-export async function runFanoutHeal(store: FanoutHealStore): Promise<FanoutHealSummary> {
+export async function runFanoutHeal(
+  store: FanoutHealStore,
+  // `deadlineAt` is an absolute instant on the pass's clock, not a
+  // duration — see FANOUT_HEAL_DEADLINE_MS for why that distinction is
+  // the fix. NO DEFAULT: a fold cannot know when the pass began, and
+  // inventing one here is exactly the fold-local stopwatch this avoids.
+  // The nightly always supplies it; a caller that does not gets the
+  // count bound alone, which is what this had before.
+  opts: { deadlineAt?: number; nowMs?: () => number } = {},
+): Promise<FanoutHealSummary> {
+  const clock = opts.nowMs ?? Date.now;
   // One MORE than the night can act on, so "there were more" is a fact
   // rather than an inference from `pending === FANOUT_HEAL_CAP` — which
   // is also true of a night where exactly the cap waited and every one of
@@ -147,7 +192,14 @@ export async function runFanoutHeal(store: FanoutHealStore): Promise<FanoutHealS
   const uids = waiting.slice(0, FANOUT_HEAL_CAP);
   let healed = 0;
   let touched = 0;
+  let stopped = false;
   for (const uid of uids) {
+    // CHECKED BEFORE THE ACCOUNT, not after: one restamp is the unit of
+    // work that cannot be interrupted, so the question is whether there
+    // is time to start another. Checking after would let the last one
+    // begin with the deadline already passed, which is the overrun this
+    // bounds.
+    if (opts.deadlineAt != null && clock() >= opts.deadlineAt) { stopped = true; break; }
     const stamp = await store.stampOf(uid);
     if (stamp) {
       touched += await store.restamp(uid, stamp);
@@ -155,7 +207,7 @@ export async function runFanoutHeal(store: FanoutHealStore): Promise<FanoutHealS
     }
     await store.clear(uid);
   }
-  return { pending: uids.length, healed, touched, left };
+  return { pending: uids.length, healed, touched, left, stopped };
 }
 
 export function firestoreFanoutHealStore(db: Firestore): FanoutHealStore {

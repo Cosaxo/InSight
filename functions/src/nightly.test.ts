@@ -8,6 +8,7 @@
 // for free from being three functions and this file has to earn.
 import { describe, expect, it } from "vitest";
 import { runNightlyPass, type NightlyRunners, type NightlyLog } from "./nightly";
+import { FANOUT_HEAL_DEADLINE_MS } from "./profileFanout";
 
 type Line = { level: "info" | "warn" | "error"; msg: string; fields: Record<string, unknown> };
 
@@ -21,10 +22,12 @@ function recorder(): { log: NightlyLog; lines: Line[] } {
 
 const metricsOf = (lines: Line[]) => lines.map((l) => l.fields.metric).filter(Boolean);
 
-function healthy(): NightlyRunners & { ran: string[] } {
+function healthy(): NightlyRunners & { ran: string[]; deadlines: number[] } {
   const ran: string[] = [];
+  const deadlines: number[] = [];
   return {
     ran,
+    deadlines,
     digest: async () => { ran.push("digest"); return { days: 1, lastDay: "2026-09-05", actives: 3, votes: 7 }; },
     patterns: async () => {
       ran.push("patterns");
@@ -39,14 +42,42 @@ function healthy(): NightlyRunners & { ran: string[] } {
       return { entries: 7, uids: 3, volumeFlags: 0, cadenceFlags: 0, clusterFlags: 0, burstFlags: 0, sharedDays: 1, tailRows: 2 };
     },
     answerMaps: async () => { ran.push("answerMaps"); return { day: "2026-09-05", people: 3, healed: 0, entries: 0 }; },
-    log: async () => { ran.push("log"); return { day: "2026-09-05", skipped: false, entries: 7, missing: 0, appended: 0, erasures: 0, erased: 0, passes: 0 }; },
-    fanout: async () => { ran.push("fanout"); return { pending: 0, healed: 0, touched: 0 }; },
+    // `left` is on both of these because the pass BRANCHES on it — the
+    // erasure backlog and the fan-out backlog are each the only signal
+    // that a promise was not kept that night. These fakes omitted it,
+    // and nothing went red: the functions test files are excluded from
+    // the project's tsconfig, so a fake that stops matching its
+    // interface is invisible to `tsc` and to the build.
+    log: async () => { ran.push("log"); return { day: "2026-09-05", skipped: false, entries: 7, missing: 0, appended: 0, erasures: 0, erased: 0, passes: 0, left: false }; },
+    fanout: async (deadlineAt: number) => { ran.push("fanout"); deadlines.push(deadlineAt); return { pending: 0, healed: 0, touched: 0, left: false, stopped: false }; },
     attention: async () => { ran.push("attention"); return { shards: 2, days: 1, capped: false, rate: 1 }; },
     rollup: async () => { ran.push("rollup"); return { rollups: 3, days: 1, capped: false, left: 0 }; },
   };
 }
 
 describe("runNightlyPass", () => {
+  it("hands the fan-out a deadline measured from the PASS's start, not the fold's", async () => {
+    // The distinction is the whole shape. A fold-local stopwatch answers
+    // "how long may THIS fold run", which lets it start late and finish
+    // past the invocation's own ceiling — the rollup's 300 seconds
+    // counted from t=250 ends at t=550 against a 480-second timeout, and
+    // the check can never fire before the kill. An absolute instant on
+    // the pass's clock cannot drift that way.
+    // THE CLOCK MUST ADVANCE, or the case cannot tell the two shapes
+    // apart — a constant clock makes "pass start + budget" and "now +
+    // budget" the same number, and the first version of this assertion
+    // passed against both. It advances a minute per read, so by the time
+    // the fan-out runs the fold-local answer is eight minutes later than
+    // the pass-relative one.
+    const r = healthy();
+    const start = 1_000_000;
+    let tick = 0;
+    await runNightlyPass(r, recorder().log, () => start + 60_000 * tick++);
+    expect(r.deadlines, "the deadline moved with the fold's own start")
+      .toEqual([start + FANOUT_HEAL_DEADLINE_MS]);
+  });
+
+
   it("runs the five in order and beats every heartbeat on a clean night", async () => {
     const r = healthy();
     const { log, lines } = recorder();

@@ -195,6 +195,52 @@ describe("runFanoutHeal", () => {
     return { store, restamped, cleared, asked: () => asked };
   }
 
+  it("stops at its TIME budget and says so, with the rest keeping their markers", async () => {
+    // The cap is a COUNT, which is not a time: each account here pages
+    // its whole answers collection and rewrites every sample holding its
+    // row, so five hundred of them is not a bounded duration. This runner
+    // sits ahead of both engagement folds inside a 480-second pass whose
+    // only other time bound is the rollup's 300 — and `attempt()` catches
+    // a throw, not a deadline, so an overrun took them with it.
+    const many = Array.from({ length: 10 }, (_, i) => `u${i}`);
+    const profiles = Object.fromEntries(many.map((u) => [u, stamp]));
+    const { store, restamped, cleared } = fakeStore(many, profiles);
+    // A clock that passes the pass's deadline partway through the page.
+    let t = 0;
+    const out = await runFanoutHeal(store, { deadlineAt: 100, nowMs: () => (t += 40) });
+    expect(out.stopped, "the budget did not stop the run").toBe(true);
+    expect(out.healed).toBeLessThan(many.length);
+    // What it did reach is COMMITTED — the markers of the healed are
+    // cleared and the rest are untouched, which is what makes stopping
+    // free.
+    expect(cleared).toHaveLength(restamped.length);
+    expect(cleared).not.toContain(many[many.length - 1]);
+    // …and it is not a backlog: the page was not full.
+    expect(out.left).toBe(false);
+
+    // CHECKED BEFORE THE ACCOUNT, not after — the claim in the loop's
+    // own comment, and the only case that can tell the two apart. A
+    // clock already past the budget on the first call heals NOBODY; the
+    // after-check would let one account start with the budget spent,
+    // and one restamp is thousands of operations for a heavy account.
+    const late = fakeStore(many, profiles);
+    const spent = await runFanoutHeal(late.store, { deadlineAt: 1, nowMs: () => 10_000 });
+    expect(spent, "an account started with the budget already spent")
+      .toMatchObject({ healed: 0, stopped: true });
+    expect(late.restamped).toEqual([]);
+  });
+
+  it("…and a run that finishes inside its budget does not say it stopped", async () => {
+    // The control. `stopped` is a warning about THIS pass; a night that
+    // healed everything it fetched must not raise it, or the signal is
+    // noise from the first busy night onward.
+    const few = ["a", "b", "c"];
+    const { store } = fakeStore(few, Object.fromEntries(few.map((u) => [u, stamp])));
+    let t = 0;
+    const out = await runFanoutHeal(store, { deadlineAt: 100_000, nowMs: () => (t += 1) });
+    expect(out).toMatchObject({ healed: 3, stopped: false, left: false });
+  });
+
   it("heals a full page and SAYS a night did not reach everyone", async () => {
     // `pending` is the count FETCHED, capped, so a night that left five
     // thousand accounts waiting reported the cap and read exactly like an
@@ -226,7 +272,7 @@ describe("runFanoutHeal", () => {
     const out = await runFanoutHeal(store);
     expect(restamped).toEqual(["u1", "u2"]);
     expect(cleared).toEqual(["u1", "gone", "u2"]);
-    expect(out).toEqual({ pending: 3, healed: 2, touched: 8, left: false });
+    expect(out).toEqual({ pending: 3, healed: 2, touched: 8, left: false, stopped: false });
     // One MORE than the night can act on, so a backlog is a fact rather
     // than an inference from a full page (see runFanoutHeal).
     expect(asked()).toBe(FANOUT_HEAL_CAP + 1);
@@ -234,7 +280,7 @@ describe("runFanoutHeal", () => {
 
   it("a night with no markers does nothing", async () => {
     const { store, restamped } = fakeStore([], {});
-    expect(await runFanoutHeal(store)).toEqual({ pending: 0, healed: 0, touched: 0, left: false });
+    expect(await runFanoutHeal(store)).toEqual({ pending: 0, healed: 0, touched: 0, left: false, stopped: false });
     expect(restamped).toEqual([]);
   });
 });

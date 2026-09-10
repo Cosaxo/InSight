@@ -80,7 +80,7 @@ import { runTasteFold, firestoreTasteStore } from "./taste";
 import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 import { runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
-import { runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
+import { FANOUT_HEAL_DEADLINE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -107,7 +107,11 @@ export interface NightlyRunners {
   /** The profile fan-out's heal (profileFanout.ts) — the ninth: every
    *  account whose stamp change the hourly budget deferred gets the
    *  fan-out from its profile as it is now. Bounded by the markers. */
-  fanout: () => ReturnType<typeof runFanoutHeal>;
+  /** …and it takes the pass's own DEADLINE, an absolute instant rather
+   *  than a duration: the only honest way to say "leave the folds behind
+   *  you their share" is to measure from when the night began, not from
+   *  when this fold happened to start (profileFanout.ts's constant). */
+  fanout: (deadlineAt: number) => ReturnType<typeof runFanoutHeal>;
 }
 
 /** The three log levels the pass speaks — `logger`'s, injectable. */
@@ -123,7 +127,16 @@ export interface NightlyOutcome {
  * each heartbeat emitted only for a fold that completed, the first
  * failure rethrown at the end.
  */
-export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger): Promise<NightlyOutcome> {
+export async function runNightlyPass(
+  r: NightlyRunners,
+  log: NightlyLog = logger,
+  nowMs: () => number = Date.now,
+): Promise<NightlyOutcome> {
+  // THE PASS'S OWN START, which is the clock every bound below should be
+  // measured against. `NIGHTLY.timeoutSeconds` is 480 and nothing here
+  // measures it; the one runner that carries a time bound counts from
+  // its own first line, so a late start moves its ceiling with it.
+  const startedAt = nowMs();
   const failed: { fold: string; err: unknown }[] = [];
   const attempt = async <T>(fold: string, run: () => Promise<T>): Promise<T | null> => {
     try {
@@ -161,15 +174,19 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   await attempt("log", r.log);
   // The fan-out heal speaks only when it healed, like the map heal: a
   // healed account is a stamp change the budget refused in the day.
-  const fan = await attempt("fanout", r.fanout);
+  const fan = await attempt("fanout", () => r.fanout(startedAt + FANOUT_HEAL_DEADLINE_MS));
   if (fan && fan.pending > 0) {
     // A backlog is a WARNING, not a line in the info stream: the heal is
     // what keeps the header's promise that the last name lands within a
     // day, and a night that did not reach everyone is a night that
     // promise was not kept for. Not a count — the query stops one past
     // the cap and does not know how many more there are.
-    (fan.left ? log.warn : log.info)(
+    (fan.left || fan.stopped ? log.warn : log.info)(
       `[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`
+      // Two different facts, and the second is the one about THIS pass:
+      // a long queue is the app being busy, a short night is this runner
+      // spending the folds' share of the 480 seconds behind it.
+      + (fan.stopped ? ` — STOPPED at its ${FANOUT_HEAL_DEADLINE_MS / 1000}s mark in the pass with the page unfinished; the rest keep their markers for tomorrow` : "")
       + (fan.left ? ` — MORE than ${fan.pending} were waiting; the rest keep their markers for tomorrow` : ""),
       { metric: "profile_fanout_heal", ...fan });
   }
@@ -252,7 +269,7 @@ export const digestEngagementV2 = onSchedule(
       velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
       answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
-      fanout: () => runFanoutHeal(firestoreFanoutHealStore(db)),
+      fanout: (deadlineAt) => runFanoutHeal(firestoreFanoutHealStore(db), { deadlineAt }),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
       rollup: () => runRollupFold(firestoreRollupStore(db)),
     });
