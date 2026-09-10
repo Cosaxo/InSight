@@ -49314,6 +49314,50 @@ the Pub/Sub topic (the applier prints the create command if the API
 refuses one); the budget service agent's address (the console's own
 *Connect a Pub/Sub topic* makes the grant if it is wrong).
 
+**Amendment 2026-09-10 — the clicks, made, and what each turned out to
+be.** On the owner's *"you have my permission to do these for me … as long
+as there is no risk of triggering high cost"*, this session dispatched the
+four click sets, each dry first, and read every log; the day's production
+writes were 14 map documents and 32 log rows, cents at most (42 answers
+exist). *Apply BigQuery* (run 34477865089): dataset `insight` in
+`europe-west1` and the table `answers`, partitioned by day and clustered
+by `uid, qid`, created; the two IAM bindings its summary prints were not
+needed — the answer-log backfill appended through the functions' own
+runtime account, which is the append permission proven live. *Backfill
+answer maps* (run 34477871112): 42 scanned, 40 folded, 14 written, one
+call. *Backfill answer log* (run 34478455058): 32 rows before 2026-09-10
+appended, one call — the cutoff is the day AFTER the deploy's, not the
+deploy's day the script's header names, because the nightly reconciles
+yesterday only (02:23 UTC) and the table did not exist until 12:38 UTC on
+the 10th: the night after the deploy found no table, so the 9th's answers
+had no row and no future night to get one from, while the 10th's are that
+night's reconcile's own. Nothing was answered on the 9th, so both cutoffs
+count the same 32 today; the reasoning is what the next backfill inherits.
+*Arm budget* (run 34477868495): the dry run would retune (attach the
+topic; 500/month and the thresholds unchanged), and the apply was refused
+with a bare 403 — not for the billing-account role, which the 2026-08-27
+grant above made and this script created the budget with. The Budgets API
+demands `pubsub.topics.setIamPolicy` on the topic of whoever attaches one,
+so that it can grant its own service agent Publisher, and project Editor
+does not carry it; the script's canned costsManager line named the wrong
+grant for the second time (the disabled API, above, was the first), and a
+refused write now says both readings with the tell that decides them
+(`apply-budget.test.mjs`). So "two clicks after the deploy" is one, and it
+is the owner's: the console's *Connect a Pub/Sub topic to this budget*,
+which attaches and grants in the same action; `OWNER-LIST.md`,
+`DEPLOYMENT.md` and LAUNCH-RUNBOOK 5.17 say so now. (The deploy did create
+the topic — `onBudgetAlert` stands on it in the listing below — which
+closes one of the three "not verified" items above.) *Delete retired
+functions* (#475, merged on the same permission because the click has no
+other way to be made from a session): the first dry dispatch (run
+34478645668) listed nine functions of the project's earlier life and none
+of this tree's 46 — the Functions v2 list drops a region it could not
+reach and says so only in a field the CLI never prints — and would have
+read all three as already gone; the second (run 34479117495) listed every
+one, the three among them, and the workflow now fails a listing that
+cannot see the nightly pass and prints the Cloud Scheduler jobs, which are
+what the three cost, beside it before and after. The apply (run 34479295825) deleted all three — `fitPatternsV2`, `fitTasteV2`, `ledgerVelocityScan`, each a Node.js 22 second-generation function in `europe-west1` — in ten seconds, each taking its Cloud Scheduler job with it: three of the billed jobs `COST-EXPOSURE.md` §1 counts are gone, and the data all three wrote stands where the nightly pass has been writing it since each retired.
+
 **Measured before the push:** `test:scripts` (the model's new pins),
 `test --prefix functions` (the batch, the ceiling, the budget's decision
 table, the fan-out's window and heal, the hold without an attempt),

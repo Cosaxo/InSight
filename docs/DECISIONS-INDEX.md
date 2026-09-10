@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 478 lines instead of
-49,479. Do not hand-edit; `npm run check:docs` fails when this
+49,523. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -491,4 +491,4 @@ detect it.
 | **D447** | [The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore](DECISIONS.md#d447--the-log-first-structure-hundreds-of-answers-a-day-and-millions-of-users-are-the-design-target-and-the-per-answer-path-leaves-firestore) | D448 | 49148 |
 |  | ↳ *amendment 2026-09-09, the same evening* — [Adopted on the owner's word, and phase A built](DECISIONS.md#d447-amendment-2026-09-09-the-same-evening--adopted-on-the-owners-word-and-phase-a-built) | — | 49204 |
 | **D448** | [The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on](DECISIONS.md#d448--the-exposure-pages-re-read-what-the-days-own-work-could-have-billed-bounded-the-same-evening--the-budget-acts-and-the-model-prices-the-database-it-is-on) | D449 | 49232 |
-| **D449** | [The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on](DECISIONS.md#d449--the-2026-09-10-night-review-two-shifts-merged-as-one-tree--60-commits-kept-nine-files-touched-by-both-and-three-prose-defects-where-the-merge-had-nothing-to-stop-it-on) | — | 49325 |
+| **D449** | [The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on](DECISIONS.md#d449--the-2026-09-10-night-review-two-shifts-merged-as-one-tree--60-commits-kept-nine-files-touched-by-both-and-three-prose-defects-where-the-merge-had-nothing-to-stop-it-on) | — | 49369 |

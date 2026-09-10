@@ -224,6 +224,28 @@ describe("apply-budget", () => {
     expect(calls.find((c) => c.method === "PATCH")?.body.notificationsRule).toEqual({ pubsubTopic: TOPIC, schemaVersion: "1.0" });
   });
 
+  it("a 403 on the attach, with the budget listed, names the topic's permission and the console click", async () => {
+    // The first dispatch with the topic (2026-09-10): the billing-account
+    // role had been granted on 2026-08-27 and this script had created the
+    // budget with it, so the PATCH's 403 was the Budgets API demanding
+    // pubsub.topics.setIamPolicy of the caller, which project Editor lacks,
+    // and the canned costsManager line pointed at the wrong grant for the
+    // second time (the disabled-API case below was the first).
+    const noTopic = listedBudget();
+    delete noTopic.notificationsRule;
+    reply[key("GET", BUDGETS)] = { status: 200, body: { budgets: [noTopic] } };
+    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
+    reply[key("PATCH", patchUrl)] = { status: 403, body: { error: { message: "The caller does not have permission" } } };
+    const err = await applyFails(["--apply"]);
+    expect(err).toMatch(/pubsub\.topics\.setIamPolicy on projects\/prvfire33\/topics\/budget-alerts/);
+    expect(err).toMatch(/Connect a Pub\/Sub topic to this budget/);
+    expect(err).toMatch(/--role roles\/pubsub\.admin/);
+    // Both readings stay on the page: the role is still named, with the
+    // tell that says whether it is already there.
+    expect(err).toMatch(/roles\/billing\.costsManager/);
+    expect(err).toMatch(/could list and create the budget/);
+  });
+
   it("a refusal that names the topic says the deploy creates it", async () => {
     reply[key("POST", BUDGETS)] = { status: 400, body: { error: { message: "Invalid pubsubTopic: topic projects/prvfire33/topics/budget-alerts not found" } } };
     const err = await applyFails(["--apply"]);
