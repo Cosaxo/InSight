@@ -341,11 +341,14 @@ describe("the lists on this tree", () => {
     // none — and the owner's canvas came back the same day, so it sits
     // under Built as item 12 (its number moved off the pictures' 11 at
     // the merge): requested 10 again, built 4.
-    // 11 since 2026-09-09: PATTERNS-PLAN filed a node with more than two
-    // answers on the Map ring (item 13) — half the core corpus and every
-    // catalogue pick is invisible on the Map until a dot with three, ten
-    // or a thousand answers has a design.
-    expect(v.requested.length).toBe(11);
+    // 11 for one day, 2026-09-09: PATTERNS-PLAN filed a node with more
+    // than two answers on the Map ring (item 13) — half the core corpus
+    // and every catalogue pick is invisible on the Map until a dot with
+    // three, ten or a thousand answers has a design. Planned 2026-09-10
+    // on the owner's brief (one rule: a dot is an answer-axis), so it is
+    // the first row § Planned has ever held: requested 10 again.
+    expect(v.requested.length).toBe(10);
+    expect(v.planned).toEqual(["A node with more than two answers on the Map ring"]);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(4);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));

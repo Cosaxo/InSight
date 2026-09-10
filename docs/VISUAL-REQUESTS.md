@@ -624,6 +624,8 @@ gates what the doors say.
   step 3 of `SIGNIN-PLAN.md`.
 
 
+## Planned
+
 ### 13 · A node with more than two answers on the Map ring
 
 - **asked by** — the owner, 2026-09-09 (*"could add the catalog picks to
@@ -676,9 +678,130 @@ gates what the doors say.
   corpus and every catalogue pick is invisible on the Map today, and
   the owner's own example — *Pikachu and strawberries* — cannot be
   drawn until this exists.
-- **status** — `requested`.
+- **status** — `planned` (2026-09-10, the plan below; the draft is
+  next). The owner's answers of 2026-09-10 folded in: profile values MAY
+  be drawn (*"yes"* — the You arc below), and *"lets plan a way to
+  include all types in a efficent and smart way"* is the brief.
 
-## Planned
+#### The plan (2026-09-10) — one rule for every type
+
+**The rule: a dot is an answer-axis, which is a row in the fit.** Every
+row the nightly fit publishes is one direction people can lean in, with
+a vector; the Map's chords are cosines between rows already
+(`data/patternsMap.ts`, `edgesOf`). Today the Map draws one dot per
+two-option QUESTION, which happens to equal one dot per row. Keeping
+the equality and letting every kind of row be a dot is the whole
+design, and it costs no new arithmetic and no new read:
+
+| Kind of question | Rows the fit publishes | Dots on the ring | The dot means |
+| --- | --- | --- | --- |
+| two-option | one (`bin`) | one | the question; its two answers are one axis, the chord's dash says which pairs |
+| scale · rating · dial | one (`ord`) | one | the question; low↔high is one axis |
+| choice (3–4 options) | one per option (`opt`) | one per option, a bead group | *picked this* |
+| catalogue pick | one per popular entity (`pick`, ≤ 10) | one per popular entity, a bead group | *picked this one* |
+| profile value (D433) | one per value (`anc`) | one, on the You arc | *is this* |
+
+**Bead groups.** The dots of one question sit together on the rim, in
+their topic's arc, with a hairline tick between groups and a plain gap
+between topics — so a four-option question reads as one place with
+four beads, and a catalogue card as one place with up to ten. A bead
+is the size of every other dot; solid if the viewer gave THAT answer,
+hollow otherwise (a two-option dot is solid when answered, as today).
+A group's beads share the topic hue; the design decides whether a
+bead carries a letter, a short answer word on tap, or (for a catalogue)
+the entity's own picture from `web/catalog-art/` at bead size (D421 —
+the pictures exist; whether they read at 6 px is the design's call,
+with a plain bead the fallback).
+
+**The You arc (the owner's yes, 2026-09-10).** The profile values are
+rows too, and they are drawn — as a separate arc outside the topics,
+labelled *You*, holding one bead per value the crowd carries (age
+bands, genders, countries, education, relationship, height, work; at
+most 24 per dim, the cube's cap), the viewer's own values solid. Behind
+a toggle in the topic control, OFF by default: the map is a map of
+questions until asked, and a map of questions and who-gives-them when
+asked, and the toggle is the honest way to say which picture is on
+screen. A chord from a You bead to a question says *being 65+ goes with
+answering this that way*.
+
+**Chords, unchanged in kind.** A line joins two dots when people who
+lean one way on one lean a predictable way on the other; solid =
+together, dashed = opposite; thicker = stronger; at rest the strongest
+ten speak. With beads the ten are over beads, so a catalogue's
+strongest entity can be one of them. Tapping a bead lights ITS three
+ties (`nearOf` over rows, as today).
+
+**The card under the field, per kind — every sentence with its basis
+(D146).** The sentence is the exact count, not the cosine:
+
+- two-option, as today: *Pick Tea here — and 78% pick Morning on "…"* ·
+  *usually 61%* · *of the 143 in both samples*.
+- choice or catalogue bead: the same 2×2 with *picked this* as the
+  side: *Pick Pikachu here — and 64% pick Tea on "…"* — the samples
+  carry the entity since D434 (`e` rows), so the count is the same
+  fetch the pair card already shares. The chip row above the ties
+  restates the group's beads; tapping a chip re-reads the ties for that
+  answer.
+- scale bead: split at the crowd's median from the sample's `o`
+  indexes: *Rate this high — and 71% pick Tea; 52% of the low half do*
+  — the basis line must say *split at the middle*.
+- You bead: from the cube's own cells, exact and already on the device
+  (`agg.by`): *65+ here: 61% pick Tea · of 312 answers from that group*.
+  No sample needed.
+- a bead under the basis floor (`PATTERNS_MIN_BASIS`) is not drawn; a
+  catalogue entity under the entity floor is in *everyone else* and is
+  never named; a question none of whose beads has basis is not drawn.
+
+**The hub** keeps counting QUESTIONS answered of the pool, not beads.
+
+**The dot budget (D436) with beads.** Beads count as dots. Over
+`MAP_DOT_BUDGET` each topic keeps its strongest hubs in proportion,
+and a bead group is trimmed AS A GROUP: its strongest bead stays and a
+small *+3* sits at the group's place; tap opens the whole group in the
+card. The sentence under the field says *300 of 885 drawn*. Under
+"answered" the ring holds the viewer's own beads: the answers they gave,
+which for a catalogue card is the one entity they picked.
+
+**States.** Idle: the ring with the strongest ten chords. A topic: that
+topic's beads only (D436). You off: no arc; on: the arc with the
+viewer's values solid. A bead tapped: its ties, the chip row, the
+card. A catalogue group with no entity above the floor: the card says
+*no pick is common enough to say anything yet*. Demo: never — live
+only, like the rest of the tab (D167).
+
+**Interaction.** Tap a bead: select it (its answer active). Tap a chip
+in the card: move the selection to that bead. Tap the field: clear.
+The *You* toggle and the topic select are one control row
+(`ui/PatternsTab.tsx`, the chip row that exists). A long press on a
+bead does nothing new.
+
+**Copy for the guide ⓘ (D182, D146).** *a dot is an answer: a question
+with several answers is a row of dots · a line joins two answers when
+people who give one tend to give the other · thicker = stronger ·
+dashed = go opposite ways · solid dot = you gave it · "You" is who
+gives them, when it's on.*
+
+**What it costs to build, after the design.** `PatternsMap.tsx`: the
+ring over rows instead of pool items (the pool grows a `rows()` view:
+every published row the bank can name, grouped by question — one pure
+function beside `pool()`), the bead-group ticks in `ringOf`, the chip
+row, the four card sentences (`say()` over `e` rows and the median
+split are the two new counts, both on cached samples), the You toggle.
+`edgesOf` over ~900 rows is a few million multiplies, under a hundred
+milliseconds on a phone; the loadings document is already on the
+device. No new reads anywhere.
+
+**What this plan does not decide, for the design.** Whether a bead
+carries a picture; how the *+3* fold reads; whether the You arc sits
+outside the rim or inside it; the exact tick between groups. Those are
+what the canvas is for.
+
+**Artboards to draft.** 1 · the ring at rest with bead groups, You
+off. 2 · You on. 3 · a choice question tapped: chip row, three ties.
+4 · a catalogue card tapped: beads with pictures, the *+7*, the
+Pikachu sentence. 5 · a scale tapped: high/low. 6 · a You bead tapped.
+7 · over budget: *300 of 885 drawn*. 8 · the guide legend.
+
 
 ## Drafted
 

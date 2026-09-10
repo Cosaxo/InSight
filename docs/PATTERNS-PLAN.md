@@ -282,7 +282,12 @@ either (the cube's cells for a catalogue question are keyed by entity
 and cut to the board, so no cohort prior folds off them cheaply);
 strangers' picks do not reach the People fold, because their rows are
 not among the twelve lists the lens fetches; and nothing is drawn until
-request 13. §9's line on the corpus rule is corrected below.
+request 13. §9's line on the corpus rule is corrected below. *And corrected
+again 2026-09-10 (D437): the pick cards were tail on PURPOSE — the
+generator's own comment said an entity answer has no option share for
+a cohort fold — not unclassified as D434 read it; on the owner's word
+they are core now, shipped whole to every device, and the caveat about
+interest-selected answerers retires with that.*
 
 
 **5.1 The ledger carries the pick.** `PatternsLedgerEntry` gains
@@ -476,10 +481,10 @@ the meter is recorded as tried, not merged as an improvement.
 - **Drawing without a design.** The multi-answer node (request 13) and
   the anchor node (the owner's tick) wait; the folds do not.
 - **Changing the corpus rule.** D161 stands for the Mirror: core only.
-  The fit's own clause has one recorded exception since D434 — the
-  catalogue picks, which are tail by the flag's polarity and enter on
-  the owner's instruction (§5's as-built note); whether they should be
-  served as core is on the owner list.
+  The fit's own clause had one recorded exception at D434 — the
+  catalogue picks, then tail by the flag — which closed at D437 when the
+  owner made them core; `PICK_QIDS` stays gated on the type, since a
+  pick is never option-shaped.
 
 ## 10 · What this plan files elsewhere
 

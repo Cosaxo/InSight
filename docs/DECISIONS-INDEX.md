@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 461 lines instead of
-47,540. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 462 lines instead of
+47,617. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -179,7 +179,7 @@ detect it.
 | **D158** | [Build 16's pre-flight: the number was already right for the second time running](DECISIONS.md#d158--build-16s-pre-flight-the-number-was-already-right-for-the-second-time-running) | D381 (+7) | 15670 |
 | **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D381 (+11) | 15785 |
 | **D160** | [An empty field is still a field, the row actually snaps, and Near's switch goes in the corner](DECISIONS.md#d160--an-empty-field-is-still-a-field-the-row-actually-snaps-and-nears-switch-goes-in-the-corner) | D190 (+1) | 15857 |
-| **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D434 (+25) | 15951 |
+| **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D437 (+26) | 15951 |
 | **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D367 (+5) | 16089 |
 | **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D384 (+13) | 16142 |
 | **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D372 (+6) | 16198 |
@@ -201,7 +201,7 @@ detect it.
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17864 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18094 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18199 |
-| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D426 (+14) | 18297 |
+| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D437 (+15) | 18297 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18456 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18607 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18781 |
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D436 (+25) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D437 (+26) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -471,7 +471,8 @@ detect it.
 | **D431** | [The owner's three follow-ups: `testResults` is bounded by a server that can loop, Apple's portal half is measured, and the console half is still one click](DECISIONS.md#d431--the-owners-three-follow-ups-testresults-is-bounded-by-a-server-that-can-loop-apples-portal-half-is-measured-and-the-console-half-is-still-one-click) | — | 46869 |
 |  | ↳ *amendment 2026-09-09* — [There was a probe all along, and Apple was already on](DECISIONS.md#d431-amendment-2026-09-09--there-was-a-probe-all-along-and-apple-was-already-on) | — | 47056 |
 | **D432** | [The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow](DECISIONS.md#d432--the-oracle-starts-from-your-own-groups-split-a-cohort-prior-on-the-device-with-the-worlds-guess-sealed-beside-it-as-the-shadow) | D435 (+2) | 47109 |
-| **D433** | [Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it](DECISIONS.md#d433--anchors-as-items-in-the-fit-the-candidate-engine-learns-a-vector-per-profile-value-and-every-lens-that-solves-a-vector-reads-it) | D436 (+1) | 47206 |
-| **D434** | [Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag](DECISIONS.md#d434--catalogue-picks-as-items-in-the-fit-the-pick-rides-the-ledger-the-compaction-keeps-it-and-the-popular-entities-are-rows--on-the-owners-instruction-since-the-pick-questions-are-tail-by-the-banks-flag) | D436 | 47296 |
-| **D435** | [Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls](DECISIONS.md#d435--calibration-and-the-meter-the-links-slope-is-swept-beside-the-ridge-the-record-says-skill-against-plain-guessing-and-the-question-rule-learns-first-and-then-calls) | — | 47404 |
+| **D433** | [Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it](DECISIONS.md#d433--anchors-as-items-in-the-fit-the-candidate-engine-learns-a-vector-per-profile-value-and-every-lens-that-solves-a-vector-reads-it) | D437 (+2) | 47206 |
+| **D434** | [Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag](DECISIONS.md#d434--catalogue-picks-as-items-in-the-fit-the-pick-rides-the-ledger-the-compaction-keeps-it-and-the-popular-entities-are-rows--on-the-owners-instruction-since-the-pick-questions-are-tail-by-the-banks-flag) | D437 (+1) | 47296 |
+| **D435** | [Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls](DECISIONS.md#d435--calibration-and-the-meter-the-links-slope-is-swept-beside-the-ridge-the-record-says-skill-against-plain-guessing-and-the-question-rule-learns-first-and-then-calls) | D437 | 47404 |
 | **D436** | [The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map](DECISIONS.md#d436--the-walls-measured-and-moved-the-loadings-document-exempt-from-indexing-the-ring-the-topics-own-the-dailys-lists-first-for-the-people-map) | — | 47473 |
+| **D437** | [The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot](DECISIONS.md#d437--the-owners-five-answers-on-the-patterns-plans-rows-the-you-arc-the-whole-world-map-ruled-the-question-rule-kept-the-pick-cards-core-and-one-rule-for-every-kind-of-dot) | — | 47541 |

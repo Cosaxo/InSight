@@ -51,11 +51,12 @@
 // a `pick` answer's canonical entity key rides the ledger entry as
 // `entity`, the compaction keeps each person's picks beside the map
 // (`p`), and every entity enough people picked is an item like an
-// anchor's value. THE PICKS ARE NOT CORE by the bank's flag — the
-// catalogue questions are feed cards with no `core` key, which D161's
-// polarity reads as tail — and they enter the fit anyway, on the owner's
-// 2026-09-09 instruction (D434 has the reasoning and the row that asks
-// whether they should be served as core).
+// anchor's value. The pick cards were tail by the bank's flag when
+// D434 admitted them on the owner's instruction, and are core since
+// D437 (the owner's word, 2026-09-10) — shipped whole to every device,
+// so their answerers are no longer interest-selected. PICK_QIDS stays
+// gated on the TYPE either way: a pick is never option-shaped, and the
+// flag is the serving rule, not this fold's.
 //
 // Scale note, recorded not built (D7) — and CORRECTED 2026-08-31, because
 // it named the wrong term and therefore the wrong fix.
@@ -170,8 +171,8 @@ export const PATTERNS_ITEMS: readonly ItemSpec[] = compileItems(V2_QUESTIONS);
 export const PATTERNS_ITEM_QIDS: ReadonlySet<string> = new Set(PATTERNS_ITEMS.map((s) => s.qid));
 
 /** The catalogue questions whose picks the compaction records (D434):
- * every `catalog` card in the bank. Not gated on `core` — see the header
- * — but gated on the type, so a pick on anything else is not one. */
+ * every `catalog` card in the bank. Gated on the type, not the flag —
+ * see the header — so a pick on anything else is not one. */
 export const PICK_QIDS: ReadonlySet<string> = new Set(
   V2_QUESTIONS.filter((q) => q.type === "catalog" && typeof (q as { domain?: unknown }).domain === "string").map((q) => q.id),
 );

@@ -47537,3 +47537,80 @@ Sharding the document by topic waits for the count that needs it — the
 budget prints how far off it is, and the reader already joins rows to
 the bank by id. The all-pairs pass is not a wall until thousands of rows
 (§7.3 of the plan).
+
+## D437 · The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot
+
+**2026-09-10.** **Status:** binding. The owner read the five rows the
+plan had filed (`OWNER-LIST.md`) and answered each in one line. This
+record is what each answer changed, and one correction to D434.
+
+### 1 · Profile values on the map — *"yes"*
+
+The anchor rows (D433) will be drawn: a *You* arc outside the topics,
+one bead per value the crowd carries, the viewer's own values solid,
+behind a toggle in the topic control that is off by default — the map
+is a map of questions until asked. It is part of request 13's plan
+rather than a build of its own, since a You bead is the same shape as
+every other dot under the rule that plan states.
+
+### 2 · The whole-world People map — *"i dont see why thats a privacy concern"*
+
+D334's ask, ruled: the owner sees no concern in publishing a derived
+position per person, and the owner decides. The ask is closed as ruled
+and the build is queued next: a rounded two-number position and the
+answer count per person, one nightly document per country in the
+samples' own family (uid-keyed rows, erased by field with the
+account), the People lens placing everyone from it and keeping the
+exact *agrees 9 of 12* rows from the samples it already fetches.
+`web/privacy.html` already discloses *an interest profile, derived
+from your answers*; a position is the same class and gets its sentence
+first (D183), and `check:policy-claims` holds it.
+
+### 3 · The question rule — *"sound good"*
+
+Kept as built at D435. The tick is the owner's.
+
+### 4 · The pick cards — *"i thought it already was served to everyone"*
+
+They were not, and D434's finding needs a correction. D434 read the
+absent `core` flag as the pick file having never been classified. The
+generator's own comment says otherwise: *"No `core` flag ever: an
+entity answer has no option share for a cohort fold to read, so a pick
+card is tail by construction."* Deliberate — and conflating the two
+things the flag means. `core` is D161's serving rule (shipped whole to
+every device at boot, unpersonalized) and the Mirror's corpus rule. The
+reason given was about the second: the Mirror cannot fold a pick, and
+still cannot, and nothing on the Mirror reads one — its readers walk
+the daily archive (`LIVE.aggregated()`, `coreCorpus`), and
+`coreFeedAggregated()` has one reader, the Patterns pool, which skips
+anything without two options. What the flag actually did to a pick
+card was the first thing: served as a page of the *fav* topic's tail
+per boot, sized by how interested the feed thought the person was —
+so who answered *Favourite Pokémon?* was interest-selected, the exact
+bias D161 names, and not every card reached every person.
+
+The owner's expectation is the intended state, so the generator emits
+`core: true` for every pick card: they ship at boot to every device
+with the rest of the core, the answerers stop being interest-selected,
+and the caveat D434 recorded retires. What does not change: the Mirror
+(nothing on it reads a pick), the fit's eligibility (`PICK_QIDS` is
+gated on the type; `itemEligible` still wants two options), the
+readiness gate, and the tail's paging. The cost is the 24 documents a
+fresh install now fetches with the core.
+
+### 5 · A dot with more than two answers — *"lets plan a way to include all types in a efficent and smart way"*
+
+Request 13 is planned (`VISUAL-REQUESTS.md` § Planned, the first row
+that section has held), on one rule: **a dot is an answer-axis, which
+is a row in the fit.** A two-option or scale question is one dot as
+today; a choice is a bead group, one bead per option; a catalogue card
+is a bead group of its popular picks; a profile value is a bead on the
+You arc. The chords are the cosines the Map already draws, over rows
+instead of questions; every card sentence is an exact count with its
+basis, from the samples the pair card already shares (the entity rides
+them since D434) or the cube's cells for a You bead; the dot budget
+trims a bead group as a group. Efficient because nothing new is read
+or computed beyond what the loadings document and the samples already
+hold; smart because one rule covers every kind, including the ones the
+fit will grow next. The draft on the canvas is the next step, then the
+owner refines it, then it is built.
