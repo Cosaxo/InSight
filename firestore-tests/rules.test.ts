@@ -3303,6 +3303,48 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
   });
 
+  // AND THE SIGNED-OUT WORLD READS NONE OF IT — the one arm of the twelve
+  // this file defers that is actually load-bearing.
+  //
+  // The count two thousand lines below holds the NUMBER of sign-in-gated
+  // read arms and says outright that it does not assert each has a case:
+  // "writing twelve fixtures is tomorrow's work". Measured 2026-09-10, the
+  // twelve are not equal. Seven of them — taste's `get`, the collection-
+  // group invites, `v2_groups`, group invites, `v2_flags` create,
+  // `v2_presence` create/update and delete — fail closed WITHOUT their
+  // `request.auth != null`, because the next conjunct dereferences
+  // `request.auth.uid` and errors on a null auth. This one does not:
+  //
+  //   allow read: if request.auth != null
+  //     && (resource.data.hidden == false
+  //       || resource.data.authorUid == request.auth.uid);
+  //
+  // `resource.data.hidden == false` is TRUE for a signed-out caller, so
+  // the left disjunct carries the whole condition and `request.auth !=
+  // null` is the entire gate — on a world-scale, author-attributed
+  // free-text corpus. Delete that line and every non-hidden take in the
+  // app is readable by the unauthenticated internet, with the suite and
+  // every gate green.
+  //
+  // Both operations, because they fail differently: a `get` is decided per
+  // document, and a LIST is decided against the query's constraints — the
+  // distinction D65's leak was made of, recorded at the case below.
+  it("…and the signed-out world reads no take at all, one or many", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t_open"), {
+        gid: GID, authorUid: OWNER, text: "in the open",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await refused(getDoc(doc(asSignedOut(), "v2_takes", "t_open")));
+    await refused(getDocs(query(
+      collection(asSignedOut(), "v2_takes"),
+      where("gid", "==", GID),
+      where("hidden", "==", false),
+    )));
+  });
+
   // The case whose absence WAS the bug (D65). Every take assertion above
   // this line uses getDoc, and getDoc was never the leak: a per-document
   // rule is applied per document. A LIST is a different operation, and the
