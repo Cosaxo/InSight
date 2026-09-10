@@ -91,6 +91,12 @@ jobs:
           # verbatim (real newlines) or \n-escaped; the write below
           # normalizes, and functions/src/deviceBind.ts unescapes.
           DC_PRIVATE_KEY: ${{ secrets.DC_PRIVATE_KEY }}
+          # The web buy door's gate (D446). UNLIKE the three below it, an
+          # empty value here CLOSES a door rather than degrading a feature:
+          # assertRecaptcha refuses when it is unset, because its absence
+          # would cost the Anthropic budget it protects rather than cost a
+          # feature. Warned about below like the rest.
+          RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
           # The paid-question loop's credentials (paid.ts, D313) — all
           # three SECRETS. Deliberately the dotenv mechanism rather than
           # defineSecret(): Secret Manager entries that do not exist make
@@ -146,6 +152,15 @@ jobs:
           printf 'STRIPE_SECRET_KEY=%s\n' "$STRIPE_SECRET_KEY" >> functions/.env.prvfire33
           printf 'STRIPE_WEBHOOK_SECRET=%s\n' "$STRIPE_WEBHOOK_SECRET" >> functions/.env.prvfire33
           printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" >> functions/.env.prvfire33
+          # The web buy door's gate (D446), and the ONE credential here
+          # whose absence closes rather than degrades. The three above turn
+          # a hop off and leave the loop's shape; this one refuses the door
+          # outright, because unset would mean unlimited free anonymous
+          # accounts spending the Anthropic budget five reviews at a time.
+          if [ -z "$RECAPTCHA_SECRET_KEY" ]; then
+            echo "::warning::RECAPTCHA_SECRET_KEY is empty — the web buy door is CLOSED (bookPaidQuestionV2 and createPaidCheckoutV2 refuse with failed-precondition). Runbook 5.14."
+          fi
+          printf 'RECAPTCHA_SECRET_KEY=%s\n' "$RECAPTCHA_SECRET_KEY" >> functions/.env.prvfire33
 
       - name: Write service account key
         env:
@@ -217,6 +232,45 @@ jobs:
       # is: nothing about static HTML should be able to abort — or worse,
       # half-abort — a Firestore-rules or functions deploy. Check this
       # step's outcome before assuming the policy URL is live.
+      # THE BUY PAGE'S PUBLIC CONFIG (D446). Both values are public by
+      # design — the Firebase web API key ships in every app build, and a
+      # reCAPTCHA SITE key is meant to be read by the browser that uses it
+      # (its secret half is a GitHub secret and stays server-side). They
+      # are VARIABLES for that reason, and written here rather than
+      # committed so a fork or a preview deploy does not inherit
+      # production's project.
+      #
+      # ABSENT IS A WORKING PAGE, not a broken one: web/ask.html treats a
+      # missing config as "this deployment has no keys" and shows the same
+      # honest note it showed before the door was wired. So a deploy with
+      # these unset still ships a correct page — it just cannot sell.
+      - name: Write the buy page's config
+        env:
+          ASK_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          ASK_RECAPTCHA_SITE_KEY: ${{ vars.RECAPTCHA_SITE_KEY }}
+        run: |
+          set -o pipefail
+          if [ -z "$ASK_API_KEY" ] || [ -z "$ASK_RECAPTCHA_SITE_KEY" ]; then
+            echo "::warning::VITE_FIREBASE_API_KEY or RECAPTCHA_SITE_KEY unset — the buy page will ship with payment closed (runbook 5.14)."
+            rm -f web/ask-config.json
+          else
+            # THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+            # is a textual substitution GitHub performs before bash sees
+            # the script, so a value pasted into the body is code. Same
+            # rule auth-config.yml records at length.
+            node -e '
+              const fs = require("fs");
+              fs.writeFileSync("web/ask-config.json", JSON.stringify({
+                apiKey: process.env.ASK_API_KEY,
+                recaptchaSiteKey: process.env.ASK_RECAPTCHA_SITE_KEY,
+                project: "prvfire33",
+                region: "europe-west1",
+                dbId: "insight",
+              }, null, 2) + "\n");
+            '
+            echo "buy page config written (keys not printed)."
+          fi
+
       - name: Deploy hosting
         id: hosting
         continue-on-error: true

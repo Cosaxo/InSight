@@ -255,6 +255,27 @@
     </div>
     <p class="flat-note" id="flatNote" hidden></p>
 
+    <!--
+      WHICH city, WHICH country. The ruler says "Your city", which is the
+      app's wording because in the app it is true: an in-app buyer has a
+      profile and the booking reads the place off it. A buyer here has no
+      profile, and the server refuses a city ask with no city rather than
+      guessing one.
+
+      It is a PICKER and not a text box, and that is the whole reason this
+      block exists: a booking carries `"Oslo, NO"` — the catalogue key an
+      answer's anchor holds — so "Oslo", "oslo" and "Oslo, Norway" would
+      each be a campaign that reaches nobody. The list is
+      web/ask-places.txt (scripts/build-ask-places.mjs), fetched only when
+      one of the two place scopes is chosen.
+    -->
+    <div id="placeBox" hidden style="margin-top:14px">
+      <label class="field" for="placeInput"><span id="placeLabel">Which city</span></label>
+      <input id="placeInput" list="placeList" autocomplete="off" autocapitalize="words" spellcheck="false" />
+      <datalist id="placeList"></datalist>
+      <p class="hint" id="placeHint"></p>
+    </div>
+
     <label class="field" for="budget-first" style="margin-top:18px"><span>Your budget — the most you'll spend</span></label>
     <div class="chips" id="budgets" role="group" aria-label="Your budget"></div>
     <p class="hint" id="budgetHint"></p>
@@ -364,7 +385,17 @@
     budget: null,
     // The buyer's one link (D378) — composed here, held to shape by the
     // server, judged by the review.
-    link: ""
+    link: "",
+    // The chosen catalogue place. `city` is a full key ("Oslo, NO");
+    // `country` is the bare alpha-2. Null until a place scope is picked
+    // and a catalogue row is matched — a half-typed box is not a place.
+    place: null,
+    // Set from /ask-config.json when the deploy wrote one. Null keeps the
+    // door shut and the honest note showing, which is what a local
+    // checkout and a preview deploy both get.
+    cfg: null,
+    places: null, placesLoading: false,
+    busy: false, bid: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -663,6 +694,7 @@
     st.scope = i;
     drawRuler();
     drawScope();
+    drawPlace();
   }
 
   // ── the quote panel ────────────────────────────────────────────
@@ -728,7 +760,11 @@
     // state announcing "Paying · leaving for stripe" and ERASED the only
     // sentence saying payment is not open, while making no request at all.
     // A buyer was told a payment was under way, and then nothing happened.
-    $("payNote").textContent = (state === "quoted" || state === "paying") ? PAY_NOTE : "";
+    // The honest note belongs to a deployment without keys. With them, the
+    // button does what it says and a paragraph explaining that it does not
+    // would be the page contradicting itself.
+    $("payNote").textContent =
+      (state === "quoted" || state === "paying") && !cfgReady() ? PAY_NOTE : "";
     $("panel").scrollIntoView({ block: "nearest" });
   }
 
@@ -741,6 +777,10 @@
   // The pay tap is blocked on App Check, not on this code — see the
   // comment at the top of this file. A buyer gets a sentence rather than
   // a 403, and the sentence is true.
+  // Shown when this DEPLOYMENT has no keys — a local checkout, a preview,
+  // or production before runbook 5.14 is done. It is not a statement about
+  // the code any more (the door is wired); it is a statement about this
+  // build, which is why it is chosen by cfgReady() rather than written in.
   var PAY_NOTE =
     "Card payment is not open yet — the last piece of setup is on us, not on "
     + "you. Your question and its price are exactly what you will be charged "
@@ -763,6 +803,11 @@
     drawRuler();
     drawScope();
     drawBudgets();
+    // The ruler STARTS on "Your city", so the picker has to be drawn on
+    // the first paint and not only when the scope changes. Without this
+    // the page opened on a place scope with no place field in sight, and
+    // the first thing a buyer learned about it was the pay tap refusing.
+    drawPlace();
     refreshQuoteButton();
   }
 
@@ -809,7 +854,8 @@
     showPanel(CIVIC.test(st.prompt) ? "declined" : "quoted");
   });
   $("backBtn").addEventListener("click", hidePanel);
-  $("payBtn").addEventListener("click", function () { showPanel("paying"); });
+  $("payBtn").addEventListener("click", startPurchase);
+  $("placeInput").addEventListener("input", function () { drawPlace(); });
 
   var dragging = false;
   var ruler = $("ruler");
@@ -829,7 +875,310 @@
     if (e.key === "End") { setScope(2); e.preventDefault(); }
   });
 
+  // ══ the live door ═══════════════════════════════════════════════
+  //
+  // Everything below turns the quote into a purchase. NO SDK: every call
+  // is a plain fetch, and every shape here was read off a working caller
+  // in this repo rather than from documentation — anonymous sign-in from
+  // scripts/question-scorecard.mjs, the callable envelope and its `{data}`
+  // /`{result}` shape from scripts/operator-call.mjs, the Firestore
+  // document read from question-scorecard's aggregate loop. That matters
+  // on a page whose whole design is one inline script under
+  // `default-src 'none'`: a bundled SDK would be a second script, a CDN
+  // and a re-write of the policy this page is pinned by.
+  //
+  // The one external script is reCAPTCHA, which is what stands in for App
+  // Check here — a browser cannot produce App Check attestation without a
+  // provider (D337/D446), and the two callables verify the token
+  // server-side for success, action and score.
+
+  function cfgReady() {
+    return !!(st.cfg && st.cfg.apiKey && st.cfg.recaptchaSiteKey && st.cfg.project && st.cfg.region);
+  }
+
+  /** The callable base. Read from config rather than built from a guess:
+   *  a wrong region here is a 404 that reads like a broken function. */
+  function fnUrl(name) {
+    return "https://" + st.cfg.region + "-" + st.cfg.project + ".cloudfunctions.net/" + name;
+  }
+
+  // ── places ─────────────────────────────────────────────────────
+  // Fetched only when a place scope is chosen: 57 KB gzipped is cheap
+  // beside a €320 decision and pure waste for a world ask.
+  function loadPlaces() {
+    if (st.places || st.placesLoading) return Promise.resolve(st.places);
+    st.placesLoading = true;
+    return fetch("/ask-places.txt", { credentials: "omit" })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+      .then(function (txt) {
+        var rows = [];
+        var country = null;
+        txt.split("\n").forEach(function (raw) {
+          var line = raw.trim();
+          if (!line || line.charAt(0) === "#") return;
+          if (/^[A-Z]{2}$/.test(line)) { country = line; return; }
+          if (country) rows.push({ name: line, country: country });
+        });
+        st.places = rows;
+        st.placesLoading = false;
+        drawPlace();
+        return rows;
+      })
+      .catch(function () {
+        st.placesLoading = false;
+        // A city ask that cannot name a city must not be sellable. Saying
+        // so beats a box that accepts anything and reaches nobody.
+        $("placeHint").textContent =
+          "The city list didn't load, so a city or country ask can't be priced right now. "
+          + "Reload, or ask everyone instead.";
+      });
+  }
+
+  function countryLabel(code) {
+    // Intl has all 245 in the reader's own language — places.ts's own
+    // reasoning for not shipping names. Old WebViews get the code, which
+    // is a poor label and an honest one.
+    try { return new Intl.DisplayNames(undefined, { type: "region" }).of(code) || code; }
+    catch (e) { return code; }
+  }
+
+  function scopeKey() { return st.P ? st.P.cohorts[st.scope].key : "world"; }
+
+  function drawPlace() {
+    var key = scopeKey();
+    var box = $("placeBox");
+    box.hidden = key === "world";
+    if (key === "world") { st.place = null; return; }
+    $("placeLabel").textContent = key === "city" ? "Which city" : "Which country";
+    $("placeInput").placeholder = key === "city" ? "Start typing a city…" : "Start typing a country…";
+    if (!st.places) { loadPlaces(); $("placeHint").textContent = "Loading the list…"; return; }
+    var q = $("placeInput").value.trim().toLowerCase();
+    var list = $("placeList");
+    list.textContent = "";
+    var seen = {};
+    var shown = 0;
+    for (var i = 0; i < st.places.length && shown < 40; i++) {
+      var p = st.places[i];
+      var label = key === "city" ? p.name + " · " + countryLabel(p.country) : countryLabel(p.country);
+      if (key === "country") {
+        if (seen[p.country]) continue;
+        seen[p.country] = 1;
+      }
+      if (q && label.toLowerCase().indexOf(q) === -1) continue;
+      var o = document.createElement("option");
+      o.value = label;
+      list.appendChild(o);
+      shown++;
+    }
+    matchPlace();
+  }
+
+  /** Resolve what is typed to a catalogue row, or to null. Null is a
+   *  REFUSAL to sell, not a warning: the value a booking carries has to be
+   *  the key an answer's anchor holds, or the ask reaches nobody. */
+  function matchPlace() {
+    var key = scopeKey();
+    if (key === "world") { st.place = null; return; }
+    var typed = $("placeInput").value.trim().toLowerCase();
+    st.place = null;
+    if (st.places && typed) {
+      for (var i = 0; i < st.places.length; i++) {
+        var p = st.places[i];
+        if (key === "city") {
+          if ((p.name + " · " + countryLabel(p.country)).toLowerCase() === typed
+            || p.name.toLowerCase() === typed) {
+            st.place = { city: p.name + ", " + p.country }; break;
+          }
+        } else if (countryLabel(p.country).toLowerCase() === typed || p.country.toLowerCase() === typed) {
+          st.place = { country: p.country }; break;
+        }
+      }
+    }
+    $("placeHint").textContent = st.place
+      ? (key === "city" ? "Asked in " + st.place.city.split(",")[0] + " only." : "Asked across " + countryLabel(st.place.country) + " only.")
+      : typed ? "Pick one from the list — a name we don't recognise reaches nobody."
+        : "Pick from the list.";
+    refreshQuoteButton();
+  }
+
+  /** The booking payload, in the shape validatePaidBooking accepts. */
+  function bookingPayload(token) {
+    var T = typeDef();
+    var d = {
+      kind: "question",
+      prompt: st.prompt.trim(),
+      type: st.type,
+      options: T.max ? st.opts.map(function (o) { return o.trim(); }).filter(Boolean) : [],
+      scope: scopeKey(),
+      dims: {},
+      wearName: false,
+      budgetEur: st.budget == null ? null : st.budget,
+      link: st.link.trim(),
+      recaptchaToken: token
+    };
+    if (st.place && st.place.city) d.dims.city = st.place.city;
+    if (st.place && st.place.country) d.dims.country = st.place.country;
+    return d;
+  }
+
+  function recaptcha(action) {
+    return new Promise(function (resolve, reject) {
+      var g = window.grecaptcha;
+      if (!g || !g.ready) return reject(new Error("recaptcha-missing"));
+      g.ready(function () {
+        g.execute(st.cfg.recaptchaSiteKey, { action: action }).then(resolve, reject);
+      });
+    });
+  }
+
+  function signIn() {
+    return fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + st.cfg.apiKey, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}"
+    }).then(function (r) {
+      if (!r.ok) throw new Error("signin-" + r.status);
+      return r.json();
+    }).then(function (j) { return j.idToken; });
+  }
+
+  function callFn(name, token, data) {
+    return fetch(fnUrl(name), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + token },
+      body: JSON.stringify({ data: data })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (body) {
+        if (!r.ok || body.error) {
+          // The callable protocol puts a readable sentence in
+          // error.message, and paid.ts writes those to be shown — the
+          // decline reasons especially. Surfacing the raw status instead
+          // would replace a written explanation with a number.
+          var e = new Error((body.error && body.error.message) || ("http-" + r.status));
+          e.code = body.error && body.error.status;
+          throw e;
+        }
+        return body.result;
+      });
+    });
+  }
+
+  /** Wait for the reviewer's verdict. The review runs on a Firestore
+   *  trigger, not inside the booking call, so the only honest thing the
+   *  page can do is watch the document the buyer is allowed to read
+   *  (firestore.rules: own uid only). Bounded — a sweep retries a held
+   *  booking every half hour, which is not a thing to hold a page open
+   *  for, and `held` is a real answer rather than a timeout. */
+  function awaitVerdict(token, bid) {
+    var url = "https://firestore.googleapis.com/v1/projects/" + st.cfg.project
+      + "/databases/" + (st.cfg.dbId || "(default)") + "/documents/v2_paid_bookings/" + bid;
+    var tries = 0;
+    function poll() {
+      tries++;
+      return fetch(url, { headers: { authorization: "Bearer " + token } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (doc) {
+          var f = doc && doc.fields ? doc.fields : null;
+          var status = f && f.status && f.status.stringValue;
+          if (status && status !== "review") {
+            return { status: status, reason: f.declineReason && f.declineReason.stringValue };
+          }
+          if (tries >= 20) return { status: "held" };
+          return new Promise(function (res) { setTimeout(res, 1500); }).then(poll);
+        });
+    }
+    return poll();
+  }
+
+  function payFail(msg) {
+    st.busy = false;
+    $("payBtn").disabled = false;
+    $("payNote").textContent = msg;
+  }
+
+  function startPurchase() {
+    if (st.busy) return;
+    if (!cfgReady()) { showPanel("paying"); return; }
+    // The place is needed to BOOK, not to be quoted: "your city" costs
+    // what it costs whichever city it is, and gating the price on the
+    // picker would open this page with its main button disabled and no
+    // stated reason. Gated here instead, where the value is actually
+    // used, and the composer is reopened on the field that is missing.
+    if (scopeKey() !== "world" && !st.place) {
+      hidePanel();
+      $("placeBox").hidden = false;
+      $("placeInput").focus();
+      $("placeHint").textContent =
+        scopeKey() === "city"
+          ? "Pick the city first — an ask has to name where it is asked."
+          : "Pick the country first — an ask has to name where it is asked.";
+      return;
+    }
+    st.busy = true;
+    $("payBtn").disabled = true;
+    $("payNote").textContent = "Checking, then opening the payment page…";
+    var idToken = null;
+    signIn()
+      .then(function (t) { idToken = t; return recaptcha("book"); })
+      .then(function (rt) { return callFn("bookPaidQuestionV2", idToken, bookingPayload(rt)); })
+      .then(function (res) {
+        st.bid = res && res.id;
+        if (!st.bid) throw new Error("no booking id");
+        $("payNote").textContent = "Your question is with the reviewer — this takes a few seconds.";
+        return awaitVerdict(idToken, st.bid);
+      })
+      .then(function (v) {
+        if (v.status === "declined") {
+          st.busy = false;
+          $("payBtn").disabled = false;
+          showPanel("declined");
+          if (v.reason) $("declineReason").textContent = v.reason;
+          return null;
+        }
+        if (v.status !== "approved") {
+          st.busy = false;
+          $("payBtn").disabled = false;
+          showPanel("held");
+          return null;
+        }
+        return recaptcha("checkout").then(function (rt) {
+          return callFn("createPaidCheckoutV2", idToken, { id: st.bid, recaptchaToken: rt });
+        });
+      })
+      .then(function (out) {
+        if (!out) return;
+        if (!out.url) throw new Error("no checkout url");
+        // Stripe from here. Nothing below this line runs.
+        window.location.href = out.url;
+      })
+      .catch(function (err) {
+        var m = String((err && err.message) || err);
+        payFail(
+          m === "recaptcha-missing"
+            ? "The human check didn't load — reload the page and try again."
+            : /^signin-/.test(m)
+              ? "Couldn't start a session. Reload and try again."
+              : m.slice(0, 200) || "Something went wrong. Nothing has been charged."
+        );
+      });
+  }
+
   // ── boot ───────────────────────────────────────────────────────
+  // The config the deploy writes. ABSENT IS THE HONEST STATE, not an
+  // error: a local checkout and a preview have no keys, and the page then
+  // behaves exactly as it did before the door existed — quote, and a note
+  // saying payment is not open. A page that threw here would be a broken
+  // page everywhere except production.
+  fetch("/ask-config.json", { credentials: "omit" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (c) {
+      st.cfg = c;
+      if (!cfgReady()) return;
+      var sc = document.createElement("script");
+      sc.src = "https://www.google.com/recaptcha/api.js?render=" + encodeURIComponent(c.recaptchaSiteKey);
+      sc.async = true;
+      document.head.appendChild(sc);
+    })
+    .catch(function () { st.cfg = null; });
+
   fetch("/ask-pricing.json", { credentials: "omit" })
     .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
     .then(function (P) {
