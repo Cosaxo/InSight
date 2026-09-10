@@ -59,16 +59,39 @@ export function checkPickCrowds(readFile) {
     return errors;
   }
 
-  // Extract CROWD and BY objects
+  // Extract CROWD and BY objects.
+  //
+  // A FAILED PARSE IS AN ERROR, NOT AN EMPTY OBJECT. Both extractors return
+  // `null` when their `const X = {…}` regex stops matching, and `|| {}`
+  // turned that into a clean run over nothing: rule 6 iterates no
+  // questions and the gate prints "contract valid". CROWD had partial
+  // cover — rule 1 fails a live question with no CROWD entry — and BY had
+  // none at all, so the whole of the segment validation could go dark
+  // without a word. Measured 2026-09-10: renaming the module-local
+  // `const BY` to `const SEGS`, with its two internal readers, is
+  // self-consistent and eslint-clean, and it took a segment count of 0
+  // from a named failure to exit 0. This is the shape `check-labels.mjs`
+  // and `check-anchors.mjs` already refuse to pass on, and the one this
+  // file's own subject — a check that stops checking — is made of.
   let crowdData = {};
   let byData = {};
   try {
-    crowdData = extractCrowd(pickDataContent) || {};
+    crowdData = extractCrowd(pickDataContent);
+    if (!crowdData || typeof crowdData !== 'object' || Object.keys(crowdData).length === 0) {
+      errors.push('CROWD could not be read from pick-data.js — `const CROWD = {…}` no longer '
+        + 'matches this scan. Fix the extractor; a gate reading zero questions reports clean.');
+      crowdData = {};
+    }
   } catch (e) {
     errors.push(`${e.message}`);
   }
   try {
-    byData = extractBy(pickDataContent) || {};
+    byData = extractBy(pickDataContent);
+    if (!byData || typeof byData !== 'object' || Object.keys(byData).length === 0) {
+      errors.push('BY could not be read from pick-data.js — `const BY = {…}` no longer matches '
+        + 'this scan. Fix the extractor; rule 6 would otherwise validate nothing and pass.');
+      byData = {};
+    }
   } catch (e) {
     errors.push(`${e.message}`);
   }
