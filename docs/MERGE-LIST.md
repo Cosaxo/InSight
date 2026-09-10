@@ -40,17 +40,15 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-10T09:55:51Z -->
+<!-- console:generated 2026-09-10T10:00:10Z -->
 
 ## Open
 
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 241 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 244 behind main · opened 2026-09-01 · stage **new**
 - [ ] **night-20260910** (no PR yet) · Claude 2's night shift · 31 commits · last 05:32 UTC 2026-09-10
 - [ ] **nightb-20260910** (no PR yet) · Claude 1's night shift B · 29 commits · last 04:12 UTC 2026-09-10
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
-
-**Self-merging:** #471 Feed 2026-09-10: sixty levelled and five rooms born — horror, live music, creators, AI, are-we-alone
 
 ## In the shift
 
@@ -66,6 +64,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#471** · Feed 2026-09-10: sixty levelled and five rooms born — horror, live music, creators, AI, are-we-alone · merged 2026-09-10
 - **#470** · Learn: The Middle Ages born, 24 levelled across six fields · merged 2026-09-10
 - **#469** · Catalog card pk40: the game world you'd actually live in · merged 2026-09-10
 - **#468** · Question farm: 8 for Skills, Sport, Body, Film, Food, Goals, Interests, Mind — plus two promoted and a latent orphan wire defused · merged 2026-09-10
@@ -121,4 +120,3 @@ merge shift like any other PR.
 - **#434** · The account wall goes up: three doors, address verification, the designed gate, and the records (D414) · merged 2026-09-07
 - **#433** · Crossroads: the first two stories are retired and four take their place (D413) · merged 2026-09-07
 - **#432** · Ad-network tracking is deferred with a trigger, not refused (D412); runbook 5.15 stops describing the retired self-serve lane · merged 2026-09-07
-- **#415** · Three behaviour signals get a reader: whether the Mirror is READ, not only answered into (D407) · merged 2026-09-07
