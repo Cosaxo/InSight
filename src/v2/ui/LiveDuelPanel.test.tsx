@@ -89,6 +89,9 @@ const LIVE = vi.hoisted(() => {
     // words in a named member's mouth in a fixture.
     takes: () => [] as Array<Record<string, unknown>>,
     takesLoading: () => false,
+    // Read AND settled: the empty list above is a question nobody has
+    // written on, not one this fixture failed to read for.
+    takesState: () => "ready" as const,
     loadTakes: async (gid: string) => { void gid; },
     postTake: async (gid: string, qid: string, text: string) => {
       void gid; void qid; void text;

@@ -58,6 +58,14 @@ const LIVE = vi.hoisted(() => ({
      *  this true. */
     reading: false,
     takesLoading(this: { reading: boolean }) { return this.reading; },
+    /** …and settled SUCCESSFULLY by default. Derived here exactly the way
+     *  the store derives it, so the fake cannot answer 'ready' about a
+     *  read the real one would call 'failed'. */
+    readFailed: false,
+    takesState(this: { reading: boolean; readFailed: boolean }): "loading" | "ready" | "failed" {
+      if (this.reading) return "loading";
+      return this.readFailed ? "failed" : "ready";
+    },
     loadTakes: vi.fn(async () => {}),
     postTake: vi.fn(async () => "t_new"),
     deleteTake: vi.fn(async () => {}),
@@ -87,6 +95,7 @@ beforeEach(() => {
   LIVE.loadNames.mockClear();
   LIVE.social.flags = {};
   LIVE.social.reading = false;
+  LIVE.social.readFailed = false;
   LIVE.social.loadTakes.mockClear();
   LIVE.social.postTake.mockClear();
   LIVE.social.deleteTake.mockClear();
@@ -425,12 +434,16 @@ describe("a take carries the side its author voted", () => {
 });
 
 describe("a list still being read is not an empty room", () => {
-  // `takes()` answers [] for three different things — never fetched, in
-  // flight, and genuinely nothing written. The panel branched on length
-  // alone, so it printed "No takes yet. Say the first thing." over a query
-  // still running — and kept printing it for the life of that mount after
-  // a FAILED fetch, because loadTakes' catch deliberately leaves the key
-  // absent so a later open retries rather than caching an empty list.
+  // `takes()` answers [] for four different things — never fetched, in
+  // flight, the query threw, and genuinely nothing written. The panel
+  // branched on length alone, so it printed "No takes yet. Say the first
+  // thing." over a query still running — and kept printing it for the
+  // life of that mount after a FAILED fetch, because loadTakes' catch
+  // deliberately leaves the key absent so a later open retries rather
+  // than caching an empty list. The in-flight flag closed the first
+  // sentence and could not reach the second; `takesState` is the reader
+  // that does, and the failed case below is the one this block described
+  // and did not cover.
   //
   // Same defect the Compare lens and the Near field were fixed for, on the
   // surface where the sentence is an invitation: "say the first thing" to
@@ -451,6 +464,43 @@ describe("a list still being read is not an empty room", () => {
     LIVE.social.reading = false;
     panel();
     expect(screen.getByText(/Say the first thing/)).toBeTruthy();
+  });
+
+  it("says the read failed rather than that nobody has written", () => {
+    // The third state, and the one the in-flight flag was never able to
+    // reach: `loadTakes`' catch leaves the key absent on purpose so a
+    // later open retries, which means the panel sees `[]` with nothing
+    // in flight — indistinguishable, until `takesState`, from a circle
+    // that never wrote a take. It printed the invitation for the life of
+    // the mount over a room it had failed to read.
+    LIVE.social.takeList = [];
+    LIVE.social.readFailed = true;
+    panel();
+    expect(screen.getByText(/Couldn’t read the takes here/)).toBeTruthy();
+    expect(screen.queryByText(/Say the first thing/),
+      "a refused read was called an empty room").toBeNull();
+  });
+
+  it("still offers the composer when the read failed", () => {
+    // Writing does not depend on the read that did not happen, and a
+    // panel that hid the composer would turn a transient failure into a
+    // silence. The empty branch is the sentence; the composer is not in
+    // it.
+    LIVE.social.takeList = [];
+    LIVE.social.readFailed = true;
+    panel();
+    expect(screen.getByPlaceholderText(/take/i)).toBeTruthy();
+  });
+
+  it("keeps the paused sentence in front of the failed one too", () => {
+    // Same argument as the reading arm below: the breaker's state is
+    // true whatever the query would have found, and a paused read that
+    // never ran is not a refusal to report.
+    LIVE.social.takeList = [];
+    LIVE.social.readFailed = true;
+    LIVE.budgetPaused = true;
+    panel();
+    expect(screen.queryByText(/Couldn’t read the takes here/)).toBeNull();
   });
 
   it("keeps the paused sentence in front of the reading one", () => {

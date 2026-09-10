@@ -432,6 +432,13 @@ const state = {
   // revealHistLoading above.
   takes: {} as Record<string, TakeDoc[]>,
   takesLoading: {} as Record<string, boolean>,
+  // …and the third state the two above cannot hold between them. The
+  // catch in `loadTakes` leaves the key ABSENT on purpose, so a failed
+  // read is indistinguishable from a room that never wrote a take —
+  // `takesLoading`'s own docstring says so and fixed only the in-flight
+  // half. `kindredFailed`/`testAggsFailed` are the same field one
+  // surface over; this is scope-keyed because the read is.
+  takesFailed: {} as Record<string, true>,
   // takeId → true once this account has flagged it. Flags are create-only
   // and unreadable BY DESIGN (firestore.rules: `allow read: if false` —
   // they are anonymous to the circle and to the moderation run), so this
@@ -4398,6 +4405,10 @@ const SOCIAL = {
     // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
     // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    // A retry is a fresh claim: the guard above lets one through exactly
+    // because the failed read cached nothing, so the old mark must not
+    // outlive the attempt it was about.
+    delete state.takesFailed[key];
     notify();
     try {
       const db = await getDb();
@@ -4424,6 +4435,11 @@ const SOCIAL = {
       // Leave the key absent rather than caching an empty list: a
       // transient failure that freezes "no takes" into the session reads
       // exactly like a circle that never wrote any.
+      // …and record that it failed, which is the half leaving the key
+      // absent cannot express: the panel reads `[]` afterwards and, with
+      // only the in-flight flag to ask, prints "No takes yet. Say the
+      // first thing." over a room it never managed to read.
+      state.takesFailed[key] = true;
       reportError(err, { where: "loadTakes", gid });
     } finally {
       state.takesLoading[key] = false;
@@ -4455,6 +4471,28 @@ const SOCIAL = {
   takesLoading(gid: string, qid?: string): boolean {
     const key = takeScopeKey(gid, qid);
     return key == null ? false : !!state.takesLoading[key];
+  },
+  /**
+   * Has this scope's take list been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The finish of the sentence `takesLoading` above starts. That flag
+   * separated "in flight" from `takes()`'s `[]`; it cannot separate the
+   * other two, because the catch leaves the key absent so a later open
+   * retries — which is right for the cache and silent for the reader.
+   * The panel then said "No takes yet. Say the first thing." for the
+   * life of the mount after a refused read: a definite claim about a
+   * room that may be full, and an invitation to be first in it.
+   *
+   * 'ready' also covers "never asked", exactly like `kindredState` and
+   * `testAggsState`: a scope nobody loaded has no failure to report, and
+   * the read breaker's pause is a state the caller checks in front (the
+   * paused arm is true whatever the query would have found).
+   */
+  takesState(gid: string, qid?: string): "loading" | "ready" | "failed" {
+    const key = takeScopeKey(gid, qid);
+    if (key == null) return "ready";
+    if (state.takesLoading[key]) return "loading";
+    return state.takesFailed[key] ? "failed" : "ready";
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -7993,6 +8031,7 @@ function resetForNewUid(uid: string): void {
   // (flags are `allow read: if false` by design).
   state.takes = {};
   state.takesLoading = {};
+  state.takesFailed = {};
   state.myFlags = {};
   // The voter lists carry an `isMe` flag computed against the OLD uid, so
   // a survivor would mark a stranger's answer as this account's own. The

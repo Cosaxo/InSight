@@ -253,6 +253,10 @@ export const LIVE_SOCIAL_MEMBERS = [
   // what makes the surface reviewed, and this one existed in state for a
   // long time without it.
   "takesLoading",
+  // …and the reader that finishes its sentence: 'loading' | 'ready' |
+  // 'failed', because the in-flight flag alone still let a refused read
+  // print "No takes yet."
+  "takesState",
   // Handles and invitations (D122) — the uid-addressed way into a circle.
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.

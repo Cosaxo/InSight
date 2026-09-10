@@ -492,6 +492,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // Settled: a mount test is about what the screen draws once the
     // read has landed, not about the frame before it.
     takesLoading: () => false,
+    // Same reason one line up, and the other state the pair cannot hold
+    // between them: the fixture's empty list is a room that wrote
+    // nothing, not a read that was refused. A case that wants the
+    // refused one overrides this member.
+    takesState: () => "ready" as const,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
