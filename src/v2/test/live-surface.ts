@@ -150,6 +150,10 @@ export const LIVE_MEMBERS = [
   "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",
+  // The clear the store's two drains apply, for an aggregate THIS STORE
+  // DID NOT FETCH: `data/pulse` reads its own day-keyed documents, so a
+  // pulse id reached neither drain and its mark stood for the session.
+  "noteFolded",
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
   // that is the only thing the server ever returns about anyone.
   "near",

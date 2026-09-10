@@ -29,6 +29,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 interface DayAggDoc { counts: Record<string, number>; total: number }
 
 const h = vi.hoisted(() => ({
+  /** Every id `ensureTrend` reported as folded. */
+  folded: [] as string[],
   /** The bank, mutable per test — empty is "not arrived yet". */
   bank: [] as { id: string; prompt: string; options: string[] }[],
   /** Every id list `getDocs` was asked for. The property is a statement
@@ -43,6 +45,11 @@ const h = vi.hoisted(() => ({
 
 vi.mock("./live", () => ({
   default: {
+    // The store's clear for an aggregate it did not fetch. RECORDED, not
+    // ignored: that this read tells the store its mark is spent is the
+    // whole of the fix, and a stub that swallows it silently would let
+    // the wiring be deleted with every case still green.
+    noteFolded: (aid: string) => { h.folded.push(aid); },
     enabled: true,
     anchors: () => (h.noCity ? { country: "NO" } : { city: "Oslo, NO", country: "NO" }),
     pulseQs: () => h.bank,
@@ -197,6 +204,36 @@ describe("ensureToday and a bank that has not arrived", () => {
 // no answers in Oslo", about a city that had answered every day. The panel
 // now asks this instead, and these cases are what stop it becoming a
 // synonym for `aggFor` again.
+describe("the trend read spends today's unfolded mark", () => {
+  it("tells the store the day it just re-read", async () => {
+    // The mark exists because the forced refetch after an answer
+    // "reliably loses the race with the fold" — so it must stand until a
+    // read that does not, and NOTHING cleared it: both of the store's
+    // drains iterate aggregates live.ts fetched for the deck, and a pulse
+    // id is never one of those. The trend is that later read. Without
+    // this line the overlay is added on top of a fold that already holds
+    // the vote, and the card's own crowd moves by one because the reader
+    // opened the chart.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    expect(h.folded, "something reported a fold before any read").toEqual([]);
+    await PULSE.ensureTrend("pulse-pace");
+    const today = new Date().toISOString().slice(0, 10);
+    expect(h.folded, "the trend read did not spend today's mark")
+      .toEqual([`pulse-pace_${today}`]);
+  });
+
+  it("…and names TODAY, not the oldest day in the window", async () => {
+    // The control on the id: the window is twenty-one days and only the
+    // last of them can carry a mark, since a mark is set on the answer
+    // and cleared by the next read. Naming any other day would clear
+    // nothing and hide the defect behind a green case.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    await PULSE.ensureTrend("pulse-pace");
+    const old = new Date(Date.now() - 20 * 86400000).toISOString().slice(0, 10);
+    expect(h.folded[0]).not.toContain(old);
+  });
+});
+
 describe("trendReady — fetched-and-empty is not never-fetched", () => {
   it("is false before the window lands and true after", async () => {
     h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];

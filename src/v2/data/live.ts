@@ -7533,6 +7533,15 @@ const LIVE = {
     // answer is an ordinary answer document, so nothing new has to unset
     // it.
     state.unaggregated[aid] = optionIdx;
+    // IN FLIGHT, like every other write path — and here it is not
+    // bookkeeping. `noteFolded` and both of the store's drains refuse to
+    // clear an unfolded mark for an answer the server has not
+    // acknowledged, because no aggregate can hold it yet; without this
+    // flag that guard is vacuous on the one path whose mark nothing else
+    // clears. It also settles the older inconsistency: `restorePending`
+    // sets the flag for a restored answer, so a pulse vote was
+    // unconfirmed after a relaunch and confirmed before one.
+    state.inflight[aid] = true;
     markPending(aid, String(optionIdx));
     notify();
     return (async () => {
@@ -7547,6 +7556,7 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: answerAnchors(),
         });
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
         clearPending(aid);
       } catch (err) {
@@ -7581,6 +7591,35 @@ const LIVE = {
    * nothing readable and fails a test rather than shifting every share by
    * one (the D72 shape).
    */
+  /**
+   * The clear the store's two drains apply, for an aggregate THIS STORE
+   * DID NOT FETCH.
+   *
+   * `data/pulse` reads its day-keyed aggregates itself, and both drains
+   * here iterate documents live.ts fetched for the deck — so a pulse id
+   * reached neither, and the comment on `votePulse` that says "nothing
+   * new has to unset it" was wrong about its own file. The mark then
+   * stood for the life of the session: `pulsePending` kept answering,
+   * and once the fold HAD landed the card added a vote nobody cast on
+   * top of the one it was already counting. Its own suite records the
+   * fact and covers only the refused write.
+   *
+   * Called on the TREND read, not on the day read, and the difference is
+   * the whole safety of it. The forced refetch after an answer
+   * "reliably loses the race with the fold" — pulse.ts's own words, and
+   * the reason the mark exists at all — and `ensureToday` then
+   * short-circuits on the day it already has, so no later read of that
+   * day happens. The trend is the tap that comes afterwards, which is
+   * the same assumption `drainAggRefresh` makes about its own re-read.
+   *
+   * Guarded like the drains: an answer still in flight cannot be in any
+   * aggregate, and one the device never wrote is not its business.
+   */
+  noteFolded(aid: string): void {
+    if (!(aid in state.unaggregated) || !state.votes[aid] || aid in state.inflight) return;
+    delete state.unaggregated[aid];
+    notify();
+  },
   pulsePending(baseQid: string): number | null {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;

@@ -751,6 +751,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fold has counted them. The real store returns the option index only
     // while `unaggregated` still holds it.
     pulsePending: () => null,
+    // Nothing to clear, for the reason directly above: the fixture's
+    // votes are seeded as already folded, so no id carries an unfolded
+    // mark and the real store's clear would return at its first guard
+    // too. A case that seeds an unfolded answer overrides this the same
+    // way it overrides `pulsePending`.
+    noteFolded: () => {},
     // Same reason, one question wider: the fixture's votes are seeded as
     // folded, so nothing here is unaggregated and every question answers
     // null. A case that wants the other side of the fold overrides this

@@ -1312,6 +1312,47 @@ describe("votePulse() rolls back everything it set", () => {
     expect(LIVE.myVotes()).not.toHaveProperty("pulse-pace");
   });
 
+  it("drops the mark once a LATER read of that day lands", async () => {
+    // The half the paragraph above described and no case covered. The
+    // mark exists because the forced refetch after an answer "reliably
+    // loses the race with the fold" — so it stands until a read that
+    // does not. Nothing cleared it: both of the store's drains iterate
+    // aggregates live.ts fetched for the DECK, and a pulse id is never
+    // one of those, so opening the chart added the overlay on top of a
+    // fold that already held the vote — the card's own crowd moving by
+    // one because the reader looked at it.
+    const LIVE = await bootLive();
+    await LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    expect(LIVE.pulsePending("pulse-pace"), "the mark was not set at all").toBe(3);
+
+    // What `data/pulse` says when its trend read lands: this day's
+    // aggregate has been read again, after the ack.
+    LIVE.noteFolded(`pulse-pace_${new Date().toISOString().slice(0, 10)}`);
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "the mark survived a later read, so the card counts the vote twice",
+    ).toBeNull();
+  });
+
+  it("…and NOT while the write is still in flight — the clear's control", async () => {
+    // An answer the server has not acknowledged cannot be in any
+    // aggregate, so a later read is no evidence about it. The store's
+    // two drains carry the same guard for the same reason.
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+    void LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    LIVE.noteFolded(`pulse-pace_${new Date().toISOString().slice(0, 10)}`);
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "an unacknowledged answer was cleared by a read that cannot hold it",
+    ).toBe(3);
+    d.resolve();
+    await flush();
+  });
+
   it("keeps the mark while the write is in flight — the control", async () => {
     // Without this, "never mark anything" would satisfy the case above and
     // put back the bug the mark was added to fix.
