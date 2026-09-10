@@ -53,6 +53,7 @@ const remote = vi.hoisted(() => ({
     k: number;
     engine?: string;
     lambdaU?: number;
+    tau?: number;
     items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number; dim?: string; bucket?: string; entity?: string }>;
     q: Record<string, { v: number[]; n: number; sum: number; sd?: number }>;
   },
@@ -810,5 +811,72 @@ describe("pick rows (D434)", () => {
     expect(PATTERNS.evidence()).toEqual([]);
     expect(PATTERNS.pool().map((p) => p.q.id)).toEqual(["qa", "qb"]);
     expect(PATTERNS.anchorRows()).toEqual([]);
+  });
+});
+
+describe("the slope and the schedule on the store (D435)", () => {
+  it("reads tau off the document — 1 when absent — and seals with it", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    expect(PATTERNS.tau()).toBe(1);
+    // qa answered pins factor 0 at θ₀ = 1/1.5; qb (0.9, 0.1) leans 0.6
+    expect(PATTERNS.seal("qb")!.p0).toBeCloseTo(0.8, 9);
+    // the same document with a slope of 2: the lean doubles, into the clamp
+    // (the purge drops the store's copies; the key itself is the sweep's,
+    // so the test clears it as purgeLocalTrace would have)
+    window.dispatchEvent(new Event("insight:local-purge"));
+    localStorage.removeItem(LS);
+    publishFixture();
+    remote.doc = { ...remote.doc!, tau: 2 };
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    expect(PATTERNS.tau()).toBe(2);
+    expect(PATTERNS.seal("qb")!.p0).toBe(0.95);
+  });
+
+  it("asks the surest call once the answers pin the vector, and the informative one every fourth turn", async () => {
+    publishFixture();
+    live.aggregated.mockReturnValue([bankQ("qa"), bankQ("qb"), bankQ("qc"), bankQ("qd")]);
+    remote.doc!.q.qd = { v: vec(0.3, 0.9), n: 30, sum: 0 };
+    // qa (+1) and qc (−1) answered: both factors pinned at λ 0.5 — every
+    // open question's share is under a half — so the call is the surest:
+    // qb leans 0.53, qd 0.4
+    live.myVotes.mockReturnValue({ qa: "qa:0", qc: "qc:1" });
+    await ensureLive();
+    expect(PATTERNS.nextAsk()?.q.id).toBe("qb");
+    // three graded answers on the record: the fourth turn learns — qd's
+    // loading is the less determined of the two
+    localStorage.setItem(LS, JSON.stringify([1, 2, 3].map((i) => ({ qid: `x${i}`, p0: 0.5, pred: 0, at: i, mine: 0, bits: 1 }))));
+    window.dispatchEvent(new Event("insight:local-purge"));
+    localStorage.setItem(LS, JSON.stringify([1, 2, 3].map((i) => ({ qid: `x${i}`, p0: 0.5, pred: 0, at: i, mine: 0, bits: 1 }))));
+    publishFixture();
+    live.aggregated.mockReturnValue([bankQ("qa"), bankQ("qb"), bankQ("qc"), bankQ("qd")]);
+    remote.doc!.q.qd = { v: vec(0.3, 0.9), n: 30, sum: 0 };
+    live.myVotes.mockReturnValue({ qa: "qa:0", qc: "qc:1" });
+    await ensureLive();
+    expect(PATTERNS.meter().records).toHaveLength(3);
+    expect(PATTERNS.nextAsk()?.q.id).toBe("qd");
+  });
+
+  it("the meter says skill over the records that stored a base rate", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    PATTERNS.seal("qb"); // p0 0.8 against a coin
+    live.myVotes.mockReturnValue({ qa: "qa:0", qb: "qb:0" });
+    PATTERNS.grade("qb");
+    const m = PATTERNS.meter();
+    expect(m.based).toBe(1);
+    expect(m.baseBits).toBe(1);
+    expect(m.basedBits).toBeCloseTo(-Math.log2(0.8), 2);
+    expect(m.skill).toBeCloseTo(1 + Math.log2(0.8), 2);
+    // a record with no base rate is outside the comparison, and an empty
+    // meter is zero rather than a division
+    localStorage.setItem(LS, JSON.stringify([{ qid: "qa", p0: 0.7, pred: 0, at: 1, mine: 0, bits: 0.51 }]));
+    window.dispatchEvent(new Event("insight:local-purge"));
+    localStorage.setItem(LS, JSON.stringify([{ qid: "qa", p0: 0.7, pred: 0, at: 1, mine: 0, bits: 0.51 }]));
+    expect(PATTERNS.meter().skill).toBe(0);
+    expect(PATTERNS.meter().based).toBe(0);
   });
 });

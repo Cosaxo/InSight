@@ -34,7 +34,7 @@ import {
   type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
-import { ALS_LAMBDAS_U, PATTERNS_CROSSOVER_NIGHTS, procrustes, symmetricEigen } from "./patternsAls";
+import { ALS_LAMBDAS_U, ALS_TAUS, PATTERNS_CROSSOVER_NIGHTS, procrustes, symmetricEigen } from "./patternsAls";
 import { PATTERNS_SAMPLE_CAP, type SampleDoc } from "./patternsSamples";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
@@ -869,6 +869,11 @@ describe("the candidate engine (D395)", () => {
     expect(cand.streak).toBe(0);
     expect(ALS_LAMBDAS_U).toContain(cand.lambdaU);
     expect(Object.keys(cand.lambdaSweep ?? {})).toHaveLength(ALS_LAMBDAS_U.length);
+    // and the link's slope beside the ridge (D435): swept on the same
+    // days, published for the phone, the online engine's the shipped 1
+    expect(ALS_TAUS).toContain(cand.tau);
+    expect(Object.keys(cand.tauSweep ?? {})).toHaveLength(ALS_TAUS.length);
+    expect(pub.tau).toBe(1);
     expect(r.engine).toBe("sgd");
     expect(r.crossed).toBe(false);
   });

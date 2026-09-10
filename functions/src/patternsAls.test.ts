@@ -19,6 +19,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ALS_MIN_SD,
+  ALS_TAUS,
   ANCHOR_ITEM_FLOOR,
   ORDINAL_TYPES,
   PATTERNS_CROSSOVER_NIGHTS,
@@ -554,5 +555,31 @@ describe("catalogue picks as items (D434)", () => {
     const scored = alsScoreDay(model, index, new Map(), day, start, 2, known);
     expect(scored.bits).toBeLessThan(scored.baseBits);
     expect(skillOf(scored.bits, scored.baseBits)).toBeGreaterThan(0.05);
+  });
+});
+
+describe("the link's slope (D435)", () => {
+  it("scales the model's lean and nothing else: tau 0 is the marginal, tau 1 the shipped link, and 1 is in the sweep", () => {
+    expect(ALS_TAUS).toContain(1);
+    const index = indexItems(compileItems(TWO_FACTOR_BANK));
+    const fitted = createOnlyCrowd(300, 7);
+    const model = alsFit(null, fitted.map(({ uid, a }) => ({ uid, a })), index);
+    const fresh = createOnlyCrowd(150, 99);
+    const history = new Map<string, AnswerMap>();
+    const obs: { uid: string; qid: string; x: number }[] = [];
+    for (const p of fresh) {
+      const { b0, ...rest } = p.a;
+      history.set(p.uid, rest);
+      obs.push({ uid: p.uid, qid: "b0", x: b0 === 0 ? 1 : -1 });
+    }
+    const start = new Map([["b0", { n: model.rows.b0.n, sum: model.rows.b0.sum }]]);
+    const flat = alsScoreDay(model, index, history, obs, start, 2, undefined, 0);
+    expect(flat.bits).toBeCloseTo(flat.baseBits, 9);
+    const one = alsScoreDay(model, index, history, obs, start, 2);
+    const same = alsScoreDay(model, index, history, obs, start, 2, undefined, 1);
+    expect(same.bits).toBe(one.bits);
+    const steep = alsScoreDay(model, index, history, obs, start, 2, undefined, 2);
+    expect(steep.bits).not.toBe(one.bits);
+    expect(steep.baseBits).toBe(one.baseBits);
   });
 });

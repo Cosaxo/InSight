@@ -367,6 +367,15 @@ export const ALS_SWEEPS = 3;
  * assuming 0.5 (ALGORITHM-REFLECTION §2.3). 0.5 first, because it is the
  * shipped value and the comparison should include it. */
 export const ALS_LAMBDAS_U: readonly number[] = [0.5, 1, 2, 4];
+/** The link's slope the candidate is scored under (D435): a guess is
+ * `marginal + tau·θ·L`, and the sweep publishes the tau that scored best
+ * beside the ridge, so the phone reads both rather than assuming the
+ * shipped link. 1 is the shipped link and is in the sweep so the
+ * comparison includes it. λ and tau are one knob twice for a person with
+ * few answers (θ ∝ 1/λ there) and two knobs for one with many (θ stops
+ * depending on λ; tau still scales it) — which is why both are swept
+ * and neither derived. */
+export const ALS_TAUS: readonly number[] = [0.5, 0.75, 1, 1.5, 2];
 /** Below this an ordinal item has one answer, or everyone gave the same
  * one — no variance to standardise by, so the item carries nothing yet. */
 export const ALS_MIN_SD = 1e-6;
@@ -767,6 +776,7 @@ export function alsScoreDay(
   marginalStart: ReadonlyMap<string, { n: number; sum: number }>,
   lambdaU: number,
   known?: ReadonlyMap<string, PersonKnown>,
+  tau: number = 1,
 ): PatternsDayScore {
   const score: PatternsDayScore = { n: 0, bits: 0, baseBits: 0, perQ: {} };
   const running = new Map<string, { n: number; sum: number }>();
@@ -793,7 +803,7 @@ export function alsScoreDay(
         }
         for (let i = 0; i < model.k; i++) dot += th[i] * (row.v[i] ?? 0);
       }
-      const bits = prequentialBits(mPrev + dot, e.x);
+      const bits = prequentialBits(mPrev + tau * dot, e.x);
       const base = prequentialBits(mPrev, e.x);
       score.n += 1;
       score.bits += bits;

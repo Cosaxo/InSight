@@ -57,6 +57,21 @@ const OR_CAP_BITS = 2.6; // a mark this surprising is full height
 const OR_MASS_FULL = 0.5;
 const OR_MASS_GAMMA = 0.62; // compresses the per-question jitter in that ramp
 const OR_LAND_MS = 780; // travel + settle, when the verdict glyph resolves
+// The record says how it is doing against plain guessing once it holds
+// this many graded answers with a base rate (D435) — the server
+// scorecard's own floor (PATTERNS_QUALITY_FLOOR), so a person's number
+// is held to the same basis the crowd's is. Under it the sentence is not
+// printed: two answers is a coin's run, not a reading.
+const OR_SKILL_BASIS = 8;
+/** The record's one number, in words with its basis: the share of plain
+ * guessing's surprisal the Oracle removed — or added — over the answers
+ * that stored a base rate. A claim with its basis (D146), outside the
+ * field (no percentage is printed IN the field, 2026-09-06). */
+function orSkillLine(m: { skill: number; based: number }): string | null {
+  if (m.based < OR_SKILL_BASIS) return null;
+  const pct = Math.round(Math.abs(m.skill) * 100);
+  return `${pct}% ${m.skill >= 0 ? "better" : "worse"} than plain guessing · ${m.based} answers`;
+}
 
 interface Topic { id: string; label: string; color: string }
 const orTopic = (cat: string | null | undefined): Topic | undefined =>
@@ -187,10 +202,13 @@ function OrLedger({ log, qOf, sel, onPick, group, topIx }: {
 // the retrospective: the record re-laid as the reading. The strip below
 // IS the per-topic breakdown (grouped, hue = topic); the sentence above
 // names its tallest mark. No second axis, no rows that hold one mark.
-function OrDone({ log, qOf, anyOpen }: {
+function OrDone({ log, qOf, anyOpen, skill }: {
   log: readonly OracleRecord[];
   qOf: (qid: string) => PoolItem | undefined;
   anyOpen: boolean;
+  /** The meter's verdict on this viewer (D435), printed with its basis
+   * once it has one. */
+  skill?: string | null;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<number | null>(null);
   // the record's one mark worth naming: your biggest break — or, when it
@@ -218,6 +236,9 @@ function OrDone({ log, qOf, anyOpen }: {
           </div>
         )}
         <OrLedger log={log} qOf={qOf} sel={sel} onPick={setSel} group={true} topIx={topIx}></OrLedger>
+        {skill && (
+          <div className="or-skill" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--accent-ink)", textAlign: "center", marginTop: 8 }}>{skill}</div>
+        )}
         {log.length > 0 && (
           <div className="or-cap" aria-hidden="true">
             <i className="or-cap-up"></i><span>you broke its guess</span>
@@ -262,7 +283,11 @@ export default function PatternsOracle({ items, guide = false }: {
   );
   const curItem = rec ? qOf(rec.qid) : PATTERNS.nextAsk() ?? undefined;
   const curId = curItem?.q.id ?? null;
-  const log = PATTERNS.meter().records;
+  const meter = PATTERNS.meter();
+  const log = meter.records;
+  // the meter's fields are optional at the seam so an older stand-in of
+  // the store (the tab's tests) reads as "no basis yet"
+  const skillLine = orSkillLine({ skill: meter.skill ?? 0, based: meter.based ?? 0 });
 
   // the sealed reading, taken once per question so the disc does not
   // resize under you at the reveal — and the gate on every tap below:
@@ -318,7 +343,7 @@ export default function PatternsOracle({ items, guide = false }: {
         </div>
       );
     }
-    return <OrDone log={log} qOf={qOf} anyOpen={anyOpen} />;
+    return <OrDone log={log} qOf={qOf} anyOpen={anyOpen} skill={skillLine} />;
   }
 
   const q = curItem.q;
@@ -576,6 +601,9 @@ export default function PatternsOracle({ items, guide = false }: {
         <div style={{ flex: "none", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--rule)" }}>
           <div className="pt-kick">
             Your record · {log.length} answer{log.length === 1 ? "" : "s"}
+            {/* the verdict, once the record has a basis (D435): outside
+                the field, with its count, the reading of the marks */}
+            {skillLine && <>{" · "}<span style={{ textTransform: "none", letterSpacing: 0 }}>{skillLine}</span></>}
             {guide && <>
               {" · "}
               <span style={{ fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>up = you broke it, tick = it had you</span>

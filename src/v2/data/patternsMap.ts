@@ -201,19 +201,71 @@ export function mostInformative(invA: readonly number[][], candidates: readonly 
 }
 
 /** The sealed guess: P(option 0), from the question's own marginal plus
- * what the viewer's other answers predict. Clamped to [0.05, 0.95] — the
- * prototype's cap, so twenty weak signals cannot fake certainty. */
+ * what the viewer's other answers predict, the lean scaled by the link's
+ * slope `tau` the fit's scorecard chose (D435; 1 is the shipped link).
+ * Clamped to [0.05, 0.95] — the prototype's cap, so twenty weak signals
+ * cannot fake certainty. */
 export function oracleGuess(
   theta: readonly number[],
   L: readonly number[],
   marginal: number,
+  tau: number = 1,
 ): { p0: number; pred: 0 | 1; conf: number } {
   let dot = 0;
   for (let i = 0; i < theta.length; i++) dot += theta[i] * (L[i] ?? 0);
-  const xhat = marginal + dot; // expected encoded answer, in [-1, 1]-ish
+  const xhat = marginal + tau * dot; // expected encoded answer, in [-1, 1]-ish
   const p0 = Math.max(0.05, Math.min(0.95, (1 + xhat) / 2));
   const pred = p0 >= 0.5 ? 0 : 1;
   return { p0, pred, conf: pred === 0 ? p0 : 1 - p0 };
+}
+
+/**
+ * How much of a loading the viewer's answers leave undetermined, as a
+ * SHARE of what no evidence at all would leave (`|L|²/λ`, the prior's
+ * own): 1 with nothing answered, falling toward 0 as the answers pin the
+ * direction. After n answers along a unit loading it is λ/(n+λ), so
+ * "pinned" past one half means the answers outweigh the prior.
+ */
+export function undeterminedShare(invA: readonly number[][], L: readonly number[], lambda: number): number {
+  const prior = L.reduce((a, x) => a + x * x, 0) / lambda;
+  if (!(prior > 0)) return 0;
+  return Math.max(0, Math.min(1, undetermined(invA, L) / prior));
+}
+
+/** Past this share the viewer's vector counts as pinned along a loading. */
+export const ASK_LEARN_SHARE = 0.5;
+/** Every this-many-th turn stays informative once the vector is pinned,
+ * so the Oracle keeps learning while it shows what it knows. */
+export const ASK_LEARN_EVERY = 4;
+
+/**
+ * Learn first, then call (D435 — the schedule on the owner's rule of
+ * D396). While the viewer's vector is still undetermined along some
+ * candidate's loading, ask the informative question — the one it learns
+ * most from, which is what makes the Oracle look worst while it learns
+ * fastest. Once every candidate is pinned past ASK_LEARN_SHARE, ask the
+ * one the model leans hardest on — the surest call — with every
+ * ASK_LEARN_EVERY-th turn still informative. `turn` is how many answers
+ * the record already holds, so the rhythm is the record's own and not a
+ * die; ties keep candidate order. Returns the index into `candidates`,
+ * or −1 for none.
+ */
+export function nextToAsk(
+  invA: readonly number[][],
+  candidates: readonly { L: readonly number[]; lean: number }[],
+  lambda: number,
+  turn: number,
+): number {
+  if (!candidates.length) return -1;
+  const informative = mostInformative(invA, candidates);
+  if (turn % ASK_LEARN_EVERY === ASK_LEARN_EVERY - 1) return informative;
+  let maxShare = 0;
+  for (const c of candidates) maxShare = Math.max(maxShare, undeterminedShare(invA, c.L, lambda));
+  if (maxShare > ASK_LEARN_SHARE) return informative;
+  let best = -1;
+  let bestLean = -Infinity;
+  candidates.forEach((c, i) => { if (c.lean > bestLean + 1e-12) { bestLean = c.lean; best = i; } });
+  return best;
 }
 
 /** Surprisal of the actual answer under the sealed guess, in bits — a

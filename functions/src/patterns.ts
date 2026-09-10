@@ -117,6 +117,7 @@ import {
 import { mergeSample, sampleAdditions, type SampleDoc } from "./patternsSamples";
 import {
   ALS_LAMBDAS_U,
+  ALS_TAUS,
   PATTERNS_CROSSOVER_NIGHTS,
   alsFit,
   alsScoreDay,
@@ -183,6 +184,10 @@ export const PATTERNS_CATCHUP_DAYS = 7;
 /** The device ridge the ONLINE engine's scorecard is measured at — the
  * shipped `estimateTheta` default, published so the phone reads it. */
 export const SGD_LAMBDA_U = 0.5;
+/** The online engine's link slope — the shipped link, never swept: its
+ * scorecard is the fold's own arm (patternsFit.foldUserDay), which
+ * guesses `marginal + θ·L` as it always has. */
+export const SGD_TAU = 1;
 
 export interface PatternsLedgerEntry {
   uid: string;
@@ -216,8 +221,15 @@ export interface PatternsCandidate {
   /** Consecutive nights this candidate has out-skilled the engine. */
   streak: number;
   /** The candidate's pooled bits under each device ridge tried tonight —
-   * the reader's view of why `lambdaU` is what it is. */
+   * the reader's view of why `lambdaU` is what it is (the best link slope
+   * for that ridge). */
   lambdaSweep?: Record<string, number>;
+  /** The link's slope this scorecard was measured at (D435): the guess is
+   * `marginal + tau·θ·L`, and the phone reads it beside `lambdaU`. */
+  tau?: number;
+  /** Pooled bits under each slope tried tonight, at that slope's best
+   * ridge — why `tau` is what it is. */
+  tauSweep?: Record<string, number>;
 }
 
 /** The whole loadings document, minus the server clock. Read and written
@@ -235,6 +247,9 @@ export interface PatternsPublication {
   items?: Record<string, ItemMeta>;
   /** The device ridge the engine's scorecard was measured at. */
   lambdaU: number;
+  /** The link slope the engine's scorecard was measured at (D435); the
+   * online engine's is the shipped 1. Absent on a document before it. */
+  tau?: number;
   quality?: PatternsQuality;
   displacement: PatternsDisplacement;
   seeds: PatternsSeeds;
@@ -361,6 +376,11 @@ export async function runPatternsFit(
   const alsQualityPrev = engine === "als" ? prev?.quality : prev?.candidates.als?.quality;
   const alsStreakPrev = engine === "als" ? 0 : (prev?.candidates.als?.streak ?? 0);
   const alsLambdaPrev = engine === "als" ? (prev?.lambdaU ?? ALS_LAMBDAS_U[0]) : (prev?.candidates.als?.lambdaU ?? ALS_LAMBDAS_U[0]);
+  const alsTauPrev = engine === "als" ? (prev?.tau ?? SGD_TAU) : (prev?.candidates.als?.tau ?? SGD_TAU);
+  // the (ridge, slope) grid the candidate is scored on (D395, D435)
+  const gridKey = (lam: number, tau: number): string => `${lam}|${tau}`;
+  const grid: { lam: number; tau: number }[] = [];
+  for (const lam of ALS_LAMBDAS_U) for (const tau of ALS_TAUS) grid.push({ lam, tau });
   // the published rows each displacement compares against
   const prevSgdPub: Record<string, number[]> = {};
   for (const [qid, r] of Object.entries(sgdRows)) prevSgdPub[qid] = [...r.v];
@@ -394,14 +414,15 @@ export async function runPatternsFit(
   // its n: 0 row, so the series says "no answers" out loud rather than
   // skipping the date (the putModel zero-rather-than-nothing idiom).
   const scored: { day: string; score: PatternsDayScore }[] = [];
-  // The candidate's tally for the same days, under each device ridge
-  // tried — the best of them is what it publishes as its scorecard.
-  const alsScored = new Map<number, { day: string; score: PatternsDayScore }[]>();
-  for (const lam of ALS_LAMBDAS_U) alsScored.set(lam, []);
+  // The candidate's tally for the same days, under each device ridge and
+  // link slope tried — the best pair is what it publishes as its
+  // scorecard, and what the phone is told to solve and guess with.
+  const alsScored = new Map<string, { day: string; score: PatternsDayScore }[]>();
+  for (const g of grid) alsScored.set(gridKey(g.lam, g.tau), []);
   for (const day of days) {
     const score = emptyDayScore();
     scored.push({ day, score });
-    for (const lam of ALS_LAMBDAS_U) alsScored.get(lam)!.push({ day, score: emptyDayScore() });
+    for (const g of grid) alsScored.get(gridKey(g.lam, g.tau))!.push({ day, score: emptyDayScore() });
     const dayEntries = await store.ledgerDay(day);
     const entries = dayEntries.filter(
       (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
@@ -544,9 +565,9 @@ export async function runPatternsFit(
     }
     const marginalStart = new Map<string, { n: number; sum: number }>();
     for (const [qid, L] of Object.entries(model.q)) marginalStart.set(qid, { n: L.n, sum: L.sum });
-    for (const lam of ALS_LAMBDAS_U) {
-      const rows = alsScored.get(lam)!;
-      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, lam, known);
+    for (const g of grid) {
+      const rows = alsScored.get(gridKey(g.lam, g.tau))!;
+      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, g.lam, known, g.tau);
     }
     const write = new Map<string, PatternsUserState>();
     for (const uid of uids) {
@@ -630,7 +651,7 @@ export async function runPatternsFit(
     // says that is that everybody was already folded.
     if (!score.n && refolded > 0) {
       scored.pop();
-      for (const lam of ALS_LAMBDAS_U) alsScored.get(lam)!.pop();
+      for (const g of grid) alsScored.get(gridKey(g.lam, g.tau))!.pop();
     }
   }
 
@@ -673,23 +694,38 @@ export async function runPatternsFit(
   // a question with an answer — D325's unaligned displacement was defined
   // for the online fit, which folds one persistent model forward).
   let bestLambda = alsLambdaPrev;
+  let bestTau = alsTauPrev;
   const lambdaSweep: Record<string, number> = {};
+  const tauSweep: Record<string, number> = {};
   if (scored.length) {
     let best = Infinity;
-    for (const lam of ALS_LAMBDAS_U) {
-      const rows = alsScored.get(lam)!;
+    const round4 = (x: number) => Math.round(x * 10000) / 10000;
+    for (const g of grid) {
+      const rows = alsScored.get(gridKey(g.lam, g.tau))!;
       const n = rows.reduce((a, r) => a + r.score.n, 0);
       const bits = rows.reduce((a, r) => a + r.score.bits, 0);
       const mean = n > 0 ? bits / n : Infinity;
-      lambdaSweep[String(lam)] = n > 0 ? Math.round((bits / n) * 10000) / 10000 : 0;
-      if (mean < best - 1e-12) { best = mean; bestLambda = lam; }
+      // each sweep reads the OTHER knob at its best, so a reader sees one
+      // curve per knob rather than the whole grid
+      if (n > 0) {
+        const lk = String(g.lam), tk = String(g.tau);
+        lambdaSweep[lk] = Math.min(lambdaSweep[lk] ?? Infinity, round4(mean));
+        tauSweep[tk] = Math.min(tauSweep[tk] ?? Infinity, round4(mean));
+      }
+      if (mean < best - 1e-12) { best = mean; bestLambda = g.lam; bestTau = g.tau; }
     }
-    // no observation scored tonight: keep last night's ridge rather than
-    // "win" on an empty comparison
-    if (!Number.isFinite(best)) bestLambda = alsLambdaPrev;
+    // no observation scored tonight: keep last night's ridge and slope
+    // rather than "win" on an empty comparison — and say the sweeps saw
+    // nothing, zero being the scorecard's own idiom for that
+    if (!Number.isFinite(best)) {
+      bestLambda = alsLambdaPrev;
+      bestTau = alsTauPrev;
+      for (const lam of ALS_LAMBDAS_U) lambdaSweep[String(lam)] = 0;
+      for (const tau of ALS_TAUS) tauSweep[String(tau)] = 0;
+    }
   }
   const alsQuality = scored.length
-    ? publishableQuality(alsScored.get(bestLambda)!, alsQualityPrev?.series ?? [])
+    ? publishableQuality(alsScored.get(gridKey(bestLambda, bestTau))!, alsQualityPrev?.series ?? [])
     : alsQualityPrev;
   const people: ({ uid: string; a: AnswerMap } & PersonKnown)[] = [];
   await store.scanUsers((uid, st) => {
@@ -804,12 +840,15 @@ export async function runPatternsFit(
     lambdaU: bestLambda,
     streak: nextEngine === "sgd" ? candidateStreak : 0,
     lambdaSweep,
+    tau: bestTau,
+    tauSweep,
   };
   const sgdCandidate: PatternsCandidate = {
     q: sgdRowsOut,
     ...(sgdQuality ? { quality: sgdQuality } : {}),
     displacement: sgdDisplacement,
     lambdaU: SGD_LAMBDA_U,
+    tau: SGD_TAU,
     streak: nextEngine === "als" ? candidateStreak : 0,
   };
   const enginePub = { q: engineRows, items: engineItems };
@@ -821,6 +860,7 @@ export async function runPatternsFit(
     q: engineRows,
     ...(engineItems ? { items: engineItems } : {}),
     lambdaU: nextEngine === "als" ? bestLambda : SGD_LAMBDA_U,
+    tau: nextEngine === "als" ? bestTau : SGD_TAU,
     ...((nextEngine === "als" ? alsQuality : sgdQuality) ? { quality: nextEngine === "als" ? alsQuality : sgdQuality } : {}),
     displacement: nextEngine === "als" ? alsDisplacement : sgdDisplacement,
     // Distance from birth, not from last night: the one number that says
@@ -894,6 +934,7 @@ export function firestorePatternsStore(
         q: d.q ?? {},
         ...(d.items ? { items: d.items } : {}),
         lambdaU: typeof d.lambdaU === "number" ? d.lambdaU : SGD_LAMBDA_U,
+        ...(typeof d.tau === "number" ? { tau: d.tau } : {}),
         ...(d.quality ? { quality: d.quality } : {}),
         displacement: d.displacement ?? EMPTY_DISPLACEMENT,
         seeds: d.seeds ?? { n: 0, meanCos: 0, share90: 0, meanNorm: 0, seedNorm: 0 },

@@ -67,7 +67,7 @@ import type { LiveQuestion } from "./deck";
 import {
   DEFAULT_LAMBDA_U,
   mapGeometry,
-  mostInformative,
+  nextToAsk,
   oracleGuess,
   ridgeSolve,
   surprisalBits,
@@ -81,6 +81,10 @@ const LS = "insight.patterns.oracle.v1";
 
 export interface PoolItem {
   q: LiveQuestion;
+  /** Which corpus the question came from — the daily archive or the core
+   * feed (D436: the People lens fetches the daily's lists first, since
+   * everyone answers the same daily). */
+  surface: "daily" | "feed";
   L: number[];
   /** Answers the fit folded — the loading's basis. */
   n: number;
@@ -242,6 +246,8 @@ interface LoadingsDoc {
   items?: Record<string, LoadingsItem>;
   /** The device ridge the engine's scorecard was measured at (D395). */
   lambdaU?: number;
+  /** The link's slope it was measured at (D435); 1 on a document before it. */
+  tau?: number;
   engine?: "sgd" | "als";
 }
 
@@ -315,6 +321,7 @@ export function ensureLive(force = false): Promise<void> {
           q: (snap.get("q") as LoadingsDoc["q"]) ?? {},
           ...(snap.get("items") ? { items: snap.get("items") as LoadingsDoc["items"] } : {}),
           ...(typeof snap.get("lambdaU") === "number" ? { lambdaU: snap.get("lambdaU") as number } : {}),
+          ...(typeof snap.get("tau") === "number" ? { tau: snap.get("tau") as number } : {}),
           ...(snap.get("engine") ? { engine: snap.get("engine") as LoadingsDoc["engine"] } : {}),
         }
         : null;
@@ -348,12 +355,14 @@ function pool(): PoolItem[] {
   const votes = LIVE.myVotes();
   const out: PoolItem[] = [];
   const seen = new Set<string>();
-  for (const q of [...LIVE.aggregated(), ...LIVE.coreFeedAggregated()]) {
+  const corpora: [LiveQuestion[], "daily" | "feed"][] = [[LIVE.aggregated(), "daily"], [LIVE.coreFeedAggregated(), "feed"]];
+  for (const [list, surface] of corpora) for (const q of list) {
     const row = loadings.q[q.id];
     if (!row || q.options.length !== 2 || seen.has(q.id)) continue;
     seen.add(q.id);
     out.push({
       q,
+      surface,
       L: row.v,
       n: row.n,
       marginal: row.n > 0 ? row.sum / row.n : 0,
@@ -368,6 +377,12 @@ function pool(): PoolItem[] {
  * document that predates the field. */
 function lambdaU(): number {
   return loadings?.lambdaU ?? DEFAULT_LAMBDA_U;
+}
+
+/** The link's slope (D435), read off the doc like the ridge; the shipped
+ * link for a document that predates the field. */
+function tau(): number {
+  return loadings?.tau ?? 1;
 }
 
 // ── the cohort prior (D432) ─────────────────────────────────────────────
@@ -528,10 +543,28 @@ export const PATTERNS = {
   nextAsk(minBasis = 8): PoolItem | null {
     const cands = pool().filter((p) => p.mine == null && p.n >= minBasis);
     if (!cands.length || !loadings) return null;
-    const { invA } = ridgeSolve(evidence(), loadings.k, lambdaU());
-    const i = mostInformative(invA, cands);
+    const lam = lambdaU();
+    const t = tau();
+    // what the answers have pinned — the precision is centre-agnostic —
+    // and, for the call, the live centre's own lean on each candidate
+    // (D435: learn first, then call; patternsMap.nextToAsk)
+    const { invA } = ridgeSolve(evidence(), loadings.k, lam);
+    const theta = ridgeSolve(evidence(undefined, ORACLE_CENTRE), loadings.k, lam).theta;
+    const rows = loadings.q;
+    const withLean = cands.map((p) => {
+      const row = rows[p.q.id];
+      const centre = row ? binCentre(p.q.id, row, ORACLE_CENTRE) : p.marginal;
+      const g = oracleGuess(theta, p.L, centre, t);
+      // the guess's distance from the crowd's base rate, in encoded units
+      return { L: p.L, lean: Math.abs(2 * g.p0 - 1 - p.marginal) };
+    });
+    const turn = logSaved().filter((r) => r.bits != null).length;
+    const i = nextToAsk(invA, withLean, lam, turn);
     return cands[i] ?? null;
   },
+  /** The link's slope the fit chose (D435), for a reader that guesses
+   * itself. */
+  tau,
   /** The viewer's evidence, for a fold that solves them itself (the
    * People lens's own dot). */
   evidence,
@@ -566,12 +599,13 @@ export const PATTERNS = {
     // its own centre. One is the seal, the other its shadow; both are
     // graded on the same answer, and the record says which was which.
     const lam = lambdaU();
+    const t = tau();
     const thetaW = ridgeSolve(evidence(qid, "world"), loadings.k, lam).theta;
-    const gw = oracleGuess(thetaW, target.L, target.marginal);
+    const gw = oracleGuess(thetaW, target.L, target.marginal, t);
     const prior = priorFor(qid, [(1 + target.marginal) / 2, (1 - target.marginal) / 2]);
     const mc = prior ? 2 * prior.shares[0] - 1 : target.marginal;
     const thetaC = ridgeSolve(evidence(qid, "cohort"), loadings.k, lam).theta;
-    const gc = oracleGuess(thetaC, target.L, mc);
+    const gc = oracleGuess(thetaC, target.L, mc, t);
     const [live, shadow] = ORACLE_CENTRE === "cohort" ? [gc, gw] : [gw, gc];
     const rec: OracleRecord = {
       qid,
@@ -649,6 +683,13 @@ export const PATTERNS = {
     worldBits: number;
     based: number;
     baseBits: number;
+    /** Mean bits of the LIVE guess over the same records `baseBits` is
+     * measured on — so `skill` compares like with like. */
+    basedBits: number;
+    /** 1 − basedBits/baseBits over the records that stored a base rate
+     * (D435): the share of plain guessing's surprisal the Oracle removed
+     * for this viewer. 0 with nothing to compare; negative is honest. */
+    skill: number;
   } {
     const graded = logSaved().filter((r) => r.bits != null);
     const called = graded.filter((r) => r.pred === r.mine).length;
@@ -658,6 +699,8 @@ export const PATTERNS = {
     const cohortBits = mean(both.map((r) => (r.centre === "cohort" ? (r.bits as number) : (r.alt!.bits as number))));
     const worldBits = mean(both.map((r) => (r.centre === "cohort" ? (r.alt!.bits as number) : (r.bits as number))));
     const withBase = graded.filter((r) => r.baseBits != null);
+    const baseBits = mean(withBase.map((r) => r.baseBits as number));
+    const basedBits = mean(withBase.map((r) => r.bits as number));
     return {
       records: graded,
       called,
@@ -666,7 +709,9 @@ export const PATTERNS = {
       cohortBits,
       worldBits,
       based: withBase.length,
-      baseBits: mean(withBase.map((r) => r.baseBits as number)),
+      baseBits,
+      basedBits,
+      skill: withBase.length && baseBits > 0 ? 1 - basedBits / baseBits : 0,
     };
   },
   /** The pair card's exact table: the two questions' bounded voter
