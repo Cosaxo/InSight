@@ -25,6 +25,7 @@ afterEach(() => {
   vi.doUnmock("./sentry");
   vi.unstubAllEnvs();
   OK.subscribeToAuth.mockClear();
+  OK.init.mockClear();
   REPORT.mockClear();
 });
 
@@ -64,6 +65,11 @@ describe("the memoised SDK loader", () => {
     await expect(mod.getFirestoreApi()).resolves.toBeTruthy();
     await expect(mod.getFirestoreApi()).resolves.toBeTruthy();
     expect(calls(), "the SDK was imported twice for two callers").toBe(1);
+    // …AND IT INITIALISES FIREBASE, which is the one line in `impl()` that
+    // nothing asked about. Deleting `m.init(config)` — the call that
+    // constructs the app, Auth, Firestore and the App Check attestation
+    // behind it — left every suite here, `tsc -b` and eslint green.
+    expect(OK.init, "the SDK was imported and never initialised").toHaveBeenCalledTimes(1);
   });
 });
 
