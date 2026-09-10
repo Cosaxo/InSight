@@ -498,6 +498,112 @@ if (!playProse.length) {
   }
 }
 
+// ── 7. THE TWO STORES AGAINST EACH OTHER ────────────────────────────
+//
+// Rules 1-2 hold Apple's form to its prose twin; rule 6 holds Play's form
+// to its prose twin. Nothing joined the two pairs, so one datum could be
+// declared collected on one store and not on the other and both halves
+// would still agree with their own copy.
+//
+// That is not hypothetical and it is not new. `play-data-safety.json`'s
+// own `$photos` note records it happening: Photos sat inside a bundled
+// `collected: false` row while Apple's form declared PHOTOS_OR_VIDEOS
+// collected, "and BOTH carried the bundled No, so rule 6 compared two
+// copies of the same wrong answer". That fix corrected the answer and did
+// not add the join, so the identical divergence stayed invisible.
+// Measured 2026-09-10: setting Play's Photos row to `collected: false` in
+// BOTH copies, with Apple's row left collected, printed
+// "11 Play row(s) agree" and exited 0.
+//
+// WHAT THIS RULE DOES NOT DO: decide a filing. It changes no declared
+// answer. It asserts that the pairs which already name the same datum
+// keep answering the same way, and that a type or row appearing on one
+// store cannot be silently absent from this map — a new one must be
+// paired here or written into DIVERGENT below with its reason. Under-
+// declaring is the direction rule 2's own comment calls "what gets an
+// app pulled".
+const CROSS_STORE = new Map([
+  ["USER_ID", "Personal info → User IDs"],
+  ["EMAIL_ADDRESS", "Personal info → Email address"],
+  ["NAME", "Personal info → Name"],
+  ["COARSE_LOCATION", "Location → Approximate location"],
+  ["PRECISE_LOCATION", "Location → Precise location"],
+  ["PHOTOS_OR_VIDEOS", "Photos and videos → Photos"],
+  ["SENSITIVE_INFO", "Personal info → Political or religious beliefs"],
+  ["CRASH_DATA", "App info & performance → Crash logs"],
+]);
+
+/**
+ * The pairs that do NOT line up today, each with what it waits on. These
+ * are carried, not endorsed — the same stance `$openBeforeFiling` takes in
+ * play-data-safety.json, and for three of them the same three answers.
+ * A divergence listed here is visible; one that is not listed is a
+ * failure.
+ */
+const DIVERGENT = new Map([
+  ["PRODUCT_INTERACTION", "Apple declares it for ANALYTICS; Play's App activity row is "
+    + "bundled at collected:false. play-data-safety.json's $openBeforeFiling names this "
+    + "one of three answers not settled (the App activity row against D270/D272)."],
+  ["OTHER_USER_CONTENT", "no Play row names it. Play has no general user-content "
+    + "category and nobody has derived which of its rows takes answers and takes. "
+    + "Unreviewed, and it is an under-declaration on Play if the answer is a row."],
+  ["HEALTH", "no Play row names it. Same shape as OTHER_USER_CONTENT and the same "
+    + "unreviewed state."],
+  ["Personal info → Gender", "declared on Play, no Apple type declared. Apple folds "
+    + "gender into SENSITIVE_INFO or OTHER_DATA and neither is filed for it; "
+    + "unreviewed, and it is the under-declaration pointing the other way."],
+]);
+
+{
+  const playByKey = new Map((playJson.rows ?? []).map((r) => [norm(r.category), r]));
+  const appleTypes = new Set(privacy.collected.map((r) => norm(r.type)));
+
+  for (const [type, category] of CROSS_STORE) {
+    const row = playByKey.get(norm(category));
+    if (!row) {
+      errors.push(
+        `cross-store: ${type} is paired with the Play row ${JSON.stringify(category)},\n`
+        + "    which play-data-safety.json no longer has. The pairing is what keeps the\n"
+        + "    two filings answering alike — repair it here, do not drop it.",
+      );
+      continue;
+    }
+    const onApple = appleTypes.has(norm(type));
+    if (onApple !== row.collected) {
+      errors.push(
+        `cross-store: ${type} is ${onApple ? "" : "NOT "}collected on Apple and\n`
+        + `    ${JSON.stringify(category)} is ${row.collected ? "" : "NOT "}collected on Play.\n`
+        + "    It is the same datum and the same upload path serves both stores, so the\n"
+        + "    two forms cannot answer differently. This is the join that was missing\n"
+        + "    when Photos was under-declared on Play for weeks.",
+      );
+    }
+  }
+
+  // The completeness half: nothing may be absent from both lists.
+  for (const t of appleTypes) {
+    if (!CROSS_STORE.has(t) && !DIVERGENT.has(t)) {
+      errors.push(
+        `cross-store: app-privacy.json declares ${t} and this map does not mention it.\n`
+        + "    Pair it with its Play row in CROSS_STORE, or write it into DIVERGENT with\n"
+        + "    the reason it has no counterpart. A type in neither list is a store answer\n"
+        + "    nobody has compared.",
+      );
+    }
+  }
+  const paired = new Set([...CROSS_STORE.values()].map(norm));
+  for (const [k, row] of playByKey) {
+    if (!row.collected) continue;
+    if (!paired.has(k) && !DIVERGENT.has(row.category)) {
+      errors.push(
+        `cross-store: play-data-safety.json collects ${JSON.stringify(row.category)} and\n`
+        + "    this map does not mention it. Pair it with its Apple type in CROSS_STORE,\n"
+        + "    or write it into DIVERGENT with the reason.",
+      );
+    }
+  }
+}
+
 if (errors.length) {
   console.error("\ncheck-store-forms: the two copies of the store answers disagree:\n");
   for (const e of errors) console.error(`  ${e}\n`);
