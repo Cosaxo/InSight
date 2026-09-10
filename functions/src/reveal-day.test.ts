@@ -170,6 +170,45 @@ describe("the roster the transaction read", () => {
     expect(Object.keys(g), "the erased member was stamped for the next round")
       .not.toContain("pushAt.u3");
   });
+
+  // …AND THE OTHER DIRECTION, which the fresh roster alone gets wrong.
+  // `revealMembersFor` FILTERS the roster it is given, so someone who
+  // ANSWERED this round and left before the transaction read the group
+  // would fall out of `members` — while their vote is published anyway,
+  // because `freshVotes` is keyed on the page roster. `members` is the
+  // index deleteAccount's phase 1c-bis queries reveals by ("membership-
+  // independent by construction, so it covers left groups"), so a voter
+  // missing from it is a vote and a name no erasure can reach. The page's
+  // roster had the same hole one read earlier; the union closes it.
+  it("keeps a member who ANSWERED and then left, so the erasure can still reach them", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], round: ROUND,
+      played: { [KEY]: ["u1", "u2", "u3"] }, streak: 0,
+      memberNames: { u1: "Bo", u2: "Ada", u3: "Went" },
+      ...DUE,
+    });
+    fresh.set(`v2_groups/${GID}`, {
+      ...store.get(`v2_groups/${GID}`)!, memberUids: ["u1", "u2"],
+    });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    store.set(...answer("u3", "qA", 2));   // they played, then left
+
+    expect(
+      await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot),
+    ).toBe(true);
+
+    const rev = store.get(`v2_groups/${GID}/reveals/${KEY}`) as Doc;
+    expect(Object.keys(rev.votes as Doc), "their vote was published")
+      .toContain("u3");
+    expect(rev.members, "a published vote with no `members` row is unerasable")
+      .toContain("u3");
+    // …and they are still not nudged about the NEXT round, which is the
+    // half `freshRoster` alone gets right.
+    const g = store.get(`v2_groups/${GID}`) as Doc;
+    expect(Object.keys(g), "a member who left was stamped for the next round")
+      .not.toContain("pushAt.u3");
+  });
 });
 
 describe("a reveal that lost the race", () => {

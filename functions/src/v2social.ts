@@ -974,8 +974,18 @@ export async function revealRound(
     // the `members` field, and as the set the `names` map is cut down to,
     // so the reveal never names someone it does not record as present
     // (the erasure sweep walks `members`; a stray name would outlive it).
+    // THE UNION, and the union is the point. `revealMembersFor` FILTERS the
+    // roster it is given — `playedUids` is a reason to KEEP a uid, never a
+    // reason to add one — so handing it the fresh roster alone would drop
+    // someone who answered this round and left before the transaction read
+    // the group. Their vote is still published below (`freshVotes` is keyed
+    // on the page roster, so it has them), and `members` is the index
+    // deleteAccount's phase 1c-bis queries by: a voter missing from it is a
+    // vote and a name that no erasure can ever reach. The page's roster had
+    // the same hole one read earlier; the union closes it for both.
+    const revealRoster = [...new Set([...freshRoster, ...Object.keys(freshVotes)])];
     const revealMembers = revealMembersFor(
-      freshRoster,
+      revealRoster,
       joinedAtMs(gsnap.get("memberJoinedAt")),
       tsMs(gsnap.get("roundOpenedAt")),
       Object.keys(freshVotes),
