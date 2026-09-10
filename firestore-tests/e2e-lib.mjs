@@ -40,7 +40,19 @@ export const expectRefusal = async (label, code, op) => {
   try {
     await op();
   } catch (e) {
-    if (e?.code === code) return String(e?.message ?? e);
+    if (e?.code === code) {
+      // A refusal BY BUDGET is not the refusal under test (D431, D438):
+      // Firestore stopped the rule at 1,000 expressions before it could
+      // render a verdict, and reports the stop as permission-denied. For
+      // a day thirteen of this suite's denials were that, and it was
+      // green. The emulator says so in the message, and every denial in
+      // the e2e passes through here.
+      const text = String(e?.message ?? e);
+      if (/maximum of 1000 expressions/i.test(text)) {
+        return fail(`${label} — refused by BUDGET, not by a rule: ${text.slice(0, 160)}`);
+      }
+      return text;
+    }
     return fail(`${label} — expected ${code}, got ${e?.code || e}`);
   }
   return fail(`${label} — the operation was ALLOWED`);

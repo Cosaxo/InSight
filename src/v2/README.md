@@ -633,8 +633,30 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **30 across 8
+prints the current total on every run. The count today is **27 across 7
 files**, down from 799 when the ratchet landed.
+
+That number was 28 before the scanner learned the BARE shape, went to 32
+when it did, and came back to 28 because the four it found were taken off
+in the same night — then to the 27 above, because the duo body's reader
+was converted the same night in the other shift (`daily-split.jsx`
+`React.lazy`s the module instead of reading `window.DuoBody` at render
+time). The middle figure is the one worth remembering: for as
+long as the ratchet ran, four cross-module references sat outside it. `window.X`,
+the cast form, a JSX tag and `h(Foo, …)` were the four it could see; a
+bare identifier is none of them, so a plain `MapStats.dist(a, k)` in a
+module that neither defines nor imports the name moved this number not at
+all — and eslint stayed clean, because the same scanner seeds `no-undef`
+and a name it publishes is a name eslint accepts anywhere. That made the
+ratchet's own contract false for one shape: a module already converted
+off the bridge could be silently re-coupled. The four sites it found are
+older than the pass that found them, so the move is the meter's
+resolution rather than coupling growing, and both were cheap to take
+back: the three were one `GL` import in `city-overlay.jsx` — which took
+`glyph-icons.js` off the bridge entirely, since nothing else in the tree
+read the name — and the fourth was a bare `LIVE` in `search-overlay.jsx`
+that D354's sweep had missed, closed by the import every other spec
+module already has.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
 scanner already suppresses a JSX reference when the file declares the name
@@ -1116,15 +1138,53 @@ Four shapes recurred, and each is worth knowing before the next one:
   guard-shape list gains two entries from this pass: `typeof window.X ===
   'function' &&` and a whole `if (!window.X) return <fallback/>` block.
 
-What is left at **32** is structural, and the provider view says so in
+What is left at **30** is structural, and the provider view says so in
 one screen: the seven overlay tags `app-shell` mounts by name after
 awaiting `loadOverlays()` plus that loader itself (the lazy-mount
 contract, D38/D223 — converting those means holding the overlay
 namespaces the way `MirrorSlot` holds the Mirror's, a design change
 rather than a mechanical one), `WorldFeed` and `ConsequenceBeat` from the
-eager side, `DuoBody` for the same reason, `MAP_OPEN_GROUP` (world-feed →
-map-tab, across two lazy groups), `registerBackHandler` (a seam
+eager side, `DuoBody` for the same reason, `registerBackHandler` (a seam
 `dialog.test` stubs on the window), `RMCore`, `WORLD_FEED_QS` (four
 writers — the design change `world-catalogs.js`'s section describes), and
 `test-definitions.js`'s four `LIVE` reads. Each has its reason written
-beside it; none is a name a mechanical pass can take.
+beside it. This paragraph said **32** and "none is a name a mechanical
+pass can take" for one day; the section below is the name it was wrong
+about, and the reason is the one the two "end of the cheap seam" claims
+above already taught — the list was read off the paragraph, not off the
+tree.
+
+### `MAP_OPEN_GROUP` — a mailbox the typed cue had already replaced
+
+32 → 30, and `map-tab.jsx` leaves the per-file list. Not a provider
+module at all: `MAP_OPEN_GROUP` was a one-shot mailbox — the feed's Learn
+card wrote `window.MAP_OPEN_GROUP = 'g-know'` under its "See it" button
+and called `NAV.goTab('mirror')`, and `map-tab.jsx` read the name once,
+in its `openGroup` initializer, and deleted it. `data/mapCue.ts` (v28 §5,
+D207) was written to retire exactly that — its header names
+`MAP_OPEN_GROUP` as one of the three prototype globals it replaces — and
+`map-tab.jsx` had been reading `takeMapCue()` first and falling back to
+the window ever since. The sweep above listed the name as structural
+("across two lazy groups") because an *import* from `map-tab` to
+`world-feed` would indeed cross two lazy groups; the cue needs none,
+because the typed module lives in `data/` and was eager already —
+`app-shell` and `map-tab` imported it, and the feed's import is this
+change's one addition. The conversion is the feed's button calling
+`cueMap({ group: 'g-know' })` the way `ui/PulseTrends` does, and the
+fallback deleted.
+
+**It was also a bug, of the kind the guard-shape list predicts.** Only a
+freshly mounted `MapTab` ever read the global — the `onMapCue`
+subscription that re-aims an already-open Map reads the typed cue alone —
+and `NAV.goTab('mirror')` switched the tab (closing overlays, as `goTab`
+always does) without the switch to the You stop that `onMapCue`
+performs. So "See it" from a Learn card landed on whichever Mirror stop
+was last open, and opened the Knowledge group only if the Map happened
+to mount fresh. The typed route does both, and
+`test/map-cue-see-it.test.jsx` pins the button to it at both ends — the
+cue the tap leaves, and the Map open on the Knowledge group on the You
+stop after the shell's walk — because a name that leaves the bridge
+leaves every gate that was watching it. The first draft of the sentence
+above said the old path also skipped `closeAll()`; the adversarial
+review read `goTab` and it does not, which is the kind of claim this log
+exists to get right.

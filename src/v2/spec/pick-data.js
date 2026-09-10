@@ -873,6 +873,29 @@ export let PICK_QS;
       91: 2,    // Latin — below the floor; the classicist's bit
       0: 15,    // Not listed — the sign-language answer lives here too
     },
+    // daily catalog-question run, 2026-09-10 — the third videogames canon
+    // is the PLACE, not the game: pk37 asks what deserves the crown, pk38
+    // where the hours went; this asks which world you would actually move
+    // to, which selects for livable afternoons over great level design.
+    // The boards provably differ: Animal Crossing and No Man's Sky chart
+    // here and on neither other board, and pk37's GOAT leaders (Ocarina,
+    // BOTW's esteem seat) either vanish or survive only as scenery.
+    pk40: {
+      64566657: 21, // Animal Crossing: New Horizons — the island; the loan is somehow fine
+      49740: 18,    // Minecraft — a world you build before living in it
+      23013817: 15, // Stardew Valley — the farm, and a town that knows your name
+      17185964: 12, // The Legend of Zelda: Breath of the Wild — Hyrule as landscape, not quest
+      323862: 10,   // The Elder Scrolls V: Skyrim — the adventurer's retirement plan
+      12579896: 8,  // The Sims 4 — living inside it is the joke, and they mean it
+      27438121: 7,  // Red Dead Redemption 2 — the frontier romantic's vote
+      15297043: 6,  // No Man's Sky — a universe of quiet planets, one per person
+      131007: 6,    // World of Warcraft — Azeroth as hometown
+      3182559: 6,   // Cyberpunk 2077 — Night City, voted by people who'd last a week
+      17452: 5,     // Grand Theft Auto V — clears the floor, folds outside the top 10; Los Santos as a bit
+      64826862: 3,  // Elden Ring — below the floor; the Lands Between have no livable afternoons
+      275960: 2,    // Mass Effect — below the floor; the Citadel vote
+      0: 14,        // Not listed — everyone's private somewhere
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1100,7 +1123,7 @@ export let PICK_QS;
       },
       gender: {
         Women: { 440: 9, 223: 7, 261: 6, 2: 5, 86: 4 },
-        Men: { 467: 9, 533: 7, 2: 6, 440: 5, 165: 5 },
+        Men: { 467: 9, 533: 6, 2: 6, 440: 5, 165: 5 },
       },
     },
     pk20: {
@@ -1200,11 +1223,11 @@ export let PICK_QS;
       ageBand: {
         // the GOAT skews generational: the youth cell is the streaming
         // era's stars, the older cell the settled canon
-        '18-24': { 615: 9, 11571: 8, 36159: 6, 1189: 5, 7520267: 4 },
+        '18-24': { 615: 9, 11571: 8, 36159: 5, 1189: 5, 7520267: 4 },
         '25-34': { 36107: 8, 41421: 7, 615: 6, 1426: 5, 39562: 4 },
       },
       gender: {
-        Women: { 11459: 8, 7520267: 7, 615: 6, 36107: 5, 1189: 4 },
+        Women: { 11459: 8, 615: 6, 36107: 5, 7520267: 4, 1189: 4 },
         Men: { 36107: 9, 615: 8, 41421: 7, 11571: 6, 12897: 5 },
       },
     },
@@ -1223,7 +1246,7 @@ export let PICK_QS;
       ageBand: {
         // the youth cell pays for what it grew up streaming; the older
         // cell for what it remembers live
-        '18-24': { 352159: 8, 7520267: 7, 1189: 6, 615: 5, 39444: 4 },
+        '18-24': { 7520267: 7, 352159: 6, 1189: 6, 615: 5, 39444: 4 },
         '25-34': { 39444: 8, 1189: 7, 41421: 6, 1835: 5, 1426: 4 },
       },
       gender: {
@@ -1308,7 +1331,7 @@ export let PICK_QS;
         // the GOAT is generational: the youngest cell grew up inside
         // Minecraft, the middle one got Ocarina at nine, and the oldest
         // puts Tetris back on top — the board reorders, it never flips
-        '18-24': { 49740: 11, 64826862: 8, 17185964: 7, 27438121: 5, 71910: 4 },
+        '18-24': { 49740: 11, 17185964: 7, 64826862: 6, 27438121: 5, 71910: 4 },
         '25-34': { 213911: 9, 4267401: 8, 17452: 7, 49740: 6, 279446: 5 },
         '45+': { 71910: 8, 761815: 6, 213911: 5, 49740: 4 },
       },
@@ -1322,12 +1345,12 @@ export let PICK_QS;
         // hours follow eras: the youngest cell's hours live in Fortnite,
         // the middle one's in Skyrim saves, and the oldest cell's are
         // forty years of Tetris — the board reorders, it never flips
-        '18-24': { 349375: 10, 49740: 9, 223341: 7, 23013817: 5, 842146: 4 },
+        '18-24': { 49740: 9, 349375: 8, 223341: 7, 23013817: 5, 842146: 4 },
         '25-34': { 49740: 8, 323862: 8, 223341: 6, 17452: 6, 12579896: 5 },
-        '45+': { 71910: 7, 131007: 6, 323862: 4, 49740: 3 },
+        '45+': { 71910: 6, 131007: 6, 323862: 4, 49740: 3 },
       },
       gender: {
-        Women: { 12579896: 9, 23013817: 8, 49740: 7, 71910: 5, 323862: 4 },
+        Women: { 12579896: 9, 23013817: 7, 49740: 7, 71910: 5, 323862: 4 },
         Men: { 131007: 10, 223341: 9, 17452: 8, 842146: 7, 49740: 6 },
       },
     },
@@ -1343,6 +1366,21 @@ export let PICK_QS;
       gender: {
         Women: { 37: 14, 39: 8, 47: 5, 38: 4, 154: 3 },
         Men: { 37: 15, 182: 6, 39: 6, 38: 5, 57: 4 },
+      },
+    },
+    pk40: {
+      ageBand: {
+        // where you'd live follows what a world asks of you: the youngest
+        // cell still wants Minecraft's blank canvas, the middle one wants
+        // Animal Crossing's finished peace, and the oldest wants Skyrim —
+        // a world that leaves you alone — reorder, never flip
+        '18-24': { 49740: 9, 64566657: 7, 23013817: 5, 3182559: 4, 17185964: 3 },
+        '25-34': { 64566657: 8, 23013817: 7, 49740: 5, 17185964: 4, 3182559: 3 },
+        '45+': { 323862: 5, 64566657: 4, 23013817: 3, 131007: 3 },
+      },
+      gender: {
+        Women: { 64566657: 9, 23013817: 8, 12579896: 6, 49740: 5, 17185964: 4 },
+        Men: { 49740: 8, 323862: 7, 27438121: 6, 17185964: 5, 3182559: 4 },
       },
     },
   };
@@ -1519,6 +1557,7 @@ export let PICK_QS;
     { id: 'pk37', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The greatest video game ever made?', n: 151 },
     { id: 'pk38', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game you’ve sunk the most hours into?', n: 150 },
     { id: 'pk39', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'If the whole world had to share one language, which should it be?', n: 139 },
+    { id: 'pk40', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game world you’d actually live in?', n: 133 },
   ];
   window.PICK_QS = PICK_QS;
 })();

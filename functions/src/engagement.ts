@@ -26,6 +26,13 @@
 // regional sheet) — the coupling costs more than the reads. Revisit if
 // the pulse console's read tripwires ever say otherwise.
 //
+// RE-TAKEN THE OTHER WAY ROUND at DATA-EFFICIENCY-RUNBOOK 4.4: velocity
+// now rides the pass's memoised day reader (nightly.ts, ledger.ts) for
+// the whole days of its window and reads only its partial-day tail
+// itself. The cursor stays velocity's and the calendar day stays this
+// file's — what is shared is a reader, not a window, which is the
+// coupling the paragraph above was right to refuse.
+//
 // WHY A NIGHTLY SWEEP AND NOT A TRIGGER ARM: the same reason patterns.ts
 // gives — the trigger is the app's hottest path, pulse.test.mjs pins its
 // exact read count, and day-granular counts need nothing real-time.
@@ -538,9 +545,39 @@ export interface AttnDelta {
   qOther: number;
 }
 
+/**
+ * Tomorrow's shard sampling rate from tonight's count (DATA-EFFICIENCY-
+ * RUNBOOK 4.2). The fold is capped at SHARD_FOLD_CAP shards a night and
+ * every device wrote one a day at SHARD_SAMPLE_RATE = 1, so past ~20,000
+ * daily devices the pile never drained. The channel now samples itself:
+ * tonight's shards were drawn at `current`, so `shards / current` is the
+ * device population, and the rate that lands 80% of the cap tomorrow is
+ * `0.8 × cap / population` — which is `current × 0.8 × cap / shards`.
+ * Capped tonight means `shards` is the cap, not the population, and the
+ * factor is 0.8: the rate falls by a fifth a night until the pile fits,
+ * then settles. Clamped to what the rules admit on a shard ([MIN_SHARD_
+ * RATE, 1]) and rounded to three places, which is the rules' own floor.
+ * Estimates rescale by 1/rate as they always did, since every shard
+ * carries the rate it was drawn at.
+ */
+export function nextSampleRate(current: unknown, shards: number, cap = SHARD_FOLD_CAP): number {
+  const cur = typeof current === "number" && Number.isFinite(current)
+    ? Math.min(1, Math.max(MIN_SHARD_RATE, current))
+    : 1;
+  const factor = (0.8 * cap) / Math.max(1, shards);
+  const next = Math.min(1, Math.max(MIN_SHARD_RATE, cur * factor));
+  return Math.max(MIN_SHARD_RATE, Math.round(next * 1000) / 1000);
+}
+
 export interface AttentionStore {
   /** Up to `cap` shards, any day, any order. */
   shardPage(cap: number): Promise<AttentionShardDoc[]>;
+  /** The rate devices are drawing their coin at — `v2_meta/app.attnSampleRate`,
+   *  1 where nothing has been published (the client's own default). */
+  getSampleRate(): Promise<number>;
+  /** Publish tomorrow's rate, one merged field on the meta document every
+   *  device already reads at boot (runbook 4.2). */
+  putSampleRate(rate: number): Promise<void>;
   /** ONE atomic commit: merge the delta into the day doc's `attn`
    * section AND delete exactly these shards. */
   applyAttention(day: string, delta: AttnDelta, shardIds: string[]): Promise<void>;
@@ -614,7 +651,7 @@ export const MIN_SHARD_RATE = 0.001;
  * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
  * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
  * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
- * 1342 questions today, so a day cannot hold enough BANK qids to reach the
+ * 1415 questions today, so a day cannot hold enough BANK qids to reach the
  * fence. This said "the bank can double before this truncates anything
  * real" and check:figures kept the number current underneath it until the
  * claim expired: at 750 against 1,500 doubling lands exactly ON the fence,
@@ -760,7 +797,7 @@ export function foldShards(
 export async function runAttentionFold(
   store: AttentionStore,
   cap = SHARD_FOLD_CAP,
-): Promise<{ shards: number; days: number; capped: boolean }> {
+): Promise<{ shards: number; days: number; capped: boolean; rate: number }> {
   let folded = 0;
   // BY ID, not a count: an unfoldable shard is not deleted, so it comes
   // back on every page, and adding page lengths would count it once per
@@ -822,11 +859,26 @@ export async function runAttentionFold(
   }
 
   const shards = folded + skipped.size;
-  return { shards, days: days.size, capped: shards >= cap };
+  // The channel samples itself (runbook 4.2): tonight's count sets
+  // tomorrow's coin, published beside the counts every device reads.
+  const rate = nextSampleRate(await store.getSampleRate(), shards, cap);
+  await store.putSampleRate(rate);
+  return { shards, days: days.size, capped: shards >= cap, rate };
 }
 
 export function firestoreAttentionStore(db: Firestore): AttentionStore {
+  const metaRef = db.collection("v2_meta").doc("app");
   return {
+    async getSampleRate() {
+      const snap = await metaRef.get();
+      const r = snap.get("attnSampleRate");
+      return typeof r === "number" && Number.isFinite(r) ? r : 1;
+    },
+    async putSampleRate(rate) {
+      // Merged: the same document carries the patterns gate, the taste
+      // fold's numbers and the read breaker, each written by its own fold.
+      await metaRef.set({ attnSampleRate: rate }, { merge: true });
+    },
     async shardPage(cap) {
       const snap = await db.collection("v2_attention").limit(cap).get();
       return snap.docs.map((d) => ({
@@ -973,6 +1025,11 @@ export interface PeopleDelta {
 export interface RollupStore {
   /** Up to `cap` unfolded rollups, any day. */
   rollupPage(cap: number): Promise<RollupRow[]>;
+  /** How many rollups are still unfolded — asked only when the time
+   *  budget ended the night, so the warning can say what is left rather
+   *  than that something is (DATA-EFFICIENCY-RUNBOOK 4.1). A count
+   *  aggregation: one read per thousand index entries. */
+  countUnfolded(): Promise<number>;
   /** The uids' trailing fg windows (absent uid → no window yet). */
   getFgStates(uids: string[]): Promise<Map<string, number[]>>;
   /** ONE atomic commit: merge the delta into the day doc's `people`
@@ -1036,37 +1093,84 @@ export function foldRollups(rows: RollupRow[]): PeopleDelta {
   return delta;
 }
 
+/** How long one night may spend draining rollups before it hands the
+ * rest to tomorrow — 300 of the pass's 480 seconds, leaving the folds
+ * after it their share (DATA-EFFICIENCY-RUNBOOK 4.1). A page of
+ * ROLLUP_FOLD_CAP is the memory bound; the budget is the time bound; the
+ * two used to be one number, which meant the first page was the night. */
+export const ROLLUP_FOLD_BUDGET_MS = 300_000;
+
+export interface RollupFoldSummary {
+  rollups: number;
+  days: number;
+  /** True only when the TIME BUDGET ended the night with rollups still
+   *  unfolded — never because a page was full, since the loop below
+   *  simply asks for the next page. */
+  capped: boolean;
+  /** What the budget left unfolded, counted when it stopped the night;
+   *  0 otherwise. */
+  left: number;
+}
+
+/**
+ * Drain the unfolded rollups: page after page, oldest day first within
+ * each, until a short page (the collection is drained), a full page that
+ * folded nothing (every row left is junk this fold declines), or the
+ * time budget. Each page's chunks commit as they go, so a stop between
+ * pages loses nothing — the next night's first page is exactly what this
+ * one did not reach.
+ */
 export async function runRollupFold(
   store: RollupStore,
   cap = ROLLUP_FOLD_CAP,
-): Promise<{ rollups: number; days: number; capped: boolean }> {
-  const page = await store.rollupPage(cap);
-  const byDay = new Map<string, RollupRow[]>();
-  for (const row of page) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.day) || !row.uid) continue;
-    const list = byDay.get(row.day) || [];
-    list.push(row);
-    byDay.set(row.day, list);
-  }
-  // Oldest day first, so a uid with two late rollups advances its fg
-  // window in calendar order within this run.
-  const days = [...byDay.keys()].sort();
-  for (const day of days) {
-    const rows = byDay.get(day)!;
-    for (let i = 0; i < rows.length; i += ROLLUP_CHUNK) {
-      const chunk = rows.slice(i, i + ROLLUP_CHUNK);
-      const delta = foldRollups(chunk);
-      const states = await store.getFgStates(chunk.map((r) => r.uid));
-      const fgWindows = new Map<string, number[]>();
-      for (const row of chunk) {
-        const adv = advanceFgWindow(states.get(row.uid), clampInt(row.fgMin, 4));
-        fgWindows.set(row.uid, adv.fg7);
-        if (adv.fading) delta.fading++;
-      }
-      await store.applyRollups(day, delta, chunk.map((r) => ({ uid: r.uid, day: r.day })), fgWindows);
+  opts: { budgetMs?: number; nowMs?: () => number } = {},
+): Promise<RollupFoldSummary> {
+  const budget = opts.budgetMs ?? ROLLUP_FOLD_BUDGET_MS;
+  const clock = opts.nowMs ?? Date.now;
+  const started = clock();
+  let rollups = 0;
+  const daysSeen = new Set<string>();
+  let capped = false;
+  for (;;) {
+    const page = await store.rollupPage(cap);
+    if (!page.length) break;
+    rollups += page.length;
+    const byDay = new Map<string, RollupRow[]>();
+    for (const row of page) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(row.day) || !row.uid) continue;
+      const list = byDay.get(row.day) || [];
+      list.push(row);
+      byDay.set(row.day, list);
     }
+    // Oldest day first, so a uid with two late rollups advances its fg
+    // window in calendar order within this run.
+    const days = [...byDay.keys()].sort();
+    let folded = 0;
+    for (const day of days) {
+      daysSeen.add(day);
+      const rows = byDay.get(day)!;
+      for (let i = 0; i < rows.length; i += ROLLUP_CHUNK) {
+        const chunk = rows.slice(i, i + ROLLUP_CHUNK);
+        const delta = foldRollups(chunk);
+        const states = await store.getFgStates(chunk.map((r) => r.uid));
+        const fgWindows = new Map<string, number[]>();
+        for (const row of chunk) {
+          const adv = advanceFgWindow(states.get(row.uid), clampInt(row.fgMin, 4));
+          fgWindows.set(row.uid, adv.fg7);
+          if (adv.fading) delta.fading++;
+        }
+        await store.applyRollups(day, delta, chunk.map((r) => ({ uid: r.uid, day: r.day })), fgWindows);
+        folded += chunk.length;
+      }
+    }
+    // A short page is the end. A full page that folded nothing is a page
+    // of junk rows the fold declines and never marks — asking again
+    // returns the same ones forever, the attention fold's own rule.
+    if (page.length < cap || folded === 0) break;
+    if (clock() - started > budget) { capped = true; break; }
   }
-  return { rollups: page.length, days: byDay.size, capped: page.length >= cap };
+  const left = capped ? await store.countUnfolded() : 0;
+  return { rollups, days: daysSeen.size, capped, left };
 }
 
 export function firestoreRollupStore(db: Firestore): RollupStore {
@@ -1116,6 +1220,10 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
         stops: d.get("stops"),
         lenses: d.get("lenses"),
       }));
+    },
+    async countUnfolded() {
+      const agg = await db.collectionGroup("engagement").where("folded", "==", false).count().get();
+      return agg.data().count;
     },
     async getFgStates(uids) {
       const out = new Map<string, number[]>();

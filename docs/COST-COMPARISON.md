@@ -15,8 +15,8 @@ that a lot*, which is a different question and needs something the model
 cannot supply: somebody else's invoice.
 
 Written 2026-08-13 against `c388d7a`. Reproduce with
-`node scripts/cost-compare.mjs` (add `--regional` for the single-region
-price sheet). Every InSight figure comes from `scripts/cost-arith.mjs` —
+`node scripts/cost-compare.mjs` (the region and the database are read off
+`functions/src/db.ts`; add `--multi-region` for the counterfactual sheet). Every InSight figure comes from `scripts/cost-arith.mjs` —
 the same module `cost-model.mjs` and `pulse.mjs` read, so there is no
 second copy of the arithmetic to drift. The peer figures are new, they are
 the only numbers here nothing in this repository can check, and they are
@@ -33,6 +33,19 @@ labelled accordingly.
 | 50,000 | $2,335 | $0.04670 | **D** | approaching a video app's per-user cost |
 | 100,000 | $8,473 | $0.08473 | **D** | approaching a video app's per-user cost |
 | 500,000 | $194,332 | $0.3887 | **F** | costs more per user than Snapchat, doing far less |
+
+> **The A+ row is retired (2026-09-09, `COST-EXPOSURE.md` §2).** It graded
+> a $0 that the model computed by netting the Firestore free quota, and
+> the project has no database that quota applies to: production is the
+> named database `insight` (D165), `(default)` is deleted (D333), and
+> Google grants a named database no free quota. `npm run costs:compare`
+> now prints the launch row at its floor — $0.54 a month, $0.0107 per DAU,
+> grade C by the benchmark's ratio, which is the arithmetic of a fixed
+> $0.40 divided by fifty people and not a finding about the app — B at
+> 500, and **A** at every size from 3,000 DAU up, unit cost falling 0.6×
+> from 500 to 500,000. The script also prices the region production is on
+> by default now (`--multi-region` for the counterfactual); the table
+> above is the 2026-08-13 print on the `nam5` sheet, kept for the method.
 
 Grades are relative to the same-stack benchmark ($0.00298/DAU/month, below),
 not absolute: A under 1×, B under 3×, C under 10×, D under Snap's $0.2831,

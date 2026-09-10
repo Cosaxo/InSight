@@ -128,10 +128,10 @@ export function numberingProblems(records) {
  *   nothing points at the number.
  */
 /** Sort keys at or above this belong to a DATED record (`D-YYYY-MM-DDx`),
- *  not to the numbered sequence D1-D437 (D-2026-09-09e). */
+ *  not to the numbered sequence D1-D449 (D-2026-09-09e). */
 export const DATED_BASE = 1_000_000;
 
-/** A sort key that keeps D1-D437 in their own numeric run and files every
+/** A sort key that keeps D1-D449 in their own numeric run and files every
  *  dated record after them, chronologically, then by letter.
  *
  *  The base is far above any number this file will ever reach, so the two

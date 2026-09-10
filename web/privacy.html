@@ -118,7 +118,7 @@
 
   <span class="kicker">InSight · privacy</span>
   <h1>Privacy policy</h1>
-  <div class="updated">last updated 2026-09-08</div>
+  <div class="updated">last updated 2026-09-10</div>
 
   <p class="lead">
     InSight asks you questions, shows you how everyone else answered once
@@ -196,10 +196,9 @@
     starting a new one — so anything you answered before signing in is
     kept, with the same identifier behind it. Signing in to an account
     that already exists is the one exception: two histories are not
-    merged, and the one you were building is left behind. With Apple or
-    Google the app says so on the screen before it happens. With an
-    email address it does not &mdash; signing in to an existing account
-    there takes effect immediately.
+    merged, and the one you were building is left behind. Whichever of
+    the three doors you use, the app says so on the screen before it
+    happens, and it takes a second tap.
   </p>
 
   <h2>What is stored</h2>
@@ -217,12 +216,14 @@
     <li>
       <strong>Your duel answers and guesses.</strong> These work
       differently, and it is a game rule rather than a privacy promise: a
-      group or 1v1 pick is sealed — readable by nobody but you, including
-      us — until the day after, when a server process publishes that
-      day&rsquo;s picks. Once published they read like your other answers:
-      anyone signed in who has that circle&rsquo;s id can see them, not only
-      the people who played. It is a hand of cards played face-down, not a
-      confidence.
+      group or 1v1 pick is sealed &mdash; readable by nobody but you,
+      including us &mdash; until its round reveals. A 1v1 reveals when the
+      other person answers; a circle when everyone has played, or at the
+      round&rsquo;s deadline two days on. Once published they read like
+      your other answers:
+      anyone signed in who has that circle&rsquo;s id can see them, not
+      only the people who played. It is a hand of cards played face-down,
+      not a confidence.
     </li>
     <li>
       <strong>A display name, if you set one.</strong> Shown beside every
@@ -530,7 +531,7 @@
       exactly, from the first answer.
     </li>
     <li>
-      <strong>Your duel picks:</strong> nobody until the next day&rsquo;s
+      <strong>Your duel picks:</strong> nobody until the round&rsquo;s
       reveal, then anyone signed in who has that circle&rsquo;s id.
     </li>
     <li>
@@ -565,8 +566,11 @@
 
   <h3>Firebase (Google Cloud)</h3>
   <p>
-    Hosting, sign-in, database and notifications. Your data is stored on
-    Google Cloud infrastructure under Google's terms as our processor.
+    Hosting, sign-in, database and notifications — and, since the answer
+    log, a copy of every answer in an analytics table (BigQuery) in the
+    same Google Cloud project and region, which is what our nightly
+    computations read. Your data is stored on Google Cloud infrastructure
+    under Google's terms as our processor.
   </p>
 
   <h3>Sentry — crash reports</h3>
@@ -580,6 +584,27 @@
     out on Sentry's retention schedule.
   </p>
 
+  <h2>Downloading everything</h2>
+
+  <p>
+    The privacy panel in the app has a download button, above the delete
+    button. It hands you one JSON file with everything the account holds
+    &mdash; your profile and the facts on it, every answer you have given,
+    every take, your follows, your group memberships and what each room
+    has made you, your votes and name inside past reveals, your test
+    results, your handle, your suggestions and purchases, your photo. It is the list deletion removes,
+    read instead of removed, so the terms&rsquo; &ldquo;a chance to
+    download your data first&rdquo; is this button. The file leaves four
+    things out and says so inside itself: the answer key of a logic test,
+    who reported you, this phone&rsquo;s notification token, and the
+    square your presence was last in &mdash; it says that a square is
+    held and until when, never which. If your
+    data is over 8 MB &mdash; more than one download can carry &mdash; the
+    button says so, and the
+    <a href="delete-account.html">deletion page</a>&rsquo;s email route
+    serves an export as well.
+  </p>
+
   <h2>Deleting everything</h2>
 
   <p>
@@ -588,8 +613,10 @@
     written, your follows — including the ones other people hold of you —
     your group memberships, your picks and name inside past group reveals,
     your presence square, your notification tokens, and your sign-in
-    itself. It also clears the app's data on the device you ran it from.
-    There is no undo and no grace period.
+    itself. The copy of your answers in the analytics table goes with
+    them — at once, or within a day where the database is still settling
+    its newest rows. It also clears the app's data on the device you ran
+    it from. There is no undo and no grace period.
   </p>
 
   <p>

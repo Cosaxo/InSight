@@ -25,7 +25,10 @@ describe("lineCount", () => {
 });
 
 describe("sizeReport", () => {
-  const base = { "a.ts": 100, "b.ts": 50 };
+  const base = {
+    "a.ts": { mode: "ratchet", lines: 100 },
+    "b.ts": { mode: "ratchet", lines: 50 },
+  };
 
   it("is clean when every file sits exactly at its ceiling", () => {
     const r = sizeReport({ "a.ts": 100, "b.ts": 50 }, base);
@@ -35,7 +38,7 @@ describe("sizeReport", () => {
 
   it("fails when a file grows", () => {
     const r = sizeReport({ "a.ts": 101, "b.ts": 50 }, base);
-    expect(r.over).toEqual([{ file: "a.ts", now: 101, max: 100, kind: "grew" }]);
+    expect(r.over).toEqual([{ file: "a.ts", now: 101, max: 100, mode: "ratchet", kind: "grew" }]);
   });
 
   it("ALSO fails when a file shrinks, asking for the ceiling to come down", () => {
@@ -43,7 +46,7 @@ describe("sizeReport", () => {
     // rule 4's shape. Without it the number drifts upward relative to
     // reality and the gate stops biting long before anyone notices.
     const r = sizeReport({ "a.ts": 90, "b.ts": 50 }, base);
-    expect(r.under).toEqual([{ file: "a.ts", now: 90, max: 100 }]);
+    expect(r.under).toEqual([{ file: "a.ts", now: 90, max: 100, mode: "ratchet" }]);
   });
 
   it("treats a MISSING file as a failure, not as zero lines", () => {
@@ -52,7 +55,7 @@ describe("sizeReport", () => {
     // ceiling", because that is the exact moment the ratchet stops
     // watching it.
     const r = sizeReport({ "b.ts": 50 }, base);
-    expect(r.over).toEqual([{ file: "a.ts", now: null, max: 100, kind: "missing" }]);
+    expect(r.over).toEqual([{ file: "a.ts", now: null, max: 100, mode: "ratchet", kind: "missing" }]);
   });
 });
 
@@ -73,6 +76,21 @@ describe("the baseline describes the real tree", () => {
     const r = sizeReport(sizes);
     expect(r.over, JSON.stringify(r.over)).toEqual([]);
     expect(r.under, JSON.stringify(r.under)).toEqual([]);
+  });
+
+  it("holds a GENERATED file to a ceiling rather than a ratchet", () => {
+    // THE ERROR THIS ENCODES. v2content.ts was seeded as a ratchet and
+    // would have failed on the very next day's content lanes — which
+    // self-merge on green (D212), so a gate that reds every morning does
+    // not get fixed, it gets deleted. A daily-appended artifact has no
+    // "did not grow" state; what it has is the TS2590 wall.
+    const ceil = { "gen.ts": { mode: "ceiling", lines: 100 } };
+    expect(sizeReport({ "gen.ts": 60 }, ceil).under).toEqual([]);
+    expect(sizeReport({ "gen.ts": 60 }, ceil).over).toEqual([]);
+    expect(sizeReport({ "gen.ts": 101 }, ceil).over).toHaveLength(1);
+    // …and the real one is a ceiling, so the daily lanes cannot red main.
+    expect(SIZE_BASELINE["functions/src/v2content.ts"].mode).toBe("ceiling");
+    expect(SIZE_BASELINE["src/v2/data/live.ts"].mode).toBe("ratchet");
   });
 
   it("watches the files the review named as concentrations", () => {

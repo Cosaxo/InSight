@@ -228,7 +228,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-55 modules are already off the bridge — they export and publish nothing,
+56 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -279,13 +279,14 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/mount-app.jsx` is the harness, and **ten** suites mount
+- `src/v2/test/mount-app.jsx` is the harness, and **eleven** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
-  walk both tabs and every overlay, and five that go PAST first paint into
+  walk both tabs and every overlay, and six that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
   Circle and 1v1 modes, the demo Mirror's stops past World, the daily's
-  split ballot before and after a vote, and the Mirror's preview tag on
-  a live build that did not attach. (The sixth
+  split ballot before and after a vote, the Mirror's preview tag on
+  a live build that did not attach, and the Map open on a cued group
+  after the shell's own walk, with the caller navigating nothing. (The sixth
   smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
   More suites than these import the harness — `dialog` and the feed's
   direct-mount files take its helpers without mounting the app.) The three
@@ -347,7 +348,7 @@ Two rules for working with it:
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:scripts` | the gates and the regulators themselves — their parsers, their budget arithmetic, their tripwires | nothing |
-| `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
+| `npm run test:rules` | Firestore **and** Storage rules, plus the two ratchets on the same boot: never-false coverage and the expression-budget pins (D438) | Java 21 |
 | `npm run test:e2e` / `:e2e:erasure` / `:e2e:moderation` — or **`test:e2e:all`**, all three on ONE emulator boot, which is what CI runs (D276) | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
 **The fifth one hides, and that has shipped breakage three times.**

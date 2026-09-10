@@ -48,6 +48,8 @@ const GUARD_AMOUNT = GUARD.budget?.amount ?? GUARD.maxNetBurnUsdPerMonth;
 const GUARD_CURRENCY = GUARD.budget?.currency ?? "USD";
 
 const NUMBER = "123456789012";
+// The topic the function listens on, as the API stores it on the budget.
+const TOPIC = "projects/prvfire33/topics/budget-alerts";
 const BA = "billingAccounts/AAAAAA-BBBBBB-CCCCCC";
 const CRM = "/cloudresourcemanager.googleapis.com/v1/projects/prvfire33";
 const INFO = "/cloudbilling.googleapis.com/v1/projects/prvfire33/billingInfo";
@@ -92,6 +94,7 @@ const listedBudget = (over = {}) => ({
   budgetFilter: { projects: [`projects/${NUMBER}`] },
   amount: { specifiedAmount: { currencyCode: GUARD_CURRENCY, units: String(GUARD_AMOUNT) } },
   thresholdRules: [0.5, 0.9, 1.0, 1.5].map((p) => ({ thresholdPercent: p })),
+  notificationsRule: { pubsubTopic: TOPIC, schemaVersion: "1.0" },
   ...over,
 });
 
@@ -137,7 +140,7 @@ describe("apply-budget", () => {
   });
 
   it("creates with the RESOLVED project number and the guard's own figure", async () => {
-    await apply(["--apply"]);
+    const applied = await apply(["--apply"]);
     const post = calls.find((c) => c.method === "POST");
     expect(post).toBeDefined();
     expect(post.body.displayName).toBe("InSight");
@@ -146,6 +149,11 @@ describe("apply-budget", () => {
     expect(post.body.budgetFilter.projects).toEqual([`projects/${NUMBER}`]);
     expect(post.body.amount.specifiedAmount.units).toBe(String(GUARD_AMOUNT));
     expect(post.body.thresholdRules.map((t) => t.thresholdPercent)).toEqual([0.5, 0.9, 1.0, 1.5]);
+    // The wire (COST-EXPOSURE.md §6 C4): the budget publishes to the topic
+    // functions/src/budget.ts listens on.
+    expect(post.body.notificationsRule).toEqual({ pubsubTopic: TOPIC, schemaVersion: "1.0" });
+    expect(applied).toMatch(/billing-budget-alert@system\.gserviceaccount\.com/);
+    expect(applied).toMatch(/roles\/pubsub\.publisher/);
   });
 
   it("the recorded currency comes back as confirmation, not a warning", async () => {
@@ -183,7 +191,7 @@ describe("apply-budget", () => {
       status: 200,
       body: { budgets: [listedBudget({ amount: { specifiedAmount: { currencyCode: "USD", units: "25" } } })] },
     };
-    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules`;
+    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
     reply[key("PATCH", patchUrl)] = { status: 200, body: listedBudget() };
 
     // Dry first: says so, touches nothing.
@@ -198,7 +206,41 @@ describe("apply-budget", () => {
     expect(patch?.url).toBe(patchUrl);
     // The filter is deliberately outside the mask — a re-scoped budget must
     // not be silently re-narrowed by a retune that was about the amount.
-    expect(Object.keys(patch.body).sort()).toEqual(["amount", "thresholdRules"]);
+    expect(Object.keys(patch.body).sort()).toEqual(["amount", "notificationsRule", "thresholdRules"]);
+  });
+
+  it("a budget with no topic — the one armed before the wire existed — is retuned to publish", async () => {
+    const noTopic = listedBudget();
+    delete noTopic.notificationsRule;
+    reply[key("GET", BUDGETS)] = { status: 200, body: { budgets: [noTopic] } };
+    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
+    reply[key("PATCH", patchUrl)] = { status: 200, body: listedBudget() };
+    const dry = await apply();
+    expect(dry).toMatch(/would retune/);
+    expect(dry).toMatch(/\(no topic\)/);
+    calls = [];
+    const out = await apply(["--apply"]);
+    expect(out).toMatch(/retuned budget "InSight"/);
+    expect(calls.find((c) => c.method === "PATCH")?.body.notificationsRule).toEqual({ pubsubTopic: TOPIC, schemaVersion: "1.0" });
+  });
+
+  it("a refusal that names the topic says the deploy creates it", async () => {
+    reply[key("POST", BUDGETS)] = { status: 400, body: { error: { message: "Invalid pubsubTopic: topic projects/prvfire33/topics/budget-alerts not found" } } };
+    const err = await applyFails(["--apply"]);
+    expect(err).toMatch(/created by the deploy of functions\/src\/budget\.ts/);
+    expect(err).toMatch(/gcloud pubsub topics create budget-alerts/);
+  });
+
+  it("names the same topic as the function that listens on it", () => {
+    // Two constants, one wire: a budget publishing to a topic nobody
+    // listens on is the silent-checkbox failure with a fresh face.
+    const fn = readFileSync(join(root, "functions/src/budget.ts"), "utf8");
+    const script = readFileSync(SCRIPT, "utf8");
+    const inFn = fn.match(/export const BUDGET_TOPIC = "([^"]+)"/)?.[1];
+    const inScript = script.match(/export const BUDGET_TOPIC = "([^"]+)"/)?.[1];
+    expect(inFn).toBeTruthy();
+    expect(inScript).toBe(inFn);
+    expect(TOPIC.endsWith(`/topics/${inFn}`)).toBe(true);
   });
 
   it("a 403 on budgets names the billing-account role, not a project one", async () => {

@@ -11,8 +11,14 @@
 // What it is for is re-running the rating when an input moves, so
 // docs/COST-COMPARISON.md never becomes folklore.
 //
-//   node scripts/cost-compare.mjs              # nam5 multi-region (the default)
-//   node scripts/cost-compare.mjs --regional   # single-region price sheet
+//   node scripts/cost-compare.mjs                 # the region and database production is on
+//   node scripts/cost-compare.mjs --multi-region  # the nam5 counterfactual
+//
+// The default was the multi-region sheet until 2026-09-09 — the D200
+// premise, three weeks after cost-model.mjs stopped assuming it — so the
+// rating page graded a bill twice the real one. Read from db.ts now, like
+// the model; `--regional` is accepted and a no-op where production already
+// is.
 //
 // THE ARITHMETIC IS NOT HERE. Every InSight figure below comes from
 // scripts/cost-arith.mjs, the same module cost-model.mjs and pulse.mjs read.
@@ -30,10 +36,10 @@
 // this repository, and carries the arithmetic that produced it, the URL it
 // came from, and which way the comparison is unfair.
 
-import { costModel, totalCost, B, SCENARIOS } from "./cost-arith.mjs";
+import { costModel, totalCost, B, SCENARIOS, REGIONAL, LOCATION_LABEL, NAMED_DB, DB_ID } from "./cost-arith.mjs";
 import { PEERS, OBJECT_STORAGE_GIB_MO, BENCH, rate, money, unit, int, x } from "./cost-peers.mjs";
 
-const regional = process.argv.includes("--regional");
+const regional = process.argv.includes("--multi-region") ? false : REGIONAL;
 const { model } = costModel({ regional });
 
 // The model's own scenario list, plus the two sizes the Firestore benchmark
@@ -47,7 +53,8 @@ const SIZES = [...SCENARIOS.map(([dau, mature, label]) => ({ dau, mature, label 
 
 const perDau = (dau, mature) => totalCost(model(dau, mature).cost) / dau;
 
-console.log(`\nInSight cost comparison — ${regional ? "single-region" : "nam5 multi-region"} prices`);
+console.log(`\nInSight cost comparison — ${regional === REGIONAL ? LOCATION_LABEL : "nam5 multi-region"} prices`
+  + (NAMED_DB ? ` (named database \`${DB_ID}\`: no free quota netted)` : ""));
 console.log("InSight figures from scripts/cost-arith.mjs; peer figures from scripts/cost-peers.mjs\n");
 
 // ── 1. unit economics ───────────────────────────────────────────
@@ -69,8 +76,14 @@ for (const s of SIZES) {
     (s.dau <= 500 ? "—" : x(pd / base)).padStart(13),
   );
 }
+// The sentence used to assume the rise: it was 87× at D129's opening and
+// 2.1× after it, both on a free tier the database turned out not to have.
+// With the allowance gone the floor amortises and the ratio is below one.
+const ratio = perDau(500_000, true) / base;
 console.log("\n  The right-hand column is the finding. Unit cost is supposed to FALL with");
-console.log("  scale; here it rises " + x(perDau(500_000, true) / base) + " between the second row and the last.");
+console.log(ratio > 1
+  ? "  scale; here it rises " + x(ratio) + " between the second row and the last."
+  : "  scale, and it does: " + x(ratio) + " between the second row and the last — the floor amortising.");
 
 // ── 2. the peer table ───────────────────────────────────────────
 console.log("\n\n2 · The peers, and what InSight costs against each");
@@ -126,8 +139,14 @@ for (const p of PEERS) {
     "   " + (c === null ? "" : c < 1000 ? "(≈ the point the free tier ends — see the note)" : ""),
   );
 }
-console.log("\n  Below ~177 DAU the bill is $0 (free tier), so the first crossover is really");
-console.log("  'where InSight starts paying at all' rather than a statement about the peer.");
+if (NAMED_DB) {
+  console.log(`\n  Production is on the named database \`${DB_ID}\`, which has no free quota, so`);
+  console.log("  the bill starts at the first read; a crossover under 1,000 DAU is the fixed floor");
+  console.log("  divided by few people, not a statement about the peer.");
+} else {
+  console.log("\n  Below ~177 DAU the bill is $0 (free tier), so the first crossover is really");
+  console.log("  'where InSight starts paying at all' rather than a statement about the peer.");
+}
 
 // ── 4. data levels ──────────────────────────────────────────────
 // The other half of the question. An app's cost is usually a story about how

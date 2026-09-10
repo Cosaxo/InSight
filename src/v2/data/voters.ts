@@ -71,6 +71,36 @@ export const VOTER_FETCH_CAP = 200;
 // 2023). Name resolution chunks on this.
 export const UID_CHUNK = 30;
 
+// The who-voted sheet's LIVE TAIL (DATA-EFFICIENCY-RUNBOOK 2.4): the sheet
+// reads the nightly sample — the newest VOTER_FETCH_CAP as of last night's
+// merge — and then only the answers newer than that, capped here. Under
+// the cap the union is exactly the newest VOTER_FETCH_CAP and the panel's
+// sentence stays true; AT the cap the day has more answers than the tail
+// can hold (today's daily, at any real size), and the sheet falls back to
+// the full live query rather than show fifty of today over a hundred and
+// fifty of before as "the latest". So the saving is on the cold question
+// — the feed card someone opens a week on — and the hot one costs what it
+// always did. Trading the exact claim for a cheaper hot sheet is a copy
+// decision, and it is the owner's (the runbook's 2.4 note).
+export const VOTER_TAIL_CAP = 50;
+
+/** The nightly sample documents, by id — mirrors of `worldSampleId` and
+ * `citySampleId` in functions/src/patternsSamples.ts (the two packages do
+ * not share a build; pinned by voter-sample.test.ts). The city is the
+ * frozen chip, URI-encoded because a chip may hold what a document id may
+ * not. */
+export const worldSampleId = (qid: string): string => `sample-${qid}`;
+export const citySampleId = (qid: string, city: string): string => `city-${qid}~${encodeURIComponent(city)}`;
+
+/** The session's profile caches, which a sample read fills from the rows
+ * that carry a stamp (runbook 2.3) — so `resolveNames` afterwards has
+ * nothing left to read for those people. */
+export interface ProfileCaches {
+  names: Record<string, string>;
+  scores?: Record<string, ParsedResults | null>;
+  logic?: Record<string, number | null>;
+}
+
 export interface Voter {
   uid: string;
   optionIdx: number;
@@ -180,8 +210,12 @@ export async function fetchVoterPicks(
   qid: string,
   myUid: string | null = null,
   city?: string,
+  // The live tail (runbook 2.4): only answers at or after `sinceMs`, at
+  // most `cap` of them — the same query narrowed by a range on the field
+  // it already orders by, so it is served by the same composite index.
+  tail?: { sinceMs: number; cap: number },
 ): Promise<Voter[]> {
-  const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
+  const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where, Timestamp } = await getFirestoreApi();
   const snap = await getDocs(query(
     collectionGroup(db, "answers"),
     where("qid", "==", qid),
@@ -190,10 +224,12 @@ export async function fetchVoterPicks(
     // replace it: firestore.rules grants this read as a VALUE test on
     // `surface`, so a query missing that `where` is refused wholesale
     // (D65). An EXTRA equality only narrows what the rule already allows,
-    // which rules.test.ts pins rather than assumes.
+    // which rules.test.ts pins rather than assumes — and so does the
+    // tail's range, pinned beside it.
     ...(city ? [where("anchors.city", "==", city)] : []),
+    ...(tail ? [where("answeredAt", ">=", Timestamp.fromMillis(tail.sinceMs))] : []),
     orderBy("answeredAt", "desc"),
-    fsLimit(VOTER_FETCH_CAP),
+    fsLimit(tail ? tail.cap : VOTER_FETCH_CAP),
   ));
 
   const rows: Voter[] = [];
@@ -235,37 +271,105 @@ export async function fetchVoterPicks(
  * standing, so a sample whose only voter erases their account becomes
  * `rows: {}` on disk.
  *
- * WHAT THIS DOES NOT FIX, named so it is not mistaken for fixed: the
- * sample is the newest cap voters *the nightly has seen since D397*, not
- * the newest cap voters. `mergeSample` is fed only by the ledger day the
- * run reads and nothing seeds it from the answers already written, so a
- * question answered two hundred times before the samples existed
- * publishes a sample of however many people answered it since. Those are
- * real rows and this reader cannot tell them from a complete sample —
- * the floors downstream (`say()` and `tell()` want 12) then report
- * `thin` about the crowd when the true subject is the deploy date.
+ * WHAT THIS READER CANNOT TELL, and why the server had to (D442): a
+ * sample only the ledger has fed holds the people who answered since
+ * D397 and nobody before — real rows, indistinguishable here from a
+ * complete list, so the floors downstream (`say()` and `tell()` want 12)
+ * would report `thin` about the crowd when the true subject was the
+ * deploy date. Since D442 the nightly seeds each sample once, the first
+ * night it meets the question, from this module's own query
+ * (`fetchVoterPicks`'s filter, order and cap — the server's copy of
+ * WORLD_ANSWER_SURFACES is pinned equal to the one above), bounded at
+ * 25 questions a night, and never creates a sample short: with no
+ * document this reader returns null and the caller takes the live
+ * query, which is complete.
  */
 export async function fetchVoterSample(
   db: Firestore,
   qid: string,
   myUid: string | null = null,
+  caches?: ProfileCaches,
+  city?: string,
 ): Promise<Voter[] | null> {
+  return (await fetchSampleDoc(db, qid, myUid, caches, city))?.rows ?? null;
+}
+
+/** What a sample read returns to a caller that also wants to know how far
+ * it reaches: the newest ledger day among its rows, which is where the
+ * who-voted sheet's live tail starts (runbook 2.4). */
+export interface SampleRead {
+  rows: Voter[];
+  /** The newest `d` among the rows — "" only for a document with no day
+   *  on any row, which the server never writes. */
+  newestDay: string;
+}
+
+/** The core-kinds scores off a sample row, re-read defensively even
+ * though the server wrote them: the shape is `parseTestResults`'s output
+ * and this keeps it so whatever a document holds. */
+function sampleScores(raw: unknown): ParsedResults | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: ParsedResults = {};
+  for (const kind of CORE_TEST_KINDS) {
+    const axes = (raw as Record<string, unknown>)[kind];
+    if (!axes || typeof axes !== "object") continue;
+    const clean: Record<string, number> = {};
+    for (const [id, v] of Object.entries(axes as Record<string, unknown>).slice(0, 12)) {
+      const n = Number(v);
+      if (id && Number.isFinite(n)) clean[id] = Math.max(0, Math.min(100, Math.round(n)));
+    }
+    if (Object.keys(clean).length) out[kind] = clean;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * The nightly sample as a document — the world sample, or a city's
+ * (runbook 2.5) when `city` is given — with the rows' stamps folded into
+ * the caller's caches (runbook 2.3): a row that carries `n` fills the
+ * name, scores and logic percentile for its person WHERE THE CACHE HAS
+ * NOTHING, so a value this session already read live keeps precedence and
+ * `resolveNames` afterwards reads only the people no row could name. A
+ * row without `n` was written before the stamp existed and fills nothing.
+ *
+ * Null when no document exists, and null for a document with no usable
+ * rows — see `fetchVoterSample`'s docstring for why the two are one.
+ */
+export async function fetchSampleDoc(
+  db: Firestore,
+  qid: string,
+  myUid: string | null = null,
+  caches?: ProfileCaches,
+  city?: string,
+): Promise<SampleRead | null> {
   const { doc, getDoc } = await getFirestoreApi();
-  const snap = await getDoc(doc(db, "v2_patterns", `sample-${qid}`));
+  const snap = await getDoc(doc(db, "v2_patterns", city ? citySampleId(qid, city) : worldSampleId(qid)));
   if (!snap.exists()) return null;
-  const rows = (snap.get("rows") as Record<string, { o?: unknown; a?: unknown; d?: unknown }> | undefined) ?? {};
+  const rows = (snap.get("rows") as Record<string, {
+    o?: unknown; a?: unknown; d?: unknown; n?: unknown; s?: unknown; l?: unknown;
+  }> | undefined) ?? {};
   const out: { v: Voter; d: string }[] = [];
+  let newestDay = "";
   for (const [uid, r] of Object.entries(rows)) {
     if (!uid || typeof r?.o !== "number") continue;
+    const d = typeof r.d === "string" ? r.d : "";
+    if (d > newestDay) newestDay = d;
+    if (caches && typeof r.n === "string") {
+      if (!(uid in caches.names)) caches.names[uid] = r.n.trim().slice(0, 60);
+      if (caches.scores && !(uid in caches.scores)) caches.scores[uid] = sampleScores(r.s);
+      if (caches.logic && !(uid in caches.logic)) {
+        caches.logic[uid] = typeof r.l === "number" && Number.isFinite(r.l) ? Math.max(0, Math.min(100, Math.round(r.l))) : null;
+      }
+    }
     out.push({
       v: {
         uid,
         optionIdx: r.o,
         anchors: (r.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
-        name: "",
+        name: caches?.names[uid] ?? "",
         isMe: uid === myUid,
       },
-      d: typeof r.d === "string" ? r.d : "",
+      d,
     });
   }
   // newest first, then uid — the server's own total order
@@ -273,7 +377,41 @@ export async function fetchVoterSample(
   // Empty reads as absent, per the docstring's own promise. Both callers
   // key their fallback on null, and neither has any other way to tell a
   // sample that holds nobody from one that was never written.
-  return out.length ? out.map((x) => x.v) : null;
+  return out.length ? { rows: out.map((x) => x.v), newestDay } : null;
+}
+
+/**
+ * The answers newer than a sample reaches (runbook 2.4): everything
+ * ledgered after `newestDay` — the day after it, from midnight UTC, since
+ * a sample merged through a day holds that whole day — newest first, at
+ * most VOTER_TAIL_CAP. An answer written in the last second of a day and
+ * ledgered in the first of the next sits in neither until the next merge;
+ * that window is the trigger's latency, and it is seconds.
+ */
+export async function fetchVoterTail(
+  db: Firestore,
+  qid: string,
+  myUid: string | null,
+  newestDay: string,
+): Promise<Voter[]> {
+  const sinceMs = newestDay ? Date.parse(`${newestDay}T00:00:00Z`) + 86_400_000 : 0;
+  return fetchVoterPicks(db, qid, myUid, undefined, { sinceMs: Number.isFinite(sinceMs) ? sinceMs : 0, cap: VOTER_TAIL_CAP });
+}
+
+/**
+ * Newest first, one row per person, at most `cap`: the live tail ahead of
+ * the sample it extends. A person in both — an edit since the merge, or
+ * the viewer's own answer — keeps the newer row.
+ */
+export function unionVoters(newest: readonly Voter[], older: readonly Voter[], cap: number = VOTER_FETCH_CAP): Voter[] {
+  const seen = new Set<string>();
+  const out: Voter[] = [];
+  for (const v of [...newest, ...older]) {
+    if (seen.has(v.uid)) continue;
+    seen.add(v.uid);
+    out.push(v);
+  }
+  return out.slice(0, cap);
 }
 
 /**

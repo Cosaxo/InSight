@@ -57,7 +57,10 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     before assuming the rules are live. First real release: run
     30644637683.
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (exact
-    aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
+    aggregates), `onV2ProfileUpdated` (a changed name or score into the
+    voter samples — DATA-EFFICIENCY-RUNBOOK 2.1), `backfillAnswerMapsV2`
+    (the answer maps' one-time fold, runbook 3.4), `createGroupV2` /
+    `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
   - Moderation functions (docs/MODERATION.md, D22): `buildModQueue`
@@ -165,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Seven jobs — verified rather than assumed,
+**What the environment gates.** Eleven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -175,13 +178,16 @@ joined at D332, and this sentence moved in the same commit because
 this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
-same way and in the same commit.)
+same way and in the same commit — and the ninth and tenth,
+`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09, and the
+eleventh, `delete-retired-functions.yml`, on 2026-09-10.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
 | `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
 | `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
+| `backfill-answer-maps.yml` | `backfill` | `backfillAnswerMapsV2` folding every existing answer into the per-person answer maps (DATA-EFFICIENCY-RUNBOOK 3.4) — once, dry then `apply` |
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
@@ -535,7 +541,7 @@ section didn't already say while the system was calm.
 investigative — Auth creation-time clusters, App Check token metadata in
 the function logs, answer velocity across `v2_agg_events` timestamps.
 Since D54 the first pass of that investigation runs on a clock:
-`ledgerVelocityScan` reads the ledger daily and logs `velocity_flag`
+the velocity scan (inside `digestEngagementV2` since DATA-EFFICIENCY-RUNBOOK 4.4) reads the ledger daily and logs `velocity_flag`
 lines ("Reading the velocity scan" below). A flag is this runbook's
 INPUT, not a verdict — honest crowds trip the same signals on their best
 days. What is guaranteed is mechanical once you HAVE a uid list:
@@ -625,16 +631,89 @@ gone.
 
 What must not be improvised is the order of operations above.
 
+### The answer log (BigQuery, D447 phase A)
+
+Since `LOG-FIRST-RUNBOOK.md` phase A the answer trigger appends one row
+per ledger entry to BigQuery — dataset `insight`, table `answers`, in
+`europe-west1` — after the aggregate transaction commits
+(`functions/src/log.ts`). Nothing a user reads comes from it yet; it is
+the truth the night will compute from at phase D. Three things to know
+operationally:
+
+- **Creating it is a click, once:** the *Apply BigQuery* workflow
+  (`apply-bigquery.yml`, dry by default, `scripts/apply-bigquery.mjs`),
+  then the two IAM bindings its summary prints — the functions' runtime
+  service account needs `roles/bigquery.dataEditor` (rows) and
+  `roles/bigquery.jobUser` (the erasure DELETE). A project whose default
+  service account still holds Editor has both. Until the table exists,
+  every append logs `log_append_failed` and the count is untouched; the
+  nightly reconcile appends the day once the table is there — for the
+  days the ledger still holds (90).
+- **Reading it:** `log_append_failed` (an error per failed append, with
+  its count), `log_reconcile` (the nightly heartbeat inside
+  `digestEngagementV2`: `entries`, `missing`, `appended`, `erasures`,
+  `erased`, `passes` — a warning when `missing` is not zero, because a
+  reconciled row is a live append that failed; `passes` is the DELETE
+  statements the night ran, one per 500 pending accounts, each a pass
+  over the table), `log_erasure_deferred` (an account whose rows were
+  not deleted at once — the streaming buffer refused, or the table is
+  past `LOG_ERASE_NOW_MAX_BYTES`, a gibibyte; the marker in
+  `v2_log_erasures` is taken by the next night's one statement). The same `gcloud logging
+  read` shapes as the velocity scan below, on
+  `service_name="onv2answercreated"` and `"digestengagementv2"`.
+- **Switching it off** is `LOG_DATASET=off` in the functions' env
+  (`functions/.env.prvfire33`, written by the deploy from the
+  environment) — the writer becomes a no-op that says so once; the
+  emulator and the unit suites are off by construction.
+
+The backfill (`backfill-log.yml`, `backfillLogV2`) loads the answers
+written before the deploy's day; its cutoff is that day, so no row is
+appended twice. Both clicks are on `OWNER-LIST.md`.
+
+### The budget's wire (`onBudgetAlert`, COST-EXPOSURE.md §6 C4)
+
+Since 2026-09-09 the Cloud Billing budget (D332, `scripts/apply-budget.mjs`)
+publishes its state to the Pub/Sub topic `budget-alerts` every twenty to
+thirty minutes, and `functions/src/budget.ts` sets the read breaker —
+`budgetMode` on `v2_meta/app`, the field `scripts/budget-mode.mjs` writes
+by hand — to level 1 the first time a month's spend reaches the budget,
+and releases it when the next month's first notification arrives under
+the line. A level set by hand is never touched. It never detaches
+billing (that hard stop is the owner's, on `OWNER-LIST.md`).
+
+- **Standing it up, once, in this order:** the deploy that carries the
+  function creates the topic; then dispatch *Arm budget* (dry, then
+  `apply`), which attaches the topic to the budget and prints the one
+  grant the API cannot make; then run that grant in Cloud Shell — the
+  budget's service agent must be allowed to publish:
+  `gcloud pubsub topics add-iam-policy-binding budget-alerts --project
+  prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com
+  --role roles/pubsub.publisher`. Until the grant, the budget's publishes
+  are refused and the function sees nothing; the console's budget page
+  (*Connect a Pub/Sub topic*) makes the same grant with a click.
+- **Reading it:** `budget_message` (an info line per notification, the
+  level as it stands), `budget_mode_set` (a warning with `level` 1 or 0
+  when the breaker moved — the line to page on), `budget_message_unreadable`
+  (something on the topic that was not a budget notification). On
+  `service_name="onbudgetalert"`.
+- **Releasing early** is what it always was: `node scripts/budget-mode.mjs
+  --level 0` (its `--status` shows the reason the function wrote).
+  Leaving the function's own release to the month is deliberate — a
+  budget message never says spend fell inside a month.
+
 ### Reading the velocity scan (D54)
 
-`ledgerVelocityScan` runs daily at 03:47 UTC over the ledger entries
-since its last run (72h catch-up cap) and emits two kinds of line —
-a heartbeat per run, and a warning per finding:
+The velocity scan runs inside the nightly pass (`digestEngagementV2`,
+02:23 UTC — DATA-EFFICIENCY-RUNBOOK 4.4; it was its own
+`ledgerVelocityScan` at 03:47 before) over the ledger entries since its
+last run (72h catch-up cap), the whole days off the read the pass already
+makes, and emits two kinds of line — a heartbeat per run, and a warning
+per finding:
 
 ```bash
 # The heartbeat — one per day; a silent week means the scan is not running:
 gcloud logging read 'resource.type="cloud_run_revision"
-  resource.labels.service_name="ledgervelocityscan"
+  resource.labels.service_name="digestengagementv2"
   jsonPayload.metric="velocity_scan"' \
   --project prvfire33 --limit 7 --format="value(timestamp,jsonPayload.message)"
 
@@ -839,7 +918,8 @@ conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
 indistinguishable from health. The nightly jobs are the obvious next
-— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+— `digestEngagementV2` (which carries the velocity scan since
+DATA-EFFICIENCY-RUNBOOK 4.4), `rankBankV2`,
 `closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
 failure delays a surface by a day and self-heals on the next run, so
 they can wait until someone is actually reading the alerts.

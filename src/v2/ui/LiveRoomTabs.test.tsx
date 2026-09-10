@@ -42,7 +42,9 @@ const LIVE = vi.hoisted(() => {
     // room's side is its members' completed instruments, and the bank is
     // only read to fill YOUR side in from feed answers.
     testFeedItems: () => [] as Array<Record<string, unknown>>,
-    loadNames: vi.fn(async () => {}),
+    // Resolves TRUE — see LiveCompareLens: `undefined` reads as a
+    // failed profile read now that the store answers.
+    loadNames: vi.fn(async () => true),
     nameFor: (uid: string) => ({ u1: "Ada Lovelace", u2: "" }[uid] ?? ""),
     scoresFor: () => null as Record<string, Record<string, number>> | null,
     // D178. No face by default: initials are the permanent fallback, so

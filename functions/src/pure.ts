@@ -489,6 +489,154 @@ export function revealVotes<T extends object>(
   return out;
 }
 
+// ── the role ledger (ROLES-PLAN §3.3, ROUNDS-PLAN §7.2 — D445) ───────
+//
+// What the people around you make you, kept by the SERVER as each round
+// reveals, so the reading outlives the thirty reveals a device can page
+// (REVEAL_HIST_CAP, src/v2/data/live.ts). Under rounds a fortnight can
+// hold hundreds of reveals, and the device cannot fold what it cannot
+// fetch — so the ledger is the instrument's substrate, not an improvement
+// to one. One map on the group document, `ledger.{uid}`, written WHOLE in
+// the reveal's own settle update from the transaction's read of the group
+// and the round's blind votes; the device-side fold (src/v2/data/roles.ts)
+// reads it once it clears the instrument's floor and pages reveals until
+// then — which is also how a group revealed before the ledger existed
+// catches up: forward-only, from zero, on its next reveal (the plan's own
+// answer; no backfill).
+//
+// THE SAME RULES AS THE DEVICE'S FOLD, deliberately: a number the ledger
+// says and a number the reveals say must agree on any window they share,
+// or the tab would change its reading the day the ledger took over.
+//   · a 1v1: a CAST round (the bank's `topic: "cast"`) both members
+//     answered blind on that same question. `casts` counts the round;
+//     `axes[dims[i]]` counts what the OTHER said this member is — keyed
+//     by the bank's own `dims` entry for the option, never by a
+//     vocabulary this file would have to copy from the client; `saw`
+//     counts this member's guesses at what the other said of them (made,
+//     and landed); `castQid` names the cast question, so the device can
+//     draw the receipts' them forms without paging a reveal.
+//   · a group: a ROLE VOTE (`topic: "pick"` carrying `role.seat`). A vote
+//     counts for the member its D224 snapshot names, under the seat the
+//     bank gives the role — never for the voter's own name, and never by
+//     an option index the roster remaps.
+// A vote stamped with another qid (D71 — that member's bank disagreed) is
+// not an answer to this question; a late vote never reaches this fold,
+// because the reveal is created from blind votes and a late one is
+// appended by the trigger afterwards (ROUNDS-PLAN §4). A rating, an own
+// round, a plain pick with no seat: nothing moves, and the caller writes
+// nothing. Rows are written for CURRENT members only, and a departed
+// member's row leaves with them (leaveGroupV2, deleteAccount phase 1c) —
+// the shape D55 §8 gives every per-member map on this document.
+
+export interface RoleLedgerRow {
+  /** 1v1: cast rounds both answered blind on the same cast question */
+  casts?: number;
+  /** 1v1: times the OTHER said this member is each axis, by the bank's axis id */
+  axes?: Record<string, number>;
+  /** 1v1: this member's guesses at what the other said of them — landed / made */
+  saw?: { right: number; total: number };
+  /** 1v1: the cast question the latest fold read — the receipts' them forms */
+  castQid?: string;
+  /** group: votes received on role votes from OTHER members, off snapshots */
+  votes?: number;
+  /** group: …per seat of the role they were cast in, by the bank's seat id */
+  seats?: Record<string, number>;
+}
+export type RoleLedger = Record<string, RoleLedgerRow>;
+
+/** What the fold reads off the round's question document. */
+export interface LedgerQuestion {
+  topic?: unknown;
+  role?: unknown;
+  dims?: unknown;
+}
+/** A vote as the reveal's `votes` map holds it (RevealVote's shape). */
+export interface LedgerVote {
+  optionIdx: number;
+  guessIdx?: number;
+  pickUid?: string;
+  qid?: string;
+  late?: true;
+}
+
+const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const count = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+
+/**
+ * The ledger after this round, or null when the round moved nothing in it
+ * — so the caller leaves the field alone and the common write is the one
+ * it was. `prev` is the group document's current `ledger` (any shape:
+ * absent on every group from before D445); the result is a fresh map with
+ * every untouched row carried over.
+ */
+export function foldRoleLedger(
+  prev: unknown,
+  mode: string,
+  q: LedgerQuestion | null | undefined,
+  qid: string | null,
+  votes: Readonly<Record<string, LedgerVote>>,
+  members: readonly string[],
+): RoleLedger | null {
+  if (!q) return null;
+  const next: RoleLedger = {};
+  if (isMap(prev)) {
+    for (const [uid, row] of Object.entries(prev)) if (isMap(row)) next[uid] = { ...(row as RoleLedgerRow) };
+  }
+  const rowOf = (uid: string): RoleLedgerRow => (next[uid] ??= {});
+  // A blind vote cast on THIS question: no D71 stamp, no late flag.
+  const blind = (uid: string): LedgerVote | null => {
+    const v = votes[uid];
+    return v && typeof v.optionIdx === "number" && !v.qid && !v.late ? v : null;
+  };
+  let moved = false;
+
+  if (mode === "duo") {
+    if (q.topic !== "cast") return null;
+    const dims = Array.isArray(q.dims) ? q.dims : [];
+    // Every ordered pair of members — a duo has two, so this is the two
+    // views the device's castOf takes (me → them, them → me).
+    for (const me of members) {
+      for (const them of members) {
+        if (me === them) continue;
+        const mine = blind(me), theirs = blind(them);
+        if (!mine || !theirs) continue;
+        const row = rowOf(me);
+        row.casts = count(row.casts) + 1;
+        const axis = dims[theirs.optionIdx];
+        if (typeof axis === "string" && axis) {
+          row.axes = { ...(row.axes || {}), [axis]: count(row.axes?.[axis]) + 1 };
+        }
+        const saw = { right: count(row.saw?.right), total: count(row.saw?.total) };
+        if (typeof mine.guessIdx === "number") {
+          saw.total += 1;
+          if (mine.guessIdx === theirs.optionIdx) saw.right += 1;
+        }
+        row.saw = saw;
+        if (qid) row.castQid = qid;
+        moved = true;
+      }
+    }
+    return moved ? next : null;
+  }
+
+  const seat = isMap(q.role) ? q.role.seat : undefined;
+  if (q.topic !== "pick" || typeof seat !== "string" || !seat) return null;
+  const roster = new Set(members);
+  for (const voter of Object.keys(votes)) {
+    const v = blind(voter);
+    if (!v) continue;
+    const who = v.pickUid;
+    // No snapshot, a vote for yourself, or a name no longer on the roster:
+    // the room did not name a member here.
+    if (typeof who !== "string" || !who || who === voter || !roster.has(who)) continue;
+    const row = rowOf(who);
+    row.votes = count(row.votes) + 1;
+    row.seats = { ...(row.seats || {}), [seat]: count(row.seats?.[seat]) + 1 };
+    moved = true;
+  }
+  return moved ? next : null;
+}
+
 /**
  * One reveal's contribution. `optionCount` is the question's bank-option
  * count — 0 for `pick` questions, whose optionIdx values index each

@@ -17,8 +17,8 @@
     "ios": "npx cap open ios",
     "android": "npx cap open android",
     "doctor": "npx cap doctor",
-    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests && node scripts/rules-coverage.mjs\"",
-    "test:rules:baseline": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests && node scripts/rules-coverage.mjs --update-coverage-baseline\"",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests && node scripts/rules-coverage.mjs && node scripts/rules-budget.mjs --gate\"",
+    "test:rules:baseline": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests && node scripts/rules-coverage.mjs --update-coverage-baseline && node scripts/rules-budget.mjs --pin\"",
     "pretest:e2e": "npm run build --prefix functions",
     "test:e2e": "STRIPE_WEBHOOK_SECRET=whsec_e2e firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "pretest:e2e:erasure": "npm run build --prefix functions",
@@ -38,6 +38,7 @@
     "check:panel-suites": "node scripts/check-panel-suites.mjs",
     "check:purge": "node scripts/check-purge-listeners.mjs",
     "check:cities": "node scripts/check-cities.mjs",
+    "check:pick-crowds": "node scripts/check-pick-crowds.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
     "check:elements": "node scripts/check-elements.mjs",
@@ -74,6 +75,8 @@
     "costs:compare": "node scripts/cost-compare.mjs",
     "costs:levers": "node scripts/cost-levers.mjs",
     "costs:scale": "node scripts/cost-scale.mjs",
+    "costs:structure": "node scripts/cost-structure.mjs",
+    "costs:target": "node scripts/cost-target.mjs",
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "build:countries": "node scripts/build-countries.mjs",
@@ -135,7 +138,7 @@
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@sentry/browser": "10.60.0",
     "@sentry/capacitor": "^4.2.0",
     "capacitor-firebase-app-check": "npm:@capacitor-firebase/app-check@^8.3.0",
@@ -144,7 +147,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.3.3",
+    "@capacitor/android": "^8.5.0",
     "@capacitor/cli": "^8.5.0",
     "@capacitor/ios": "^8.4.2",
     "@eslint/js": "^9.39.4",
@@ -159,10 +162,10 @@
     "eslint": "^9.39.4",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-react-refresh": "^0.5.4",
     "fake-indexeddb": "^6.2.5",
     "firebase-admin": "^14.2.0",
-    "firebase-tools": "^15.24.0",
+    "firebase-tools": "^15.28.1",
     "globals": "^17.4.0",
     "jsdom": "^30.0.1",
     "sharp": "^0.35.4",
@@ -174,5 +177,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 34
+  "appBuild": 36
 }

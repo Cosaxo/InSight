@@ -50,6 +50,10 @@ const LIVE = vi.hoisted(() => ({
   // (D190). A case below sets one and asserts the control is gone.
   handle: "",
   deleteAccount: async () => {},
+  // D443 — the export row. What the callable answers is opaque to the
+  // panel: it stringifies whatever comes back and hands it over, so a
+  // recognisable field is enough to assert the handoff got THIS object.
+  exportAccount: vi.fn(async () => ({ ok: true, uid: "u_me", handle: "olaf" })),
   saveDisplayName: async () => {},
   // D331 — the compass row. Consented by default here so the row's ON
   // copy is what the existing cases render past; the OFF copy and the
@@ -74,6 +78,19 @@ vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 // RE-showing rather than mounting the real screen over the panel.
 const WT = vi.hoisted(() => ({ mountWalkthrough: vi.fn(async (opts?: { again?: boolean }) => { void opts; }) }));
 vi.mock("./walkthrough", () => ({ mountWalkthrough: WT.mountWalkthrough }));
+// The export's handoff (D443), reached by the same dynamic-import shape:
+// mocked so the cases can assert which JSON was handed over and drive the
+// three routes without a share sheet, a download or a clipboard.
+const XF = vi.hoisted(() => ({
+  handOffJson: vi.fn(async (text: string, name: string): Promise<"saved" | "shared" | "copied"> => {
+    void text; void name;
+    return "saved";
+  }),
+}));
+vi.mock("../data/exportFile", () => ({
+  handOffJson: XF.handOffJson,
+  exportFilename: () => "insight-export-2026-09-09.json",
+}));
 
 const { default: LivePrivacyPanel } = await import("./LivePrivacyPanel");
 
@@ -170,6 +187,71 @@ describe("LivePrivacyPanel · a refused deletion is shown, not swallowed", () =>
 // where the takes and counts wording now lives. The guard did not move
 // because it was never only here; the positive half ("takes carry your
 // display name", "counts are exact") is a row in check-policy-claims.
+
+// ── the export row (D443) ─────────────────────────────────────────────
+//
+// web/terms.html has promised "a chance to download your data first" since
+// it was written; this row is the mechanism. What is worth pinning is the
+// plumbing — that the tap reaches the callable and hands ITS answer to the
+// device as a .json — and the sentence afterwards, which names the route
+// because a saved file, a used share sheet and a clipboard to paste from
+// are three different next steps. The refused case reads like the refused
+// delete: the server's own sentence, shown, and no reload.
+describe("LivePrivacyPanel · Download your data", () => {
+  beforeEach(() => {
+    LIVE.exportAccount.mockClear();
+    XF.handOffJson.mockReset();
+    XF.handOffJson.mockResolvedValue("saved");
+  });
+
+  it("sits directly above the delete, in the order the terms put them", () => {
+    render(<LivePrivacyPanel />);
+    const titles = [...document.querySelectorAll("div")]
+      .map((d) => d.textContent?.trim())
+      .filter((t) => t === "Download your data" || t === "Delete everything");
+    expect(titles).toEqual(["Download your data", "Delete everything"]);
+  });
+
+  it("calls the export and hands the callable's own JSON over as a dated .json file", async () => {
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /^Download$/ }));
+    await waitFor(() => expect(XF.handOffJson).toHaveBeenCalledTimes(1));
+    expect(LIVE.exportAccount).toHaveBeenCalledTimes(1);
+    const [text, name] = XF.handOffJson.mock.calls[0];
+    expect(name).toBe("insight-export-2026-09-09.json");
+    // The bytes are the callable's answer, pretty-printed, and nothing else.
+    expect(JSON.parse(text)).toEqual({ ok: true, uid: "u_me", handle: "olaf" });
+    expect(text).toContain("\n  ");
+    expect(await screen.findByText("Saved ✓")).toBeTruthy();
+  });
+
+  it("says which route the file took, because each is a different next step", async () => {
+    for (const [route, sentence] of [
+      ["shared", "Shared ✓"],
+      ["copied", "Copied to the clipboard ✓"],
+    ] as const) {
+      cleanup();
+      XF.handOffJson.mockResolvedValue(route);
+      render(<LivePrivacyPanel />);
+      fireEvent.click(screen.getByRole("button", { name: /^Download$/ }));
+      expect(await screen.findByText(sentence)).toBeTruthy();
+    }
+  });
+
+  it("shows the server's refusal and reloads nothing", async () => {
+    // The byte bound's own sentence (functions/src/exportAccount.ts) — the
+    // one refusal a person can meet, and the one they most need to read.
+    LIVE.exportAccount.mockRejectedValueOnce(
+      new Error("resource-exhausted: Your data is over 8 MB, more than one download can carry. Ask for it by email instead — the address is on the deletion page."),
+    );
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /^Download$/ }));
+    expect(await screen.findByText(/over 8 MB/)).toBeTruthy();
+    expect(XF.handOffJson).not.toHaveBeenCalled();
+    expect(window.location.reload).not.toHaveBeenCalled();
+    expect(screen.queryByText("Saved ✓")).toBeNull();
+  });
+});
 
 describe("LivePrivacyPanel · off in demo mode", () => {
   it("renders nothing when LIVE is disabled", () => {
@@ -423,5 +505,37 @@ describe("LivePrivacyPanel · the walkthrough can be shown again (D393)", () => 
     fireEvent.click(screen.getByRole("button", { name: /^Show again$/ }));
     await vi.waitFor(() => expect(WT.mountWalkthrough).toHaveBeenCalledTimes(1));
     expect(WT.mountWalkthrough).toHaveBeenCalledWith({ again: true });
+  });
+});
+
+// ── clearing the name (D440) ───────────────────────────────────────
+//
+// A blank Save used to return before reaching the store, so a name once
+// set could never be un-set from the one screen that edits it — and the
+// directory row it had written stood forever, which is the finding the
+// owner ruled on (OWNER-LIST, 2026-09-07). The store now deletes that row
+// on an empty name; what is pinned here is the only screen that can hand
+// it one, and that an account with nothing to clear still saves nothing.
+describe("LivePrivacyPanel · a blank Save clears a set name (D440)", () => {
+  afterEach(() => { LIVE.displayName = "Tester"; LIVE.saveDisplayName = async () => {}; });
+
+  it("hands the store the empty name when one is set", async () => {
+    const save = vi.fn(async () => {});
+    LIVE.saveDisplayName = save;
+    render(<LivePrivacyPanel />);
+    const field = screen.getByPlaceholderText("Add a name") as HTMLInputElement;
+    expect(field.value).toBe("Tester");
+    fireEvent.change(field, { target: { value: "  " } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(""));
+  });
+
+  it("stays a no-op on an account with no name to clear", () => {
+    const save = vi.fn(async () => {});
+    LIVE.saveDisplayName = save;
+    LIVE.displayName = "";
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    expect(save).not.toHaveBeenCalled();
   });
 });

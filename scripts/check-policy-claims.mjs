@@ -57,6 +57,15 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
+  // D447 phase A · the answer log is a second copy of every answer, in
+  // BigQuery, and deleting the account deletes it — at once or within a
+  // day (the streaming buffer). Both halves are claims: that the copy
+  // exists and where, and that erasure reaches it on a stated clock. The
+  // window between them is wide because the export's paragraph (D443)
+  // sits between the two sentences — 2,000 characters stopped matching
+  // the day that paragraph landed, with the promise intact on the page.
+  ["D447 · the answer log exists, in the same project and region, and erasure reaches it within a day",
+    /analytics table \(BigQuery\) in the\s+same Google Cloud project and region[\s\S]{0,8000}?copy of your answers in the analytics table goes with\s+them[\s\S]{0,120}?within a day/i],
   // D236 · the page must NAME the notifications, not just count them.
   // check:figures holds the count against v2social.ts's own call sites;
   // this holds the list, because a fifth kind added as "and others" would
@@ -121,8 +130,19 @@ export const CLAIMS = [
   // it carries and what it never does — the counts, never a name.
   ["D379 · a bought question's numbers are a public web page, and it never names who answered",
     /served as a web page\s+anyone can open[\s\S]{0,240}?never who\s+answered/i],
-  ["D5 · duel picks stay sealed until the next day's reveal",
-    /sealed[\s\S]{0,200}?until the day after/i],
+  // WAS "until the day after", AND SO WAS THIS ROW. D426 replaced the
+  // calendar day with a ROUND and D437 gave it a 48-hour deadline: a 1v1
+  // reveals the moment the partner answers (inside `onV2AnswerCreated`),
+  // a circle when the last member plays, otherwise at the deadline. The
+  // page went on promising a day in BOTH directions — a pick can be
+  // public a second after it is cast, and can stay sealed for two days —
+  // and this row PINNED that promise, so the page could not be corrected
+  // without moving the gate. The app's own copy has said "sealed until
+  // the reveal" since D437, and `check:public-copy` refuses the word
+  // "tomorrow" on the duel surfaces; `web/` is not one of the roots it
+  // scans, which is the gap that let the page drift alone.
+  ["D437 · duel picks stay sealed until their round reveals",
+    /sealed[\s\S]{0,200}?until its round reveals/i],
   // The row above pins the SEAL and says nothing about who reads the
   // reveal once it opens, which is how the page went on promising "the
   // people in that group" for a year after D98 removed the membership
@@ -273,16 +293,37 @@ export const CLAIMS = [
   // account before anything looks at the address (live.ts's own
   // `abandonSignIn` note: "Nothing is deleted — the abandoned account
   // still exists"), and it said the app warns before signing in to an
-  // existing account, which Apple and Google do and the email door does
-  // not.
+  // existing account, which Apple and Google did and the email door did
+  // not. That second sentence went the other way at D441: the owner had
+  // the CODE match the better promise, so the row that pinned the caveat
+  // now pins the promise for all three doors, and an absence row keeps
+  // the caveat from coming back — the page must not go on describing a
+  // door that no longer exists.
   ["D414 · the three doors are named, so the wall cannot quietly grow a fourth",
     /Sign in with Apple[\s\S]{0,400}?Continue with Google[\s\S]{0,400}?Email and password/i],
   ["D414 · the password is hashed by Firebase and this app never sees it",
     /stores\s+it hashed; this app never sees it and never stores it/i],
   ["D414 · a password account exists BEFORE the address is confirmed, and is abandoned rather than deleted",
     /exists from the moment the password is accepted, before[\s\S]{0,200}?signing out abandons that account rather\s+than deleting it/i],
-  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
-    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
+  ["D441 · signing in to an existing account leaves this session's answers, and every door says so first",
+    /two histories are not\s+merged[\s\S]{0,200}?says so on the screen before it\s+happens/i],
+  ["D441 · the retired email-door caveat is gone",
+    (src) => !/With an\s+email address it does not/i.test(src)],
+  // D443 · the terms have promised "a chance to download your data first"
+  // since they were written, and the export (functions/src/exportAccount.ts)
+  // is what makes that a mechanism. Three rows: that a download EXISTS and
+  // is deletion's own list (the sentence a reader is owed one heading above
+  // the delete button), what it leaves out (an export described as
+  // "everything" that quietly omits things is exactly the shape this file's
+  // header is about), and the bound with the way round it.
+  // `\s+` inside each phrase, because the page wraps at 76 columns and a
+  // phrase that happens to break across a line is still on the page.
+  ["D443 · your data can be downloaded as one JSON file, and it is the list deletion removes",
+    /download\s+button[\s\S]{0,160}?one\s+JSON\s+file[\s\S]{0,900}?list\s+deletion\s+removes/i],
+  ["D443 · and the file says what it leaves out: the logic answer key, who reported you, the push token, the presence cell",
+    /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
+  ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
+    /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

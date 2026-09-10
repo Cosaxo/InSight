@@ -57,24 +57,52 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
  * watched at all — this is a ratchet on known concentrations, not a policy
  * about the tree.
  */
+/**
+ * The watched files, and HOW each is watched. Two modes, because two
+ * different things go wrong:
+ *
+ *   `ratchet` — a hand-written file, held at an EXACT figure. Growing
+ *     fails; shrinking fails too, asking for the number to come down with
+ *     it (check:globals rule 4's shape). This is the mode that makes the
+ *     next 500 lines a decision.
+ *
+ *   `ceiling` — a GENERATED file that legitimately grows every day.
+ *     A maximum, not a ratchet: under it is silence, over it is a
+ *     failure. Shrinking is never a failure here.
+ *
+ * THE SECOND MODE EXISTS BECAUSE THE FIRST ONE WAS WRONG FOR ONE FILE, and
+ * the error is worth keeping written down. `functions/src/v2content.ts` was
+ * seeded as a ratchet on 2026-09-09 and would have failed on the very next
+ * day's content lanes — which self-merge on green (D212), so a gate that
+ * reds every morning does not get fixed, it gets deleted. A daily-appended
+ * artifact has no "did not grow" state to hold it to. What it HAS is a
+ * wall: the TypeScript TS2590 limit it has already hit once, and the
+ * cold-start parse every one of the 42 Cloud Functions pays. So the number
+ * for it is that wall with room to reach it, not yesterday's length.
+ */
 export const SIZE_BASELINE = {
-  // 8,648 after the first slice left for data/localWrite.ts
-  // (D-2026-09-09h). It was 1,285 lines 39 days earlier.
-  "src/v2/data/live.ts": 8648,
-  "src/v2/spec/world-feed.jsx": 4612,
-  "src/v2/ui/LiveDuelPanel.tsx": 2323,
+  // 8,848 — 8,648 after the first slice left for data/localWrite.ts
+  // (D-2026-09-09h), plus main's 76 commits at the merge, plus the
+  // `scopeIds` docblock the merge itself needed. It was 1,285 lines 40
+  // days earlier, which is the number this ceiling exists for.
+  "src/v2/data/live.ts": { mode: "ratchet", lines: 8848 },
+  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4619 },
+  "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2323 },
   // The suites are watched too, and for the same reason rather than out of
   // tidiness: vote.test.ts is the file that pins the whole window.LIVE
   // surface, so it grows every time the store does, and a 4,000-line test
   // file is as hard to read a failure out of as a 4,000-line module.
-  "src/v2/data/vote.test.ts": 4241,
-  "firestore-tests/rules.test.ts": 4984,
-  // GENERATED, and that is the reason it is here rather than an exemption:
-  // nobody reads its diff, so nothing else in the tree would notice it
-  // doubling — which it did, 2,926 → 25,993 in five weeks. It is imported
-  // statically into all 42 Cloud Functions.
-  "functions/src/v2content.ts": 25993,
-  "functions/src/pure.ts": 2650,
+  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4264 },
+  "firestore-tests/rules.test.ts": { mode: "ratchet", lines: 5199 },
+  "functions/src/pure.ts": { mode: "ratchet", lines: 2798 },
+  // GENERATED and appended daily by the content lanes — hence `ceiling`.
+  // 40,000 is chosen from what actually breaks rather than from taste: it
+  // is ~1.4x today's 28,442, the file went 2,926 → 28,442 in five weeks,
+  // and it has already hit TS2590 once (it is split into BANK_0..BANK_6 to
+  // dodge that). Crossing this is the signal to move the bank out of the
+  // JavaScript rather than to raise the number again — which is the
+  // conversation the wall is here to force while there is still room.
+  "functions/src/v2content.ts": { mode: "ceiling", lines: 40000 },
 };
 
 export function lineCount(text) {
@@ -90,14 +118,18 @@ export function lineCount(text) {
 export function sizeReport(sizes, baseline = SIZE_BASELINE) {
   const over = [];
   const under = [];
-  for (const [file, max] of Object.entries(baseline)) {
+  for (const [file, spec] of Object.entries(baseline)) {
+    const { mode, lines: max } = spec;
     const n = sizes[file];
     if (n == null) {
-      over.push({ file, now: null, max, kind: "missing" });
+      over.push({ file, now: null, max, mode, kind: "missing" });
       continue;
     }
-    if (n > max) over.push({ file, now: n, max, kind: "grew" });
-    else if (n < max) under.push({ file, now: n, max });
+    if (n > max) over.push({ file, now: n, max, mode, kind: "grew" });
+    // A `ceiling` file is ALLOWED to be under its number — that is the
+    // whole difference between the modes. Only a ratchet asks for its
+    // figure to follow a shrink down.
+    else if (n < max && mode === "ratchet") under.push({ file, now: n, max, mode });
   }
   return { over, under };
 }
@@ -128,7 +160,7 @@ if (isEntry) {
         );
       } else {
         console.error(
-          `  ${r.file} — ${r.now} lines, ceiling ${r.max} (+${r.now - r.max}).\n`
+          `  ${r.file} — ${r.now} lines, ${r.mode === "ceiling" ? "hard ceiling" : "ratchet"} ${r.max} (+${r.now - r.max}).\n`
           + "    Split something out and lower the number, or raise it in the same commit\n"
           + "    that says why. There is no target here; the only claim is that this file\n"
           + "    does not get bigger by accident.\n",
@@ -140,7 +172,7 @@ if (isEntry) {
 
   if (under.length) {
     console.error("\n✓ files shrank — now lower their ceilings in this script:\n");
-    for (const r of under) console.error(`  "${r.file}": ${r.now},   // was ${r.max}`);
+    for (const r of under) console.error(`  "${r.file}": { mode: "ratchet", lines: ${r.now} },   // was ${r.max}`);
     console.error("");
     process.exit(1);
   }

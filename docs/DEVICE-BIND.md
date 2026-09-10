@@ -220,12 +220,13 @@ refuses them. So both rates can read perfect while most real votes would
 be refused, which is precisely the silent-refusal failure this section
 exists to prevent, hiding inside the instrument meant to prevent it.
 
-`ledgerVelocityScan` now logs the population that actually matters, daily,
-at INFO, from the Auth records it already fetches:
+The velocity scan (inside `digestEngagementV2` since DATA-EFFICIENCY-RUNBOOK
+4.4; its own `ledgerVelocityScan` before) logs the population that
+actually matters, daily, at INFO, from the Auth records it already fetches:
 
 ```bash
 gcloud logging read \
-  'resource.labels.service_name="ledgervelocityscan" AND jsonPayload.metric="bind_coverage"' \
+  'resource.labels.service_name="digestengagementv2" AND jsonPayload.metric="bind_coverage"' \
   --project prvfire33 --limit 7 --format='value(jsonPayload.refusedPct,jsonPayload.boundAnswers,jsonPayload.answers)'
 ```
 

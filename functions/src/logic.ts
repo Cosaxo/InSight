@@ -479,7 +479,22 @@ export const logicSubmitV2 = onCall(
             },
           },
         },
-        { merge: true },
+        // THE SUBTREE, WHOLE. `{merge:true}` merges nested maps leaf by
+        // leaf, so a key omitted here was left STANDING from the previous
+        // verified attempt — and `n` is omitted by design whenever the
+        // percentile is modelled rather than measured. An account that
+        // verified under an earlier generator era and re-verified after a
+        // bump (which resets the norms, so the percentile falls back to
+        // the model until a hundred fresh attempts fold) kept an `n`
+        // counted from a population that no longer exists, beside
+        // `source: "model"` — the exact thing the comment above forbids,
+        // on a world-readable profile and in the data export.
+        //
+        // `mergeFields` names the one path this write owns: the subtree
+        // is replaced, the rest of the profile is untouched, and the fix
+        // is the CLASS rather than the key — the next optional field
+        // omitted here cannot go stale either.
+        { mergeFields: ["testResults.logic"] },
       );
       if (norms) {
         tx.set(privRef, norms);

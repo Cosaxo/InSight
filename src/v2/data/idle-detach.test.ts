@@ -32,6 +32,7 @@
 // reads it from this file and moves with it.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { scopeIds } from "./live";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -191,7 +192,17 @@ beforeEach(() => {
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Stop the store this case booted before the next one boots its own.
+  // `vi.resetModules()` hands the next case a FRESH module instance and
+  // does not stop the old one, whose timers and in-flight chains keep
+  // running against a registry that has moved on — the failure
+  // `_teardownForTest`'s own comment records from warm-boot.test.ts
+  // (D357), and the one that made a vote in this file resolve
+  // `import("./circle")` outside the mocked registry.
+  await import("./live").then((m) => m._teardownForTest()).catch(() => {
+    /* a case that never imported the store has nothing to tear down */
+  });
   vi.useRealTimers();
   vi.unstubAllEnvs();
   delete (document as unknown as Record<string, unknown>).hidden;
@@ -273,6 +284,50 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     h.aggQueries.length = 0;
     vi.advanceTimersByTime(60_000);
     await vi.advanceTimersByTimeAsync(0);
+    expect(h.aggQueries).toHaveLength(0);
+  });
+
+  it("a return to the foreground re-reads today only, not the whole deck", () => {
+    // DATA-EFFICIENCY-RUNBOOK 1.4. The boot read the seven; a foreground
+    // reads one — the term COSTS.md calls `reattach`, 28 reads a user-day
+    // when every app switch re-read the deck. A card this device holds no
+    // aggregate for rides along (a rollover while backgrounded).
+    //
+    // ASSERTED ON THE PURE SLICE rather than by driving a foreground and
+    // counting the query, since D-2026-09-09a. `readableDeckIds` now sits
+    // in front of the same expression, so the driven path reads nothing
+    // until this device has voted — and this file's Firestore double
+    // cannot carry a vote (the vote path's dynamic `import("./circle")`
+    // resolves outside the mocked registry and takes the real
+    // `collection()`, which throws on the `{ __db: true }` stand-in).
+    // Weakening this to "reads nothing" would have lost the claim; moving
+    // the arithmetic out keeps it, and keeps it exact.
+    const deck = ["d0", "d1", "d2", "d3", "d4", "d5", "d6"];
+    const allHeld = Object.fromEntries(deck.map((id) => [id, {}]));
+    expect(scopeIds("today", deck, allHeld)).toEqual(["d0"]);
+    // …and the boot still asks for the whole deck.
+    expect(scopeIds("deck", deck, allHeld)).toEqual(deck);
+    // A card the device holds no aggregate for rides along — the rollover
+    // case the runbook names.
+    expect(scopeIds("today", deck, { d0: {}, d1: {}, d2: {}, d3: {}, d5: {}, d6: {} }))
+      .toEqual(["d0", "d4"]);
+  });
+
+  it("a return to the foreground reads NOTHING while today is unanswered", async () => {
+    // The composed behaviour, driven for real: whatever slice `scopeIds`
+    // picks, an unanswered card's crowd is not fetched on the foreground
+    // path either. A reader who opens the app, sits on the card, switches
+    // away and comes back would otherwise be handed the counts they have
+    // not earned — the worst moment for the number to arrive.
+    vi.useFakeTimers();
+    const mod = await bootLive();
+    setHidden(true);
+    h.aggQueries.length = 0;
+    setHidden(false);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.waitFor(() => {
+      expect(mod._aggPollForTest().running).toBe(true);
+    });
     expect(h.aggQueries).toHaveLength(0);
   });
 

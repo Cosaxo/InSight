@@ -47,7 +47,20 @@
 //   firebase emulators:exec --only firestore "node scripts/rules-budget.mjs"
 //
 // Options:
-//   --write-baseline          write scripts/rules-budget-baseline.json
+//   --gate                    THE GATE (D438): assert the baseline's pins on
+//                             the tree's rules — every probe's verdict
+//                             unchanged at its pinned N and BUDGET at N+1,
+//                             every pin at or above the floor, the file
+//                             loading at the compile floor. Chained into
+//                             `test:rules` after rules-coverage, so it runs
+//                             on the PR path and the deploy path both.
+//   --pin                     re-bisect every probe's headroom and rewrite
+//                             the pins (fillers, bounded, compileCeiling)
+//                             in the baseline, keeping the last full
+//                             measurement's costs and unit. What a PR
+//                             runs when the gate says the number moved
+//                             (`npm run test:rules:baseline`).
+//   --write-baseline          the full measurement, written as the baseline
 //   --ablate NAME=EXPR        replace helper NAME's body with `return EXPR;`
 //                             and measure that variant instead (repeatable)
 //   --fillers-on update       put the fillers on the UPDATE arm instead of
@@ -441,34 +454,132 @@ async function measureCompileCeiling(rules, label, where, maxFillers) {
   return bisect((n) => compiles(withFillers(rules, n, where), `${label}-k${n}`), 0, maxFillers);
 }
 
+/**
+ * One probe's verdict on one variant — `allowed`, `refused`, `budget`, or
+ * `compile` when the variant would not load. The one step under the
+ * headroom bisection, the gate and the pin, so the three cannot disagree
+ * about what a verdict is.
+ */
+async function verdictAt(rules, n, where, probe, label) {
+  try {
+    const { env } = await boot(withFillers(rules, n, where), `${label}-f${n}`);
+    try { await seed(env); return await attempt(env, probe); } finally { await env.cleanup(); }
+  } catch (e) {
+    // Past the compile ceiling the variant cannot load at all — that is a
+    // failing N for every probe, not a crash.
+    if (!/too complex to evaluate safely|Error compiling rules/i.test(String(e?.message || e))) throw e;
+    return "compile";
+  }
+}
+
+/**
+ * "Unchanged": an allowed write is still allowed, and a refused write is
+ * still refused for a REASON rather than for budget.
+ */
+export const unchanged = (probe, verdict) => (probe.expect === "allowed" ? verdict === "allowed" : verdict === "refused");
+
 /** Headroom per probe, in fillers: the largest N at which its verdict is unchanged. */
 async function measureHeadroom(rules, label, where, maxFillers) {
   const out = new Map();
   for (const p of PROBES) {
-    if (p.update && where !== "update") { out.set(p.name, null); continue; }
-    if (!p.update && where === "update") { out.set(p.name, null); continue; }
+    if (Boolean(p.update) !== (where === "update")) { out.set(p.name, null); continue; }
     const cache = new Map();
     const ok = async (n) => {
-      if (cache.has(n)) return cache.get(n);
-      let verdict;
-      try {
-        const { env } = await boot(withFillers(rules, n, where), `${label}-f${n}`);
-        try { await seed(env); verdict = await attempt(env, p); } finally { await env.cleanup(); }
-      } catch (e) {
-        // Past the compile ceiling the variant cannot load at all — that is
-        // a failing N for every probe, not a crash.
-        if (!/too complex to evaluate safely|Error compiling rules/i.test(String(e?.message || e))) throw e;
-        verdict = "compile";
-      }
-      // "unchanged" means: an allowed write is still allowed, and a refused
-      // write is still refused for a REASON rather than for budget.
-      const still = p.expect === "allowed" ? verdict === "allowed" : verdict === "refused";
-      cache.set(n, still);
-      return still;
+      if (!cache.has(n)) cache.set(n, unchanged(p, await verdictAt(rules, n, where, p, label)));
+      return cache.get(n);
     };
     out.set(p.name, await bisect(ok, 0, maxFillers));
   }
   return out;
+}
+
+// ── the gate (D438) ─────────────────────────────────────────────────
+
+/**
+ * The gate's checks, from the baseline alone — pure, so WHAT is asserted
+ * can be pinned without an emulator. Every probe must have a row and
+ * every row a probe: a probe renamed or added without a re-pin is a gate
+ * measuring the old shape, and that fails here rather than passing
+ * quietly. For a probe the bisection could flip, the assertion is
+ * two-sided — its verdict unchanged at exactly the pinned N and BUDGET at
+ * N+1 — which is check:globals rule 4's shape: a change that moves the
+ * headroom in EITHER direction must move the number with it and say why,
+ * so the baseline stays a measurement and not a memory. For a probe the
+ * compile ceiling bounded (every refusal, today): unchanged at the floor.
+ * The floor itself is policy, not measurement — the plan's "≥ 400
+ * expressions" in the calibrated unit — and every pin must clear it.
+ */
+export function planGate(baseline, probes = PROBES) {
+  const floor = baseline?.floorFillers;
+  const compileFloor = baseline?.compileFloorFillers;
+  if (!Number.isInteger(floor) || floor < 0 || !Number.isInteger(compileFloor) || compileFloor <= floor) {
+    throw new Error("rules-budget: the baseline needs integer floorFillers and compileFloorFillers, the compile floor above the runtime one");
+  }
+  if (baseline.fillersOn !== "create") {
+    throw new Error(`rules-budget: the baseline's fillers are on the ${baseline.fillersOn} arm; the gate pins the create arm`);
+  }
+  const rows = new Map((baseline.probes || []).map((r) => [r.name, r]));
+  const checks = [];
+  for (const p of probes) {
+    const row = rows.get(p.name);
+    if (!row) throw new Error(`rules-budget: no baseline row for the probe "${p.name}" — re-pin (npm run test:rules:baseline)`);
+    rows.delete(p.name);
+    // The update probe: its arm carries no fillers on a create-arm pin.
+    if (row.fillers == null) continue;
+    if (!Number.isInteger(row.fillers) || row.fillers < 0) {
+      throw new Error(`rules-budget: "${p.name}" is pinned at ${row.fillers}, which is not a headroom — its verdict changed; re-pin`);
+    }
+    if (row.fillers < floor) {
+      throw new Error(`rules-budget: "${p.name}" is pinned at ${row.fillers} fillers, under the floor of ${floor} — the change that put it there is the thing to argue, not the number`);
+    }
+    if (row.bounded) {
+      checks.push({ probe: p, n: floor, want: "unchanged" });
+    } else {
+      checks.push({ probe: p, n: row.fillers, want: "unchanged" });
+      checks.push({ probe: p, n: row.fillers + 1, want: "budget" });
+    }
+  }
+  if (rows.size) throw new Error(`rules-budget: baseline rows with no probe behind them: ${[...rows.keys()].join(", ")} — re-pin`);
+  return { floor, compileFloor, checks };
+}
+
+/** One check against the verdict the emulator gave — pure. */
+export function judge(check, verdict) {
+  const ok = check.want === "budget" ? verdict === "budget" : unchanged(check.probe, verdict);
+  return { ...check, verdict, ok };
+}
+
+async function runGate(rules, baseline, label) {
+  const plan = planGate(baseline);
+  const results = [];
+  for (const c of plan.checks) results.push(judge(c, await verdictAt(rules, c.n, "create", c.probe, label)));
+  const loads = await compiles(withFillers(rules, plan.compileFloor, "create"), `${label}-k${plan.compileFloor}`);
+  return { ...plan, results, loads };
+}
+
+/** The baseline, with its keys in reading order and the floors always present. */
+function writeBaseline(next) {
+  const ordered = {
+    measured: next.measured,
+    pinned: next.pinned,
+    variant: next.variant,
+    fillersOn: next.fillersOn,
+    floorFillers: next.floorFillers,
+    compileFloorFillers: next.compileFloorFillers,
+    compileCeiling: next.compileCeiling,
+    unit: next.unit,
+    calibration: next.calibration,
+    probes: next.probes,
+  };
+  writeFileSync(BASELINE, `${JSON.stringify(ordered, null, 2)}\n`);
+}
+
+function readBaseline() {
+  try {
+    return JSON.parse(readFileSync(BASELINE, "utf8"));
+  } catch (e) {
+    throw new Error(`rules-budget: cannot read ${BASELINE} — ${e?.message || e}. The gate fails closed; write it with --write-baseline.`);
+  }
 }
 
 /**
@@ -531,6 +642,74 @@ function arg(name, dflt) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const base = readFileSync(RULES, "utf8");
+
+  if (process.argv.includes("--gate")) {
+    const baseline = readBaseline();
+    const unitOf = (n) => (baseline.unit ? ` (~${Math.round(n * baseline.unit)} units)` : "");
+    console.log(`rules-budget gate: floor ${baseline.floorFillers} fillers${unitOf(baseline.floorFillers)}, compile floor ${baseline.compileFloorFillers}, pinned ${baseline.pinned || baseline.measured}`);
+    const g = await runGate(base, baseline, "gate");
+    let bad = 0;
+    const byProbe = new Map();
+    for (const r of g.results) {
+      if (!byProbe.has(r.probe.name)) byProbe.set(r.probe.name, []);
+      byProbe.get(r.probe.name).push(r);
+    }
+    for (const [name, rs] of byProbe) {
+      const ok = rs.every((r) => r.ok);
+      if (!ok) bad += 1;
+      const said = rs.map((r) => `${r.verdict} @${r.n}${r.ok ? "" : ` (wanted ${r.want === "budget" ? "budget" : r.probe.expect})`}`).join(", ");
+      const note = rs.length === 1 ? " — compile-bounded pin, held at the floor" : "";
+      console.log(`  ${ok ? "✓" : "✗"} ${name.padEnd(46)} ${said}${note}`);
+    }
+    console.log(`  ${g.loads ? "✓" : "✗"} the ruleset ${g.loads ? "loads" : "DOES NOT LOAD"} with ${g.compileFloor} fillers on the create arm`);
+    if (!g.loads) bad += 1;
+    if (bad) {
+      console.error(`\nrules-budget gate FAILED — ${bad} pin(s) moved.`
+        + "\n  If the change is meant to cost expressions, re-pin (npm run test:rules:baseline) and say why in the PR;"
+        + `\n  a pin that lands under the floor (${g.floor} fillers) is the change to argue for, not the number to edit.`
+        + "\n  If the change was not meant to cost anything, it did — scripts/rules-budget.mjs (no flags) says where.");
+      process.exit(1);
+    }
+    console.log(`rules-budget gate OK — ${byProbe.size} probes at their pins, floor ${g.floor}, loads at ${g.compileFloor}`);
+    process.exit(0);
+  }
+
+  if (process.argv.includes("--pin")) {
+    const baseline = readBaseline();
+    const maxFillers = Number(arg("--max-fillers", "200"));
+    const ceiling = await measureCompileCeiling(base, "pin", "create", maxFillers);
+    const headroom = await measureHeadroom(base, "pin", "create", Math.max(0, ceiling));
+    const rows = new Map((baseline.probes || []).map((r) => [r.name, r]));
+    const probes = [];
+    let moved = 0;
+    let broken = 0;
+    for (const p of PROBES) {
+      const h = headroom.get(p.name);
+      const old = rows.get(p.name) || { name: p.name, expect: p.expect };
+      if (h != null && h < 0) broken += 1;
+      const next = { ...old, name: p.name, expect: p.expect, fillers: h, bounded: h != null && h >= ceiling };
+      if (old.fillers !== next.fillers || Boolean(old.bounded) !== next.bounded) moved += 1;
+      const was = old.fillers == null ? "—" : `${old.bounded ? "≥" : ""}${old.fillers}`;
+      const now = h == null ? "—" : h < 0 ? "VERDICT CHANGED" : `${next.bounded ? "≥" : ""}${h}`;
+      console.log(`  ${p.name.padEnd(46)} ${was.padStart(5)} → ${now}`);
+      probes.push(next);
+    }
+    if (broken) {
+      console.error(`\nrules-budget: ${broken} probe(s) no longer return their expected verdict at ZERO fillers — that is a rule change, not a headroom change, and a pin cannot record it.`);
+      process.exit(1);
+    }
+    writeBaseline({
+      ...baseline,
+      pinned: new Date().toISOString().slice(0, 10),
+      compileCeiling: ceiling,
+      floorFillers: baseline.floorFillers ?? 50,
+      compileFloorFillers: baseline.compileFloorFillers ?? 80,
+      probes,
+    });
+    console.log(`\nrules-budget: ${moved} pin(s) moved; compile ceiling ${ceiling}; written — ${BASELINE}`);
+    process.exit(0);
+  }
+
   let rules = base;
   const ablations = [];
   for (let i = 0; i < process.argv.length; i += 1) {
@@ -621,10 +800,17 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     for (const c of wrong) console.error(`  ${c.name}: expected ${c.expect}, got ${c.verdict}`);
   }
   if (process.argv.includes("--write-baseline")) {
-    const snapshot = {
+    // The floors are policy and survive a re-measurement; the defaults are
+    // D438's numbers for a tree that has none yet.
+    let prior = {};
+    try { prior = readBaseline(); } catch { prior = {}; }
+    writeBaseline({
       measured: new Date().toISOString().slice(0, 10),
+      pinned: new Date().toISOString().slice(0, 10),
       variant: label,
       fillersOn: where,
+      floorFillers: prior.floorFillers ?? 50,
+      compileFloorFillers: prior.compileFloorFillers ?? 80,
       compileCeiling: ceiling,
       unit,
       calibration: cal.weights,
@@ -637,8 +823,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         // true: never flipped below the compile ceiling — `fillers` is a floor.
         bounded: bounded(headroom.get(c.name)),
       })),
-    };
-    writeFileSync(BASELINE, `${JSON.stringify(snapshot, null, 2)}\n`);
+    });
     console.log(`\nrules-budget: baseline written — ${BASELINE}`);
   }
   process.exit(wrong.length ? 1 : 0);

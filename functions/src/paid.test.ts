@@ -32,6 +32,11 @@ import {
   priceQuote,
   refundEurFor,
   reviewBooking,
+  runReviewVerdict,
+  takeReviewCall,
+  ReviewBudgetHeld,
+  REVIEW_CALLS_PER_DAY,
+  REVIEW_MAX_TOKENS,
   goLive,
   reviewGates,
   reviewSubject,
@@ -635,7 +640,7 @@ describe("the ad lane is retired (D375)", () => {
 });
 
 describe("runReviewSweep", () => {
-  const store = (rows) => {
+  const store = (rows, throwsFor = new Set()) => {
     const state = { reviewed: [], pages: [] };
     return {
       state,
@@ -646,7 +651,14 @@ describe("runReviewSweep", () => {
           state.pages.push({ after, size: page.length });
           return page;
         },
-        async review(bid) { state.reviewed.push(bid); },
+        // CAN THROW, which the real one plainly can: `reviewBooking`
+        // catches the model call and not the write that records the
+        // attempt nor the settling transaction. A fake that never throws
+        // is a fake that cannot ask what the loop does when one does.
+        async review(bid) {
+          if (throwsFor.has(bid)) throw new Error(`boom ${bid}`);
+          state.reviewed.push(bid);
+        },
       },
     };
   };
@@ -668,6 +680,29 @@ describe("runReviewSweep", () => {
     const res = await runReviewSweep(st);
     expect(res).toMatchObject({ retried: 1, stalled: 1 });
     expect(state.reviewed, "a booking past the ceiling was called for again").toEqual(["fresh"]);
+  });
+
+  it("one booking's failure does not strand the rest of the scan", async () => {
+    // The page is ordered OLDEST FIRST, so an unguarded throw ended the
+    // run with every booking behind the failing one unvisited — the same
+    // starvation the paging case below goes to some trouble to prove is
+    // gone, reintroduced by a missing try/catch. v2social's reveal scan
+    // wraps each item and says why in those words.
+    const { store: st, state } = store(held(4, 0), new Set(["b0001"]));
+    const res = await runReviewSweep(st);
+    expect(state.reviewed, "the scan stopped at the first failure")
+      .toEqual(["b0000", "b0002", "b0003"]);
+    // Counted rather than swallowed: a run where nothing worked must not
+    // read as a quiet one.
+    expect(res).toMatchObject({ scanned: 4, retried: 3, failed: 1, stalled: 0 });
+  });
+
+  it("…and a failure is not a retry — the control", async () => {
+    // The over-fix: catching and counting it as retried anyway, which
+    // would make a sweep where every booking threw look like a perfect
+    // one in the log.
+    const { store: st } = store(held(3, 0), new Set(["b0000", "b0001", "b0002"]));
+    expect(await runReviewSweep(st)).toMatchObject({ scanned: 3, retried: 0, failed: 3 });
   });
 
   it("PAGES PAST a full page of stalled bookings to reach a live one", async () => {
@@ -968,5 +1003,78 @@ describe("expirePriorSession", () => {
       checkout: { sessions: { expire: async () => { throw new Error("already completed"); } } },
     };
     await expect(expirePriorSession(client, { sessionId: "cs_done" }, "b1")).resolves.toBeUndefined();
+  });
+});
+
+describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
+  const DAY = 86_400_000;
+
+  it("takeReviewCall: a sliding day, the cap, and a slot taken only when allowed", () => {
+    const t0 = Date.UTC(2026, 8, 9, 12);
+    let events: number[] = [];
+    for (let i = 0; i < REVIEW_CALLS_PER_DAY; i += 1) {
+      const r = takeReviewCall(events, t0 + i * 1000);
+      expect(r.allowed).toBe(true);
+      events = r.events;
+    }
+    const refused = takeReviewCall(events, t0 + DAY - 1);
+    expect(refused.allowed).toBe(false);
+    expect(refused.events, "a refused call spends nothing").toHaveLength(REVIEW_CALLS_PER_DAY);
+    // The first call falls out of the window a day after it was made.
+    const again = takeReviewCall(events, t0 + DAY + 1);
+    expect(again.allowed).toBe(true);
+    expect(again.events).toHaveLength(REVIEW_CALLS_PER_DAY);
+    // Junk in the ledger is dropped, not counted.
+    expect(takeReviewCall([NaN as number, "x" as unknown as number], t0).events).toEqual([t0]);
+  });
+
+  it("the ceiling is a day's real reviews, and the verdict's tokens are the verdict's", () => {
+    // Fifty is ten bookings at every attempt; sixteen thousand tokens was
+    // the model's maximum, not a verdict's size.
+    expect(REVIEW_CALLS_PER_DAY).toBeGreaterThanOrEqual(2 * BOOKINGS_PER_DAY * MAX_REVIEW_ATTEMPTS / 2);
+    expect(REVIEW_MAX_TOKENS).toBeGreaterThanOrEqual(256);
+    expect(REVIEW_MAX_TOKENS).toBeLessThanOrEqual(4096);
+    const src = readFileSync(new URL("./paid.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/max_tokens:\s*REVIEW_MAX_TOKENS/);
+    expect(src).not.toMatch(/max_tokens:\s*\d/);
+  });
+
+  it("runReviewVerdict takes the slot only when a model call is about to be made", async () => {
+    const was = process.env.ANTHROPIC_API_KEY;
+    let taken = 0;
+    const refuse = async () => { taken += 1; throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); };
+    try {
+      // No key: gates-only, and the budget is untouched.
+      delete process.env.ANTHROPIC_API_KEY;
+      expect((await runReviewVerdict(BOOKING, null, refuse)).by).toBe("gates-only");
+      expect(taken).toBe(0);
+      // A gated decline never reaches the budget either.
+      process.env.ANTHROPIC_API_KEY = "test-key";
+      expect((await runReviewVerdict({ ...BOOKING, prompt: "???" }, null, refuse)).by).toBe("gates");
+      expect(taken).toBe(0);
+      // With a key and a valid booking the slot is taken before any SDK is
+      // loaded, and a refused slot is the typed hold.
+      await expect(runReviewVerdict(BOOKING, null, refuse)).rejects.toBeInstanceOf(ReviewBudgetHeld);
+      expect(taken).toBe(1);
+    } finally {
+      if (was === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = was;
+    }
+  });
+
+  it("reviewBooking holds a budget refusal without counting an attempt or touching the booking", async () => {
+    const was = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    const data: Record<string, unknown> = { ...BOOKING, status: "review", reviewAttempts: 2, buyerName: null };
+    const updates: unknown[] = [];
+    let transactions = 0;
+    const ref = { async get() { return { exists: true, get: (f: string) => data[f] }; }, async update(d: unknown) { updates.push(d); } };
+    const db = { collection: () => ({ doc: () => ref }), async runTransaction() { transactions += 1; } };
+    try {
+      await reviewBooking(db as unknown as Parameters<typeof reviewBooking>[0], "b1", async () => { throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); });
+      expect(updates, "no attempt counted, no status moved").toEqual([]);
+      expect(transactions).toBe(0);
+    } finally {
+      if (was === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = was;
+    }
   });
 });

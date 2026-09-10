@@ -1,0 +1,70 @@
+# Create the answer log's dataset and table in BigQuery
+# (SCALE-ARCHITECTURE.md phase A, D447) — once, before the deploy that
+# carries the trigger's append goes out, or right after it (the trigger's
+# append fails softly and the nightly reconcile catches up the day).
+#
+# Same posture as monitoring.yml, for the same reasons: `workflow_dispatch`
+# only, `apply` off unless asked, the deploy service account's credential
+# from the production environment — which, as monitoring.yml records, also
+# means this can only run from `main`. NOT on the deploy path: a dataset is
+# created once, and a pipeline that can create one can drop one.
+#
+# What it cannot do is grant IAM. The functions' runtime service account
+# needs BigQuery Data Editor and Job User to append rows and run the
+# erasure DELETE; the script prints the two `gcloud` commands and the
+# owner runs them (OWNER-LIST.md).
+
+name: Apply BigQuery
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "CREATE the dataset and table. Off = report what is missing and change nothing."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apply-bigquery
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Apply
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          # pipefail, for the reason seed-content.yml records: `cmd | tee`
+          # reports TEE's status, so without it a FAILED run is a green job.
+          # `apply` is type: boolean, so interpolating it is safe.
+          set -o pipefail
+          ARGS=()
+          [ "${{ inputs.apply }}" = "true" ] && ARGS+=(--apply)
+          node scripts/apply-bigquery.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/bq.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Apply BigQuery"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/bq.txt" 2>/dev/null || echo "(the script did not run — see the step log)"
+            echo '```'
+            echo ""
+            echo "Then the two IAM bindings the output names, once, by hand — and the"
+            echo "Backfill answer log workflow with the deploy's day as the cutoff."
+          } >> "$GITHUB_STEP_SUMMARY"

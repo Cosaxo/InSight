@@ -98,6 +98,10 @@ interface LiveGroup {
   mode?: string;
   memberUids?: string[];
   memberNames?: Record<string, string>;
+  /** The server's role ledger (D445) — `ledger.{uid}` on the group
+   * document, which the store hands over whole: the seats read it once
+   * a member's row clears the floor, and the reveals until then. */
+  ledger?: unknown;
 }
 
 const packInk = (hue: number | null | undefined) => `oklch(0.605 0.118 ${hue ?? 250})`;
@@ -284,7 +288,7 @@ function LgPeopleCard({ g, reveals, lookup, reading }: { g: LiveGroup; reveals: 
       {others.length > 0 && (
         <div style={{ marginTop: 13, paddingTop: 13, borderTop: LG_LINE, display: "flex", flexDirection: "column", gap: 9 }}>
           {others.map((uid) => {
-            const s = seatFor(reveals, uid, lookup);
+            const s = seatFor(reveals, uid, lookup, g.ledger);
             const named = s ? s.shares[s.seat.id] : 0;
             return (
               <div key={uid} style={{ display: "flex", alignItems: "center", gap: 9 }}>
@@ -456,17 +460,21 @@ function useGroupFolds(
   reveals: PortraitReveal[],
   lookup: BankLookup,
   me: string | null,
+  ledger: unknown,
 ) {
   return React.useMemo(() => {
     const rv = roleVotes(reveals, lookup, me);
     const scores = groupScores(reveals, lookup, me);
-    const mine = gid ? groupRole(reveals, me, lookup) : null;
+    // The seats read the server's ledger once a row clears the floor
+    // (D445) and the reveals until then; the Votes lens above stays over
+    // the reveals — who holds a role is the card's rule, per round.
+    const mine = gid ? groupRole(reveals, me, lookup, ledger) : null;
     const members: FieldMember[] = gid ? memberUids.map((uid) => ({
       id: uid, name: uid === me ? "You" : names[uid] || "", me: uid === me,
-      seatLine: (uid === me ? mine && { seat: mine.seat } : seatFor(reveals, uid, lookup))?.seat.line ?? null,
+      seatLine: (uid === me ? mine && { seat: mine.seat } : seatFor(reveals, uid, lookup, ledger))?.seat.line ?? null,
     })) : [];
     return { rv, scores, mine, members };
-  }, [gid, memberUids, names, reveals, lookup, me]);
+  }, [gid, memberUids, names, reveals, lookup, me, ledger]);
 }
 
 function LiveGroupsMirrorBody() {
@@ -497,7 +505,7 @@ function LiveGroupsMirrorBody() {
   const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : NO_REVEALS;
   const names: Record<string, string> = (g && g.memberNames) || NO_NAMES;
   const memberUids: readonly string[] = (g && g.memberUids) || NO_UIDS;
-  const { rv, scores, mine, members } = useGroupFolds(g ? g.id : null, memberUids, names, reveals, lookup, me);
+  const { rv, scores, mine, members } = useGroupFolds(g ? g.id : null, memberUids, names, reveals, lookup, me, g ? g.ledger : null);
 
   if (!LIVE.enabled) return null;
 

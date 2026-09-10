@@ -6,7 +6,7 @@ import { getAuth, connectAuthEmulator, signInAnonymously } from "firebase/auth";
 import {
   getFirestore, connectFirestoreEmulator, collection, collectionGroup, query,
   where, orderBy, limit, startAfter, documentId, getDocs, doc, getDoc, setDoc,
-  updateDoc, serverTimestamp,
+  updateDoc, deleteDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 // The ADMIN handle, and the only thing it is used for: reading back a
@@ -237,6 +237,15 @@ for (let i = 0; i < 60; i++) {
   await new Promise((r) => setTimeout(r, 500));
 }
 if (!pub) fail("public agg never appeared — trigger did not fire");
+// The answer map (DATA-EFFICIENCY-RUNBOOK 3.2) lands in the same
+// transaction as the count, so it is there the moment the aggregate is —
+// and it is the reader's own grant to get (3.1), one document.
+{
+  const map = await getDoc(doc(db, "v2_users", uid, "public", "answers"));
+  if (!map.exists()) fail("the answer map was not written with the fold (runbook 3.2)");
+  if (map.get("a")?.[q0.id] !== 1) fail("the answer map holds the wrong index: " + JSON.stringify(map.get("a")));
+  ok("the answer map carries the vote, atomically with the count");
+}
 if ("tooSmall" in pub)
   fail("the trigger still writes a tooSmall flag: " + JSON.stringify(pub));
 if (pub.total !== 1 || !pub.counts || pub.counts["1"] !== 1)
@@ -448,6 +457,11 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     await new Promise((r) => setTimeout(r, 400));
   }
   if (!moved) fail("D86 edit never reached the public mirror");
+  {
+    const map = await getDoc(doc(db, "v2_users", uid, "public", "answers"));
+    if (map.get("a")?.[q0.id] !== 0) fail("the answer map did not move with the edit (runbook 3.2): " + JSON.stringify(map.get("a")));
+    ok("the answer map moved with the edit");
+  }
   if (moved.total !== 11 || moved.counts["0"] !== 9 || moved.counts["1"] !== 2)
     fail("edit did not move -old/+new with total unchanged: " + JSON.stringify(moved));
   // The 25-34 band held user1(1→0), n0, n2, m0, m1 and the cadence voter,
@@ -575,6 +589,22 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 // firestore.indexes.json; a missing one there fails the call with a
 // console link rather than a wrong answer.
 {
+  // The backfill (runbook 3.4), dry then applied, over the answers this
+  // run wrote: a read per answer, the maps merged — and a map the trigger
+  // already wrote comes out the same, which is the idempotence the
+  // workflow's header promises.
+  {
+    const before = (await getDoc(doc(db, "v2_users", uid, "public", "answers"))).get("a");
+    const dryFill = (await httpsCallable(fns, "backfillAnswerMapsV2")({ apply: false })).data;
+    if (!dryFill.done || dryFill.written !== 0 || dryFill.folded < 1)
+      fail("backfill dry run did not scan the answers: " + JSON.stringify(dryFill));
+    const fill = (await httpsCallable(fns, "backfillAnswerMapsV2")({ apply: true })).data;
+    if (!fill.done || fill.written < 1) fail("backfill wrote nothing: " + JSON.stringify(fill));
+    const after = (await getDoc(doc(db, "v2_users", uid, "public", "answers"))).get("a");
+    if (JSON.stringify(after) !== JSON.stringify(before))
+      fail("the backfill changed a map the trigger had already written: " + JSON.stringify(before) + " → " + JSON.stringify(after));
+    ok("backfillAnswerMapsV2: dry run scanned " + dryFill.scanned + ", apply merged " + fill.users + " map(s), idempotent over the trigger's");
+  }
   const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
   if (dry.applied !== false) fail("the rebuild wrote without --apply");
   if (dry.scanned !== 12 || dry.folded !== 12 || dry.skipped !== 0)
@@ -1842,6 +1872,24 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const again = await httpsCallable(fns, "claimHandleV2")({ handle: "olaf_t" });
   if (again.data?.handle !== "olaf_t") fail("re-claiming my own handle was refused");
   ok("re-claiming the same handle is a no-op, not an error");
+
+  // …AND THE NO-OP REPAIRS THE DIRECTORY ROW. D440 lets an owner delete
+  // their own row and `writeDirectoryRow` does exactly that when a display
+  // name is cleared — after which the client cannot put the handle back
+  // (`handle` is immutable to it there). The re-claim used to return one
+  // statement before the row write, so clearing a name and setting one
+  // again left an account findable by name and not by the address it had
+  // taken, with nothing in the system able to fix it.
+  await deleteDoc(doc(db, "v2_people", uid));
+  const gone = await getDoc(doc(db, "v2_people", uid));
+  if (gone.exists()) fail("the owner could not delete their own directory row (D440)");
+  const repair = await httpsCallable(fns, "claimHandleV2")({ handle: "olaf_t" });
+  if (repair.data?.handle !== "olaf_t") fail("the repairing re-claim was refused");
+  const row = await getDoc(doc(db, "v2_people", uid));
+  if (!row.exists() || row.get("handle") !== "olaf_t") {
+    fail("re-claiming my own handle did not restore the directory row: " + JSON.stringify(row.data() ?? null));
+  }
+  ok("a deleted directory row is repaired by re-claiming the handle it holds");
 
   // The change, refused. A handle is the address a person hands out, and a
   // rename frees it for a stranger the same minute — which is the failure
