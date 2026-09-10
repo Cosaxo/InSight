@@ -48887,3 +48887,125 @@ above the live declaration gets read as live. `paid.ts` has a 45-line
 header comment naming `createPaidCheckoutV2` and `stripeWebhookV2`. The
 fix was `stripComments()`, not a raised ceiling.
 
+
+## D446 · The web buy door opens: a gate a browser can pass, a page that actually calls the backend, and a city picker that is the difference between a campaign and a refund
+
+**2026-09-10.** **Status:** binding. The owner's answer to "when a customer
+sees their price, what should happen next" — *they click Buy and pay right
+there* — taken with the cost stated: a third-party anti-bot script on the
+page and a privacy page that moves first.
+
+### Two things were wrong, and only one of them was written down
+
+`web/ask.html`'s own header said *"the pay tap is not open yet, and the
+block is App Check, not code"*. That was true about the callables and it
+hid the larger fact: **the page made no backend call at all**. One fetch,
+to a static price file; every number up to the quote computed in the
+browser; no sign-in, no booking, no checkout. The App Check blocker was
+real and it was the second problem, not the first.
+
+### The gate: server-verified reCAPTCHA, not App Check's own bridge
+
+D337 declined the web App Check provider because *"there is no public web
+client"*. D368's shape A built one, so the premise expired rather than
+being wrong, and the question became WHICH browser attestation.
+
+`assertRecaptcha` verifies a v3 token with Google's `siteverify` for
+success, **action** and score before either callable does any work.
+`check-appcheck.mjs` exempts the two naming it as their `gate`, and that
+script asserts the callable's body really calls what its reason claims —
+so the substitute cannot decay into a hole the way a prose-only exemption
+can. Both hops are gated: a booking id is `uid_<base36 ms>`, guessable
+enough that leaving checkout unlatched would undo the first.
+
+Chosen over App Check's own reCAPTCHA bridge for two reasons.
+
+**The practical one.** That flow ends in a token exchange whose request
+and response field names this session could not read from any source it
+had — `firebase.google.com` is blocked by the egress proxy here, and no
+caller in this repository exercises it. A hand-written call to an
+unverified endpoint fails *silently*, as a pay button that does nothing,
+which is precisely the failure mode `check:csp-hashes` exists for one file
+over. Every other REST shape on the page was read off a working caller in
+this tree instead: anonymous sign-in from `question-scorecard.mjs`, the
+callable envelope from `operator-call.mjs`, the document read from the
+same aggregate loop.
+
+**The one about strength.** `siteverify` returns a score and the action
+the token was minted for, checked on our side, per request. An App Check
+token is a yes/no that is replayable for its whole TTL. The abuse actually
+in question is somebody spending the Anthropic budget five Claude reviews
+at a time from unlimited free anonymous accounts, and a score beats a yes.
+
+**Unset is CLOSED**, which inverts the polarity of every other credential
+in `paid.ts`. Those degrade honestly because their absence costs a
+feature; this one's absence would cost the budget it protects. The
+emulator arm is `deviceBind.ts`'s idiom one file over — `FUNCTIONS_EMULATOR`
+is set *by* the emulator and cannot be set into a deployed runtime.
+
+### The page, with no SDK
+
+`web/` has no build step and is served verbatim, and this page is one
+inline script pinned by sha256 under `default-src 'none'`. A bundled
+Firebase SDK would be a second script, a policy rewrite and a build step
+for a directory that has none. So: plain `fetch` throughout, one external
+script (reCAPTCHA), and a CSP that gains exactly the hosts those calls
+need.
+
+The flow is sign in → token for action `book` → `bookPaidQuestionV2` →
+**poll the buyer's own booking document** → token for action `checkout` →
+`createPaidCheckoutV2` → Stripe. The poll is there because the review runs
+on a Firestore trigger rather than inside the booking call, and
+`firestore.rules` already admits an own-uid read of that document.
+
+### The city picker, which is the expensive part
+
+A booking's `dims.city` is matched against the anchor an answer
+snapshotted when it was written (D8), and that anchor is a **catalogue
+key**: `"Oslo, NO"` — `placeKey()` in `src/v2/data/places.ts`. A free-text
+city box would therefore have taken €320 and reached **nobody**, quietly,
+with every gate green: "Oslo", "oslo" and "Oslo, Norway" are all
+reasonable things to type and none of them is the key. The error the
+server returns says *"a city ask needs your city set on your profile"*,
+written for an in-app buyer who has one; a web buyer does not.
+
+So `web/ask-places.txt` — 10,929 city names, generated from
+`public/cities.txt`, 57 KB gzipped, fetched only on a place scope — and a
+picker whose failure to resolve is a **refusal to sell** rather than a
+warning. Country names come from `Intl.DisplayNames` rather than the
+catalogue, which is `places.ts`'s own reasoning for not shipping 245 of
+them. `check:ask-places` holds the generated file to its source.
+
+### Two bugs found by driving the page rather than reading it
+
+The place requirement started on the QUOTE button. The ruler starts on
+"Your city", so the page opened with its main button disabled and nothing
+saying why. The place is needed to BOOK, not to be quoted — a city ask
+costs what it costs whichever city it is — so it moved to the tap, where
+the composer reopens on the missing field. And `drawPlace` had to join
+`draw()`, or the page opened on a place scope with no place field visible.
+
+The test harness had the same shape of fault: it stubbed one `fetch` for
+every URL, so the config reader received the pricing card — an object with
+no `apiKey`, which reads as "door closed". The right answer, arrived at by
+accident, and it would have stayed the answer after the door opened.
+
+### What did not change
+
+A deployment with no keys ships the same correct page it did before, with
+the honest "payment is not open yet" note — a local checkout, a preview,
+and production before runbook 5.14 all land there. That note is now chosen
+by `cfgReady()` rather than written in, so it is a statement about the
+deployment rather than a claim about the code.
+
+`web/privacy.html` moved FIRST (D183): what Google receives, that the
+score is kept with the booking, and that it runs on that page alone and
+never loads if you do not open it. Two `check:policy-claims` rows hold
+both halves. The second matters more than it looks — a reader who learns
+the app loads Google's anti-bot script will reasonably assume it loads
+everywhere, and the true answer is the one that stops being written down
+the moment nothing holds it.
+
+**Still the owner's, and the only thing left:** runbook 5.14's five keys.
+Nothing here can create a Stripe account or a reCAPTCHA site.
+

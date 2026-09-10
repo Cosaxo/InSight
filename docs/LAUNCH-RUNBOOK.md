@@ -2304,19 +2304,47 @@ That is a tester-count problem, not a workflow problem.
       about whether the path works, only that its one known failure is
       no longer silent. (Until that day it was silent twice over.)
 
-      **THE SECRETS ALONE DO NOT PRODUCE A SALE, and the second half is a
-      different box.** Under D368's shape A the door is on the web, and
-      `bookPaidQuestionV2` and `createPaidCheckoutV2` both demand App
-      Check — which a browser can only satisfy with a provider this
-      project has never provisioned (D337 declined it on the premise that
-      there was no public web client, and shape A is what created one).
-      So a buyer on a fully-keyed deployment still cannot pay. That is
-      the `OWNER-LIST.md` row *"The web ask door needs App Check to accept
-      a browser"*, it recommends reCAPTCHA over exempting the two
-      callables, and it is ordered WITH this step rather than after it.
-      Observe production says nothing about it — App Check enforcement is
-      not an environment variable — so this is the one part of the money
-      path still checked by reading, not by running.
+      **THE APP CHECK BLOCKER IS GONE, and it was the bigger half.**
+      This step used to end by saying the secrets alone would not produce
+      a sale, because both callables demanded App Check and a browser
+      cannot produce it. D446 replaced that with a gate a browser CAN
+      pass — a reCAPTCHA v3 token verified server-side for success,
+      action and score — and wired the page, which until then made no
+      backend call at all. So this step is now the whole of it, and it
+      is five keys rather than three.
+
+      **The order, and every step is yours:**
+
+      1. **Stripe account** (`stripe.com`). Test keys work the moment the
+         account exists; live keys wait on business verification, which
+         in Norway wants an organisation number. Rehearse on `sk_test_`.
+      2. **reCAPTCHA v3** at `google.com/recaptcha/admin` — pick **v3**,
+         not v2 and not Enterprise, and add the hosting domain. You get a
+         SITE key and a SECRET key.
+      3. **Anthropic API key** (`console.anthropic.com`) for the review.
+      4. **GitHub → Settings → Environments → `production`.** Secrets:
+         `STRIPE_SECRET_KEY`, `RECAPTCHA_SECRET_KEY`, `ANTHROPIC_API_KEY`.
+         Variables: `RECAPTCHA_SITE_KEY` (public by design — it is read by
+         every visitor).
+      5. **Run Deploy Firebase backend.** Nothing reaches the runtime
+         until a deploy writes the dotenv; the run warns for each key it
+         did not get.
+      6. **Actions → Observe production**, and read `stripeWebhookV2`'s
+         URL off the summary.
+      7. **Stripe dashboard → Webhooks**, endpoint at that URL, **three**
+         events (below). Store the `whsec_…` as `STRIPE_WEBHOOK_SECRET`.
+      8. **Deploy again** — the value only reaches the runtime through the
+         dotenv the deploy writes.
+      9. **Observe production again**: it should say *A sale can complete
+         today: YES*. Then buy something with a Stripe test card.
+
+      **What is no longer on this list, because it is built:** the page
+      itself. It signs in anonymously, mints a token, books, waits for the
+      reviewer's verdict on the buyer's own booking document, mints a
+      second token and opens Stripe. The city picker is part of that and
+      is not cosmetic — a booking carries the catalogue key an answer's
+      anchor holds (`"Oslo, NO"`), so the old free-text idea would have
+      charged €320 for a campaign that reached nobody.
 
       **This step does not decide WHETHER the door ships** — that is 6.0,
       and it comes first. If 6.0 takes shape A the door leaves the binary
