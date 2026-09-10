@@ -143,6 +143,24 @@ export const CLAIMS = [
   // scans, which is the gap that let the page drift alone.
   ["D437 · duel picks stay sealed until their round reveals",
     /sealed[\s\S]{0,200}?until its round reveals/i],
+  // AND THE OTHER HALF OF THE SAME SENTENCE, which the row above cannot
+  // see. The correction it describes moved the SEAL clause and stopped
+  // there, leaving the next clause reading "A 1v1 reveals when the other
+  // person answers; a circle when everyone has played, or at the round's
+  // deadline two days on" — the deadline attached to the circle by
+  // position, and nothing at all about a 1v1 that nobody completes. That
+  // is the both-or-nothing 1v1 `pure.ts` says it retired in as many
+  // words ("a partner who stops playing used to seal the other's answer
+  // with no reveal, ever"), and it is the promise a reader plans around:
+  // if the deadline does not reach a 1v1, a pick is safe from a partner
+  // who ghosts. It does. `roundReveals` takes no mode at all — measured
+  // 2026-09-10, `roundReveals(1, 2, true)` is TRUE — the deadline scan
+  // queries `v2_groups` with no mode filter, and `ROUND_DEADLINE_MS`'s
+  // own comment says "a 1v1 keeps closing at it for the one who played".
+  // The gate was green through all of it, because the row above matched
+  // the sentence before the wrong one.
+  ["D437 · a round nobody completes reveals at its deadline, a 1v1 included",
+    /deadline two days on[\s\S]{0,120}?a 1v1\s+included/i],
   // The row above pins the SEAL and says nothing about who reads the
   // reveal once it opens, which is how the page went on promising "the
   // people in that group" for a year after D98 removed the membership
