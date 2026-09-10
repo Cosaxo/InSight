@@ -420,6 +420,45 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       .toEqual({ ageBand: "25-34", country: "NO" });
   });
 
+  // THE SAME LIE, ONE ARM UP. The catalog arm folds `entBy` — per-entity
+  // anchor slices — and that map is projected into the public `by` the
+  // Mirror draws. It had no honest-anchor check of any kind until
+  // 2026-09-10, so every `type: "catalog"` question was this hole with a
+  // different noun, and `rebuildAggregateV2` re-folded the same
+  // uncorrected document, which means a repair reproduced it.
+  it("folds the profile's cohort on a CATALOG pick too, and corrects that answer", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-cat-lie", {
+      surface: "feed", entity: 25,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const entBy = store.get(PRIV)?.entBy as Record<string, Record<string, Record<string, number>>>;
+    expect(entBy.ageBand["25-34"], "the profile's band took the pick").toEqual({ "25": 1 });
+    expect(entBy.ageBand["55-64"], "the claimed band got a cell anyway").toBeUndefined();
+    expect(entBy.country.NO).toEqual({ "25": 1 });
+    expect(entBy.country.JP).toBeUndefined();
+    // …and what a reader actually gets, which is the projection of it.
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>> | undefined;
+    expect(by?.ageBand?.["55-64"], "the public board published the invented cohort").toBeUndefined();
+    // …and the answer row, which the People lens reads to say who someone is.
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the catalog answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes NOTHING to an honest CATALOG answer either", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-cat-true", {
+      surface: "feed", entity: 25, anchors: { ageBand: "25-34", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest catalog answer was rewritten for nothing").toBe(false);
+  });
+
   it("writes NOTHING to the answer when the claim is honest", async () => {
     // The cost shape: an honest client — every client this repo ships —
     // pays one extra read and no write. The write is the liar's cost.
