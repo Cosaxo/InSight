@@ -88,9 +88,12 @@ jobs:
           done | tee "$RUNNER_TEMP/retired.txt"
 
       - name: The scheduler jobs, before
+        id: jobs
         # Evidence, not a gate: the delete step does not read this, so a
         # refusal here (a missing permission, an API off) is printed in the
-        # summary rather than blocking the click it is there to witness.
+        # summary rather than blocking the click it is there to witness —
+        # and the summary reads the outcome back, so a refusal is never a
+        # quiet green (workflow-pipefail.test.mjs holds that).
         continue-on-error: true
         env:
           CLOUDSDK_CORE_PROJECT: prvfire33
@@ -145,6 +148,10 @@ jobs:
               echo '```'
               cat "$RUNNER_TEMP/jobs.txt"
               echo '```'
+            fi
+            if [ "${{ steps.jobs.outcome }}" != "success" ]; then
+              echo ""
+              echo "**The scheduler listing did not run clean** (outcome: ${{ steps.jobs.outcome }}) — its text above is what gcloud said; the delete does not depend on it."
             fi
             if [ -f "$RUNNER_TEMP/jobs-after.txt" ]; then
               echo ""
