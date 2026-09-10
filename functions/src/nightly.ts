@@ -74,13 +74,14 @@ import {
   firestoreRollupStore,
   SHARD_FOLD_CAP,
   ROLLUP_FOLD_CAP,
+  ROLLUP_FOLD_BUDGET_MS,
 } from "./engagement";
 import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
 import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 import { runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
-import { FANOUT_HEAL_DEADLINE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
+import { FANOUT_HEAL_SLICE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -90,7 +91,7 @@ export interface NightlyRunners {
   patterns: () => ReturnType<typeof runPatternsFit>;
   taste: () => ReturnType<typeof runTasteFold>;
   attention: () => ReturnType<typeof runAttentionFold>;
-  rollup: () => ReturnType<typeof runRollupFold>;
+  rollup: (deadlineAt: number) => ReturnType<typeof runRollupFold>;
   /** The answer maps' heal (DATA-EFFICIENCY-RUNBOOK 3.3) — the sixth,
    *  off the same ledger read; a night that skips it leaves the trigger's
    *  own writes standing, which is the whole point of a heal. */
@@ -122,6 +123,18 @@ export interface NightlyOutcome {
   failed: string[];
 }
 
+/** The invocation's own ceiling, read from the deployed setting rather
+ *  than written out again — a second copy of 480 is a number that can
+ *  drift from the thing it describes. */
+export const PASS_CEILING_MS = NIGHTLY.timeoutSeconds * 1000;
+
+/** What the pass keeps back from its last time-bounded fold: the
+ *  summary, the heartbeat log and the failure report all run after it,
+ *  and a fold that spends the ceiling exactly leaves the invocation to be
+ *  killed mid-tail — which reads to monitoring as the pipeline going
+ *  silent, the one signal this file exists to keep honest. */
+export const PASS_TAIL_MS = 20_000;
+
 /**
  * Run the night: digest, fit, taste, attention, rollups — each isolated,
  * each heartbeat emitted only for a fold that completed, the first
@@ -132,11 +145,23 @@ export async function runNightlyPass(
   log: NightlyLog = logger,
   nowMs: () => number = Date.now,
 ): Promise<NightlyOutcome> {
-  // THE PASS'S OWN START, which is the clock every bound below should be
-  // measured against. `NIGHTLY.timeoutSeconds` is 480 and nothing here
-  // measures it; the one runner that carries a time bound counts from
-  // its own first line, so a late start moves its ceiling with it.
+  // THE PASS'S OWN START, which is the clock every bound below is
+  // measured against. Both time-bounded folds — the fan-out heal and the
+  // rollup drain — used to count from their own first line, so a late
+  // start moved their ceilings with them and neither could see the
+  // invocation it was spending.
   const startedAt = nowMs();
+  // THE CEILING, and the reason a fold's own slice is not enough on its
+  // own. Every time-bounded fold gets the EARLIER of its slice measured
+  // from where it actually starts and this instant — so a late start
+  // costs a fold time without erasing it, and no fold can run past the
+  // invocation and take the tail with it. A fixed mark measured from
+  // `startedAt` alone does both of the wrong things at once: it zeroes a
+  // fold whose predecessors ran long, and it stops the LAST fold at its
+  // own mark with the rest of the invocation unspent (FANOUT_HEAL_SLICE_MS
+  // has the arithmetic).
+  const sliceDeadline = (sliceMs: number): number =>
+    Math.min(nowMs() + sliceMs, startedAt + PASS_CEILING_MS - PASS_TAIL_MS);
   const failed: { fold: string; err: unknown }[] = [];
   const attempt = async <T>(fold: string, run: () => Promise<T>): Promise<T | null> => {
     try {
@@ -174,7 +199,7 @@ export async function runNightlyPass(
   await attempt("log", r.log);
   // The fan-out heal speaks only when it healed, like the map heal: a
   // healed account is a stamp change the budget refused in the day.
-  const fan = await attempt("fanout", () => r.fanout(startedAt + FANOUT_HEAL_DEADLINE_MS));
+  const fan = await attempt("fanout", () => r.fanout(sliceDeadline(FANOUT_HEAL_SLICE_MS)));
   if (fan && fan.pending > 0) {
     // A backlog is a WARNING, not a line in the info stream: the heal is
     // what keeps the header's promise that the last name lands within a
@@ -186,7 +211,7 @@ export async function runNightlyPass(
       // Two different facts, and the second is the one about THIS pass:
       // a long queue is the app being busy, a short night is this runner
       // spending the folds' share of the 480 seconds behind it.
-      + (fan.stopped ? ` — STOPPED at its ${FANOUT_HEAL_DEADLINE_MS / 1000}s mark in the pass with the page unfinished; the rest keep their markers for tomorrow` : "")
+      + (fan.stopped ? " — STOPPED on the pass's clock with the page unfinished; the rest keep their markers for tomorrow" : "")
       + (fan.left ? ` — MORE than ${fan.pending} were waiting; the rest keep their markers for tomorrow` : ""),
       { metric: "profile_fanout_heal", ...fan });
   }
@@ -205,7 +230,7 @@ export async function runNightlyPass(
   }
   // …and rung 2's rollups (R3/D272), unfolded-flag driven so late
   // arrivals sweep like late shards do.
-  const roll = await attempt("rollup", r.rollup);
+  const roll = await attempt("rollup", () => r.rollup(sliceDeadline(ROLLUP_FOLD_BUDGET_MS)));
   if (roll?.capped) {
     // The TIME budget ended the night (DATA-EFFICIENCY-RUNBOOK 4.1) — a
     // full page is no longer a stop — so the number that matters is what

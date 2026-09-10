@@ -77,23 +77,38 @@ export const FANOUT_HEAL_CAP = 500;
  * as many words — "the two used to be one number, which meant the first
  * page was the night".
  *
- * A DEADLINE IN THE PASS, NOT A STOPWATCH IN THE FOLD, and that is the
- * whole point of the shape. A fold-local budget answers "how long may
- * THIS fold run", which permits it to start late and finish past the
- * invocation's own ceiling — 300 seconds counted from t=250 ends at
- * t=550, and the check can never fire before the kill. This is measured
- * against the pass's own start, so it means what it says: by 150 seconds
- * in, stop starting accounts. The rollup fold claims 300 of the 480 by
- * name; 150 leaves that claim intact with 30 to spare for the attention
- * fold between them.
+ * A SLICE, AND THE PASS TURNS IT INTO A DEADLINE. A fold-local stopwatch
+ * answers "how long may THIS fold run", which permits it to start late
+ * and finish past the invocation's own ceiling — 300 seconds counted
+ * from t=250 ends at t=550, and the check can never fire before the
+ * kill. So `runNightlyPass` hands this fold an absolute instant instead.
+ *
+ * IT IS NOT A FIXED MARK IN THE PASS, and the first version of this was:
+ * "by 150 seconds in, stop starting accounts", measured from the pass's
+ * start. That reads as a partition of the 480 — 150 here, 300 for the
+ * rollup, 30 for the attention fold between them — and the arithmetic
+ * only works if the SIX folds ahead of this one cost nothing. They are
+ * the digest, the fit, the taste fold, the velocity scan, the answer-map
+ * heal and the log reconcile. On a night where they spend 200 seconds, a
+ * fixed mark heals nobody at all while a third of the invocation goes
+ * unspent, and the rollup behind it gives up at its own mark with 180
+ * seconds left on the clock. Both halves of that are the same mistake:
+ * a share of a budget nobody measured.
+ *
+ * So the pass takes the EARLIER of this slice from where the fold
+ * actually starts and its own ceiling less what the tail needs
+ * (`runNightlyPass`). A late start then costs this fold time without
+ * erasing it, and no fold can run past the invocation. Fold order is
+ * what decides who gets the remaining seconds first — which is what fold
+ * order is for.
  *
  * Stopping loses nothing — every account's work commits before the next
  * one starts, and the ones not reached keep their markers, which is
- * exactly what the cap already means. A night where the folds ahead have
- * already spent the 150 heals nobody and SAYS so (`stopped`), which is
- * the honest outcome: the alternative is running past and killing the
- * two folds behind it. */
-export const FANOUT_HEAL_DEADLINE_MS = 150_000;
+ * exactly what the cap already means. A night that reaches the pass's
+ * own ceiling here heals nobody and SAYS so (`stopped`), which is the
+ * honest outcome: the alternative is running past and killing the two
+ * folds behind it. */
+export const FANOUT_HEAL_SLICE_MS = 150_000;
 export const FANOUT_BUDGET_PREFIX = "fanout_";
 /** The budget ledger's id under `v2_ratelimits`, keyed by uid so the
  * erasure arm can name it. */
@@ -175,7 +190,7 @@ export interface FanoutHealSummary {
 export async function runFanoutHeal(
   store: FanoutHealStore,
   // `deadlineAt` is an absolute instant on the pass's clock, not a
-  // duration — see FANOUT_HEAL_DEADLINE_MS for why that distinction is
+  // duration — see FANOUT_HEAL_SLICE_MS for why that distinction is
   // the fix. NO DEFAULT: a fold cannot know when the pass began, and
   // inventing one here is exactly the fold-local stopwatch this avoids.
   // The nightly always supplies it; a caller that does not gets the
