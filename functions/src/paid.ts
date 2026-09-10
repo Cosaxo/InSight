@@ -1398,9 +1398,12 @@ export async function liveCard(db: Firestore, card: PricingCard = PRICING_CARD):
  * year is a bound rather than a policy (a forecast off campaigns older
  * than that measures a population that no longer exists). */
 export const PRICING_ROWS_DAYS = 366;
-/** The most rows one fold reads — far past anything the rate card
- * contemplates (one slot per scope per day), and a bound so a scheduled
- * job cannot grow an unbounded read. */
+/** The most rows one fold reads — a bound so a scheduled job cannot grow
+ * an unbounded read. It is NOT past what the rate card contemplates, as
+ * this said: one slot per scope per day over PRICING_ROWS_DAYS is three
+ * scopes × 366 ≈ 1,098 rows, above the cap, before a single second
+ * booking. So the cap binds, and which rows it keeps is a correctness
+ * question rather than a hygiene one — see the `orderBy` at the query. */
 export const PRICING_ROWS_MAX = 1000;
 /** The most running campaigns one fold reads an aggregate for (D372). */
 export const PRICING_PROGRESS_MAX = 50;
@@ -1416,9 +1419,24 @@ export async function publishPricing(db: Firestore, today = utcDayKey(0)): Promi
     // One range on `window.until`: every row that ended inside the
     // lookback or has not ended yet. Kind and scope are filtered in the
     // fold rather than the query, so this needs no composite index.
+    //
+    // NEWEST-ENDING FIRST, AND THE ORDER IS THE POINT. An inequality
+    // forces Firestore's implicit ordering — ascending on the inequality
+    // field — so without this `orderBy` the cap kept the OLDEST-ending
+    // rows and the first ones it dropped were those ending furthest out,
+    // which is every campaign still running. Those are exactly the rows
+    // the index is made of: `foldPricing` filters `state === "running"`
+    // and asks which of the next fourteen days each covers. Truncated
+    // away, the crowd comes back all-zero and the index collapses to the
+    // floor — the door printing a free, floor-priced fortnight over a
+    // sold-out rotation, and the quote a buyer locks taken off that card.
+    // The estimates half wants the same direction for its own reason: a
+    // forecast off the most recent completed campaigns beats one off the
+    // oldest. Same field, so still no composite index.
     const cutoff = dayPlus(today, -PRICING_ROWS_DAYS);
     const snap = await db.collection("v2_purchases")
       .where("window.until", ">=", cutoff)
+      .orderBy("window.until", "desc")
       .limit(PRICING_ROWS_MAX)
       .get();
     const rows = snap.docs.map((d) => d.data() as PurchaseRow);

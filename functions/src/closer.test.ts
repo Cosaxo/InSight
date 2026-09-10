@@ -44,6 +44,7 @@ function snapOf(r: Rec) {
 function purchaseQuery() {
   let eq: unknown = null;
   let untilFrom: string | null = null;
+  let untilDesc = false;
   let cap = Infinity;
   let after: string | null = null;
   const q = {
@@ -61,8 +62,19 @@ function purchaseQuery() {
       eq = v;
       return q;
     },
-    orderBy: (f: unknown) => {
-      // Likewise the order: `startAfter` is only meaningful against it.
+    orderBy: (f: unknown, dir: unknown = "asc") => {
+      // TWO ORDERS, because there are two readers. The closer's own pages
+      // walk by id, and `startAfter` is only meaningful against that. The
+      // fold's read (`untilFrom`) orders by the inequality field
+      // DESCENDING so its cap keeps the campaigns still running — this
+      // fake used to assert `__name__` for every caller, so adding that
+      // orderBy to the fold threw inside publishPricing's try and the two
+      // cases here failed for a reason that had nothing to do with them.
+      if (untilFrom !== null) {
+        expect(String(f)).toBe("window.until");
+        untilDesc = String(dir) === "desc";
+        return q;
+      }
       expect(String(f)).toBe("__name__");
       return q;
     },
@@ -72,10 +84,14 @@ function purchaseQuery() {
       if (untilFrom !== null) {
         // The fold's read: every row whose window ended on or after the
         // cutoff. Not counted in `queries` — those are the closer's pages.
-        const docs = purchases
-          .filter((r) => String((r.data.window as { until?: string })?.until ?? "") >= (untilFrom as string))
-          .slice(0, cap)
-          .map((r) => ({ ...snapOf(r), data: () => r.data }));
+        // Sorted the way the query asks and only then capped — a fake
+        // that hands its rows back in insertion order says nothing about
+        // a cap whose bug IS which end it keeps.
+        const until = (r: { data: Record<string, unknown> }) => String((r.data.window as { until?: string })?.until ?? "");
+        const rows = purchases
+          .filter((r) => until(r) >= (untilFrom as string))
+          .sort((a, b) => (untilDesc ? until(b).localeCompare(until(a)) : until(a).localeCompare(until(b))));
+        const docs = rows.slice(0, cap).map((r) => ({ ...snapOf(r), data: () => r.data }));
         return { docs, empty: docs.length === 0, size: docs.length };
       }
       queries.push({ after });
