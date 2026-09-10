@@ -65,8 +65,8 @@ Everything in this table was read, not derived.
 | Billing | enabled, on the account the observer names | *Observe production*, 2026-09-07 |
 | Cloud Billing budget | "InSight", **500 NOK/month**, thresholds 50/90/100/150 %, live since 2026-08-27 | D332 §3; `budget.yml`'s dry run |
 | Alert policies | **9 live and enabled of 10 committed**, email channel *InSight oncall*; the breakdown-cap evictions policy is not armed | *Observe production*, 2026-09-07; `LAUNCH-RUNBOOK.md` 5.5 / 5.5b |
-| Functions deployed | **52**: 51 in `europe-west1` — the 41 the deploy names, the two retired nightly functions D399 left standing, and eight more the deploy list does not name — plus one Python `processBatch` in `europe-north1` that is not this repository's code | *Observe production*; D399; D333 |
-| Cloud Scheduler jobs | 8 in the source, plus the two zombies' schedules; **3 are free per billing account** | `functions/src/*.ts` `onSchedule` sites; Google's scheduler pricing |
+| Functions deployed | **55** since 2026-09-10: 54 in `europe-west1` — the 46 the deploy names, and the eight of an Algolia search extension the deploy list does not name — plus one Python `processBatch` in `europe-north1` that is not this repository's code. It was 58 until run 34479295825 deleted the three retired nightly functions D399 and runbook 4.4 had left standing | `functions:list` in run 34479117495, then the delete; D399; D333 |
+| Cloud Scheduler jobs | **7**, all in the source, since the three retired functions' schedules went with them on 2026-09-10 (ten before); **3 are free per billing account** | `functions/src/*.ts` `onSchedule` sites, counted by `scripts/cost-arith.mjs`; Google's scheduler pricing |
 | Auth edition | **Firebase Authentication, the free one** — answered 2026-08-27 off the Identity Toolkit config | `LAUNCH-RUNBOOK.md` 5.2 (D333). `COSTS.md` finding 3 still asks the question |
 | Database | `insight`, `europe-west1`, priced as Standard edition; `(default)` deleted 2026-08-27 | `functions/src/db.ts`; D333 |
 | Firestore TTLs | ACTIVE on `v2_agg_events`, `engagement`, `v2_ratelimits` | D333 item 3 |
@@ -274,11 +274,12 @@ stands meanwhile.
   dangerous;
   invisible to the model; and the trigger is broad — a push touching
   only `web/` runs the same functions step. §6 C7 scopes it.
-- **Artifact Registry.** 52 functions' container images, **0.5 GiB free
+- **Artifact Registry.** 55 functions' container images, **0.5 GiB free
   then $0.10 per GiB-month**, and the deploy log shows no cleanup-policy
   line either way. Whether a policy exists is a console read (§6 O6).
-- **Cloud Scheduler.** Ten jobs against three free: **~$0.70 a month**,
-  which is most of the invoiced dollar.
+- **Cloud Scheduler.** Seven jobs against three free since 2026-09-10 —
+  ten until the three retired functions were deleted (run 34479295825):
+  **~$0.40 a month**, where ~$0.70 was most of the invoiced dollar.
 - **What the jobs run on.** The functions line on the Sep 1–8 console
   (kr2.58 of kr2.86) is these jobs' instance-seconds, and memory is what
   an instance-second costs: `sweepPaidReviewsV2` runs 48 times a day and
@@ -401,7 +402,7 @@ default to the billing account's admins and users. Both are §6 O4.
 | 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code | done |
 | 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code | **done** (C1) |
 | 5 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code | open (C7, O5) |
-| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner | open (O2; three now — `ledgerVelocityScan` retired at runbook 4.4) |
+| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner | **the three deleted 2026-09-10** (run 34479295825, O2); the foreign residue is still the owner's |
 | 7 | Alert notes on the `nam5` sheet; evictions policy unarmed | the wrong number at 3 am; a blind spot | edit the JSON; dispatch *Arm monitoring* | code + owner | open (C5) |
 | 8 | No billing export to BigQuery | no invoice to diff the model against | console toggle | owner | open (O4) |
 | 9 | Pulse guard blind on a stale fold | the early warning is silent | schedule the fetch | code | open (C6) |
@@ -419,7 +420,7 @@ default to the billing account's admins and users. Both are §6 O4.
   Anthropic console at a figure you would not mind losing, and confirm
   whether `ANTHROPIC_API_KEY` is set in the production environment at
   all (`OWNER-LIST.md`'s three-secrets row).
-- **O2 · Delete the residue.** `firebase functions:delete fitPatternsV2
+- **O2 · Delete the residue.** *Done for the three on 2026-09-10 through the *Delete retired functions* workflow (run 34479295825); what follows is the row as it stood, and the foreign residue it also names is still yours.* `firebase functions:delete fitPatternsV2
   fitTasteV2 --project prvfire33 --region europe-west1 --force` (the row
   is already on `OWNER-LIST.md`); then `processBatch` and the four
   extension instances D333 listed.
@@ -641,7 +642,7 @@ what stands in the way of each:
 | The paid review's model calls | 50 a day project-wide, 1,024 tokens a call (C3) | the workspace spend limit (O1) holds whatever the code does |
 | Deploy-rate costs | ~40–60 build-minutes a deploy against 2,500 free (§3.E) | nothing yet — C7 is the fix, tens of dollars a month at the current merge rate |
 | The log's erasure, ingest and phase B's counters | one pass a night, the kilobyte priced, a start condition (8.2) | nothing more today; two owner sentences at scale |
-| The three retired nightly functions | cents, and a night's data loss if one writes | the delete (O2) |
+| The three retired nightly functions | cents, and a night's data loss if one writes | deleted 2026-09-10 (O2, run 34479295825) |
 
 The hard stop — detaching billing from the same notification at a higher
 threshold — is still not built, still Google's documented shape, and
