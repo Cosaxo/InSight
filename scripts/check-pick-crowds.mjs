@@ -59,16 +59,39 @@ export function checkPickCrowds(readFile) {
     return errors;
   }
 
-  // Extract CROWD and BY objects
+  // Extract CROWD and BY objects.
+  //
+  // A FAILED PARSE IS AN ERROR, NOT AN EMPTY OBJECT. Both extractors return
+  // `null` when their `const X = {…}` regex stops matching, and `|| {}`
+  // turned that into a clean run over nothing: rule 6 iterates no
+  // questions and the gate prints "contract valid". CROWD had partial
+  // cover — rule 1 fails a live question with no CROWD entry — and BY had
+  // none at all, so the whole of the segment validation could go dark
+  // without a word. Measured 2026-09-10: renaming the module-local
+  // `const BY` to `const SEGS`, with its two internal readers, is
+  // self-consistent and eslint-clean, and it took a segment count of 0
+  // from a named failure to exit 0. This is the shape `check-labels.mjs`
+  // and `check-anchors.mjs` already refuse to pass on, and the one this
+  // file's own subject — a check that stops checking — is made of.
   let crowdData = {};
   let byData = {};
   try {
-    crowdData = extractCrowd(pickDataContent) || {};
+    crowdData = extractCrowd(pickDataContent);
+    if (!crowdData || typeof crowdData !== 'object' || Object.keys(crowdData).length === 0) {
+      errors.push('CROWD could not be read from pick-data.js — `const CROWD = {…}` no longer '
+        + 'matches this scan. Fix the extractor; a gate reading zero questions reports clean.');
+      crowdData = {};
+    }
   } catch (e) {
     errors.push(`${e.message}`);
   }
   try {
-    byData = extractBy(pickDataContent) || {};
+    byData = extractBy(pickDataContent);
+    if (!byData || typeof byData !== 'object' || Object.keys(byData).length === 0) {
+      errors.push('BY could not be read from pick-data.js — `const BY = {…}` no longer matches '
+        + 'this scan. Fix the extractor; rule 6 would otherwise validate nothing and pass.');
+      byData = {};
+    }
   } catch (e) {
     errors.push(`${e.message}`);
   }
@@ -154,6 +177,31 @@ export function checkPickCrowds(readFile) {
         Object.entries(entities).forEach(([entityKey, count]) => {
           if (!Number.isInteger(count) || count <= 0) {
             errors.push(`BY[${qid}][${dim}][${bucket}][${entityKey}] has invalid count: ${count}`);
+            return;
+          }
+          // AND THE ONE RELATION A SEGMENT HAS TO THE BOARD. Everything
+          // above this line checks a segment count's SHAPE — an integer,
+          // positive — and nothing checked it against the global count for
+          // the same entity, which is the only arithmetic that can make it
+          // wrong. A cohort is a subset of the crowd, so its count for an
+          // entity cannot exceed the crowd's, and `pick-data.js` states the
+          // stronger rule at the head of BY: "segments only ever reorder
+          // the published top, never surface their own long tail" (D17).
+          //
+          // The committed data broke it eight times while this gate printed
+          // "contract valid" — including an entity whose global count sits
+          // below the board's floor, so `canon()` suppresses it from the
+          // leaderboard entirely and `canonSeg()` was showing it to a
+          // cohort anyway. Measured 2026-09-10.
+          const globalCount = crowdData[qid] && crowdData[qid][entityKey];
+          if (globalCount === undefined) {
+            errors.push(
+              `BY[${qid}][${dim}][${bucket}][${entityKey}] names an entity CROWD[${qid}] does not — `
+              + 'a segment can only reorder the published board, never add to it');
+          } else if (count > globalCount) {
+            errors.push(
+              `BY[${qid}][${dim}][${bucket}][${entityKey}] = ${count} exceeds CROWD[${qid}][${entityKey}] = `
+              + `${globalCount} — a cohort cannot hold more pickers than the crowd it is part of`);
           }
         });
       });

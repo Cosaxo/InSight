@@ -90,4 +90,32 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     expect(document.body.textContent, "no revealed round on the 1v1 card").toMatch(/Round \d+\s*·\s*revealed/);
     expectNoBoundary("daily · 1v1");
   });
+
+  // …AND IT DOES NOT DEPEND ON A GLOBAL BEING THERE FIRST. This arm used
+  // to be `h(window.DuoBody || 'div')` — resolved at render time, from a
+  // name `loadOverlays()` publishes and `main.jsx` deliberately schedules
+  // no re-render after. `spec-index.js` called it "dead code the installed
+  // app cannot execute", and it is not: `liveDuels` is `LIVE.enabled`,
+  // which live.ts's own `demoInProd` defines as FALSE on a live build
+  // whose boot has not attached — "the UI is showing demo content to a
+  // real user". So an offline cold start on a shipped app took this arm,
+  // drew an empty div, and stayed empty for the session even once the
+  // chunk landed. The group arm one line up has always degraded into the
+  // ErrorBoundary instead, which is at least visible.
+  it("1v1 draws without the overlay group's global ever being published", async () => {
+    // The state a cold start is in before `loadOverlays()` resolves — and
+    // the state it never leaves if that fetch fails.
+    const published = window.DuoBody;
+    delete window.DuoBody;
+    try {
+      const expectNoBoundary = mountApp();
+      await switchTo("1v1");
+      expect(screen.getAllByText("Henrik").length,
+        "the 1v1 body drew nothing without window.DuoBody — the empty-div frame").toBeGreaterThan(0);
+      expect(document.body.textContent).toMatch(/Round \d+\s*·\s*revealed/);
+      expectNoBoundary("daily · 1v1 without the global");
+    } finally {
+      if (published) window.DuoBody = published;
+    }
+  });
 });

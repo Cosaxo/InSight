@@ -450,11 +450,13 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(
       singles + batched,
       "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
-      + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
+      + "in scripts/cost-arith.mjs charges the VOTE path (3: ledger event + "
       + "the published aggregate, which is the fold's working document since "
-      + "D275 collapsed the private mirror into it); the catalog (D232) and "
-      + "rank (D233) branches each read one more — the question doc — which "
-      + "the model deliberately absorbs into the vote rate (see the "
+      + "D275 collapsed the private mirror into it, + the author's profile "
+      + "since D410); the rank branch (D233) reads three too, trading the "
+      + "profile for the question doc, and the catalog branch (D232) reads "
+      + "four — question doc AND profile — the one read the model "
+      + "deliberately absorbs into the vote rate (see the "
       + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
       + "D426 — the group document, in the transaction that marks who "
       + "played and asks whether the round is complete (TRIGGER_READS.duel "
@@ -462,8 +464,19 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "the member's profile for the name), charged by COSTS.md's own row "
       + "for a late answer rather than by the per-answer constant, because "
       + "only an answer to a round that has already revealed takes that "
-      + "path. Recount before changing the constant.",
-    ).toBe(12);
+      + "path. Recount before changing the constant.\n\n"
+      + "12 -> 13 on 2026-09-10: the CATALOG branch gained the author's "
+      + "profile, the D410 honest-anchor read the vote arm has had since "
+      + "D410 and this one never had — it folded whatever cohort the client "
+      + "claimed, and published it. TRIGGER_READS does NOT move for it. The "
+      + "model charges `world: 3` per world answer (event + published "
+      + "aggregate + profile) and says in its own comment that catalog and "
+      + "rank read one more than that, absorbed, `the error is one read per "
+      + "such answer`. Before this the catalog branch read three — event, "
+      + "question, private mirror, and no profile — so it matched the "
+      + "charge by coincidence while missing the guard. It now reads four, "
+      + "which is exactly the +1 the constant already tolerates.",
+    ).toBe(13);
   });
 
   it("the velocity scan's own read is a paged query over the partial day, and the whole days come off the pass's reader", () => {

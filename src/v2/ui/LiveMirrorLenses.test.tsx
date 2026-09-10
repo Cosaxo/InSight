@@ -84,9 +84,17 @@ const LIVE = vi.hoisted(() => ({
   // these cases are about what the fold says once the data is in; the
   // loading and failed arms have their own cases.
   testAggsState: () => "ready" as "loading" | "ready" | "failed",
-  // Its people twin — every surface that mounts a similarity field
-  // reads it now, so the stub belongs beside its sibling.
-  kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // Its people twin, DERIVED from the flag beside it rather than stubbed
+  // independently — the two are one fact in the store (`kindredState`
+  // returns "loading" exactly when `kindredLoading` is true) and a
+  // fixture that lets them disagree lets a case drive one while the
+  // component reads the other. That is what happened: the loading case
+  // below set the flag, the lens moved to the state, and the case failed
+  // for a reason that had nothing to do with the lens.
+  kindredFailedStub: false,
+  kindredState(this: { kindredLoading: () => boolean; kindredFailedStub: boolean }): "loading" | "ready" | "failed" {
+    return this.kindredLoading() ? "loading" : this.kindredFailedStub ? "failed" : "ready";
+  },
   loadNames: vi.fn(async () => {}),
   scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   loadSimilarity: vi.fn(async () => {}),
@@ -373,6 +381,22 @@ describe("People", () => {
     LIVE.kindredLoading = () => false;
     mount("people");
     expect(screen.getByText(/fills in as you answer more/i)).toBeTruthy();
+  });
+
+  it("…and both of those from a read that FAILED", () => {
+    // The fourth state, which this lens had three of. `kindredLoading` is
+    // false again the moment the run returns, including when every query
+    // inside it threw — so the lens told the viewer nobody was there on
+    // the strength of a read that did not happen, while the constellation
+    // twenty pixels above it said "Couldn't read the crowd here". Two
+    // contradictory sentences about one fetch, on one scroll.
+    LIVE.kindredLoading = () => false;
+    (LIVE as unknown as { kindredFailedStub: boolean }).kindredFailedStub = true;
+    mount("people");
+    expect(screen.getByText(/Couldn’t read the crowd here/)).toBeTruthy();
+    expect(screen.queryByText(/fills in as you answer more/i), "the failed read still blamed the reader").toBeNull();
+    expect(screen.queryByText(/^Matching…$/), "a finished read still said it was working").toBeNull();
+    (LIVE as unknown as { kindredFailedStub: boolean }).kindredFailedStub = false;
   });
 
   it("says the card is empty rather than drawing an empty shape", () => {

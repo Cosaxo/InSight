@@ -190,6 +190,96 @@ describe("the beacon (2026-08-26)", () => {
   });
 });
 
+describe("the idle card belongs to its own pair", () => {
+  // The strongest link is fetched on demand — a real read, and the session
+  // cache misses on a pair not yet opened. While that read is in flight the
+  // card used to keep drawing the PREVIOUS pair's numbers under the NEW
+  // pair's question text, because the stored pair key was never compared
+  // and the effect never cleared. It states an exact basis while it does
+  // it — "counted over the N people in both samples" — for a pair the
+  // device has read nothing about.
+  const TWO_TOPICS = [
+    item("sa", vec(1, 0), 1, "sport"),
+    item("sb", vec(0.95, 0.05), -1, "sport"),
+    item("fa", vec(0, 1), 1, "food"),
+    item("fb", vec(0.05, 0.95), -1, "food"),
+  ];
+
+  it("draws nothing rather than the last pair's number while the next loads", async () => {
+    PATTERNS.say.mockResolvedValueOnce(SAY);
+    const { rerender } = render(<PatternsMap items={TWO_TOPICS} version={1} topic="sport" />);
+    expect(await screen.findByText("78%")).toBeTruthy();
+    expect(screen.getByText(/counted over the 40 people/)).toBeTruthy();
+    // The reader changes the topic filter. The food pair's read is still
+    // in flight, so there is no number to state yet.
+    PATTERNS.say.mockReturnValueOnce(new Promise<PairSay | null>(() => {}));
+    rerender(<PatternsMap items={TWO_TOPICS} version={1} topic="food" />);
+    expect(screen.queryByText("78%"), "the food card wore the sport pair's percentage").toBeNull();
+    expect(screen.queryByText(/counted over the 40 people/)).toBeNull();
+  });
+});
+
+describe("a selection survives the pool moving under it", () => {
+  // WHY THIS IS HERE. The tab re-derives `items` from the store on every
+  // notify — `PATTERNS.pool()` is a filter over the aggregates, so a page
+  // landing adds questions and a retirement removes one. The selection was
+  // a raw INDEX into that list, so both directions were live defects and
+  // neither had a case.
+  //
+  // All four answered in the first two: the beacon is the highest-hub
+  // UNANSWERED question and its dot is drawn on the top layer, so an
+  // unanswered entry would not be among `dots()` at all.
+  const FOUR = [
+    item("qa", vec(1, 0), 1),
+    item("qb", vec(0.9, 0.1), -1),
+    item("qc", vec(0.8, -0.1), 1),
+    item("qd", vec(0.2, 0.9), -1),
+  ];
+  const open = (c: HTMLElement) => c.querySelector(".qm-prompt")?.textContent ?? null;
+
+  it("keeps the question you opened when the pool grows under it", () => {
+    const { container, rerender } = render(<PatternsMap items={FOUR} version={1} topic="all" />);
+    fireEvent.click(dots(container)[2]!);              // qc, at index 2
+    expect(open(container)).toBe("Q qc");
+    // A question arrives ahead of it, exactly as a landing aggregate page
+    // would deliver one. The index that meant qc now means qb.
+    const grown = [FOUR[0]!, item("qnew", vec(0.85, 0.05), 1), FOUR[1]!, FOUR[2]!, FOUR[3]!];
+    rerender(<PatternsMap items={grown} version={2} topic="all" />);
+    expect(open(container)).toBe("Q qc");
+  });
+
+  it("closes rather than crashing when the question it was on retires", () => {
+    const { container, rerender } = render(<PatternsMap items={FOUR} version={1} topic="all" />);
+    fireEvent.click(dots(container)[2]!);              // qc, at index 2
+    expect(open(container)).toBe("Q qc");
+    // qc and qd go `active: false` and leave the pool. The index qc held is
+    // now past the end of both `items` and the geometry.
+    rerender(<PatternsMap items={[FOUR[0]!, FOUR[1]!]} version={2} topic="all" />);
+    // No throw, and the lens falls back to idle rather than to the
+    // ErrorBoundary the shell would otherwise draw over the whole tab.
+    expect(open(container)).toBeNull();
+    expect(dots(container).length).toBe(2);
+  });
+
+  // THE CONSEQUENCE, DRIVEN. The card only offers options for a question
+  // you have not answered, so this is the arm where the swap reaches a
+  // WRITE: the buttons call `LIVE.vote(q.q.id, …)` on whatever the card is
+  // showing when the finger lands.
+  it("votes on the question the reader opened, not on whatever took its index", () => {
+    const { rerender } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    fireEvent.click(screen.getByLabelText(/Answer next/).querySelector("circle")!);
+    expect(screen.getByText("qc-yes")).toBeTruthy();
+    // qc sits at index 2; two questions arrive ahead of it.
+    const grown = [
+      item("qz1", vec(0.95, 0.02), 1), item("qz2", vec(0.93, 0.03), -1),
+      ITEMS[0]!, ITEMS[1]!, ITEMS[2]!,
+    ];
+    rerender(<PatternsMap items={grown} version={2} topic="all" />);
+    fireEvent.click(screen.getByText("qc-yes"));
+    expect(LIVE.vote).toHaveBeenCalledWith("qc", "qc:0");
+  });
+});
+
 describe("a selection", () => {
   it("reads the question's own links out loud and says when you broke one", async () => {
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);

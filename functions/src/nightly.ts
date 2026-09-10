@@ -163,7 +163,15 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   // healed account is a stamp change the budget refused in the day.
   const fan = await attempt("fanout", r.fanout);
   if (fan && fan.pending > 0) {
-    log.info(`[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`, { metric: "profile_fanout_heal", ...fan });
+    // A backlog is a WARNING, not a line in the info stream: the heal is
+    // what keeps the header's promise that the last name lands within a
+    // day, and a night that did not reach everyone is a night that
+    // promise was not kept for. Not a count — the query stops one past
+    // the cap and does not know how many more there are.
+    (fan.left ? log.warn : log.info)(
+      `[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`
+      + (fan.left ? ` — MORE than ${fan.pending} were waiting; the rest keep their markers for tomorrow` : ""),
+      { metric: "profile_fanout_heal", ...fan });
   }
   if (heal && heal.healed > 0) {
     log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });
@@ -220,8 +228,12 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
 }
 
 export const digestEngagementV2 = onSchedule(
-  // Nightly, off the top-of-hour herd and clear of the velocity scan
-  // (03:47), which keeps its own read of the same ledger. Cost is one
+  // Nightly, off the top-of-hour herd. It was also timed clear of the
+  // velocity scan — its own 03:47 function, which kept its own read of
+  // this same ledger — and that half is spent: runbook 4.4 folded the scan
+  // into THIS pass, so there is nothing left to stand clear of and the
+  // time is the herd alone. (velocity.ts's own header says so; this line
+  // was the copy that did not hear.) Cost is one
   // paged read of the day's entries for all three ledger folds together,
   // plus each fold's own per-person state reads and writes — COSTS.md's
   // rows, and scripts/cost-arith.mjs's LEDGER_PASS_READS_PER_ENTRY.

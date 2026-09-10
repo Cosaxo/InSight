@@ -180,8 +180,9 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    longer than the cap — so D328 buckets
                                    its derived `jobField` instead.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
-  { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
-    expireAt }                     double-count. Attribution: uid is what
+  { qid, uid, optionIdx?,          dedup: at-least-once delivery can't
+    anchors?, fromIdx?,            double-count. Attribution: uid is what
+    n?, s?, l?, at, expireAt }
                                    lets an operator subtract a discovered
                                    fake-account ring from the exact counts
                                    and republish (DEPLOYMENT.md,
@@ -191,6 +192,22 @@ v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268
                                    the nightly Patterns fit reads as its
                                    stream (patterns.ts); it adds nothing
                                    the answer doc does not publish (D98).
+                                   FIVE OPTIONAL FIELDS the writer adds
+                                   and this block used to omit: `anchors`
+                                   (D8's frozen chips, for D397's voter
+                                   samples), `fromIdx` (present only on a
+                                   D86 edit — its ABSENCE is what marks a
+                                   first answer, so a reader that does
+                                   not know the field counts every edit
+                                   as one), and the profile stamp `n`,
+                                   `s`, `l`. `ledger.ts`'s own header
+                                   states the cost of the omission one
+                                   level down: a field forgotten in the
+                                   projection "arrives as undefined at
+                                   every reader — no error, no log", and
+                                   a field forgotten HERE is how the
+                                   projection comes to be written without
+                                   it.
                                    Activity log: the nightly engagement
                                    digest counts people by it — the
                                    fourth job, the purpose D268 widened
@@ -434,9 +451,10 @@ v2_engagement_daily/{day}          the engagement digest's trail (R1/D268)
                                    never as zero
   people {rollups, sessions,       D272: the rollup fold's counts of
     quiet, answers, depthEnd,      PEOPLE — how many rollups folded, the
-    fading,                        sessions and quiet sessions they held,
+    fading, mirrorRead, lensOpen,  sessions and quiet sessions they held,
     dayparts {d0..d3},             how many hit the feed's end, how many
-    fgBuckets {b0..b4}}            trailing foreground windows are
+    fgBuckets {b0..b4},            trailing foreground windows are
+    feedBuckets {f0..f4}}
                                    SINKING (fading — the win-back
                                    trigger), dayparts and foreground
                                    brackets as histograms. Maps rather
@@ -885,7 +903,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 220 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 221 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

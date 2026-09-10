@@ -111,6 +111,37 @@ describe("logicSplitFor — the honesty properties", () => {
     expect(split.ranked[0].n).toBe(LOGIC_THIN);
   });
 
+  it("does not call a band absent when somebody here carries it", () => {
+    // The type cut's fix, which this one did not get until now. A scored
+    // voter whose answer landed in NO column is counted in `scoredN` — the
+    // sheet's "N carry a verified logic score" — and contributes to no
+    // bar, because `n` is the column sum. Calling their band absent says
+    // nobody here carries it while the same fold counts them.
+    const rows: LogicVoter[] = [
+      ...many(90, 0, LOGIC_THIN, "a"),
+      { uid: "offgrid", optionIdx: 99, logic: 20 },  // "bottom", no column
+    ];
+    const split = logicSplitFor(rows, 2);
+    expect(split.scoredN, "the off-grid voter is counted in the header").toBe(LOGIC_THIN + 1);
+    expect(
+      split.absent,
+      "a band somebody here carries was named as absent",
+    ).not.toContain("bottom");
+    // …and not silently dropped either: no columns means thin, so every
+    // band still lands in exactly one of the three lists.
+    expect(split.thin.map((r) => r.band)).toContain("bottom");
+    expect(split.thin.find((r) => r.band === "bottom")!.n).toBe(0);
+    const all = [...split.ranked, ...split.thin].map((r) => r.band).concat(split.absent);
+    expect(new Set(all).size).toBe(LOGIC_BANDS.length);
+  });
+
+  it("…and DOES call a band absent when nobody carries it", () => {
+    // The control: without it, "never absent" passes and `absent` — a
+    // finding in its own right — quietly stops reporting.
+    const split = logicSplitFor(many(90, 0, LOGIC_THIN, "a"), 2);
+    expect(split.absent).toContain("bottom");
+  });
+
   it("withholds shares under LOGIC_SPLIT_SMALL and grants them at it", () => {
     expect(logicSplitFor(many(80, 0, LOGIC_SPLIT_SMALL - 1), 2).enough).toBe(false);
     expect(logicSplitFor(many(80, 0, LOGIC_SPLIT_SMALL), 2).enough).toBe(true);

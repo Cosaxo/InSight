@@ -56,7 +56,15 @@ import {
  * comment calls the cheapest kind of latent bug. The emulator's reason
  * text reaches the client, so a refusal carrying it is a red test with
  * the true reason in it — not a case. Every refusal in this file goes
- * through here; `assertFails` is not called directly anywhere else.
+ * through here; `assertFails` is not called directly anywhere else, and
+ * scripts/refused-discipline.test.mjs is what makes that sentence true —
+ * it stopped being true in the commit that added the log-erasure and
+ * public-answer-map blocks, whose seven refusals copied the older idiom
+ * from a file that predated this helper. Both are `if false` paths where
+ * a budget stop cannot be the granting reason, so nothing was wrong in
+ * fact; what was wrong was the CLAIM, and the next block copied from
+ * them would have landed somewhere a `get()` runs, where D431's failure
+ * mode is silent.
  */
 async function refused(pr: Promise<unknown>): Promise<unknown> {
   const err = await assertFails(pr);
@@ -404,9 +412,9 @@ describe("v2 questions + aggregates", () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_log_erasures", OWNER), { at: 1 });
     });
-    await assertFails(getDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_log_erasures", "someone-else"), { at: 0 }));
-    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+    await refused(getDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+    await refused(setDoc(doc(asUser(OWNER), "v2_log_erasures", "someone-else"), { at: 0 }));
+    await refused(deleteDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
   });
 });
 
@@ -571,6 +579,17 @@ describe("v2 profile", () => {
     await refused(setDoc(mine, {
       testResults: { big5: deleteField() },
     }, { merge: true }));
+    // …AND THE WHOLE MAP, which is the case this one only looked like.
+    // Removing a SUB-KEY was always refused, because the resulting map
+    // differs from the stored one; removing the map itself made the key
+    // ABSENT, and the clause was written as "absent OR unchanged", so it
+    // passed — every verified logic score and every political-consent
+    // coupling deletable through the ordinary profile write path.
+    // Measured 2026-09-10, both allowed.
+    await refused(updateDoc(mine, { testResults: deleteField() }));
+    // The same removal wearing a different hat: a non-merge `setDoc` that
+    // simply leaves the key out.
+    await refused(setDoc(mine, { displayName: "Ada" }));
 
     // The display name's own 60-char cap. It went untested from the day it
     // was written: this case checked the unknown-field and stranger-write
@@ -1089,10 +1108,10 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // …but cannot list the subcollection, and nobody writes it — the
     // owner's own map included, because a client-writable map would let
     // one person forge how alike they are to everyone.
-    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "public")));
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 0 } }));
-    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { "a.daily-001": 1 }));
-    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers")));
+    await refused(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "public")));
+    await refused(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 0 } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { "a.daily-001": 1 }));
+    await refused(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers")));
   });
 
   it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
@@ -2252,8 +2271,15 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         gid: "g2", round: 1, anchors: { city: "Oslo, NO" },
       });
     });
+    // WITH the surface filter, so the CITY narrowing is what is under
+    // test. Without it this query carried no surface clause at all and
+    // was refused wholesale by the list rule — which is exactly what the
+    // case below already pins, so this one proved its neighbour's point
+    // and nothing of its own. Adding "duo" to the rule's list would have
+    // left it green.
     await refused(getDocs(query(
       collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
       where("anchors.city", "==", "Oslo, NO"),
     )));
   });
@@ -2295,6 +2321,35 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await refused(getDocs(query(
       collectionGroup(asUser(FRIEND), "answers"),
       where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
+    )));
+  });
+
+  it("…and the GROUP half of the seal, which nothing read-side reached", async () => {
+    // Every case that pinned the seal — this file's, and the e2e's one
+    // sealed-read denial — seeded a `duo` answer. The rule's list is one
+    // expression covering both halves, so appending "group" to it (at
+    // either of its two sites) left EVERY seal assertion green: each
+    // holds a duo document, or a query whose filter list ends in "duo".
+    // Nothing else pinned the list either — the script that cross-reads
+    // the surfaces reads the client's constant, not the rules file, and
+    // the coverage ratchet is unmoved by an element added to an `in`.
+    // The group round is the one D437 built the role vote on: a blind
+    // vote naming a person, sealed until the reveal puts it on the table.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g3_r1"), {
+        qid: "group-gu0", surface: "group", optionIdx: 1,
+        gid: "g3", round: 1,
+      });
+    });
+    const sealed = ["v2_users", OWNER, "answers", "g_g3_r1"] as const;
+    // Yours to read, as every answer of your own is.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), ...sealed)));
+    // Not the other players'.
+    await refused(getDoc(doc(asUser(FRIEND), ...sealed)));
+    // Nor by naming the surface in a collection-group filter.
+    await refused(getDocs(query(
+      collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "group"]),
     )));
   });
 });
@@ -4122,7 +4177,7 @@ describe("presence (D84 — Near by radius)", () => {
   // a modified client writes a position good for a year and stands in the
   // room permanently, whatever its own switch says. The ceiling is the
   // rule that stops it, so it is the rule worth a case.
-  it("caps how long a position may claim to last, and demands one at all", async () => {
+  it("caps how long a position may claim to last", async () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertSucceeds(setDoc(ref, cellDoc({ until: soon(179) })));
     // 180 minutes is PRESENCE_LINGER_MIN. Past it, refused.
@@ -4133,7 +4188,9 @@ describe("presence (D84 — Near by radius)", () => {
     // It is no longer REQUIRED — see the compatibility case below, which
     // owns that half now (D179). What this case owns is the ceiling, which
     // is the half that stops a modified client standing in the room for a
-    // year.
+    // year. The NAME said "and demands one at all" for as long as the body
+    // said the opposite: D179 moved that half and left the title, so the
+    // case read as covering something the case below owns.
     await refused(setDoc(ref, cellDoc({ until: "soon" })));
   });
 

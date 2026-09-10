@@ -46,7 +46,10 @@ const LIVE = vi.hoisted(() => {
     myVotes: () => ({}) as Record<string, string>,
     myTestResults: () => ({}) as Record<string, unknown>,
     testFeedItems: () => [] as Array<Record<string, unknown>>,
-    loadNames: vi.fn(async () => {}),
+    // Resolves TRUE: the store answers whether the profile read landed
+    // (a `false` is what puts the failure copy on Compare), so a fixture
+    // resolving `undefined` reads as a failed read.
+    loadNames: vi.fn(async () => true),
     scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   };
 });

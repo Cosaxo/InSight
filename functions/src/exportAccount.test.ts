@@ -20,10 +20,14 @@
 // callable against the real database, before the erasure it twins.
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldPath, Timestamp } from "firebase-admin/firestore";
 
 type Doc = Record<string, unknown>;
 const store = new Map<string, Doc>();
+/** Collections the walk asked to ENUMERATE. The output of a listing and
+ *  of an id-range scan are identical here, so cost is the only thing that
+ *  tells them apart — and cost is the whole reason the range scan exists. */
+const listed: string[] = [];
 const objects = new Map<string, Buffer>();
 
 const parts = (path: string) => path.split("/");
@@ -40,10 +44,17 @@ function snapOf(path: string) {
   };
 }
 
-type Filter = [string, string, unknown];
-function matches(data: Doc, [f, op, v]: Filter): boolean {
-  const got = data[f];
+type Filter = [string | FieldPath, string, unknown];
+function matches(path: string, data: Doc, [f, op, v]: Filter): boolean {
+  // A non-string field is `FieldPath.documentId()` — the only one this
+  // fake ever sees — and it compares against the document's own id, not
+  // against a stored field. The export's voter-sample walk needs it: it
+  // scans the world family by ID RANGE rather than listing the whole
+  // collection, which is what keeps it off the per-city documents.
+  const got = typeof f === "string" ? data[f] : (parts(path).pop() as string);
   if (op === "==") return got === v;
+  if (op === ">=") return String(got) >= String(v);
+  if (op === "<") return String(got) < String(v);
   if (op === "array-contains") return Array.isArray(got) && got.includes(v);
   if (op === "in") return Array.isArray(v) && v.includes(got);
   throw new Error(`fake: unsupported operator ${op}`);
@@ -57,7 +68,8 @@ function queryOf(
   after: string | null = null,
 ) {
   const q = {
-    where: (f: string, op: string, v: unknown) => queryOf(scope, [...filters, [f, op, v]], limit, after),
+    where: (f: string | FieldPath, op: string, v: unknown) =>
+      queryOf(scope, [...filters, [f, op, v]], limit, after),
     orderBy: () => queryOf(scope, filters, limit, after),
     limit: (n: number) => queryOf(scope, filters, n, after),
     startAfter: (s: { ref: { path: string } }) => queryOf(scope, filters, limit, s.ref.path),
@@ -65,7 +77,7 @@ function queryOf(
       let paths = [...store.keys()].filter((p) => (
         "parent" in scope ? parentPath(p) === scope.parent : parts(p).at(-2) === scope.group
       ));
-      paths = paths.filter((p) => filters.every((fl) => matches(store.get(p) as Doc, fl))).sort();
+      paths = paths.filter((p) => filters.every((fl) => matches(p, store.get(p) as Doc, fl))).sort();
       if (after) paths = paths.filter((p) => p > after);
       if (limit !== null) paths = paths.slice(0, limit);
       const docs = paths.map(snapOf);
@@ -80,7 +92,10 @@ function colOf(path: string) {
     id: parts(path).pop() as string,
     path,
     doc: (id: string) => refOf(`${path}/${id}`),
-    listDocuments: async () => [...store.keys()].filter((p) => parentPath(p) === path).sort().map(refOf),
+    listDocuments: async () => {
+      listed.push(path);
+      return [...store.keys()].filter((p) => parentPath(p) === path).sort().map(refOf);
+    },
     ...queryOf({ parent: path }),
   };
 }
@@ -142,7 +157,7 @@ vi.mock("firebase-admin/storage", () => ({
   }),
 }));
 
-const { buildExport, exportAccountV2, toPlain, TWIN, EXPORT_TOO_LARGE, EXPORT_MAX_BYTES } =
+const { buildExport, exportAccountV2, toPlain, TWIN, rateLimitLedgers, EXPORT_TOO_LARGE, EXPORT_MAX_BYTES } =
   await import("./exportAccount");
 
 const ME = "u_me";
@@ -152,6 +167,7 @@ const DAY = "2026-09-08";
 /** The erasure e2e's graph, smaller, with a control of OTHER's beside every row. */
 function seed() {
   store.clear();
+  listed.length = 0;
   objects.clear();
   const set = (path: string, data: Doc) => store.set(path, data);
 
@@ -179,6 +195,15 @@ function seed() {
   set("v2_agg_events/evt_theirs", { qid: "daily-000", uid: OTHER });
   set("v2_patterns/sample-daily-000", { rows: { [ME]: { o: 1, d: DAY }, [OTHER]: { o: 0, d: DAY } }, n: 2 });
   set("v2_patterns/loadings", { q: {} });
+  // THE PER-CITY FAMILY, which shares this collection and dwarfs it: one
+  // document per (question, city) pair the nightly has seen, ~10,900
+  // places wide. Seeded so the world-sample walk is asked to be a RANGE
+  // scan rather than a listing — with only the two documents above, a
+  // listing and a range read the same thing and the case cannot tell.
+  // These carry ME's row too, so picking them up would be silent in the
+  // output as well as costly.
+  set("v2_patterns/city-daily-000~Oslo, NO", { rows: { [ME]: { o: 1, d: DAY } }, n: 1 });
+  set("v2_patterns/city-daily-000~Bergen, NO", { rows: { [ME]: { o: 1, d: DAY } }, n: 1 });
   // 1b1 — the logic attempt, seed included.
   set(`v2_logic_attempts/${ME}`, { seed: 7, gv: 2, status: "scored", score: 9 });
   // 1b2 — takes, flags in every direction, the face, the cell.
@@ -239,6 +264,10 @@ function seed() {
   set(`insight_ratelimits/${ME}`, { events: [1] });
   set(`v2_ratelimits/join_${ME}`, { events: [2] });
   set(`v2_ratelimits/suggest_${ME}`, { events: [3] });
+  // Written as a LITERAL, though the export derives it from
+  // `fanoutBudgetId`: a disagreement between the two makes the round-trip
+  // below return null instead of quietly agreeing with itself.
+  set(`v2_ratelimits/fanout_${ME}`, { events: [4], pending: true });
   // 4d, 4e, 4f — suggestions, purchases with their pointers, bookings.
   set(`v2_suggestions/${ME}_s`, { uid: ME, prompt: "my suggestion" });
   set(`v2_suggestions/${OTHER}_s`, { uid: OTHER, prompt: "someone else's suggestion" });
@@ -275,6 +304,29 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     expect(phantom, "TWIN names a section buildExport never writes").toEqual([]);
   });
 
+  // THE SAME CONTRACT ONE LEVEL DOWN, where the case above cannot look. A
+  // wipe phase is one label; the ledger phase is six documents, and the
+  // export disclosed five of them for as long as the profile fan-out's
+  // budget existed — `ratelimits` and `rateLimits` were both present, so
+  // TWIN was satisfied by a pair whose halves had drifted apart inside.
+  //
+  // Both walks read `rateLimitLedgers` now, so the only way back to five
+  // is a ledger deleted straight out of index.ts. That is what this reads
+  // for: it is a source scan because the alternative is a second list, and
+  // a second list is the defect.
+  it("takes every rate-limit ledger through the one shared list", () => {
+    const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const direct = [...src.matchAll(/collection\("(\w*ratelimits)"\)\s*\.doc\(/g)].map((m) => m[1]);
+    expect(direct, "a ledger deleted straight out of index.ts — add it to rateLimitLedgers instead")
+      .toEqual([]);
+    // …and the erasure still reads the list at all, so an empty `direct`
+    // cannot come from the phase having been deleted.
+    expect(src).toContain("rateLimitLedgers(uid)");
+    expect(rateLimitLedgers(ME).map(([key]) => key)).toEqual(
+      ["insight", "join", "invite", "suggest", "paidbook", "fanout"],
+    );
+  });
+
   it("carries every phase's documents of the caller's", async () => {
     const b = await buildExport(ME) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(b.format).toBe("insight-export/1");
@@ -292,7 +344,25 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     expect(ids(b.legacy.collections.insight_daily)).toEqual([DAY]);
     // 1a, 1a′.
     expect(ids(b.answerLedger)).toEqual(["evt_mine"]);
+    // Keyed by QUESTION, and the per-city documents are not in it — the
+    // walk scans `sample-` ≤ id < `sample.` rather than listing the
+    // collection, which is what DATA-EFFICIENCY-RUNBOOK §2.5's `city-`
+    // prefix exists to make possible. A listing would put `city-daily-000
+    // ~Oslo, NO` in here as a key and read every city document to do it.
     expect(b.voterSamples).toEqual({ "daily-000": { o: 1, d: DAY } });
+    expect(
+      Object.keys(b.voterSamples).some((k) => k.startsWith("city-") || k.includes("~")),
+      "a per-city sample was read into the export — the walk is listing the collection again",
+    ).toBe(false);
+    // …AND IT DID NOT ENUMERATE THE COLLECTION TO GET THERE. A listing and
+    // a range scan return the same rows here, so the output cannot tell
+    // them apart — cost is the only difference, and cost is the entire
+    // reason the range scan exists. The erasure arm carries the same rule
+    // in a comment; this is the assertion.
+    expect(
+      listed,
+      "the walk enumerated v2_patterns — at scale that is every (question, city) pair to reach a few hundred world samples",
+    ).not.toContain("v2_patterns");
     // 1b1 — scored, and without the key.
     expect(b.logicAttempt).toEqual({ gv: 2, status: "scored", score: 9 });
     // 1b2 — takes, the flags cast, the two counts, the face, the cell.
@@ -337,7 +407,12 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     expect(b.invitesReceived[0]).toMatchObject({ gid: "g_shared", from: OTHER });
     expect(ids(b.invitesSent)).toEqual(["u_third"]);
     expect(b.relationsToYou).toBe(1);
-    expect(b.rateLimits).toEqual({ insight: { events: [1] }, join: { events: [2] }, invite: null, suggest: { events: [3] }, paidbook: null });
+    expect(b.rateLimits).toEqual({
+      insight: { events: [1] }, join: { events: [2] }, invite: null,
+      suggest: { events: [3] }, paidbook: null,
+      // The one the export omitted while the erasure deleted it.
+      fanout: { events: [4], pending: true },
+    });
     expect(ids(b.suggestions)).toEqual([`${ME}_s`]);
     expect(ids(b.purchases.rows).sort()).toEqual([`${ME}_ad`, `${ME}_q`]);
     expect(ids(b.purchases.ads)).toEqual(["paidad-mine"]);

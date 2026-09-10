@@ -171,8 +171,22 @@ describe("a verified attempt (D57)", () => {
     localStorage.setItem(LKEY, JSON.stringify(priorResult()));
     render(<LogicOverlay onClose={() => {}} />);
 
-    // the consent sentence sits with the button, before any press
-    screen.getByText(/scored on the server and join an anonymous count/i);
+    // the consent sentence sits with the button, before any press…
+    const consent = screen.getByText(/scored on the server and join an anonymous count/i);
+    // …and it names WHERE THE SCORE GOES, which is the half it used to
+    // get backwards. `logicSubmitV2` writes testResults.logic onto
+    // v2_users/{uid} and firestore.rules opens that document to every
+    // signed-in reader; web/privacy.html states the same. The sentence
+    // said "Nothing else leaves this device", so the app contradicted
+    // its own privacy page at the moment it asked for the picks.
+    expect(consent.textContent, "the consent notice still says nothing leaves the device")
+      .not.toMatch(/leaves this device/i);
+    expect(consent.textContent, "the consent notice does not say who can read the score")
+      .toMatch(/anyone signed in/i);
+    // The control: the PRACTICE note beside it is still allowed to say
+    // exactly that, because it is true — a practice run writes only
+    // localStorage. A sweep of the phrase would have taken it too.
+    expect(screen.getByText(/practice sends nothing anywhere/i)).toBeTruthy();
     fireEvent.click(screen.getByText("Verified attempt"));
     await act(async () => {}); // resolve startVerified
     for (let i = 0; i < expected.items.length; i++) {

@@ -113,6 +113,9 @@ import LIVE from '../data/live';
 // resolved at render time and cost nothing; this makes the pair consistent.
 const GroupDailyBody = React.lazy(() =>
   import('./group-daily.jsx').then((m) => ({ default: m.GroupDailyBody })));
+// The duo body, the same way — see the render site.
+const DuoDailyBody = React.lazy(() =>
+  import('./duo-daily.jsx').then((m) => ({ default: m.DuoBody })));
 import { PassiveTag } from './passive-meter.jsx';
 import { WORLD_TOPICS } from './world-feed-topics.js';
 import { WF_REPORT } from './world-feed-report.js';
@@ -1400,7 +1403,21 @@ export class DailySplit extends React.Component {
     const groupBody = liveDuels
       ? lazyDuel('live-group', 'group')
       : h(React.Suspense, { key: 'group-daily', fallback: null }, h(GroupDailyBody, null));
-    const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
+    // THE DEMO ARM IS NOT DEAD ON A SHIPPED BUILD, which is what this line
+    // used to assume. It read `window.DuoBody` at render time with an
+    // `|| 'div'` fallback, and `spec-index.js` justified moving the module
+    // into `loadOverlays()` by calling this arm "dead code the installed
+    // app cannot execute". `liveDuels` is `LIVE.enabled`, and `enabled` is
+    // FALSE on a live build whose boot has not attached — live.ts's own
+    // `demoInProd` says so and says what it means: "the UI is showing demo
+    // content to a real user". An offline cold start on a shipped app
+    // therefore takes this arm, and `main.jsx` schedules no re-render after
+    // `loadOverlays()`, so the empty div stood for the rest of the session
+    // even once the chunk landed — and silently, where the group arm one
+    // line up degrades into the ErrorBoundary a person can report.
+    const duoBody = liveDuels
+      ? lazyDuel('live-duo', 'duo')
+      : h(React.Suspense, { key: 'duo-daily', fallback: null }, h(DuoDailyBody, null));
 
     // ===== chrome =====
     // DEMO ONLY, and the gate is the same one three lines up. DUELS is the

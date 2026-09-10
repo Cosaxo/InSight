@@ -20,6 +20,10 @@ import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
 import { IS_DATA } from './sample-data.js';
+// D354's sweep gave every spec module the binding and missed this one,
+// which read `LIVE` bare — invisible to the ratchet until it learned the
+// shape, and the fourth of the four sites that taught it.
+import LIVE from '../data/live';
 import { SCENES } from './scenes.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 import NAV from '../data/nav';
@@ -73,7 +77,12 @@ function srchQVotes(q) {
 // server — another device, or a page fetched after boot — read as
 // unanswered in both orderings below and on the row itself.
 function srchAnswered(q, votes) {
-  return wfAnsweredOf(q, votes, LIVE.myVotes ? () => LIVE.myVotes() : null);
+  // The member test came off with the bare read: `myVotes` is a method on
+  // the store's object literal, so it is always defined and the ternary
+  // could only ever take its first arm. A conversion removes the
+  // load-order condition, never the data one — and this was neither, just
+  // a guard that had outlived whatever made it look necessary.
+  return wfAnsweredOf(q, votes, () => LIVE.myVotes());
 }
 // what you said, in the fewest words that still mean something
 function srchMyPick(q, votes) {

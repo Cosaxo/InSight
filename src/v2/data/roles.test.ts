@@ -273,6 +273,45 @@ describe("the ledger — the record that outlives the window", () => {
     expect(seatFor([...page, vote("2026-09-02", "r2", { [ME]: "a", b: "a" })], "a", bank, L)!.seat.id).toBe("hands");
   });
 
+  it("a young row never counts DOWN from a longer window — the catch-up day", () => {
+    // The ledger is forward-only with no backfill, so a room played since
+    // before D445 has a window holding more than its row does. Clearing
+    // the floor is not the same as having counted more: on the day the
+    // row reached three, a fold that switched on the floor alone would
+    // redraw the reading off a third of the evidence — a smaller count,
+    // shares off fewer rounds, a shorter guess receipt, and a lighter
+    // weight for the room in blendRoles, all going backwards while the
+    // pair only played more.
+    const many = [
+      cast("2026-09-01", 0, 0, 0), cast("2026-09-02", 0, 0, 0), cast("2026-09-03", 0, 0, 0),
+      cast("2026-09-04", 0, 0, 0), cast("2026-09-05", 0, 0, 0), cast("2026-09-06", 0, 1, 1),
+    ];
+    const young = { [ME]: { casts: 3, axes: { trust: 3 }, saw: { right: 1, total: 1 }, castQid: "c1" } };
+    const r = duoRole(many, ME, THEM, bank, "Liv", false, young)!;
+    expect(r.n, "the young row counted down from the window").toBe(6);
+    expect(r.sawIt).toEqual({ right: 6, total: 6 });
+    expect(duoCastCount(many, ME, THEM, bank, young)).toBe(6);
+
+    // The control, and the reason the ledger exists: once the row HAS
+    // counted further than the window reaches, it is the reading again.
+    const grown = { [ME]: { casts: 40, axes: { trust: 30, spark: 10 }, saw: { right: 9, total: 20 }, castQid: "c1" } };
+    const g = duoRole(many, ME, THEM, bank, "Liv", false, grown)!;
+    expect(g.n, "the ledger stopped reaching past the window").toBe(40);
+    expect(g.dims[0].value).toBe(75);
+
+    // Groups, same rule, same two directions.
+    const page = [
+      vote("2026-09-01", "r2", { a: "me", b: "me" }),
+      vote("2026-09-02", "r2", { a: "me", b: "me" }),
+      vote("2026-09-03", "r2", { a: "me", b: "me" }),
+    ];
+    const youngG = { [ME]: { votes: 2, seats: { heart: 2 } } };
+    expect(groupRole(page, ME, bank, youngG)!.n, "the young group row counted down").toBe(6);
+    expect(groupVoteCount(page, ME, bank, youngG)).toBe(6);
+    const grownG = { [ME]: { votes: 30, seats: { heart: 30 } } };
+    expect(groupRole(page, ME, bank, grownG)!.n).toBe(30);
+  });
+
   it("no ledger, a ledger that is not a map, and a row that is not a row all read as no ledger — never as zeros", () => {
     const hist = [cast("2026-09-04", 0, 0, 0), cast("2026-09-08", 1, 0, 2), cast("2026-09-12", 0, 2, 2)];
     for (const bad of [undefined, null, 7, "x", [], { [ME]: 3 }, { [ME]: null }]) {

@@ -949,13 +949,43 @@ export async function revealRound(
       return;
     }
 
+    // THE ROSTER THE TRANSACTION READ, NOT THE PAGE'S. A member who left
+    // between the two reads, or an account erased between them, is on the
+    // page and not on the document. This was computed forty lines down for
+    // the role ledger alone, with a comment saying exactly why — "a member
+    // who left between the two would otherwise get a row written for a uid
+    // no longer on the document" — and the same reasoning was never
+    // applied to the three other roster uses in this transaction, which is
+    // why it is hoisted here now.
+    //
+    // What the page's roster cost: `leaveGroupV2` and `deleteAccount`
+    // phase 1c both scrub `pushAt.{uid}` and `memberNames.{uid}` and take
+    // the uid off `members`. A reveal landing in the window after that
+    // sweep wrote all of it back — for an ERASED account, a uid re-minted
+    // on a live group document after gone means gone, and a notification
+    // sent to a group they are no longer in. Measured: a document roster
+    // of two against a page roster of three put `pushAt.u3` on the settle
+    // update and u3 in the reveal's `members` and `names`, for a member
+    // who never answered the round.
+    const freshRoster: string[] = Array.isArray(gsnap.get("memberUids")) ? gsnap.get("memberUids") : members;
+
     // WHO THE REVEAL SAYS WAS THERE — who was in the group when this round
     // opened, plus anyone who played it — computed once and used twice: as
     // the `members` field, and as the set the `names` map is cut down to,
     // so the reveal never names someone it does not record as present
     // (the erasure sweep walks `members`; a stray name would outlive it).
+    // THE UNION, and the union is the point. `revealMembersFor` FILTERS the
+    // roster it is given — `playedUids` is a reason to KEEP a uid, never a
+    // reason to add one — so handing it the fresh roster alone would drop
+    // someone who answered this round and left before the transaction read
+    // the group. Their vote is still published below (`freshVotes` is keyed
+    // on the page roster, so it has them), and `members` is the index
+    // deleteAccount's phase 1c-bis queries by: a voter missing from it is a
+    // vote and a name that no erasure can ever reach. The page's roster had
+    // the same hole one read earlier; the union closes it for both.
+    const revealRoster = [...new Set([...freshRoster, ...Object.keys(freshVotes)])];
     const revealMembers = revealMembersFor(
-      members,
+      revealRoster,
       joinedAtMs(gsnap.get("memberJoinedAt")),
       tsMs(gsnap.get("roundOpenedAt")),
       Object.keys(freshVotes),
@@ -986,10 +1016,6 @@ export async function revealRound(
     // question deleted by an operator since the answers were written
     // folds nothing here, as it folds nothing into the signal below.
     const qSnap = freshQid ? await tx.get(db.collection("v2_questions").doc(freshQid)) : null;
-    // Rows for the roster the TRANSACTION read, not the page's: a member
-    // who left between the two would otherwise get a row written for a
-    // uid no longer on the document — the shape leaveGroupV2 just removed.
-    const freshRoster: string[] = Array.isArray(gsnap.get("memberUids")) ? gsnap.get("memberUids") : members;
     const nextLedger = foldRoleLedger(
       gsnap.get("ledger"),
       mode,
@@ -1035,7 +1061,7 @@ export async function revealRound(
     // answered — your turn" about the same round. Their own answer clears
     // the stamp (v2.ts). Members who ran ahead are told the result alone.
     const sealedNext = playedIn(nextPlayed, roundKey(next));
-    waitingNext = members.filter((u) => !sealedNext.includes(u));
+    waitingNext = freshRoster.filter((u) => !sealedNext.includes(u));
     for (const u of waitingNext) settle[`pushAt.${u}`] = FieldValue.serverTimestamp();
     if (playedIn(nextPlayed, roundKey(next)).length) {
       // Somebody ran ahead: the next round already has an answer, so its
@@ -1401,15 +1427,6 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     if (prev && prev !== handle) {
       throw new HttpsError("failed-precondition", "a handle can't be changed once it is claimed");
     }
-    if (snap.exists) {
-      // Re-claiming your own handle is a no-op rather than an error: the
-      // client retries on a dropped response, and a retry that reports
-      // "taken" about your own name is the worst possible message.
-      if (snap.get("uid") === uid) return;
-      throw new HttpsError("already-exists", "that handle is taken");
-    }
-    tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
-    tx.set(userRef, { handle }, { merge: true });
     // MERGE, and name/nameKey only when the profile already has one:
     // most accounts claim a handle on the setup screen after saving a
     // name, but the order is not guaranteed and a directory row whose
@@ -1427,9 +1444,30 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // the package boundary, so they are kept honest by this comment and
     // by the rule that judges both.
     const nameKey = myName.replace(/[A-Z]/g, (c) => c.toLowerCase());
-    tx.set(peopleRef, myName
+    const writeRow = () => tx.set(peopleRef, myName
       ? { handle, name: myName, nameKey }
       : { handle }, { merge: true });
+    if (snap.exists) {
+      // Re-claiming your own handle is a no-op rather than an error: the
+      // client retries on a dropped response, and a retry that reports
+      // "taken" about your own name is the worst possible message.
+      // …and it REPAIRS the directory row on the way out. It used to
+      // return here, one statement short of the write below, and D440's
+      // `allow delete` made that reachable rather than theoretical: the
+      // owner may delete their own row, `writeDirectoryRow` does exactly
+      // that when a display name is cleared, and the client cannot put
+      // the handle back — `handle` is immutable to it on that document
+      // (the ternary in firestore.rules). So clearing a name and setting
+      // one again left the end state this file's own rules comment calls
+      // wrong: "an account findable by name and not by the address it
+      // just took", with nothing in the system able to fix it. The write
+      // is idempotent and already inside this transaction.
+      if (snap.get("uid") === uid) { writeRow(); return; }
+      throw new HttpsError("already-exists", "that handle is taken");
+    }
+    tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
+    tx.set(userRef, { handle }, { merge: true });
+    writeRow();
   });
   return { handle };
 });

@@ -574,7 +574,7 @@ same inventory and should not be re-derived in a hurry.
 | Play category | Collected | Shared | Optional? | Purpose |
 | --- | --- | --- | --- | --- |
 | Personal info → User IDs | Yes | No | Required | App functionality |
-| Personal info → Email address | Yes | No | Optional (Google linking only) | App functionality |
+| Personal info → Email address | Yes | No | **Required** (every account since D414 — the wall takes an address through all three doors, so this stopped being conditional the day the wall went up; it read "Optional (Google linking only)" here and in the JSON twin for nine days after, because D414's fix moved the Apple table and never reached this one, and the Apple row above says so in as many words) | App functionality |
 | Personal info → Name | Yes | No | Optional | App functionality |
 | Personal info → Political or religious beliefs | Yes | No | Optional | App functionality |
 | Personal info → Gender | Yes | No | Optional | App functionality |
@@ -595,10 +595,11 @@ Play asks whether location is *required*: it is **optional**. Declining
 leaves the city picker working, and the app never prompts unless the
 button is tapped.
 
-**Three corrections to this table, found 2026-09-01 while assessing the
-Play path ([`PLAY-RELEASE.md`](PLAY-RELEASE.md)). The first is made; the
-other two are flagged rather than made, because they are re-derivations
-and this page's own rule is that `data-inventory.md` is canonical.**
+**Four corrections to this table.** The first three were found 2026-09-01
+while assessing the Play path ([`PLAY-RELEASE.md`](PLAY-RELEASE.md)) and
+the fourth on 2026-09-10. **Numbers 1 and 4 are made; 2 and 3 are flagged
+rather than made, because they are re-derivations and this page's own rule
+is that `data-inventory.md` is canonical.**
 
 1. **The Precise location row had its columns transposed** against the
    header — it read `Yes | App Functionality | Not linked to identity
@@ -630,12 +631,27 @@ and this page's own rule is that `data-inventory.md` is canonical.**
    this tree — but it is a question nobody has answered on the record,
    and both stores' rows were derived before the sale existed.
 
+4. **The Email address row filed the wall as optional, and did it in both
+   copies at once.** It read *Optional (Google linking only)* — true until
+   D414 (2026-09-07) and false the moment the account wall went up, since
+   the wall takes an address through all three doors. **Made**: it is
+   **Required** above and in `play-data-safety.json`. What is worth
+   keeping from it is not the row but the shape of its survival — D414's
+   own fix corrected §1's Apple row, whose cell says in as many words
+   that "both copies still said" the conditional wording, and never came
+   back for this table.
+
 **None of these is what §4 of `PLAY-RELEASE.md` is asking for.** The
 reason a transposed row survived in a file this careful is that nothing
-can read it: `check:store-forms` holds `app-privacy.json` equal to §1–2
-and this section has no machine-readable twin. Points 2 and 3 are the
-same absence one step further out — a Play answer can go stale against a
-decision and no gate is watching.
+could read it: `check:store-forms` held `app-privacy.json` equal to §1–2
+and this section had no machine-readable twin. It has one now
+(`play-data-safety.json`, compared row for row) — and correction 4 is what
+that twin does not catch: the gate asks whether the two copies AGREE, not
+whether either is true, so a row that goes stale in both at once passes.
+Its `playCell` also strips the parenthetical, which is why the reason for
+an answer can live in the cell beside it without disturbing the
+comparison. Points 2 and 3 are the same absence one step further out — a
+Play answer can go stale against a decision and no gate is watching.
 
 Play's data-safety **Advertising ID** row is a different question from
 the store listing's **Contains ads** declaration, and they now diverge:

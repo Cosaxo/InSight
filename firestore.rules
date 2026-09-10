@@ -466,10 +466,30 @@ service cloud.firestore {
         // On CREATE `resource` is null and the key must simply be absent:
         // a profile is created before any fold has run, and the callable
         // writes with a merge that creates the field afterwards.
-        && (!("testResults" in request.resource.data)
-          || (resource != null
-            && request.resource.data.testResults
-              == resource.data.get("testResults", {})))
+        //
+        // ABSENCE IS NOT A FREE PASS, and this clause spelled it as one
+        // until 2026-09-10 — the same failure the `handle` clause forty
+        // lines up documents at length and guards with a ternary. Written
+        // as `!("testResults" in …) || …`, absence satisfied the whole
+        // clause, so an ordinary profile write that simply OMITTED the key
+        // deleted the map: D57's verified logic score, and D331's
+        // `testResults.political` whose removal `saveTestResultV2`
+        // deliberately couples to the consent record in one server write
+        // so a profile can never read "coordinate gone, consent still ON".
+        // That state was reachable through the ordinary profile path, by
+        // leaving a field out. Measured: `updateDoc({testResults:
+        // deleteField()})` and a non-merge `setDoc` omitting it were both
+        // ALLOWED; the identically-shaped `handle` case was refused.
+        //
+        // The ternary asks the question in the order that has an answer:
+        // on a create the key must be absent, and on an update the map
+        // must be the one already stored — comparing through `get(…, {})`
+        // on BOTH sides, so a profile that has no `testResults` yet still
+        // writes freely.
+        && (resource == null
+          ? !("testResults" in request.resource.data)
+          : request.resource.data.get("testResults", {})
+            == resource.data.get("testResults", {}))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isOptionalStamp(request.resource.data.get("createdAt", null))
         && isOptionalStamp(request.resource.data.get("updatedAt", null))
@@ -1142,9 +1162,13 @@ service cloud.firestore {
 
         // The daily pulse (D139): the same question answered once per
         // DAY, id {baseQid}_{day} — one answer per (person, day) is the
-        // doc id, the duel answers' move, and the day window below is
-        // theirs verbatim (back 4d for an offline queue, forward 2d
-        // because day keys are UTC and UTC+14 is already tomorrow).
+        // doc id, which is the duel answers' move. The day window below
+        // (back 4d for an offline queue, forward 2d because day keys are
+        // UTC and UTC+14 is already tomorrow) was theirs verbatim when
+        // this was written and is the PULSE'S OWN now: D426 moved duels
+        // to rounds and D433's pass took the day window out of that arm
+        // entirely, so there is no "theirs" left to be verbatim to. The
+        // numbers are unchanged; only the provenance was stale.
         // Create-only in v1, deliberately: the D86 edit arm's surface
         // list keeps pulse out, so "you said what you said today" holds
         // structurally, and delete is closed like every answer. The
