@@ -2940,6 +2940,44 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-138",
+  "surface": "daily",
+  "seq": 138,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The advice you’d give your younger self is mostly about…",
+  "options": [
+   "Courage",
+   "Patience",
+   "People",
+   "Money"
+  ],
+  "topic": "deep",
+  "branch": "Story",
+  "sub": "Then and now",
+  "tag": "Dear younger me",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-139",
+  "surface": "daily",
+  "seq": 139,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Getting lost somewhere new: part of the fun, or the thing to avoid?",
+  "options": [
+   "Part of the fun",
+   "The thing to avoid"
+  ],
+  "topic": "light",
+  "branch": "Travel",
+  "sub": "How you roam",
+  "tag": "Getting lost",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3970,7 +4008,9 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null,
   "bg": "Open-water rules commonly mandate wetsuits in cold water and forbid them in warm — World Triathlon draws its lines around 16°C and the low twenties. Ice swimmers race skin in water near freezing.",
   "core": true
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s05",
   "surface": "feed",
@@ -4003,9 +4043,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s07",
   "surface": "feed",
@@ -8174,7 +8212,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 5,
   "hi": 50,
   "unit": "yrs"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl39",
   "surface": "feed",
@@ -8230,9 +8270,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 12,
   "hi": 24,
   "unit": "h"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl41",
   "surface": "feed",
@@ -12478,7 +12516,9 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "fav",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk12",
   "surface": "feed",
@@ -12502,9 +12542,7 @@ const BANK_2: V2SeedQuestion[] = [
   "topic": "fav",
   "axis": null,
   "test": null
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "pick-pk14",
   "surface": "feed",
@@ -15999,7 +16037,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "foreign",
   "test": "political"
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "test-political-15",
   "surface": "test",
@@ -16035,9 +16075,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "tech",
   "test": "political"
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "test-political-17",
   "surface": "test",
@@ -19723,7 +19761,9 @@ const BANK_4: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "morality",
   "invert": true
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-big5-105",
   "surface": "test",
@@ -19761,9 +19801,7 @@ const BANK_4: V2SeedQuestion[] = [
   "axis": "A",
   "test": "big5",
   "facet": "altruism"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-107",
   "surface": "test",
@@ -23846,7 +23884,9 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 58,
   "k": "Venom is injected",
   "w": "Venom is delivered by a bite or sting; poison is absorbed or swallowed. A pufferfish is poisonous, a cobra is venomous."
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "learn-con12",
   "surface": "learn",
@@ -23890,9 +23930,7 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 70,
   "k": "Antibiotics miss viruses",
   "w": "Antibiotics attack bacterial machinery viruses do not have — which is why they do nothing for a cold."
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-ear9",
   "surface": "learn",
