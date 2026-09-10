@@ -52,7 +52,7 @@
 // be able to block an emergency one (CLAUDE.md).
 
 import { readFileSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -114,8 +114,18 @@ const EXEMPT_SOURCES = {};
 // left the gate GREEN at 173 surfaces, with the pattern for that exact
 // sentence live in the list below. Widened, the same plant fails and the
 // clean tree reads 259 surfaces across 86 files that were unguarded.
+// RECURSIVE, and the reason is this gate's own history: the sentence
+// above records that it read one DIRECTORY of the four and missed the
+// rest, and the walk under it read one LEVEL of each. Measured the same
+// way — the documented probe string in `src/v2/ui/GhostTop.tsx` fails the
+// gate; the identical file at `src/v2/ui/panels/Ghost.tsx` leaves it
+// green at 274 surfaces. No subdirectory exists in the four roots today,
+// so this was one `mkdir` from live. The meta-gate for this exact class
+// (source-pins.test.mjs) could not see it either: the directory arrives
+// as a `flatMap` lambda parameter, a chain its detector cannot follow.
 const SOURCE_DIRS = ["src/v2/ui", "src/v2/spec", "src/v2/data", "src/lib"];
-const TSX_FILES = SOURCE_DIRS.flatMap((dir) => readdirSync(join(root, dir))
+const TSX_FILES = SOURCE_DIRS.flatMap((dir) => readdirSync(join(root, dir), { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
   .filter((f) => /\.(tsx?|jsx?)$/.test(f))
   // Tests are not copy: their fixtures quote the old model on purpose, and
   // the mount suites assert on strings a user never sees.

@@ -33,11 +33,15 @@ vi.mock("../data/live", () => ({
       revealHistory: (gid: string) => HIST[gid] || [],
       // Records which rooms the tab paid a history read for: a room the
       // server's ledger already draws must not be one of them (D445).
+      // ANSWERS, it does not reject — which is what the real store does
+      // and what this fixture used to get wrong. `loadRevealHistory`'s
+      // header says it never throws; the panel wrapped it in try/catch,
+      // so the refused case below asserted a note the app could not
+      // reach. A fixture that behaves unlike its subject proves the
+      // fixture.
       loadRevealHistory: (gid: string) => {
         LOADED.push(gid);
-        return REFUSE.has(gid)
-          ? Promise.reject(new Error("permission-denied"))
-          : Promise.resolve();
+        return Promise.resolve(REFUSE.has(gid) ? "failed" as const : "ok" as const);
       },
       revealHistoryLoading: (gid: string) => LOADING.has(gid),
       // The bank the fold asks what each round was (D437): a cast round
@@ -125,6 +129,21 @@ describe("a setting under the floor", () => {
     REFUSE.add("d1");
     render(<LiveRolesPanel />);
     expect(await screen.findByText("couldn’t read this one")).toBeTruthy();
+  });
+
+  it("…and does NOT say it about a room that read fine", async () => {
+    // The control the case above needs, and did not have: marking every
+    // room refused left the whole suite green, so nothing held the note
+    // to the rooms it is about. "Couldn't read this one" over a room that
+    // read perfectly is the same lie as the one above, pointed the other
+    // way — and it hides the thin-row note that would have said what the
+    // room actually has.
+    ROOMS = [duoRoom("d1"), duoRoom("d2")];
+    REFUSE.add("d2");
+    render(<LiveRolesPanel />);
+    expect(await screen.findByText("couldn’t read this one")).toBeTruthy();
+    // ONE room says it, not both.
+    expect(screen.getAllByText("couldn’t read this one")).toHaveLength(1);
   });
 
   it("counts a group's votes received, not its rounds", () => {

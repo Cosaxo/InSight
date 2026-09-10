@@ -640,7 +640,7 @@ describe("the ad lane is retired (D375)", () => {
 });
 
 describe("runReviewSweep", () => {
-  const store = (rows) => {
+  const store = (rows, throwsFor = new Set()) => {
     const state = { reviewed: [], pages: [] };
     return {
       state,
@@ -651,7 +651,14 @@ describe("runReviewSweep", () => {
           state.pages.push({ after, size: page.length });
           return page;
         },
-        async review(bid) { state.reviewed.push(bid); },
+        // CAN THROW, which the real one plainly can: `reviewBooking`
+        // catches the model call and not the write that records the
+        // attempt nor the settling transaction. A fake that never throws
+        // is a fake that cannot ask what the loop does when one does.
+        async review(bid) {
+          if (throwsFor.has(bid)) throw new Error(`boom ${bid}`);
+          state.reviewed.push(bid);
+        },
       },
     };
   };
@@ -673,6 +680,29 @@ describe("runReviewSweep", () => {
     const res = await runReviewSweep(st);
     expect(res).toMatchObject({ retried: 1, stalled: 1 });
     expect(state.reviewed, "a booking past the ceiling was called for again").toEqual(["fresh"]);
+  });
+
+  it("one booking's failure does not strand the rest of the scan", async () => {
+    // The page is ordered OLDEST FIRST, so an unguarded throw ended the
+    // run with every booking behind the failing one unvisited — the same
+    // starvation the paging case below goes to some trouble to prove is
+    // gone, reintroduced by a missing try/catch. v2social's reveal scan
+    // wraps each item and says why in those words.
+    const { store: st, state } = store(held(4, 0), new Set(["b0001"]));
+    const res = await runReviewSweep(st);
+    expect(state.reviewed, "the scan stopped at the first failure")
+      .toEqual(["b0000", "b0002", "b0003"]);
+    // Counted rather than swallowed: a run where nothing worked must not
+    // read as a quiet one.
+    expect(res).toMatchObject({ scanned: 4, retried: 3, failed: 1, stalled: 0 });
+  });
+
+  it("…and a failure is not a retry — the control", async () => {
+    // The over-fix: catching and counting it as retried anyway, which
+    // would make a sweep where every booking threw look like a perfect
+    // one in the log.
+    const { store: st } = store(held(3, 0), new Set(["b0000", "b0001", "b0002"]));
+    expect(await runReviewSweep(st)).toMatchObject({ scanned: 3, retried: 0, failed: 3 });
   });
 
   it("PAGES PAST a full page of stalled bookings to reach a live one", async () => {

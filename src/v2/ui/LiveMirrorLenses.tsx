@@ -506,7 +506,17 @@ function PeopleLens({ qs, scope, shortName }: {
   // the slice read `type`, and `.map` cannot change a length, so the two
   // empty branches keep reading the uncut list and say the same thing.
   const shown = ranked.slice(0, 12).map((p) => ({ ...p, type: typeOfPerson(p) }));
-  const loading = LIVE.kindredLoading();
+  // THE STATE, not the flag. `kindredLoading` is false again the moment
+  // the run RETURNS, including when every query inside it threw — which
+  // is what `kindredState()` exists to say, in a docstring naming this
+  // exact failure: "a surface that branches on it alone tells the viewer
+  // nobody is there on the strength of a read that did not happen."
+  // The constellation directly above this row already reads it. This lens
+  // did not, so a failed read drew "Couldn't read the crowd here" in the
+  // field and "Fills in as you answer more" — an instruction blaming the
+  // reader — twenty pixels below it, about the same fetch, on one scroll.
+  const kindred$ = LIVE.kindredState();
+  const loading = kindred$ === "loading";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -525,9 +535,16 @@ function PeopleLens({ qs, scope, shortName }: {
         {loading && !ranked.length ? (
           <LlEmpty>Matching…</LlEmpty>
         ) : !ranked.length ? (
-          // Paused before empty (D332): "fills in as you answer more" is a
-          // promise the refused fetch cannot keep.
-          <LlEmpty>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Fills in as you answer more."}</LlEmpty>
+          // Paused, then FAILED, then empty (D332 plus the state above):
+          // "fills in as you answer more" is a promise neither a refused
+          // fetch nor a failed one can keep, and the failed one is the
+          // case where the sentence is also a lie about the crowd. Same
+          // words as the field above, because it is the same fact.
+          <LlEmpty>{LIVE.budgetPaused
+            ? BUDGET_PAUSED_BODY
+            : kindred$ === "failed"
+              ? "Couldn’t read the crowd here. Close and reopen to try again."
+              : "Fills in as you answer more."}</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {shown.map((p) => <KindredCard key={p.uid} p={p} />)}

@@ -269,8 +269,13 @@ function LiveSignInGate() {
   const [failure, setFailure] = React.useState<EmailFailure | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
   // WHICH door hit it, not just that one did. This was a boolean and the
-  // recovery below always signed in with Google — see there.
-  const [inUse, setInUse] = React.useState<null | "apple" | "google" | "email">(null);
+  // recovery below always signed in with Google — see there. `known` is
+  // the second thing the screen needs and the door alone cannot say: Apple
+  // and Google arrive here because Firebase REFUSED the link, so the other
+  // account is a fact; the email door arrives on the condition alone,
+  // before any call, so at that point the address may have no account at
+  // all. Both set it, so the property is stated where it is established.
+  const [inUse, setInUse] = React.useState<null | { door: "apple" | "google" | "email"; known: boolean }>(null);
   const [address, setAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
   // A proxy for the keyboard, and the honest one available to a WebView:
@@ -293,7 +298,7 @@ function LiveSignInGate() {
     } catch (e) {
       const f = (e as { failure?: EmailFailure }).failure;
       if (f) setFailure(f);
-      else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(which);
+      else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse({ door: which, known: true });
       // The store's auth observer is what flips `linked`, and it will not
       // fire for a failed attempt — so the error has to land on screen or
       // the gate just sits there. A SENTENCE, not a code: see SAY_FOR.
@@ -322,7 +327,7 @@ function LiveSignInGate() {
   // signInToExisting — the same button the other two doors use.
   const submitEmail = () => {
     if (signin && !LIVE.linked) {
-      setFailure(null); setErr(null); setInUse("email");
+      setFailure(null); setErr(null); setInUse({ door: "email", known: false });
       return;
     }
     return fly("email", () =>
@@ -379,7 +384,7 @@ function LiveSignInGate() {
     // Since D441 the email door lands here too — not through `fly`'s catch
     // (emailSignIn throws an EmailAuthError carrying `failure`, which that
     // catch takes first) but from submitEmail, on the condition alone.
-    const door = inUse;
+    const door = inUse?.door;
     if (!door) return;
     setFlight(door); setErr(null);
     try {
@@ -483,8 +488,15 @@ function LiveSignInGate() {
       <GateShell>
         <GateTitle />
         <GateBody>
-          That account already has an InSight history. Signing in to it leaves
-          this phone&rsquo;s answers behind &mdash; they are not merged.
+          {inUse.known
+            // Firebase already refused the link, so the other account is a
+            // fact and the screen may name it.
+            ? <>That account already has an InSight history. Signing in to it leaves
+              this phone&rsquo;s answers behind &mdash; they are not merged.</>
+            // Nothing has been asked yet at the email door, so the history
+            // is the one thing this screen must not assert. What IS certain
+            // is the cost, which is what the screen exists to name.
+            : <>Signing in leaves this phone&rsquo;s answers behind &mdash; they are not merged.</>}
         </GateBody>
         <GateButton label={"Sign in and leave this phone\u2019s answers"}
           onClick={() => void signInToExisting()} busy={inFlight} />
