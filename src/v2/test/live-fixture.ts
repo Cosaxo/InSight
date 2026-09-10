@@ -455,7 +455,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.
     revealHistoryLoading: () => false,
-    loadRevealHistory: async () => {},
+    // Answers the word the store answers ("ok" | "failed" | "busy"), not
+    // `undefined` — LiveRolesPanel branches on it. Inert here only
+    // because this fixture hands back no groups, so the loop that reads
+    // it never runs; `social` is loosely typed, so tsc cannot say so.
+    loadRevealHistory: async () => "ok" as const,
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
     approveJoin: async () => ({ ok: true }),
