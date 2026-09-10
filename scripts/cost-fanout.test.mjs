@@ -18,11 +18,27 @@
 //
 // None of that is visible from cost-arith.mjs, which is exactly why it
 // stayed wrong: a model that states its coefficients as bare numbers
-// cannot be compared to anything. So this file runs the real function's
-// real id builder rather than re-asserting a number, and the model's
-// constants are what the assertions are about.
+// cannot be compared to anything. So the samples-per-answer factor is
+// pinned against `sampleIdsFor`'s own source, and the model's constants
+// are what the rest of the assertions are about.
+//
+// SOURCE, NOT IMPORT — the sibling term's shape (cost-whovoted.test.mjs),
+// and here for a reason that only CI can see. This file imported
+// `sampleIdsFor` directly, which is the better pin when it works: it
+// resolves `profileFanout.ts`, whose first line is
+// `import … from "firebase-functions/v2/firestore"`. `test:scripts` runs
+// in CI's LINT job, which installs the root package and never
+// `functions/` — so the import is fine locally the moment anything has
+// run `npm ci --prefix functions`, and `ERR_MODULE_NOT_FOUND` on a clean
+// runner. That is the fifth-runner trap in CLAUDE.md wearing an
+// environment instead of a stale assertion: nothing else goes red,
+// because the only thing that imports across this boundary is a test
+// about a cost model.
 import { describe, expect, it } from "vitest";
-import { sampleIdsFor } from "../functions/src/profileFanout";
+import { readFileSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 import {
   accountAnswers,
   B,
@@ -35,22 +51,36 @@ import {
   profileFanoutWrites,
 } from "./cost-arith.mjs";
 
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Comments blanked for the same reason the sibling does it: the builder's
+// own comments name both ids while explaining the shape, so a raw scan
+// would find them in prose and pass on a body that adds neither.
+const fanout = stripComments(readFileSync(join(root, "functions/src/profileFanout.ts"), "utf8"));
+const body = fanout.slice(fanout.indexOf("export function sampleIdsFor("));
+const builder = body.slice(0, body.indexOf("\n}"));
+
 describe("the profile fan-out term prices what the fan-out does", () => {
-  it("charges one sample document per id the real function names", () => {
-    const qids = ["q1", "q2", "q3"];
-    const eligible = new Set(qids);
-    const withCity = sampleIdsFor(qids.map((qid) => ({ qid, city: "Oslo, NO" })), eligible);
-    // The ceiling: a world sample and a city sample each. This is the
-    // assertion the model was wrong about — it read as one.
-    expect(withCity.length).toBe(qids.length * FANOUT_SAMPLES_PER_ANSWER);
+  it("charges one sample document per id the real builder names", () => {
+    // The ceiling: an answer names a WORLD sample always and a per-city
+    // one when its frozen chips carry a city, so two at the ceiling. This
+    // is the factor the model was wrong about — it read as one.
+    expect(builder, "sampleIdsFor no longer adds the world sample — the term prices a builder that has moved")
+      .toMatch(/ids\.add\(worldSampleId\(/);
+    expect(builder, "sampleIdsFor no longer adds the city sample — the term is back to charging one")
+      .toMatch(/ids\.add\(citySampleId\(/);
     expect(FANOUT_SAMPLES_PER_ANSWER).toBe(2);
 
-    // The floor, and the control: without a city the answer names one,
-    // so the constant is the CEILING and not a coincidence of the
-    // fixture. A model charging the floor would be the old bug back.
-    const noCity = sampleIdsFor(qids.map((qid) => ({ qid })), eligible);
-    expect(noCity.length).toBe(qids.length);
-    expect(FANOUT_SAMPLES_PER_ANSWER).toBeGreaterThan(noCity.length / qids.length);
+    // The floor, and the control: the city id is the CONDITIONAL one, so
+    // the constant is a ceiling rather than a flat count. A builder that
+    // added it unconditionally would price the same and mean something
+    // else, and a model charging the floor would be the old bug back.
+    // The guard's spelling is not the fact and a pin that fired on a
+    // rewrite would be noise; that the city id is CONDITIONED on the
+    // answer carrying one is. Read off the statement that adds it.
+    const cityStmt = builder.split("\n").find((l) => l.includes("ids.add(citySampleId("));
+    expect(cityStmt, "the city sample is no longer conditional — the ceiling would be a flat count")
+      .toMatch(/\bif\s*\(.*\ba\.city\b/);
+    expect(FANOUT_SAMPLES_PER_ANSWER).toBeGreaterThan(1);
   });
 
   it("pays for the answer document too — the read the samples' read is not", () => {

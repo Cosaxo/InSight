@@ -49401,6 +49401,33 @@ for one constant and no way to tell which. The message now states three
 paths — vote 3, rank 3, catalog 4 — and the assertion's value is untouched
 at 13, which is what the composed trigger reads.
 
+### 4 · `scripts/cost-fanout.test.mjs` — the trap CLAUDE.md names, wearing an environment
+
+Found by CI, not by the composition, and it is A's own — but it belongs
+in this record because it is the fifth-runner trap in its fourth
+recorded form, and the first where the stale thing is the *environment*
+rather than an assertion. A's new test imported `sampleIdsFor` from
+`functions/src/profileFanout.ts` — the better pin when it works, because
+it runs the real builder rather than re-asserting a number. That module's
+first line is `import … from "firebase-functions/v2/firestore"`, and
+`test:scripts` runs in **CI's lint job, which installs the root package
+and never `functions/`**. So it passes on any machine where something has
+run `npm ci --prefix functions` — every local session that ran the
+functions suite first, this review included — and is `ERR_MODULE_NOT_FOUND`
+on a clean runner. Nine jobs green, lint red, and nothing else could see
+it: the only thing that imports across this boundary is a test about a
+cost model.
+
+Converted to the source pin its own sibling already uses
+(`cost-whovoted.test.mjs`, comments blanked through `stripComments`,
+pinning the fact rather than its spelling): the world add, the city add,
+and that the city one is CONDITIONED on the answer carrying a city, which
+is what makes the constant a ceiling rather than a flat count. The three
+arithmetic cases are untouched and still execute. Verified the way the
+failure asked to be — `functions/node_modules` moved aside, `test:scripts`
+1339 green, then the builder rewritten to add the city id unconditionally
+and the pin red with its own message.
+
 ### What was checked and left alone
 
 Four things looked like the same class and are not, each verified rather
@@ -49441,7 +49468,9 @@ itself is PARKED under D42 and has never been submitted, so the repo copy
 `test:rules` 221 plus the coverage ratchet (8 of 378 never-false, at
 baseline) and the D438 budget gate · `test:e2e:all` on one emulator boot,
 199 assertions, all three suites green · `tsc -b` · `lint` · every
-`check:*` gate.
+`check:*` gate. `test:scripts` was re-run a second time with
+`functions/node_modules` moved aside, which is the lint job's actual
+environment and the only way defect 4 is visible.
 
 Two gates cannot pass from here and neither is the composition's:
 `check:web-firebase` needs the release secrets and runs only on the
