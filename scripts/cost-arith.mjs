@@ -15,9 +15,9 @@
 //
 // Node stdlib only, like every deploy-adjacent script here.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { stripComments } from "./strip-comments.mjs";
 import { bankArrayFrom } from "./v2content-lib.mjs";
 
@@ -38,7 +38,21 @@ export const MEM_S = 0.0000025;     // $/GiB-second
 export const REQ = 0.4e-6;          // $/request
 
 // Free tiers. Firestore's are per DAY; Cloud Run's are per MONTH.
-export const FREE = { read: 50_000, write: 20_000, del: 20_000, storeGiB: 1 };
+//
+// FIRESTORE'S FREE QUOTA BELONGS TO THE `(default)` DATABASE ONLY. Google's
+// pricing page: "No free quota for named databases … you will be charged
+// on usage incurred on those named databases." Production has been on the
+// named database `insight` since D165 and `(default)` was deleted at D333,
+// so nothing in this project qualifies — and this model netted the
+// allowance for three weeks after that, which is why COSTS.md printed
+// $0.00 for the launch row and "genuinely $0 below ~177 DAU" while the
+// August invoice read kr10.74 (COST-EXPOSURE.md §2). Same shape as the
+// region premise D200 fixed: an input that was true, stopped being true,
+// and went on being modelled. So the allowance is read off the same file
+// the backend takes the database from, and is zero unless that database
+// is the free one. The counterfactual is one flag away, as with the
+// region sheet.
+export const FIRESTORE_FREE_QUOTA = { read: 50_000, write: 20_000, del: 20_000, storeGiB: 1 };
 export const FREE_MO = { cpu: 180_000, mem: 360_000, req: 2_000_000 };
 
 // ── app constants ───────────────────────────────────────────────
@@ -127,6 +141,48 @@ export const LOCATION = readStr(
 /** True when production is on a single region — half the price of a multi-region. */
 export const REGIONAL = LOCATION.includes("-");
 
+// WHICH DATABASE, read the same way (COST-EXPOSURE.md §2, C1). The env
+// override in db.ts exists for the emulator; what the deploy runs is the
+// literal default, which is what this reads.
+export const DB_ID = readStr(
+  "functions/src/db.ts", /export const FIRESTORE_DB_ID = process\.env\.FIRESTORE_DB_ID \|\| "([^"]+)"/, "FIRESTORE_DB_ID");
+
+/** True when production is on a named database, which has no free quota. */
+export const NAMED_DB = DB_ID !== "(default)";
+
+/** The Firestore allowance the model nets: the free quota on `(default)`,
+ *  nothing on a named database. */
+export const FREE = NAMED_DB ? { read: 0, write: 0, del: 0, storeGiB: 0 } : FIRESTORE_FREE_QUOTA;
+
+/** How to name the database in output, beside the location. */
+export const DB_LABEL = NAMED_DB ? `named database \`${DB_ID}\` — no free quota` : "the (default) database — free quota netted";
+
+// THE FLOOR: what the project bills with nobody using it. Cloud Scheduler
+// bills per JOB, not per run — $0.10 a job-month past three free per
+// billing account — and it is most of the invoiced dollar at zero users
+// (COST-EXPOSURE.md §1). Counted off the `onSchedule(` sites in the tree,
+// so a schedule added or retired moves the floor; what the console still
+// runs beyond the tree (the retired nightly functions the deploy's --only
+// list cannot delete, OWNER-LIST.md's row) is the owner's delete, not a
+// term here. Container-image storage is the other floor line and is not
+// modelled: its size is a console read (COST-EXPOSURE.md §6 O5).
+export const SCHEDULER_JOBS = (() => {
+  const dir = join(ROOT, "functions/src");
+  let n = 0;
+  // Recursive, and the path normalised — scripts/source-pins.test.mjs's
+  // rule for every gate that walks a source root, so a schedule declared
+  // one directory down is counted rather than invisible.
+  for (const f of readdirSync(dir, { recursive: true }).map((e) => String(e).split(sep).join("/"))) {
+    if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
+    n += (stripComments(readFileSync(join(dir, f), "utf8")).match(/\bonSchedule\(/g) || []).length;
+  }
+  if (!n) throw new Error("cost-arith: no onSchedule( site found under functions/src — the pattern changed (D47)");
+  return n;
+})();
+export const SCHEDULER_FREE_JOBS = 3;
+export const SCHEDULER_JOB_USD_MO = 0.10;
+export const SCHEDULER_USD_MO = Math.max(0, SCHEDULER_JOBS - SCHEDULER_FREE_JOBS) * SCHEDULER_JOB_USD_MO;
+
 /** How to name the location in output, so no caller spells it out again. */
 export const LOCATION_LABEL = REGIONAL ? `${LOCATION} regional` : `${LOCATION} multi-region`;
 
@@ -175,6 +231,16 @@ export const IDLE_DETACH_MS = readNum(
 export const AGG_POLL_MS = readNum(
   "src/v2/data/live.ts", /const AGG_POLL_MS = ([\d_]+)/, "AGG_POLL_MS");
 
+// Documents a return to the foreground re-reads (DATA-EFFICIENCY-RUNBOOK
+// 1.4): today's aggregate, where it was the whole deck. Read from source
+// for the reason AGG_POLL_MS is — this is the coefficient on the
+// `reattach` term, the second-largest client term after D129, and a
+// widened slice must reprice the bill rather than leave it quoting the
+// old one. The streamed counterfactual keeps DECK_DAYS: pre-D129 a
+// foreground re-attached seven listeners, and that record stays exact.
+export const REATTACH_DOCS = readNum(
+  "src/v2/data/live.ts", /const REATTACH_DOCS = (\d+)/, "REATTACH_DOCS");
+
 // Documents one poll tick reads. ONE — only today's aggregate is hot, so
 // `startAggPoll` ticks on `deckIds.slice(0, 1)` while the other six are
 // refreshed on boot and on each foreground (which is what `reattach`
@@ -206,6 +272,20 @@ export const FOLLOW_CAP = readNum(
   "src/v2/data/circle.ts", /export const FOLLOW_CAP = (\d+)/, "FOLLOW_CAP");
 export const CIRCLE_ANSWER_CAP = readNum(
   "src/v2/data/circle.ts", /export const CIRCLE_ANSWER_CAP = (\d+)/, "CIRCLE_ANSWER_CAP");
+
+// The who-voted sheet's live tail (DATA-EFFICIENCY-RUNBOOK 2.4): the sheet
+// reads the nightly sample and then only the answers newer than it, at
+// most this many. At the cap the question is hot and the sheet reads the
+// full live list as before — `B.sheetOpensHot` is the share of opens that
+// land there.
+export const VOTER_TAIL_CAP = readNum(
+  "src/v2/data/voters.ts", /export const VOTER_TAIL_CAP = (\d+)/, "VOTER_TAIL_CAP");
+
+// The per-city samples the nightly pass merges (runbook 2.5): one read
+// and one write per (question, city) pair the day touched, hottest first,
+// up to this many a night.
+export const CITY_SAMPLE_PAIRS_PER_NIGHT = readNum(
+  "functions/src/patternsSamples.ts", /CITY_SAMPLE_PAIRS_PER_NIGHT = ([\d_]+)/, "CITY_SAMPLE_PAIRS_PER_NIGHT");
 
 // How often the public mirror is rewritten, in answers. Drives both the
 // mature write multiplier and the listener fan-out rate.
@@ -302,16 +382,26 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 
 // Reads issued by Cloud Functions, per answer.
 //
-// The world trigger's aggregate transaction does exactly two: tx.get on the
-// ledger event (dedup) and tx.get on the private aggregate. The catalog
-// branch (live since D232) and the rank branch (D233) each add a third —
-// the question doc, for the domain and the item count respectively — so a
-// pick or rank answer costs 3 where a vote costs 2. The model still
-// charges the vote path for every world answer, a DELIBERATE
-// approximation rather than a stale one: `B.worldAnswers` has no per-type
-// split to hang the extra read on, picks and ranks are a small slice of
-// the bank (17 + 8 of 129 feed entries), and the error is one read per
-// such answer, strictly under +50% on this term's smallest component.
+// The world trigger's aggregate transaction reads THREE on the vote path:
+// the ledger event (dedup), the published aggregate, and the author's
+// profile (D410, the paragraph below). The rank branch (D233) reads three
+// too, trading the profile for the question doc — the item count. The
+// catalog branch (D232) reads FOUR: event, question doc (the domain),
+// private mirror, and the author's profile, which that arm gained on
+// 2026-09-10 with the D410 guard the vote path had and this one never did.
+//
+// THIS PARAGRAPH SAID "two, and a third on catalog and rank" and both
+// halves had moved out from under it — D410 made the vote path three, the
+// catalog fix made that branch four. Worth keeping as the warning, because
+// what it describes is not what the constant charges and a reader who
+// trusts it will reconcile the wrong two numbers.
+//
+// The model still charges the vote path for every world answer, a
+// DELIBERATE approximation rather than a stale one: `B.worldAnswers` has
+// no per-type split to hang the extra read on, picks and ranks are a small
+// slice of the bank (17 + 8 of 129 feed entries), and the error is now one
+// read per CATALOG answer alone — rank matches the charge exactly —
+// strictly under +50% on this term's smallest component.
 // If the mix ever tilts toward catalogue/rank-heavy feeds, split the
 // volume assumption before touching this constant.
 //
@@ -321,8 +411,8 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // answer completed the round — in which case the reveal runs right there
 // (its reads are the reveal's, below). The day's branch did zero, one
 // blind arrayUnion, because nothing about it depended on the document.
-// THREE on the world path since D410, not two. The fold reads the AUTHOR'S
-// PROFILE alongside the ledger event and the published aggregate, because
+// WHY the profile is on the world path at all (D410): the fold reads the
+// AUTHOR'S PROFILE alongside the ledger event and the published aggregate, because
 // the anchors on an answer are the client's claim about its own cohort and
 // firestore.rules can only check they are plausible, never that they are
 // the author's — honestAnchors() in functions/src/pure.ts has why the rule
@@ -332,11 +422,17 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // about, is unchanged.
 export const TRIGGER_READS = { world: 3, duel: 1 };
 
-// The daily velocity scan (D54) reads every ledger entry written since its
-// last run. One entry per world answer, so this is worldAnswers per user per
-// day — a flat term the size of the boot's top-up and reseed combined, and
-// invisible in the model until now. `.select()` narrows egress, not reads.
-export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
+// The velocity scan (D54) read every ledger entry written since its last
+// run — one per world answer, a flat term the size of the boot's top-up
+// and reseed combined, invisible in the model until D54's pass — until
+// DATA-EFFICIENCY-RUNBOOK 4.4 moved it inside the nightly pass: the whole
+// days of its window come off the reader the pass already shares (D399),
+// and only the partial day since midnight is its own paged read. The pass
+// runs at 02:23 UTC, so that is 143 of 1,440 minutes; charged as if the
+// day's answers were uniform over the clock, which at these hours errs
+// high (the morning window is later) rather than low. `.select()` narrows
+// egress, not reads.
+export const VELOCITY_READS_PER_LEDGER_ENTRY = 143 / 1440;
 // THE NIGHTLY PASS (D399): one read of the day's ledger entries serving
 // the engagement digest, the Patterns fit and the taste fold together
 // (functions/src/nightly.ts). Until D399 this was two constants of 1 —
@@ -358,12 +454,26 @@ export const LEDGER_PASS_READS_PER_ENTRY = 1;
 export const PATTERNS_USER_STATE_OPS = 1;
 // The candidate engine (D395) re-solves nightly over EVERY fitted person's
 // answer map — one state read per person who has ever answered a core
-// item, which the model charges as one read per MAU per night
-// (`B.mauMultiple` per DAU-day). Counted separately from the online fit's
-// active-user read above so the two terms can be told apart on the bill:
-// at 50 k DAU that is 150 k reads a night, $0.045, against the ledger
-// re-read's 200 k.
-export const PATTERNS_SCAN_READS_PER_MAU = 1;
+// item, which the model charges per MAU per night (`B.mauMultiple` per
+// DAU-day). Counted separately from the online fit's active-user read
+// above so the two terms can be told apart on the bill. STREAMED since
+// DATA-EFFICIENCY-RUNBOOK 4.3: the solve holds no person, so it scans the
+// people once for the item statistics and once per ALS sweep — 1 +
+// ALS_SWEEPS reads per fitted person a night where the buffered solve
+// read them once and ran out of memory near 150,000 of them. At 50 k DAU
+// that is 600 k reads a night, $0.18; the incremental step (runbook
+// 4.3b, `scanActiveOnly` in cost-structure.mjs) is what takes it back
+// down, to the people who answered since the last solve.
+export const PATTERNS_SCAN_READS_PER_MAU = 1 + readNum(
+  "functions/src/patternsAls.ts", /export const ALS_SWEEPS = (\d+)/, "ALS_SWEEPS");
+// The answer maps (DATA-EFFICIENCY-RUNBOOK Phase 3, live on the owner's
+// word): the world-answer trigger merges each answer onto the person's
+// own map in the aggregate transaction — one more write per world
+// answer, no read — and the nightly heal reads each active person's map
+// once to fill what a missed live write left absent. In steady state the
+// heal writes nothing, so it is charged as the read alone.
+export const ANSWER_MAP_WRITES_PER_ANSWER = 1;
+export const ANSWER_MAP_HEAL_READS = 1;
 // The engagement digest (R1/D268): its ledger read is the pass's
 // (LEDGER_PASS_READS_PER_ENTRY above) since D399. ENGAGEMENT-RUNBOOK
 // 1.1's named decision kept it separate from VELOCITY's scan — cursor
@@ -383,6 +493,15 @@ export const ENGAGEMENT_USER_STATE_OPS = 1;
 // day, under any rounding here.
 export const ATTN_SAMPLE_RATE = readNum(
   "src/v2/data/engagement.ts", /SHARD_SAMPLE_RATE = ([\d.]+)/, "SHARD_SAMPLE_RATE");
+// …which is the LAUNCH rate: since DATA-EFFICIENCY-RUNBOOK 4.2 the shard
+// fold publishes the rate it can drain at (0.8 × its nightly cap over
+// the device population, never above the constant) and the device draws
+// its coin at that. So the per-user-day shard terms are the rate the
+// crowd settles at — the constant below the cap, falling with 1/DAU
+// above it.
+export const SHARD_FOLD_CAP = readNum(
+  "functions/src/engagement.ts", /export const SHARD_FOLD_CAP = ([\d_]+)/, "SHARD_FOLD_CAP");
+export const attnRate = (dau) => Math.min(ATTN_SAMPLE_RATE, (0.8 * SHARD_FOLD_CAP) / Math.max(1, dau));
 // Rung 2's person rollups (R3/D272): one uid-keyed day rollup per active
 // device per day (client-written, NOT sampled — it is the person channel),
 // then the nightly fold's sweep: one page read and one folded-mark write
@@ -397,14 +516,19 @@ export const ENGAGEMENT_ROLLUP_FOLD_WRITES = 2;
 // group of M members:
 //   M  getAll(profiles, fieldMask) — the names, past the verdict
 // 2+M  the committing transaction: tx.getAll(revealRef, group, ...answers)
-// = 2 + 2M, shared across M members. The day's pipeline was 4 + 3M: a
+//   1  …and the round's question, tx.get, for the role ledger (D445):
+//      whether the round was a cast or a seated role vote, and which axis
+//      or seat each option names, is a fact about the question that the
+//      answers cannot say. The ledger itself adds NO write — it rides the
+//      settle update that advances the round.
+// = 3 + 2M, shared across M members. The day's pipeline was 4 + 3M: a
 // standalone reveal-exists get and a pre-read of every answer, both made
 // unnecessary by `played` on the group document (ROUNDS-PLAN §3.1), and
 // the scan's page read, which the indexed deadline query now spends only
 // on groups whose round is actually due. Charged per duel answer in the
 // model, which under rounds is exactly right: every answer is one of a
 // round that reveals.
-export const revealReadsPerMember = (m) => (2 + 2 * m) / m;
+export const revealReadsPerMember = (m) => (3 + 2 * m) / m;
 
 // ── behaviour assumptions ───────────────────────────────────────
 // The soft numbers. Every one of these is a guess about humans, not a fact
@@ -523,9 +647,23 @@ export const B = {
   // so the first week of real usage can correct a number instead of
   // discovering a category.
   sheetOpens: 0.15,   // who-voted sheets opened per user per day
+  // The share of those opens on a HOT question — one with more answers
+  // since last night's merge than the live tail holds (VOTER_TAIL_CAP),
+  // which is today's daily at any real size — where the sheet reads the
+  // full live list as it did before runbook 2.4. The rest read one sample
+  // document plus a short tail. A guess about curiosity like its
+  // neighbours: most sheet opens are on the card that just opened.
+  sheetOpensHot: 0.7,
   kindredViews: 0.03, // People-lens (Kindred) first views per user per day
   circleOpens: 0.1,   // Circle stop opens per user per day
   circleFollows: 5,   // accounts a typical circle holds (the cap is 50)
+  // Times per account per YEAR a profile stamp changes — a rename, a test
+  // taken or retaken, a verified logic score — each of which the profile
+  // fan-out (functions/src/profileFanout.ts) moves into every sample row
+  // the account holds. Most land in the first week, when the account has
+  // few rows; this charges every one at the mature account's size, so it
+  // errs high.
+  stampChanges: 3,
 };
 
 // ── bytes, for the two lines the model billed as free (D67) ─────
@@ -538,9 +676,10 @@ export const B = {
 export const BYTES = {
   // The published aggregate — the document the listener fan-out ships on
   // every delivery, so at scale it is essentially the whole egress bill.
-  // Range, not a point: a bare `{counts, total, tooSmall}` is a few hundred
-  // bytes, while a full `by` breakdown is 6 dims x <=24 buckets x options
-  // (BREAKDOWN_DIMS / BREAKDOWN_MAX_BUCKETS, functions/src/pure.ts). Which
+  // Range, not a point: a bare `{counts, total}` is a few hundred bytes,
+  // while a full `by` breakdown is 8 dims x <=24 buckets x options
+  // (BREAKDOWN_DIMS — eight since D328 — / BREAKDOWN_MAX_BUCKETS,
+  // functions/src/pure.ts; this said six for two dims' worth of time). Which
   // one a real question looks like depends on how many users filled the
   // optional Basics card, which nobody knows yet — so the default is the
   // middle and COSTS.md quotes the band.
@@ -571,7 +710,9 @@ export const BYTES = {
 // Internet egress, Google Cloud's rate rather than a Firestore line item.
 // The free allowance is monthly, unlike Firestore's per-day tiers.
 export const EGRESS_GIB = 0.12;
-export const FREE_EGRESS_GIB_MO = 10;
+export const FIRESTORE_FREE_EGRESS_GIB_MO = 10;
+/** Part of the same `(default)`-only quota as FREE — nothing on `insight`. */
+export const FREE_EGRESS_GIB_MO = NAMED_DB ? 0 : FIRESTORE_FREE_EGRESS_GIB_MO;
 
 export const SCENARIOS = [
   [50, false, "Launch / TestFlight"],
@@ -631,29 +772,108 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
  * 1 is "names are already known", and the truth is in between because crowds
  * overlap and the session cache already exists.
  */
+/** The who-voted sheet's first read: `fetchSampleDoc`, one document, paid
+ * on every open before the sheet knows which shape it is — a miss is
+ * billed like a hit. Pinned against `loadVoters`' own body in
+ * scripts/cost-whovoted.test.mjs. */
+export const SHEET_SAMPLE_READ = 1;
+
 export function socialTerms(dau, mature, o = {}) {
   const voterCap = o.voterCap ?? VOTER_FETCH_CAP;
   const kindredQs = o.kindredQuestions ?? KINDRED_QUESTIONS;
-  const circleCap = o.circleAnswerCap ?? CIRCLE_ANSWER_CAP;
   const names = o.nameFactor ?? 2;
   // The crowd a capped fetch returns is min(cap, ~DAU): the daily deck is
   // globally shared, so a question's crowd is roughly everyone active that
   // day until the cap binds.
   const crowd = Math.min(voterCap, dau);
+  // EVERY sheet pays the sample read, and a hot one pays the tail before
+  // it gives up (DATA-EFFICIENCY-RUNBOOK 2.4). `loadVoters` reads the
+  // sample document, and if it exists reads the tail; only when the tail
+  // comes back FULL — the definition of hot — does it fall through to the
+  // live list of `crowd` answer documents and their profiles. So a hot
+  // sheet is the live list PLUS the two reads that failed to avoid it,
+  // and the model booked the saving on both branches: it charged the hot
+  // sheet `crowd × names` flat, as if the sample and the tail were only
+  // read on the cold path. A cold sheet is the sample, the tail, and a
+  // profile per tail row — unchanged, and the tail is charged at its cap,
+  // which is the bound the code states rather than a guess.
+  const hot = B.sheetOpensHot;
   return {
-    whoVoted: B.sheetOpens * crowd * names,
+    whoVoted: B.sheetOpens * (SHEET_SAMPLE_READ
+      + hot * (VOTER_TAIL_CAP + crowd * names)
+      + (1 - hot) * (VOTER_TAIL_CAP * names)),
     // Kindred reads the nightly voter SAMPLE (D397): one document per
-    // question in place of `crowd` answer documents, and the same profile
-    // reads for names as before — `names − 1` of them per row, because the
-    // ×2 above was "answers plus profiles" and the answers half is now the
-    // one document. The People lens and the pair card ride the same
-    // documents; the who-voted sheet above keeps the live query.
-    kindred: B.kindredViews * kindredQs * (1 + crowd * (names - 1)),
-    // A member's answer set grows with account AGE, not DAU.
-    circle: B.circleOpens * B.circleFollows
-      * Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10)),
+    // question in place of `crowd` answer documents — and since runbook
+    // 2.2/2.3 the rows carry names and scores, so the profile read per row
+    // that stood here (`crowd × (names − 1)`) is gone. A row written
+    // before the stamp existed still costs one, once, and then not. The
+    // People lens and the pair card ride the same documents.
+    kindred: B.kindredViews * kindredQs,
+    // The city pass (D278, runbook 2.5): the same twelve questions from the
+    // viewer's city, one per-city sample document each — where it was
+    // twelve live queries of up to `crowd` answers plus names, in no term
+    // of this model at all (DATA-EFFICIENCY.md §2.9). Charged at the
+    // Kindred view rate: the City stop's constellation is what asks.
+    cityKindred: B.kindredViews * kindredQs,
+    // Circle reads ONE document per member since runbook 3.5 — the
+    // person's answer map, every world answer they have given — where it
+    // read up to CIRCLE_ANSWER_CAP answer documents each (`memberAnswers`,
+    // which the fan-out terms below still size a person's answers by). The
+    // fallback query for a member with no map costs the same one read once
+    // the backfill has run, so it is not a term.
+    circle: B.circleOpens * B.circleFollows,
   };
 }
+
+/** What an account has answered, by age — the quantity, before any
+ * reader's cap. cost-structure.mjs had its own copy of this expression
+ * (D197's rule). */
+export function accountAnswers(mature) {
+  return B.worldAnswers * (mature ? 90 : 10);
+}
+
+/** A Circle member's answer set as a READER sees it — `accountAnswers`
+ * bounded by the display cap the query states. The fan-out term below
+ * used to size a person's answers by this too, and the cap is a fact
+ * about `circle.ts`'s query, not about the account: the fan-out pages the
+ * whole subcollection and stops at nothing. At today's rate the cap binds
+ * (360 answered, 300 read), so borrowing it charged the fan-out for 300
+ * of an account's 360 answers. */
+export function memberAnswers(mature, circleCap = CIRCLE_ANSWER_CAP) {
+  return Math.min(circleCap, accountAnswers(mature));
+}
+
+/** The nightly per-city samples (runbook 2.5), per user-day: one read and
+ * one write per (question, city) pair the day touched, at the ceiling —
+ * every answer its own pair — and capped by the night's budget. Above
+ * ~CITY_SAMPLE_PAIRS_PER_NIGHT / worldAnswers DAU the budget binds and
+ * the term shrinks per user; below it this errs high, since a day's
+ * answers to one question from one city are one pair. */
+export const citySampleOps = (dau) => Math.min(CITY_SAMPLE_PAIRS_PER_NIGHT, dau * B.worldAnswers) / dau;
+
+/** How many sample documents one answer names — `sampleIdsFor` adds the
+ * WORLD sample and, when the answer's frozen chips carry a city, the
+ * per-city one (runbook 2.5). Two at the ceiling, and the ceiling is the
+ * ordinary case: an answer without a city is one written before the
+ * profile had one. Pinned against the function's own code in
+ * scripts/cost-fanout.test.mjs. */
+export const FANOUT_SAMPLES_PER_ANSWER = 2;
+/** …so a stamp change pays one read for the answer document itself
+ * (the paged `.select("qid","anchors")` query) plus one per sample it
+ * names, and one write per sample that holds the row. This stood at 2
+ * and 1 — the second sample was counted in neither, which under-read the
+ * fan-out by half a read and a whole write per answer. */
+export const FANOUT_READS_PER_ANSWER = 1 + FANOUT_SAMPLES_PER_ANSWER;
+export const FANOUT_WRITES_PER_ANSWER = FANOUT_SAMPLES_PER_ANSWER;
+
+/** The profile fan-out (runbook 2.1, functions/src/profileFanout.ts), per
+ * user-day: each stamp change pages the account's whole answer
+ * subcollection and, for every sample those answers name, reads it and
+ * rewrites the row where one exists. */
+export const profileFanoutReads = (mature) =>
+  (B.stampChanges / 365) * FANOUT_READS_PER_ANSWER * accountAnswers(mature);
+export const profileFanoutWrites = (mature) =>
+  (B.stampChanges / 365) * FANOUT_WRITES_PER_ANSWER * accountAnswers(mature);
 
 export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
@@ -676,7 +896,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   // pulse.test.mjs pins.
   function readsPerUser(dau, {
     mature, staticBank = false, streamAggs = false,
-    publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
+    publishEvery = PUBLISH_EVERY, deckListeners = REATTACH_DOCS, social: socialOpts = {},
   }) {
     // …plus the page refill (D401): one paged card fetched per paged card
     // answered since the last boot, whatever the boot count — see
@@ -740,9 +960,12 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     //
     // One expression for both arms, because `deckListeners` means the same
     // quantity either way: documents this client pays for on each return to
-    // the foreground. Streamed they were re-attached listeners, polled they
-    // are re-read documents, and Firestore bills them identically.
-    const reattach = B.bgCycles * deckListeners;
+    // the foreground. Streamed they were re-attached listeners — all
+    // DECK_DAYS of them, the pre-D129 record — polled they are re-read
+    // documents, REATTACH_DOCS since the foreground stopped re-reading the
+    // whole deck (DATA-EFFICIENCY-RUNBOOK 1.4), and Firestore bills them
+    // identically.
+    const reattach = B.bgCycles * (streamAggs ? DECK_DAYS : deckListeners);
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
@@ -760,9 +983,12 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + PATTERNS_USER_STATE_OPS
       + B.mauMultiple * PATTERNS_SCAN_READS_PER_MAU
       + ENGAGEMENT_USER_STATE_OPS
-      + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
+      + attnRate(dau) // the shard fold reads each sampled device's shard once
       + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
-      + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
+      + B.duelAnswers * revealReadsPerMember(B.duelGroupSize)
+      + citySampleOps(dau) // the per-city samples' read-before-merge (runbook 2.5)
+      + profileFanoutReads(mature) // a changed stamp finds its rows (runbook 2.1)
+      + ANSWER_MAP_HEAL_READS; // the heal reads each active person's map once a night (runbook 3.3)
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
     // because they are one mechanism at three surfaces; the split lives in
@@ -812,10 +1038,18 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    //
+    // + the per-city samples (runbook 2.5: one write per touched pair a
+    // night, per user-day at the ceiling) and the profile fan-out's row
+    // rewrites (runbook 2.1). The world samples are one write per
+    // question a night, under any rounding here.
+    //
+    // + the answer map's merge per world answer (runbook 3.2), the one
+    // write the owner chose "live" over nightly for (D446 amendment).
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + attnRate(dau) + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
-    const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);
+    const deletes = dau * (B.worldAnswers + attnRate(dau) + 1);
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each
     // invocation effectively owns its instance for the request.
@@ -833,8 +1067,13 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Egress. Weighted rather than averaged, because the mix matters: the
     // fan-out ships the aggregate document — the big one — on every single
     // delivery, and at scale the fan-out IS the read count.
+    // Every read of a published aggregate ships the big document, not only
+    // the poll's: the boot's deck, each foreground's re-read and the
+    // top-up are the same documents (DATA-EFFICIENCY-RUNBOOK 1.5 — the
+    // re-attach term was charged at `otherDoc`, a tenth of its bytes).
+    const aggReads = r.fanOut + r.reattach + r.topUp + DECK_DAYS * B.boots;
     const egressGiBMo =
-      ((r.fanOut * BYTES[aggBytes] + (Object.values(r).reduce((a, b) => a + b, 0) - r.fanOut) * BYTES.otherDoc)
+      ((aggReads * BYTES[aggBytes] + (Object.values(r).reduce((a, b) => a + b, 0) - aggReads) * BYTES.otherDoc)
         * dau * 30) / 1024 ** 3;
 
     const over = (used, free) => Math.max(0, used - free);
@@ -847,6 +1086,9 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       cpu: over(cpu * 30, FREE_MO.cpu) * CPU_S,
       mem: over(mem * 30, FREE_MO.mem) * MEM_S,
       req: over(inv * 30, FREE_MO.req) * REQ,
+      // The floor (SCHEDULER_USD_MO): the same at every size, and the
+      // reason the launch row is not $0.00 (COST-EXPOSURE.md §1).
+      sched: SCHEDULER_USD_MO,
     };
     return { r, reads, writes, inv, storeGiB, docGiB, egressGiBMo, cost };
   }
@@ -864,4 +1106,4 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
 export const totalCost = (c) => Object.values(c).reduce((a, b) => a + b, 0);
 export const firestoreCost = (c) =>
   c.reads + c.writes + c.deletes + c.storage + c.egress;
-export const functionsCost = (c) => c.cpu + c.mem + c.req;
+export const functionsCost = (c) => c.cpu + c.mem + c.req + c.sched;

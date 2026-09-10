@@ -57,6 +57,15 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
+  // D447 phase A · the answer log is a second copy of every answer, in
+  // BigQuery, and deleting the account deletes it — at once or within a
+  // day (the streaming buffer). Both halves are claims: that the copy
+  // exists and where, and that erasure reaches it on a stated clock. The
+  // window between them is wide because the export's paragraph (D443)
+  // sits between the two sentences — 2,000 characters stopped matching
+  // the day that paragraph landed, with the promise intact on the page.
+  ["D447 · the answer log exists, in the same project and region, and erasure reaches it within a day",
+    /analytics table \(BigQuery\) in the\s+same Google Cloud project and region[\s\S]{0,8000}?copy of your answers in the analytics table goes with\s+them[\s\S]{0,120}?within a day/i],
   // D236 · the page must NAME the notifications, not just count them.
   // check:figures holds the count against v2social.ts's own call sites;
   // this holds the list, because a fifth kind added as "and others" would
@@ -121,8 +130,19 @@ export const CLAIMS = [
   // it carries and what it never does — the counts, never a name.
   ["D379 · a bought question's numbers are a public web page, and it never names who answered",
     /served as a web page\s+anyone can open[\s\S]{0,240}?never who\s+answered/i],
-  ["D5 · duel picks stay sealed until the next day's reveal",
-    /sealed[\s\S]{0,200}?until the day after/i],
+  // WAS "until the day after", AND SO WAS THIS ROW. D426 replaced the
+  // calendar day with a ROUND and D437 gave it a 48-hour deadline: a 1v1
+  // reveals the moment the partner answers (inside `onV2AnswerCreated`),
+  // a circle when the last member plays, otherwise at the deadline. The
+  // page went on promising a day in BOTH directions — a pick can be
+  // public a second after it is cast, and can stay sealed for two days —
+  // and this row PINNED that promise, so the page could not be corrected
+  // without moving the gate. The app's own copy has said "sealed until
+  // the reveal" since D437, and `check:public-copy` refuses the word
+  // "tomorrow" on the duel surfaces; `web/` is not one of the roots it
+  // scans, which is the gap that let the page drift alone.
+  ["D437 · duel picks stay sealed until their round reveals",
+    /sealed[\s\S]{0,200}?until its round reveals/i],
   // The row above pins the SEAL and says nothing about who reads the
   // reveal once it opens, which is how the page went on promising "the
   // people in that group" for a year after D98 removed the membership
@@ -304,7 +324,7 @@ export const CLAIMS = [
     /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
   ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
     /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
-  // D446 · the buy page loads Google reCAPTCHA, which is the first third
+  // D451 · the buy page loads Google reCAPTCHA, which is the first third
   // party this product puts on a page a user reads. D183's rule is that the
   // page moves FIRST, and these two rows are what stop it moving back: the
   // disclosure must say WHO gets what, and it must say where it does NOT
@@ -312,9 +332,9 @@ export const CLAIMS = [
   // the app loads Google's anti-bot script will reasonably assume it loads
   // everywhere, and the true answer (one page, only if you open it) is the
   // one that stops being written down the moment nothing holds it.
-  ["D446 · the buy page's reCAPTCHA is disclosed, with what Google receives",
+  ["D451 · the buy page's reCAPTCHA is disclosed, with what Google receives",
     /reCAPTCHA[\s\S]{0,400}?IP\s+address[\s\S]{0,200}?score\s+we\s+check\s+on\s+our\s+server/i],
-  ["D446 · and that it runs on that page ALONE — not in the app, not elsewhere",
+  ["D451 · and that it runs on that page ALONE — not in the app, not elsewhere",
     /that\s+page\s+alone[\s\S]{0,200}?not\s+in\s+the\s+app[\s\S]{0,700}?never\s+open\s+the\s+buy\s+page,\s+reCAPTCHA\s+never\s+loads/i],
 ];
 

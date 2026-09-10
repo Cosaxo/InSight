@@ -298,7 +298,7 @@ describe("--json-out, for the workflow reader", () => {
 });
 
 // The paid loop's three secrets, the webhook's URL, and the two BigQuery
-// steps — the readings D445 added, and the reason they were added:
+// steps — the readings D450 added, and the reason they were added:
 // `OWNER-LIST.md` carried "a session cannot read the deployed environment,
 // so whether a sale can go through TODAY is a fact only you can check".
 // It was an ordinary API call the whole time.

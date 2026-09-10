@@ -136,7 +136,10 @@ import * as cacheStore from "./cacheStore";
 import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import {
+  fetchSampleDoc, fetchVoters, fetchVoterSample, fetchVoterTail, groupByOption, resolveNames, sortVoters,
+  unionVoters, VOTER_TAIL_CAP, type ProfileCaches, type Voter,
+} from "./voters";
 import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
@@ -727,7 +730,11 @@ function utcDayKey(offsetDays = 0): string {
 // (COSTS.md's row). The fortnight ROLES-PLAN described would be 112
 // reveals per room at eight a day, which is not a per-session read; its
 // §3.3 ledger — server-written running totals that outlive any window —
-// is the dependency, and an owner row.
+// is built since D445: `ledger.{uid}` on the group document, which the
+// store already holds, is what the roles fold reads once a member's row
+// clears the instrument's floor, and this window is what it reads until
+// then (data/roles.ts). The Roles tab pays this query only for a room
+// the ledger cannot yet draw.
 const REVEAL_HIST_CAP = 30;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
@@ -1204,6 +1211,25 @@ function writeProfileCache(): void {
   }
 }
 
+/** The three caches a sample read fills from its rows (runbook 2.3) —
+ * the same maps `resolveNames` fills from a live read, so precedence is
+ * settled by presence: whichever got there first is what the session
+ * shows, and the disk cache (D129) persists both alike. */
+function profileCaches(): ProfileCaches {
+  return { names: state.names, scores: state.scores, logic: state.logicPcts };
+}
+
+/** The viewer's own row for a who-voted sheet, off the vote map: the
+ * option they picked on `qid`, under the anchors their next answer would
+ * freeze. Null for an unanswered question, and for one whose vote is not
+ * an option index (a catalogue pick, a ranked order). */
+function ownVoterRow(qid: string): Voter | null {
+  if (!state.uid || !storesOptionIdx(qid)) return null;
+  const n = Number(state.votes[qid]);
+  if (!Number.isInteger(n) || n < 0) return null;
+  return { uid: state.uid, optionIdx: n, anchors: { ...state.profile.anchors }, name: state.profile.displayName || "", isMe: true };
+}
+
 // Coalesced on the same reasoning as the agg cache below: `resolveNames`
 // fills the map in batches of 30 and three surfaces call it in a row, so an
 // eager write would serialise the whole map several times per sheet open.
@@ -1509,6 +1535,17 @@ function buildS(
 // which is what keeps the replacement genuinely cheap rather than merely
 // cheaper.
 const AGG_POLL_MS = 60_000;
+// Documents a return to the FOREGROUND re-reads — today's aggregate, plus
+// any deck card this device holds no aggregate for yet (a rollover while
+// backgrounded). The six back days refresh at boot: they are answerable
+// and do move, but slowly, and a back-day card is blind until it is
+// answered, so a count it does not draw is a count it need not re-read.
+// At four background cycles a day the whole-deck refresh was 28 reads a
+// user-day — the second-largest client term after D129 took the fan-out
+// out (DATA-EFFICIENCY-RUNBOOK 1.4). Read from source by
+// scripts/cost-arith.mjs (the `reattach` term), so widening this slice
+// reprices the bill instead of quietly inflating it.
+const REATTACH_DOCS = 1;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 // Which start the armed interval belongs to. startAggPoll awaits the
 // deck's read before it arms, and a stop can land inside that await — a
@@ -1579,7 +1616,7 @@ function stopAggPoll(): void {
  * re-delivers the document; re-arming a `setInterval` reads nothing until
  * it next fires.
  */
-async function startAggPoll(): Promise<void> {
+async function startAggPoll(scope: "deck" | "today" = "deck"): Promise<void> {
   // `torndown` only. NOT `state.ready` — this runs from inside hydrate(),
   // and `ready` does not flip until hydrate AND hydrateSocial have both
   // returned, so guarding on it makes the boot call a silent no-op and the
@@ -1589,7 +1626,12 @@ async function startAggPoll(): Promise<void> {
   if (torndown) return;
   stopAggPoll();
   const gen = aggPollGen;
-  await refreshAggs(state.deckIds);
+  // A boot refreshes the whole deck; a foreground refreshes today and
+  // whatever the deck holds no aggregate for (REATTACH_DOCS, above).
+  const ids = scope === "deck"
+    ? state.deckIds
+    : [...state.deckIds.slice(0, REATTACH_DOCS), ...state.deckIds.slice(REATTACH_DOCS).filter((id) => !state.aggs[id])];
+  await refreshAggs(ids);
   // A stop that landed during the read wins — see aggPollGen.
   if (torndown || gen !== aggPollGen) return;
   aggPollTimer = setInterval(() => {
@@ -2174,6 +2216,10 @@ async function hydrate(): Promise<void> {
       state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
       // The read breaker (D332) rides the same one read — see budgetMode.ts.
       state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
+      // …and the attention channel's coin (DATA-EFFICIENCY-RUNBOOK 4.2):
+      // the nightly fold publishes the rate it can drain at; a field the
+      // document does not carry leaves the coin at the constant.
+      engagement.setSampleRate(meta.get("attnSampleRate"));
     }
   } catch {
     /* meta is best-effort — absence just means no caching/update info */
@@ -3769,6 +3815,13 @@ const revealHistCache: Record<string, {
   out: Array<Record<string, unknown> & { day: string }>;
 }> = {};
 
+/** What one history read did. "busy" is BOTH early returns — already in
+ *  hand, or another caller's read in flight — because neither is a
+ *  failure to draw; `revealHistoryLoading` says which. Exported so the
+ *  panels name the states rather than testing a boolean whose false
+ *  means two unrelated things. */
+export type RevealHistoryRead = "ok" | "failed" | "busy";
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3868,9 +3921,32 @@ const SOCIAL = {
   // should charge. A failure is reported and leaves the room unsettled so
   // a later call retries rather than freezing a gap into the portrait for
   // the rest of the session.
-  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
-    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<RevealHistoryRead> {
+    // "busy" for both early returns, and it is the honest word for each:
+    // the history is either in hand or on its way, and neither is a
+    // failure the caller should draw. `revealHistoryLoading` is what says
+    // which — a panel wanting to distinguish them asks that.
+    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return "busy";
+    // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
+    // that did not follow it. The Groups stop mounts this on a `[gid]`
+    // effect, so it runs AFTER the stop has painted; without the notify
+    // the cold frame — no data and no flag — stands for the whole of the
+    // dynamic import and the ordered thirty-document read, and a room
+    // with weeks of history reads "no rounds revealed yet" under its own
+    // name. `revealHistoryLoading` was added to prevent exactly that
+    // sentence and nothing was ever told the flag had moved.
     state.revealHistLoading[gid] = true;
+    notify();
+    // STILL NEVER THROWS (the header): two callers `void` it, and an
+    // unhandled rejection from a history read is not a price a portrait
+    // should charge. What it did not do was tell the ONE caller that
+    // cares — LiveRolesPanel wrapped the call in try/catch to mark a room
+    // as refused, and that catch could never fire, so a room whose read
+    // was denied or timed out fell through to "nothing revealed yet",
+    // the definite claim the panel's own comment says it exists to stop.
+    // Its test passed because the FIXTURE rejected where the real store
+    // resolves. An answer, not a throw: same contract, reachable.
+    let out: RevealHistoryRead = "failed";
     try {
       const db = await getDb();
       const snap = await getDocs(query(
@@ -3882,6 +3958,7 @@ const SOCIAL = {
       snap.forEach((d) => { have[d.id] = d.data() as Record<string, unknown>; });
       state.revealHist[gid] = have;
       state.revealHistLoaded[gid] = true;
+      out = "ok";
     } catch (err) {
       // A refusal cannot be "the rule working" any more — the read is
       // unconditional since D98 — so it is reported, where the per-key
@@ -3892,6 +3969,7 @@ const SOCIAL = {
       state.revealHistLoading[gid] = false;
       notify();
     }
+    return out;
   },
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what
@@ -4134,6 +4212,21 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // THE PENDING MIRROR (D357), which the duel paths were written
+    // outside of. Its closing rule is that a surface writing an answer
+    // outside the five named paths marks and clears the mirror the same
+    // way "or its offline answer is the pre-D357 answer" — and a duel
+    // round is exactly where that costs most. Answer offline, relaunch:
+    // the answer is in the SDK's queue and in this process's memory,
+    // neither of which the warm boot reads, and `roundsOf` gates the
+    // round on `state.votes[aid]` alone — so the round is offered again,
+    // the queue flushes the first create, and the second tap is a full
+    // overwrite of an existing duel answer, which D86 does not admit.
+    // The room is then sealed with an option the user has been told did
+    // not save. `learnAnswer` is outside the mirror WITH a written
+    // reason; these two had none.
+    state.inflight[aid] = true;
+    markPending(aid, String(optionIdx));
     if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
     notify();
     return (async () => {
@@ -4160,9 +4253,14 @@ const SOCIAL = {
           if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        // Through the same helper the five paths use, so the mirror is
+        // cleared with the vote rather than left behind to be restored
+        // on the next boot as an answer the server refused.
+        rollbackPending(aid);
         delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
@@ -4210,6 +4308,10 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // The mirror, for voteDuel's reason — a late answer is written the
+    // same way and re-offered the same way.
+    state.inflight[aid] = true;
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4229,9 +4331,11 @@ const SOCIAL = {
           if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "duelVoteLate", gid });
         throw err;
@@ -5099,13 +5203,43 @@ const LIVE = {
     notify();
     try {
       const db = await getDb();
+      // THE SAMPLE PLUS A LIVE TAIL (DATA-EFFICIENCY-RUNBOOK 2.4), where
+      // the sheet used to be the one live list of two hundred answer
+      // documents plus their profiles. The nightly sample is the newest
+      // VOTER_FETCH_CAP as of last night's merge, names and scores on the
+      // rows (runbook 2.3); the tail is what was answered since, capped
+      // at VOTER_TAIL_CAP. Under the cap the union IS the newest
+      // VOTER_FETCH_CAP, exactly — the panel's "newest 200" stays true. At
+      // the cap the question is hot (today's daily, at any real size) and
+      // the sheet reads the live list as it always did: the saving is on
+      // the cold question, and the claim is never traded for it here.
+      // Three shapes, then: no sample → live; sample and a short tail →
+      // union; sample and a full tail → live.
+      const caches = profileCaches();
+      const sample = await fetchSampleDoc(db, qid, state.uid, caches);
+      let rows: Voter[] | null = null;
+      if (sample) {
+        const tail = await fetchVoterTail(db, qid, state.uid, sample.newestDay);
+        if (tail.length < VOTER_TAIL_CAP) {
+          rows = unionVoters(tail, sample.rows);
+          // Your own answer the moment it lands, which the live list
+          // showed by reading it back: an answer still in the write queue
+          // (D357) is in neither the sample nor the tail, so it comes off
+          // the vote map — the one row the device can vouch for itself.
+          const mine = ownVoterRow(qid);
+          if (mine && !rows.some((r) => r.isMe)) rows = unionVoters([mine], rows);
+          // Only the people no row could name — a row written before the
+          // stamp existed — reach Firestore here; the rest are in hand.
+          await resolveNames(db, rows.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+          for (const r of rows) r.name = state.names[r.uid] || "";
+        }
+      }
+      if (!rows) rows = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts);
       // SORTED HERE, once, rather than on every read. Both keys the
       // comparator uses — `isMe` and the resolved `name` — are fixed when
       // the rows are built and never revised afterwards, so the order the
       // list will ever have is knowable now.
-      state.voters[qid] = sortVoters(
-        await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts),
-      );
+      state.voters[qid] = sortVoters(rows);
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -5139,7 +5273,9 @@ const LIVE = {
     let fallback = false;
     try {
       const db = await getDb();
-      const rows = await fetchVoterSample(db, qid, state.uid);
+      // The rows' own stamps fill the caches first (runbook 2.3), so the
+      // resolve below reads only the people no row could name.
+      const rows = await fetchVoterSample(db, qid, state.uid, profileCaches());
       if (!rows) {
         fallback = true;
       } else {
@@ -5351,17 +5487,28 @@ const LIVE = {
   // author name, so this is what turns them from "Someone" into people.
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
-  async loadNames(uids: readonly string[]): Promise<void> {
+  // ANSWERS whether the read landed, and still never throws — two
+  // callers `void` it. The swallow is right (a name resolution failing is
+  // not a price a lens should charge) and it left the ONE caller that
+  // cares unable to tell: LiveCompareLens flipped its local `reading`
+  // flag false on a failure with `state.scores` still empty, and its
+  // people basis then said "Nobody here has finished a test yet" about a
+  // room where everyone had. The same shape the reveal-history loader
+  // carried, and the same answer. Nothing already cached is "ok": there
+  // was no read to fail.
+  async loadNames(uids: readonly string[]): Promise<boolean> {
     const want = uids.filter((u) => u
       && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)
         || !(u in state.logicPcts)));
-    if (!want.length) return;
+    if (!want.length) return true;
     try {
       const db = await getDb();
       await resolveNames(db, want, state.names, state.scores, state.faces, state.logicPcts);
       saveProfileCache();
+      return true;
     } catch (err) {
       reportError(err, { where: "loadNames" });
+      return false;
     } finally {
       notify();
     }
@@ -5567,7 +5714,19 @@ const LIVE = {
       // queries fired at once is the shape that gets a client rate-limited.
       for (const qid of qids) {
         try {
-          next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+          // The per-city sample first (DATA-EFFICIENCY-RUNBOOK 2.5): one
+          // document for the newest VOTER_FETCH_CAP answers from this
+          // city, stamps on the rows — with the city-scoped live query as
+          // the fallback for a (question, city) pair the nightly has not
+          // written yet, exactly as the world pass falls back.
+          const sample = await fetchVoterSample(db, qid, state.uid, profileCaches(), city);
+          if (sample) {
+            await resolveNames(db, sample.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+            for (const r of sample) r.name = state.names[r.uid] || "";
+            next[qid] = sample;
+          } else {
+            next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+          }
         } catch (err) {
           // One question failing must not cost the other eleven. Absent
           // rather than empty, the loadVoters rule.
@@ -5867,9 +6026,10 @@ const LIVE = {
   // The constellation fields' loader. Two ensures, both bounded and both
   // session-cached:
   //   1. aggregates for every core test item the bank carries — the cells
-  //      the place profiles fold. ≤110 docs in ≤4 batched `in` queries,
-  //      once per session, and only the ones the deck/archive has not
-  //      already cached.
+  //      the place profiles fold. One document per core test item, in
+  //      batched `in` queries of 30, once per session — and only the ones
+  //      the persisted aggregate cache does not already hold, so in
+  //      practice a first open per device and ~0 after.
   //   2. the Kindred voter lists (loadKindred, its own bounds — D102).
   // Candidate scores cost nothing here: they rode along with the voter
   // lists' name resolution, because the profile document was already on
@@ -5889,9 +6049,10 @@ const LIVE = {
         // Chunks IN PARALLEL, the shape hydrate.aggs and loadLearnAggs
         // already use (D169). This awaited each `in` query in turn, and
         // the four are independent: same documents, same billed reads,
-        // but four serial round trips instead of one. 110 core test items
-        // over the 30-id `in` limit is always ~4 chunks, so on a mobile
-        // RTT that was most of a second of "Reading the score profiles…"
+        // but serial round trips instead of one. On a mobile RTT that was
+        // seconds of "Reading the score profiles…" — the bank holds
+        // 266 core test items over the 30-id `in` limit (nine chunks; the
+        // count is check:figures', off the bank)
         // bought by nothing — the fields land on the FIRST open of City,
         // Country and World, which is the moment it was spent.
         const chunks: string[][] = [];
@@ -8006,8 +8167,9 @@ function purgeLocalTrace(): void {
 // Re-attach the day's listeners after a rollover. Called from the wake
 // handler rather than from deck(), so that a render never triggers
 // network work. Cheap and idempotent when the day has not changed:
-// startAggPoll refreshes the whole deck and re-arms the timer on the new
-// day's question, so a rollover needs no separate teardown.
+// startAggPoll refreshes today's aggregate (and any the deck lacks) and
+// re-arms the timer on the new day's question, so a rollover needs no
+// separate teardown — the whole deck is a boot's read, not a foreground's.
 async function resubscribeForToday(): Promise<void> {
   // `attached` rather than `ready` (D356): before the attach the boot
   // itself is still the thing that will start the poll and the reveal
@@ -8018,7 +8180,7 @@ async function resubscribeForToday(): Promise<void> {
       computeDeck();
       notify();
     }
-    await startAggPoll();
+    await startAggPoll("today");
     const db = await getDb();
     subscribeReveals(db);
   } catch (err) {

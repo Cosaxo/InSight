@@ -466,10 +466,30 @@ service cloud.firestore {
         // On CREATE `resource` is null and the key must simply be absent:
         // a profile is created before any fold has run, and the callable
         // writes with a merge that creates the field afterwards.
-        && (!("testResults" in request.resource.data)
-          || (resource != null
-            && request.resource.data.testResults
-              == resource.data.get("testResults", {})))
+        //
+        // ABSENCE IS NOT A FREE PASS, and this clause spelled it as one
+        // until 2026-09-10 — the same failure the `handle` clause forty
+        // lines up documents at length and guards with a ternary. Written
+        // as `!("testResults" in …) || …`, absence satisfied the whole
+        // clause, so an ordinary profile write that simply OMITTED the key
+        // deleted the map: D57's verified logic score, and D331's
+        // `testResults.political` whose removal `saveTestResultV2`
+        // deliberately couples to the consent record in one server write
+        // so a profile can never read "coordinate gone, consent still ON".
+        // That state was reachable through the ordinary profile path, by
+        // leaving a field out. Measured: `updateDoc({testResults:
+        // deleteField()})` and a non-merge `setDoc` omitting it were both
+        // ALLOWED; the identically-shaped `handle` case was refused.
+        //
+        // The ternary asks the question in the order that has an answer:
+        // on a create the key must be absent, and on an update the map
+        // must be the one already stored — comparing through `get(…, {})`
+        // on BOTH sides, so a profile that has no `testResults` yet still
+        // writes freely.
+        && (resource == null
+          ? !("testResults" in request.resource.data)
+          : request.resource.data.get("testResults", {})
+            == resource.data.get("testResults", {}))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isOptionalStamp(request.resource.data.get("createdAt", null))
         && isOptionalStamp(request.resource.data.get("updatedAt", null))
@@ -730,6 +750,21 @@ service cloud.firestore {
           && readId == request.resource.data.qid + "__"
                + request.resource.data.dim + "__" + request.resource.data.bucket;
         allow update, delete: if false;
+      }
+
+      // The answer MAP (DATA-EFFICIENCY-RUNBOOK Phase 3): one document,
+      // `public/answers`, holding `a: { [qid]: optionIdx }` for every world
+      // answer the account has given — exactly what the `answers`
+      // subcollection below already grants any signed-in reader (D98),
+      // in one read instead of one per answer, which is what the Circle
+      // stop folds. Written only by the world-answer trigger, the nightly
+      // heal and the backfill (admin SDK); `get` rather than `read` so
+      // the subcollection cannot be listed — there is one document and a
+      // list grant would be a second way to reach it for no reader.
+      match /public/{docId} {
+        allow get: if request.auth != null;
+        allow list: if false;
+        allow write: if false;
       }
 
       // One answer per question, forever: doc id == question id, create-only.
@@ -1127,9 +1162,13 @@ service cloud.firestore {
 
         // The daily pulse (D139): the same question answered once per
         // DAY, id {baseQid}_{day} — one answer per (person, day) is the
-        // doc id, the duel answers' move, and the day window below is
-        // theirs verbatim (back 4d for an offline queue, forward 2d
-        // because day keys are UTC and UTC+14 is already tomorrow).
+        // doc id, which is the duel answers' move. The day window below
+        // (back 4d for an offline queue, forward 2d because day keys are
+        // UTC and UTC+14 is already tomorrow) was theirs verbatim when
+        // this was written and is the PULSE'S OWN now: D426 moved duels
+        // to rounds and D433's pass took the day window out of that arm
+        // entirely, so there is no "theirs" left to be verbatim to. The
+        // numbers are unchanged; only the provenance was stale.
         // Create-only in v1, deliberately: the D86 edit arm's surface
         // list keeps pulse out, so "you said what you said today" holds
         // structurally, and delete is closed like every answer. The
@@ -1473,6 +1512,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ─── deferred answer-log erasures (log.ts, D447 phase A) ────────
+    // One marker per account whose BigQuery rows the streaming buffer
+    // refused to delete at once; the nightly reconcile retries and removes
+    // it. Server-only: it names an erased account, and a client that could
+    // write one could queue a deletion of somebody else's rows.
+    match /v2_log_erasures/{uid} {
+      allow read, write: if false;
+    }
+
     // ─── verified logic attempts (D57) ─────────────────────────────
     // The attempt doc holds the seed — the answer key, until scored. Not
     // even the owner may read it: the whole design is that the client
@@ -1524,6 +1572,16 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["duoMode"])
         && request.resource.data.duoMode in ["friends", "romantic"];
       allow create, delete: if false;
+      // THE ROLE LEDGER (D445, ROLES-PLAN §3.3) lives on this document too:
+      // `ledger.{uid}` — what the room has made each member, counted by
+      // the reveal pipeline as every round reveals. It needs no clause of
+      // its own and gets none, on purpose: the read rule above serves it
+      // to exactly the members who read the rest of the document, and the
+      // `affectedKeys` pin on the one member-writable field is what
+      // refuses a client writing it — alone, or riding a duoMode flip, on
+      // a duo or a group. A fold of reveals any signed-in user may read
+      // (D98), stored where fewer people can; rules.test.ts pins both
+      // halves so the pin cannot widen without this paragraph going red.
 
       // Materialized reveals: written only by the reveal pipeline, and
       // since D98 readable by any signed-in user.

@@ -1,0 +1,123 @@
+// profileStamp.ts — the three profile facts an answer's ledger entry carries
+// for the nightly voter samples (DATA-EFFICIENCY-RUNBOOK 2.1), pure.
+//
+// WHY. A sample row (patternsSamples.ts) is what Kindred, the People lens,
+// the pair card and — since runbook 2.4 — the who-voted sheet read in
+// place of two hundred answer documents; and every one of those surfaces
+// then read up to two hundred PROFILE documents for the names and scores
+// beside the rows. The world-answer trigger already reads the author's
+// profile in the batched read it makes for honestAnchors (D410), so the
+// name, the parsed core scores and the logic percentile ride the ledger
+// entry it writes, and the sample builder copies them onto the row — no
+// read anyone did not already pay for.
+//
+// THE SAME PARSE AS THE DEVICE'S, and that is the whole contract of this
+// file. `parseTestResults` and `parseLogicPct` in src/v2/data/similarity.ts
+// are what every cross-user reader on the phone runs over a stranger's raw
+// `testResults`; a row that carried a different reading of the same field
+// would rank one person two ways depending on which document the reading
+// came from. The two packages do not share a build, so this is a copy —
+// and profileStamp.test.ts holds the copy to the original by running both
+// over the same inputs, which is the only kind of mirror that stays one.
+//
+// A STAMP IS AS OF THE ANSWER, like the anchors beside it (D8). What keeps
+// it from going stale is not a re-read: profileFanout.ts moves a changed
+// name or score into every row the account holds, at the moment the
+// profile changes, and the nightly merge refreshes the rows it rewrites
+// anyway from the day's newest stamp (patternsSamples.ts, `stamps`).
+
+/** The instruments a row carries scores for — src/v2/data/similarity.ts's
+ * `CORE_TEST_KINDS`, mirrored; pinned against it by the parity test. */
+export const CORE_TEST_KINDS: readonly string[] = ["big5", "political", "values", "attachment"];
+
+/** kind → axis id → 0..100, the device's `ParsedResults`. */
+export type ParsedResults = Record<string, Record<string, number>>;
+
+export interface ProfileStamp {
+  /** Display name, trimmed to 60 — "" when the account has set none. */
+  n: string;
+  /** The parsed core scores, or null when nothing usable is stored. */
+  s: ParsedResults | null;
+  /** The verified logic percentile (D57), or null when untested. */
+  l: number | null;
+}
+
+/** Mirror of the device's parse: instruments bounded by `keys`, dims
+ * arrays bounded at 12, values coerced to finite integers clamped to
+ * 0..100, and null when nothing survives. */
+export function parseTestResults(raw: unknown, keys: readonly string[]): ParsedResults | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: ParsedResults = {};
+  for (const kind of keys) {
+    const entry = (raw as Record<string, unknown>)[kind];
+    if (!entry || typeof entry !== "object") continue;
+    const dims = (entry as { dims?: unknown }).dims;
+    if (!Array.isArray(dims)) continue;
+    const axes: Record<string, number> = {};
+    for (const d of dims.slice(0, 12)) {
+      if (!d || typeof d !== "object") continue;
+      const id = (d as { id?: unknown }).id;
+      const value = Number((d as { value?: unknown }).value);
+      if (typeof id !== "string" || !id || !Number.isFinite(value)) continue;
+      axes[id] = Math.max(0, Math.min(100, Math.round(value)));
+    }
+    if (Object.keys(axes).length) out[kind] = axes;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Mirror of the device's read of the logic percentile. */
+export function parseLogicPct(raw: unknown): number | null {
+  if (!raw || typeof raw !== "object") return null;
+  const logic = (raw as { logic?: unknown }).logic;
+  if (!logic || typeof logic !== "object") return null;
+  const pct = Number((logic as { pctile?: unknown }).pctile);
+  if (!Number.isFinite(pct)) return null;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+/** The name as the device's resolveNames reads it: a string, trimmed,
+ * at most 60 characters, "" for anything else. */
+export function displayNameOf(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim().slice(0, 60) : "";
+}
+
+/** The stamp off a profile document's data (`{}` or undefined for a
+ * profile that does not exist — a stamp of nothing, still a stamp). */
+export function profileStamp(data: Record<string, unknown> | undefined | null): ProfileStamp {
+  const d = data ?? {};
+  return {
+    n: displayNameOf(d.displayName),
+    s: parseTestResults(d.testResults, CORE_TEST_KINDS),
+    l: parseLogicPct(d.testResults),
+  };
+}
+
+/** Whether two stamps say the same thing — what decides if a profile
+ * write is worth a fan-out at all. Scores compare structurally, and key
+ * order does not count: an object rewritten in another order is the same
+ * result. */
+export function sameStamp(a: ProfileStamp, b: ProfileStamp): boolean {
+  if (a.n !== b.n || a.l !== b.l) return false;
+  if (a.s === null || b.s === null) return a.s === b.s;
+  const kinds = Object.keys(a.s).sort();
+  // "\u0000" WRITTEN AS AN ESCAPE, not as a raw NUL byte. The separator
+  // is the right technique — no axis id can contain it, so a join is a
+  // safe equality — but typed literally it made this a BINARY file to
+  // git and to grep: `git show` rendered the whole thing as "Bin 0 ->
+  // 5436 bytes", and `grep -n sameStamp` answered "binary file matches"
+  // with no line. Every gate stayed green (tsc, eslint and every
+  // readFileSync scanner read it fine), which is what made it silent —
+  // and this is the file whose equality test decides whether the profile
+  // fan-out, the deploy's largest write amplifier, fires at all. A change
+  // to it would have arrived in review as "Binary file not shown".
+  if (kinds.join("\u0000") !== Object.keys(b.s).sort().join("\u0000")) return false;
+  for (const k of kinds) {
+    const x = a.s[k];
+    const y = b.s[k];
+    const axes = Object.keys(x).sort();
+    if (axes.join("\u0000") !== Object.keys(y).sort().join("\u0000")) return false;
+    for (const ax of axes) if (x[ax] !== y[ax]) return false;
+  }
+  return true;
+}

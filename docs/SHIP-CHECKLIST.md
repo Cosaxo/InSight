@@ -60,10 +60,10 @@ end-to-end verification; what it is no longer is the ONLY one.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   1298 questions land in `v2_questions`. Re-running is safe (idempotent,
+   1417 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 1298-read
+   alone, so a reseed no longer costs every returning device a 1417-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 

@@ -29,6 +29,11 @@ async function scenes() {
   // fresh evaluation returns a fresh binding — which is the whole harness.
   return (await import("../spec/scenes.js")).SCENES;
 }
+async function friends() {
+  // Same harness: the seed is decided at module scope off the build flag,
+  // so the store has to be re-imported against the stubbed env.
+  return (await import("../spec/follows.js")).FRIENDS;
+}
 async function subtopics() {
   // The named export, not window.SUBTOPICS — the mirror went with the
   // module's move off the eager list, since search-overlay.jsx (its last
@@ -53,6 +58,31 @@ describe("a live build starts with zero follows", () => {
     vi.stubEnv("VITE_V2_LIVE", "true");
     const ST = await subtopics();
     expect(ST.has("sub_tennis")).toBe(false);
+  });
+
+  it("seeds no FRIENDS — the store that seeds people, and the one that never had the gate", async () => {
+    // The two above seed preferences; this one seeds PEOPLE, which is the
+    // worse half of the same defect. Consumers resolve the ids against
+    // IS_DATA.people, so a seeded roster put twelve invented friends into
+    // the Search overlay's Friends section — name, avatar, "sister ·
+    // since birth · 86% match" — and invented standings into learn's
+    // reveals, for a real user on a release build whose boot had not
+    // attached. Those surfaces gate on `LIVE.enabled`, which is false in
+    // exactly that window (`demoInProd` IS a live build that has not
+    // attached, and its declaration says D1 requires suppressing the
+    // seeded fake people there).
+    vi.stubEnv("VITE_V2_LIVE", "true");
+    const F = await friends();
+    expect(F.list()).toEqual([]);
+  });
+
+  it("still seeds the demo build a circle — the gate is the build, not the feature", async () => {
+    // The control. Every surface that reads this store needs a population
+    // in the prototype: duels' members, learn-social's standings, the
+    // search overlay's people section. A sweep that emptied it everywhere
+    // would disable the demo rather than fix the release build.
+    const F = await friends();
+    expect(F.list().length).toBe(12);
   });
 
   it("still remembers what a live user actually follows", async () => {
@@ -128,7 +158,7 @@ describe("what the follow surfaces may advertise (D96)", () => {
     window.WORLD_FEED_QS = [];
     try {
       expect(ST.offers()).toEqual([]);
-      expect(ST.all().length).toBe(8); // the dictionary stays whole (8 since the 2026-09-09 births)
+      expect(ST.all().length).toBe(13); // the dictionary stays whole (13 since the 2026-09-10 births)
     } finally {
       window.WORLD_FEED_QS = pool;
     }

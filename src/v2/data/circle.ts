@@ -42,6 +42,7 @@ import {
   deleteDoc,
   doc,
   documentId,
+  getDoc,
   getDocs,
   limit as fsLimit,
   orderBy,
@@ -81,7 +82,7 @@ export const FOLLOW_CAP = 50;
  * AND IT BOUND. This said "it cannot bind today — the core bank is ~130
  * questions" until the closing review of 2026-08-31 measured it against
  * the wrong bank. `core` is the Mirror's corpus; the query asks for
- * WORLD_ANSWER_SURFACES, six surfaces — 1061 answerable
+ * WORLD_ANSWER_SURFACES, six surfaces — 1155 answerable
  * questions across the committed banks against a cap of 300, no bank
  * growth required. Somebody who had worked through more than half of what
  * they could answer was read from the alphabetically-first slice of it.
@@ -299,6 +300,37 @@ export async function fetchFollowersOf(
  * keeps sealed duel answers out of a Circle reading.
  */
 export async function fetchAnswersOf(
+  db: Firestore,
+  uid: string,
+): Promise<Record<string, number>> {
+  // THE MAP FIRST (DATA-EFFICIENCY-RUNBOOK 3.5): one document,
+  // `public/answers`, holding every world answer the person has given as
+  // `qid → optionIdx` — written live by the answer trigger, healed
+  // nightly, and exactly the fold this function returns. One read where
+  // the query below is up to CIRCLE_ANSWER_CAP, and no cap at all: an old
+  // account compares on everything it has answered.
+  //
+  // THE QUERY STAYS AS THE FALLBACK for a member with no map — an account
+  // whose answers predate the map and whose backfill has not run, or one
+  // that has never answered — so the window between the deploy and the
+  // backfill's click costs what it always did rather than going dark.
+  // Once the backfill has run the fallback serves only the never-answered,
+  // at one read; retiring it is the step after the click (the runbook's
+  // 3.8).
+  const map = await getDoc(doc(db, "v2_users", uid, "public", "answers"));
+  if (map.exists()) {
+    const a = map.get("a") as Record<string, unknown> | undefined;
+    const out: Record<string, number> = {};
+    for (const [qid, idx] of Object.entries(a ?? {})) {
+      if (typeof idx === "number" && Number.isInteger(idx) && idx >= 0) out[qid] = idx;
+    }
+    return out;
+  }
+  return fetchAnswersLegacy(db, uid);
+}
+
+/** The pre-map read: the newest CIRCLE_ANSWER_CAP answer documents. */
+export async function fetchAnswersLegacy(
   db: Firestore,
   uid: string,
 ): Promise<Record<string, number>> {

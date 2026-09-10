@@ -9248,6 +9248,25 @@ need read paths no client module has yet: a collection-group query on
 `answers` (the rule and the composite index ship here; the query does
 not) and batched uid→name resolution. Sequenced as follow-on work.
 
+## D98 amendment (2026-09-09) · Exact, and never more than a poll behind
+
+**Date:** 2026-09-09 · **Status:** Adopted, on the owner's word. D98's
+*no publish cadence* was written against the cadence it retired — the
+privacy one: hours and days, floors and suppression. The log-first
+structure (D446) publishes a question's document through a compactor
+once a minute for the questions that changed, which is the interval the
+card already re-reads at (D129), so nothing a user sees moves and a
+person's own vote still confirms at once. The owner was asked in plain
+words — *"Allow counts to be published once a minute instead of on every
+answer. One old decision says 'no publish cadence', and only you can
+change its wording"* — and answered *"that sound like a good direction
+lets do that."* The sentence is now: **counts are exact from the first
+answer, and never more than a poll behind.** Everything else in D98
+stands as written — answers public, exact counts, no floor, no
+suppression, no special-category carve-out. Built at
+`LOG-FIRST-RUNBOOK.md` phase B; until then the document is rewritten on
+every answer as it is today.
+
 ## D99 · The Mirror's lens row comes back, on data that was already there
 
 **Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
@@ -47209,7 +47228,6 @@ Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
 measurement. The owner row is closed as answered rather than done, because
 nothing was changed — only learned.
 
-
 ## D432 · Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three
 
 **2026-09-09.** **Status:** binding (a measurement, and the method behind
@@ -48788,7 +48806,722 @@ nothing on `COSTS.md`'s rows, which do not move.
 
 **Measured before the push:** the counts are in the PR body.
 
-## D445 · The money path and the two BigQuery steps become readings: whether a sale can complete today is an API call, and had been all along
+## D445 · The role ledger: the reveal keeps what the room has made each member, and the roles reading outlives the page
+
+**Date:** 2026-09-09 · **Status:** binding, built. The owner's yes, the
+same day, on the last open item of `OWNER-LIST.md`'s 1v1-and-group
+profile row — the LEDGER of [`ROLES-PLAN.md`](ROLES-PLAN.md) §3.3, the
+one thing on that row D437 left standing. Written as D445 with D440–D444
+unclaimed on `main` at the time (the index prints them as holes, which
+since D408 is a note and not a failure); the numbers belong to the
+branches open beside this one.
+
+### Why the ledger stopped being optional
+
+ROLES-PLAN's argument for it was about TIME — a fortnight cannot hold a
+name (§2.1). Rounds changed the argument to VOLUME (ROUNDS-PLAN §7.2): a
+fortnight can hold hundreds of reveals, the device reads the newest
+thirty (`REVEAL_HIST_CAP`, a stopgap since D426's profiles amendment),
+and the device cannot fold what it cannot fetch. So the roles reading
+silently narrowed to whatever the last page held — a pair at eight
+rounds a day was read over four days, and every cast round older than
+that was a fact the instrument could no longer see. Under rounds the
+ledger is the substrate, not an improvement to one: what the reveal
+already knows at the moment it publishes, kept where the fold can read
+it without paging.
+
+### The schema, as built
+
+On the group document — the plan's location — one map, one row per
+current member:
+
+    v2_groups/{gid}.ledger.{uid} = {
+      casts, axes{ trust, spark, judgement, constancy }, saw{ right, total }, castQid,   // a 1v1
+      votes, seats{ engine, hands, heart, wild },                                          // a group
+    }
+
+The counts are D437's instrument, not the plan's sketch (which was
+written for D204's two, since replaced). A 1v1 row: the cast rounds both
+members answered blind on the same cast question; the times the OTHER
+said this member is each axis, keyed by the bank's `dims` id for the
+option they chose (never a vocabulary the server would have to copy
+from the client); this member's guesses at what the other said of them,
+made and landed — the receipt the roles panel prints under the average;
+and `castQid`, the cast question the latest fold read, so the device can
+draw the receipts' them forms off the bank without paging a reveal. A
+group row: the votes received from OTHER members on role votes, off the
+D224 snapshots, per the seat the bank gives the role — never a vote for
+yourself, never by an option index the roster remaps. `castQid` and
+`saw` are the two fields the plan's schema did not name; both are the
+smallest shape that lets the ledger draw the panel's existing card
+whole — a reading with no history in hand still prints *they said you
+are the one Liv tells first in 3 of 5 rounds* and *you guessed what
+they'd say you are 4 of 5 times* — and the record says so rather than
+smuggling them.
+
+### Who writes it, who reads it
+
+**The reveal writes it** — `revealRound`, inside the transaction that
+creates the reveal and advances the round, as more fields on the settle
+update the transaction already makes (`foldRoleLedger`,
+`functions/src/pure.ts`). Written WHOLE from the transaction's own read
+of the group plus the round's blind votes, rather than as per-field
+increments: the write is exactly "what the document held plus this
+round", a member leaving in between contends on the same document and
+retries the reveal, and the fake-Firestore harness can assert the map
+rather than a sentinel. A round that moved nothing — a rating, an own
+round, a plain pick with no seat, a question the operator has since
+deleted — leaves the field untouched, so the common write is the one it
+was. **Idempotent by the create guard**: the reveal is `tx.create`d in
+the same commit, so a re-run that finds it standing writes nothing and
+the ledger can never count a round twice (`reveal-day.test.ts` pins the
+contended shape and the plain re-run). **A late answer moves nothing**
+(ROUNDS-PLAN §4): the trigger appends it to the reveal after the create
+and never opens the ledger (`late-answer.test.ts`).
+
+**The device reads it** — `data/roles.ts`, the same fold, one rule: a
+member's row is the reading once it clears the instrument's floor
+(`MIN_DUO` 3 casts, `MIN_GROUP` 2 votes); below the floor the reveals in
+hand are the reading, as before. The two substrates count by one set of
+rules — the server's fold is the device's fold, and `pure.test.ts`'s
+cases are `roles.test.ts`'s refusals — so a reading never changes on
+the day the ledger takes over; only how far back it reaches does. The
+Roles tab (`LiveRolesPanel`) and the Groups stop's seats
+(`LiveGroupsMirrorBody`, `useGroupFolds` and the People card) pass the
+room's ledger in; the Votes lens stays per round over the reveals,
+because who holds a role is the card's rule. **A room the ledger draws
+pays no history read on the Roles tab** (`ledgerClearsFloor`): the
+document is already in hand, which is ROLES-PLAN §3.3's "zero reads"
+delivered rather than described, and `LiveRolesPanel.test.tsx` holds
+that such a room is never paged.
+
+**The rules** need no clause and get none, on purpose: the group
+document's read rule serves the ledger to exactly the members who read
+the rest of it, and the `affectedKeys().hasOnly(["duoMode"])` pin is
+what refuses a client writing it — alone, riding the legal duoMode flip,
+on a duo or a group, as a stranger, or as a removal. Labelled at its
+path in `firestore.rules`; `rules.test.ts` holds both halves (a member
+reads both rows, a stranger reads none; six write shapes refused, the
+legal flip still landing beside an untouched ledger), through
+`refused()` so a refusal by budget cannot pass as a rule. A fold of
+reveals any signed-in user may already read (D98), stored where fewer
+people can — strictly less exposure than its inputs, which is why this
+is a build and not a D334 ask. The rules-coverage baseline and the
+expression budget are unmoved: no predicate changed.
+
+### The catch-up for a room from before it
+
+The plan's own answer, and no other: **forward-only, from zero, on the
+next reveal**. A group revealed before this deploys has no `ledger`
+field; its first reveal afterwards writes the rows the round moved and
+nothing older; until a row clears the floor the fold reads the reveals
+it has. No backfill — a server pass over every reveal of every group
+would be a second fold with a second chance to disagree, and the plan
+did not name one. The cost of the honest shape, stated: for a room with
+reveals from before the deploy, the reading is the ledger's from its
+floor on, so its count reaches back to the deploy and not before, until
+the ledger outgrows the page. Cheap today: nothing live has a cast
+round yet (the cast reaches the live bank on the owner's reseed click,
+D437), and the seats read `role.seat` off that same reseed — so the
+ledger and the instrument it serves arrive on the live bank together.
+
+### Erasure
+
+`deleteAccount` phase 1c drops `ledger.{uid}` in the same update that
+drops `memberNames`, `memberJoinedAt`, `played` and `pushAt`
+(`ledgerRemoval`, `v2social.ts`); the erasure e2e seeds rows for the
+doomed account and a survivor on the shared group and asserts the one
+is gone and the other exactly as seeded. **Leaving drops the row too** —
+the plan is silent on leaving, and this is the smallest shape consistent
+with the document: every other per-member map on it goes on both paths,
+a departed uid's row would outlive them on a document every remaining
+member reads (D55 §8's shape), and a rejoin starts the record fresh the
+way `memberJoinedAt` starts the roster's clock fresh. The e2e asserts
+that on the group the account leaves, beside the assertion that leaving
+does NOT rewrite a reveal — a ledger row is one member's record, a
+reveal is everybody's. And since the export is the erasure's read-only
+twin (D443, merged the same evening), `exportAccountV2`'s circle row
+carries `ledger` — this member's row, never the map — and the export's
+own leak case greps the file for the survivor's seat.
+
+### What it costs
+
+One extra **read** per reveal, and no extra write. The reveal now reads
+the round's question inside its transaction — whether the round was a
+cast or a seated role vote, and which axis or seat each option names, is
+a fact about the question the answers cannot say — so
+`revealReadsPerMember` is `(3 + 2m)/m`, 3.5 for a duo where it was 3,
+moved in `scripts/cost-arith.mjs`, `COSTS.md`'s row and its prose, and
+held by the tripwire in `scripts/pulse.test.mjs`, which now counts the
+`tx.get(` site as well as the two `getAll(` sites — D275's lesson
+pointed the other way, since a getAll-only count could not have seen
+this read. The ledger itself rides the settle update: ≤32 rows of a
+dozen small ints, on a document every member already reads. And the
+Roles tab's cold cost goes DOWN for every room the ledger draws: from
+≤30 reads per room per session to none.
+
+### What it does not do
+
+It does not change what anyone can see: the same members read the same
+document. It does not replace the reveal history — the runs at the
+card's foot, the Votes lens, `youAre`/`theyAre` (the latest wins a tie,
+which needs the rounds' ORDER a ledger of counts cannot give) and the
+person page's Together section still read the reveals. It does not
+backfill, and it does not touch the demo build, which imports only
+`roles.ts`'s constants and folds nothing live. It does not raise
+`REVEAL_HIST_CAP`, which stays the window for a room under the floor.
+And it does not tick the owner's row: every item on it is built now,
+and the tick is the owner's (D352).
+
+### Measured
+
+On this head, before the push: `test:unit` 3 025 (207 files — the new
+ledger cases in `roles.test.ts`, `LiveRolesPanel.test.tsx` and
+`LiveGroupsMirrorBody.test.tsx`, every smoke suite unmoved, so the demo
+plays with no ledger); `test --prefix functions` 850 (39 files — the
+fold's seven cases in `pure.test.ts`, the reveal's five in
+`reveal-day.test.ts`, the late answer's one); `test:scripts` 1 286 (74
+files, the recounted tripwire among them); `test:rules` 215 with the
+coverage ratchet at its baseline (8 of 375 never-false, unmoved — no
+predicate changed) and the budget gate at 15 probes on their pins;
+`test:e2e:all` on one emulator boot, 193 checks green, the erasure leg
+asserting the row gone on leave and on delete with the survivor's row
+intact; `lint`, `tsc -b`, `build --prefix functions`; `check:globals`
+28 (baseline 28, unmoved); `check:figures` 106 figures, four of them
+moved by the one new rules case (214 → 215, corrected where quoted);
+`check:docs` 440 records, D440–D444 printed as holes; `check:data-
+inventory` 40 collections, 34 rows held; `check:answer-shape`,
+`check:appcheck` (29 callables), `check:deploy-targets` (42),
+`check:fn-runtime` (42), `check:public-copy` (273 strings),
+`check:policy-claims` (55). The emulator suites ran once the sibling
+session sharing this machine's ports had finished its own: a
+`pgrep -f` on the runner's own command line self-matches, which cost
+this session twenty minutes of waiting on a process that was its own
+poll — the ports, not the process list, are the signal.
+
+## D446 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+
+**Date:** 2026-09-08 · **Status:** Adopted, with one word still the
+owner's (§2). The owner's ruling on
+[`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md), given the same day the page
+was written:
+
+> *"i approve all that dosent reduce any functonality."* — and, on the
+> shape of the largest change: *"as long as the cost diffrence isent huge
+> it think live is best but i want a bit more details on the spesifics
+> before i make a decision."*
+
+### 1 · What is approved
+
+Every step of [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md)
+that keeps what a user sees identical: the index exemptions and field
+masks; names and scores riding the nightly voter samples, the who-voted
+sheet drawn from the sample with a live tail so today's voters still
+show today, per-city samples for the city pass; the answer map one
+document per person that Circle reads instead of up to 300 answer
+documents per member; the four nightly folds repaired before they fail
+silently at scale (the rollup fold's paging, the sample merge's bound,
+the attention channel's sampling, the candidate scan's streaming); the
+increment fold, the sharded daily with the breakdown-cap correction, and
+the trigger's instance ceiling raised with it; the model's missing terms
+and the named database's missing free allowance.
+
+**The arithmetic the approval rests on** (`npm run costs:structure`,
+2026-09-08, regional sheet, no free allowance): reads per user per day
+381 → 57; reads and writes together **$20 → $5.57 a month at 5,000 DAU,
+$199 → $56 at 50,000, $1,987 → $557 at 500,000**. The model understates
+the social reads it replaces (the city pass and the reveal history have
+no term), so the saving is larger than those figures.
+
+**The one cadence item, named so the owner can strike it:** runbook 1.4
+makes a return to the foreground re-read today's card only, the six
+back days refreshing at boot — a three-day-old card's count is as of
+the last cold start rather than the last app switch. Nothing else in
+the runbook changes a number a user sees, except that old accounts
+compare on everything they have answered once the 300-answer cap
+retires (3.5), which is more, not less.
+
+### 2 · Live, recommended — the word is the owner's
+
+The answer map can be written once a night by the pass (a friend's
+answers from today reach your Circle tomorrow) or live by the trigger,
+one merged write per answer on a document only that person's answers
+touch, with the nightly pass healing any entry a crashed function
+missed. Priced: nightly +$0.14 / $1.35 / $13.50 a month at 5,000 /
+50,000 / 500,000 DAU; live +$0.54 / $5.40 / $54 — about 6 % of the
+$6.60 / $66 / $659 the map saves at the same sizes. **Recommended:
+live with the heal**, because it is the only version where nothing a
+user sees changes, which is this record's own rule. The runbook assumes
+it; the owner's confirming word lands here as an amendment before
+Phase 3 ships.
+
+### 3 · What this does not license
+
+Showing less — fewer people in the who-voted list, fewer questions in
+Kindred, fewer answers in a Circle — which `COST-REDUCTION.md` §5
+refused and this record keeps refused. A publish cadence or a floor on
+the aggregate (D98). A loosened rule, or a touch on the three labelled
+denies. The reveal-history document (`DATA-EFFICIENCY.md` §2.8), which
+would show a late joiner a group's days before they joined and is a
+privacy-shaped ask under D334, on `OWNER-LIST.md` until ruled; the
+per-member variant needs no ruling.
+
+### 4 · Held by
+
+`scripts/cost-structure.mjs` for the figures; each runbook step names
+the gate that proves it, and the model's terms move with the code they
+price (`scripts/pulse.test.mjs`) rather than in prose.
+
+### 5 · Built the same day: Phases 1 and 2 (2026-09-08)
+
+Phase 1 as planned (the runbook has the two refusals). Phase 2 as
+planned with three things that moved, each under this record's own
+rule that nothing a user sees may shrink. **A trigger the plan did not
+have** — `onV2ProfileUpdated` — because a name stamped as of the answer
+would have left a renamed account under its old name on every question
+it did not answer again, which is a visible regression against the
+seven-day cache; it reads nothing unless the stamp changed and is
+bounded by the account's own answers. **The who-voted sheet in three
+shapes** rather than two: a question whose live tail fills its cap
+reads the full live list, so "the newest 200" stays exactly true; the
+saving lands on the cold question and the hot one costs what it did.
+The cheaper sentence — *as of last night, plus the newest 50* — is a
+copy decision and is on `OWNER-LIST.md`; the model charges the hot
+share at `B.sheetOpensHot` until it is made. **The city samples bounded
+per night, not per city**: a size floor cannot accumulate, so every
+touched pair merges up to `CITY_SAMPLE_PAIRS_PER_NIGHT`, hottest first,
+and the erasure arm reaches the city family through the account's own
+answers rather than by listing a collection the size of two catalogues.
+`npm run costs` after: 357 → 277 reads per user-day at maturity, the
+D98 column 282 → 197.
+
+## D446 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D446 held open
+came the same afternoon, verbatim: *"start phase 3 and use live for the
+answer map."* The answer map is written by the world-answer trigger —
+inside the aggregate's own transaction, so it is atomic with the count
+and the ledger mark and a redelivery cannot double-write — with the
+nightly heal filling only what a missed live write left absent, never a
+value the map already holds (the map is the newer truth: an edit made
+after the healed day is in it and not in that day's ledger).
+
+**Two things moved against the runbook as written**, each within
+D446's own rule that nothing a user sees may shrink. The device keeps
+the answer query as a FALLBACK for a member with no map, because the
+client ships with the trigger and the backfill is a click the owner
+makes afterwards — without it every Circle would show nobody between
+the deploy and the click; `CIRCLE_ANSWER_CAP` stays for the fallback
+until the runbook's 3.8 retires it after the backfill has applied. And
+there is no cap guard on the map: one answer per question means the
+document is bounded by the bank, not by time.
+
+**What the owner still holds:** the backfill's dispatch (dry, then
+`apply` — `OWNER-LIST.md`), the group history document (§3), and the
+hot sheet's sentence (runbook 2.4). `npm run costs` after: 357 → 129
+reads per user-day at maturity, the D98 column 282 → 48.
+
+**Phase 4 built 2026-09-09 (*"start phase 4"*) — the four folds
+`DATA-EFFICIENCY.md` §3 named as failing before they cost.** The
+rollup fold drains in pages under a 300 s budget and counts what a
+budget stop leaves (runbook 4.1); the attention channel publishes its
+own sampling rate on `v2_meta/app` — the rate that lands 80 % of the
+fold's cap — and the device draws at it off the read it already makes
+(4.2); the candidate scan streams the people through per-item
+sufficient statistics and holds none of them (4.3); and the velocity
+scan runs inside the nightly pass, its whole days off the read the
+pass already makes and only the partial-day tail its own (4.4) — so
+`ledgerVelocityScan` is retired and joins `fitPatternsV2` and
+`fitTasteV2` on `OWNER-LIST.md`'s delete row, because `--only` names
+what to update and leaves the rest standing. **One trade recorded
+rather than hidden:** the streamed solve reads the fitted people once
+per sweep — 1 + `ALS_SWEEPS` = 4 state reads a night per person where
+the buffered solve read them once and ran out of memory near 150,000 —
+$0.18 a night at 50 k DAU; the runbook's 4.3b (subtract a changed
+person's old contribution, add the new, read only who changed) is the
+step that takes it back to one read per active person, open and priced
+at 11 reads per user-day. `npm run costs` after: server reads 40 → 44
+per user-day at maturity, the whole 129 → 134 (132 at the merged head,
+D426's rounds having taken two reads elsewhere). Nothing a user sees
+moved, and nothing a device reads changed size.
+
+## D447 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+
+**Date:** 2026-09-09 · **Status:** ADOPTED the same evening — see the
+amendment below. The owner, that afternoon, after `npm run costs` had been
+run at a hundred and three hundred answers a day: *"i think we should
+from the start look on how we can design a system that scales to
+hundreds of answers a day and millions of users remember we can use
+other systems like bigquerry."*
+
+**The finding that prompted it.** The model prices four world answers a
+day (`B.worldAnswers`, `scripts/cost-arith.mjs`); everything Phases 1–4
+of the efficiency runbook built is flat per user, and the per-answer
+path was left at its floor because at four a day it was one. At a
+hundred a day the shipped structure costs about $23,000 a month at a
+million users and has already failed twice below that: the nightly pass
+holds the day's ledger entries in memory (470 bytes each, measured on
+node 22) and dies near 16,000 users; the always-increasing timestamp
+indexes hit Firestore's ~500 writes a second near 144,000. Neither is in
+`COSTS.md`, which moves users and never answers.
+
+**The design** is `SCALE-ARCHITECTURE.md`: answers written in batches
+to one document per user-day; one trigger per batch that appends a row
+per answer to BigQuery, increments live counters in Redis and merges the
+person's answer map, reading nothing; a compactor that writes the same
+documents clients read today, once a minute for the questions that
+changed; the night as SQL over the log, with a writer job putting the
+results back into the documents the app already reads; Firestore
+keeping every per-user, social and published document. Priced by `npm
+run costs:target` (`scripts/cost-target.mjs`, with its own test): a
+million users at a hundred a day ≈ $2,200 a month against $23,200; ten
+million at three hundred ≈ $32,000 against $667,000 — and it runs.
+
+**What a user sees is the same, with two cadences stated** (§4 there):
+a card's count exact and at most a minute behind — the interval the card
+already re-reads at (D129) — and a friend's answers in your Circle
+within the batch window rather than within seconds. Nothing shows fewer
+people, questions or answers; D98's substance, the three denies, D1 and
+App Check are untouched.
+
+**What the owner decides** (`OWNER-LIST.md` § Decisions): the direction
+itself (the efficiency runbook's Phase 5 becomes phase B of §6 there);
+one sentence of D98 — *no publish cadence* was written against the
+privacy cadence it retired, and the compactor's sixty seconds is the
+card's own poll, so the sentence becomes *exact, and never more than a
+poll behind* on the owner's word and not before; and the batch window
+(five minutes recommended; one minute doubles the batch lines). Not the
+owner's to decide and done page-first: the privacy page's and the
+inventory's rows for the log (D183).
+
+**Recorded as proposed at first** because D7's rule stands — nothing
+here is built before the owner's word — and adopted three hours later on
+it (the amendment below). Phase A, the log to BigQuery, costs bytes and
+precedes everything, and it is `LAUNCH-RUNBOOK.md` 5.11 done as one code
+path rather than as an extension streaming every document change through
+a trigger of its own.
+
+## D447 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
+
+**Date:** 2026-09-09 · **Status:** Adopted. The three asks were put in
+plain words — the direction; *"allow counts to be published once a
+minute instead of on every answer. One old decision says 'no publish
+cadence', and only you can change its wording"*; and the batch window,
+five minutes recommended — and the owner answered all three at once:
+*"that sound like a good direction lets do that."* So: the log-first
+structure is the direction past the efficiency runbook's Phase 4 (that
+runbook's Phase 5 is superseded by phase B here); D98's sentence moves
+(its amendment of the same date); the batch window is five minutes
+while answering plus a flush when the app leaves the foreground.
+
+**Phase A was built the same night** — `LOG-FIRST-RUNBOOK.md` has the
+steps. The ledger's mirror in BigQuery: `functions/src/log.ts` appends a
+row per ledger entry after the aggregate transaction commits, at every
+ledger site of the answer trigger, best-effort and off wherever there is
+no BigQuery (the emulator, the unit suites); the nightly pass's eighth
+runner reconciles yesterday off the read it already shares and retries
+the erasures the day deferred; `backfillLogV2` loads the existing
+answers before a cutoff day; `deleteAccount` runs the DELETE at once and
+leaves a server-only marker where BigQuery's streaming buffer refuses.
+Nothing a user sees changed, and nothing the night computes moved — the
+Firestore ledger stays what the folds read until phase D. **Two clicks
+are the owner's** (`OWNER-LIST.md`): the dataset and the two IAM roles,
+and the backfill with the deploy's day as its cutoff. The privacy page
+and the inventory moved first (D183).
+
+## D448 · The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on
+
+**Date:** 2026-09-09 · **Status:** Adopted for what is built; three asks
+to the owner, each with its arithmetic on `OWNER-LIST.md`. The owner's
+ask stands unchanged (*"do a in depth analyses of cost and what could be
+improved i dont want a unexpected firebase bill that i cant pay"*), and
+`docs/COST-EXPOSURE.md` §8 is the record; this is the decision under it.
+
+**What was found.** The page had measured production on the morning of
+2026-09-08 and then the same branch built DATA-EFFICIENCY-RUNBOOK phases
+1–4 and phase A of the log-first structure (D447) — code the page had
+not read. Read the way §3 read the old code, four of its surfaces could
+bill in the shape the owner asked to prevent:
+
+1. **The answer log's erasure** ran one `DELETE` per deleted account, and
+   BigQuery bills a DELETE for every column of every partition it
+   touches — an account's answers span the year, so a statement is a pass
+   over the whole table at $6.25 a TiB whatever it names: the 10 MB
+   minimum today, $27 a statement at a million people answering a hundred
+   times a day, the largest line on the bill at ten million. `npm run
+   costs:target` carries it now ($37 a month at 50,000 × 100/day, $747 at
+   a million).
+2. **The append** ships on the streaming API, which bills a 120-byte row
+   as a kilobyte with no free allowance — $143 a month at a million users
+   against $0 on the Storage Write API. The morning's `COSTS.md` note had
+   priced the bytes and not the minimum.
+3. **The profile fan-out** (runbook 2.1) turned one client write into a
+   few thousand operations, and a profile document takes a write a second:
+   on the order of $300–500 a day from one attested account, ~$1,400 a day
+   across accounts at the trigger's instance cap — a device driving the
+   app's own write, which App Check enforcement does not bound.
+4. **Phase B's Redis** is billed by the instance from the hour it exists —
+   $196 a month at the size the model picks, ~$36 at the smallest — and
+   the runbook ordered it "before the wall" with nothing under it.
+
+And one premise, already on the page's §2: the model netted the Firestore
+free quota, which belongs to `(default)`; production is the named
+database `insight` (D165). The launch row printed $0.00 against an
+invoiced dollar.
+
+**What is decided and built.**
+
+- The night erases every pending account in ONE statement (pages of 500),
+  and `deleteAccount` runs the immediate statement only while the table
+  is under a gibibyte (`LOG_ERASE_NOW_MAX_BYTES`, off the table's
+  metadata). The table is clustered by person then question, chosen
+  while it is still free to choose. The privacy page's "within a day" is
+  unchanged.
+- The fan-out is budgeted at three an hour per account
+  (`v2_ratelimits/fanout_{uid}`, the sliding window every other budget
+  here uses, erased with the account); past that a `pending` marker the
+  nightly pass heals from the profile as it stands — a ninth runner.
+- The target model prices the ingest line as built, with the Storage
+  Write API beside it (runbook A.8), and the erasure line (A.9).
+- The model reads the database id off `db.ts` and nets nothing on a named
+  database; the scheduler floor is counted off the tree ($0.40). The
+  launch row is $0.54, and the sentences "genuinely $0 below ~177 DAU"
+  and `COST-COMPARISON.md`'s A+ row are retired (§6 C1).
+- **The budget acts** (§6 C4, D332's recorded next joint):
+  `functions/src/budget.ts` sets the read breaker at 100 % from the
+  budget's Pub/Sub notification, in the fields `budget-mode.mjs` reads,
+  and releases only what it set when the next month arrives under the
+  line. Two clicks after the deploy are the owner's. It does not detach
+  billing.
+- **The review's ceiling** (§6 C3): fifty model calls a day project-wide,
+  a refused slot holding the booking without an attempt; `max_tokens`
+  1,024, the verdict's size, where it was the model's maximum.
+
+**What waits on the owner, each a way through and not a stop (D334,
+D352).** *When phase B starts* — a condition (the contention alert, or
+~5,000 measured actives, on the smallest instance) written into
+`LOG-FIRST-RUNBOOK.md` for the owner to move either way. *A.9* — whether
+an erased account's rows may outlive it in the log by up to a month,
+joined out of every fold meanwhile, for a thirtieth of the erasure line;
+the privacy page moves first (D183). *The hard stop* — whether the
+budget's function may detach billing at a threshold the owner names;
+built as one more branch when they do.
+
+**Not verified from the sandbox, said so on the page:** Google's DML
+pricing wording and whether a DELETE prunes by cluster (the docs host is
+blocked; the batch bounds the cost either way); that the deploy creates
+the Pub/Sub topic (the applier prints the create command if the API
+refuses one); the budget service agent's address (the console's own
+*Connect a Pub/Sub topic* makes the grant if it is wrong).
+
+**Amendment 2026-09-10 — the clicks, made, and what each turned out to
+be.** On the owner's *"you have my permission to do these for me … as long
+as there is no risk of triggering high cost"*, this session dispatched the
+four click sets, each dry first, and read every log; the day's production
+writes were 14 map documents and 32 log rows, cents at most (42 answers
+exist). *Apply BigQuery* (run 34477865089): dataset `insight` in
+`europe-west1` and the table `answers`, partitioned by day and clustered
+by `uid, qid`, created; the two IAM bindings its summary prints were not
+needed — the answer-log backfill appended through the functions' own
+runtime account, which is the append permission proven live. *Backfill
+answer maps* (run 34477871112): 42 scanned, 40 folded, 14 written, one
+call. *Backfill answer log* (run 34478455058): 32 rows before 2026-09-10
+appended, one call — the cutoff is the day AFTER the deploy's, not the
+deploy's day the script's header names, because the nightly reconciles
+yesterday only (02:23 UTC) and the table did not exist until 12:38 UTC on
+the 10th: the night after the deploy found no table, so the 9th's answers
+had no row and no future night to get one from, while the 10th's are that
+night's reconcile's own. Nothing was answered on the 9th, so both cutoffs
+count the same 32 today; the reasoning is what the next backfill inherits.
+*Arm budget* (run 34477868495): the dry run would retune (attach the
+topic; 500/month and the thresholds unchanged), and the apply was refused
+with a bare 403 — not for the billing-account role, which the 2026-08-27
+grant above made and this script created the budget with. The Budgets API
+demands `pubsub.topics.setIamPolicy` on the topic of whoever attaches one,
+so that it can grant its own service agent Publisher, and project Editor
+does not carry it; the script's canned costsManager line named the wrong
+grant for the second time (the disabled API, above, was the first), and a
+refused write now says both readings with the tell that decides them
+(`apply-budget.test.mjs`). So "two clicks after the deploy" is one, and it
+is the owner's: the console's *Connect a Pub/Sub topic to this budget*,
+which attaches and grants in the same action; `OWNER-LIST.md`,
+`DEPLOYMENT.md` and LAUNCH-RUNBOOK 5.17 say so now. (The deploy did create
+the topic — `onBudgetAlert` stands on it in the listing below — which
+closes one of the three "not verified" items above.) *Delete retired
+functions* (#475, merged on the same permission because the click has no
+other way to be made from a session): the first dry dispatch (run
+34478645668) listed nine functions of the project's earlier life and none
+of this tree's 46 — the Functions v2 list drops a region it could not
+reach and says so only in a field the CLI never prints — and would have
+read all three as already gone; the second (run 34479117495) listed every
+one, the three among them, and the workflow now fails a listing that
+cannot see the nightly pass and prints the Cloud Scheduler jobs, which are
+what the three cost, beside it before and after. The apply (run 34479295825) deleted all three — `fitPatternsV2`, `fitTasteV2`, `ledgerVelocityScan`, each a Node.js 22 second-generation function in `europe-west1` — in ten seconds, each taking its Cloud Scheduler job with it: three of the billed jobs `COST-EXPOSURE.md` §1 counts are gone, and the data all three wrote stands where the nightly pass has been writing it since each retired.
+
+**Measured before the push:** `test:scripts` (the model's new pins),
+`test --prefix functions` (the batch, the ceiling, the budget's decision
+table, the fan-out's window and heal, the hold without an attempt),
+`check:fn-runtime` (45 functions; a Pub/Sub trigger read by its event
+type), `check:deploy-targets`, `check:appcheck`, `check:docs`,
+`check:figures`, `check:policy-claims`, `check:data-inventory`; the
+counts are in the pull request.
+
+## D449 · The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on
+
+**2026-09-10.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty commits are kept as written; nothing was reverted. What this review
+adds is the composition and three fixes for things no shift could see
+alone. The owner's instruction was *"cheak tonights night shifts and merge
+what you approve"*: every part is approved, and this record says which
+parts the composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260910` | 31 | 21 behind | shift A, Claude 2's, 21:11–05:32 UTC |
+| `nightb-20260910` | 29 | 22 behind | shift B, Claude 1's, 22:07–04:12 UTC |
+
+`main` took twenty-one commits during the night: sixteen console and pulse
+rows, and five content-lane merges (#468–#472, the lanes that self-merge on
+green under D212). No decision number moved. Neither shift claimed one; the
+tree sat at D448. This record is D449.
+
+**NINE FILES WERE TOUCHED BY BOTH** — `docs/SCHEMA-V2.md`,
+`firestore-tests/rules.test.ts`, `firestore.rules`,
+`functions/src/exportAccount.ts` and its test, `functions/src/nightly.ts`,
+`scripts/check-spec-globals.mjs`, `scripts/source-pins.test.mjs`,
+`src/v2/README.md` — against zero the night before (D430) and seven the
+night before that (D420). **Both merges still applied clean.** Every pair
+of hunks landed in a different region of its file, so git had nothing to
+stop on, and the review was spent exactly where D430 said it would have to
+be: on prose that one shift wrote and the other made false.
+
+All three defects are that shape. None of them fails a gate — the tree was
+green before they were fixed and green after — because each is a sentence
+about a number, and no gate reads a sentence.
+
+### The three, and the one that is load-bearing
+
+**1 · `src/v2/README.md` — the coupling count, written twice from opposite
+directions.** Rule 4's total is the ratchet's own number and both shifts
+moved it. A taught the scanner the BARE shape (a plain `MapStats.dist(a,
+k)` in a module that neither defines nor imports the name was invisible to
+it, so a converted module could be silently re-coupled), which found four
+sites and raised the count 28 → 32 before A took all four off, back to 28.
+B converted `daily-split.jsx`'s reader in the course of a bug fix, 28 → 27.
+The two edits are two lines apart. B's says **27 across 7 files**, which is
+what `check:globals` prints; A's paragraph beneath it said the number "is
+28 again", which was true of A's night alone and of no tree that ever
+existed. A's sentence now carries B's conversion, and the point A was
+making — that four references sat outside the ratchet for as long as it
+ran — is unchanged, because it is about the middle figure.
+
+**2 · `scripts/cost-arith.mjs` — the trigger's read counts, stale in both
+halves.** This is the one that matters, because `scripts/pulse.test.mjs`
+quotes it as the justification for a tripwire. The comment above
+`TRIGGER_READS` opened *"the world trigger's aggregate transaction does
+exactly two … so a pick or rank answer costs 3 where a vote costs 2"*, and
+by this morning neither number was the tree's: D410 had put the author's
+profile on the vote path (3), and B's catalog fix put it on the catalog arm
+too (4). Measured in the composed `functions/src/v2.ts` rather than
+inferred — vote `tx.getAll(eventRef, pubRef, profRef)` is three, rank
+`(eventRef, qRef, pubRef)` is three, catalog `(eventRef, qRef, privRef,
+profRef)` is four. The paragraph is rewritten to today's counts and keeps
+the old one as the warning, in the shape B used for the same class in
+`spec-index.js`. **The constant does not move, and B's reasoning for that
+is right**: the model absorbs the extra read into the vote rate, and the
+error is now one read per CATALOG answer alone — rank matches the charge
+exactly, where before the fix catalog matched it by coincidence while
+missing the guard.
+
+**3 · `scripts/pulse.test.mjs` — an assertion message that contradicted
+itself.** B appended a correct paragraph to the tripwire's failure text
+(*"the model charges `world: 3` … event + published aggregate + profile"*)
+directly under the sentence that still said it charges *"the VOTE path (2:
+…)"*. Same failure as 2, one file over, and inside a single string: the
+next person to read this message on a red gate would have had two numbers
+for one constant and no way to tell which. The message now states three
+paths — vote 3, rank 3, catalog 4 — and the assertion's value is untouched
+at 13, which is what the composed trigger reads.
+
+### 4 · `scripts/cost-fanout.test.mjs` — the trap CLAUDE.md names, wearing an environment
+
+Found by CI, not by the composition, and it is A's own — but it belongs
+in this record because it is the fifth-runner trap in its fourth
+recorded form, and the first where the stale thing is the *environment*
+rather than an assertion. A's new test imported `sampleIdsFor` from
+`functions/src/profileFanout.ts` — the better pin when it works, because
+it runs the real builder rather than re-asserting a number. That module's
+first line is `import … from "firebase-functions/v2/firestore"`, and
+`test:scripts` runs in **CI's lint job, which installs the root package
+and never `functions/`**. So it passes on any machine where something has
+run `npm ci --prefix functions` — every local session that ran the
+functions suite first, this review included — and is `ERR_MODULE_NOT_FOUND`
+on a clean runner. Nine jobs green, lint red, and nothing else could see
+it: the only thing that imports across this boundary is a test about a
+cost model.
+
+Converted to the source pin its own sibling already uses
+(`cost-whovoted.test.mjs`, comments blanked through `stripComments`,
+pinning the fact rather than its spelling): the world add, the city add,
+and that the city one is CONDITIONED on the answer carrying a city, which
+is what makes the constant a ceiling rather than a flat count. The three
+arithmetic cases are untouched and still execute. Verified the way the
+failure asked to be — `functions/node_modules` moved aside, `test:scripts`
+1339 green, then the builder rewritten to add the city id unconditionally
+and the pin red with its own message.
+
+### What was checked and left alone
+
+Four things looked like the same class and are not, each verified rather
+than assumed:
+
+- **`docs/LOCAL-TESTING.md`'s "221 security-rules tests"** is A's edit and
+  is exactly right in the composed tree. A added one case; B added
+  assertions *inside* existing cases rather than new ones. The composed run
+  reports 221.
+- **`CLAUDE.md`'s "56 modules off the bridge"** is A's, and it holds — the
+  figure is `check:figures`'s, computed off the tree, and B's conversion
+  moved a reader without retiring a name (`duo-daily.jsx` still publishes
+  `DuoBody` for `duels-rounds.test.jsx`).
+- **B's `testResults` rules fix does not break the app's own writes.** The
+  clause now refuses a write that omits a stored `testResults`, and both
+  client profile paths (`live.ts` 5124 and 6337) are merge writes, where
+  `request.resource.data` is the merged *result* and still carries the map.
+  What it refuses is the non-merge `setDoc` that deleted it.
+- **A's owner row on the handle repair prices a block the budget gate does
+  not probe.** B spent expression budget in the profile block the same
+  night, so the row's caution ("adds expressions to a block D432/D433 has
+  only just brought under the ceiling") was worth re-measuring. Every probe
+  in `rules-budget.mjs` is an answer-path probe; the thinnest is the D429
+  pick round at 57 fillers against a floor of 50. The row stands as A wrote
+  it, and it stays the owner's.
+
+**B's Play data-safety correction needs no click.** B moved the *Email
+address* row from Optional to Required in both copies — an
+under-declaration, and §2 of `STORE-FORMS.md` calls that "the direction
+that gets an app pulled". It is one of the four things CLAUDE.md puts
+outside the D334 ask, so it is filed as written, not asked about. The form
+itself is PARKED under D42 and has never been submitted, so the repo copy
+*is* the draft and there is nothing to re-file with Google.
+
+### Measured on the composed tree
+
+`test:unit` 3089 · `test --prefix functions` 969 · `test:scripts` 1339 ·
+`test:rules` 221 plus the coverage ratchet (8 of 378 never-false, at
+baseline) and the D438 budget gate · `test:e2e:all` on one emulator boot,
+199 assertions, all three suites green · `tsc -b` · `lint` · every
+`check:*` gate. `test:scripts` was re-run a second time with
+`functions/node_modules` moved aside, which is the lint job's actual
+environment and the only way defect 4 is visible.
+
+Two gates cannot pass from here and neither is the composition's:
+`check:web-firebase` needs the release secrets and runs only on the
+release workflows; `check:store-copy` fails identically on `origin/main`,
+on the Play signing SHA-256 placeholder that is the owner's to fill.
+
+## D450 · The money path and the two BigQuery steps become readings: whether a sale can complete today is an API call, and had been all along
 
 **2026-09-09.** **Status:** binding. The owner asked *"is bigquerry and
 stripe setup if not lets do that"*. The answer to the first half is **no,
@@ -48888,7 +49621,7 @@ header comment naming `createPaidCheckoutV2` and `stripeWebhookV2`. The
 fix was `stripComments()`, not a raised ceiling.
 
 
-## D446 · The web buy door opens: a gate a browser can pass, a page that actually calls the backend, and a city picker that is the difference between a campaign and a refund
+## D451 · The web buy door opens: a gate a browser can pass, a page that actually calls the backend, and a city picker that is the difference between a campaign and a refund
 
 **2026-09-10.** **Status:** binding. The owner's answer to "when a customer
 sees their price, what should happen next" — *they click Buy and pay right

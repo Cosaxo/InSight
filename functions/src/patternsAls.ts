@@ -461,6 +461,134 @@ export function alsFit(
   return model;
 }
 
+// ── the same fit, streamed (DATA-EFFICIENCY-RUNBOOK 4.3) ─────────────
+//
+// `alsFit` above takes the crowd as an array — every person's answer map
+// resident at once, ~1 KB a person, which the header of patterns.ts
+// priced at 150 MB near 150,000 people on the instance the pass runs on,
+// and a pass that dies before it advances its cursor dies the same way
+// every night after. The solve does not need the crowd resident: the
+// item step needs, per item, only the Gram of the person-vectors that
+// answered it and their residual-weighted sum — K×K + K numbers — and the
+// person step needs only that person's own map and the current rows. So
+// this version takes a SCAN — a function that visits every person once —
+// and runs it once per sweep, holding the per-item sufficient statistics
+// and nothing per person. Bit-for-bit the same arithmetic as alsFit when
+// the scan visits people in uid order (the buffered fit sorts, and the
+// Firestore scan is path-ordered, which is uid-ordered); patternsAls
+// .test.ts holds the two together.
+//
+// The price is reads: 1 + ALS_SWEEPS scans of the fitted people a night
+// where the buffered fit read them once (cost-arith's
+// PATTERNS_SCAN_READS_PER_MAU). The incremental step — keeping the
+// per-item statistics between nights and re-reading only the people who
+// answered since — is the runbook's 4.3b and is not built here.
+
+/** Visit every fitted person once, in a stable order. */
+export type PeopleScan = (each: (uid: string, a: AnswerMap) => void) => Promise<void>;
+
+/** Per-item sufficient statistics for one item step: Σ θθᵀ and Σ rθ over
+ * the people who answered it, plus how many did. */
+interface ItemAcc {
+  A: number[][];
+  b: number[];
+  n: number;
+}
+
+const newAcc = (k: number): ItemAcc => ({
+  A: Array.from({ length: k }, () => new Array<number>(k).fill(0)),
+  b: new Array<number>(k).fill(0),
+  n: 0,
+});
+
+export async function alsFitStreamed(
+  prev: AlsModel | null,
+  scan: PeopleScan,
+  index: ItemIndex,
+  k: number = PATTERNS_K,
+  opts: { sweeps?: number; lambda?: number } = {},
+): Promise<{ model: AlsModel; people: number }> {
+  const sweeps = opts.sweeps ?? ALS_SWEEPS;
+  const lam = opts.lambda ?? ALS_LAMBDA;
+  // Pass 0: the item statistics — counts, recomputed from the maps every
+  // night, exactly as the buffered fit computes them.
+  const stats: Record<string, { n: number; sum: number; sumSq: number }> = {};
+  let people = 0;
+  await scan((_uid, a) => {
+    people += 1;
+    for (const [qid, idx] of Object.entries(a)) {
+      const specs = index.byQid.get(qid);
+      if (!specs || typeof idx !== "number") continue;
+      for (const s of specs) {
+        const x = encodeFor(s, idx);
+        const t = (stats[s.key] ??= { n: 0, sum: 0, sumSq: 0 });
+        t.n += 1;
+        t.sum += x;
+        t.sumSq += x * x;
+      }
+    }
+  });
+  const keys = Object.keys(stats).sort();
+  const rows: Record<string, AlsRow> = {};
+  const items: Record<string, ItemMeta> = {};
+  for (const key of keys) {
+    const s = index.byKey.get(key) as ItemSpec;
+    const t = stats[key];
+    const sd = s.kind === "ord" ? sdOf(t) : undefined;
+    const warm = prev?.rows[key]?.v;
+    rows[key] = {
+      v: warm && warm.length === k ? [...warm] : seedLoading(key, k).map((x) => x * 4),
+      n: t.n,
+      sum: t.sum,
+      ...(sd === undefined ? {} : { sd }),
+    };
+    items[key] = { kind: s.kind, qid: s.qid, nOptions: s.nOptions, ...(s.opt === undefined ? {} : { opt: s.opt }) };
+  }
+  const model: AlsModel = { k, rows, items };
+  if (!people) return { model, people };
+  // Passes 1..sweeps: each person's vector from the rows as they stand,
+  // folded into the per-item statistics; then every item from those.
+  for (let sw = 0; sw < sweeps; sw++) {
+    const acc = new Map<string, ItemAcc>();
+    await scan((_uid, a) => {
+      const obs: { key: string; r: number }[] = [];
+      for (const [qid, idx] of Object.entries(a)) {
+        const specs = index.byQid.get(qid);
+        if (!specs || typeof idx !== "number") continue;
+        for (const s of specs) {
+          const row = rows[s.key];
+          if (!row) continue;
+          const r = residualFor(items[s.key], row, idx);
+          if (r !== null) obs.push({ key: s.key, r });
+        }
+      }
+      if (!obs.length) return;
+      const theta = ridgeTheta(obs.map((o) => ({ L: rows[o.key].v, r: o.r })), k, lam * obs.length + 0.5);
+      for (const o of obs) {
+        let t = acc.get(o.key);
+        if (!t) { t = newAcc(k); acc.set(o.key, t); }
+        t.n += 1;
+        for (let i = 0; i < k; i++) {
+          t.b[i] += o.r * theta[i];
+          const Ai = t.A[i];
+          const ti = theta[i];
+          for (let j = 0; j < k; j++) Ai[j] += ti * theta[j];
+        }
+      }
+    });
+    for (const key of keys) {
+      const t = acc.get(key);
+      if (!t?.n) continue;
+      const ridge = lam * t.n + 0.5;
+      const A = t.A.map((row, i) => row.map((x, j) => (i === j ? x + ridge : x)));
+      const v = solve(A, t.b);
+      const norm = Math.sqrt(v.reduce((a, x) => a + x * x, 0));
+      rows[key].v = norm > 1 ? v.map((x) => x / norm) : v;
+    }
+  }
+  return { model, people };
+}
+
 // ── the scorecard, one step ahead ────────────────────────────────────
 
 /** One entry of a day in the online engine's own fold order (people by

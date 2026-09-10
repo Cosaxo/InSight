@@ -101,6 +101,24 @@ const EXEMPT = {
       + "app can run a repair, and a control that fails when it is most "
       + "needed is not a control; gated on SEED_ADMIN_UIDS",
   },
+  backfillLogV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the one-time load of every existing answer into "
+      + "the BigQuery answer log (SCALE-ARCHITECTURE.md phase A, D447), "
+      + "driven by scripts/backfill-log.mjs from the Backfill answer log "
+      + "workflow — no attested app runs a migration; gated on "
+      + "SEED_ADMIN_UIDS",
+  },
+  backfillAnswerMapsV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the one-time fold of every existing answer into "
+      + "the per-person answer maps (DATA-EFFICIENCY-RUNBOOK 3.4), driven by "
+      + "scripts/backfill-answer-maps.mjs from the Backfill answer maps "
+      + "workflow — no attested app runs a migration; gated on "
+      + "SEED_ADMIN_UIDS",
+  },
 
   // Moderation instruments (assertModerator, MOD_UIDS). The moderation
   // Routine runs in a dedicated low-privilege environment with no repo
@@ -125,7 +143,7 @@ const EXEMPT = {
       "moderator callable, invoked by the out-of-app moderation Routine; "
       + "gated on MOD_UIDS",
   },
-  // ── The web buy door (D446) ───────────────────────────────────────────
+  // ── The web buy door (D451) ───────────────────────────────────────────
   // These two are NOT unattested. They are attested by something a browser
   // can actually produce: a reCAPTCHA v3 token, verified server-side for
   // success, action and score before either callable does any work
@@ -149,13 +167,13 @@ const EXEMPT = {
     reason:
       "the web buy door (web/ask.html) — a browser cannot produce App Check "
       + "attestation without a provider; gated on a server-verified "
-      + "reCAPTCHA v3 score and action instead (D446)",
+      + "reCAPTCHA v3 score and action instead (D451)",
   },
   createPaidCheckoutV2: {
     gate: "assertRecaptcha",
     reason:
       "the web buy door's second hop, which opens the Stripe session — same "
-      + "caller and same substitute as bookPaidQuestionV2 (D446)",
+      + "caller and same substitute as bookPaidQuestionV2 (D451)",
   },
 };
 

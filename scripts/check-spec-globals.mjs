@@ -40,10 +40,10 @@
 // Run: node scripts/check-spec-globals.mjs   (wired into CI's lint job)
 
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { collectSpecGlobals, stripComments } from "./spec-globals.mjs";
 
-const { defined, definedBy, referenced, files, specDir, root } = collectSpecGlobals();
+const { defined, definedBy, referenced, bare, files, specDir, root } = collectSpecGlobals();
 
 let failed = false;
 
@@ -76,8 +76,24 @@ for (const [name, sites] of [...referenced].sort()) {
 // to name it in a COMMENT and rely on the substring match, which is a
 // reference that loads nothing and would have gone on passing if the real
 // import were deleted too.
+// RECURSIVE, like the scanner's own walk over the same root. These three
+// rules read `specDir` one level deep while `spec-globals.mjs` reads it
+// with `{ recursive: true }` — so a module in a subdirectory had its
+// names entered in `defined` (and therefore in eslint's `no-undef` seed)
+// while rules 2, 7 and 8 never saw the file at all. Measured: an orphan
+// module imported by nothing fails rule 2 at the top level and passes
+// byte-identical one directory down. Nothing has a subdirectory today, so
+// this was one `mkdir` from live rather than live — and the meta-gate
+// written for exactly this class (source-pins.test.mjs) could not see it,
+// because the directory arrives here as a module-scope binding its
+// detector cannot follow.
+const specTree = (re) => readdirSync(specDir, { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
+  .filter((f) => re.test(f))
+  .sort();
+
 const indexSrc = stripComments(readFileSync(join(root, "src/v2/spec-index.js"), "utf8"));
-const specFiles = readdirSync(specDir).filter((f) => /\.(jsx?|tsx?)$/.test(f));
+const specFiles = specTree(/\.(jsx?|tsx?)$/);
 const importedBySibling = new Set();
 for (const f of specFiles) {
   const src = stripComments(readFileSync(join(specDir, f), "utf8"));
@@ -319,8 +335,7 @@ for (const name of [...defined].sort()) {
 {
   const COMPONENT_RE =
     /^(?:function\s+([A-Z][\w$]*)|const\s+([A-Z][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
-  for (const file of readdirSync(specDir).sort()) {
-    if (!/\.(js|jsx)$/.test(file)) continue;
+  for (const file of specTree(/\.(js|jsx)$/)) {
     const src = stripComments(readFileSync(join(specDir, file), "utf8"));
     if (/^\s*export\s/m.test(src)) continue;
     if (/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
@@ -418,8 +433,7 @@ for (const name of [...defined].sort()) {
     }
   }
 
-  for (const file of readdirSync(specDir).sort()) {
-    if (!/\.(js|jsx)$/.test(file)) continue;
+  for (const file of specTree(/\.(js|jsx)$/)) {
     const src = stripComments(readFileSync(join(specDir, file), "utf8"));
     IMPORT_RE.lastIndex = 0;
     for (const m of src.matchAll(IMPORT_RE)) {
@@ -487,16 +501,52 @@ for (const name of [...defined].sort()) {
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
   "src/v2/spec/app-shell.jsx": 12,
-  "src/v2/spec/daily-split.jsx": 6,
+  // 5 since the duo body came off the bridge: `daily-split.jsx` read
+  // `window.DuoBody` at render time and now React.lazies the module, the
+  // way it already lazied the group body beside it. The publication stays
+  // for `duels-rounds.test.jsx`, so this is a reader converted rather than
+  // a name retired.
+  "src/v2/spec/daily-split.jsx": 5,
   "src/v2/spec/mirror-field-pops.jsx": 1,
+  // 3, and it was 4 for the length of one commit: the bare pass found
+  // `LIVE` read without the binding at :76 — D354's sweep gave every
+  // other spec module the import and missed this one — and the import
+  // took it straight back off.
   "src/v2/spec/search-overlay.jsx": 3,
+  // `city-overlay.jsx` is not here because it is at ZERO: the bare pass
+  // found three `GL(r.glyph)` reads, and `glyph-icons.js` came off the
+  // bridge in the same commit. It was the only reader in the tree, so the
+  // publication went with it rather than staying for consumers that have
+  // not moved — there are none.
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/world-feed.jsx": 1,
 };
 
+// THE BARE SHAPE COUNTS TOO (see spec-globals.mjs's second pass). Rule 4
+// says it counts every site where a file reads a name another file
+// publishes, and for one shape that was false: a bare identifier is not
+// `window.X`, not the cast form, not a tag and not `h(Foo, …)`. Measured
+// — a bare `MapStats.dist(a, k)` appended to a module that neither
+// defines nor imports it left this number at its baseline and left
+// eslint clean, because this scanner seeds `no-undef` and a name it
+// publishes is a name eslint accepts anywhere. A module already
+// converted off the bridge could be silently re-coupled, which is the one
+// thing the ratchet exists to stop.
+//
+// Folded in here rather than counted beside, because two numbers for one
+// question is how the headline goes on understating. The baseline moved
+// 28 → 32 in the same commit, and that move is the METER's resolution,
+// not coupling growing: all four sites are older than the pass that found
+// them, and no file gained a reference. The direction rule is unchanged
+// from 32.
+const allRefs = new Map(referenced);
+for (const [name, sites] of bare) {
+  allRefs.set(name, [...(allRefs.get(name) ?? []), ...sites]);
+}
+
 const coupling = {};
-for (const [name, sites] of referenced) {
+for (const [name, sites] of allRefs) {
   const assigners = definedBy.get(name);
   // Not assigned anywhere in the scanned set means the name is not coupling
   // but a bug — rule 1 has already reported it, and counting it here would

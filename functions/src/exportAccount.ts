@@ -62,6 +62,9 @@ import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import { isStamped, playedIn } from "./pure";
+import { citySampleId } from "./patternsSamples";
+import { fanoutBudgetId } from "./profileFanout";
+import { logWriter, type LogRow } from "./log";
 
 /** The format tag on every export, bumped when the shape changes. */
 export const EXPORT_FORMAT = "insight-export/1";
@@ -107,11 +110,48 @@ export const TWIN: Record<string, string> = {
   suggestions: "suggestions",
   purchases: "purchases",
   paidBookings: "paidBookings",
+  // 1a″ — the answer log in BigQuery (D447 phase A), the ledger's mirror
+  // that outlives the ledger's TTL; read through the erasure's own writer.
+  log: "answerLog",
   // The closing sweep re-deletes the subtree phase 1b already took, in
   // case a nightly fold committed inside the erasure's own run time. It
   // reads nothing the `profile` section did not, so it twins the same one.
   v2SubtreeSweep: "profile",
 };
+
+/**
+ * THE RATE-LIMIT LEDGERS THIS ACCOUNT OWNS, `[section key, document path]` —
+ * read by the export below AND by the erasure in `index.ts`, which is the
+ * point of it being here rather than written twice.
+ *
+ * It was written twice, and drifted: the erasure took six documents and the
+ * export disclosed five. The profile fan-out's hourly budget
+ * (`profileFanout.ts`) was deleted on erasure and named nowhere in the
+ * bundle, so the export said "everything" and handed over less — the exact
+ * failure this file's header describes, one level below where `TWIN` can
+ * see it. `TWIN` maps a wipe PHASE to a bundle section, and both halves of
+ * this pair were present; the gap was inside the phase.
+ *
+ * Rules make every one of these opaque to clients, but they carry recipient
+ * uids and activity timestamps, so erasure covers them (index.ts §4b) and
+ * so does the right of access.
+ */
+export const rateLimitLedgers = (uid: string): [string, string][] => [
+  ["insight", `insight_ratelimits/${uid}`],
+  ["join", `v2_ratelimits/join_${uid}`],
+  // D122's invitation budget, keyed the same way. Added with the callable
+  // rather than after someone noticed the ledger surviving an erasure.
+  ["invite", `v2_ratelimits/invite_${uid}`],
+  // The suggestion budget (suggestions.ts), same pattern and same reasoning:
+  // added with the callable, not after an audit.
+  ["suggest", `v2_ratelimits/suggest_${uid}`],
+  // The paid-booking budget (paid.ts, D313), same pattern again.
+  ["paidbook", `v2_ratelimits/paidbook_${uid}`],
+  // The profile fan-out's hourly budget and its heal marker
+  // (profileFanout.ts). Its id comes from the module that writes it, so
+  // the two spellings cannot part company.
+  ["fanout", `v2_ratelimits/${fanoutBudgetId(uid)}`],
+];
 
 type Plain = null | boolean | number | string | Plain[] | { [k: string]: Plain };
 
@@ -289,18 +329,50 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
   //      the question. Every sample is checked, the way the scrub checks
   //      every sample, because the answer map and the samples are written
   //      by different commits of the same nightly run.
+  //
+  //      BY ID RANGE, never `listDocuments`, for the reason the erasure's
+  //      own arm spells out and this one was written without: the per-city
+  //      samples share this collection as `city-{qid}~{city}`, one per
+  //      (question, city) pair the nightly has seen — the product of two
+  //      catalogues, ~10,900 places wide, growing by up to
+  //      CITY_SAMPLE_PAIRS_PER_NIGHT a night. A listing walks all of them
+  //      to reach the few hundred world samples, which is exactly the
+  //      shape DATA-EFFICIENCY-RUNBOOK §2.5 says the `city-` prefix exists
+  //      to keep this callable away from. `sample-` ≤ id < `sample.` is
+  //      the world family exactly ('.' follows '-' in ASCII).
   {
-    const refs = (await db.collection("v2_patterns").listDocuments())
-      .filter((r) => r.id.startsWith("sample-"));
+    const world = await db.collection("v2_patterns")
+      .where(FieldPath.documentId(), ">=", "sample-")
+      .where(FieldPath.documentId(), "<", "sample.")
+      .get();
     const rows: { [k: string]: Plain } = {};
-    for (let i = 0; i < refs.length; i += 300) {
-      for (const snap of await db.getAll(...refs.slice(i, i + 300))) {
-        if (!snap.exists) continue;
-        const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
-        if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
-      }
+    for (const snap of world.docs) {
+      if (!snap.exists) continue;
+      const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+      if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
     }
     out.voterSamples = m.add(rows);
+  }
+
+  // 1a″. The answer log (D447 phase A): the ledger's mirror in BigQuery —
+  //      one row per counted answer and one per edit, the rows the
+  //      erasure's statement removes — read through the erasure's own
+  //      writer, so an export and an erasure agree on where the rows are.
+  //      Null where there is no BigQuery (the emulator, the suites) or the
+  //      table is not there yet (the owner's click), and said so in
+  //      `omitted`: the answers and the ledger sections hold the same
+  //      facts, and an export must not fail on its mirror.
+  {
+    let rows: LogRow[] | null = null;
+    let why: string | null = null;
+    try {
+      rows = await logWriter().rowsFor(uid);
+      if (rows === null) why = "no BigQuery here — the answer log is off, or its table is not created yet; the collections.answers and answerLedger sections hold the same facts";
+    } catch (err) {
+      why = `the answer log could not be read (${err instanceof Error ? err.message : String(err)}); the collections.answers and answerLedger sections hold the same facts`;
+    }
+    out.answerLog = m.add(rows === null ? null : rows.map((r) => ({ ...r })));
+    if (why) omitted.push({ what: "answerLog", why });
   }
 
   // 1b. The v2 subtree: the profile, and every subcollection under it —
@@ -314,6 +386,29 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
     const own = await subtree(db.collection("v2_users").doc(uid), skip);
     out.profile = m.add(own.doc);
     out.collections = m.add(own.collections);
+    // 1a′, the per-city half (DATA-EFFICIENCY-RUNBOOK 2.5): the
+    // `city-{qid}~{city}` family is reached through the account's own
+    // answers — the frozen city on each — exactly as the erasure reaches
+    // it (index.ts, 1a′), because listing the family at scale is the
+    // product of two catalogues. The answers were just read above.
+    {
+      const answers = own.collections.answers ?? [];
+      const ids = [...new Set(answers.flatMap((a) => {
+        const qid = typeof a.qid === "string" ? a.qid : "";
+        const anchors = a.anchors && typeof a.anchors === "object" && !Array.isArray(a.anchors) ? (a.anchors as { [k: string]: Plain }) : null;
+        const city = anchors && typeof anchors.city === "string" ? anchors.city : "";
+        return qid && city ? [citySampleId(qid, city)] : [];
+      }))];
+      const cityRows: { [k: string]: Plain } = {};
+      for (let i = 0; i < ids.length; i += 300) {
+        for (const snap of await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id)))) {
+          if (!snap.exists) continue;
+          const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+          if (uid in all) cityRows[snap.id.slice("city-".length)] = toPlain(all[uid]);
+        }
+      }
+      out.voterSamplesByCity = m.add(cityRows);
+    }
     omitted.push({
       what: "collections.push",
       why: "the notification token is a credential for this phone, not data about you; "
@@ -422,6 +517,11 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
         owner: g.get("ownerUid") === uid,
         joinedAt: toPlain((g.get("memberJoinedAt") as Record<string, unknown> | undefined)?.[uid]),
         memberName: toPlain((g.get("memberNames") as Record<string, unknown> | undefined)?.[uid]),
+        // The role ledger's row for THIS member (D445) — what the room has
+        // made them, kept by the reveal pipeline and dropped by the same
+        // phase-1c update that drops the name. The other members' rows
+        // stay on the document and out of this file.
+        ledger: toPlain((g.get("ledger") as Record<string, unknown> | undefined)?.[uid]),
         members: members.length,
         // The rounds this account has sealed and not yet seen revealed
         // (`played`, ROUNDS-PLAN §2.1), and the turn stamp if one stands.
@@ -530,15 +630,8 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
 
   // 4b. The rate-limit ledgers — timestamps of this account's own acts.
   {
-    const ledgers: [string, string][] = [
-      ["insight", `insight_ratelimits/${uid}`],
-      ["join", `v2_ratelimits/join_${uid}`],
-      ["invite", `v2_ratelimits/invite_${uid}`],
-      ["suggest", `v2_ratelimits/suggest_${uid}`],
-      ["paidbook", `v2_ratelimits/paidbook_${uid}`],
-    ];
     const rateLimits: { [k: string]: Plain } = {};
-    for (const [key, path] of ledgers) {
+    for (const [key, path] of rateLimitLedgers(uid)) {
       const snap = await db.doc(path).get();
       rateLimits[key] = snap.exists ? toPlain(snap.data()) : null;
     }

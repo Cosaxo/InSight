@@ -156,7 +156,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups, sealed duels) — 215 emulator tests
+                   member-only groups, sealed duels) — 221 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -187,7 +187,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 215 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 221 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.
@@ -223,10 +223,10 @@ Local:
   exported function appearing in the deploy list.
 - `npm run check:appcheck` — every callable either demands App Check
   attestation or is named with the reason it cannot (decision D36). The
-  ten that cannot are the operator and moderator instruments, gated on
+  twelve that cannot are the operator and moderator instruments, gated on
   uid allowlists instead, plus the web buy door's two, which a BROWSER
   cannot attest and which are gated on a server-verified reCAPTCHA score
-  and action instead (D446). Each entry names the guard its reason claims
+  and action instead (D451). Each entry names the guard its reason claims
   and the run asserts the callable's body really calls it, so a substitute
   cannot decay into a hole; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.

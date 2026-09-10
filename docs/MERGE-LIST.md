@@ -40,15 +40,14 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-09T19:36:48Z -->
+<!-- console:generated 2026-09-10T13:52:07Z -->
 
 ## Open
 
-- [ ] **#467** · a session · *what:* The last open item of `OWNER-LIST.md`'s 1v1-and-group profile row — **the LEDGER** of `ROLES-PLAN.md` §3.3 — built on the owner's yes of 2026-09-09. · *how:* Everything else on that row was built at D437; this closes it. · no checks · 15 behind main · opened 2026-09-09 · stage **new**
-- [ ] **#460** · a session · *what:* The owner's ask, in three steps over two days: no surprise Firebase bill; then *"an efficient as possible structure when we actually get users"*; then *"a system that scales to hu… · *how:* Every figure below is printed by a script (`npm run costs`, `costs:structure`, `costs:target`), never typed. · CI running (1 pending) · 4 behind main · opened 2026-09-09 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 219 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 8 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 265 behind main · opened 2026-09-01 · stage **new**
 
-**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · night-20260907 (D406) · nightb-20260907 (D406) · and 8 more.
+**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · and 10 more.
 
 ## In the shift
 
@@ -64,6 +63,17 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#476** · The 2026-09-10 clicks: the budget's wire is one console click, the deletion's listing must see the nightly pass, and the record of what each turned out to be · merged 2026-09-10
+- **#477** · Now 2026-09-10: the gate greeting returns, and the universe on review · merged 2026-09-10
+- **#475** · A dispatch-only workflow deletes the three retired nightly functions from the deploy credential · merged 2026-09-10
+- **#473** · The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, three prose defects fixed (D449) · merged 2026-09-10
+- **#472** · Duel: The Band takes the stage — a seventh pack, four ratings, eight 1v1s, nine dark romantic · merged 2026-09-10
+- **#471** · Feed 2026-09-10: sixty levelled and five rooms born — horror, live music, creators, AI, are-we-alone · merged 2026-09-10
+- **#470** · Learn: The Middle Ages born, 24 levelled across six fields · merged 2026-09-10
+- **#469** · Catalog card pk40: the game world you'd actually live in · merged 2026-09-10
+- **#468** · Question farm: 8 for Skills, Sport, Body, Film, Food, Goals, Interests, Mind — plus two promoted and a latent orphan wire defused · merged 2026-09-10
+- **#460** · Firebase at scale: the data structure rebuilt ahead of users (Phases 1–4), the log-first design adopted and its phase A built, and the exposure page's re-read — the budget acts, the model prices its database, four of the day's own cost surfaces bounded (D446–D448) · merged 2026-09-09
+- **#467** · roles: the role ledger — the reveal keeps what the room has made each member (D445) · merged 2026-09-09
 - **#465** · Plan: bringing production's 1v1 and group questions onto the 2026-09-09 design, with the audit that measures the gap · merged 2026-09-09
 - **#466** · Build the data export — deleteAccount's read-only twin (D443) · merged 2026-09-09
 - **#464** · Seed the nightly voter samples on first touch, 25 a night (D442) · merged 2026-09-09
@@ -108,15 +118,3 @@ merge shift like any other PR.
 - **#430** · Learn: ten cards to the floor — five cell biology, five commonly-confused · merged 2026-09-08
 - **#428** · Catalog card pk38: the game the hours actually went into · merged 2026-09-08
 - **#437** · The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created (D420) · merged 2026-09-08
-- **#436** · Build 33, the store copy that still promised no sign-up wall, and the wall's two console steps as one workflow (D414 amendment 2) · merged 2026-09-07
-- **#411** · The feed and duel lanes leave first paint too — and three stale notes are why they were still there (D418) · merged 2026-09-07
-- **#435** · The 2026-09-07 vision: the instruments in depth, planned and ruled on, and the facet and position items in the bank (D415–D417) · merged 2026-09-07
-- **#434** · The account wall goes up: three doors, address verification, the designed gate, and the records (D414) · merged 2026-09-07
-- **#433** · Crossroads: the first two stories are retired and four take their place (D413) · merged 2026-09-07
-- **#432** · Ad-network tracking is deferred with a trigger, not refused (D412); runbook 5.15 stops describing the retired self-serve lane · merged 2026-09-07
-- **#415** · Three behaviour signals get a reader: whether the Mirror is READ, not only answered into (D407) · merged 2026-09-07
-- **#416** · Decision holes stop gating merges (D408); the rules ceiling was a false alarm (D409); an answer can no longer carry an invented cohort (D410); the e2e flake found (D411) · merged 2026-09-07
-- **#429** · The 2026-09-07 night review: two shifts merged as one tree — 67 commits kept, three defects the composition created (D406) · merged 2026-09-07
-- **#427** · The night shift looks at the phones: a device pass at phone geometry, the real shells on GitHub's runners, and a brief that reads both (D404) · merged 2026-09-07
-- **#425** · The cost hunt: four Opus hunters a night and a Fable reviewer, chartered before any Routine exists (D403) · merged 2026-09-06
-- **#424** · The logic test learns orientation and position: generator v4, an era-stamped norms fold with an effort floor, and a percentile that says how sure it is (D402) · merged 2026-09-06

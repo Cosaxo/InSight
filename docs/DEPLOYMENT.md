@@ -57,7 +57,10 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     before assuming the rules are live. First real release: run
     30644637683.
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (exact
-    aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
+    aggregates), `onV2ProfileUpdated` (a changed name or score into the
+    voter samples — DATA-EFFICIENCY-RUNBOOK 2.1), `backfillAnswerMapsV2`
+    (the answer maps' one-time fold, runbook 3.4), `createGroupV2` /
+    `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
   - Moderation functions (docs/MODERATION.md, D22): `buildModQueue`
@@ -165,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Seven jobs — verified rather than assumed,
+**What the environment gates.** Eleven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -175,13 +178,16 @@ joined at D332, and this sentence moved in the same commit because
 this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
-same way and in the same commit.)
+same way and in the same commit — and the ninth and tenth,
+`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09, and the
+eleventh, `delete-retired-functions.yml`, on 2026-09-10.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
 | `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
 | `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
+| `backfill-answer-maps.yml` | `backfill` | `backfillAnswerMapsV2` folding every existing answer into the per-person answer maps (DATA-EFFICIENCY-RUNBOOK 3.4) — once, dry then `apply` |
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
@@ -309,7 +315,7 @@ None are committed files:
 | `PLAY_PACKAGE_NAME` | `functions/src/deviceBind.ts` | Android package for Play Integrity decode/recall. Unset ⇒ `com.cosaxo.insight`, which is correct; exists so a future flavor/id change is one variable. |
 | `STRIPE_SECRET_KEY` *(secret)* | `functions/src/paid.ts` | The Stripe API key (`sk_live_…`, or `sk_test_…` while rehearsing) for the self-serve paid-question loop (D313): checkout sessions and the closer's refunds. Unset ⇒ `createPaidCheckoutV2` answers `unavailable` and the closer records refund arithmetic without executing it — bookings and reviews still run. |
 | `STRIPE_WEBHOOK_SECRET` *(secret)* | `functions/src/paid.ts` | The signing secret (`whsec_…`) of the Stripe webhook endpoint pointed at `stripeWebhookV2` (see below). Unset ⇒ the webhook answers 503 and no payment can go live. |
-| `RECAPTCHA_SECRET_KEY` *(secret)* | `functions/src/paid.ts` → `assertRecaptcha()` | The server half of the web buy door's reCAPTCHA v3 pair (D446). Verifies a token's success, **action** and score before `bookPaidQuestionV2` or `createPaidCheckoutV2` does any work — the substitute for App Check, which a browser cannot produce without a provider. **Unset CLOSES the door**, unlike every other row here: both callables answer `failed-precondition`. That polarity is deliberate — the others' absence costs a feature, this one's absence would cost the Anthropic budget it protects, since anonymous accounts are free and unlimited. Get it at `google.com/recaptcha/admin`, reCAPTCHA **v3**; its SITE half is the variable below. |
+| `RECAPTCHA_SECRET_KEY` *(secret)* | `functions/src/paid.ts` → `assertRecaptcha()` | The server half of the web buy door's reCAPTCHA v3 pair (D451). Verifies a token's success, **action** and score before `bookPaidQuestionV2` or `createPaidCheckoutV2` does any work — the substitute for App Check, which a browser cannot produce without a provider. **Unset CLOSES the door**, unlike every other row here: both callables answer `failed-precondition`. That polarity is deliberate — the others' absence costs a feature, this one's absence would cost the Anthropic budget it protects, since anonymous accounts are free and unlimited. Get it at `google.com/recaptcha/admin`, reCAPTCHA **v3**; its SITE half is the variable below. |
 | `RECAPTCHA_SITE_KEY` *(variable)* | `web/ask.html`, via `web/ask-config.json` | The browser half of the same pair. Public by design — it is read by every visitor — which is why it is a variable and not a secret. The deploy writes it and `VITE_FIREBASE_API_KEY` into `web/ask-config.json` just before hosting deploys; **absent, the buy page still ships and still works**, it just shows the honest "payment is not open yet" note instead of taking a card. |
 | `ANTHROPIC_API_KEY` *(secret)* | `functions/src/paid.ts` | The Claude API key the automated paid-question review calls (`claude-opus-5` against `REVIEW_GUIDELINES`). Unset ⇒ reviews decide on the deterministic gates alone, logged as `paid_review_gates_only` — fail-open ONLY past the gates, and the deploy warning names it. |
 
@@ -543,7 +549,7 @@ section didn't already say while the system was calm.
 investigative — Auth creation-time clusters, App Check token metadata in
 the function logs, answer velocity across `v2_agg_events` timestamps.
 Since D54 the first pass of that investigation runs on a clock:
-`ledgerVelocityScan` reads the ledger daily and logs `velocity_flag`
+the velocity scan (inside `digestEngagementV2` since DATA-EFFICIENCY-RUNBOOK 4.4) reads the ledger daily and logs `velocity_flag`
 lines ("Reading the velocity scan" below). A flag is this runbook's
 INPUT, not a verdict — honest crowds trip the same signals on their best
 days. What is guaranteed is mechanical once you HAVE a uid list:
@@ -633,16 +639,97 @@ gone.
 
 What must not be improvised is the order of operations above.
 
+### The answer log (BigQuery, D447 phase A)
+
+Since `LOG-FIRST-RUNBOOK.md` phase A the answer trigger appends one row
+per ledger entry to BigQuery — dataset `insight`, table `answers`, in
+`europe-west1` — after the aggregate transaction commits
+(`functions/src/log.ts`). Nothing a user reads comes from it yet; it is
+the truth the night will compute from at phase D. Three things to know
+operationally:
+
+- **Creating it is a click, once:** the *Apply BigQuery* workflow
+  (`apply-bigquery.yml`, dry by default, `scripts/apply-bigquery.mjs`),
+  then the two IAM bindings its summary prints — the functions' runtime
+  service account needs `roles/bigquery.dataEditor` (rows) and
+  `roles/bigquery.jobUser` (the erasure DELETE). A project whose default
+  service account still holds Editor has both. Until the table exists,
+  every append logs `log_append_failed` and the count is untouched; the
+  nightly reconcile appends the day once the table is there — for the
+  days the ledger still holds (90).
+- **Reading it:** `log_append_failed` (an error per failed append, with
+  its count), `log_reconcile` (the nightly heartbeat inside
+  `digestEngagementV2`: `entries`, `missing`, `appended`, `erasures`,
+  `erased`, `passes` — a warning when `missing` is not zero, because a
+  reconciled row is a live append that failed; `passes` is the DELETE
+  statements the night ran, one per 500 pending accounts, each a pass
+  over the table), `log_erasure_deferred` (an account whose rows were
+  not deleted at once — the streaming buffer refused, or the table is
+  past `LOG_ERASE_NOW_MAX_BYTES`, a gibibyte; the marker in
+  `v2_log_erasures` is taken by the next night's one statement). The same `gcloud logging
+  read` shapes as the velocity scan below, on
+  `service_name="onv2answercreated"` and `"digestengagementv2"`.
+- **Switching it off** is `LOG_DATASET=off` in the functions' env
+  (`functions/.env.prvfire33`, written by the deploy from the
+  environment) — the writer becomes a no-op that says so once; the
+  emulator and the unit suites are off by construction.
+
+The backfill (`backfill-log.yml`, `backfillLogV2`) loads the answers
+written before the deploy's day; its cutoff is that day, so no row is
+appended twice. Both clicks are on `OWNER-LIST.md`.
+
+### The budget's wire (`onBudgetAlert`, COST-EXPOSURE.md §6 C4)
+
+Since 2026-09-09 the Cloud Billing budget (D332, `scripts/apply-budget.mjs`)
+publishes its state to the Pub/Sub topic `budget-alerts` every twenty to
+thirty minutes, and `functions/src/budget.ts` sets the read breaker —
+`budgetMode` on `v2_meta/app`, the field `scripts/budget-mode.mjs` writes
+by hand — to level 1 the first time a month's spend reaches the budget,
+and releases it when the next month's first notification arrives under
+the line. A level set by hand is never touched. It never detaches
+billing (that hard stop is the owner's, on `OWNER-LIST.md`).
+
+- **Standing it up, once:** the deploy that carries the function creates
+  the topic; attaching it to the budget is the console's click — Billing →
+  Budgets & alerts → "InSight" → Manage notifications → *Connect a Pub/Sub
+  topic to this budget* → `budget-alerts` — which attaches AND grants the
+  budget's service agent Publisher in the same action. *Arm budget*
+  (`scripts/apply-budget.mjs`) attaches the same topic over the API, and
+  its dry run is the standing check ("exists and matches" once the click
+  is made); its `apply` cannot make the attach from the deploy credential,
+  because the Budgets API demands `pubsub.topics.setIamPolicy` on the
+  topic of whoever attaches one and project Editor does not carry it —
+  measured 2026-09-10 (run 34477868495), a 403 the script's own message
+  first misread as the billing-account role. Without the console: grant
+  the credential `roles/pubsub.admin` on the topic once and re-dispatch.
+  If no `budget_message` arrives within an hour of the attach, the
+  publisher grant is the thing to check:
+  `gcloud pubsub topics add-iam-policy-binding budget-alerts --project
+  prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com
+  --role roles/pubsub.publisher`.
+- **Reading it:** `budget_message` (an info line per notification, the
+  level as it stands), `budget_mode_set` (a warning with `level` 1 or 0
+  when the breaker moved — the line to page on), `budget_message_unreadable`
+  (something on the topic that was not a budget notification). On
+  `service_name="onbudgetalert"`.
+- **Releasing early** is what it always was: `node scripts/budget-mode.mjs
+  --level 0` (its `--status` shows the reason the function wrote).
+  Leaving the function's own release to the month is deliberate — a
+  budget message never says spend fell inside a month.
+
 ### Reading the velocity scan (D54)
 
-`ledgerVelocityScan` runs daily at 03:47 UTC over the ledger entries
-since its last run (72h catch-up cap) and emits two kinds of line —
-a heartbeat per run, and a warning per finding:
+The velocity scan runs inside the nightly pass (`digestEngagementV2`,
+02:23 UTC — DATA-EFFICIENCY-RUNBOOK 4.4; it was its own
+`ledgerVelocityScan` at 03:47 before) over the ledger entries since its
+last run (72h catch-up cap), the whole days off the read the pass already
+makes, and emits two kinds of line — a heartbeat per run, and a warning
+per finding:
 
 ```bash
 # The heartbeat — one per day; a silent week means the scan is not running:
 gcloud logging read 'resource.type="cloud_run_revision"
-  resource.labels.service_name="ledgervelocityscan"
+  resource.labels.service_name="digestengagementv2"
   jsonPayload.metric="velocity_scan"' \
   --project prvfire33 --limit 7 --format="value(timestamp,jsonPayload.message)"
 
@@ -847,7 +934,8 @@ conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
 indistinguishable from health. The nightly jobs are the obvious next
-— `digestEngagementV2`, `rankBankV2`, `ledgerVelocityScan`,
+— `digestEngagementV2` (which carries the velocity scan since
+DATA-EFFICIENCY-RUNBOOK 4.4), `rankBankV2`,
 `closePaidCampaignsV2`, `resolveCallsV2` and `buildModQueue`, whose
 failure delays a surface by a day and self-heals on the next run, so
 they can wait until someone is actually reading the alerts.

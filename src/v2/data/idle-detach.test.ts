@@ -257,6 +257,25 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     expect(h.aggQueries).toHaveLength(0);
   });
 
+  it("a return to the foreground re-reads today only, not the whole deck", async () => {
+    // DATA-EFFICIENCY-RUNBOOK 1.4. The boot read the seven; a foreground
+    // reads one — the term COSTS.md calls `reattach`, 28 reads a user-day
+    // when every app switch re-read the deck. A card this device holds no
+    // aggregate for would ride along (a rollover while backgrounded); the
+    // fixture holds all seven, so this is exactly one query of one id.
+    vi.useFakeTimers();
+    const mod = await bootLive();
+    setHidden(true);
+    h.aggQueries.length = 0;
+    setHidden(false);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.waitFor(() => {
+      expect(mod._aggPollForTest().running).toBe(true);
+    });
+    expect(h.aggQueries).toHaveLength(1);
+    expect(h.aggQueries[0]).toHaveLength(1);
+  });
+
   it("re-arms the poll when the app comes back", async () => {
     vi.useFakeTimers();
     const mod = await bootLive();

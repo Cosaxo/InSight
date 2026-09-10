@@ -3762,6 +3762,29 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
     expect(LIVE.kindredPeople().map((p) => p.uid).sort()).toEqual(["u_far", "u_near"]);
   });
 
+  it("reads the city's nightly sample first, and asks Firestore for the city only where none exists (runbook 2.5)", async () => {
+    // The document the server writes for (q_1, Oslo): one read where the
+    // scoped query was two hundred. The live query stays the fallback, so
+    // a second question without a sample still sends the anchor.
+    h.voterDocs[OSLO] = [answerDoc("u_live", "q_2", 1, OSLO)];
+    h.bankDocs.push({ id: "q_2", data: { active: true, surface: "daily", kind: "choice", text: "Q2", options: ["a", "b"], core: true } });
+    h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+      ? { anchors: { city: OSLO } }
+      : path === "v2_patterns/city-q_1~Oslo%2C%20NO"
+        ? { qid: "q_1", city: OSLO, n: 1, rows: { u_sampled: { o: 1, a: { city: OSLO }, d: "2026-09-05", n: "Sam", s: null, l: null } } }
+        : null);
+    h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });
+    h.answerDocs.push({ id: "q_2", data: { qid: "q_2", surface: "daily", optionIdx: 1 } });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+    await LIVE.loadCityKindred();
+    const scoped = h.voterQueries.filter((w) => w["anchors.city"] === OSLO);
+    expect(scoped.map((w) => w.qid), "the sampled pair was still queried live").toEqual(["q_2"]);
+    const people = LIVE.kindredPeople().map((p) => p.uid).sort();
+    expect(people).toEqual(["u_live", "u_sampled"]);
+    expect(LIVE.nameFor("u_sampled"), "the row's stamp did not name the person").toBe("Sam");
+  });
+
   it("does nothing at all for a viewer with no city", async () => {
     h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
     h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });

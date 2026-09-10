@@ -14,6 +14,8 @@ import React from 'react';
 //                      {GL(cat.glyph, {style})}   — extra style overrides
 // Unknown characters fall back to the raw character, unchanged.
 
+export let GL;
+
 (function () {
   // Each entry is inner SVG markup for a 24×24 viewBox.
   // Root svg provides: fill=none stroke=currentColor stroke-width=2
@@ -112,7 +114,15 @@ import React from 'react';
   // (Was gated on a React global off `window` — which nothing ever
   // assigns under Vite, so every glyph silently fell back to its raw
   // character. The module import is the real React.)
-  window.GL = function (ch, style) {
+  // OFF THE BRIDGE (rule 4). The publication stood here and city-overlay
+  // read the name BARE — a shape the scanner could not see until the pass
+  // that found it, so three cross-module references sat outside the
+  // ratchet's count. It is the only reader in the tree, so no
+  // `window.GL` line is left behind for consumers that have not moved:
+  // there are none, and rule 5 would report a publication nothing reads.
+  // The IIFE stays because unwrapping it re-indents a hundred lines of
+  // icon table for no behavioural gain (D39's note on this shape).
+  GL = function (ch, style) {
     const inner = I[ch];
     if (!inner) return ch == null ? null : ch;
     return React.createElement('svg', {

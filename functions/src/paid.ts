@@ -49,7 +49,7 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 // The day key, offset in days. Was a byte-identical local copy until the
 // two families of `utcDayKey` were separated — see pure.ts's own comment.
 import { utcDayKey } from "./pure";
@@ -172,6 +172,58 @@ export async function assertRecaptcha(token: unknown, action: string): Promise<n
  * and a model has no queue), tighter than unlimited (each booking is a
  * Claude review someone pays for — us). */
 export const BOOKINGS_PER_DAY = 5;
+
+/**
+ * Model calls the WHOLE PROJECT may make in a day (COST-EXPOSURE.md §3.C,
+ * §6 C3). The per-account budget above bounds one account at five bookings
+ * a day, and MAX_REVIEW_ATTEMPTS bounds one booking at six calls; nothing
+ * bounded accounts × bookings × attempts, and the model call is the one
+ * user-facing thing here that bills per use on a key. Fifty is ten
+ * bookings at every attempt, or fifty first-try verdicts — a day's real
+ * reviews with room for the retries an outage causes. Past it a review
+ * is HELD, not declined and not counted as an attempt (a held booking
+ * keeps its place; the sweep retries it when the window has room), so a
+ * flood spends nothing and stalls nobody.
+ */
+export const REVIEW_CALLS_PER_DAY = 50;
+/**
+ * What one verdict needs: a JSON object with a one-line reason, a few
+ * hundred tokens. The ceiling used to be 16,000 — the model's maximum
+ * output, never a size a verdict approached — which made the worst case
+ * of a stuck or verbose call sixteen thousand billed tokens (§6 C3).
+ */
+export const REVIEW_MAX_TOKENS = 1024;
+
+/** Thrown, not returned: the sweep's hold-and-retry path is the right
+ * outcome and the caller tells it apart from an outage by type. */
+export class ReviewBudgetHeld extends Error {
+  constructor(public readonly calls: number) {
+    super(`the project's review budget is spent: ${calls} model calls in the last day (REVIEW_CALLS_PER_DAY = ${REVIEW_CALLS_PER_DAY})`);
+    this.name = "ReviewBudgetHeld";
+  }
+}
+
+/** Pure: the sliding-window arithmetic of the project-wide budget, so the
+ * test can drive it without a database. */
+export function takeReviewCall(events: readonly number[], nowMs: number, cap = REVIEW_CALLS_PER_DAY): { allowed: boolean; events: number[] } {
+  const live = events.filter((t) => typeof t === "number" && t > nowMs - 86_400_000);
+  if (live.length >= cap) return { allowed: false, events: live };
+  return { allowed: true, events: [...live, nowMs] };
+}
+
+/** One slot from the project's daily budget, or ReviewBudgetHeld — the
+ * same ledger shape as the per-account budgets, in the same server-only
+ * collection, under one id for the whole project. */
+async function assertReviewCallBudget(db: Firestore): Promise<void> {
+  const ref = db.collection("v2_ratelimits").doc("paidreview_global");
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const { allowed, events } = takeReviewCall(((snap.exists && snap.get("events")) || []) as number[], now);
+    if (!allowed) throw new ReviewBudgetHeld(events.length);
+    tx.set(ref, { events, expireAt: new Date(now + 2 * 86400000) });
+  });
+}
 
 /** The fixed window every self-serve question runs (the door's "29 days"
  * chip; PAID-PLAN §8's 366-day gate bounds it from far above). Inclusive
@@ -528,10 +580,15 @@ export function parseVerdict(text: string): { verdict: "approve" | "decline"; re
 export const REVIEW_MODEL = "claude-opus-5";
 
 /**
- * The full review: gates, then the model. Throws on an API failure so the
- * caller leaves the booking in "review" (hold-and-retry).
+ * The full review: gates, then the project's budget, then the model.
+ * Throws on an API failure so the caller leaves the booking in "review"
+ * (hold-and-retry); throws ReviewBudgetHeld when the day's calls are
+ * spent, which the caller holds WITHOUT counting an attempt. `takeCall`
+ * is the budget's slot, taken only when a model call is about to be made
+ * — a gates-only deploy spends nothing — and injectable so the test can
+ * refuse it. EXPORTED for that test.
  */
-async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null): Promise<ReviewVerdict> {
+export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null, takeCall?: () => Promise<void>): Promise<ReviewVerdict> {
   const gate = reviewGates(b);
   if (gate) return { verdict: "decline", reason: gate, by: "gates" };
   const key = anthropicKey();
@@ -543,11 +600,12 @@ async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null)
     });
     return { verdict: "approve", reason: null, by: "gates-only" };
   }
+  if (takeCall) await takeCall();
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const client = new Anthropic({ apiKey: key });
   const response = await client.messages.create({
     model: REVIEW_MODEL,
-    max_tokens: 16000,
+    max_tokens: REVIEW_MAX_TOKENS,
     system: REVIEW_GUIDELINES,
     messages: [{
       role: "user",
@@ -639,7 +697,7 @@ export const MAX_REVIEW_ATTEMPTS = 6;
  * note): the adapter that talks to Firestore runs under nothing while an
  * in-memory fake goes on proving the loop works.
  */
-export async function reviewBooking(db: Firestore, bid: string): Promise<void> {
+export async function reviewBooking(db: Firestore, bid: string, takeCall: () => Promise<void> = () => assertReviewCallBudget(db)): Promise<void> {
   const ref = db.collection("v2_paid_bookings").doc(bid);
   const snap = await ref.get();
   if (!snap.exists || snap.get("status") !== "review") return;
@@ -673,8 +731,19 @@ export async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   const buyerName = (snap.get("buyerName") as string | null) ?? null;
   let verdict: ReviewVerdict;
   try {
-    verdict = await runReviewVerdict(payload, buyerName);
+    verdict = await runReviewVerdict(payload, buyerName, takeCall);
   } catch (err) {
+    if (err instanceof ReviewBudgetHeld) {
+      // The project's day of calls is spent: hold WITHOUT an attempt —
+      // the ceiling is for a booking that cannot be reviewed, not for a
+      // day that reviewed enough — and let the sweep come back.
+      logger.warn(`[paid] review of ${bid} held — ${err.message}`, {
+        metric: "paid_review_budget_held",
+        bid,
+        calls: err.calls,
+      });
+      return;
+    }
     // Hold, count, retry (the sweep). The attempt counter is telemetry —
     // a booking climbing it is the alert that the reviewer is down.
     await ref.update({ reviewAttempts: FieldValue.increment(1), reviewTriedAt: FieldValue.serverTimestamp() });
@@ -749,7 +818,7 @@ export const bookPaidQuestionV2 = onCall(
   // attestation without a provider, and the body's first act is
   // assertRecaptcha. check-appcheck.mjs holds both halves — it fails if
   // this option comes back while the exemption stands, and it fails if the
-  // assertRecaptcha call leaves the body while it does. See D446.
+  // assertRecaptcha call leaves the body while it does. See D451.
   { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
@@ -883,11 +952,15 @@ export const SWEEP_MAX_PAGES = 5;
 export async function runReviewSweep(
   store: ReviewSweepStore,
   maxAttempts = MAX_REVIEW_ATTEMPTS,
-): Promise<{ scanned: number; retried: number; stalled: number }> {
+): Promise<{ scanned: number; retried: number; stalled: number; failed: number }> {
   let after: string | null = null;
   let scanned = 0;
   let retried = 0;
   let stalled = 0;
+  /** Bookings whose retry THREW. Its own number, because a run where
+   *  every retry failed and one where every retry worked are the same
+   *  `retried: 0` otherwise. */
+  let failed = 0;
   for (let page = 0; page < SWEEP_MAX_PAGES; page++) {
     const rows = await store.heldPage(after, SWEEP_PAGE);
     if (!rows.length) break;
@@ -895,16 +968,42 @@ export async function runReviewSweep(
     after = rows[rows.length - 1].id;
     for (const row of rows) {
       if (row.attempts >= maxAttempts) { stalled++; continue; }
-      await store.review(row.id);
-      retried++;
+      // ONE BOOKING'S FAILURE MUST NOT STRAND THE REST OF THE SCAN —
+      // v2social's reveal scan says it in those words and wraps each
+      // item for it. This did not, and the page is ordered oldest-first,
+      // so a throw ended the run with every booking BEHIND the failing
+      // one unvisited: exactly the starvation the paging comment above
+      // went to some trouble to remove, reintroduced by an unguarded
+      // await. `reviewBooking` catches the model call, not the write that
+      // records the attempt nor the settling transaction, so a Firestore
+      // error on either ends the sweep.
+      //
+      // Counted, not swallowed: a failure is its own number in the
+      // summary, so a run where nothing worked cannot read as a quiet
+      // one. The sweep runs every thirty minutes and the attempt ceiling
+      // still applies, so a booking that keeps failing still reaches the
+      // stalled report rather than being retried forever.
+      try {
+        await store.review(row.id);
+        retried++;
+      } catch (err) {
+        failed++;
+        logger.error(`[paid] review sweep failed for ${row.id}:`, err);
+      }
     }
     if (rows.length < SWEEP_PAGE) break;
   }
-  return { scanned, retried, stalled };
+  return { scanned, retried, stalled, failed };
 }
 
 export const sweepPaidReviewsV2 = onSchedule(
-  { schedule: "every 30 minutes", region: REGION },
+  // LIGHT_UNBOUNDED, not the global 512 MiB: the sweep pages SWEEP_PAGE
+  // bookings at a time and holds one page, and it is the most-invoked
+  // schedule in the deploy — 48 runs a day, every one billed at its memory
+  // for the whole run. Before any user exists these runs ARE the functions
+  // line on the bill (COST-EXPOSURE.md §3.B); halving the footprint halves
+  // it. The long deadline stays: a backlog of held bookings is unbounded.
+  { schedule: "every 30 minutes", region: REGION, ...LIGHT_UNBOUNDED },
   async () => {
     const db = firestore();
     const cutoff = Timestamp.fromMillis(Date.now() - 10 * 60 * 1000);
@@ -919,6 +1018,12 @@ export const sweepPaidReviewsV2 = onSchedule(
       logger.info(`[paid] review sweep retried ${res.retried} of ${res.scanned} held booking(s)`, {
         metric: "paid_review_sweep",
         ...res,
+      });
+    }
+    if (res.failed) {
+      logger.error(`[paid] ${res.failed} booking(s) threw during the review sweep — the rest of the scan ran anyway`, {
+        metric: "paid_review_sweep_failed",
+        failed: res.failed,
       });
     }
     if (res.stalled) {
@@ -1441,9 +1546,12 @@ export async function liveCard(db: Firestore, card: PricingCard = PRICING_CARD):
  * year is a bound rather than a policy (a forecast off campaigns older
  * than that measures a population that no longer exists). */
 export const PRICING_ROWS_DAYS = 366;
-/** The most rows one fold reads — far past anything the rate card
- * contemplates (one slot per scope per day), and a bound so a scheduled
- * job cannot grow an unbounded read. */
+/** The most rows one fold reads — a bound so a scheduled job cannot grow
+ * an unbounded read. It is NOT past what the rate card contemplates, as
+ * this said: one slot per scope per day over PRICING_ROWS_DAYS is three
+ * scopes × 366 ≈ 1,098 rows, above the cap, before a single second
+ * booking. So the cap binds, and which rows it keeps is a correctness
+ * question rather than a hygiene one — see the `orderBy` at the query. */
 export const PRICING_ROWS_MAX = 1000;
 /** The most running campaigns one fold reads an aggregate for (D372). */
 export const PRICING_PROGRESS_MAX = 50;
@@ -1459,9 +1567,24 @@ export async function publishPricing(db: Firestore, today = utcDayKey(0)): Promi
     // One range on `window.until`: every row that ended inside the
     // lookback or has not ended yet. Kind and scope are filtered in the
     // fold rather than the query, so this needs no composite index.
+    //
+    // NEWEST-ENDING FIRST, AND THE ORDER IS THE POINT. An inequality
+    // forces Firestore's implicit ordering — ascending on the inequality
+    // field — so without this `orderBy` the cap kept the OLDEST-ending
+    // rows and the first ones it dropped were those ending furthest out,
+    // which is every campaign still running. Those are exactly the rows
+    // the index is made of: `foldPricing` filters `state === "running"`
+    // and asks which of the next fourteen days each covers. Truncated
+    // away, the crowd comes back all-zero and the index collapses to the
+    // floor — the door printing a free, floor-priced fortnight over a
+    // sold-out rotation, and the quote a buyer locks taken off that card.
+    // The estimates half wants the same direction for its own reason: a
+    // forecast off the most recent completed campaigns beats one off the
+    // oldest. Same field, so still no composite index.
     const cutoff = dayPlus(today, -PRICING_ROWS_DAYS);
     const snap = await db.collection("v2_purchases")
       .where("window.until", ">=", cutoff)
+      .orderBy("window.until", "desc")
       .limit(PRICING_ROWS_MAX)
       .get();
     const rows = snap.docs.map((d) => d.data() as PurchaseRow);
@@ -1527,7 +1650,11 @@ export function refundEurFor(cap: number, capEur: number, ratePerAnswer: number,
  * "running" until the refund half has actually settled).
  */
 export const closePaidCampaignsV2 = onSchedule(
-  { schedule: "every day 03:30", region: REGION },
+  // LIGHT_UNBOUNDED for the same reason as the sweep above: CLOSER_PAGE
+  // purchases in memory at a time, plus the Stripe client. The deadline
+  // stays generous because the refund half settles at Stripe, one round
+  // trip per closing campaign, and a night with many is a long night.
+  { schedule: "every day 03:30", region: REGION, ...LIGHT_UNBOUNDED },
   async () => {
     const db = firestore();
     const today = utcDayKey(0);

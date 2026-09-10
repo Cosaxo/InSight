@@ -91,7 +91,7 @@ jobs:
           # verbatim (real newlines) or \n-escaped; the write below
           # normalizes, and functions/src/deviceBind.ts unescapes.
           DC_PRIVATE_KEY: ${{ secrets.DC_PRIVATE_KEY }}
-          # The web buy door's gate (D446). UNLIKE the three below it, an
+          # The web buy door's gate (D451). UNLIKE the three below it, an
           # empty value here CLOSES a door rather than degrading a feature:
           # assertRecaptcha refuses when it is unset, because its absence
           # would cost the Anthropic budget it protects rather than cost a
@@ -152,7 +152,7 @@ jobs:
           printf 'STRIPE_SECRET_KEY=%s\n' "$STRIPE_SECRET_KEY" >> functions/.env.prvfire33
           printf 'STRIPE_WEBHOOK_SECRET=%s\n' "$STRIPE_WEBHOOK_SECRET" >> functions/.env.prvfire33
           printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" >> functions/.env.prvfire33
-          # The web buy door's gate (D446), and the ONE credential here
+          # The web buy door's gate (D451), and the ONE credential here
           # whose absence closes rather than degrades. The three above turn
           # a hop off and leave the loop's shape; this one refuses the door
           # outright, because unset would mean unlimited free anonymous
@@ -222,7 +222,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:createGroupV2,functions:joinGroupV2,functions:requestJoinV2,functions:approveJoinV2,functions:declineJoinV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:nearbyRoomV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:ledgerVelocityScan,functions:logicStartV2,functions:logicSubmitV2,functions:saveTestResultV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2,functions:resolveCallsV2,functions:rankBankV2,functions:digestEngagementV2,functions:rebuildAggregateV2,functions:bookPaidQuestionV2,functions:onPaidBookingCreated,functions:sweepPaidReviewsV2,functions:createPaidCheckoutV2,functions:stripeWebhookV2,functions:closePaidCampaignsV2,functions:resultsPageV2,functions:exportAccountV2"
+          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:createGroupV2,functions:joinGroupV2,functions:requestJoinV2,functions:approveJoinV2,functions:declineJoinV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:nearbyRoomV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:logicStartV2,functions:logicSubmitV2,functions:saveTestResultV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2,functions:resolveCallsV2,functions:rankBankV2,functions:digestEngagementV2,functions:rebuildAggregateV2,functions:bookPaidQuestionV2,functions:onPaidBookingCreated,functions:sweepPaidReviewsV2,functions:createPaidCheckoutV2,functions:stripeWebhookV2,functions:closePaidCampaignsV2,functions:resultsPageV2,functions:exportAccountV2,functions:onV2ProfileUpdated,functions:backfillAnswerMapsV2,functions:backfillLogV2,functions:onBudgetAlert"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,
@@ -232,7 +232,7 @@ jobs:
       # is: nothing about static HTML should be able to abort — or worse,
       # half-abort — a Firestore-rules or functions deploy. Check this
       # step's outcome before assuming the policy URL is live.
-      # THE BUY PAGE'S PUBLIC CONFIG (D446). Both values are public by
+      # THE BUY PAGE'S PUBLIC CONFIG (D451). Both values are public by
       # design — the Firebase web API key ships in every app build, and a
       # reCAPTCHA SITE key is meant to be read by the browser that uses it
       # (its secret half is a GitHub secret and stays server-side). They

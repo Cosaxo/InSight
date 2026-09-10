@@ -19,7 +19,7 @@ import { ROOT, TARGET } from "./build-ask-pricing.mjs";
 const html = readFileSync(join(ROOT, "web/ask.html"), "utf8");
 const pricing = JSON.parse(readFileSync(join(ROOT, TARGET), "utf8"));
 
-// The page reads THREE resources now (D446): the price card, the buy
+// The page reads THREE resources now (D451): the price card, the buy
 // door's config, and — only on a place scope — the city list. Answered by
 // URL rather than by one catch-all body: a stub that hands the pricing
 // object to every caller made `st.cfg` a pricing card, which happens to
@@ -173,7 +173,7 @@ describe("what the quote promises about its own price", () => {
 describe("the pay tap on a deployment with NO keys", () => {
   // Still the honest closed door, and it has to stay reachable: a local
   // checkout, a preview and production-before-runbook-5.14 all land here.
-  // What changed at D446 is that "closed" is now a property of the
+  // What changed at D451 is that "closed" is now a property of the
   // DEPLOYMENT (no ask-config.json) rather than of the code.
   // The options matter: the quote button is disabled until a binary
   // question has two of them, so a case that skipped them would be
@@ -215,7 +215,7 @@ describe("the pay tap on a deployment with NO keys", () => {
   });
 });
 
-// ── the door with keys (D446) ──────────────────────────────────────────
+// ── the door with keys (D451) ──────────────────────────────────────────
 //
 // The other half of the describe above. Everything here is what a buyer
 // on production meets once runbook 5.14 is done, and the assertions are

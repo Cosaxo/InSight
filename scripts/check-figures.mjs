@@ -116,6 +116,10 @@ const rulesTests =
 const v2content = read("functions/src/v2content.ts");
 const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m[1]);
 const seededQuestions = bankArray(v2content).length;
+// Active test items carrying an instrument (`test`), which is what the
+// similarity sweep reads one aggregate for (src/v2/data/live.ts).
+const activeTestItems = bankArray(v2content)
+  .filter((q) => q.surface === "test" && q.test && q.active !== false).length;
 const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
 // The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
@@ -1419,7 +1423,11 @@ const FIGURES = [
   {
     file: "docs/COSTS.md",
     what: "reveal-pipeline reads per member for a duo",
-    re: /which is (\d+) for a duo/,
+    // `[\d.]+`, not `\d+`: the figure is (3 + 2m)/m since D445's role
+    // ledger read the round's question, which is 3.5 for a duo — and a
+    // pattern that admitted only an integer would have reported the
+    // sentence as no longer quoted rather than as wrong.
+    re: /which is ([\d.]+) for a duo/,
     actual: revealReadsPerMember(2),
     fix: (n) => `"which is ${n} for a duo"`,
   },
@@ -1439,6 +1447,18 @@ const FIGURES = [
     // script rather than restoring the sentence". A remedy that walks a
     // reader from a caught drift to a deleted gate in two steps.
     fix: (n) => `"**+${n} reads** — five whole surfaces plus the feed's core questions"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    // The similarity sweep's own comment said 110 for as long as the four
+    // instruments held 110 items; the bank has held 266 active test items
+    // since the deep items landed (D417), and the comment sat two and a
+    // half times stale beside the loop it describes. Pinned here off the
+    // bank, in the same file the sweep reads (DATA-EFFICIENCY-RUNBOOK 1.5).
+    what: "core test items the similarity sweep reads (its comment)",
+    re: /(\d+) core test items over the 30-id/,
+    actual: activeTestItems,
+    fix: (n) => `"${n} core test items over the 30-id"`,
   },
   {
     file: "docs/COSTS.md",
