@@ -489,13 +489,16 @@ const COUPLING_BASELINE = {
   "src/v2/spec/app-shell.jsx": 12,
   "src/v2/spec/daily-split.jsx": 6,
   "src/v2/spec/mirror-field-pops.jsx": 1,
-  // 3 → 4 with the bare pass: `LIVE.myVotes` at :76, read bare where
-  // every other spec module imports the binding (D354's sweep missed it).
-  "src/v2/spec/search-overlay.jsx": 4,
-  // 0 → 3 with the bare pass: `GL(r.glyph)` three times, imported nowhere
-  // in the file. The cheapest three this ratchet has been offered — one
-  // import line takes them off.
-  "src/v2/spec/city-overlay.jsx": 3,
+  // 3, and it was 4 for the length of one commit: the bare pass found
+  // `LIVE` read without the binding at :76 — D354's sweep gave every
+  // other spec module the import and missed this one — and the import
+  // took it straight back off.
+  "src/v2/spec/search-overlay.jsx": 3,
+  // `city-overlay.jsx` is not here because it is at ZERO: the bare pass
+  // found three `GL(r.glyph)` reads, and `glyph-icons.js` came off the
+  // bridge in the same commit. It was the only reader in the tree, so the
+  // publication went with it rather than staying for consumers that have
+  // not moved — there are none.
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/world-feed.jsx": 1,

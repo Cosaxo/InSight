@@ -633,10 +633,13 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **32 across 8
+prints the current total on every run. The count today is **28 across 7
 files**, down from 799 when the ratchet landed.
 
-It read 28 across 7 until the scanner learned the BARE shape. `window.X`,
+That number was 28 before the scanner learned the BARE shape, went to 32
+when it did, and is 28 again because the four it found were taken off in
+the same night. The middle figure is the one worth remembering: for as
+long as the ratchet ran, four cross-module references sat outside it. `window.X`,
 the cast form, a JSX tag and `h(Foo, …)` were the four it could see; a
 bare identifier is none of them, so a plain `MapStats.dist(a, k)` in a
 module that neither defines nor imports the name moved this number not at
@@ -645,9 +648,12 @@ and a name it publishes is a name eslint accepts anywhere. That made the
 ratchet's own contract false for one shape: a module already converted
 off the bridge could be silently re-coupled. The four sites it found are
 older than the pass that found them, so the move is the meter's
-resolution rather than coupling growing, and both are cheap to take back:
-three are one `GL` import in `city-overlay.jsx`, and the fourth is a bare
-`LIVE` in `search-overlay.jsx` that D354's sweep missed.
+resolution rather than coupling growing, and both were cheap to take
+back: the three were one `GL` import in `city-overlay.jsx` — which took
+`glyph-icons.js` off the bridge entirely, since nothing else in the tree
+read the name — and the fourth was a bare `LIVE` in `search-overlay.jsx`
+that D354's sweep had missed, closed by the import every other spec
+module already has.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
 scanner already suppresses a JSX reference when the file declares the name
