@@ -40,12 +40,13 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-10T12:44:54Z -->
+<!-- console:generated 2026-09-10T13:11:36Z -->
 
 ## Open
 
-- [ ] **#474** · a session · *what:* Cut from `main` at `89c02d01`, with **both** of tonight's shifts merged in: `nightb-20260910` (29 commits) and `night-20260910` (29 commits, at tip `fa32f13e`). · *how:* 60 commits, 100 files, +3552 / −353. · no checks · 27 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 256 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI running (10 pending) · 6 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#476** · a session · *what:* On the owner's *"you have my permission to do these for me … as long as there is no risk of triggering high cost"*, this session dispatched the four click sets from `OWNER-LIST.md… · *how:* Three of the four landed (BigQuery dataset and table; 14 answer maps; 32 log rows; the three retired nightly functions deleted through #475's workflow). · CI green (9) · 6 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 263 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · and 10 more.
 
@@ -63,6 +64,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#477** · Now 2026-09-10: the gate greeting returns, and the universe on review · merged 2026-09-10
 - **#475** · A dispatch-only workflow deletes the three retired nightly functions from the deploy credential · merged 2026-09-10
 - **#473** · The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, three prose defects fixed (D449) · merged 2026-09-10
 - **#472** · Duel: The Band takes the stage — a seventh pack, four ratings, eight 1v1s, nine dark romantic · merged 2026-09-10
@@ -117,5 +119,3 @@ merge shift like any other PR.
 - **#428** · Catalog card pk38: the game the hours actually went into · merged 2026-09-08
 - **#437** · The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created (D420) · merged 2026-09-08
 - **#436** · Build 33, the store copy that still promised no sign-up wall, and the wall's two console steps as one workflow (D414 amendment 2) · merged 2026-09-07
-- **#411** · The feed and duel lanes leave first paint too — and three stale notes are why they were still there (D418) · merged 2026-09-07
-- **#435** · The 2026-09-07 vision: the instruments in depth, planned and ruled on, and the facet and position items in the bank (D415–D417) · merged 2026-09-07
