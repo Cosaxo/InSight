@@ -27,8 +27,8 @@
 // fails this gate too, asking for its line to come out. That is
 // check:globals rule 4's shape, and it exists for the same reason — a
 // baseline nobody is asked to lower is a baseline that never moves.
-import { readFileSync, existsSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -179,6 +179,47 @@ if (stale.length) {
   console.error("\ncheck:eager-content: these left first paint — delete their allowlist lines:\n");
   for (const r of stale) console.error(`  ${r}`);
   console.error("\n  (scripts/check-eager-content.mjs, ALLOW). The list may only shrink.");
+}
+
+// ── the SET itself is complete for the names that announce themselves ──
+//
+// `CONTENT` is hand-maintained, on purpose: a pattern over filenames
+// would quietly adopt or miss files as the tree moves. That reasoning
+// covers over-adoption and says nothing about the missing direction —
+// and the missing direction has already happened once. `test-definitions.js`
+// was absent while `data/live.ts` imported it statically, so this gate
+// reported "all 6 named as debt" with a seventh 12 KB module sitting in
+// the eager graph, against a first-paint ceiling with about 5 KB of
+// headroom. Nothing said so; `check:bundle` cannot, because a module
+// inlined into the entry chunk has no chunk of its own to name.
+//
+// So the CONVENTIONAL names are held here, and only those: a spec module
+// called `*-data.js` or `*-questions.js` is content by its own
+// announcement, and belongs in the set whether or not it is eager today.
+// This would NOT have caught `test-definitions.js` — its name announces
+// nothing, which is exactly why it was missed and why its entry carries
+// the longest comment in the list. It catches the next `quiz-data.js`,
+// which is the shape a content lane actually adds.
+const CONTENT_NAMED = /^src\/v2\/spec\/(?:[\w-]+\/)*[\w-]+-(?:data|questions)\.js$/;
+// RECURSIVE — the meta-gate caught this one flat the moment it was
+// written, which is what that ratchet is for. A content module one
+// directory down is exactly as much content, and check:globals reads the
+// same root the same way.
+const specDir = join(root, "src/v2/spec");
+const unnamed = readdirSync(specDir, { recursive: true })
+  .map((f) => `src/v2/spec/${String(f).split(sep).join("/")}`)
+  .filter((r) => CONTENT_NAMED.test(r) && !CONTENT.has(r))
+  .sort();
+if (unnamed.length) {
+  failed = true;
+  console.error("\ncheck:eager-content: content by name, missing from CONTENT:\n");
+  for (const r of unnamed) console.error(`  ${r}`);
+  console.error(
+    "\n  A spec module called *-data.js or *-questions.js is question content"
+    + "\n  by its own name. Add it to CONTENT (scripts/check-eager-content.mjs)"
+    + "\n  so this gate can see it — a file it does not know about is a file it"
+    + "\n  cannot keep out of first paint.",
+  );
 }
 
 if (failed) process.exit(1);

@@ -636,6 +636,25 @@ baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
 prints the current total on every run. The count today is **27 across 7
 files**, down from 799 when the ratchet landed.
 
+That number was 28 before the scanner learned the BARE shape, went to 32
+when it did, and is 28 again because the four it found were taken off in
+the same night. The middle figure is the one worth remembering: for as
+long as the ratchet ran, four cross-module references sat outside it. `window.X`,
+the cast form, a JSX tag and `h(Foo, …)` were the four it could see; a
+bare identifier is none of them, so a plain `MapStats.dist(a, k)` in a
+module that neither defines nor imports the name moved this number not at
+all — and eslint stayed clean, because the same scanner seeds `no-undef`
+and a name it publishes is a name eslint accepts anywhere. That made the
+ratchet's own contract false for one shape: a module already converted
+off the bridge could be silently re-coupled. The four sites it found are
+older than the pass that found them, so the move is the meter's
+resolution rather than coupling growing, and both were cheap to take
+back: the three were one `GL` import in `city-overlay.jsx` — which took
+`glyph-icons.js` off the bridge entirely, since nothing else in the tree
+read the name — and the fourth was a bare `LIVE` in `search-overlay.jsx`
+that D354's sweep had missed, closed by the import every other spec
+module already has.
+
 The mechanism needs no bookkeeping, which is what makes it usable. The
 scanner already suppresses a JSX reference when the file declares the name
 locally, and `import { Chip } from './primitives.jsx'` is a local

@@ -3815,6 +3815,13 @@ const revealHistCache: Record<string, {
   out: Array<Record<string, unknown> & { day: string }>;
 }> = {};
 
+/** What one history read did. "busy" is BOTH early returns — already in
+ *  hand, or another caller's read in flight — because neither is a
+ *  failure to draw; `revealHistoryLoading` says which. Exported so the
+ *  panels name the states rather than testing a boolean whose false
+ *  means two unrelated things. */
+export type RevealHistoryRead = "ok" | "failed" | "busy";
+
 const SOCIAL = {
   todayKey: () => utcDayKey(0),
   /** The account's standing in a room's rounds — see roundsOf. */
@@ -3914,9 +3921,32 @@ const SOCIAL = {
   // should charge. A failure is reported and leaves the room unsettled so
   // a later call retries rather than freezing a gap into the portrait for
   // the rest of the session.
-  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<void> {
-    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return;
+  async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<RevealHistoryRead> {
+    // "busy" for both early returns, and it is the honest word for each:
+    // the history is either in hand or on its way, and neither is a
+    // failure the caller should draw. `revealHistoryLoading` is what says
+    // which — a panel wanting to distinguish them asks that.
+    if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return "busy";
+    // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
+    // that did not follow it. The Groups stop mounts this on a `[gid]`
+    // effect, so it runs AFTER the stop has painted; without the notify
+    // the cold frame — no data and no flag — stands for the whole of the
+    // dynamic import and the ordered thirty-document read, and a room
+    // with weeks of history reads "no rounds revealed yet" under its own
+    // name. `revealHistoryLoading` was added to prevent exactly that
+    // sentence and nothing was ever told the flag had moved.
     state.revealHistLoading[gid] = true;
+    notify();
+    // STILL NEVER THROWS (the header): two callers `void` it, and an
+    // unhandled rejection from a history read is not a price a portrait
+    // should charge. What it did not do was tell the ONE caller that
+    // cares — LiveRolesPanel wrapped the call in try/catch to mark a room
+    // as refused, and that catch could never fire, so a room whose read
+    // was denied or timed out fell through to "nothing revealed yet",
+    // the definite claim the panel's own comment says it exists to stop.
+    // Its test passed because the FIXTURE rejected where the real store
+    // resolves. An answer, not a throw: same contract, reachable.
+    let out: RevealHistoryRead = "failed";
     try {
       const db = await getDb();
       const snap = await getDocs(query(
@@ -3928,6 +3958,7 @@ const SOCIAL = {
       snap.forEach((d) => { have[d.id] = d.data() as Record<string, unknown>; });
       state.revealHist[gid] = have;
       state.revealHistLoaded[gid] = true;
+      out = "ok";
     } catch (err) {
       // A refusal cannot be "the rule working" any more — the read is
       // unconditional since D98 — so it is reported, where the per-key
@@ -3938,6 +3969,7 @@ const SOCIAL = {
       state.revealHistLoading[gid] = false;
       notify();
     }
+    return out;
   },
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what
@@ -4180,6 +4212,21 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // THE PENDING MIRROR (D357), which the duel paths were written
+    // outside of. Its closing rule is that a surface writing an answer
+    // outside the five named paths marks and clears the mirror the same
+    // way "or its offline answer is the pre-D357 answer" — and a duel
+    // round is exactly where that costs most. Answer offline, relaunch:
+    // the answer is in the SDK's queue and in this process's memory,
+    // neither of which the warm boot reads, and `roundsOf` gates the
+    // round on `state.votes[aid]` alone — so the round is offered again,
+    // the queue flushes the first create, and the second tap is a full
+    // overwrite of an existing duel answer, which D86 does not admit.
+    // The room is then sealed with an option the user has been told did
+    // not save. `learnAnswer` is outside the mirror WITH a written
+    // reason; these two had none.
+    state.inflight[aid] = true;
+    markPending(aid, String(optionIdx));
     if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
     notify();
     return (async () => {
@@ -4206,9 +4253,14 @@ const SOCIAL = {
           if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        // Through the same helper the five paths use, so the mirror is
+        // cleared with the vote rather than left behind to be restored
+        // on the next boot as an answer the server refused.
+        rollbackPending(aid);
         delete state.duelCalls[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
@@ -4256,6 +4308,10 @@ const SOCIAL = {
     const aid = `g_${gid}_${roundKey(round)}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // The mirror, for voteDuel's reason — a late answer is written the
+    // same way and re-offered the same way.
+    state.inflight[aid] = true;
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4275,9 +4331,11 @@ const SOCIAL = {
           if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "duelVoteLate", gid });
         throw err;
@@ -5429,17 +5487,28 @@ const LIVE = {
   // author name, so this is what turns them from "Someone" into people.
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
-  async loadNames(uids: readonly string[]): Promise<void> {
+  // ANSWERS whether the read landed, and still never throws — two
+  // callers `void` it. The swallow is right (a name resolution failing is
+  // not a price a lens should charge) and it left the ONE caller that
+  // cares unable to tell: LiveCompareLens flipped its local `reading`
+  // flag false on a failure with `state.scores` still empty, and its
+  // people basis then said "Nobody here has finished a test yet" about a
+  // room where everyone had. The same shape the reveal-history loader
+  // carried, and the same answer. Nothing already cached is "ok": there
+  // was no read to fail.
+  async loadNames(uids: readonly string[]): Promise<boolean> {
     const want = uids.filter((u) => u
       && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)
         || !(u in state.logicPcts)));
-    if (!want.length) return;
+    if (!want.length) return true;
     try {
       const db = await getDb();
       await resolveNames(db, want, state.names, state.scores, state.faces, state.logicPcts);
       saveProfileCache();
+      return true;
     } catch (err) {
       reportError(err, { where: "loadNames" });
+      return false;
     } finally {
       notify();
     }

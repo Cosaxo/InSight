@@ -762,6 +762,12 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
  * 1 is "names are already known", and the truth is in between because crowds
  * overlap and the session cache already exists.
  */
+/** The who-voted sheet's first read: `fetchSampleDoc`, one document, paid
+ * on every open before the sheet knows which shape it is — a miss is
+ * billed like a hit. Pinned against `loadVoters`' own body in
+ * scripts/cost-whovoted.test.mjs. */
+export const SHEET_SAMPLE_READ = 1;
+
 export function socialTerms(dau, mature, o = {}) {
   const voterCap = o.voterCap ?? VOTER_FETCH_CAP;
   const kindredQs = o.kindredQuestions ?? KINDRED_QUESTIONS;
@@ -770,14 +776,22 @@ export function socialTerms(dau, mature, o = {}) {
   // globally shared, so a question's crowd is roughly everyone active that
   // day until the cap binds.
   const crowd = Math.min(voterCap, dau);
-  // A hot sheet is the live list it always was — `crowd` answer documents
-  // and their profiles; a cold one (DATA-EFFICIENCY-RUNBOOK 2.4) is the
-  // sample document, the tail, and a profile per tail row. The tail is
-  // charged at its cap — under it the union is exact and cheaper, and
-  // the cap is the bound the code states rather than a guess.
+  // EVERY sheet pays the sample read, and a hot one pays the tail before
+  // it gives up (DATA-EFFICIENCY-RUNBOOK 2.4). `loadVoters` reads the
+  // sample document, and if it exists reads the tail; only when the tail
+  // comes back FULL — the definition of hot — does it fall through to the
+  // live list of `crowd` answer documents and their profiles. So a hot
+  // sheet is the live list PLUS the two reads that failed to avoid it,
+  // and the model booked the saving on both branches: it charged the hot
+  // sheet `crowd × names` flat, as if the sample and the tail were only
+  // read on the cold path. A cold sheet is the sample, the tail, and a
+  // profile per tail row — unchanged, and the tail is charged at its cap,
+  // which is the bound the code states rather than a guess.
   const hot = B.sheetOpensHot;
   return {
-    whoVoted: B.sheetOpens * (hot * crowd * names + (1 - hot) * (1 + VOTER_TAIL_CAP * names)),
+    whoVoted: B.sheetOpens * (SHEET_SAMPLE_READ
+      + hot * (VOTER_TAIL_CAP + crowd * names)
+      + (1 - hot) * (VOTER_TAIL_CAP * names)),
     // Kindred reads the nightly voter SAMPLE (D397): one document per
     // question in place of `crowd` answer documents — and since runbook
     // 2.2/2.3 the rows carry names and scores, so the profile read per row
@@ -801,11 +815,22 @@ export function socialTerms(dau, mature, o = {}) {
   };
 }
 
-/** A Circle member's answer set — bounded by the cap, growing with account
- * age rather than DAU. cost-structure.mjs had its own copy of this
- * expression until the fan-out term below needed it too (D197's rule). */
+/** What an account has answered, by age — the quantity, before any
+ * reader's cap. cost-structure.mjs had its own copy of this expression
+ * (D197's rule). */
+export function accountAnswers(mature) {
+  return B.worldAnswers * (mature ? 90 : 10);
+}
+
+/** A Circle member's answer set as a READER sees it — `accountAnswers`
+ * bounded by the display cap the query states. The fan-out term below
+ * used to size a person's answers by this too, and the cap is a fact
+ * about `circle.ts`'s query, not about the account: the fan-out pages the
+ * whole subcollection and stops at nothing. At today's rate the cap binds
+ * (360 answered, 300 read), so borrowing it charged the fan-out for 300
+ * of an account's 360 answers. */
 export function memberAnswers(mature, circleCap = CIRCLE_ANSWER_CAP) {
-  return Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10));
+  return Math.min(circleCap, accountAnswers(mature));
 }
 
 /** The nightly per-city samples (runbook 2.5), per user-day: one read and
@@ -816,12 +841,29 @@ export function memberAnswers(mature, circleCap = CIRCLE_ANSWER_CAP) {
  * answers to one question from one city are one pair. */
 export const citySampleOps = (dau) => Math.min(CITY_SAMPLE_PAIRS_PER_NIGHT, dau * B.worldAnswers) / dau;
 
+/** How many sample documents one answer names — `sampleIdsFor` adds the
+ * WORLD sample and, when the answer's frozen chips carry a city, the
+ * per-city one (runbook 2.5). Two at the ceiling, and the ceiling is the
+ * ordinary case: an answer without a city is one written before the
+ * profile had one. Pinned against the function's own code in
+ * scripts/cost-fanout.test.mjs. */
+export const FANOUT_SAMPLES_PER_ANSWER = 2;
+/** …so a stamp change pays one read for the answer document itself
+ * (the paged `.select("qid","anchors")` query) plus one per sample it
+ * names, and one write per sample that holds the row. This stood at 2
+ * and 1 — the second sample was counted in neither, which under-read the
+ * fan-out by half a read and a whole write per answer. */
+export const FANOUT_READS_PER_ANSWER = 1 + FANOUT_SAMPLES_PER_ANSWER;
+export const FANOUT_WRITES_PER_ANSWER = FANOUT_SAMPLES_PER_ANSWER;
+
 /** The profile fan-out (runbook 2.1, functions/src/profileFanout.ts), per
- * user-day: each stamp change reads the account's answers and the sample
- * documents they name (two reads per answer at the ceiling) and rewrites
- * the row where one exists (one write per answer at the ceiling). */
-export const profileFanoutReads = (mature) => (B.stampChanges / 365) * 2 * memberAnswers(mature);
-export const profileFanoutWrites = (mature) => (B.stampChanges / 365) * memberAnswers(mature);
+ * user-day: each stamp change pages the account's whole answer
+ * subcollection and, for every sample those answers name, reads it and
+ * rewrites the row where one exists. */
+export const profileFanoutReads = (mature) =>
+  (B.stampChanges / 365) * FANOUT_READS_PER_ANSWER * accountAnswers(mature);
+export const profileFanoutWrites = (mature) =>
+  (B.stampChanges / 365) * FANOUT_WRITES_PER_ANSWER * accountAnswers(mature);
 
 export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);

@@ -80,8 +80,12 @@ export const LOG_APPEND_CHUNK = 500;
  *  table's size × deletions a day past it. Read off the table's metadata,
  *  which bills nothing. */
 export const LOG_ERASE_NOW_MAX_BYTES = 1024 ** 3;
-/** Accounts per nightly DELETE — the marker query's own page; an
- *  `IN UNNEST` of five hundred ids is well inside a query's size. */
+/** Accounts per nightly DELETE, and the night's whole ceiling: the pass
+ *  runs ONE statement (see `runLogReconcile`), so this is how many
+ *  accounts' rows can leave the table in a night. An `IN UNNEST` of five
+ *  hundred ids is well inside a query's size, and a second statement
+ *  would double the night's largest line at scale. Above this the rest
+ *  wait for tomorrow and the summary's `left` says so. */
 export const LOG_ERASE_BATCH = 500;
 /** Rows the data export (D443's twin of deleteAccount) reads for one
  *  account at most — a person's answers and edits, far below this. */
@@ -327,8 +331,10 @@ export interface LogReconcileStore {
   ledgerDay: LedgerDayReader;
   presentIds(day: string): Promise<Set<string> | null>;
   append(rows: readonly LogRow[]): Promise<void>;
-  /** Deferred erasures whose marker is older than `beforeMs`. */
-  pendingErasures(beforeMs: number): Promise<string[]>;
+  /** Deferred erasures whose marker is older than `beforeMs`, at most
+   *  `limit`. The reconcile asks for one MORE than it can act on, so a
+   *  night that leaves accounts waiting can say so — see there. */
+  pendingErasures(beforeMs: number, limit: number): Promise<string[]>;
   /** One statement for the whole list (LogWriter.deleteUsers). */
   deleteUsers(uids: readonly string[]): Promise<"done" | "deferred">;
   eraseDone(uid: string): Promise<void>;
@@ -343,9 +349,19 @@ export interface LogReconcileSummary {
   appended: number;
   erasures: number;
   erased: number;
-  /** DELETE statements run — one per LOG_ERASE_BATCH accounts, each a
-   *  pass over the table, which is what the night's cost is. */
+  /** DELETE statements run — at most ONE, which is the bound the header
+   *  prices: a statement costs the table's size whether it removes one
+   *  account or five hundred. */
   passes: number;
+  /** True when the night's one statement did not reach every pending
+   *  account — there were more than LOG_ERASE_BATCH waiting, and the
+   *  rest keep their markers for tomorrow. The night's ceiling used to
+   *  be SILENT: `pendingErasures` capped its own query at the batch, so
+   *  `erasures` read as "all that were waiting" and a backlog looked
+   *  exactly like an ordinary night. The privacy page promises the
+   *  analytics copy goes "at once, or within a day", and this is the
+   *  only signal that says the promise is not being kept. */
+  left: boolean;
 }
 
 /**
@@ -363,30 +379,50 @@ export async function runLogReconcile(
   const present = await store.presentIds(day);
   if (!present) {
     log.info("[log] reconcile skipped — no BigQuery here", { metric: "log_reconcile", day, skipped: true });
-    return { day, skipped: true, entries: 0, missing: 0, appended: 0, erasures: 0, erased: 0, passes: 0 };
+    return { day, skipped: true, entries: 0, missing: 0, appended: 0, erasures: 0, erased: 0, passes: 0, left: false };
   }
   const entries = await store.ledgerDay(day);
   const rows = entries.filter((e) => e.id && !present.has(e.id)).map(rowFromLedgerEntry);
   if (rows.length) await store.append(rows);
-  // Every pending account in one statement per page — a DELETE is a pass
-  // over the table however many ids it names (the header). A refused
-  // batch (rows of one of them still in the streaming buffer, which the
-  // retry gap should have outlived) keeps every marker for tomorrow.
-  const uids = await store.pendingErasures(nowMs - LOG_ERASURE_RETRY_MS);
+  // ONE statement, which is the header's bound and not an accident of
+  // the query's page size: a DELETE is a pass over the table however many
+  // ids it names, ~$27 at a million people answering a hundred times a
+  // day, so a second pass doubles the night's largest line to reach the
+  // 501st account. This LOOPED, in `LOG_ERASE_BATCH` chunks, over a list
+  // the store's own query capped at `LOG_ERASE_BATCH` — so the loop could
+  // never run twice in production and the case that pinned it fed a fake
+  // three pages the real store cannot produce. The bound stays; what
+  // changes is that it is now stated here rather than enforced by
+  // accident one file away, and that a night which does not reach
+  // everyone SAYS SO.
+  //
+  // One id more than the statement can take, so "there were more" is a
+  // fact rather than an inference from `erasures === LOG_ERASE_BATCH` —
+  // which is also true of a night where exactly five hundred waited and
+  // every one of them was erased.
+  const waiting = await store.pendingErasures(nowMs - LOG_ERASURE_RETRY_MS, LOG_ERASE_BATCH + 1);
+  const left = waiting.length > LOG_ERASE_BATCH;
+  const uids = waiting.slice(0, LOG_ERASE_BATCH);
   let erased = 0;
   let passes = 0;
-  for (let i = 0; i < uids.length; i += LOG_ERASE_BATCH) {
-    const chunk = uids.slice(i, i + LOG_ERASE_BATCH);
-    passes += 1;
-    if ((await store.deleteUsers(chunk)) !== "done") continue;
-    for (const uid of chunk) await store.eraseDone(uid);
-    erased += chunk.length;
+  if (uids.length) {
+    passes = 1;
+    // A refused batch (rows of one of them still in the streaming buffer,
+    // which the retry gap should have outlived) keeps every marker for
+    // tomorrow.
+    if ((await store.deleteUsers(uids)) === "done") {
+      for (const uid of uids) await store.eraseDone(uid);
+      erased = uids.length;
+    }
   }
-  const out: LogReconcileSummary = { day, skipped: false, entries: entries.length, missing: rows.length, appended: rows.length, erasures: uids.length, erased, passes };
+  const out: LogReconcileSummary = { day, skipped: false, entries: entries.length, missing: rows.length, appended: rows.length, erasures: uids.length, erased, passes, left };
   // A missing row is a live append that failed — worth a warning, since
   // the heal is the safety net and not the path.
-  (rows.length ? log.warn : log.info)(
-    `[log] reconciled ${day}: ${entries.length} entries, ${rows.length} appended, ${erased} of ${uids.length} deferred erasures done in ${passes} statement(s)`,
+  (rows.length || left ? log.warn : log.info)(
+    `[log] reconciled ${day}: ${entries.length} entries, ${rows.length} appended, ${erased} of ${uids.length} deferred erasures done in ${passes} statement(s)`
+    // The backlog is a warning and not a count, because the query stops
+    // at one over the batch and does not know how many more there are.
+    + (left ? ` — MORE than ${LOG_ERASE_BATCH} were waiting; the rest keep their markers for tomorrow` : ""),
     { metric: "log_reconcile", ...out },
   );
   return out;
@@ -410,9 +446,14 @@ export function firestoreLogStore(db: Firestore, ledgerDay: LedgerDayReader, w: 
     presentIds: (day) => w.presentIds(day),
     append: (rows) => w.append(rows),
     deleteUsers: (uids) => w.deleteUsers(uids),
-    async pendingErasures(beforeMs) {
+    async pendingErasures(beforeMs, limit) {
       if (!w.enabled) return [];
-      const snap = await markers().where("at", "<=", beforeMs).limit(LOG_ERASE_BATCH).get();
+      // The caller's limit, not this file's constant. It was
+      // LOG_ERASE_BATCH here, which made the query's page and the
+      // statement's size one number by coincidence rather than by
+      // argument — and hid the backlog, since a capped query cannot
+      // report what it did not fetch.
+      const snap = await markers().where("at", "<=", beforeMs).limit(limit).get();
       return snap.docs.map((d) => d.id);
     },
     async eraseDone(uid) {

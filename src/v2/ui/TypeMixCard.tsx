@@ -135,11 +135,18 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
             // 'nobody is typed' because they are different facts and the
             // second one is permanent."
             ? BUDGET_PAUSED_HEAD
-            : LIVE.kindredLoading()
+            : LIVE.kindredState() === "loading"
               ? "Reading who answered…"
-              : mix.sampleN === 0
-                ? "Open a question's who-voted sheet and this fills in."
-                : mix.sampleN + " sampled here, none typed on this one yet."}
+              // …and the fourth state, which this had three of. A failed
+              // read is not "open a sheet and this fills in": the sheet
+              // is what failed. `kindredState()`'s docstring is explicit
+              // that branching on the loading flag alone reports nobody
+              // on the strength of a read that did not happen.
+              : LIVE.kindredState() === "failed"
+                ? "Couldn’t read who answered. Close and reopen to try again."
+                : mix.sampleN === 0
+                  ? "Open a question's who-voted sheet and this fills in."
+                  : mix.sampleN + " sampled here, none typed on this one yet."}
         </span>
       </div>
     );

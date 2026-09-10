@@ -126,6 +126,10 @@ export function logicSplitFor(
   minePct: number | null = null,
 ): LogicSplit {
   const counts = new Map<LogicBandId, number[]>();
+  /** Bands somebody here actually carries, whether or not their answer
+   *  landed in a column — the basis for `absent`, exactly as the type cut
+   *  keeps it. See the note below the rows. */
+  const carriers = new Set<LogicBandId>();
   const overall = dense(optionCount);
   let scoredN = 0;
 
@@ -133,6 +137,7 @@ export function logicSplitFor(
     const band = logicBandOf(v.logic);
     if (!band) continue; // untested: thins the basis, never a band
     scoredN += 1;
+    carriers.add(band);
     let row = counts.get(band);
     if (!row) {
       row = dense(optionCount);
@@ -154,10 +159,16 @@ export function logicSplitFor(
     counts: counts.get(b.id) || dense(optionCount),
   }));
 
+  // CARRIERS DECIDE `absent`, COLUMNS DECIDE `n` — the split the type cut
+  // made and this one did not get. `n` is the column sum so the bars and
+  // the header agree; a scored person whose answer landed in no column is
+  // therefore invisible in `n`, and calling their band absent says nobody
+  // here carries it when somebody does. `thin` takes the gap, so every
+  // band still lands in exactly one of the three lists.
   return {
     ranked: rows.filter((r) => r.n >= LOGIC_THIN),
-    thin: rows.filter((r) => r.n > 0 && r.n < LOGIC_THIN),
-    absent: rows.filter((r) => r.n === 0).map((r) => r.band),
+    thin: rows.filter((r) => r.n < LOGIC_THIN && carriers.has(r.band)),
+    absent: rows.filter((r) => !carriers.has(r.band)).map((r) => r.band),
     sampleN: voters.length,
     scoredN,
     overall,

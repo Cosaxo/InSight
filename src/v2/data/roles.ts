@@ -46,8 +46,25 @@
 // before the ledger existed, whose row starts at zero on its next reveal
 // (the plan's own catch-up: forward-only, no backfill) — it reads the
 // reveals it has, as before. The two substrates count by one set of
-// rules, so a reading never changes on the day the ledger takes over;
-// only how far back it reaches does.
+// rules, so where they overlap they agree; what they do NOT share is
+// reach, and that is the whole of the catch-up problem. A room that has
+// been played since before the ledger has a window holding more than the
+// young row does, and clearing the floor is not the same as having
+// counted more: a row at 3 casts taking over from a window holding 10
+// would drop the count, redraw the four shares off a third of the
+// evidence, shrink the guess receipt and lighten the room's weight in
+// the blend — a reading going BACKWARDS on the day the substrate
+// changed. So each fold takes whichever substrate has counted MORE,
+// which is the ledger from the moment it has actually reached further —
+// forward-only makes that monotone, so the reading only ever grows.
+// The comparison is free: both counts are already in hand.
+//
+// It does not close the catch-up gap on its own. The panel skips the
+// history read for a room the ledger clears (`ledgerClearsFloor`, the
+// COSTS.md row), so on a device that has not otherwise paged that room
+// there is no window to compare with and the young row is all there is.
+// Making that read continue until the ledger overtakes costs the read
+// the ledger was built to save; it is the owner's call, not this fold's.
 import { castText } from "./deck";
 import { type RevealDocLike } from "./duelRuns";
 import { voteQid, type PortraitReveal } from "./groupPortrait";
@@ -84,7 +101,10 @@ export function ledgerRow(ledger: unknown, uid: string | null | undefined): Ledg
 }
 
 /** Whether the ledger alone draws this member's reading in this room —
- * what lets the Roles tab skip a room's history read (COSTS.md's row). */
+ * what lets the Roles tab skip a room's history read (COSTS.md's row).
+ * A COST question, not the fold's rule: the folds also require the row to
+ * have counted at least as much as any window they were handed, which
+ * this cannot ask because it is answered before the read it decides. */
 export function ledgerClearsFloor(
   ledger: unknown,
   uid: string | null | undefined,
@@ -270,8 +290,8 @@ export function castOf(
 }
 
 /** How many cast rounds a pair has run — the thin row's "1 of 3". The
- * count the fold reads: the ledger's once it clears the floor, otherwise
- * the reveals in hand (see the header). */
+ * count the fold reads: whichever of the two substrates has counted more,
+ * the ledger's only once it also clears the floor (see the header). */
 export function duoCastCount(
   history: readonly RevealDocLike[],
   me: string,
@@ -280,7 +300,10 @@ export function duoCastCount(
   ledger?: unknown,
 ): number {
   const casts = num(ledgerRow(ledger, me)?.casts);
-  return casts >= MIN_DUO ? casts : castOf(history, me, them, lookup).n;
+  const seen = castOf(history, me, them, lookup).n;
+  // Whichever has counted more (the header): a young row taking over from
+  // a longer window would count DOWN.
+  return casts >= MIN_DUO && casts >= seen ? casts : seen;
 }
 
 export interface DuoRoleResult extends RoleResult {
@@ -310,7 +333,10 @@ export function duoRole(
   // question it names — so a room this device has never paged still
   // draws its receipts in full. Below the floor, the reveals in hand.
   const L = ledgerRow(ledger, me);
-  const fromLedger = !!L && num(L.casts) >= MIN_DUO;
+  // …and only once it has counted at least as much as the window in hand
+  // — see the header. `C.n` is 0 for the room the device never paged, so
+  // this is the plain floor test there.
+  const fromLedger = !!L && num(L.casts) >= MIN_DUO && num(L.casts) >= C.n;
   const n = fromLedger ? num(L?.casts) : C.n;
   if (n < MIN_DUO) return null;
   const named = fromLedger && L?.castQid && lookup ? lookup(L.castQid)?.them : null;
@@ -378,8 +404,9 @@ export function seatTally(
   return { shares, total };
 }
 
-/** The tally the fold reads: the ledger's row once it clears the floor,
- * the reveals in hand until then — see the header. A seat the ledger names
+/** The tally the fold reads: the ledger's row once it clears the floor
+ * AND has counted at least as many votes as the reveals in hand, the
+ * reveals until then — see the header. A seat the ledger names
  * and this build does not know (none today) counts in `total` and in no
  * share, which is the same honesty an out-of-range option gets. */
 function seatSource(
@@ -389,12 +416,13 @@ function seatSource(
   ledger?: unknown,
 ): SeatTally {
   const L = ledgerRow(ledger, uid);
-  if (L && num(L.votes) >= MIN_GROUP) {
+  const seen = seatTally(reveals, uid, lookup);
+  if (L && num(L.votes) >= MIN_GROUP && num(L.votes) >= seen.total) {
     const shares: Record<SeatId, number> = { engine: 0, hands: 0, heart: 0, wild: 0 };
     for (const s of SEATS) shares[s.id] = num(L.seats?.[s.id]);
     return { shares, total: num(L.votes) };
   }
-  return seatTally(reveals, uid, lookup);
+  return seen;
 }
 
 /** How many votes a member has received — the thin row's "1 of 2". */

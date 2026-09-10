@@ -329,16 +329,27 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
   //      the question. Every sample is checked, the way the scrub checks
   //      every sample, because the answer map and the samples are written
   //      by different commits of the same nightly run.
+  //
+  //      BY ID RANGE, never `listDocuments`, for the reason the erasure's
+  //      own arm spells out and this one was written without: the per-city
+  //      samples share this collection as `city-{qid}~{city}`, one per
+  //      (question, city) pair the nightly has seen — the product of two
+  //      catalogues, ~10,900 places wide, growing by up to
+  //      CITY_SAMPLE_PAIRS_PER_NIGHT a night. A listing walks all of them
+  //      to reach the few hundred world samples, which is exactly the
+  //      shape DATA-EFFICIENCY-RUNBOOK §2.5 says the `city-` prefix exists
+  //      to keep this callable away from. `sample-` ≤ id < `sample.` is
+  //      the world family exactly ('.' follows '-' in ASCII).
   {
-    const refs = (await db.collection("v2_patterns").listDocuments())
-      .filter((r) => r.id.startsWith("sample-"));
+    const world = await db.collection("v2_patterns")
+      .where(FieldPath.documentId(), ">=", "sample-")
+      .where(FieldPath.documentId(), "<", "sample.")
+      .get();
     const rows: { [k: string]: Plain } = {};
-    for (let i = 0; i < refs.length; i += 300) {
-      for (const snap of await db.getAll(...refs.slice(i, i + 300))) {
-        if (!snap.exists) continue;
-        const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
-        if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
-      }
+    for (const snap of world.docs) {
+      if (!snap.exists) continue;
+      const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+      if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
     }
     out.voterSamples = m.add(rows);
   }

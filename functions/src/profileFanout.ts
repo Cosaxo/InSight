@@ -119,6 +119,15 @@ export interface FanoutHealSummary {
   pending: number;
   healed: number;
   touched: number;
+  /** True when the night's page did not reach every deferred account —
+   *  more than FANOUT_HEAL_CAP were waiting and the rest keep their
+   *  markers for tomorrow. `pending` is the count FETCHED, so without
+   *  this a night that left five thousand accounts behind reported 500
+   *  and read exactly like an ordinary one. The header promises the last
+   *  name lands within a day; this is the only thing that says when it
+   *  is not being kept. Same shape and same reason as the log
+   *  reconcile's `left`. */
+  left: boolean;
 }
 
 /**
@@ -129,7 +138,13 @@ export interface FanoutHealSummary {
  * scrubbed — its marker is cleared and nothing is read for it.
  */
 export async function runFanoutHeal(store: FanoutHealStore): Promise<FanoutHealSummary> {
-  const uids = await store.pending(FANOUT_HEAL_CAP);
+  // One MORE than the night can act on, so "there were more" is a fact
+  // rather than an inference from `pending === FANOUT_HEAL_CAP` — which
+  // is also true of a night where exactly the cap waited and every one of
+  // them was healed. One extra document read a night.
+  const waiting = await store.pending(FANOUT_HEAL_CAP + 1);
+  const left = waiting.length > FANOUT_HEAL_CAP;
+  const uids = waiting.slice(0, FANOUT_HEAL_CAP);
   let healed = 0;
   let touched = 0;
   for (const uid of uids) {
@@ -140,19 +155,43 @@ export async function runFanoutHeal(store: FanoutHealStore): Promise<FanoutHealS
     }
     await store.clear(uid);
   }
-  return { pending: uids.length, healed, touched };
+  return { pending: uids.length, healed, touched, left };
 }
 
 export function firestoreFanoutHealStore(db: Firestore): FanoutHealStore {
   const ledgers = () => db.collection("v2_ratelimits");
   return {
     async pending(limit) {
-      // Only the fan-out ledgers carry `pending`; the prefix filter is
-      // belt and braces against a future ledger that borrows the field.
-      const snap = await ledgers().where("pending", "==", true).limit(limit).get();
-      return snap.docs.map((d) => d.id)
-        .filter((id) => id.startsWith(FANOUT_BUDGET_PREFIX))
-        .map((id) => id.slice(FANOUT_BUDGET_PREFIX.length));
+      // THE PREFIX IS IN THE QUERY, and it has to be. `v2_ratelimits` is
+      // shared — `suggest_`, `invite_`, `join_`, `paidbook_` and the paid
+      // reviewer all live in it — and this filtered by prefix AFTER the
+      // limit. A ledger that borrows the `pending` field then fills the
+      // night's page with rows that are every one of them discarded, and
+      // the heal heals nobody, every night, reporting `pending: 0`. The
+      // comment called the filter "belt and braces"; applied after the
+      // page it was a starvation switch waiting for a second writer.
+      //
+      // WHAT DECIDES WHETHER IT BITES, measured rather than assumed: one
+      // equality filter plus a limit is ordered by document id, so the
+      // page goes to whatever sorts FIRST. None of today's neighbours
+      // does — every one of the four above sorts after `fanout_` — which
+      // is why the old query happened to work and why this is a latent
+      // defect rather than a live one. The exposure is the next prefix
+      // beginning with a digit, an uppercase letter, or a through e.
+      //
+      // An id range on the prefix, the shape index.ts's sample scrub
+      // already uses. `"fanout`"` is the successor of `_` (0x5F), so the
+      // half-open range is exactly the ids that start with the prefix.
+      // No composite index: an equality filter plus a range on the
+      // document id is served by the single-field index on `pending`,
+      // which carries `__name__` as its tiebreaker.
+      const snap = await ledgers()
+        .where("pending", "==", true)
+        .where(FieldPath.documentId(), ">=", FANOUT_BUDGET_PREFIX)
+        .where(FieldPath.documentId(), "<", `${FANOUT_BUDGET_PREFIX.slice(0, -1)}\``)
+        .limit(limit)
+        .get();
+      return snap.docs.map((d) => d.id.slice(FANOUT_BUDGET_PREFIX.length));
     },
     async stampOf(uid) {
       const snap = await db.collection("v2_users").doc(uid).get();

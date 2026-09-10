@@ -284,13 +284,25 @@ describe("no gate walks a source root one level deep", () => {
 // CLAUDE.md's standing advice ("if no-undef fires on a legitimate global,
 // fix the scanner") would be pointing at a scanner that never read the
 // file.
-describe("the two source walks the general rule cannot reach", () => {
+describe("the source walks the general rule cannot reach", () => {
+  // FOUR, and it said two. The detector below follows a walk only when it
+  // can see the directory at the call site; these are the shapes it
+  // cannot. `check-public-copy.mjs` takes its root as a `flatMap` lambda
+  // parameter and `check-spec-globals.mjs` as a module-scope binding
+  // imported from the scanner — and BOTH of them walked one level deep
+  // while the list said the rule reached everything else. Measured: the
+  // copy gate's own documented probe string one directory down left it
+  // green at 274 surfaces, and an orphan module one directory down passed
+  // rule 2 while the scanner beside it read the file and seeded eslint
+  // from its names. Both recurse now; the list is what says so.
   const named = {
     "check-purge-listeners.mjs": "readdirSync(abs, { recursive: true })",
     "spec-globals.mjs": "readdirSync(dir, { recursive: true })",
+    "check-public-copy.mjs": "readdirSync(join(root, dir), { recursive: true })",
+    "check-spec-globals.mjs": "readdirSync(specDir, { recursive: true })",
   };
 
-  it("both still exist and both recurse", () => {
+  it("all of them still exist and all of them recurse", () => {
     for (const [f, expected] of Object.entries(named)) {
       const g = gates.find((x) => x.f === f);
       expect(g, `${f} vanished — this pin no longer covers it`).toBeTruthy();

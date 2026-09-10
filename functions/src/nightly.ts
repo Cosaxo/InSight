@@ -163,7 +163,15 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   // healed account is a stamp change the budget refused in the day.
   const fan = await attempt("fanout", r.fanout);
   if (fan && fan.pending > 0) {
-    log.info(`[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`, { metric: "profile_fanout_heal", ...fan });
+    // A backlog is a WARNING, not a line in the info stream: the heal is
+    // what keeps the header's promise that the last name lands within a
+    // day, and a night that did not reach everyone is a night that
+    // promise was not kept for. Not a count — the query stops one past
+    // the cap and does not know how many more there are.
+    (fan.left ? log.warn : log.info)(
+      `[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`
+      + (fan.left ? ` — MORE than ${fan.pending} were waiting; the rest keep their markers for tomorrow` : ""),
+      { metric: "profile_fanout_heal", ...fan });
   }
   if (heal && heal.healed > 0) {
     log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });

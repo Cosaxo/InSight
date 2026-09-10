@@ -343,6 +343,38 @@ describe("the email door", () => {
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("a@b.co");
   });
 
+  it("does not claim a history it has not been told about", async () => {
+    // The in-use screen is shared by three doors and reached two ways.
+    // Apple and Google land on it because Firebase REFUSED the link — the
+    // other account is established. The email door lands on it from the
+    // condition alone, BEFORE emailSignIn is called, so at that moment the
+    // typed address may have no account, or the wrong password; both come
+    // back as failures on the second tap. Stating "That account already
+    // has an InSight history" there is the app telling the user a fact it
+    // has not got (D146: say what was measured). The cost is certain
+    // either way, and the cost is what the screen is for.
+    await openEmail();
+    fill();
+    fireEvent.click(screen.getByText("Sign in"));
+    expect(await screen.findByText(/they are not merged/i)).toBeTruthy();
+    expect(emailSignIn, "the claim was made after a call, not before").not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/already has an InSight history/i),
+      "the email door asserted an account it had not asked about",
+    ).toBeNull();
+
+    // The control: the refused-link doors still name it, so this is not a
+    // sweep that took the sentence off every screen.
+    cleanup();
+    linkGoogle.mockRejectedValueOnce(new Error("auth/credential-already-in-use"));
+    await gateReady();
+    fireEvent.click(screen.getByText("Continue with Google"));
+    expect(
+      await screen.findByText(/already has an InSight history/i),
+      "the door that was refused stopped naming what it was refused for",
+    ).toBeTruthy();
+  });
+
   it("does not ask a linked session — the condition is the session, not the door", async () => {
     // Rendered WITHOUT the wrapper, deliberately and only here: SignInGate
     // never mounts the screen for a linked session, so this arm of the
