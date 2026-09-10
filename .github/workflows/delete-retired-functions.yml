@@ -19,6 +19,15 @@
 # that says so. A name that is already gone is not a failure — the CLI
 # refuses to delete what does not exist, and the dry run lists what does.
 #
+# WHAT A LISTING HAS TO SHOW before anything is read off it. The Functions
+# v2 list drops a region it could not reach and says so only in a field the
+# CLI never prints, so the table comes back short and reads as complete: the
+# first dispatch (2026-09-10, run 34478645668) showed nine functions of the
+# project's earlier life and none of this tree's 46, and "already gone"
+# would have been read off it. So the list step fails unless it sees the
+# nightly pass, and a second listing off a different API — the Cloud
+# Scheduler jobs, which are what the three actually cost — goes beside it.
+#
 # WHAT IT DOES NOT TOUCH. Firestore, the rules, the indexes, the data the
 # three functions wrote (`v2_patterns`, `v2_users/*/taste`, the velocity
 # state) — a deleted function leaves its documents where they are, and the
@@ -68,9 +77,30 @@ jobs:
           set -o pipefail
           npx firebase functions:list --project prvfire33 2>&1 | tee "$RUNNER_TEMP/list.txt"
           echo ""
+          # A listing the nightly pass is missing from is not a listing (the
+          # header has the run that proved it). Nothing is decided off it.
+          if ! grep -q "digestEngagementV2" "$RUNNER_TEMP/list.txt"; then
+            echo "::error::the listing does not show digestEngagementV2, the nightly pass this tree deploys — europe-west1 was not reached, and nothing is decided off this run. Re-dispatch."
+            exit 1
+          fi
           for f in fitPatternsV2 fitTasteV2 ledgerVelocityScan; do
             if grep -q "$f" "$RUNNER_TEMP/list.txt"; then echo "retired and still deployed: $f"; else echo "already gone: $f"; fi
           done | tee "$RUNNER_TEMP/retired.txt"
+
+      - name: The scheduler jobs, before
+        # Evidence, not a gate: the delete step does not read this, so a
+        # refusal here (a missing permission, an API off) is printed in the
+        # summary rather than blocking the click it is there to witness.
+        continue-on-error: true
+        env:
+          CLOUDSDK_CORE_PROJECT: prvfire33
+        run: |
+          set -o pipefail
+          # What the three cost is their Cloud Scheduler jobs (COST-EXPOSURE.md
+          # §1): a second listing off a different API, which a dropped region
+          # cannot fake. gcloud is on the runner image; the key is the same.
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa-key.json" --quiet
+          gcloud scheduler jobs list --location europe-west1 --format="table(name.basename(),schedule,state)" 2>&1 | tee "$RUNNER_TEMP/jobs.txt"
 
       - name: Delete
         if: ${{ inputs.apply }}
@@ -87,6 +117,9 @@ jobs:
           fi
           # shellcheck disable=SC2086
           npx firebase functions:delete $NAMES --project prvfire33 --region europe-west1 --force 2>&1 | tee "$RUNNER_TEMP/delete.txt"
+          # The jobs after, for the summary: each deleted function takes its
+          # job with it, and this is where that is seen rather than assumed.
+          gcloud scheduler jobs list --project prvfire33 --location europe-west1 --format="table(name.basename(),schedule,state)" 2>&1 | tee "$RUNNER_TEMP/jobs-after.txt" || true
 
       - name: Summary
         if: always()
@@ -105,6 +138,20 @@ jobs:
             else
               echo ""
               echo "DRY RUN — nothing was deleted. Re-dispatch with \`apply\` on to delete the ones listed as still deployed."
+            fi
+            if [ -f "$RUNNER_TEMP/jobs.txt" ]; then
+              echo ""
+              echo "#### Cloud Scheduler jobs, before"
+              echo '```'
+              cat "$RUNNER_TEMP/jobs.txt"
+              echo '```'
+            fi
+            if [ -f "$RUNNER_TEMP/jobs-after.txt" ]; then
+              echo ""
+              echo "#### Cloud Scheduler jobs, after"
+              echo '```'
+              cat "$RUNNER_TEMP/jobs-after.txt"
+              echo '```'
             fi
             echo ""
             echo "Each deleted function takes its Cloud Scheduler job with it. What they wrote stays:"
