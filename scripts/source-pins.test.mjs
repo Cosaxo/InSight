@@ -417,8 +417,36 @@ describe("gates that read a file and match against it without stripping comments
         }
       }
       if (!chained && !varHit) continue;
-      const ctx = lines.slice(Math.max(0, i - 2), varHit ? varHit + 1 : i + 4).join("\n");
-      if (!/strip(Comments|XmlComments)/.test(ctx)) out.push(i + 1);
+      // THE CALL, ON THE READ ITSELF — not the WORD, anywhere nearby.
+      //
+      // This asked whether `stripComments` appeared in a ±2-line window
+      // around the read, which exempted any read that merely SAT near a
+      // mention of it: two lines under the file's own
+      // `import { stripComments } from "./strip-comments.mjs"` was
+      // enough. Measured 2026-09-09 — the same two-line probe is caught
+      // in a gate that never names the stripper and passes in one that
+      // does, and the count sits at the ceiling, so a new site could only
+      // ever arrive through that door.
+      //
+      // Scoping it to the read's OWN line is what closes it — the import
+      // is two lines up and no longer in view. Requiring the CALL form on
+      // top is belt and braces, measured as such: on the read line the
+      // name only ever appears as a call today, so the mutation that
+      // drops `\\s*\\(` still passes. It guards the shape where the name
+      // reaches that line for some other reason (a string, an identifier
+      // like `stripCommentsPath`), which costs nothing to hold now and
+      // would be invisible to add later. Every stripped read the detector can
+      // actually see carries the call on that same line —
+      // `const live = stripComments(read(...))`, or the same wrapped
+      // after the inner paren. A wrap that puts `stripComments(` alone on
+      // the line above never reaches here at all: the detector needs the
+      // declaration and the read together, and that shape has them on
+      // different lines. Checked rather than assumed — a ±1 window was
+      // written first and the mutation showed nothing exercised it.
+      //
+      // Measured on this tree: 36 sites either way, the probe caught, no
+      // legitimate site newly reported.
+      if (!/strip(Comments|XmlComments)\s*\(/.test(lines[i])) out.push(i + 1);
     }
     return out;
   }
@@ -468,6 +496,35 @@ describe("gates that read a file and match against it without stripping comments
     expect(tb, "topic-budget.mjs vanished — this control no longer covers it").toBeTruthy();
     expect(tb.src, "topic-budget reads FEED_PAGE past comments again")
       .toMatch(/const src = stripComments\(readFileSync\(/);
+  });
+
+  it("exempts the CALL, not a mention two lines up", () => {
+    // Both halves of the narrowing, because loosening either way is a
+    // silent hole: too wide and a mention exempts an unstripped read,
+    // too tight and a legitimately wrapped strip is reported as one.
+    const nearImport = [
+      'import { stripComments } from "./strip-comments.mjs";',
+      "",
+      'const zzSrc = readFileSync(new URL("../src/v2/data/deck.ts", import.meta.url), "utf8");',
+      "const zzM = zzSrc.match(/DECK_EPOCH = (\\d+)/);",
+    ].join("\n");
+    expect(unstrippedSites(nearImport), "a mention two lines up exempted an unstripped read")
+      .toHaveLength(1);
+    // …and the other direction: a real stripped read, wrapped after the
+    // inner paren, must not start being reported. This is the shape the
+    // detector can see — declaration and read on one line — which is why
+    // the exemption is that line and not a window around it.
+    const wrapped = [
+      'const live = stripComments(readFileSync(',
+      '  "x.ts", "utf8"));',
+      "const m = live.match(/X = (\\d+)/);",
+    ].join("\n");
+    expect(unstrippedSites(wrapped), "a wrapped stripComments() was reported as unstripped")
+      .toHaveLength(0);
+    // The same read with the strip removed IS reported — without this the
+    // line above would pass against a detector that had stopped looking.
+    expect(unstrippedSites(wrapped.replace("stripComments(readFileSync(", "readFileSync(")))
+      .toHaveLength(1);
   });
 
   it("no new one is added", () => {

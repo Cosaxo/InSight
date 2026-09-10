@@ -36,9 +36,21 @@
 //
 // WHAT THIS CANNOT SEE, stated so nobody over-trusts it: that the listener
 // actually drops the right state, or drops it without save()-ing the key
-// straight back. That half lives in src/v2/test/purge-wipe.test.ts, which
-// drives representative stores through the seed → purge → remutate cycle
-// and asserts nothing old survives on disk.
+// straight back. That half lives in TWO files, and naming only the first
+// is how the IndexedDB store above went uncovered for a while:
+//
+//   · src/v2/test/purge-wipe.test.ts — the localStorage-backed stores,
+//     driven through the seed → purge → remutate cycle, asserting nothing
+//     old survives on disk. It imports no IndexedDB store and cannot: the
+//     second predicate's subject needs a spec IndexedDB implementation.
+//   · src/v2/data/cacheStore.test.ts § "empties every store on the purge
+//     event" — the second predicate's own half, against fake-indexeddb.
+//     Measured 2026-09-09: that case used to help the listener along with
+//     a `clearAll()` of its own, so replacing the listener's body with a
+//     no-op left it green and this gate green beside it. It polls now.
+//
+// So: this scan proves the listener EXISTS, and each of those proves one
+// kind of listener works. A third kind of store would need its own.
 //
 // Run: node scripts/check-purge-listeners.mjs   (wired into CI's lint job)
 

@@ -990,6 +990,10 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      // The author's profile, for the same reason the vote arm reads it
+      // (D410): rules can check an anchor is plausible, never that it is
+      // this account's. See the fold below.
+      const profRef = db.collection("v2_users").doc(event.params.uid);
       // The cap's discards from the attempt that commits — reset per
       // attempt, logged once the transaction returns (logBucketCaps).
       const capped: BucketCapEvent[] = [];
@@ -1011,7 +1015,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // only. A missing or unknown domain never aggregates: with three
         // key spaces (a contiguous range and two sparse QID sets, D15)
         // there is no honest global fallback bound.
-        const [seen, qDoc, priv] = await tx.getAll(eventRef, qRef, privRef);
+        const [seen, qDoc, priv, prof] = await tx.getAll(eventRef, qRef, privRef, profRef);
         if (seen.exists) return;
         const spec = CATALOG_DOMAINS[qDoc.get("domain") as string];
         if (!spec) {
@@ -1034,9 +1038,33 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key, (kind, dim, bucket, total) => {
+        // THE HONEST SET, NOT THE CLAIM (D410) — the guard the vote arm has
+        // carried since it was written, missing here until 2026-09-10.
+        // `firestore.rules` can check an anchor is a plausible VALUE and
+        // can never check it is this account's, so a client was free to
+        // file a catalog pick under a cohort it invented. It published:
+        // `entBy` is projected into `v2_question_aggs/{qid}.by`, the
+        // signed-in-readable cut the Mirror draws, and `rebuildAggregateV2`
+        // re-folds the same uncorrected document, so a repair reproduced
+        // the lie. Measured before this change: a profile reading NO/25-34
+        // filed a pick as JP/55-64 and that is what the public board said.
+        const claimed = snap.get("anchors");
+        const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
+        foldCanonAnchors(entBy, anchors, key, (kind, dim, bucket, total) => {
           capped.push({ kind, dim, bucket, total });
         });
+        // And the DOCUMENT is corrected, for the reason the vote arm gives
+        // at its own correction: the People lens reads other users' anchors
+        // off their answer rows, so a fold that quietly ignored an invented
+        // cohort would leave the invention on the screen. Written only when
+        // it differs — the write is the liar's cost, not the honest
+        // client's.
+        if (JSON.stringify(anchors) !== JSON.stringify(claimed ?? {})) {
+          logger.warn(
+            `[v2] catalog answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+          );
+          tx.set(snap.ref, { anchors }, { merge: true });
+        }
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
         // into `rest`; it used to also drop every entity under the

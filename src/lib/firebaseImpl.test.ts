@@ -35,6 +35,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   native: false,
+  // COUNTED, not merely stubbed. It was `() => Promise.resolve()` and
+  // nothing read it — see the case at the bottom of this file.
+  attestCalls: 0,
   getAuthCalls: 0,
   authStateSubs: 0,
   idTokenSubs: 0,
@@ -175,7 +178,9 @@ vi.mock("@capacitor-firebase/authentication", () => ({
   },
 }));
 
-vi.mock("./appcheck", () => ({ initAppCheck: () => Promise.resolve() }));
+vi.mock("./appcheck", () => ({
+  initAppCheck: () => { h.attestCalls += 1; return Promise.resolve(); },
+}));
 
 const CONFIG = {
   apiKey: "k", authDomain: "d", projectId: "p", appId: "a",
@@ -200,6 +205,7 @@ beforeEach(() => {
   h.createdAccounts.length = 0;
   h.emailSignIns.length = 0;
   h.verifyMails = 0;
+  h.attestCalls = 0;
 });
 
 afterEach(() => {
@@ -594,5 +600,34 @@ describe("the native sign-in providers", () => {
     const impl = readFileSync(resolve(cwd(), "src/lib/firebaseImpl.ts"), "utf8");
     expect(impl).toMatch(/FirebaseAuthentication\.signInWithApple\(/);
     expect(impl).toMatch(/FirebaseAuthentication\.signInWithGoogle\(/);
+  });
+});
+
+describe("App Check attestation", () => {
+  // NOTHING HELD THIS CALL SITE. `void initAppCheck()` is the only thing
+  // that attests this client, and `ENFORCE_APP_CHECK` is on in production —
+  // every callable refuses an unattested caller. The mock above existed and
+  // returned a resolved promise; no case ever asked whether it was called.
+  //
+  // Measured: moving the call into the emulator branch, so no production
+  // client attests at all, left all four `src/lib` suites, `tsc -b`,
+  // eslint, `check:globals`, `check:appcheck` and `test:unit` green. That
+  // is D388's shape exactly — three weeks at 0% verified, with every gate
+  // reporting success — and `check:appcheck` cannot see it, because it
+  // guards the SERVER half: which callables demand attestation, never
+  // whether the client ever produces one.
+  it("attests the client on a real build", async () => {
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    expect(h.attestCalls, "no client ever attests; every callable refuses it").toBe(1);
+  });
+
+  it("does not attest against the emulator, which does not enforce it", async () => {
+    vi.stubEnv("VITE_USE_EMULATOR", "true");
+    vi.resetModules();
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    expect(h.attestCalls).toBe(0);
+    vi.unstubAllEnvs();
   });
 });

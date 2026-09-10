@@ -54,6 +54,43 @@ if (files.length < 20) {
   process.exit(1);
 }
 
+// THE REMEDY THIS GATE PRESCRIBES, read rather than trusted by name.
+//
+// The sweep below clears any control whose className mentions `tap44`,
+// and `MIN` was only ever applied to inline styles — so the class that
+// supplies the hit box was never read. Measured 2026-09-09: shrinking
+// `.tap44::after` to 4x10px left this gate printing "every inline size
+// under 44px carries a grown hit box" at exit 0, and nothing else in the
+// tree held it either. Every one of the grown controls was this gate's
+// whole claim, and the claim rested on a string.
+//
+// Height is the axis that matters and the one to hold: `.tap44.is-tight`
+// deliberately narrows the WIDTH for a control standing in a row of its
+// own kind (§12), so a width floor here would fail that variant for
+// doing what it is for.
+const CSS = join(SRC, "styles.css");
+{
+  const css = stripComments(readFileSync(CSS, "utf8"));
+  const box = /\.tap44::after\s*\{[^}]*height:\s*max\(100%,\s*(\d+(?:\.\d+)?)px\)/.exec(css);
+  if (!box) {
+    console.error(
+      "check-tap-targets FAILED: `.tap44::after` no longer declares `height: max(100%, Npx)`"
+      + " in src/v2/styles.css.\n  This gate clears a control the moment its className says"
+      + " `tap44`, so it cannot\n  read that as \"the class was renamed\" — fix this scan"
+      + " before trusting the sweep below.",
+    );
+    process.exit(1);
+  }
+  if (Number(box[1]) < MIN) {
+    console.error(
+      `check-tap-targets FAILED: \`.tap44::after\` grows the hit box to ${box[1]}px, not ${MIN}.`
+      + "\n  Every control this gate clears is cleared because it carries that class, so the"
+      + `\n  class being under ${MIN} makes the whole sweep a claim about a name.`,
+    );
+    process.exit(1);
+  }
+}
+
 // `width: 20` / `width: 20,` / `width: '20px'` inside a style object.
 const SIZE = /\b(width|height)\s*:\s*'?"?(\d+(?:\.\d+)?)(?:px)?'?"?\s*[,}]/g;
 

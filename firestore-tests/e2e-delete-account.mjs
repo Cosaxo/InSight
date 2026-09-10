@@ -122,6 +122,11 @@ await adb.doc(`insight_users/${uid}/insight_daily/${DAY}`).set({ date: DAY, mood
 await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" } });
 await adb.doc(`insight_ratelimits/${uid}`).set({ events: [] });
 await adb.doc(`v2_ratelimits/join_${uid}`).set({ events: [] });
+// The profile fan-out's hourly budget (profileFanout.ts). Seeded with the
+// shape `takeFanoutBudget` writes, and seeded EXPLICITLY rather than left
+// to the trigger, so the two assertions below are about the erasure and
+// the export rather than about whether a fan-out happened to run.
+await adb.doc(`v2_ratelimits/fanout_${uid}`).set({ events: [Date.now()], pending: true });
 
 // Agg-event ledger entries (D28): each says "this uid answered this qid at
 // this time" — the attribution that keeps aggregates correctable, and
@@ -578,6 +583,7 @@ for (const [path, label] of [
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
   [`v2_ratelimits/join_${uid}`, "v2 join throttle"],
+  [`v2_ratelimits/fanout_${uid}`, "their profile fan-out budget"],
   [`insight_users/${OTHER}/insight_inbound_impressions/i1`, "impression they sent"],
   [`insight_users/${OTHER}/relations/r1`, "relation naming them"],
   [`v2_groups/${SOLO}`, "solo group"],
@@ -715,7 +721,10 @@ for (const [cond, label] of [
   [exp.directory?.name === "Erasable", "the directory row (D239)"],
   [has(exp.invitesReceived, uid) && has(exp.invitesSent, "third_party"), "invitations both ways"],
   [exp.relationsToYou === 1, "the relation naming them, counted"],
-  [exp.rateLimits?.insight && exp.rateLimits?.join && exp.rateLimits?.suggest && exp.rateLimits?.paidbook,
+  [exp.rateLimits?.insight && exp.rateLimits?.join && exp.rateLimits?.suggest && exp.rateLimits?.paidbook
+    // `fanout` named separately because it is the one the export omitted
+    // while the erasure below deleted it — five disclosed, six taken.
+    && exp.rateLimits?.fanout,
     "the rate-limit ledgers"],
   [has(exp.suggestions, `${uid}_e2e`), "their question suggestion (phase 4d)"],
   [has(exp.purchases?.rows, `${uid}_e2e`) && has(exp.purchases?.rows, `${uid}_ad`) && has(exp.purchases?.rows, `${uid}_done`),
@@ -813,6 +822,7 @@ for (const [path, label] of [
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
   [`v2_ratelimits/join_${uid}`, "v2 join throttle"],
+  [`v2_ratelimits/fanout_${uid}`, "their profile fan-out budget"],
   [`insight_users/${OTHER}/insight_inbound_impressions/i1`, "impression they sent to someone else"],
   [`insight_users/${OTHER}/relations/r1`, "relation naming them in someone else's subtree"],
   [`v2_groups/${SOLO}`, "group they were the only member of"],

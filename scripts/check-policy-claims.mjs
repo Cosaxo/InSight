@@ -130,8 +130,19 @@ export const CLAIMS = [
   // it carries and what it never does — the counts, never a name.
   ["D379 · a bought question's numbers are a public web page, and it never names who answered",
     /served as a web page\s+anyone can open[\s\S]{0,240}?never who\s+answered/i],
-  ["D5 · duel picks stay sealed until the next day's reveal",
-    /sealed[\s\S]{0,200}?until the day after/i],
+  // WAS "until the day after", AND SO WAS THIS ROW. D426 replaced the
+  // calendar day with a ROUND and D437 gave it a 48-hour deadline: a 1v1
+  // reveals the moment the partner answers (inside `onV2AnswerCreated`),
+  // a circle when the last member plays, otherwise at the deadline. The
+  // page went on promising a day in BOTH directions — a pick can be
+  // public a second after it is cast, and can stay sealed for two days —
+  // and this row PINNED that promise, so the page could not be corrected
+  // without moving the gate. The app's own copy has said "sealed until
+  // the reveal" since D437, and `check:public-copy` refuses the word
+  // "tomorrow" on the duel surfaces; `web/` is not one of the roots it
+  // scans, which is the gap that let the page drift alone.
+  ["D437 · duel picks stay sealed until their round reveals",
+    /sealed[\s\S]{0,200}?until its round reveals/i],
   // The row above pins the SEAL and says nothing about who reads the
   // reveal once it opens, which is how the page went on promising "the
   // people in that group" for a year after D98 removed the membership

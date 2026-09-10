@@ -32,7 +32,7 @@ import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
-import { fanoutBudgetId } from "./profileFanout";
+import { rateLimitLedgers } from "./exportAccount";
 import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
@@ -1113,21 +1113,15 @@ export const deleteAccount = onCall(
     // 4b. Rate-limit ledgers keyed by this uid. Rules make them fully
     //     opaque to clients, but they contain recipient uids and
     //     activity timestamps — right-to-erasure covers them too.
+    //
+    //     THE LIST LIVES IN `exportAccount.ts`, and each ledger's reason
+    //     with it. It was written out here as well until the two copies
+    //     drifted: this phase deleted six documents and the export
+    //     disclosed five, which `TWIN` cannot catch — it pairs a wipe
+    //     PHASE with a bundle section, and both halves of this pair were
+    //     there. One list, so the read and the wipe cannot part again.
     try {
-      await db.collection("insight_ratelimits").doc(uid).delete();
-      await db.collection("v2_ratelimits").doc(`join_${uid}`).delete();
-      // D122's invitation budget, keyed the same way. Added with the
-      // callable rather than after someone noticed the ledger surviving
-      // an erasure.
-      await db.collection("v2_ratelimits").doc(`invite_${uid}`).delete();
-      // The suggestion budget (suggestions.ts), same pattern and same
-      // reasoning: added with the callable, not after an audit.
-      await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
-      // The paid-booking budget (paid.ts, D313), same pattern again.
-      await db.collection("v2_ratelimits").doc(`paidbook_${uid}`).delete();
-      // The profile fan-out's hourly budget and its heal marker
-      // (profileFanout.ts), same pattern: activity timestamps keyed by uid.
-      await db.collection("v2_ratelimits").doc(fanoutBudgetId(uid)).delete();
+      for (const [, path] of rateLimitLedgers(uid)) await db.doc(path).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");

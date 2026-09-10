@@ -6,7 +6,7 @@ import { getAuth, connectAuthEmulator, signInAnonymously } from "firebase/auth";
 import {
   getFirestore, connectFirestoreEmulator, collection, collectionGroup, query,
   where, orderBy, limit, startAfter, documentId, getDocs, doc, getDoc, setDoc,
-  updateDoc, serverTimestamp,
+  updateDoc, deleteDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 // The ADMIN handle, and the only thing it is used for: reading back a
@@ -1872,6 +1872,24 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const again = await httpsCallable(fns, "claimHandleV2")({ handle: "olaf_t" });
   if (again.data?.handle !== "olaf_t") fail("re-claiming my own handle was refused");
   ok("re-claiming the same handle is a no-op, not an error");
+
+  // …AND THE NO-OP REPAIRS THE DIRECTORY ROW. D440 lets an owner delete
+  // their own row and `writeDirectoryRow` does exactly that when a display
+  // name is cleared — after which the client cannot put the handle back
+  // (`handle` is immutable to it there). The re-claim used to return one
+  // statement before the row write, so clearing a name and setting one
+  // again left an account findable by name and not by the address it had
+  // taken, with nothing in the system able to fix it.
+  await deleteDoc(doc(db, "v2_people", uid));
+  const gone = await getDoc(doc(db, "v2_people", uid));
+  if (gone.exists()) fail("the owner could not delete their own directory row (D440)");
+  const repair = await httpsCallable(fns, "claimHandleV2")({ handle: "olaf_t" });
+  if (repair.data?.handle !== "olaf_t") fail("the repairing re-claim was refused");
+  const row = await getDoc(doc(db, "v2_people", uid));
+  if (!row.exists() || row.get("handle") !== "olaf_t") {
+    fail("re-claiming my own handle did not restore the directory row: " + JSON.stringify(row.data() ?? null));
+  }
+  ok("a deleted directory row is repaired by re-claiming the handle it holds");
 
   // The change, refused. A handle is the address a person hands out, and a
   // rename frees it for a stranger the same minute — which is the failure

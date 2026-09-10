@@ -63,6 +63,7 @@ import { ENFORCE_APP_CHECK, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import { isStamped, playedIn } from "./pure";
 import { citySampleId } from "./patternsSamples";
+import { fanoutBudgetId } from "./profileFanout";
 import { logWriter, type LogRow } from "./log";
 
 /** The format tag on every export, bumped when the shape changes. */
@@ -117,6 +118,40 @@ export const TWIN: Record<string, string> = {
   // reads nothing the `profile` section did not, so it twins the same one.
   v2SubtreeSweep: "profile",
 };
+
+/**
+ * THE RATE-LIMIT LEDGERS THIS ACCOUNT OWNS, `[section key, document path]` —
+ * read by the export below AND by the erasure in `index.ts`, which is the
+ * point of it being here rather than written twice.
+ *
+ * It was written twice, and drifted: the erasure took six documents and the
+ * export disclosed five. The profile fan-out's hourly budget
+ * (`profileFanout.ts`) was deleted on erasure and named nowhere in the
+ * bundle, so the export said "everything" and handed over less — the exact
+ * failure this file's header describes, one level below where `TWIN` can
+ * see it. `TWIN` maps a wipe PHASE to a bundle section, and both halves of
+ * this pair were present; the gap was inside the phase.
+ *
+ * Rules make every one of these opaque to clients, but they carry recipient
+ * uids and activity timestamps, so erasure covers them (index.ts §4b) and
+ * so does the right of access.
+ */
+export const rateLimitLedgers = (uid: string): [string, string][] => [
+  ["insight", `insight_ratelimits/${uid}`],
+  ["join", `v2_ratelimits/join_${uid}`],
+  // D122's invitation budget, keyed the same way. Added with the callable
+  // rather than after someone noticed the ledger surviving an erasure.
+  ["invite", `v2_ratelimits/invite_${uid}`],
+  // The suggestion budget (suggestions.ts), same pattern and same reasoning:
+  // added with the callable, not after an audit.
+  ["suggest", `v2_ratelimits/suggest_${uid}`],
+  // The paid-booking budget (paid.ts, D313), same pattern again.
+  ["paidbook", `v2_ratelimits/paidbook_${uid}`],
+  // The profile fan-out's hourly budget and its heal marker
+  // (profileFanout.ts). Its id comes from the module that writes it, so
+  // the two spellings cannot part company.
+  ["fanout", `v2_ratelimits/${fanoutBudgetId(uid)}`],
+];
 
 type Plain = null | boolean | number | string | Plain[] | { [k: string]: Plain };
 
@@ -595,15 +630,8 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
 
   // 4b. The rate-limit ledgers — timestamps of this account's own acts.
   {
-    const ledgers: [string, string][] = [
-      ["insight", `insight_ratelimits/${uid}`],
-      ["join", `v2_ratelimits/join_${uid}`],
-      ["invite", `v2_ratelimits/invite_${uid}`],
-      ["suggest", `v2_ratelimits/suggest_${uid}`],
-      ["paidbook", `v2_ratelimits/paidbook_${uid}`],
-    ];
     const rateLimits: { [k: string]: Plain } = {};
-    for (const [key, path] of ledgers) {
+    for (const [key, path] of rateLimitLedgers(uid)) {
       const snap = await db.doc(path).get();
       rateLimits[key] = snap.exists ? toPlain(snap.data()) : null;
     }
