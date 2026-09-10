@@ -840,11 +840,15 @@ export const SWEEP_MAX_PAGES = 5;
 export async function runReviewSweep(
   store: ReviewSweepStore,
   maxAttempts = MAX_REVIEW_ATTEMPTS,
-): Promise<{ scanned: number; retried: number; stalled: number }> {
+): Promise<{ scanned: number; retried: number; stalled: number; failed: number }> {
   let after: string | null = null;
   let scanned = 0;
   let retried = 0;
   let stalled = 0;
+  /** Bookings whose retry THREW. Its own number, because a run where
+   *  every retry failed and one where every retry worked are the same
+   *  `retried: 0` otherwise. */
+  let failed = 0;
   for (let page = 0; page < SWEEP_MAX_PAGES; page++) {
     const rows = await store.heldPage(after, SWEEP_PAGE);
     if (!rows.length) break;
@@ -852,12 +856,32 @@ export async function runReviewSweep(
     after = rows[rows.length - 1].id;
     for (const row of rows) {
       if (row.attempts >= maxAttempts) { stalled++; continue; }
-      await store.review(row.id);
-      retried++;
+      // ONE BOOKING'S FAILURE MUST NOT STRAND THE REST OF THE SCAN —
+      // v2social's reveal scan says it in those words and wraps each
+      // item for it. This did not, and the page is ordered oldest-first,
+      // so a throw ended the run with every booking BEHIND the failing
+      // one unvisited: exactly the starvation the paging comment above
+      // went to some trouble to remove, reintroduced by an unguarded
+      // await. `reviewBooking` catches the model call, not the write that
+      // records the attempt nor the settling transaction, so a Firestore
+      // error on either ends the sweep.
+      //
+      // Counted, not swallowed: a failure is its own number in the
+      // summary, so a run where nothing worked cannot read as a quiet
+      // one. The sweep runs every thirty minutes and the attempt ceiling
+      // still applies, so a booking that keeps failing still reaches the
+      // stalled report rather than being retried forever.
+      try {
+        await store.review(row.id);
+        retried++;
+      } catch (err) {
+        failed++;
+        logger.error(`[paid] review sweep failed for ${row.id}:`, err);
+      }
     }
     if (rows.length < SWEEP_PAGE) break;
   }
-  return { scanned, retried, stalled };
+  return { scanned, retried, stalled, failed };
 }
 
 export const sweepPaidReviewsV2 = onSchedule(
@@ -882,6 +906,12 @@ export const sweepPaidReviewsV2 = onSchedule(
       logger.info(`[paid] review sweep retried ${res.retried} of ${res.scanned} held booking(s)`, {
         metric: "paid_review_sweep",
         ...res,
+      });
+    }
+    if (res.failed) {
+      logger.error(`[paid] ${res.failed} booking(s) threw during the review sweep — the rest of the scan ran anyway`, {
+        metric: "paid_review_sweep_failed",
+        failed: res.failed,
       });
     }
     if (res.stalled) {
