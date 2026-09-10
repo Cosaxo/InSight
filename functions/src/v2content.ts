@@ -15247,6 +15247,182 @@ const BANK_3: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "group-gr22",
+  "surface": "group",
+  "seq": 66,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who takes the mic without asking?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "band",
+   "label": "The Band",
+   "hue": 190
+  },
+  "role": {
+   "id": "frontman",
+   "label": "the frontman",
+   "seat": "engine"
+  }
+ },
+ {
+  "id": "group-gr23",
+  "surface": "group",
+  "seq": 67,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Whose ideas does everyone end up using?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "band",
+   "label": "The Band",
+   "hue": 190
+  },
+  "role": {
+   "id": "songwriter",
+   "label": "the songwriter",
+   "seat": "hands"
+  }
+ },
+ {
+  "id": "group-gr24",
+  "surface": "group",
+  "seq": 68,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who keeps this band from breaking up?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "band",
+   "label": "The Band",
+   "hue": 190
+  },
+  "role": {
+   "id": "glue",
+   "label": "the glue",
+   "seat": "heart"
+  }
+ },
+ {
+  "id": "group-gr25",
+  "surface": "group",
+  "seq": 69,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who goes solo first?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "band",
+   "label": "The Band",
+   "hue": 190
+  },
+  "role": {
+   "id": "solo",
+   "label": "the solo career",
+   "seat": "wild"
+  }
+ },
+ {
+  "id": "group-gs10",
+  "surface": "group",
+  "seq": 70,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A dinner with this group is…",
+  "options": [
+   "Murmur",
+   "mostly Murmur",
+   "in between",
+   "mostly Roar",
+   "Roar"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Murmur",
+   "Roar"
+  ]
+ },
+ {
+  "id": "group-gs11",
+  "surface": "group",
+  "seq": 71,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Getting this group out the door takes…",
+  "options": [
+   "Quick",
+   "mostly Quick",
+   "in between",
+   "mostly Endless",
+   "Endless"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Quick",
+   "Endless"
+  ]
+ },
+ {
+  "id": "group-gs12",
+  "surface": "group",
+  "seq": 72,
+  "type": "choice",
+  "domain": null,
+  "prompt": "This group’s comfort zone is…",
+  "options": [
+   "Home",
+   "mostly Home",
+   "in between",
+   "mostly Anywhere",
+   "Anywhere"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Home",
+   "Anywhere"
+  ]
+ },
+ {
+  "id": "group-gs13",
+  "surface": "group",
+  "seq": 73,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The stories at this table are…",
+  "options": [
+   "The same five",
+   "mostly The same five",
+   "in between",
+   "mostly Always new",
+   "Always new"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "The same five",
+   "Always new"
+  ]
+ },
+ {
   "id": "duo-000",
   "surface": "duo",
   "seq": 0,
@@ -15916,9 +16092,144 @@ const BANK_3: V2SeedQuestion[] = [
   ]
  },
  {
-  "id": "duo-020",
+  "id": "duo-075",
   "surface": "duo",
   "seq": 41,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Texting back: instantly, or when the stars align?",
+  "options": [
+   "Instantly",
+   "Same day",
+   "The stars decide"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-076",
+  "surface": "duo",
+  "seq": 42,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Your camera roll is mostly:",
+  "options": [
+   "People",
+   "Screenshots",
+   "Food and skies",
+   "Memes to forward"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-077",
+  "surface": "duo",
+  "seq": 43,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their phone dies for a day. They feel:",
+  "options": [
+   "Free",
+   "Twitchy",
+   "Smug and unreachable",
+   "They’d notice by noon"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-078",
+  "surface": "duo",
+  "seq": 44,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their guilty pleasure they’d deny:",
+  "options": [
+   "Trash TV",
+   "Gossip",
+   "Cheesy pop",
+   "Noon naps"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-079",
+  "surface": "duo",
+  "seq": 45,
+  "type": "binary",
+  "domain": null,
+  "prompt": "In a horror film, they’re:",
+  "options": [
+   "First to go",
+   "The survivor",
+   "The one who says split up",
+   "Left before it started"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-080",
+  "surface": "duo",
+  "seq": 46,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their unread messages right now:",
+  "options": [
+   "Zero, always",
+   "A handful",
+   "Hundreds",
+   "Thousands, proudly"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
+ {
+  "id": "duo-081",
+  "surface": "duo",
+  "seq": 47,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Asking for directions: fine, or defeat?",
+  "options": [
+   "Fine",
+   "Defeat",
+   "The map app is the referee"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-082",
+  "surface": "duo",
+  "seq": 48,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Ordering for someone else without asking: sweet, or controlling?",
+  "options": [
+   "Sweet",
+   "Controlling",
+   "Only if they know you"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -15936,7 +16247,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 42,
+  "seq": 50,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -15954,7 +16265,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 43,
+  "seq": 51,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -15972,7 +16283,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 44,
+  "seq": 52,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -15989,7 +16300,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 45,
+  "seq": 53,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -16008,7 +16319,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 46,
+  "seq": 54,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -16026,7 +16337,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 47,
+  "seq": 55,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -16043,7 +16354,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 48,
+  "seq": 56,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -16061,7 +16372,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 49,
+  "seq": 57,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -16080,7 +16391,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 50,
+  "seq": 58,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -16097,7 +16408,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 51,
+  "seq": 59,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -16115,7 +16426,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 52,
+  "seq": 60,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -16133,7 +16444,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 53,
+  "seq": 61,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -16151,7 +16462,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 54,
+  "seq": 62,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -16165,13 +16476,11 @@ const BANK_3: V2SeedQuestion[] = [
   "test": null,
   "mode": "romantic",
   "active": false
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 55,
+  "seq": 63,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -16190,7 +16499,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 56,
+  "seq": 64,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -16208,7 +16517,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 57,
+  "seq": 65,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -16227,7 +16536,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 58,
+  "seq": 66,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -16245,7 +16554,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 59,
+  "seq": 67,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -16264,7 +16573,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 60,
+  "seq": 68,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
@@ -16281,7 +16590,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-051",
   "surface": "duo",
-  "seq": 61,
+  "seq": 69,
   "type": "binary",
   "domain": null,
   "prompt": "After a fight, the first move back is usually…",
@@ -16300,7 +16609,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-052",
   "surface": "duo",
-  "seq": 62,
+  "seq": 70,
   "type": "binary",
   "domain": null,
   "prompt": "The retirement dream: settled deep somewhere, or still moving?",
@@ -16317,7 +16626,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-054",
   "surface": "duo",
-  "seq": 63,
+  "seq": 71,
   "type": "binary",
   "domain": null,
   "prompt": "When they need help, they…",
@@ -16335,7 +16644,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-055",
   "surface": "duo",
-  "seq": 64,
+  "seq": 72,
   "type": "binary",
   "domain": null,
   "prompt": "Ten years on, the two of you are known for…",
@@ -16354,7 +16663,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-064",
   "surface": "duo",
-  "seq": 65,
+  "seq": 73,
   "type": "binary",
   "domain": null,
   "prompt": "Sunday morning, no plans:",
@@ -16373,7 +16682,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-065",
   "surface": "duo",
-  "seq": 66,
+  "seq": 74,
   "type": "binary",
   "domain": null,
   "prompt": "Cooking together: romance, or chaos?",
@@ -16391,7 +16700,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-066",
   "surface": "duo",
-  "seq": 67,
+  "seq": 75,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy: a little is healthy, or none ever?",
@@ -16408,7 +16717,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-067",
   "surface": "duo",
-  "seq": 68,
+  "seq": 76,
   "type": "binary",
   "domain": null,
   "prompt": "An argument at midnight: settle it now, or sleep on it?",
@@ -16425,7 +16734,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-068",
   "surface": "duo",
-  "seq": 69,
+  "seq": 77,
   "type": "binary",
   "domain": null,
   "prompt": "Who says sorry first?",
@@ -16444,7 +16753,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-069",
   "surface": "duo",
-  "seq": 70,
+  "seq": 78,
   "type": "binary",
   "domain": null,
   "prompt": "The dream kitchen table seats…",
@@ -16463,7 +16772,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-070",
   "surface": "duo",
-  "seq": 71,
+  "seq": 79,
   "type": "binary",
   "domain": null,
   "prompt": "Growing old together looks like…",
@@ -16482,7 +16791,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-071",
   "surface": "duo",
-  "seq": 72,
+  "seq": 80,
   "type": "binary",
   "domain": null,
   "prompt": "In twenty years we’ll still argue about…",
@@ -16501,7 +16810,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-072",
   "surface": "duo",
-  "seq": 73,
+  "seq": 81,
   "type": "binary",
   "domain": null,
   "prompt": "The thing we’ll be glad we started early:",
@@ -16520,7 +16829,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-074",
   "surface": "duo",
-  "seq": 74,
+  "seq": 82,
   "type": "binary",
   "domain": null,
   "prompt": "Most days, {name} is…",
@@ -16546,6 +16855,172 @@ const BANK_4: V2SeedQuestion[] = [
    "judgement",
    "constancy"
   ],
+  "active": false
+ },
+ {
+  "id": "duo-083",
+  "surface": "duo",
+  "seq": 83,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The last five minutes before sleep are for:",
+  "options": [
+   "Talking nonsense",
+   "Phones, side by side",
+   "Silence, tangled",
+   "Alarm negotiations"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-084",
+  "surface": "duo",
+  "seq": 84,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Grocery runs together: a date, or a chore with company?",
+  "options": [
+   "Secretly a date",
+   "A chore with company",
+   "Divide and conquer"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-085",
+  "surface": "duo",
+  "seq": 85,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Who controls the thermostat, really?",
+  "options": [
+   "Me",
+   "Them",
+   "The war is eternal"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-086",
+  "surface": "duo",
+  "seq": 86,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Flirting: does harmless exist?",
+  "options": [
+   "Never harmless",
+   "Harmless is fine",
+   "Define flirting"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-087",
+  "surface": "duo",
+  "seq": 87,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Exes as friends: mature, or embers?",
+  "options": [
+   "Mature",
+   "Embers",
+   "Depends which ex"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-088",
+  "surface": "duo",
+  "seq": 88,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Separate holidays sometimes: healthy, or a warning?",
+  "options": [
+   "Healthy",
+   "A warning",
+   "We’ve earned both"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-089",
+  "surface": "duo",
+  "seq": 89,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The house we end up in:",
+  "options": [
+   "A city flat",
+   "A village and a dog",
+   "By the sea",
+   "Wherever, together"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-090",
+  "surface": "duo",
+  "seq": 90,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The tradition we’ll invent:",
+  "options": [
+   "A yearly trip",
+   "Sunday something",
+   "A terrible joke",
+   "Our own holiday"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-091",
+  "surface": "duo",
+  "seq": 91,
+  "type": "binary",
+  "domain": null,
+  "prompt": "At eighty, we’re the couple that:",
+  "options": [
+   "Still bickers happily",
+   "Holds hands in queues",
+   "Runs the garden",
+   "Knows everyone’s news"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
   "active": false
  },
  {
@@ -19339,7 +19814,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "update",
   "test": null
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "lq-thinking-3",
   "surface": "test",
@@ -19819,9 +20296,7 @@ const BANK_4: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "immoderation",
   "invert": true
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-45",
   "surface": "test",
@@ -23299,7 +23774,9 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 29,
   "k": "Venus: year < day",
   "w": "Venus turns so slowly that one rotation takes longer than one trip round the Sun."
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "learn-sol8",
   "surface": "learn",
@@ -23827,9 +24304,7 @@ const BANK_5: V2SeedQuestion[] = [
   "t": 2,
   "p": 53,
   "k": "Apartheid ended, early 90s"
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-ear1",
   "surface": "learn",
@@ -27632,7 +28107,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 54,
   "k": "Pan’s sudden fear",
   "w": "The god Pan’s shout scattered flocks and armies; groundless, spreading terror kept his name."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-org19",
   "surface": "learn",
@@ -27954,7 +28431,7 @@ const BANK_6: V2SeedQuestion[] = [
   "active": false
  }
 ];
-export const V2_QUESTIONS: V2SeedQuestion[] = [...BANK_0, ...BANK_1, ...BANK_2, ...BANK_3, ...BANK_4, ...BANK_5, ...BANK_6];
+export const V2_QUESTIONS: V2SeedQuestion[] = [...BANK_0, ...BANK_1, ...BANK_2, ...BANK_3, ...BANK_4, ...BANK_5, ...BANK_6, ...BANK_7];
 
 // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
 // sponsored questions. An ad takes no answer and folds into no

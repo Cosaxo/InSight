@@ -29,6 +29,11 @@
       "id": "evening",
       "label": "Any Given Evening",
       "hue": 335
+    },
+    {
+      "id": "band",
+      "label": "The Band",
+      "hue": 190
     }
   ],
   "group": [
@@ -701,6 +706,90 @@
         "Fine",
         "Never"
       ]
+    },
+    {
+      "id": "gr22",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "frontman",
+        "label": "the frontman",
+        "seat": "engine"
+      },
+      "prompt": "Who takes the mic without asking?"
+    },
+    {
+      "id": "gr23",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "songwriter",
+        "label": "the songwriter",
+        "seat": "hands"
+      },
+      "prompt": "Whose ideas does everyone end up using?"
+    },
+    {
+      "id": "gr24",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "glue",
+        "label": "the glue",
+        "seat": "heart"
+      },
+      "prompt": "Who keeps this band from breaking up?"
+    },
+    {
+      "id": "gr25",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "solo",
+        "label": "the solo career",
+        "seat": "wild"
+      },
+      "prompt": "Who goes solo first?"
+    },
+    {
+      "id": "gs10",
+      "kind": "rate",
+      "dim": "volume",
+      "prompt": "A dinner with this group is…",
+      "poles": [
+        "Murmur",
+        "Roar"
+      ]
+    },
+    {
+      "id": "gs11",
+      "kind": "rate",
+      "dim": "launch",
+      "prompt": "Getting this group out the door takes…",
+      "poles": [
+        "Quick",
+        "Endless"
+      ]
+    },
+    {
+      "id": "gs12",
+      "kind": "rate",
+      "dim": "range",
+      "prompt": "This group’s comfort zone is…",
+      "poles": [
+        "Home",
+        "Anywhere"
+      ]
+    },
+    {
+      "id": "gs13",
+      "kind": "rate",
+      "dim": "stories",
+      "prompt": "The stories at this table are…",
+      "poles": [
+        "The same five",
+        "Always new"
+      ]
     }
   ],
   "oneVsOne": [
@@ -1127,6 +1216,91 @@
         "judgement",
         "constancy"
       ]
+    },
+    {
+      "id": "075",
+      "d": "day",
+      "prompt": "Texting back: instantly, or when the stars align?",
+      "options": [
+        "Instantly",
+        "Same day",
+        "The stars decide"
+      ]
+    },
+    {
+      "id": "076",
+      "d": "day",
+      "prompt": "Your camera roll is mostly:",
+      "options": [
+        "People",
+        "Screenshots",
+        "Food and skies",
+        "Memes to forward"
+      ]
+    },
+    {
+      "id": "077",
+      "d": "mirror",
+      "prompt": "Their phone dies for a day. They feel:",
+      "options": [
+        "Free",
+        "Twitchy",
+        "Smug and unreachable",
+        "They’d notice by noon"
+      ]
+    },
+    {
+      "id": "078",
+      "d": "mirror",
+      "prompt": "Their guilty pleasure they’d deny:",
+      "options": [
+        "Trash TV",
+        "Gossip",
+        "Cheesy pop",
+        "Noon naps"
+      ]
+    },
+    {
+      "id": "079",
+      "d": "mirror",
+      "prompt": "In a horror film, they’re:",
+      "options": [
+        "First to go",
+        "The survivor",
+        "The one who says split up",
+        "Left before it started"
+      ]
+    },
+    {
+      "id": "080",
+      "d": "mirror",
+      "prompt": "Their unread messages right now:",
+      "options": [
+        "Zero, always",
+        "A handful",
+        "Hundreds",
+        "Thousands, proudly"
+      ]
+    },
+    {
+      "id": "081",
+      "d": "heat",
+      "prompt": "Asking for directions: fine, or defeat?",
+      "options": [
+        "Fine",
+        "Defeat",
+        "The map app is the referee"
+      ]
+    },
+    {
+      "id": "082",
+      "d": "heat",
+      "prompt": "Ordering for someone else without asking: sweet, or controlling?",
+      "options": [
+        "Sweet",
+        "Controlling",
+        "Only if they know you"
+      ]
     }
   ],
   "romantic": [
@@ -1521,6 +1695,109 @@
         "spark",
         "judgement",
         "constancy"
+      ],
+      "active": false
+    },
+    {
+      "id": "083",
+      "d": "day",
+      "prompt": "The last five minutes before sleep are for:",
+      "options": [
+        "Talking nonsense",
+        "Phones, side by side",
+        "Silence, tangled",
+        "Alarm negotiations"
+      ],
+      "active": false
+    },
+    {
+      "id": "084",
+      "d": "day",
+      "prompt": "Grocery runs together: a date, or a chore with company?",
+      "options": [
+        "Secretly a date",
+        "A chore with company",
+        "Divide and conquer"
+      ],
+      "active": false
+    },
+    {
+      "id": "085",
+      "d": "day",
+      "prompt": "Who controls the thermostat, really?",
+      "options": [
+        "Me",
+        "Them",
+        "The war is eternal"
+      ],
+      "active": false
+    },
+    {
+      "id": "086",
+      "d": "heat",
+      "prompt": "Flirting: does harmless exist?",
+      "options": [
+        "Never harmless",
+        "Harmless is fine",
+        "Define flirting"
+      ],
+      "active": false
+    },
+    {
+      "id": "087",
+      "d": "heat",
+      "prompt": "Exes as friends: mature, or embers?",
+      "options": [
+        "Mature",
+        "Embers",
+        "Depends which ex"
+      ],
+      "active": false
+    },
+    {
+      "id": "088",
+      "d": "heat",
+      "prompt": "Separate holidays sometimes: healthy, or a warning?",
+      "options": [
+        "Healthy",
+        "A warning",
+        "We’ve earned both"
+      ],
+      "active": false
+    },
+    {
+      "id": "089",
+      "d": "ahead",
+      "prompt": "The house we end up in:",
+      "options": [
+        "A city flat",
+        "A village and a dog",
+        "By the sea",
+        "Wherever, together"
+      ],
+      "active": false
+    },
+    {
+      "id": "090",
+      "d": "ahead",
+      "prompt": "The tradition we’ll invent:",
+      "options": [
+        "A yearly trip",
+        "Sunday something",
+        "A terrible joke",
+        "Our own holiday"
+      ],
+      "active": false
+    },
+    {
+      "id": "091",
+      "d": "ahead",
+      "prompt": "At eighty, we’re the couple that:",
+      "options": [
+        "Still bickers happily",
+        "Holds hands in queues",
+        "Runs the garden",
+        "Knows everyone’s news"
       ],
       "active": false
     }
