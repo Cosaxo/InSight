@@ -873,6 +873,29 @@ export let PICK_QS;
       91: 2,    // Latin — below the floor; the classicist's bit
       0: 15,    // Not listed — the sign-language answer lives here too
     },
+    // daily catalog-question run, 2026-09-10 — the third videogames canon
+    // is the PLACE, not the game: pk37 asks what deserves the crown, pk38
+    // where the hours went; this asks which world you would actually move
+    // to, which selects for livable afternoons over great level design.
+    // The boards provably differ: Animal Crossing and No Man's Sky chart
+    // here and on neither other board, and pk37's GOAT leaders (Ocarina,
+    // BOTW's esteem seat) either vanish or survive only as scenery.
+    pk40: {
+      64566657: 21, // Animal Crossing: New Horizons — the island; the loan is somehow fine
+      49740: 18,    // Minecraft — a world you build before living in it
+      23013817: 15, // Stardew Valley — the farm, and a town that knows your name
+      17185964: 12, // The Legend of Zelda: Breath of the Wild — Hyrule as landscape, not quest
+      323862: 10,   // The Elder Scrolls V: Skyrim — the adventurer's retirement plan
+      12579896: 8,  // The Sims 4 — living inside it is the joke, and they mean it
+      27438121: 7,  // Red Dead Redemption 2 — the frontier romantic's vote
+      15297043: 6,  // No Man's Sky — a universe of quiet planets, one per person
+      131007: 6,    // World of Warcraft — Azeroth as hometown
+      3182559: 6,   // Cyberpunk 2077 — Night City, voted by people who'd last a week
+      17452: 5,     // Grand Theft Auto V — clears the floor, folds outside the top 10; Los Santos as a bit
+      64826862: 3,  // Elden Ring — below the floor; the Lands Between have no livable afternoons
+      275960: 2,    // Mass Effect — below the floor; the Citadel vote
+      0: 14,        // Not listed — everyone's private somewhere
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1345,6 +1368,21 @@ export let PICK_QS;
         Men: { 37: 15, 182: 6, 39: 6, 38: 5, 57: 4 },
       },
     },
+    pk40: {
+      ageBand: {
+        // where you'd live follows what a world asks of you: the youngest
+        // cell still wants Minecraft's blank canvas, the middle one wants
+        // Animal Crossing's finished peace, and the oldest wants Skyrim —
+        // a world that leaves you alone — reorder, never flip
+        '18-24': { 49740: 9, 64566657: 7, 23013817: 5, 3182559: 4, 17185964: 3 },
+        '25-34': { 64566657: 8, 23013817: 7, 49740: 5, 17185964: 4, 3182559: 3 },
+        '45+': { 323862: 5, 64566657: 4, 23013817: 3, 131007: 3 },
+      },
+      gender: {
+        Women: { 64566657: 9, 23013817: 8, 12579896: 6, 49740: 5, 17185964: 4 },
+        Men: { 49740: 8, 323862: 7, 27438121: 6, 17185964: 5, 3182559: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1519,6 +1557,7 @@ export let PICK_QS;
     { id: 'pk37', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The greatest video game ever made?', n: 151 },
     { id: 'pk38', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game you’ve sunk the most hours into?', n: 150 },
     { id: 'pk39', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'If the whole world had to share one language, which should it be?', n: 139 },
+    { id: 'pk40', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game world you’d actually live in?', n: 133 },
   ];
   window.PICK_QS = PICK_QS;
 })();
