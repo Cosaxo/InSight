@@ -78,7 +78,7 @@ import {
 } from "./engagement";
 import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
-import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
+import { ANSWER_MAP_HEAL_SLICE_MS, runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 import { runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
 import { FANOUT_HEAL_SLICE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
@@ -95,7 +95,7 @@ export interface NightlyRunners {
   /** The answer maps' heal (DATA-EFFICIENCY-RUNBOOK 3.3) — the sixth,
    *  off the same ledger read; a night that skips it leaves the trigger's
    *  own writes standing, which is the whole point of a heal. */
-  answerMaps: () => ReturnType<typeof runAnswerMapHeal>;
+  answerMaps: (deadlineAt: number) => ReturnType<typeof runAnswerMapHeal>;
   /** D54's velocity scan (runbook 4.4) — the seventh, its whole days off
    *  the same reader and the partial day its own read. It logs its own
    *  flags and heartbeat (`velocity_scan`). */
@@ -192,7 +192,7 @@ export async function runNightlyPass(
   // a line every night would be a heartbeat for the absence of work. A
   // healed count is the thing worth seeing — it means a live write was
   // missed, and monitoring should notice a night with many.
-  const heal = await attempt("answerMaps", r.answerMaps);
+  const heal = await attempt("answerMaps", () => r.answerMaps(sliceDeadline(ANSWER_MAP_HEAL_SLICE_MS)));
   // The log's reconcile speaks for itself too (`log_reconcile`), and runs
   // after the heal so a night that dies in the folds still mirrors the
   // day — the ledger keeps it for ninety days either way.
@@ -214,6 +214,17 @@ export async function runNightlyPass(
       + (fan.stopped ? " — STOPPED on the pass's clock with the page unfinished; the rest keep their markers for tomorrow" : "")
       + (fan.left ? ` — MORE than ${fan.pending} were waiting; the rest keep their markers for tomorrow` : ""),
       { metric: "profile_fanout_heal", ...fan });
+  }
+  // …and a heal the clock ended speaks whether or not it healed anything,
+  // which the healed-only rule above cannot do: the people it did not
+  // reach are not in tomorrow's queue (this fold reads yesterday and
+  // nothing else), so a stop is the one outcome that must never be
+  // silent.
+  if (heal?.stopped) {
+    log.warn(
+      `[answerMaps] heal STOPPED on the pass's clock after ${heal.people - heal.unreached} of ${heal.people} people on ${heal.day} — ${heal.unreached} unread, and tomorrow heals tomorrow's day, not this one`,
+      { metric: "answer_map_heal_stopped", ...heal },
+    );
   }
   if (heal && heal.healed > 0) {
     log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });
@@ -292,7 +303,7 @@ export const digestEngagementV2 = onSchedule(
       patterns: () => runPatternsFit(firestorePatternsStore(db, ledgerDay), now),
       taste: () => runTasteFold(firestoreTasteStore(db, ledgerDay), now),
       velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
-      answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
+      answerMaps: (deadlineAt) => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now, { deadlineAt }),
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
       fanout: (deadlineAt) => runFanoutHeal(firestoreFanoutHealStore(db), { deadlineAt }),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),

@@ -46,7 +46,7 @@ function healthy(): NightlyRunners & { ran: string[]; deadlines: number[]; deadl
       ran.push("velocity");
       return { entries: 7, uids: 3, volumeFlags: 0, cadenceFlags: 0, clusterFlags: 0, burstFlags: 0, sharedDays: 1, tailRows: 2 };
     },
-    answerMaps: async () => { ran.push("answerMaps"); return { day: "2026-09-05", people: 3, healed: 0, entries: 0 }; },
+    answerMaps: async (deadlineAt: number) => { ran.push("answerMaps"); deadlineOf.answerMaps = deadlineAt; return { day: "2026-09-05", people: 3, healed: 0, entries: 0, stopped: false, unreached: 0 }; },
     // `left` is on both of these because the pass BRANCHES on it — the
     // erasure backlog and the fan-out backlog are each the only signal
     // that a promise was not kept that night. These fakes omitted it,
@@ -120,6 +120,25 @@ describe("runNightlyPass", () => {
     expect(r.deadlineOf.fanout).toBe(now + FANOUT_HEAL_SLICE_MS);
   });
 
+
+  it("says so when the map heal stops on the clock, even though it healed nothing", async () => {
+    // The heal's own log line speaks only when it HEALED — in steady
+    // state the trigger wrote every entry live, so a line every night
+    // would be a heartbeat for the absence of work. A stop is the one
+    // outcome that rule cannot report, and it is the one that must never
+    // be silent: this fold reads YESTERDAY, so the people it did not
+    // reach are not first in tomorrow's queue. Tomorrow heals tomorrow's
+    // day.
+    const r = healthy();
+    r.answerMaps = async () => ({ day: "2026-09-05", people: 900, healed: 0, entries: 0, stopped: true, unreached: 600 });
+    const { log, lines } = recorder();
+    await runNightlyPass(r, log);
+    const line = lines.find((l) => l.fields.metric === "answer_map_heal_stopped");
+    expect(line, "a partial heal left no trace at all").toBeTruthy();
+    expect(line!.level).toBe("warn");
+    expect(line!.msg).toMatch(/300 of 900 people/);
+    expect(line!.msg).toMatch(/600 unread/);
+  });
 
   it("runs the five in order and beats every heartbeat on a clean night", async () => {
     const r = healthy();
