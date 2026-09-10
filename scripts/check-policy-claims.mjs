@@ -159,6 +159,16 @@ export const CLAIMS = [
   // own comment says "a 1v1 keeps closing at it for the one who played".
   // The gate was green through all of it, because the row above matched
   // the sentence before the wrong one.
+  // THE PHOTO IS NOT BEHIND THE SIGN-IN FLOOR THE REST IS, and the page
+  // listed it among the things that are until 2026-09-10. Every face is a
+  // plain <img> on `…/o/avatars%2F{uid}?alt=media&token=…` (avatar.ts), and
+  // a Firebase download token is consulted INSTEAD of storage.rules —
+  // measured against the emulator: 200 with the token and no account at
+  // all, 403 without it. `storage.rules.test.ts` asserted the floor
+  // through the SDK path, which is not the path any surface takes, so
+  // nothing here or there could see the gap.
+  ["D178 · the photo's link opens for whoever holds it, account or not",
+    /Your photo[\s\S]{0,200}?anyone\s+they\s+pass\s+the\s+link\s+to/i],
   ["D437 · a round nobody completes reveals at its deadline, a 1v1 included",
     /deadline two days on[\s\S]{0,120}?a 1v1\s+included/i],
   // The row above pins the SEAL and says nothing about who reads the

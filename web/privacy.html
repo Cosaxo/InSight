@@ -526,8 +526,16 @@
   <ul>
     <li>
       <strong>Your answers, your profile details, your display name, your
-      photo, your test results, the Big Five type read from them, and who
+      test results, the Big Five type read from them, and who
       you follow:</strong> anyone signed in to the app.
+    </li>
+    <li>
+      <strong>Your photo:</strong> anyone signed in to the app, and anyone
+      they pass the link to. It is served from a storage address carrying
+      its own access token, and that address opens the picture for whoever
+      holds it &mdash; no account, no sign-in. Deleting your account, or a
+      moderator removing the photo, deletes the file the address points
+      at, and the address stops working with it.
     </li>
     <li>
       <strong>Aggregate counts:</strong> anyone signed in to the app,
