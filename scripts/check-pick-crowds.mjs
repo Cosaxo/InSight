@@ -154,6 +154,31 @@ export function checkPickCrowds(readFile) {
         Object.entries(entities).forEach(([entityKey, count]) => {
           if (!Number.isInteger(count) || count <= 0) {
             errors.push(`BY[${qid}][${dim}][${bucket}][${entityKey}] has invalid count: ${count}`);
+            return;
+          }
+          // AND THE ONE RELATION A SEGMENT HAS TO THE BOARD. Everything
+          // above this line checks a segment count's SHAPE — an integer,
+          // positive — and nothing checked it against the global count for
+          // the same entity, which is the only arithmetic that can make it
+          // wrong. A cohort is a subset of the crowd, so its count for an
+          // entity cannot exceed the crowd's, and `pick-data.js` states the
+          // stronger rule at the head of BY: "segments only ever reorder
+          // the published top, never surface their own long tail" (D17).
+          //
+          // The committed data broke it eight times while this gate printed
+          // "contract valid" — including an entity whose global count sits
+          // below the board's floor, so `canon()` suppresses it from the
+          // leaderboard entirely and `canonSeg()` was showing it to a
+          // cohort anyway. Measured 2026-09-10.
+          const globalCount = crowdData[qid] && crowdData[qid][entityKey];
+          if (globalCount === undefined) {
+            errors.push(
+              `BY[${qid}][${dim}][${bucket}][${entityKey}] names an entity CROWD[${qid}] does not — `
+              + 'a segment can only reorder the published board, never add to it');
+          } else if (count > globalCount) {
+            errors.push(
+              `BY[${qid}][${dim}][${bucket}][${entityKey}] = ${count} exceeds CROWD[${qid}][${entityKey}] = `
+              + `${globalCount} — a cohort cannot hold more pickers than the crowd it is part of`);
           }
         });
       });

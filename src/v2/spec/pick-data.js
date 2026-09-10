@@ -1100,7 +1100,7 @@ export let PICK_QS;
       },
       gender: {
         Women: { 440: 9, 223: 7, 261: 6, 2: 5, 86: 4 },
-        Men: { 467: 9, 533: 7, 2: 6, 440: 5, 165: 5 },
+        Men: { 467: 9, 533: 6, 2: 6, 440: 5, 165: 5 },
       },
     },
     pk20: {
@@ -1200,11 +1200,11 @@ export let PICK_QS;
       ageBand: {
         // the GOAT skews generational: the youth cell is the streaming
         // era's stars, the older cell the settled canon
-        '18-24': { 615: 9, 11571: 8, 36159: 6, 1189: 5, 7520267: 4 },
+        '18-24': { 615: 9, 11571: 8, 36159: 5, 1189: 5, 7520267: 4 },
         '25-34': { 36107: 8, 41421: 7, 615: 6, 1426: 5, 39562: 4 },
       },
       gender: {
-        Women: { 11459: 8, 7520267: 7, 615: 6, 36107: 5, 1189: 4 },
+        Women: { 11459: 8, 615: 6, 36107: 5, 7520267: 4, 1189: 4 },
         Men: { 36107: 9, 615: 8, 41421: 7, 11571: 6, 12897: 5 },
       },
     },
@@ -1223,7 +1223,7 @@ export let PICK_QS;
       ageBand: {
         // the youth cell pays for what it grew up streaming; the older
         // cell for what it remembers live
-        '18-24': { 352159: 8, 7520267: 7, 1189: 6, 615: 5, 39444: 4 },
+        '18-24': { 7520267: 7, 352159: 6, 1189: 6, 615: 5, 39444: 4 },
         '25-34': { 39444: 8, 1189: 7, 41421: 6, 1835: 5, 1426: 4 },
       },
       gender: {
@@ -1308,7 +1308,7 @@ export let PICK_QS;
         // the GOAT is generational: the youngest cell grew up inside
         // Minecraft, the middle one got Ocarina at nine, and the oldest
         // puts Tetris back on top — the board reorders, it never flips
-        '18-24': { 49740: 11, 64826862: 8, 17185964: 7, 27438121: 5, 71910: 4 },
+        '18-24': { 49740: 11, 17185964: 7, 64826862: 6, 27438121: 5, 71910: 4 },
         '25-34': { 213911: 9, 4267401: 8, 17452: 7, 49740: 6, 279446: 5 },
         '45+': { 71910: 8, 761815: 6, 213911: 5, 49740: 4 },
       },
@@ -1322,12 +1322,12 @@ export let PICK_QS;
         // hours follow eras: the youngest cell's hours live in Fortnite,
         // the middle one's in Skyrim saves, and the oldest cell's are
         // forty years of Tetris — the board reorders, it never flips
-        '18-24': { 349375: 10, 49740: 9, 223341: 7, 23013817: 5, 842146: 4 },
+        '18-24': { 49740: 9, 349375: 8, 223341: 7, 23013817: 5, 842146: 4 },
         '25-34': { 49740: 8, 323862: 8, 223341: 6, 17452: 6, 12579896: 5 },
-        '45+': { 71910: 7, 131007: 6, 323862: 4, 49740: 3 },
+        '45+': { 71910: 6, 131007: 6, 323862: 4, 49740: 3 },
       },
       gender: {
-        Women: { 12579896: 9, 23013817: 8, 49740: 7, 71910: 5, 323862: 4 },
+        Women: { 12579896: 9, 23013817: 7, 49740: 7, 71910: 5, 323862: 4 },
         Men: { 131007: 10, 223341: 9, 17452: 8, 842146: 7, 49740: 6 },
       },
     },
