@@ -40,7 +40,7 @@
 // Run: node scripts/check-spec-globals.mjs   (wired into CI's lint job)
 
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { collectSpecGlobals, stripComments } from "./spec-globals.mjs";
 
 const { defined, definedBy, referenced, bare, files, specDir, root } = collectSpecGlobals();
@@ -76,8 +76,24 @@ for (const [name, sites] of [...referenced].sort()) {
 // to name it in a COMMENT and rely on the substring match, which is a
 // reference that loads nothing and would have gone on passing if the real
 // import were deleted too.
+// RECURSIVE, like the scanner's own walk over the same root. These three
+// rules read `specDir` one level deep while `spec-globals.mjs` reads it
+// with `{ recursive: true }` — so a module in a subdirectory had its
+// names entered in `defined` (and therefore in eslint's `no-undef` seed)
+// while rules 2, 7 and 8 never saw the file at all. Measured: an orphan
+// module imported by nothing fails rule 2 at the top level and passes
+// byte-identical one directory down. Nothing has a subdirectory today, so
+// this was one `mkdir` from live rather than live — and the meta-gate
+// written for exactly this class (source-pins.test.mjs) could not see it,
+// because the directory arrives here as a module-scope binding its
+// detector cannot follow.
+const specTree = (re) => readdirSync(specDir, { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
+  .filter((f) => re.test(f))
+  .sort();
+
 const indexSrc = stripComments(readFileSync(join(root, "src/v2/spec-index.js"), "utf8"));
-const specFiles = readdirSync(specDir).filter((f) => /\.(jsx?|tsx?)$/.test(f));
+const specFiles = specTree(/\.(jsx?|tsx?)$/);
 const importedBySibling = new Set();
 for (const f of specFiles) {
   const src = stripComments(readFileSync(join(specDir, f), "utf8"));
@@ -319,8 +335,7 @@ for (const name of [...defined].sort()) {
 {
   const COMPONENT_RE =
     /^(?:function\s+([A-Z][\w$]*)|const\s+([A-Z][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
-  for (const file of readdirSync(specDir).sort()) {
-    if (!/\.(js|jsx)$/.test(file)) continue;
+  for (const file of specTree(/\.(js|jsx)$/)) {
     const src = stripComments(readFileSync(join(specDir, file), "utf8"));
     if (/^\s*export\s/m.test(src)) continue;
     if (/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
@@ -418,8 +433,7 @@ for (const name of [...defined].sort()) {
     }
   }
 
-  for (const file of readdirSync(specDir).sort()) {
-    if (!/\.(js|jsx)$/.test(file)) continue;
+  for (const file of specTree(/\.(js|jsx)$/)) {
     const src = stripComments(readFileSync(join(specDir, file), "utf8"));
     IMPORT_RE.lastIndex = 0;
     for (const m of src.matchAll(IMPORT_RE)) {
