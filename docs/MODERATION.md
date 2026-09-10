@@ -357,11 +357,29 @@ verdict log and the appeal annotation without a second copy of any of them.
 - **A remove verdict writes to `v2_avatars`, never to `v2_users`.** That is
   why the photo has its own document: the moderator's credential must not
   reach the profile carrying display names, anchors and test results.
-- **Once removed, frozen.** `firestore.rules` refuses a client update AND a
-  client delete on a hidden avatar, because both are the way back —
-  overwrite, or delete and re-create, and a removed face is live again from
-  an account that costs nothing to make. The appeal is a human, which is
-  what `hiddenMeta` is for.
+- **Once removed, the DOCUMENT is frozen.** `firestore.rules` refuses a
+  client update AND a client delete on a hidden avatar, because both are
+  the way back — overwrite, or delete and re-create, and a removed face is
+  live again from an account that costs nothing to make. The appeal is a
+  human, which is what `hiddenMeta` is for.
+- **The OBJECT is not, and this paragraph used to imply it was.** The
+  freeze lives in Firestore and `storage.rules` cannot read it: Storage
+  rules have no cross-database `firestore.get()`, so the grant on
+  `avatars/{uid}` is ownership, size and type. A re-upload therefore
+  lands, and `allow read: if request.auth != null` serves it to any
+  signed-in caller BY PATH — the download token lives in the frozen
+  document, but the SDK does not need one, so freezing the document does
+  not gate the bytes.
+  - The shipped client no longer does it (2026-09-11): `setAvatar` reads
+    the document and refuses before it uploads. It used to upload first
+    and only then attempt the write, so an ordinary person re-picking a
+    photo re-populated the bucket and was told "removed" — the removal
+    undone by the app itself, with no modified client involved.
+  - A modified client still can, and nothing in this repository can stop
+    it. Closing it properly wants a Storage-triggered sweep that re-checks
+    the document, or a moderator-side re-delete. Until one exists, **a
+    remove verdict is durable against the app and not against an
+    attacker**, and that is the honest sentence.
 - **Live from the moment it is set**, with the report control on it. That
   was the owner's call at D178 over reviewing a photo before it shows: the
   same posture takes have had since D83, and the alternative would have
