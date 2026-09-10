@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-09T07:06:35.178Z",
-  "daysSinceEpoch": 39,
+  "generatedAt": "2026-09-10T07:05:06.033Z",
+  "daysSinceEpoch": 40,
   "coverage": {
-    "questions": 521,
+    "questions": 585,
     "scored": 95,
-    "unserved": 81
+    "unserved": 82
   },
   "topics": {
     "Sport": {
@@ -26,7 +26,7 @@
       "avgEvenness": null
     },
     "Food": {
-      "questions": 8,
+      "questions": 9,
       "scored": 3,
       "answers": 9,
       "measured": 3,
@@ -125,7 +125,7 @@
       "avgEvenness": null
     },
     "Interests": {
-      "questions": 8,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "measured": 0,
@@ -134,7 +134,7 @@
       "avgEvenness": null
     },
     "sport": {
-      "questions": 38,
+      "questions": 44,
       "scored": 3,
       "answers": 3,
       "measured": 1,
@@ -143,7 +143,7 @@
       "avgEvenness": 0
     },
     "tech": {
-      "questions": 37,
+      "questions": 43,
       "scored": 10,
       "answers": 9,
       "measured": 5,
@@ -152,7 +152,7 @@
       "avgEvenness": 0
     },
     "dilemma": {
-      "questions": 38,
+      "questions": 44,
       "scored": 7,
       "answers": 5,
       "measured": 2,
@@ -161,7 +161,7 @@
       "avgEvenness": 0
     },
     "food": {
-      "questions": 41,
+      "questions": 47,
       "scored": 7,
       "answers": 7,
       "measured": 4,
@@ -170,7 +170,7 @@
       "avgEvenness": 0
     },
     "movies": {
-      "questions": 38,
+      "questions": 44,
       "scored": 6,
       "answers": 6,
       "measured": 5,
@@ -179,7 +179,7 @@
       "avgEvenness": 0
     },
     "culture": {
-      "questions": 39,
+      "questions": 45,
       "scored": 5,
       "answers": 4,
       "measured": 2,
@@ -188,7 +188,7 @@
       "avgEvenness": 0
     },
     "music": {
-      "questions": 40,
+      "questions": 46,
       "scored": 7,
       "answers": 7,
       "measured": 5,
@@ -197,7 +197,7 @@
       "avgEvenness": 0
     },
     "event": {
-      "questions": 38,
+      "questions": 44,
       "scored": 8,
       "answers": 8.3,
       "measured": 7,
@@ -206,7 +206,7 @@
       "avgEvenness": 0
     },
     "people": {
-      "questions": 37,
+      "questions": 43,
       "scored": 8,
       "answers": 8,
       "measured": 8,
@@ -215,7 +215,7 @@
       "avgEvenness": 0
     },
     "bigq": {
-      "questions": 39,
+      "questions": 45,
       "scored": 6,
       "answers": 5.7,
       "measured": 2,
@@ -224,7 +224,7 @@
       "avgEvenness": 0
     },
     "now": {
-      "questions": 17,
+      "questions": 19,
       "scored": 8,
       "answers": 8,
       "measured": 8,
@@ -236,7 +236,7 @@
   "types": {
     "daily": {
       "binary": {
-        "questions": 47,
+        "questions": 48,
         "scored": 2,
         "answers": 2,
         "measured": 2,
@@ -245,7 +245,7 @@
         "avgEvenness": 0
       },
       "choice": {
-        "questions": 34,
+        "questions": 35,
         "scored": 2,
         "answers": 8,
         "measured": 2,
@@ -292,7 +292,7 @@
         "avgEvenness": 0
       },
       "vote": {
-        "questions": 290,
+        "questions": 337,
         "scored": 46,
         "answers": 46,
         "measured": 46,
@@ -301,7 +301,7 @@
         "avgEvenness": 0
       },
       "dial": {
-        "questions": 63,
+        "questions": 72,
         "scored": 20,
         "answers": 21,
         "measured": 0,
@@ -310,7 +310,7 @@
         "avgEvenness": null
       },
       "field": {
-        "questions": 19,
+        "questions": 25,
         "scored": 2,
         "answers": 2,
         "measured": 0,
@@ -660,7 +660,7 @@
     "bySource": {
       "editorial": {
         "questions": 177,
-        "served": 114,
+        "served": 115,
         "scored": 43,
         "answers": 54,
         "measured": 39,
@@ -669,8 +669,8 @@
         "avgEvenness": 0.005
       },
       "farm": {
-        "questions": 344,
-        "served": 310,
+        "questions": 408,
+        "served": 372,
         "scored": 52,
         "answers": 53,
         "measured": 33,
@@ -682,7 +682,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 104,
+        "served": 105,
         "scored": 23,
         "answers": 34,
         "measured": 23,
@@ -793,6 +793,16 @@
       "farm:2026-09-07": {
         "questions": 66,
         "served": 64,
+        "scored": 0,
+        "answers": 0,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-09-09": {
+        "questions": 64,
+        "served": 62,
         "scored": 0,
         "answers": 0,
         "measured": 0,
@@ -935,7 +945,7 @@
   "retireProposals": [],
   "learn": {
     "coverage": {
-      "cards": 186,
+      "cards": 216,
       "scored": 26
     },
     "fields": {
@@ -946,7 +956,7 @@
         "avgAbsGap": 0.485
       },
       "gene": {
-        "cards": 13,
+        "cards": 17,
         "scored": 6,
         "answers": 6,
         "avgAbsGap": 0.415
@@ -958,19 +968,19 @@
         "avgAbsGap": 0.412
       },
       "evo": {
-        "cards": 13,
+        "cards": 17,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
       },
       "solar": {
-        "cards": 13,
+        "cards": 17,
         "scored": 2,
         "answers": 2,
         "avgAbsGap": 0.545
       },
       "stars": {
-        "cards": 13,
+        "cards": 17,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -988,7 +998,7 @@
         "avgAbsGap": null
       },
       "earth": {
-        "cards": 13,
+        "cards": 17,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -1000,13 +1010,19 @@
         "avgAbsGap": 0.476
       },
       "origins": {
-        "cards": 13,
+        "cards": 17,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
       },
       "confused": {
         "cards": 18,
+        "scored": 0,
+        "answers": 0,
+        "avgAbsGap": null
+      },
+      "flag": {
+        "cards": 6,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -3432,30 +3448,420 @@
         "trapShare": null,
         "wrongCount": 0,
         "signal": "no-answers"
+      },
+      {
+        "qid": "learn-flag1",
+        "field": "flag",
+        "n": 4,
+        "prompt": "The only national flag with more than four sides belongs to…",
+        "total": 0,
+        "authoredP": 0.55,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-flag2",
+        "field": "flag",
+        "n": 4,
+        "prompt": "The national flag with a rifle on it belongs to…",
+        "total": 0,
+        "authoredP": 0.45,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-flag3",
+        "field": "flag",
+        "n": 4,
+        "prompt": "Indonesia’s flag is almost identical to…",
+        "total": 0,
+        "authoredP": 0.5,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-flag4",
+        "field": "flag",
+        "n": 4,
+        "prompt": "How many stars are on the flag of China?",
+        "total": 0,
+        "authoredP": 0.7,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-flag5",
+        "field": "flag",
+        "n": 4,
+        "prompt": "The Union Jack combines the crosses of…",
+        "total": 0,
+        "authoredP": 0.48,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-flag6",
+        "field": "flag",
+        "n": 4,
+        "prompt": "Which colour appears on the most national flags?",
+        "total": 0,
+        "authoredP": 0.4,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear14",
+        "field": "earth",
+        "n": 4,
+        "prompt": "The world’s largest island is…",
+        "total": 0,
+        "authoredP": 0.62,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear15",
+        "field": "earth",
+        "n": 4,
+        "prompt": "The lowest point on Earth’s land surface is the shore of…",
+        "total": 0,
+        "authoredP": 0.51,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear16",
+        "field": "earth",
+        "n": 4,
+        "prompt": "Strictly speaking, the largest desert on Earth is…",
+        "total": 0,
+        "authoredP": 0.44,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear17",
+        "field": "earth",
+        "n": 4,
+        "prompt": "The Volga, Europe’s longest river, empties into…",
+        "total": 0,
+        "authoredP": 0.38,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo14",
+        "field": "evo",
+        "n": 4,
+        "prompt": "Roughly when did the dinosaurs (except birds) die out?",
+        "total": 0,
+        "authoredP": 0.57,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo15",
+        "field": "evo",
+        "n": 4,
+        "prompt": "Which of these is OLDEST as a group?",
+        "total": 0,
+        "authoredP": 0.36,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo16",
+        "field": "evo",
+        "n": 4,
+        "prompt": "A trait that spreads because mates prefer it is…",
+        "total": 0,
+        "authoredP": 0.49,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo17",
+        "field": "evo",
+        "n": 4,
+        "prompt": "Insects and birds both fly. Their wings are…",
+        "total": 0,
+        "authoredP": 0.42,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-gene14",
+        "field": "gene",
+        "n": 4,
+        "prompt": "What does DNA stand for?",
+        "total": 0,
+        "authoredP": 0.68,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-gene15",
+        "field": "gene",
+        "n": 4,
+        "prompt": "The DNA in one of your cells, stretched out, runs about…",
+        "total": 0,
+        "authoredP": 0.46,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-gene16",
+        "field": "gene",
+        "n": 4,
+        "prompt": "The enzyme that copies DNA is…",
+        "total": 0,
+        "authoredP": 0.39,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-gene17",
+        "field": "gene",
+        "n": 4,
+        "prompt": "Your blood type is inherited from…",
+        "total": 0,
+        "authoredP": 0.74,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-org14",
+        "field": "origins",
+        "n": 4,
+        "prompt": "“Companion” literally means someone you share…",
+        "total": 0,
+        "authoredP": 0.42,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-org15",
+        "field": "origins",
+        "n": 4,
+        "prompt": "“Deadline” began as…",
+        "total": 0,
+        "authoredP": 0.34,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-org16",
+        "field": "origins",
+        "n": 4,
+        "prompt": "“Vaccine” comes from the Latin for…",
+        "total": 0,
+        "authoredP": 0.56,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-org17",
+        "field": "origins",
+        "n": 4,
+        "prompt": "A “freelancer” was originally…",
+        "total": 0,
+        "authoredP": 0.52,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol14",
+        "field": "solar",
+        "n": 4,
+        "prompt": "The tallest known volcano in the solar system stands on…",
+        "total": 0,
+        "authoredP": 0.59,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol15",
+        "field": "solar",
+        "n": 4,
+        "prompt": "Saturn’s rings are mostly…",
+        "total": 0,
+        "authoredP": 0.61,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol16",
+        "field": "solar",
+        "n": 4,
+        "prompt": "One day on Mercury, sunrise to sunrise, lasts about…",
+        "total": 0,
+        "authoredP": 0.31,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol17",
+        "field": "solar",
+        "n": 4,
+        "prompt": "The Moon is slowly…",
+        "total": 0,
+        "authoredP": 0.5,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str14",
+        "field": "stars",
+        "n": 4,
+        "prompt": "When the Sun dies, it will…",
+        "total": 0,
+        "authoredP": 0.47,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str15",
+        "field": "stars",
+        "n": 4,
+        "prompt": "The Milky Way and Andromeda are…",
+        "total": 0,
+        "authoredP": 0.43,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str16",
+        "field": "stars",
+        "n": 4,
+        "prompt": "A teaspoon of neutron star would weigh about…",
+        "total": 0,
+        "authoredP": 0.54,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str17",
+        "field": "stars",
+        "n": 4,
+        "prompt": "Stars twinkle because of…",
+        "total": 0,
+        "authoredP": 0.72,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
       }
     ]
   },
   "duel": {
     "coverage": {
-      "questions": 82,
+      "questions": 141,
       "scored": 0,
-      "unserved": 24
+      "unserved": 47
     },
     "modes": {
       "group": {
-        "questions": 26,
+        "questions": 66,
         "scored": 0,
         "plays": 0,
         "answers": 0
       },
       "duo": {
-        "questions": 32,
+        "questions": 41,
         "scored": 0,
         "plays": 0,
         "answers": 0
       },
       "romantic": {
-        "questions": 24,
+        "questions": 34,
         "scored": 0,
         "plays": 0,
         "answers": 0
@@ -3490,7 +3896,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": null,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gu1",
@@ -3532,7 +3938,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.25,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gp1",
@@ -3546,7 +3952,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": null,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gu4",
@@ -3672,7 +4078,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.25,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gd6",
@@ -3700,7 +4106,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.25,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gp4",
@@ -3742,7 +4148,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.5,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gp5",
@@ -3784,7 +4190,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": null,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gu11",
@@ -3798,7 +4204,7 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.25,
-        "signal": "no-answers"
+        "signal": "unserved"
       },
       {
         "qid": "duel-group-gd8",
@@ -3826,6 +4232,566 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": null,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-group-gr0",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who plans the whole thing?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr1",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who drives the getaway car?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr2",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who charms their way inside?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs0",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "This group’s energy?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr3",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who confesses after one question?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr4",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who keeps the fire going?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr5",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who finds something to eat?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs1",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "When we disagree, we…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr6",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who keeps spirits up?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr7",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who talks to a coconut first?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr8",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who is the main character?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs2",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "Our timekeeping?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr9",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who gets the laugh track?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr10",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who delivers the dry one-liners?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr11",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Whose life is the plot twist?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs3",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "A free evening with us is…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr12",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who ends up leading?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr13",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who already has a stockpile?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-group-gr14",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who goes out for the supply run?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs4",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "New person wants in. We are…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr15",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who pets the zombie dog?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr16",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who takes the wheel?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr17",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who controls the music?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs5",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "How much goes unsaid between us?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr18",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who knows the way — or says so?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr19",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who packed the snacks?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-group-gs6",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "How honest are we with each other?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs7",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "Our group chat runs on…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs8",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "A group holiday: one house, or rooms apart?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gs9",
+        "mode": "group",
+        "kind": "rate",
+        "prompt": "In ten years, this group is…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr20",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who patches everyone up?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gr21",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who needs to pull over every hour?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu12",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "Our default meeting place is…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd9",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "A friend’s terrible haircut: the truth, or “it’s great”?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp8",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who would survive longest without their phone?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-group-gu13",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "When one of us wins something, we…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd10",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "Surprise parties: throw them, or ban them?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp9",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who’s secretly keeping the group together?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-group-gu14",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "Trouble hits one of us at 3am. The group…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd11",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "Borrowed money between friends: fine, or never?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
         "signal": "no-answers"
       },
       {
@@ -4277,6 +5243,132 @@
         "signal": "no-answers"
       },
       {
+        "qid": "duel-duo-056",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "First thing after waking:",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-057",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Their comfort rewatch is…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-058",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "When a plan falls apart, they…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-059",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Their wedding toast would be…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-060",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Being early: respect, or wasted life?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-061",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Lending your favourite thing: gladly, or never again after last time?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-062",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Their real superpower:",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-063",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "The silent treatment: sometimes deserved, or always childish?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-073",
+        "mode": "duo",
+        "kind": "cast",
+        "prompt": "Most days, {name} is…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
         "qid": "duel-duo-020",
         "mode": "romantic",
         "kind": null,
@@ -4603,6 +5695,146 @@
         "mode": "romantic",
         "kind": null,
         "prompt": "Ten years on, the two of you are known for…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-064",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Sunday morning, no plans:",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-065",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Cooking together: romance, or chaos?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-066",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Jealousy: a little is healthy, or none ever?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-067",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "An argument at midnight: settle it now, or sleep on it?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-068",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Who says sorry first?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-069",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "The dream kitchen table seats…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-070",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Growing old together looks like…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-071",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "In twenty years we’ll still argue about…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-072",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "The thing we’ll be glad we started early:",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-074",
+        "mode": "romantic",
+        "kind": "cast",
+        "prompt": "Most days, {name} is…",
         "plays": 0,
         "total": 0,
         "evenness": null,
@@ -5270,11 +6502,11 @@
       ],
       "type": "choice",
       "prompt": "The best part of a trip?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-040",
@@ -6909,6 +8141,36 @@
       "signal": "unserved"
     },
     {
+      "qid": "daily-136",
+      "surface": "daily",
+      "topic": "Food",
+      "topics": [
+        "Food"
+      ],
+      "type": "binary",
+      "prompt": "Dessert: every day, or a special occasion?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-137",
+      "surface": "daily",
+      "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
+      "type": "choice",
+      "prompt": "What do you follow most closely?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
       "qid": "feed-f01",
       "surface": "feed",
       "topic": "sport",
@@ -7632,7 +8894,7 @@
       ],
       "signal": "scored",
       "grade": "middling",
-      "attnSeen": 1.5,
+      "attnSeen": 3,
       "attnConv": null,
       "attnPass": null
     },
@@ -7689,7 +8951,7 @@
       ],
       "signal": "scored",
       "grade": "middling",
-      "attnSeen": 1.5,
+      "attnSeen": 3,
       "attnConv": null,
       "attnPass": null
     },
@@ -8021,7 +9283,10 @@
       "evenness": null,
       "optionShares": null,
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-dl2",
@@ -10970,7 +12235,7 @@
       "evenness": null,
       "optionShares": null,
       "signal": "no-answers",
-      "attnSeen": 8,
+      "attnSeen": 9.5,
       "attnConv": 0,
       "attnPass": 0
     },
@@ -13158,12 +14423,1148 @@
       "evenness": null,
       "optionShares": null,
       "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f272",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "The underarm serve: clever, or beneath the game?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f273",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Night matches: tennis at its best, or past everyone’s bedtime?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f274",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Sponsors on football shirts: part of the game now, or ruining the kit?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f275",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Safe standing terraces: bring the atmosphere back, or seats forever?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f276",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Running with music, or with your own thoughts?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl64",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "dial",
+      "prompt": "Kilometres you run or walk in an average week?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f277",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "Is your red my red?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f278",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "Your thoughts: do you author them, or do they just arrive?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f279",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "Your earliest memory: the real thing, or a story you built later?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f280",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "Dreams: mail from yourself, or noise?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f281",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "Progress: real, or just change with better marketing?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl65",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "dial",
+      "prompt": "Hours of your day spent on autopilot?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f282",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "vote",
+      "prompt": "Reclining your seat on a plane: your right, or an act of war?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f283",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "vote",
+      "prompt": "Splitting the bill: evenly and cheerfully, or item by item?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f284",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "vote",
+      "prompt": "Double-dipping: a crime, or a fuss over nothing?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f285",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "vote",
+      "prompt": "Applauding when the plane lands: joy, or never?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f286",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "vote",
+      "prompt": "Your neighbours: know them well, or nod politely forever?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd20",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "field",
+      "prompt": "Manners — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f287",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "Free rent forever, but you can never move: deal?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f288",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "Skip sleep with no cost — but lose dreams forever: deal?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f289",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "A button erases your worst memory — and you won’t know what it was. Press it?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f290",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "Talk with animals — but they answer honestly: deal?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f291",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "The trolley problem: pull the lever?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd21",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "field",
+      "prompt": "Risk — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f292",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "Open-plan offices: collaboration, or surveillance with plants?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f293",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "The office party: gladly, strategically, or never?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f294",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "Retirement: as early as possible, or never fully?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f295",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "World Expos: still matter, or a relic?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl66",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "dial",
+      "prompt": "Meetings this week that could have been an email?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl67",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "dial",
+      "prompt": "Holiday days you’ll lose unused this year?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f296",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Asking the waiter what’s good: always, or never?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f297",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Eating at the bar: the best seat, or the consolation seat?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f298",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "The dessert menu: always look, or know your answer walking in?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f299",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Chain restaurants: reliable joy, or admitting defeat?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f300",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Soup for breakfast: perfectly normal, or chaos?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl68",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "dial",
+      "prompt": "Glasses of water you actually drink a day?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f301",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Your portrait, painted by: Frida Kahlo, Van Gogh, or a Renaissance master?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f302",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "The historical figure you’d want live-posting their day: Napoleon, Marie Antoinette, or Julius Caesar?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f303",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Who lasts longest a week in the wilderness: Beyoncé, Keanu Reeves, or Taylor Swift?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f304",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "The fictional home you’d take: the Shire, Hogwarts, or the Starship Enterprise?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl69",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "dial",
+      "prompt": "Living famous people you could name in sixty seconds?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd22",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "field",
+      "prompt": "Heroes — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f305",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Documentaries: as gripping as fiction, or homework?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f306",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Film twists: guess them proudly, or ride along?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f307",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Directors’ cuts: the real film, or self-indulgence?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f308",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Watching the Oscars: for the films, for the dresses, or not at all?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl70",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "dial",
+      "prompt": "Minutes before you abandon a bad film?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd23",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "field",
+      "prompt": "Animation — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f309",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "Covers: honour the original, or leave it alone?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f310",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "Album art: still part of the music, or lost with the sleeve?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f311",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "A song you love in an ad: fair game, or a small betrayal?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f312",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "Backing tracks at a live show: cheating, or part of the craft?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl71",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "dial",
+      "prompt": "Years since you last bought physical music?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd24",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "field",
+      "prompt": "Festivals — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f313",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "A dumbphone month: tempting, or unthinkable?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f314",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Software updates: install tonight, or ‘remind me later’ forever?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f315",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Wireless earbuds: liberation, or three more things to lose?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f316",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Your files: meticulous folders, or search and pray?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl72",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "dial",
+      "prompt": "Devices in your home that need charging?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd25",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "field",
+      "prompt": "The cloud — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n18",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "The foldable iPhone is expected on stage today. A phone that opens like a book: would you carry one?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n19",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "A million-person study ties 1,260 DNA variants to personality. What made you you — mostly genes, or mostly life?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     }
   ],
   "attention": {
-    "daysWithQ": 11,
+    "daysWithQ": 12,
     "truncatedDevices": 0,
     "basis": "bucket-midpoint estimates from sampled anonymous shards (D271)",
     "warning": "attention is an estimate from bucketed, sampled shards; a skip is not dislike (seen-denominators only), novelty inflates new questions, and no attention figure outranks the content rules (D33/D271)"
+  },
+  "fit": {
+    "source": "v2_patterns/loadings",
+    "publishedAt": "2026-09-10T02:23:08.966Z",
+    "lastDay": "2026-09-09",
+    "k": 8,
+    "folded": 0,
+    "questions": 18,
+    "basis": {
+      "floor": 8,
+      "ready": 0,
+      "n": {
+        "min": 1,
+        "p50": 1,
+        "max": 5
+      }
+    },
+    "quality": {
+      "day": "2026-09-09",
+      "n": 0,
+      "bits": 0,
+      "floor": 8,
+      "questionsAboveFloor": 0,
+      "series": [
+        {
+          "day": "2026-08-27",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-08-28",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-08-29",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-08-30",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-08-31",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-09-01",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-09-02",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-09-03",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-09-04",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-09-05",
+          "n": 0,
+          "bits": 0
+        },
+        {
+          "day": "2026-09-06",
+          "n": 2,
+          "bits": 1,
+          "baselineBits": 1
+        },
+        {
+          "day": "2026-09-07",
+          "n": 7,
+          "bits": 1,
+          "baselineBits": 1
+        },
+        {
+          "day": "2026-09-08",
+          "n": 3,
+          "bits": 1,
+          "baselineBits": 1
+        },
+        {
+          "day": "2026-09-09",
+          "n": 0,
+          "bits": 0,
+          "baselineBits": 0
+        }
+      ],
+      "note": "prequential-online log-loss of the nightly fit itself, scored one step ahead as each day folds; the device Oracle's ridge solve is a separate model with its own meter. baselineBits is the same score for the question's marginal alone, and skill = 1 - bits/baselineBits: zero means the vectors carry nothing the popularity of the question did not"
+    },
+    "displacement": {
+      "space": "loading",
+      "n": 18,
+      "moved": 0,
+      "mean": 0,
+      "p50": 0,
+      "p90": 0,
+      "max": 0,
+      "perQ": {}
+    },
+    "items": {
+      "note": "model-derived discrimination in the fitted K-space (L2 norm of the published loading), not an IRT estimate from a purpose-built calibration; mean is the ±1-encoded marginal, 0 = an even split",
+      "perQ": {
+        "daily-019": {
+          "n": 5,
+          "disc": 0.0865,
+          "mean": 1
+        },
+        "daily-038": {
+          "n": 1,
+          "disc": 0.0729,
+          "mean": 1
+        },
+        "feed-f01": {
+          "n": 1,
+          "disc": 0.0894,
+          "mean": -1
+        },
+        "feed-f09": {
+          "n": 1,
+          "disc": 0.0639,
+          "mean": 1
+        },
+        "feed-f15": {
+          "n": 1,
+          "disc": 0.0792,
+          "mean": -1
+        },
+        "feed-f26": {
+          "n": 1,
+          "disc": 0.0663,
+          "mean": 1
+        },
+        "feed-f29": {
+          "n": 1,
+          "disc": 0.0961,
+          "mean": -1
+        },
+        "feed-f32": {
+          "n": 1,
+          "disc": 0.0673,
+          "mean": 1
+        },
+        "feed-f38": {
+          "n": 1,
+          "disc": 0.0798,
+          "mean": 1
+        },
+        "feed-f45": {
+          "n": 1,
+          "disc": 0.0694,
+          "mean": -1
+        },
+        "feed-f49": {
+          "n": 1,
+          "disc": 0.0761,
+          "mean": 1
+        },
+        "feed-f52": {
+          "n": 1,
+          "disc": 0.0847,
+          "mean": 1
+        },
+        "feed-f57": {
+          "n": 1,
+          "disc": 0.0866,
+          "mean": -1
+        },
+        "feed-f58": {
+          "n": 1,
+          "disc": 0.0905,
+          "mean": 1
+        },
+        "feed-f60": {
+          "n": 1,
+          "disc": 0.0937,
+          "mean": -1
+        },
+        "feed-f61": {
+          "n": 1,
+          "disc": 0.0862,
+          "mean": -1
+        },
+        "feed-f62": {
+          "n": 1,
+          "disc": 0.0649,
+          "mean": 1
+        },
+        "feed-s13": {
+          "n": 1,
+          "disc": 0.0691,
+          "mean": 1
+        }
+      }
+    }
   }
 }

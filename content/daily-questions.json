@@ -3405,5 +3405,57 @@
         "Fandom"
       ]
     ]
+  },
+  {
+    "id": "138",
+    "type": "choice",
+    "prompt": "The advice you’d give your younger self is mostly about…",
+    "tag": "Dear younger me",
+    "options": [
+      "Courage",
+      "Patience",
+      "People",
+      "Money"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Story",
+      "Then and now"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Self-knowledge"
+      ],
+      [
+        "Goals",
+        "Lessons"
+      ]
+    ]
+  },
+  {
+    "id": "139",
+    "type": "binary",
+    "prompt": "Getting lost somewhere new: part of the fun, or the thing to avoid?",
+    "tag": "Getting lost",
+    "options": [
+      "Part of the fun",
+      "The thing to avoid"
+    ],
+    "tone": "light",
+    "cat": [
+      "Travel",
+      "How you roam"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Control"
+      ],
+      [
+        "Interests",
+        "Adventure"
+      ]
+    ]
   }
 ]
