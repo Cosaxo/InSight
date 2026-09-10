@@ -1670,6 +1670,40 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await refused(deleteDoc(ref));
   });
 
+  // THE COOLDOWN'S OTHER SIDE, and it was true ZERO times across the whole
+  // suite. Every existing case reaches the clause through one of two arms:
+  // a first edit, where `editedAt` is absent from the old document, or a
+  // second edit inside the window, which is refused. The arm that says an
+  // edit is allowed AFTER the window — `request.time > resource.data
+  // .editedAt + duration.value(60, 's')` — was never taken, so a mistake
+  // in it could not redden anything.
+  //
+  // `>` flipped to `<` IS caught, by the in-window refusal above. What is
+  // not: the unit. `'s'` typed as `'h'` makes the cooldown sixty HOURS, the
+  // first edit still passes on the absent-key arm, the second is still
+  // refused, every assertion in this file stays green — and D86's edit has
+  // silently become once per answer, forever.
+  //
+  // Seeded rather than waited for: the window is real time, and a suite
+  // that sleeps sixty seconds to prove a bound is a suite people stop
+  // running.
+  it("D86: an edit is allowed again once the cooldown has passed", async () => {
+    await seedQuestion();
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID2);
+    await assertSucceeds(setDoc(ref, answer({ qid: QID2 })));
+    // Straight past the window, through the admin path — the client
+    // cannot write `editedAt` to anything but `request.time`.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID2), {
+        editedAt: Timestamp.fromMillis(Date.now() - 120_000),
+      }, { merge: true });
+    });
+    await assertSucceeds(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+    // …and the window re-arms behind it, so this proves the cooldown is a
+    // WINDOW rather than a switch the seed above simply turned off.
+    await refused(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+  });
+
   it("D86: the kill switch reaches edits, not just creates", async () => {
     // Its own question and a FIRST edit, so the refusal can only be the
     // active check — the cooldown test above cannot isolate it.
