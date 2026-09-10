@@ -13,12 +13,19 @@
 // is observable from outside and would survive the memo being rewritten.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const OK = { init: vi.fn(), fsApi: vi.fn(() => ({ __fs: true })), __ok: true };
+const OK = {
+  init: vi.fn(), fsApi: vi.fn(() => ({ __fs: true })), __ok: true,
+  subscribeToAuth: vi.fn(() => () => {}),
+};
+const REPORT = vi.fn();
 
 afterEach(() => {
   vi.resetModules();
   vi.doUnmock("./firebaseImpl");
+  vi.doUnmock("./sentry");
   vi.unstubAllEnvs();
+  OK.subscribeToAuth.mockClear();
+  REPORT.mockClear();
 });
 
 async function loadWithImpl(behaviours: Array<"throw" | "ok">) {
@@ -33,6 +40,7 @@ async function loadWithImpl(behaviours: Array<"throw" | "ok">) {
   vi.stubEnv("VITE_FIREBASE_AUTH_DOMAIN", "d");
   vi.stubEnv("VITE_FIREBASE_PROJECT_ID", "p");
   vi.stubEnv("VITE_FIREBASE_APP_ID", "a");
+  vi.doMock("./sentry", () => ({ reportError: REPORT, setSentryUser: vi.fn() }));
   vi.resetModules();
   return { mod: await import("./firebase"), calls: () => call };
 }
@@ -56,5 +64,45 @@ describe("the memoised SDK loader", () => {
     await expect(mod.getFirestoreApi()).resolves.toBeTruthy();
     await expect(mod.getFirestoreApi()).resolves.toBeTruthy();
     expect(calls(), "the SDK was imported twice for two callers").toBe(1);
+  });
+});
+
+// A SUBSCRIPTION HAS NO LATER CALLER. Everything else here reaches the SDK
+// through `impl()` on demand, so the memo repairing itself is enough: the
+// next `getDb()` tries again. The auth observer is wired ONCE per session
+// behind a flag (live.ts's `authWired`, purchases.ts), so a rejection that
+// is swallowed there is not a slow start — it is an app that never watches
+// auth again, and live.ts says at its own call site what that costs: the
+// store samples `uid` once, so signing into a different account leaves the
+// previous account's votes in memory and draws them as the new account's.
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+describe("the auth observer", () => {
+  it("wires itself after a transient chunk failure", async () => {
+    const { mod, calls } = await loadWithImpl(["throw", "ok"]);
+    mod.subscribeToAuth(() => {});
+    await flush();
+    expect(calls(), "the retry did not re-import").toBe(2);
+    expect(OK.subscribeToAuth, "the observer was never wired").toHaveBeenCalledTimes(1);
+    expect(REPORT, "a failure that recovered was still reported").not.toHaveBeenCalled();
+  });
+
+  it("reports when it cannot wire, rather than swallowing it", async () => {
+    const { mod } = await loadWithImpl(["throw", "throw"]);
+    mod.subscribeToAuth(() => {});
+    await flush();
+    expect(OK.subscribeToAuth).not.toHaveBeenCalled();
+    expect(REPORT, "the app lost its auth observer and said nothing").toHaveBeenCalledTimes(1);
+    expect(REPORT.mock.calls[0]?.[1]).toEqual({ where: "subscribeToAuth" });
+  });
+
+  it("stays silent on a build with no Firebase — the case the old comment named", async () => {
+    // No config keys stubbed, so `impl()` rejects before importing anything.
+    vi.doMock("./sentry", () => ({ reportError: REPORT, setSentryUser: vi.fn() }));
+    vi.resetModules();
+    const mod = await import("./firebase");
+    mod.subscribeToAuth(() => {});
+    await flush();
+    expect(REPORT, "the demo has no auth to watch; that is not an error").not.toHaveBeenCalled();
   });
 });
