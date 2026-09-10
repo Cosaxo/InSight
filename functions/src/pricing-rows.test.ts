@@ -32,7 +32,7 @@ vi.mock("firebase-admin/firestore", async (orig) => ({
   FieldValue: { serverTimestamp: () => "T" },
 }));
 
-const { publishPricing, PRICING_ROWS_MAX } = await import("./paid");
+const { publishPricing, PRICING_ROWS_MAX, PRICING_ROWS_DAYS } = await import("./paid");
 
 type Row = { kind: string; scope: string; state: string; qid?: string; window: { start: string; until: string } };
 
@@ -105,22 +105,42 @@ describe("publishPricing reads the rows the index is made of", () => {
     expect(world.idx).toBeGreaterThan(1);
   });
 
-  it("…and the fake really does truncate — the control", async () => {
-    // Without this the case above would pass on a fake that quietly
-    // returned everything, which proves nothing about a cap.
+  it("…and the fake really does cap, keeping the newest-ending rows", async () => {
+    // ASKED OF THE FAKE DIRECTLY, because the fake is the thing under
+    // suspicion. This used to assert only that the fixture exceeded the
+    // cap and that a small ledger priced the same — and neither of those
+    // fails when the cap is removed from the fake, because the closed
+    // rows contribute nothing to the index either way. So the case named
+    // a failure mode ("a fake that quietly returned everything") that it
+    // could not detect, inside the commit whose whole subject is that
+    // class. Measured: deleting the slice left both cases green.
     const rows = ledger();
     expect(rows.length).toBeGreaterThan(PRICING_ROWS_MAX);
-    const { db, published } = fakeDb(rows);
+    const { db } = fakeDb(rows);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await publishPricing(db as any, day(0));
-    const live = published[0] as { rows?: number };
-    void live;
-    // A ledger UNDER the cap reads the same way, so the assertion above
-    // is about the cap and not about the fixture being small.
-    const few = fakeDb([...ledger().slice(PRICING_ROWS_MAX)]);
+    const snap = await (db as any).collection("v2_purchases")
+      .where("window.until", ">=", day(-PRICING_ROWS_DAYS))
+      .orderBy("window.until", "desc")
+      .limit(PRICING_ROWS_MAX)
+      .get();
+    expect(snap.docs.length, "the fake did not cap — the case above proves nothing about a cap")
+      .toBe(PRICING_ROWS_MAX);
+    // …and the rows it kept are the newest-ending ones, which is the
+    // half the ordering is for: all six running campaigns survive.
+    const kept = snap.docs.map((d: { data: () => Row }) => d.data());
+    expect(kept.filter((r: Row) => r.state === "running"),
+      "the cap dropped a running campaign — the defect itself").toHaveLength(RUNNING);
+
+    // A ledger UNDER the cap prices identically, so the first case is
+    // about the cap rather than about the fixture being large.
+    const few = fakeDb(rows.slice(PRICING_ROWS_MAX));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await publishPricing(few.db as any, day(0));
-    const small = few.published[0] as { cohorts: Record<string, { idx: number }> };
-    expect(small.cohorts.world.idx).toBe((published[0] as { cohorts: Record<string, { idx: number }> }).cohorts.world.idx);
+    const big = fakeDb(rows);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await publishPricing(big.db as any, day(0));
+    const idx = (p: Record<string, unknown>[]) =>
+      (p[0] as { cohorts: Record<string, { idx: number }> }).cohorts.world.idx;
+    expect(idx(few.published)).toBe(idx(big.published));
   });
 });
