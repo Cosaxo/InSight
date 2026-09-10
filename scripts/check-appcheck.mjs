@@ -125,6 +125,38 @@ const EXEMPT = {
       "moderator callable, invoked by the out-of-app moderation Routine; "
       + "gated on MOD_UIDS",
   },
+  // ── The web buy door (D446) ───────────────────────────────────────────
+  // These two are NOT unattested. They are attested by something a browser
+  // can actually produce: a reCAPTCHA v3 token, verified server-side for
+  // success, action and score before either callable does any work
+  // (functions/src/paid.ts → assertRecaptcha).
+  //
+  // D337 declined to provision the web App Check provider because "there is
+  // no public web client". D368's shape A built one — the ask page — so the
+  // premise expired rather than being wrong, and the choice became WHICH
+  // browser attestation, not whether. Server-verified reCAPTCHA was taken
+  // over App Check's own bridge because it is checked on our side per
+  // request and carries a score and an action, where an App Check token is
+  // a replayable yes for its TTL. The abuse in question is somebody
+  // spending the Anthropic budget five Claude reviews at a time from
+  // unlimited free anonymous accounts, and a score beats a yes.
+  //
+  // The `gate` below is the whole point of this entry: this script asserts
+  // the callable's body really calls it, so the substitute cannot decay
+  // into a hole the way a reason-only exemption can.
+  bookPaidQuestionV2: {
+    gate: "assertRecaptcha",
+    reason:
+      "the web buy door (web/ask.html) — a browser cannot produce App Check "
+      + "attestation without a provider; gated on a server-verified "
+      + "reCAPTCHA v3 score and action instead (D446)",
+  },
+  createPaidCheckoutV2: {
+    gate: "assertRecaptcha",
+    reason:
+      "the web buy door's second hop, which opens the Stripe session — same "
+      + "caller and same substitute as bookPaidQuestionV2 (D446)",
+  },
 };
 
 // `export const NAME = onCall(` followed by its options object literal.

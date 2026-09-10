@@ -4,7 +4,7 @@
 // emulator cannot prove — that the question doc the webhook writes wears
 // exactly the shape the client's bank fetch and the answer rules expect.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,6 +39,8 @@ import {
   type PaidBookingPayload,
   validatePaidLink,
   PAID_LINK_MAX,
+  assertRecaptcha,
+  RECAPTCHA_MIN_SCORE,
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
@@ -968,5 +970,144 @@ describe("expirePriorSession", () => {
       checkout: { sessions: { expire: async () => { throw new Error("already completed"); } } },
     };
     await expect(expirePriorSession(client, { sessionId: "cs_done" }, "b1")).resolves.toBeUndefined();
+  });
+});
+
+// ── The web door's stand-in for App Check (D446) ────────────────────────
+//
+// The two callables the buy page reaches no longer enforce App Check —
+// a browser cannot produce it — and call assertRecaptcha instead.
+// check-appcheck.mjs holds that the SUBSTITUTION is real (the exemption
+// names the gate and the body calls it); these hold that the gate itself
+// refuses what it is supposed to refuse.
+describe("assertRecaptcha — the web buy door's gate", () => {
+  const realFetch = globalThis.fetch;
+  const siteverify = (body: unknown, ok = true) => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok, json: async () => body,
+    })) as unknown as typeof fetch;
+  };
+
+  // EVERY runner sets FUNCTIONS_EMULATOR=true (ops.test.ts's own note), and
+  // the emulator arm returns null before anything else runs — so without
+  // deleting it here every case below would pass by taking the bypass, and
+  // this suite would prove nothing at all.
+  const saved = process.env.FUNCTIONS_EMULATOR;
+  beforeEach(() => {
+    delete process.env.FUNCTIONS_EMULATOR;
+    process.env.RECAPTCHA_SECRET_KEY = "test-secret";
+    delete process.env.RECAPTCHA_BYPASS;
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    if (saved === undefined) delete process.env.FUNCTIONS_EMULATOR;
+    else process.env.FUNCTIONS_EMULATOR = saved;
+    delete process.env.RECAPTCHA_SECRET_KEY;
+    delete process.env.RECAPTCHA_BYPASS;
+  });
+
+  it("CLOSES the door when the secret is unset, rather than opening it", async () => {
+    // The opposite of the other three credentials in paid.ts, deliberately.
+    // Their absence costs a feature; this one's absence would cost the
+    // budget it protects — so unset must refuse, not wave through. A
+    // fail-open here is the whole abuse: unlimited free anonymous accounts
+    // spending five Claude reviews each.
+    delete process.env.RECAPTCHA_SECRET_KEY;
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
+      code: "failed-precondition",
+    });
+  });
+
+  it("passes a good token and returns its score", async () => {
+    siteverify({ success: true, score: 0.9, action: "book" });
+    await expect(assertRecaptcha("tok", "book")).resolves.toBe(0.9);
+  });
+
+  it("refuses a token minted for a DIFFERENT action", async () => {
+    // The half usually dropped. A token minted on some other page scores
+    // fine; the action is what says it was minted for this button.
+    siteverify({ success: true, score: 0.9, action: "somethingelse" });
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
+      code: "permission-denied",
+    });
+  });
+
+  it("refuses a score below the threshold", async () => {
+    siteverify({ success: true, score: RECAPTCHA_MIN_SCORE - 0.01, action: "book" });
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
+      code: "permission-denied",
+    });
+  });
+
+  it("treats a MISSING score as zero, not as a pass", async () => {
+    // `score < MIN` on an undefined score is false, so a response without
+    // one would sail through a naive check — and a malformed response is
+    // exactly when you want the door shut.
+    siteverify({ success: true, action: "book" });
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
+      code: "permission-denied",
+    });
+  });
+
+  it("refuses when Google says the token failed", async () => {
+    siteverify({ success: false, "error-codes": ["timeout-or-duplicate"] });
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
+      code: "permission-denied",
+    });
+  });
+
+  it("HOLDS rather than declines when Google is unreachable", async () => {
+    // Our outage, not the buyer's fraud — the same call the reviewer makes
+    // when Anthropic is down. `unavailable` is retryable; permission-denied
+    // reads to a buyer as an accusation.
+    globalThis.fetch = vi.fn(async () => { throw new Error("ECONNREFUSED"); }) as unknown as typeof fetch;
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
+      code: "unavailable",
+    });
+  });
+
+  it("refuses an empty or oversized token without calling Google", async () => {
+    const spy = vi.fn();
+    globalThis.fetch = spy as unknown as typeof fetch;
+    await expect(assertRecaptcha("", "book")).rejects.toMatchObject({ code: "invalid-argument" });
+    await expect(assertRecaptcha("x".repeat(4097), "book")).rejects.toMatchObject({ code: "invalid-argument" });
+    await expect(assertRecaptcha(undefined, "book")).rejects.toMatchObject({ code: "invalid-argument" });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("bypasses on the emulator, which is what keeps the e2e's paid leg green", async () => {
+    process.env.FUNCTIONS_EMULATOR = "true";
+    const spy = vi.fn();
+    globalThis.fetch = spy as unknown as typeof fetch;
+    await expect(assertRecaptcha(undefined, "book")).resolves.toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("bypasses on the explicit variable too, and on nothing else", async () => {
+    process.env.RECAPTCHA_BYPASS = "1";
+    const spy = vi.fn();
+    globalThis.fetch = spy as unknown as typeof fetch;
+    await expect(assertRecaptcha(undefined, "book")).resolves.toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+    // NODE_ENV is not a bypass, deliberately.
+    delete process.env.RECAPTCHA_BYPASS;
+    process.env.NODE_ENV = "test";
+    siteverify({ success: false });
+    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({ code: "permission-denied" });
+  });
+
+  it("posts form-encoded to siteverify, which is the shape that endpoint takes", async () => {
+    let seen: { url?: string; init?: RequestInit } = {};
+    globalThis.fetch = vi.fn(async (url: string, init: RequestInit) => {
+      seen = { url, init };
+      return { ok: true, json: async () => ({ success: true, score: 1, action: "book" }) };
+    }) as unknown as typeof fetch;
+    await assertRecaptcha("tok", "book");
+    expect(seen.url).toBe("https://www.google.com/recaptcha/api/siteverify");
+    expect(String((seen.init?.headers as Record<string, string>)["content-type"]))
+      .toContain("application/x-www-form-urlencoded");
+    expect(String(seen.init?.body)).toContain("response=tok");
+    // The secret must never travel in the URL, where it would land in logs.
+    expect(seen.url).not.toContain("test-secret");
   });
 });

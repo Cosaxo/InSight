@@ -49,7 +49,7 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+import { LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 // The day key, offset in days. Was a byte-identical local copy until the
 // two families of `utcDayKey` were separated — see pure.ts's own comment.
 import { utcDayKey } from "./pure";
@@ -70,6 +70,102 @@ const REGION = FUNCTIONS_REGION;
 const stripeKey = () => process.env.STRIPE_SECRET_KEY || "";
 const stripeWebhookSecret = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 const anthropicKey = () => process.env.ANTHROPIC_API_KEY || "";
+const recaptchaSecret = () => process.env.RECAPTCHA_SECRET_KEY || "";
+
+/** The score below which reCAPTCHA v3 says "probably a script". Google's
+ *  own default threshold, and deliberately not tuned before a single real
+ *  buyer has been scored: a number picked from imagination here would be
+ *  indistinguishable from a measured one later. */
+export const RECAPTCHA_MIN_SCORE = 0.5;
+
+/**
+ * The web door's stand-in for App Check, and the reason it exists.
+ *
+ * Every other callable in this project is attested by App Check, which a
+ * NATIVE app can do and a browser cannot without a provider. D337 declined
+ * to provision one on the stated ground that "there is no public web
+ * client" — and D368's shape A then created one, so that premise expired
+ * rather than being wrong. This is the replacement, and it is checked HERE
+ * rather than at the edge because a token the server never verifies is
+ * decoration: `check-appcheck.mjs` exempts these two callables naming this
+ * function as their gate, and asserts their bodies actually call it, so
+ * the substitute cannot quietly stop being one.
+ *
+ * WHY SERVER-VERIFIED reCAPTCHA AND NOT APP CHECK'S OWN reCAPTCHA BRIDGE.
+ * Two reasons, one practical and one about strength. The practical one:
+ * App Check's browser flow ends in a token exchange whose request shape
+ * this session could not read from any source it had — and a hand-written
+ * call to an unverified endpoint fails SILENTLY as a pay button that does
+ * nothing, which is the exact failure mode `check:csp-hashes` exists for
+ * one file over. The one about strength: siteverify returns a score and
+ * the action the token was minted for, per request, checked on our side;
+ * an App Check token is a yes/no that is replayable for its whole TTL.
+ * The abuse this is actually against is somebody spending our Anthropic
+ * budget five reviews at a time from unlimited free anonymous accounts,
+ * and a score beats a yes.
+ *
+ * UNSET IS CLOSED, not open, and that is the opposite of the other three
+ * credentials in this file. They degrade honestly because their absence
+ * costs a FEATURE; this one's absence would cost the budget it protects,
+ * so a deployment without the secret refuses the door rather than opening
+ * it to everyone. The emulator sets `RECAPTCHA_BYPASS` instead — the e2e
+ * has no browser to mint a token from.
+ */
+export async function assertRecaptcha(token: unknown, action: string): Promise<number | null> {
+  // The e2e, the rules claim path and dev-in-a-browser: no browser to mint
+  // a token from and no site key to mint it with. The emulator arm is
+  // deviceBind.ts's idiom one file over and ENFORCE_APP_CHECK's own shape
+  // — FUNCTIONS_EMULATOR is set BY the emulator and cannot be set into a
+  // deployed runtime, so it is not a switch anybody can flip in
+  // production. The explicit variable is the second arm, for a local
+  // process that is not the emulator; NODE_ENV is deliberately not
+  // consulted, because a runtime started oddly must not fall into this.
+  if (process.env.FUNCTIONS_EMULATOR === "true") return null;
+  if (process.env.RECAPTCHA_BYPASS === "1") return null;
+  const secret = recaptchaSecret();
+  if (!secret) {
+    logger.error("[paid] RECAPTCHA_SECRET_KEY unset — the web door is closed (runbook 5.14)");
+    throw new HttpsError("failed-precondition", "the buy door is not open on this deployment yet");
+  }
+  const t = typeof token === "string" ? token.trim() : "";
+  if (!t || t.length > 4096) throw new HttpsError("invalid-argument", "human check missing");
+  let body: {
+    success?: boolean; score?: number; action?: string; "error-codes"?: string[];
+  };
+  try {
+    // application/x-www-form-urlencoded, which is what this endpoint takes
+    // — it predates every JSON convention around it and has never moved.
+    const res = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret, response: t }).toString(),
+    });
+    body = (await res.json()) as typeof body;
+  } catch (err) {
+    // Google being unreachable is OUR outage, not the buyer's fraud. Held,
+    // not declined — the same call paid.ts's reviewer makes when Anthropic
+    // is down, and for the same reason.
+    logger.error(`[paid] siteverify unreachable: ${String(err).slice(0, 200)}`);
+    throw new HttpsError("unavailable", "could not run the human check just now — try again shortly");
+  }
+  if (!body.success) {
+    logger.warn(`[paid] recaptcha refused: ${(body["error-codes"] || []).join(",")}`);
+    throw new HttpsError("permission-denied", "the human check did not pass");
+  }
+  // The ACTION is half the value and the half that is usually dropped. A
+  // token minted on some other page of some other site scores fine; it is
+  // the action that says it was minted for THIS button.
+  if (body.action && body.action !== action) {
+    logger.warn(`[paid] recaptcha action mismatch: ${body.action} != ${action}`);
+    throw new HttpsError("permission-denied", "the human check did not pass");
+  }
+  const score = typeof body.score === "number" ? body.score : 0;
+  if (score < RECAPTCHA_MIN_SCORE) {
+    logger.warn(`[paid] recaptcha score ${score} below ${RECAPTCHA_MIN_SCORE}`);
+    throw new HttpsError("permission-denied", "the human check did not pass");
+  }
+  return score;
+}
 
 /** Bookings one account may open per rolling day. Looser than the old
  * suggestion budget's 3 (review capacity was the binding constraint there
@@ -648,10 +744,22 @@ async function assertBookingBudget(uid: string): Promise<void> {
  * a model. Returns { id } — the client watches its own row.
  */
 export const bookPaidQuestionV2 = onCall(
-  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  // NO enforceAppCheck, and that is a substitution rather than a removal:
+  // the caller is a BROWSER (web/ask.html), which cannot produce App Check
+  // attestation without a provider, and the body's first act is
+  // assertRecaptcha. check-appcheck.mjs holds both halves — it fails if
+  // this option comes back while the exemption stands, and it fails if the
+  // assertRecaptcha call leaves the body while it does. See D446.
+  { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
+    // BEFORE the shape check, the budget and every write. A script that
+    // cannot pass this never reaches the rate limiter, so it cannot spend
+    // an anonymous account's five bookings to find out what the validator
+    // accepts — and never reaches the Claude review the budget is really
+    // protecting.
+    const recaptchaScore = await assertRecaptcha(request.data?.recaptchaToken, "book");
     const checked = validatePaidBooking(request.data);
     if ("error" in checked) throw new HttpsError("invalid-argument", checked.error);
     const b = checked.ok;
@@ -684,6 +792,10 @@ export const bookPaidQuestionV2 = onCall(
       buyerName,
       status: "review",
       reviewAttempts: 0,
+      // web/privacy.html says "we keep the score with the booking", so it
+      // is kept. Null on the emulator path, where there is no browser to
+      // mint a token from and nothing was scored.
+      recaptchaScore,
       createdAt: FieldValue.serverTimestamp(),
     });
     logger.info(`[paid] booking ${ref.id} opened (${b.scope}, ${b.type})`);
@@ -932,10 +1044,16 @@ export async function expirePriorSession(
 }
 
 export const createPaidCheckoutV2 = onCall(
-  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  // Same substitution as bookPaidQuestionV2 above, same gate holding it.
+  { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
+    // Gated too, and not only because the gate's exemption names it: this
+    // is the call that opens a Stripe session, and a booking id is
+    // guessable enough (`uid_<base36 ms>`) that leaving the second door
+    // unlatched would undo the first.
+    await assertRecaptcha(request.data?.recaptchaToken, "checkout");
     const bid = String(request.data?.id || "");
     if (!bid) throw new HttpsError("invalid-argument", "id required");
     const db = firestore();
