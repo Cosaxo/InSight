@@ -43,7 +43,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { collectSpecGlobals, stripComments } from "./spec-globals.mjs";
 
-const { defined, definedBy, referenced, files, specDir, root } = collectSpecGlobals();
+const { defined, definedBy, referenced, bare, files, specDir, root } = collectSpecGlobals();
 
 let failed = false;
 
@@ -489,14 +489,42 @@ const COUPLING_BASELINE = {
   "src/v2/spec/app-shell.jsx": 12,
   "src/v2/spec/daily-split.jsx": 6,
   "src/v2/spec/mirror-field-pops.jsx": 1,
-  "src/v2/spec/search-overlay.jsx": 3,
+  // 3 → 4 with the bare pass: `LIVE.myVotes` at :76, read bare where
+  // every other spec module imports the binding (D354's sweep missed it).
+  "src/v2/spec/search-overlay.jsx": 4,
+  // 0 → 3 with the bare pass: `GL(r.glyph)` three times, imported nowhere
+  // in the file. The cheapest three this ratchet has been offered — one
+  // import line takes them off.
+  "src/v2/spec/city-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/world-feed.jsx": 1,
 };
 
+// THE BARE SHAPE COUNTS TOO (see spec-globals.mjs's second pass). Rule 4
+// says it counts every site where a file reads a name another file
+// publishes, and for one shape that was false: a bare identifier is not
+// `window.X`, not the cast form, not a tag and not `h(Foo, …)`. Measured
+// — a bare `MapStats.dist(a, k)` appended to a module that neither
+// defines nor imports it left this number at its baseline and left
+// eslint clean, because this scanner seeds `no-undef` and a name it
+// publishes is a name eslint accepts anywhere. A module already
+// converted off the bridge could be silently re-coupled, which is the one
+// thing the ratchet exists to stop.
+//
+// Folded in here rather than counted beside, because two numbers for one
+// question is how the headline goes on understating. The baseline moved
+// 28 → 32 in the same commit, and that move is the METER's resolution,
+// not coupling growing: all four sites are older than the pass that found
+// them, and no file gained a reference. The direction rule is unchanged
+// from 32.
+const allRefs = new Map(referenced);
+for (const [name, sites] of bare) {
+  allRefs.set(name, [...(allRefs.get(name) ?? []), ...sites]);
+}
+
 const coupling = {};
-for (const [name, sites] of referenced) {
+for (const [name, sites] of allRefs) {
   const assigners = definedBy.get(name);
   // Not assigned anywhere in the scanned set means the name is not coupling
   // but a bug — rule 1 has already reported it, and counting it here would
