@@ -382,16 +382,26 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 
 // Reads issued by Cloud Functions, per answer.
 //
-// The world trigger's aggregate transaction does exactly two: tx.get on the
-// ledger event (dedup) and tx.get on the private aggregate. The catalog
-// branch (live since D232) and the rank branch (D233) each add a third —
-// the question doc, for the domain and the item count respectively — so a
-// pick or rank answer costs 3 where a vote costs 2. The model still
-// charges the vote path for every world answer, a DELIBERATE
-// approximation rather than a stale one: `B.worldAnswers` has no per-type
-// split to hang the extra read on, picks and ranks are a small slice of
-// the bank (17 + 8 of 129 feed entries), and the error is one read per
-// such answer, strictly under +50% on this term's smallest component.
+// The world trigger's aggregate transaction reads THREE on the vote path:
+// the ledger event (dedup), the published aggregate, and the author's
+// profile (D410, the paragraph below). The rank branch (D233) reads three
+// too, trading the profile for the question doc — the item count. The
+// catalog branch (D232) reads FOUR: event, question doc (the domain),
+// private mirror, and the author's profile, which that arm gained on
+// 2026-09-10 with the D410 guard the vote path had and this one never did.
+//
+// THIS PARAGRAPH SAID "two, and a third on catalog and rank" and both
+// halves had moved out from under it — D410 made the vote path three, the
+// catalog fix made that branch four. Worth keeping as the warning, because
+// what it describes is not what the constant charges and a reader who
+// trusts it will reconcile the wrong two numbers.
+//
+// The model still charges the vote path for every world answer, a
+// DELIBERATE approximation rather than a stale one: `B.worldAnswers` has
+// no per-type split to hang the extra read on, picks and ranks are a small
+// slice of the bank (17 + 8 of 129 feed entries), and the error is now one
+// read per CATALOG answer alone — rank matches the charge exactly —
+// strictly under +50% on this term's smallest component.
 // If the mix ever tilts toward catalogue/rank-heavy feeds, split the
 // volume assumption before touching this constant.
 //
@@ -401,8 +411,8 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // answer completed the round — in which case the reveal runs right there
 // (its reads are the reveal's, below). The day's branch did zero, one
 // blind arrayUnion, because nothing about it depended on the document.
-// THREE on the world path since D410, not two. The fold reads the AUTHOR'S
-// PROFILE alongside the ledger event and the published aggregate, because
+// WHY the profile is on the world path at all (D410): the fold reads the
+// AUTHOR'S PROFILE alongside the ledger event and the published aggregate, because
 // the anchors on an answer are the client's claim about its own cohort and
 // firestore.rules can only check they are plausible, never that they are
 // the author's — honestAnchors() in functions/src/pure.ts has why the rule

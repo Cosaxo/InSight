@@ -637,8 +637,11 @@ prints the current total on every run. The count today is **27 across 7
 files**, down from 799 when the ratchet landed.
 
 That number was 28 before the scanner learned the BARE shape, went to 32
-when it did, and is 28 again because the four it found were taken off in
-the same night. The middle figure is the one worth remembering: for as
+when it did, and came back to 28 because the four it found were taken off
+in the same night — then to the 27 above, because the duo body's reader
+was converted the same night in the other shift (`daily-split.jsx`
+`React.lazy`s the module instead of reading `window.DuoBody` at render
+time). The middle figure is the one worth remembering: for as
 long as the ratchet ran, four cross-module references sat outside it. `window.X`,
 the cast form, a JSX tag and `h(Foo, …)` were the four it could see; a
 bare identifier is none of them, so a plain `MapStats.dist(a, k)` in a

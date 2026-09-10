@@ -49321,3 +49321,129 @@ table, the fan-out's window and heal, the hold without an attempt),
 type), `check:deploy-targets`, `check:appcheck`, `check:docs`,
 `check:figures`, `check:policy-claims`, `check:data-inventory`; the
 counts are in the pull request.
+
+## D449 · The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on
+
+**2026-09-10.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty commits are kept as written; nothing was reverted. What this review
+adds is the composition and three fixes for things no shift could see
+alone. The owner's instruction was *"cheak tonights night shifts and merge
+what you approve"*: every part is approved, and this record says which
+parts the composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260910` | 31 | 21 behind | shift A, Claude 2's, 21:11–05:32 UTC |
+| `nightb-20260910` | 29 | 22 behind | shift B, Claude 1's, 22:07–04:12 UTC |
+
+`main` took twenty-one commits during the night: sixteen console and pulse
+rows, and five content-lane merges (#468–#472, the lanes that self-merge on
+green under D212). No decision number moved. Neither shift claimed one; the
+tree sat at D448. This record is D449.
+
+**NINE FILES WERE TOUCHED BY BOTH** — `docs/SCHEMA-V2.md`,
+`firestore-tests/rules.test.ts`, `firestore.rules`,
+`functions/src/exportAccount.ts` and its test, `functions/src/nightly.ts`,
+`scripts/check-spec-globals.mjs`, `scripts/source-pins.test.mjs`,
+`src/v2/README.md` — against zero the night before (D430) and seven the
+night before that (D420). **Both merges still applied clean.** Every pair
+of hunks landed in a different region of its file, so git had nothing to
+stop on, and the review was spent exactly where D430 said it would have to
+be: on prose that one shift wrote and the other made false.
+
+All three defects are that shape. None of them fails a gate — the tree was
+green before they were fixed and green after — because each is a sentence
+about a number, and no gate reads a sentence.
+
+### The three, and the one that is load-bearing
+
+**1 · `src/v2/README.md` — the coupling count, written twice from opposite
+directions.** Rule 4's total is the ratchet's own number and both shifts
+moved it. A taught the scanner the BARE shape (a plain `MapStats.dist(a,
+k)` in a module that neither defines nor imports the name was invisible to
+it, so a converted module could be silently re-coupled), which found four
+sites and raised the count 28 → 32 before A took all four off, back to 28.
+B converted `daily-split.jsx`'s reader in the course of a bug fix, 28 → 27.
+The two edits are two lines apart. B's says **27 across 7 files**, which is
+what `check:globals` prints; A's paragraph beneath it said the number "is
+28 again", which was true of A's night alone and of no tree that ever
+existed. A's sentence now carries B's conversion, and the point A was
+making — that four references sat outside the ratchet for as long as it
+ran — is unchanged, because it is about the middle figure.
+
+**2 · `scripts/cost-arith.mjs` — the trigger's read counts, stale in both
+halves.** This is the one that matters, because `scripts/pulse.test.mjs`
+quotes it as the justification for a tripwire. The comment above
+`TRIGGER_READS` opened *"the world trigger's aggregate transaction does
+exactly two … so a pick or rank answer costs 3 where a vote costs 2"*, and
+by this morning neither number was the tree's: D410 had put the author's
+profile on the vote path (3), and B's catalog fix put it on the catalog arm
+too (4). Measured in the composed `functions/src/v2.ts` rather than
+inferred — vote `tx.getAll(eventRef, pubRef, profRef)` is three, rank
+`(eventRef, qRef, pubRef)` is three, catalog `(eventRef, qRef, privRef,
+profRef)` is four. The paragraph is rewritten to today's counts and keeps
+the old one as the warning, in the shape B used for the same class in
+`spec-index.js`. **The constant does not move, and B's reasoning for that
+is right**: the model absorbs the extra read into the vote rate, and the
+error is now one read per CATALOG answer alone — rank matches the charge
+exactly, where before the fix catalog matched it by coincidence while
+missing the guard.
+
+**3 · `scripts/pulse.test.mjs` — an assertion message that contradicted
+itself.** B appended a correct paragraph to the tripwire's failure text
+(*"the model charges `world: 3` … event + published aggregate + profile"*)
+directly under the sentence that still said it charges *"the VOTE path (2:
+…)"*. Same failure as 2, one file over, and inside a single string: the
+next person to read this message on a red gate would have had two numbers
+for one constant and no way to tell which. The message now states three
+paths — vote 3, rank 3, catalog 4 — and the assertion's value is untouched
+at 13, which is what the composed trigger reads.
+
+### What was checked and left alone
+
+Four things looked like the same class and are not, each verified rather
+than assumed:
+
+- **`docs/LOCAL-TESTING.md`'s "221 security-rules tests"** is A's edit and
+  is exactly right in the composed tree. A added one case; B added
+  assertions *inside* existing cases rather than new ones. The composed run
+  reports 221.
+- **`CLAUDE.md`'s "56 modules off the bridge"** is A's, and it holds — the
+  figure is `check:figures`'s, computed off the tree, and B's conversion
+  moved a reader without retiring a name (`duo-daily.jsx` still publishes
+  `DuoBody` for `duels-rounds.test.jsx`).
+- **B's `testResults` rules fix does not break the app's own writes.** The
+  clause now refuses a write that omits a stored `testResults`, and both
+  client profile paths (`live.ts` 5124 and 6337) are merge writes, where
+  `request.resource.data` is the merged *result* and still carries the map.
+  What it refuses is the non-merge `setDoc` that deleted it.
+- **A's owner row on the handle repair prices a block the budget gate does
+  not probe.** B spent expression budget in the profile block the same
+  night, so the row's caution ("adds expressions to a block D432/D433 has
+  only just brought under the ceiling") was worth re-measuring. Every probe
+  in `rules-budget.mjs` is an answer-path probe; the thinnest is the D429
+  pick round at 57 fillers against a floor of 50. The row stands as A wrote
+  it, and it stays the owner's.
+
+**B's Play data-safety correction needs no click.** B moved the *Email
+address* row from Optional to Required in both copies — an
+under-declaration, and §2 of `STORE-FORMS.md` calls that "the direction
+that gets an app pulled". It is one of the four things CLAUDE.md puts
+outside the D334 ask, so it is filed as written, not asked about. The form
+itself is PARKED under D42 and has never been submitted, so the repo copy
+*is* the draft and there is nothing to re-file with Google.
+
+### Measured on the composed tree
+
+`test:unit` 3089 · `test --prefix functions` 969 · `test:scripts` 1339 ·
+`test:rules` 221 plus the coverage ratchet (8 of 378 never-false, at
+baseline) and the D438 budget gate · `test:e2e:all` on one emulator boot,
+199 assertions, all three suites green · `tsc -b` · `lint` · every
+`check:*` gate.
+
+Two gates cannot pass from here and neither is the composition's:
+`check:web-firebase` needs the release secrets and runs only on the
+release workflows; `check:store-copy` fails identically on `origin/main`,
+on the Play signing SHA-256 placeholder that is the owner's to fill.

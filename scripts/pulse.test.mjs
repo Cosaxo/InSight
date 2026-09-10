@@ -450,11 +450,13 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(
       singles + batched,
       "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
-      + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
+      + "in scripts/cost-arith.mjs charges the VOTE path (3: ledger event + "
       + "the published aggregate, which is the fold's working document since "
-      + "D275 collapsed the private mirror into it); the catalog (D232) and "
-      + "rank (D233) branches each read one more — the question doc — which "
-      + "the model deliberately absorbs into the vote rate (see the "
+      + "D275 collapsed the private mirror into it, + the author's profile "
+      + "since D410); the rank branch (D233) reads three too, trading the "
+      + "profile for the question doc, and the catalog branch (D232) reads "
+      + "four — question doc AND profile — the one read the model "
+      + "deliberately absorbs into the vote rate (see the "
       + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
       + "D426 — the group document, in the transaction that marks who "
       + "played and asks whether the round is complete (TRIGGER_READS.duel "
