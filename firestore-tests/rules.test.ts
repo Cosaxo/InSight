@@ -4423,6 +4423,37 @@ describe("people directory: found by name (D239)", () => {
       { name: "Stranger", nameKey: "stranger" }));
   });
 
+  // THE ORDINARY RENAME — the SECOND write, which nothing exercised.
+  //
+  // The case above ends on a handle-less account's FIRST name write, and
+  // that one takes the other disjunct: with no document yet, `resource ==
+  // null` decides it. The clause beside it — `resource.data.get("handle",
+  // null) == null` — is what decides an UPDATE to an existing row that has
+  // no handle, and that is the ordinary path: `writeDirectoryRow`
+  // (src/v2/data/socialFetch.ts) merges {name, nameKey} into the existing
+  // row every time a display name changes, and most accounts never claim a
+  // handle. Every other case here either creates the row or seeds one that
+  // HAS a handle, so across the whole run that clause was true ZERO times
+  // — the emulator's own coverage report puts it at `true 0x, false 1x,
+  // error 39x`, while the identically-shaped clause on `v2_users` is
+  // covered.
+  //
+  // NEITHER RATCHET COULD SEE IT. The never-false gate cannot, by
+  // construction: the atom IS false once, on the DROP case above, so it
+  // never reaches the never-false list. Measured 2026-09-10 by mutation —
+  // the clause rewritten to `== "zzz-mutation-never"`, so it can never
+  // hold — the suite came back fully green: 222 passed, coverage at its
+  // baseline of 8, all 15 budget probes at their pins. Every repeat name
+  // change in the people directory would have been silently refused for
+  // every account without a handle, and CI would have said nothing.
+  it("lets a handle-less account rename again — the second write, not the first", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_people", STRANGER), { name: "Stranger", nameKey: "stranger" });
+    });
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_people", STRANGER),
+      { name: "Stranger Two", nameKey: "stranger two" }));
+  });
+
   // The owner deletes their own row (D440): clearing a display name is
   // the only way a person who set one can stop being found by it, because
   // the write arm refuses an empty `name` and so there is no unlisted row
