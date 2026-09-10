@@ -3939,8 +3939,12 @@ const SOCIAL = {
   async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<RevealHistoryRead> {
     // "busy" for both early returns, and it is the honest word for each:
     // the history is either in hand or on its way, and neither is a
-    // failure the caller should draw. `revealHistoryLoading` is what says
-    // which — a panel wanting to distinguish them asks that.
+    // failure the caller should draw. It is also all it can say — the two
+    // are different frames on a screen, and the answer collapses them, so
+    // a caller that needs them apart asks `revealHistState` rather than
+    // reading the word. `revealHistoryLoading` separates "on its way"
+    // from the other two and cannot tell "in hand" from "never asked",
+    // which is why the three-word reader exists.
     if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return "busy";
     // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
     // that did not follow it. The Groups stop mounts this on a `[gid]`
