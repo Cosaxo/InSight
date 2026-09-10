@@ -47614,3 +47614,11 @@ or computed beyond what the loadings document and the samples already
 hold; smart because one rule covers every kind, including the ones the
 fit will grow next. The draft on the canvas is the next step, then the
 owner refines it, then it is built.
+
+*Drafted the same day, after this record was written: the canvas is
+<https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523> (the plan's eight artboards, in its order), and item 13 sits
+under `VISUAL-REQUESTS.md` § Drafted — the first row that section has
+held — with what the draft chose where the plan left the choice to the
+canvas: the You arc inside the rim, pictures on the tapped card's chips
+and not on the rim, a trimmed group folded into a* +n *at its place,
+groups parted by a hairline tick. The owner refines it there.*
