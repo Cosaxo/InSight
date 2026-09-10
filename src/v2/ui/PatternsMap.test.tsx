@@ -19,7 +19,7 @@ vi.mock("../data/patterns", () => ({ default: PATTERNS, PATTERNS }));
 const LIVE = vi.hoisted(() => ({ enabled: true, vote: vi.fn() }));
 vi.mock("../data/live", () => ({ default: LIVE, LIVE }));
 
-const { default: PatternsMap } = await import("./PatternsMap");
+const { default: PatternsMap, MAP_DOT_BUDGET } = await import("./PatternsMap");
 
 const vec = (...head: number[]): number[] =>
   Array.from({ length: 8 }, (_, i) => head[i] ?? 0);
@@ -246,5 +246,62 @@ describe("a selection", () => {
     fireEvent.click(container.querySelectorAll("svg g g")[0]!);
     expect(await screen.findByText(/Couldn’t read the crowd/)).toBeTruthy();
     expect(screen.queryByText(/predicts its neighbours/)).toBeNull();
+  });
+});
+
+describe("the ring is the topic's own (D436)", () => {
+  const MIXED = [
+    item("sa", vec(1, 0), 1, "sport"),
+    item("sb", vec(0.9, 0.1), -1, "sport"),
+    item("fa", vec(0, 1), 1, "food"),
+    item("fb", vec(0.1, 0.9), -1, "food"),
+    item("fc", vec(-0.1, 0.8), null, "food"),
+  ];
+  const idle = (c: HTMLElement) => c.querySelector(".qm-idle")?.textContent ?? "";
+
+  it("puts only the chosen topic's questions on the rim, and every one of them at full voice", () => {
+    PATTERNS.say.mockResolvedValue(null);
+    const all = render(<PatternsMap items={MIXED} version={1} topic="all" />);
+    // four on the rim's own layer plus the beacon's dot on the top one:
+    // fc is open, and the open question most tied to the rest is drawn there
+    expect(dots(all.container)).toHaveLength(4);
+    cleanup();
+    const sport = render(<PatternsMap items={MIXED} version={1} topic="sport" />);
+    expect(dots(sport.container)).toHaveLength(2);
+    // one arc, undimmed — there is nothing else on the ring to dim it against
+    const arcs = [...sport.container.querySelectorAll<SVGPathElement>("path.qm-arc")];
+    expect(arcs).toHaveLength(1);
+    expect(arcs[0].getAttribute("opacity")).toBe("0.92");
+  });
+
+  it("rings the viewer's own answers under \"answered\", and says so", () => {
+    PATTERNS.say.mockResolvedValue(null);
+    const { container } = render(<PatternsMap items={MIXED} version={1} topic="answered" />);
+    expect(dots(container)).toHaveLength(4);
+    expect(idle(container)).toContain("across the 4 questions you answered");
+    cleanup();
+    const none = render(<PatternsMap items={MIXED.map((p) => ({ ...p, mine: null }))} version={1} topic="answered" />);
+    expect(none.container.textContent).toContain("Nothing you’ve answered is on the map yet.");
+  });
+
+  it("keeps each topic's strongest hubs above the dot budget, and says how many of the pool are drawn", () => {
+    PATTERNS.say.mockResolvedValue(null);
+    // 320 questions over two topics, 3:1 — a rim past the budget
+    const many = Array.from({ length: 320 }, (_, i) =>
+      item(`q${i}`, vec(Math.cos(i / 7), Math.sin(i / 7)), i % 2 ? 1 : null, i % 4 === 0 ? "food" : "sport"));
+    const { container } = render(<PatternsMap items={many} version={1} topic="all" />);
+    // the budget, less the beacon's own dot on the top layer
+    expect(dots(container)).toHaveLength(MAP_DOT_BUDGET - 1);
+    const text = idle(container);
+    expect(text).toContain("across the 320 questions in the pool");
+    expect(text).toContain(`${MAP_DOT_BUDGET} of them drawn`);
+    // in proportion: food had 80 of 320, so 75 of 300
+    const arcs = [...container.querySelectorAll<SVGPathElement>("path.qm-arc")];
+    expect(arcs).toHaveLength(2);
+    cleanup();
+    // and under the budget nothing is trimmed, nor said to be
+    const few = render(<PatternsMap items={many.slice(0, 40)} version={1} topic="all" />);
+    expect(dots(few.container)).toHaveLength(39); // forty, one of them the beacon
+    expect(idle(few.container)).not.toContain("of them drawn");
   });
 });

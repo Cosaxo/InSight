@@ -396,7 +396,9 @@ export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onD
   const items = PATTERNS.pool();
   // only topics that actually have questions in the pool
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
-  const chips = [{ id: "all", label: "All topics" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
+  // …plus the ring of the viewer's own answers (D436), which is not a
+  // topic but rings like one
+  const chips = [{ id: "all", label: "All topics" }, { id: "answered", label: "Answered" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
   // The population roster (D216) — the standalone's own: Circle · your
   // country's code · World. Circle always offers (the D190 posture: a row
   // draws even when the stop is empty — the lens says the honest state);

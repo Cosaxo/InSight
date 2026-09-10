@@ -77,6 +77,9 @@ export function countryOf(city: string | undefined): string | null {
  * the component adapts; keeping the shape local keeps this module pure). */
 export interface PeopleItem {
   qid: string;
+  /** The question's surface, for the fetch order (D436): the daily is the
+   * one question everyone answers, so its lists are where overlap lives. */
+  surface?: string;
   /** The published loading vector. */
   L: readonly number[];
   /** Answers the fit folded — the loading's basis. */
@@ -166,15 +169,19 @@ export interface PeopleField {
 
 /**
  * Which questions' voter lists the lens asks for: the viewer's answered
- * pool questions, strongest loading basis first. Recency would match
- * Kindred's choice but the client vote map carries no timestamps; basis
- * is the honest second choice — it favours questions whose vectors are
- * settled, which is where a candidate's position means the most.
+ * pool questions — the DAILY's first (D436: everyone answers the same
+ * daily, so those lists are where two people's answers overlap however
+ * large the feed grows, and `PEOPLE_MIN_SHARED` stays reachable), then
+ * strongest loading basis. Recency would match Kindred's choice but the
+ * client vote map carries no timestamps; basis is the honest second
+ * choice — it favours questions whose vectors are settled, which is
+ * where a candidate's position means the most.
  */
 export function peopleFetchSet(items: readonly PeopleItem[], cap = PEOPLE_QUESTIONS): string[] {
+  const daily = (i: PeopleItem): number => (i.surface === "daily" ? 1 : 0);
   return items
     .filter((i) => i.mine != null)
-    .sort((a, b) => b.n - a.n || (a.qid < b.qid ? -1 : 1))
+    .sort((a, b) => daily(b) - daily(a) || b.n - a.n || (a.qid < b.qid ? -1 : 1))
     .slice(0, cap)
     .map((i) => i.qid);
 }

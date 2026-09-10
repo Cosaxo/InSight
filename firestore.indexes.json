@@ -377,6 +377,11 @@
       "collectionGroup": "answers",
       "fieldPath": "anchors.jobField",
       "indexes": []
+    },
+    {
+      "collectionGroup": "v2_patterns",
+      "fieldPath": "*",
+      "indexes": []
     }
   ]
 }

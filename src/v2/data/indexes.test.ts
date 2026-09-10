@@ -504,3 +504,24 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect([...seen].sort()).toEqual(["fieldOverrides", "indexes"]);
   });
 });
+
+describe("v2_patterns: the whole collection group is exempt from single-field indexing (D436)", () => {
+  // Nothing queries INSIDE the loadings document or a voter sample: both
+  // are read by id (`getDoc` in data/patterns.ts and data/voters.ts, the
+  // admin SDK's `get`/`listDocuments` in functions/). Left indexed, every
+  // row of the loadings document — eight vector elements, a basis, a sum,
+  // an sd, and the item metadata beside it — counts toward Firestore's
+  // 40,000 index entries per document, a wall the fit's own growth (D433's
+  // anchor rows, D434's pick rows, the second engine's block) walks
+  // toward with no query to show for it. The wildcard exemption is the
+  // collection-group form the Firestore docs give for "index nothing
+  // here"; scripts/loadings-budget.mjs is the arithmetic.
+  it("carries the wildcard exemption, with no index kept", () => {
+    const o = override("v2_patterns", "*");
+    expect(o, "the v2_patterns wildcard exemption is gone — the loadings document is indexed field by field again").toBeTruthy();
+    expect(o!.indexes).toEqual([]);
+  });
+  it("…and no composite reaches into that collection group either", () => {
+    expect(cfg.indexes.some((i) => i.collectionGroup === "v2_patterns")).toBe(false);
+  });
+});

@@ -85,6 +85,22 @@ describe("the basis the card states", () => {
   });
 });
 
+describe("the fetch set (D436)", () => {
+  it("asks for the daily's lists first, then the strongest basis, then by id", () => {
+    const items: PeopleItem[] = [
+      item("feed-big", { surface: "feed", n: 500 }),
+      item("daily-small", { surface: "daily", n: 20 }),
+      item("daily-mid", { surface: "daily", n: 60 }),
+      item("feed-mid", { surface: "feed", n: 60 }),
+      item("open", { surface: "daily", n: 900, mine: null }),
+    ];
+    expect(peopleFetchSet(items)).toEqual(["daily-mid", "daily-small", "feed-big", "feed-mid"]);
+    expect(peopleFetchSet(items, 2)).toEqual(["daily-mid", "daily-small"]);
+    // an item that names no surface sorts with the feed, by basis
+    expect(peopleFetchSet([item("a", { n: 10 }), item("b", { surface: "daily", n: 5 })])).toEqual(["b", "a"]);
+  });
+});
+
 describe("foldPeople", () => {
   const field = foldPeople(ITEMS, FETCHED, rowsOf);
   const by = new Map(field.placed.map((p) => [p.uid, p]));

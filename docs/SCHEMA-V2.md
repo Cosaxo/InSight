@@ -366,6 +366,11 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
                                    was measured at, for the phone's own
                                    solve (estimateTheta) to read rather
                                    than assume
+  tau                              the link's slope it was measured at
+                                   (D435): the guess is marginal + tau·θ·L;
+                                   swept on a (ridge, slope) grid for the
+                                   candidate, the shipped 1 for the online
+                                   engine; absent on a document before it
   quality, displacement, seeds     the engine's scorecard (D325): the
                                    prequential series with the marginal-
                                    only baseline and skill beside every

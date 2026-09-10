@@ -1,6 +1,6 @@
 # The Patterns plan — three lenses widened, and the walls before they bind
 
-**Status: mixed — steps 1, 2 and 3 (§3, §4, §5) are BUILT at D432, D433 and D434, the same day; steps 0, 4 and 5 are proposals and nothing else is built.** Written
+**Status: mixed — steps 1 to 5 (§3–§7) are BUILT at D432–D436 over 2026-09-09 and 2026-09-10; step 0 (§2) is the owner's console read and is not a build.** Written
 for the owner's ask of that day (*"make a plan for implementing it"*),
 after the same session's reading of the three lenses against the tree.
 Every *exists today* claim in §1 names the file it was read in; every
@@ -327,7 +327,16 @@ for the popular picks. The card must say so — *six of 1,025 are common
 enough to say anything; the rest are "everyone else"* — and never name
 a pick that is in the rest row.
 
-## 6 · Step 4 — calibration and the meter
+## 6 · Step 4 — calibration and the meter — **BUILT (D435, 2026-09-10)**
+
+*As built, where it differs from the paragraphs below:* the slope is
+swept on a (ridge, slope) grid rather than as a second one-dimensional
+sweep, and each published sweep reads the other knob at its best; the
+skill line prints on the record's kicker while playing as well as in
+the done state, once eight graded answers carry a base rate; and the
+schedule (§6.3) was built on the owner's instruction to build the step
+rather than waiting for its owner-list row, which now says so.
+
 
 **6.1 A fitted link.** `oracleGuess` maps the expected encoded answer to
 a probability linearly and clamps at 0.05 and 0.95, so *sure* is not a
@@ -362,7 +371,20 @@ unanswered) with one pick in four still informative so it keeps
 learning. This changes the feel of the rule the owner chose, so it is a
 line on that owner-list row, not a build.
 
-## 7 · Step 5 — the walls
+## 7 · Step 5 — the walls — **BUILT (D436, 2026-09-10)**
+
+*As built, where it differs from the paragraphs below:* the estimate in
+§7.1 was wrong by half — the instrument (`npm run budget:loadings`)
+counts about 31,700 entries at today's shape, not 15,000, because the
+benched engine's block and the per-question scorecard count too — and
+the exemption is the collection-group wildcard (`*`) rather than four
+named fields, since nothing queries inside `v2_patterns` at all; 1 MiB
+holds about 3,500 rows of this shape, so the shard trigger stands
+inside the wall and sharding waits for the count; the *answered* ring
+is a chip in the topic control; the dot budget keeps each topic's
+strongest hubs in proportion; the People fetch prefers the daily by a
+surface tag on each pool item; the whole-world map is the ask it was.
+
 
 **7.1 The loadings document's index entries — an estimate, and the
 measurement that replaces it.** Firestore indexes every field of a

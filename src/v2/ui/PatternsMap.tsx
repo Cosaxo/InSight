@@ -49,6 +49,13 @@ import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
 const S = 352, C = 176, R = 131, RA = 142, RL = 158;
 const GAP = 2.6;   // the silence between two topic groups, in dot-steps
 const FIG_N = 10;  // how many ties speak at rest
+/** The most dots one ring draws (D436): a rim of radius 131 is about 820
+ * px around, and past three hundred dots it is a line. Above the budget
+ * each topic keeps its strongest hubs, in proportion, and the sentence
+ * under the field says how many of the pool are drawn. */
+export const MAP_DOT_BUDGET = 300;
+/** The pseudo-topic that rings the viewer's own answers (D436). */
+export const MAP_TOPIC_ANSWERED = "answered";
 
 interface Topic { id: string; label: string; color: string }
 const topicOf = (cat: string | null | undefined): Topic | undefined =>
@@ -197,31 +204,60 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
 }): React.ReactElement {
   const [sel, setSel] = React.useState<number | null>(null);
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
+  // a chosen topic re-rings the field (D436), so a selection's index
+  // belongs to the ring it was made on
+  React.useEffect(() => { setSel(null); }, [topic]);
 
-  // Geometry recomputes only when the pool changes (a vote landing, the
-  // loadings arriving). Keyed on the subscription version: the pool is a
-  // pure fold over exactly the state that bumps it.
+  // THE RING IS THE TOPIC'S OWN (D436). The chip used to dim the other
+  // topics and leave every dot on the rim, which at a few hundred core
+  // questions is a rim of touching dots whatever is chosen. Now the ring
+  // holds the chosen topic's questions alone — or, under "answered", the
+  // viewer's own — and above MAP_DOT_BUDGET each topic keeps its strongest
+  // hubs in proportion, the sentence under the field saying how many of
+  // the pool are drawn. Geometry recomputes when the pool changes (a vote
+  // landing, the loadings arriving — the subscription version, the pool
+  // being a pure fold over exactly the state that bumps it) or the topic
+  // does.
   const geo = React.useMemo(() => {
-    const nodes: MapNode[] = items.map((p) => ({ id: p.q.id, L: p.L, n: p.n }));
+    const inRing = topic === "all"
+      ? items
+      : topic === MAP_TOPIC_ANSWERED
+        ? items.filter((p) => p.mine != null)
+        : items.filter((p) => p.q.cat === topic);
+    let drawn = inRing;
+    if (inRing.length > MAP_DOT_BUDGET) {
+      // hubs over everything on the ring first — the pick has to see the
+      // whole topic to know its strongest — then each topic's share of
+      // the budget, rounded up so a small topic keeps at least one dot
+      const { hub: hubAll } = mapGeometry(inRing.map((p) => ({ id: p.q.id, L: p.L, n: p.n })));
+      const byCat = new Map<string, number[]>();
+      inRing.forEach((p, i) => { const c = p.q.cat ?? ""; byCat.set(c, [...(byCat.get(c) ?? []), i]); });
+      const keep = new Set<number>();
+      for (const idx of byCat.values()) {
+        const quota = Math.min(idx.length, Math.ceil((MAP_DOT_BUDGET * idx.length) / inRing.length));
+        [...idx].sort((a, b) => hubAll[b] - hubAll[a] || a - b).slice(0, quota).forEach((i) => keep.add(i));
+      }
+      drawn = inRing.filter((_, i) => keep.has(i));
+    }
+    const nodes: MapNode[] = drawn.map((p) => ({ id: p.q.id, L: p.L, n: p.n }));
     const { U, hub } = mapGeometry(nodes);
     const edges = edgesOf(U, 3);
-    return { U, hub, edges, ring: ringOf(items) };
+    return { drawn, onRing: inRing.length, U, hub, edges, ring: ringOf(drawn) };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the pool's identity (see above)
-  }, [version]);
+  }, [version, topic]);
   const RG = geo.ring;
+  const D = geo.drawn; // every index below is an index into the ring's own items
 
-  const inTopic = (i: number) => topic === "all" || items[i].q.cat === topic;
-  const catHue = (i: number) => catHueOf(items[i]?.q.cat);
+  const catHue = (i: number) => catHueOf(D[i]?.q.cat);
   const nb = sel == null ? null : nearOf(geo.U, sel, 3);
   const near = nb ? new Set(nb.map((x) => x.j)) : null;
-  const rest = geo.edges.filter((l) => inTopic(l.i) && inTopic(l.j));
-  // The denominator the idle card prints, filtered the same way `rest` is.
-  // It printed `items.length` — every question in the pool — beside a count
-  // of links from INSIDE the picked topic, so with a topic chosen the card
-  // read "1 links hold across the 6 questions in the pool" when the truth
-  // was either 11 across 6 or 1 across 2, and neither number on the line
-  // was one of them.
-  const inPool = topic === "all" ? items.length : items.filter((x) => x.q.cat === topic).length;
+  const rest = geo.edges;
+  // The denominator the idle card prints — the questions on this ring —
+  // beside the links among them. It printed the whole pool beside a
+  // topic-filtered link count once, so with a topic chosen neither number
+  // on the line was real; the ring being the topic's own now, both are.
+  const inPool = geo.onRing;
+  const trimmed = D.length < geo.onRing;
   const shown = sel == null || !nb ? rest : nb.map((x) => ({ i: sel, j: x.j, r: x.r }));
   const selHue = sel == null ? null : catHue(sel);
 
@@ -229,12 +265,12 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   let nxt: number | null = null;
   if (sel == null) {
     let best = -1;
-    items.forEach((x, i) => { if (x.mine == null && inTopic(i) && geo.hub[i] > best) { best = geo.hub[i]; nxt = i; } });
+    D.forEach((x, i) => { if (x.mine == null && geo.hub[i] > best) { best = geo.hub[i]; nxt = i; } });
   }
 
   // The selected question's own links, said out loud — each an exact 2×2
   // fetched on demand and cached for the session (rows shared per qid).
-  const selId = sel != null && items[sel] ? items[sel].q.id : null;
+  const selId = sel != null && D[sel] ? D[sel].q.id : null;
   const [says, setSays] = React.useState<{ id: string; rows: { j: number; s: PairSay | null; failed: boolean }[] } | null>(null);
   React.useEffect(() => {
     if (selId == null || !nb) { setSays(null); return; }
@@ -246,12 +282,12 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
       // questions that simply do not predict each other — and a refused
       // read is neither, so folding it into the same value made the note
       // below state a sample size over a read that never happened.
-      PATTERNS.say(selId, items[x.j].q.id)
+      PATTERNS.say(selId, D[x.j].q.id)
         .then((s) => ({ j: x.j, s, failed: false }))
         .catch(() => ({ j: x.j, s: null, failed: true }))))
       .then((rows) => { if (on) setSays({ id: selId, rows }); });
     return () => { on = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- nb/items follow `version`; selId names the selection
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nb/D follow `version` and `topic`; selId names the selection
   }, [selId]);
 
   // idle: the strongest link under the current topic filter, said on the
@@ -260,25 +296,38 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   const [topSay, setTopSay] = React.useState<{ key: string; s: PairSay | null } | null>(null);
   React.useEffect(() => {
     if (!top) { setTopSay(null); return; }
-    const key = `${items[top.i].q.id}>${items[top.j].q.id}`;
+    const key = `${D[top.i].q.id}>${D[top.j].q.id}`;
     let on = true;
-    void PATTERNS.say(items[top.i].q.id, items[top.j].q.id)
+    void PATTERNS.say(D[top.i].q.id, D[top.j].q.id)
       .then((s) => { if (on) setTopSay({ key, s }); })
       .catch(() => { if (on) setTopSay({ key, s: null }); });
     return () => { on = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the pair's ids name the fetch; items follow `version`
-  }, [top ? `${top.i}:${top.j}` : null, version]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the pair's ids name the fetch; D follows `version` and `topic`
+  }, [top ? `${D[top.i].q.id}:${D[top.j].q.id}` : null, version]);
 
   const pick = (i: number) => { setSel((s) => (s === i ? null : i)); };
-  const q = sel != null ? items[sel] : null;
+  const q = sel != null ? D[sel] : null;
   const nAns = items.filter((x) => x.mine != null).length;
   const chain = top && topSay && topSay.s ? topSay.s : null;
-  const topicWord = topic === "all" ? "" : ` in ${catLabel(topic)}`;
+  // the kicker's word and the sentence's: "Strongest link among your
+  // answers" / "…the 12 questions you answered"
+  const answeredRing = topic === MAP_TOPIC_ANSWERED;
+  const topicWord = topic === "all" ? "" : answeredRing ? " among your answers" : ` in ${catLabel(topic)}`;
+  const poolWord = topic === "all" ? " in the pool" : answeredRing ? " you answered" : ` in ${catLabel(topic)}`;
 
-  if (!items.length || !RG.pts.length) {
+  if (!items.length) {
     return (
       <div className="card" style={{ padding: "22px 18px", textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         The fit has published, but none of its questions are on this device yet.
+      </div>
+    );
+  }
+  if (!D.length || !RG.pts.length) {
+    // a ring with nothing on it — "answered" before the first answer, or
+    // a topic whose questions are all off this device
+    return (
+      <div className="card" style={{ padding: "22px 18px", textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
+        {answeredRing ? "Nothing you’ve answered is on the map yet." : "None of this topic’s questions are on this device yet."}
       </div>
     );
   }
@@ -319,12 +368,12 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
               {RG.arcs.map((a, k) => (
                 <path key={a.cat} className="qm-arc" pathLength={1} style={{ animationDelay: `${k * 0.05}s` }}
                   d={a.d} fill="none" stroke={arcCol(a.h)} strokeWidth="4" strokeLinecap="round"
-                  opacity={topic === "all" || topic === a.cat ? 0.92 : 0.28}></path>
+                  opacity={0.92}></path>
               ))}
               {RG.labels.map((l) => (l.fits ? (
                 <text key={l.cat} className="qm-ink" x={l.x} y={l.y} transform={l.tr} fill={labCol(l.h)}
                   textAnchor={l.anchor ?? "middle"} dominantBaseline="middle"
-                  opacity={topic === "all" || topic === l.cat ? 1 : 0.35}
+                  opacity={1}
                   style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".07em" }}>{l.text}</text>
               ) : null))}
             </g>
@@ -340,12 +389,13 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
               {RG.pts.map((p) => {
                 if (!p) return null;
                 const i = p.i;
-                const answered = items[i].mine != null;
+                const answered = D[i].mine != null;
                 if (i === nxt) return null; // the beacon draws it on the top layer
-                const dim = sel != null ? i !== sel && !(near?.has(i) ?? false) : !inTopic(i);
+                // at rest nothing dims: the ring is the topic's own (D436)
+                const dim = sel != null ? i !== sel && !(near?.has(i) ?? false) : false;
                 const col = dotCol(catHue(i));
                 return (
-                  <g key={items[i].q.id} className="qm-dot"
+                  <g key={D[i].q.id} className="qm-dot"
                     onClick={(e) => { e.stopPropagation(); pick(i); }}
                     style={{
                       cursor: "pointer",
@@ -376,7 +426,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
             {nxt != null && RG.pts[nxt] && (() => {
               const p = RG.pts[nxt as number];
               return (
-                <g role="button" tabIndex={0} aria-label={`Answer next: ${items[p.i].q.text}`}
+                <g role="button" tabIndex={0} aria-label={`Answer next: ${D[p.i].q.text}`}
                   onClick={(e) => { e.stopPropagation(); pick(p.i); }}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(p.i); } }}
                   style={{ cursor: "pointer", outline: "none" }}>
@@ -449,7 +499,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
             )}
             {says && says.id === q.q.id && says.rows.map(({ j, s }, k) => {
               if (!s) return null;
-              const to = items[j];
+              const to = D[j];
               const myPick = mineIdx(q);
               const myTo = mineIdx(to);
               const followed = myPick === s.pickIdx && myTo != null ? myTo === s.thenIdx : null;
@@ -490,9 +540,9 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
               <span style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
                 <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--serif)", fontSize: 17, fontWeight: 500, lineHeight: 1.3, color: "var(--ink)", textWrap: "pretty" }}>
                   <b style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 800, color: inkCol(catHue(top.i)) }}>{chain.pick}</b>
-                  {" on "}{items[top.i].q.text}{" → "}
+                  {" on "}{D[top.i].q.text}{" → "}
                   <b style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 800, color: inkCol(catHue(top.j)) }}>{chain.then}</b>
-                  {" on "}{items[top.j].q.text}
+                  {" on "}{D[top.j].q.text}
                 </span>
                 <b style={{ flex: "none", fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, color: "var(--ink)" }}>{chain.pct}%</b>
               </span>
@@ -506,7 +556,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
               {/* …and it says WHICH pool, which the sibling arm above has
                   always done (`topicWord`). Without it a narrowed number
                   reads as the whole crowd's. */}
-              <span>links hold across the {inPool} questions{topicWord || " in the pool"}; the strongest are drawn. Tap any dot to read its own.</span>
+              <span>links hold across the {inPool} questions{poolWord}{trimmed ? `; ${D.length} of them drawn, each topic's strongest` : "; the strongest are drawn"}. Tap any dot to read its own.</span>
             </div>
           )}
           {/* D161's core-only clause, which the ring does not change: a feed

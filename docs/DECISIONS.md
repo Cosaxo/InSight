@@ -47400,3 +47400,140 @@ fitted from picks alone across two nights. On the device,
 `patterns.test.ts` pins the evidence under both centres and the rare
 pick, and `votersSample.test.ts` the sample reader. Both packages'
 suites, `tsc`, eslint and the check gates were green at the commit.
+
+## D435 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
+
+**2026-09-10.** **Status:** binding. Step 4 of `PATTERNS-PLAN.md` (§6),
+built on the owner's *"do the 2 last once"* — the last two steps of the
+plan, this and D436 — the day after steps 1–3.
+
+### The slope
+
+`oracleGuess` mapped the expected encoded answer to a probability by one
+fixed line and clamped it, so *sure* was never a measured share. The
+nightly scorecard already sweeps the device ridge and publishes the best
+as `lambdaU` (D395); it now sweeps the link's slope beside it —
+`ALS_TAUS = [0.5, 0.75, 1, 1.5, 2]`, the guess being `marginal + tau·θ·L`
+— over the same held-out days, on a (ridge, slope) grid, and publishes
+the best pair as `lambdaU` and `tau`, each with its sweep read at the
+other knob's best. The phone reads `tau` like the ridge and guesses with
+it; a document that predates the field is the shipped link, `tau = 1`,
+which `patternsMap.test.ts` pins as byte-identical to the old guess. The
+online engine's slope is the shipped 1 and is never swept: its scorecard
+is the fold's own arm. The two knobs are one knob for a person with few
+answers (θ ∝ 1/λ there) and two for a person with many (θ stops
+depending on λ; tau still scales it), which is why both are swept and
+neither derived — `ALGORITHM-REFLECTION.md` §5.1's posterior shrink was
+measured to help at one ridge and hurt at another for the same reason.
+
+### The meter
+
+Seal-time stores the base rate since D432 (`m0`), so every graded record
+has its surprisal under plain guessing. `meter()` now says `skill` —
+`1 − bits/baseBits` over the records that stored a base rate, the same
+figure the fit publishes for the crowd, read off one person's record —
+and the Oracle prints it where the record is, outside the field, with
+its basis: *23% better than plain guessing · 14 answers*, or *worse*, when
+the record holds at least `OR_SKILL_BASIS = 8` graded answers (the
+server scorecard's own floor, so a person's number is held to the same
+basis the crowd's is). Under it nothing is printed: two answers is a
+coin's run, not a reading. No percentage is printed IN the field
+(2026-09-06).
+
+### The schedule
+
+The information rule (D396, the owner's call) asks what the viewer's
+answers determine least, so the Oracle looks worst exactly while it
+learns fastest. `nextToAsk` keeps that rule while any open candidate's
+loading is still undetermined — `undeterminedShare`, the posterior
+variance along the loading against what no evidence would leave
+(`|L|²/λ`), above `ASK_LEARN_SHARE = 0.5`, which after n answers along a
+unit loading is λ/(n+λ), so "pinned" means the answers outweigh the
+prior — and once everything is pinned asks the surest call: the
+candidate the live guess leans hardest on, its distance from the crowd's
+base rate. Every `ASK_LEARN_EVERY = 4`th turn stays informative, counted
+off the record's own graded answers rather than a die, so it keeps
+learning while it shows what it knows; ties keep pool order, so the
+choice is deterministic. The plan had filed this as a word from the
+owner; the instruction to build the last two steps is that word, and the
+owner-list row says so.
+
+### Proof
+
+`patternsMap.test.ts` pins the slope (1 is the shipped guess, 0 is the
+base rate, the clamp holds), the share (1 with nothing answered, λ/(n+λ)
+after n), and the schedule (informative while open, the lean once
+pinned, informative every fourth turn); `patterns.test.ts` pins the
+document's `tau` on the seal, the schedule on the store, and the meter's
+skill; `patternsAls.test.ts` that the scorecard's tau 0 is the marginal
+exactly; `patterns.test.ts` (functions) that the publication carries the
+slope and its sweep beside the ridge. Both suites, `tsc`, eslint and the
+gates green at the commit.
+
+## D436 · The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map
+
+**2026-09-10.** **Status:** binding. Step 5 of `PATTERNS-PLAN.md` (§7),
+the second half of the owner's *"do the 2 last once"*.
+
+### The index-entry wall was closer than the plan guessed
+
+The plan estimated the loadings document at about 15,000 index entries
+against Firestore's 40,000, and marked the number unmeasured.
+`scripts/loadings-budget.mjs` (`npm run budget:loadings`) now computes
+it from the document's shape by the rules the docs give — two entries
+per scalar, one per array element, maps recursing; storage by the
+storage-size page — and the answer at today's shape (545 item rows, 100
+anchor rows, 240 pick rows, the benched engine's block, a scorecard per
+question) is about 31,700 entries: the second engine's block and the
+per-question scorecard were in the document and not in the estimate.
+Three thousand rows would have crossed the entry limit at a third of the
+byte ceiling. Nothing queries inside `v2_patterns` — the loadings
+document and the samples are read by id on the device and in functions,
+and erased by field — so `firestore.indexes.json` now carries the
+collection-group wildcard exemption (`fieldPath: "*"`, no indexes), and
+the budget's test holds two claims against the committed file: with the
+exemption the document costs no entries, and 1 MiB holds about 3,500
+rows of this shape, so the plan's shard trigger at 2,500 rows sits
+inside the wall. The exemption is the form the Firestore docs give for
+"index nothing here"; it has not been deployed from this session, which
+has no deploy access, so the first `firestore:indexes` deploy is where
+it is proved. `indexes.test.ts` pins it beside the composites.
+
+### The ring is the topic's own
+
+The topic chip dimmed the other topics and left every dot on the rim,
+which at a few hundred core questions is a rim of touching dots whatever
+is chosen. The ring now holds the chosen topic's questions alone; an
+*Answered* chip rings the viewer's own (a control on a surface that
+exists, so no request); and above `MAP_DOT_BUDGET = 300` each topic keeps
+its strongest hubs in proportion, the sentence under the field saying
+*300 of them drawn, each topic's strongest*. Selection, the beacon, the
+tie card and the idle sentence all index the ring they are on, and a
+change of topic drops the selection with it. The pool sentence's two
+numbers are both the ring's now, which the older test about one pool
+already asked for.
+
+### The People map's overlap
+
+`peopleFetchSet` asks for the daily's lists first, then the strongest
+basis: everyone answers the same daily, so those lists are where two
+people's answers overlap however large the feed grows, and
+`PEOPLE_MIN_SHARED` stays reachable. Each pool item carries which
+corpus it came from for that. The whole-world map — everyone placed from
+the fit's own person vectors instead of from samples — is the D334 ask
+on the owner list and is not built.
+
+### The gate counts answers
+
+D433 and D434 put the viewer's anchors and picks into the vector; the
+tab is earned by answers, and `patternsEligible` refuses a catalogue
+card and anything without two options by shape, which
+`patternsReady.test.ts` now pins so a tab earned by filling in a form
+stays the tab D265 refused.
+
+### Not done, with the reason
+
+Sharding the document by topic waits for the count that needs it — the
+budget prints how far off it is, and the reader already joins rows to
+the bank by id. The all-pairs pass is not a wall until thousands of rows
+(§7.3 of the plan).

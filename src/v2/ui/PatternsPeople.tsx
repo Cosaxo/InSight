@@ -86,6 +86,7 @@ const stepOf = (p: { agree: number; shared: number }): keyof typeof AGREE_COL =>
 const slim = (items: readonly PoolItem[]): PeopleItem[] =>
   items.map((p) => ({
     qid: p.q.id,
+    surface: p.surface,
     L: p.L,
     n: p.n,
     marginal: p.marginal,
