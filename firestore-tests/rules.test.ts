@@ -4166,7 +4166,7 @@ describe("presence (D84 — Near by radius)", () => {
   // a modified client writes a position good for a year and stands in the
   // room permanently, whatever its own switch says. The ceiling is the
   // rule that stops it, so it is the rule worth a case.
-  it("caps how long a position may claim to last, and demands one at all", async () => {
+  it("caps how long a position may claim to last", async () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertSucceeds(setDoc(ref, cellDoc({ until: soon(179) })));
     // 180 minutes is PRESENCE_LINGER_MIN. Past it, refused.
@@ -4177,7 +4177,9 @@ describe("presence (D84 — Near by radius)", () => {
     // It is no longer REQUIRED — see the compatibility case below, which
     // owns that half now (D179). What this case owns is the ceiling, which
     // is the half that stops a modified client standing in the room for a
-    // year.
+    // year. The NAME said "and demands one at all" for as long as the body
+    // said the opposite: D179 moved that half and left the title, so the
+    // case read as covering something the case below owns.
     await refused(setDoc(ref, cellDoc({ until: "soon" })));
   });
 
