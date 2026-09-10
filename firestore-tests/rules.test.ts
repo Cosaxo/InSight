@@ -56,7 +56,15 @@ import {
  * comment calls the cheapest kind of latent bug. The emulator's reason
  * text reaches the client, so a refusal carrying it is a red test with
  * the true reason in it — not a case. Every refusal in this file goes
- * through here; `assertFails` is not called directly anywhere else.
+ * through here; `assertFails` is not called directly anywhere else, and
+ * scripts/refused-discipline.test.mjs is what makes that sentence true —
+ * it stopped being true in the commit that added the log-erasure and
+ * public-answer-map blocks, whose seven refusals copied the older idiom
+ * from a file that predated this helper. Both are `if false` paths where
+ * a budget stop cannot be the granting reason, so nothing was wrong in
+ * fact; what was wrong was the CLAIM, and the next block copied from
+ * them would have landed somewhere a `get()` runs, where D431's failure
+ * mode is silent.
  */
 async function refused(pr: Promise<unknown>): Promise<unknown> {
   const err = await assertFails(pr);
@@ -404,9 +412,9 @@ describe("v2 questions + aggregates", () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_log_erasures", OWNER), { at: 1 });
     });
-    await assertFails(getDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_log_erasures", "someone-else"), { at: 0 }));
-    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+    await refused(getDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+    await refused(setDoc(doc(asUser(OWNER), "v2_log_erasures", "someone-else"), { at: 0 }));
+    await refused(deleteDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
   });
 });
 
@@ -1089,10 +1097,10 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // …but cannot list the subcollection, and nobody writes it — the
     // owner's own map included, because a client-writable map would let
     // one person forge how alike they are to everyone.
-    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "public")));
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 0 } }));
-    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { "a.daily-001": 1 }));
-    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers")));
+    await refused(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "public")));
+    await refused(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 0 } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { "a.daily-001": 1 }));
+    await refused(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers")));
   });
 
   it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
