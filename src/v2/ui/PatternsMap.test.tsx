@@ -190,6 +190,35 @@ describe("the beacon (2026-08-26)", () => {
   });
 });
 
+describe("the idle card belongs to its own pair", () => {
+  // The strongest link is fetched on demand — a real read, and the session
+  // cache misses on a pair not yet opened. While that read is in flight the
+  // card used to keep drawing the PREVIOUS pair's numbers under the NEW
+  // pair's question text, because the stored pair key was never compared
+  // and the effect never cleared. It states an exact basis while it does
+  // it — "counted over the N people in both samples" — for a pair the
+  // device has read nothing about.
+  const TWO_TOPICS = [
+    item("sa", vec(1, 0), 1, "sport"),
+    item("sb", vec(0.95, 0.05), -1, "sport"),
+    item("fa", vec(0, 1), 1, "food"),
+    item("fb", vec(0.05, 0.95), -1, "food"),
+  ];
+
+  it("draws nothing rather than the last pair's number while the next loads", async () => {
+    PATTERNS.say.mockResolvedValueOnce(SAY);
+    const { rerender } = render(<PatternsMap items={TWO_TOPICS} version={1} topic="sport" />);
+    expect(await screen.findByText("78%")).toBeTruthy();
+    expect(screen.getByText(/counted over the 40 people/)).toBeTruthy();
+    // The reader changes the topic filter. The food pair's read is still
+    // in flight, so there is no number to state yet.
+    PATTERNS.say.mockReturnValueOnce(new Promise<PairSay | null>(() => {}));
+    rerender(<PatternsMap items={TWO_TOPICS} version={1} topic="food" />);
+    expect(screen.queryByText("78%"), "the food card wore the sport pair's percentage").toBeNull();
+    expect(screen.queryByText(/counted over the 40 people/)).toBeNull();
+  });
+});
+
 describe("a selection survives the pool moving under it", () => {
   // WHY THIS IS HERE. The tab re-derives `items` from the store on every
   // notify — `PATTERNS.pool()` is a filter over the aggregates, so a page

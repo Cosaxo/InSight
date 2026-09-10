@@ -277,6 +277,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   React.useEffect(() => {
     if (!top) { setTopSay(null); return; }
     const key = `${items[top.i].q.id}>${items[top.j].q.id}`;
+    setTopSay(null);
     let on = true;
     void PATTERNS.say(items[top.i].q.id, items[top.j].q.id)
       .then((s) => { if (on) setTopSay({ key, s }); })
@@ -288,7 +289,20 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   const pick = (i: number) => { const id = items[i]?.q.id ?? null; setSelQ((s) => (s === id ? null : id)); };
   const q = sel != null ? items[sel] : null;
   const nAns = items.filter((x) => x.mine != null).length;
-  const chain = top && topSay && topSay.s ? topSay.s : null;
+  // KEYED, LIKE ITS SIBLING. `topSay` has always carried the pair it was
+  // fetched for and nothing compared it, and the effect above does not
+  // clear it before refetching — so while `say()` is in flight for a new
+  // pair (a real read; the session cache misses on a pair not yet opened)
+  // the card drew the PREVIOUS pair's pick, percentage and basis sentence
+  // under the new pair's question text. Reachable by changing the topic
+  // filter while the Map is idle, and it states an exact count — "counted
+  // over the N people in both samples" — for a pair the device has read
+  // nothing about, which is the one thing D146 exists to stop.
+  //
+  // The `says` effect ten lines up already does both halves: it clears on
+  // entry and gates its render on `says.id === q.q.id`. This is that.
+  const chain = top && topSay && topSay.key === `${items[top.i].q.id}>${items[top.j].q.id}`
+    ? topSay.s : null;
   const topicWord = topic === "all" ? "" : ` in ${catLabel(topic)}`;
 
   if (!items.length || !RG.pts.length) {
