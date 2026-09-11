@@ -254,6 +254,10 @@ export interface VoteContext {
   agg: AggDoc | undefined;
   mine: string | undefined;
   pending: boolean;
+  /** For a pending D86 EDIT only: the option index this answer moved
+   *  AWAY from, as a string. Absent for a pending create, which is what
+   *  makes the two tellable apart here — see `countsFor`. */
+  pendingFrom?: string | undefined;
 }
 
 // The spec's option palette, cycled by index so live cards look native.
@@ -363,6 +367,17 @@ export function countsFor(options: string[], ctx: VoteContext): number[] {
     // (optimistic flag cleared), subtract it back out — the UI layer
     // adds its own +1 for the viewer's option.
     if (!ctx.pending && ctx.mine === String(i) && count > 0) count -= 1;
+    // A PENDING EDIT IS ALREADY IN THESE COUNTS, at the option it moved
+    // away from, and that is the whole difference between an edit and a
+    // create. `pending` means "the published aggregate does not hold this
+    // answer yet", which is true of a create and false of a D86 edit: the
+    // trigger has folded the original, so skipping the subtraction above
+    // left the OLD option carrying the viewer's vote while the UI added
+    // its +1 to the new one — a total one higher than the crowd, every
+    // share diluted by a vote that does not exist, and on a near-tie the
+    // winner's styling on the wrong side. Subtract it where it actually
+    // sits, and the +1 above lands where the viewer now is.
+    if (ctx.pending && ctx.pendingFrom === String(i) && count > 0) count -= 1;
     return count;
   });
 }

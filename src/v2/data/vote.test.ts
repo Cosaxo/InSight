@@ -878,6 +878,71 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     return mod;
   };
 
+  it("an edit in flight does not add a vote to the crowd it is already in", async () => {
+    // D86's edit sets the same `unaggregated` flag a create does, and
+    // `countsFor` reads that flag as "the published aggregate does not
+    // hold this answer yet" — true of a create, false of an edit. The
+    // trigger folded the original, so the crowd already counts this
+    // device at the OLD option: skipping the subtraction left that option
+    // carrying the viewer's vote while the card's own +1 landed on the
+    // new one. One vote too many in the total, every share diluted by a
+    // vote that does not exist, and on a near-tie the winner's weight on
+    // the wrong side — until the delayed refresh landed.
+    h.bankDocs.push({
+      id: "q_ed",
+      data: {
+        surface: "test", seq: 1, type: "vote", prompt: "q_ed",
+        options: ["A", "B", "C"], topic: null, test: "big5", active: true, core: true,
+      },
+    });
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_ed", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_ed");
+    });
+    // The trigger has folded it: the crowd holds seven answers, five of
+    // them on option B, one of which is this device's.
+    h.aggDocs = [{ id: "q_ed", data: { total: 7, counts: { "0": 2, "1": 5 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(LIVE.lensAgg("q_ed")!.counts, "the settled reading was wrong before the edit").toEqual([2, 4, 0]);
+
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_ed", "0")).toBe(true);
+    expect(
+      LIVE.lensAgg("q_ed")!.counts,
+      "the edit left its old vote in the crowd, so the card totals one more than exists",
+    ).toEqual([2, 4, 0]);
+    // The reader's arithmetic: 2 + 4 = 6, plus the viewer's own +1 = 7,
+    // which is exactly what the crowd holds.
+    expect(LIVE.lensAgg("q_ed")!.counts.reduce((a, b) => a + b, 0) + 1).toBe(7);
+    d.resolve();
+    await flush();
+  });
+
+  it("…and a first answer still adds to the crowd — the control", async () => {
+    // Without this, "always subtract" would satisfy the case above and
+    // show the crowd one short on every optimistic first vote.
+    h.bankDocs.push({
+      id: "q_new",
+      data: {
+        surface: "test", seq: 1, type: "vote", prompt: "q_new",
+        options: ["A", "B", "C"], topic: null, test: "big5", active: true, core: true,
+      },
+    });
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_new", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_new");
+    });
+    h.aggDocs = [{ id: "q_new", data: { total: 7, counts: { "0": 2, "1": 5 } } }];
+    // NOT drained: the refresh has not landed, so this is the optimistic
+    // window a create actually lives in.
+    expect(LIVE.lensAgg("q_new")!.counts).toEqual([0, 0, 0]);
+  });
+
   it("fills an unpicked option with zero instead of stopping there", async () => {
     const mod = await withCounts("q_gap", ["A", "B", "C", "D", "E"],
       { "0": 2, "1": 3, "3": 3, "4": 1 });

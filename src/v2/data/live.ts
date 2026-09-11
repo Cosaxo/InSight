@@ -367,6 +367,17 @@ const state = {
   //                 snapshots and the post-vote delayed refresh.
   inflight: {} as Record<string, true>,
   unaggregated: {} as Record<string, number>,
+  // …and, for a D86 EDIT only, the option index it moved AWAY from.
+  // `unaggregated` says "the published aggregate does not hold this
+  // answer yet", which is true of a create and FALSE of an edit — the
+  // trigger folded the original, so the crowd already counts this device
+  // at the old option. Without that index the deck could not subtract it
+  // from where it actually sits (data/deck.ts `countsFor`), and every
+  // share on the card was drawn over a total one vote too high until the
+  // refresh landed. Cleared with the mark it belongs to, through
+  // `clearUnaggregated` — a second map with five separate deletions to
+  // remember is the drift this file has already paid for once.
+  unaggregatedFrom: {} as Record<string, string>,
   // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
@@ -952,6 +963,12 @@ function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: s
   }
   scheduleAggRefresh(db, aid);
 }
+/** The mark and the edit's origin index go together, always. */
+function clearUnaggregated(id: string): void {
+  delete state.unaggregated[id];
+  delete state.unaggregatedFrom[id];
+}
+
 function rollbackPending(aid: string, serverValue?: string): void {
   if (serverValue === undefined) {
     delete state.votes[aid];
@@ -959,7 +976,7 @@ function rollbackPending(aid: string, serverValue?: string): void {
     state.votes[aid] = serverValue;
   }
   delete state.inflight[aid];
-  delete state.unaggregated[aid];
+  clearUnaggregated(aid);
   dropFeedMirror(aid, serverValue);
   clearPending(aid);
 }
@@ -1362,7 +1379,7 @@ async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<v
       // today this drain is only armed after the ack, so inflight
       // is already clear.)
       if (d.id in state.unaggregated && !(d.id in state.inflight)) {
-        delete state.unaggregated[d.id];
+        clearUnaggregated(d.id);
       }
     }
     state.stats.aggsFetched += snap.size;
@@ -1513,6 +1530,7 @@ function voteCtx(qid: string): VoteContext {
     agg: state.aggs[qid],
     mine: state.votes[qid],
     pending: qid in state.unaggregated,
+    pendingFrom: state.unaggregatedFrom[qid],
   };
 }
 
@@ -1598,7 +1616,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // optimistic split; here it was unreachable until restorePending
       // put an inflight answer in front of the boot's deck read.
       if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight)) {
-        delete state.unaggregated[d.id];
+        clearUnaggregated(d.id);
       }
     });
     state.stats.aggsFetched += snap.size;
@@ -7697,7 +7715,7 @@ const LIVE = {
    */
   noteFolded(aid: string): void {
     if (!(aid in state.unaggregated) || !state.votes[aid] || aid in state.inflight) return;
-    delete state.unaggregated[aid];
+    clearUnaggregated(aid);
     notify();
   },
   pulsePending(baseQid: string): number | null {
@@ -7977,13 +7995,21 @@ const LIVE = {
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
     if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;
+    // BEFORE the optimistic move, which is the only moment the old index
+    // still exists in this process: one line later `state.votes[qid]` is
+    // the new one.
+    const from = state.votes[qid];
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     // The new option is not in the public agg yet — same display flag as a
-    // create. The old option briefly reads one high (my old vote is still
-    // in the counts, no longer marked mine); the delayed refresh below
-    // pulls the moved counts and settles it.
+    // create — but an edit is NOT a create underneath it, and the counts
+    // need both facts. The crowd already holds this device at the old
+    // option, so the deck subtracts it from there (`countsFor`) rather
+    // than leaving it to the delayed refresh: until that landed, the old
+    // option read one high AND the total read one high, which put every
+    // share on the card over a denominator that did not exist.
     state.unaggregated[qid] = optionIdx;
+    if (from !== undefined && from !== optionId) state.unaggregatedFrom[qid] = from;
     markPending(qid, optionId, true);
     notify();
     void (async () => {
@@ -8051,6 +8077,7 @@ function resetForNewUid(uid: string): void {
   state.votes = {};
   state.inflight = {};
   state.unaggregated = {};
+  state.unaggregatedFrom = {};
   state.editedAt = {};
   state.aggs = {};
   state.overflowCells = {};
