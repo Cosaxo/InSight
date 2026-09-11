@@ -470,18 +470,24 @@ that lets a buyer read them.
   be undoable without losing the rest of the cell.
 - **vocabulary** — the overlay's own tiles and accent (`LOGIC_COL`), the
   standalone family in `design/standalone-2026-08-20/`, the two palettes
-  of D302, the copy rule D182. The hard part: OMIB items are **pictures**,
-  not `Prim` glyphs, so for the first time this overlay draws artwork it
-  did not compose. The palette, the goal cell and the imported matrix have
-  to read as one screen rather than as two applications.
-- **constraints** — 220 items of imported artwork is the binding one.
-  `check:eager-content` forbids question content in the first-paint graph
-  and `check:bundle` holds the app's ceiling, so the items are **fetched,
-  never bundled**; the overlay's lazy chunk carries the frame alone. Tap
-  targets per `check:tap-targets` with twenty elements on a 402px screen —
-  the request should say what happens when they do not fit rather than
-  leave it to the build. GPLv3 attribution has to live somewhere a reader
-  can reach it.
+  of D302, the copy rule D182. **CORRECTED 2026-09-11, once the archive was
+  read** (D451's amendment): this paragraph said OMIB items are pictures
+  the overlay would have to import. They are not. An item is nine cells
+  over **twenty construction elements** — a corner triangle, a diagonal
+  line, an edge box, a centre shape, an edge arrow, each in four variants
+  — so the overlay COMPOSES an OMIB item exactly as it composes a
+  generated one, and the design's job is one vocabulary rather than two.
+  The twenty are the palette the taker picks from and the alphabet the
+  matrix is written in, which is a gift to the screen: the same shapes
+  appear in both halves.
+- **constraints** — the artwork worry this paragraph opened with is gone
+  with it: the whole bank is a 116 KB JSON of bit codes, so
+  `check:eager-content` and `check:bundle` are satisfied by keeping it out
+  of the first-paint graph, which the lazy overlay chunk already does. What
+  is left is the phone. Twenty elements plus a 3×3 matrix plus a goal cell
+  on a 402px screen, with tap targets per `check:tap-targets` — the
+  request should say what gives when they do not fit, rather than leave it
+  to the build. GPLv3 attribution has to live somewhere a reader can reach.
 - **why** — D451: the items are calibrated before launch, which is what
   the owner asked for, and the construction format is the price the bank
   charges. The return is on the scale itself — six options put ~4.2 of 25

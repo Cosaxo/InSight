@@ -54,6 +54,14 @@ jobs:
       # name), and the answer twice was to raise its ceiling. Client-only
       # and off backend-checks.yml by the same rule as check:figures above.
       - run: npm run check:eager-content
+      # The OMIB bank against the archive it was built from (D451). Content,
+      # not backend correctness, so it sits here and off backend-checks.yml by
+      # the same rule as check:figures above. What it protects is that the
+      # committed codes are still the published bank's: they are read back out
+      # of the artwork and held against the spreadsheet's own column, two
+      # sources that were produced independently, so a drift in either shows up
+      # as a disagreement rather than as items that merely look plausible.
+      - run: npm run check:omib
       # D290's invariant: the answer document is the source of truth and
       # every aggregate is a projection rebuilt from it, which holds only
       # while the answer keeps carrying its `anchors` snapshot. Trim that to

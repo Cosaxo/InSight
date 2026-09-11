@@ -351,7 +351,11 @@ describe("the lists on this tree", () => {
     // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D437): both
     // were built the same day, on the owner's answers to that plan's
     // questions, and moved under Built with their status lines saying so.
-    expect(v.requested.length).toBe(8);
+    // Requested 9 since 2026-09-11 (D451): the logic test's answer screen —
+    // item 13 — because OMIB's taker BUILDS the missing cell out of twenty
+    // elements instead of tapping one of six tiles, which is an interaction
+    // and not a control, so D352 sends it here before it is built.
+    expect(v.requested.length).toBe(9);
     expect(v.designed.length).toBe(0);
     expect(v.built.length).toBe(6);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));

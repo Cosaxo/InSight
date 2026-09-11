@@ -49857,3 +49857,78 @@ lives) nor any mirror of it — probed, not assumed; `github.com` is the only
 research host that answers. The 220 items and their published item
 parameters have to arrive by another route before any of this is built.
 On `OWNER-LIST.md`.
+
+## D451 amendment (2026-09-11, the same evening) · The archive read: the bank is a vocabulary, not artwork — and its answer key is public
+
+The owner supplied the bank by hand (the egress block stands; that row on
+`OWNER-LIST.md` is closed by the upload, not by a policy change). Reading
+it moved four things, two of them in the app's favour and one against.
+
+**The items are COMPOSITIONS, and this is the finding that matters.** An
+OMIB item is not a picture. It is nine cells over **twenty construction
+elements** — five families of four: a corner triangle, a diagonal line, an
+edge box, a centre shape (filled/outline × square/circle) and an edge
+arrow — one bit each, so an item is 9×20 bits and the bank's own renderer
+draws it from twenty path definitions totalling about forty lines. The
+practical consequences: **nothing is imported as artwork**, the committed
+bank is a 116 KB JSON, and the overlay composes OMIB items exactly the way
+it already composes generated ones. Visual request 13's stated binding
+constraint — "220 items of imported artwork" — was wrong and is corrected
+there. What survives of it is the interaction, which is the real cost.
+
+**Where the codes came from, and why two sources.** The spreadsheet's last
+column carries the full nine-group code, so the codes did not have to be
+inferred. They were ALSO recovered independently from the 226 published
+SVGs, by matching each drawn shape against the bank's own `drawing.js`
+table — string equality on path data, not image recognition. **All 220
+agree on all eight visible cells, and all 220 put the published answer in
+the ninth.** `check:omib` keeps both sources in the loop on every run
+rather than trusting either: a drift in one now shows up as a
+disagreement instead of as items that merely look plausible.
+
+**The artwork carries no answer.** All 226 SVGs render eight cells and
+omit the ninth. The gate stops if that ever changes, because a ninth
+rendered cell would mean the published pictures now show the solution.
+
+**But the ANSWER KEY IS PUBLIC, and that is the honest cost of this
+route.** The authors publish the solutions themselves, in the same
+spreadsheet, on the same open repository. D31 removed a shipped answer key
+and D57 moved the remaining one behind the server; neither of those is
+weakened here — `content/omib-key.json` is a separate file, the rules
+posture is unchanged, and a test holds `src/` to naming it nowhere — but
+the app can no longer say what it could say of the generator, which is
+that there is no key to find. There is one, it is two clicks away, and no
+amount of server discipline changes that. Recorded rather than
+engineered around: it is the price of items calibrated before launch, the
+owner's stated requirement, and it is the same price every published
+instrument pays. What it argues for is the thing already recorded at
+D451 — adaptive administration over the calibrated bank, and the
+generator kept for the forms nobody can look up.
+
+**The calibration, now measured rather than cited.** 219 of 220 items
+carry IRT parameters (one published without). Difficulty **b** spans
+−8.98 to +2.41, mean −0.17; discrimination **a** spans 0.11 to 5.16, mean
+2.09; proportion correct spans 0.06 to 0.98, mean 0.60. Rules per item
+form a clean pyramid — 20 · 50 · 80 · 50 · 20 for one through five. Two
+things to carry forward: a handful of items have **a** near zero and earn
+nothing, so the bank wants a floor before use; and **b**'s origin is the
+calibration sample, 2,572 medical-school applicants, so the ORDER
+transfers to this app's population and the zero point does not. The
+percentile still has to be ours.
+
+**No licence file in the archive.** Six files, none of them a licence —
+the GPLv3 statement lives in the paper, not in the bank. That is weaker
+than a LICENSE in the tree and stronger than Sandia's nothing (D451's
+table), and it does not change the `OWNER-LIST.md` row: the question was
+already what GPLv3 reaches, and it now also wants the paper's exact
+wording quoted where the bank is committed. `content/omib.json` and
+`content/omib-key.json` both carry the attribution and the caveat in
+their headers.
+
+**What is built:** `scripts/build-omib.mjs` (+ `--check`),
+`npm run build:omib` / `check:omib` wired into CI's lint job,
+`scripts/build-omib.test.mjs` (9 cases — the element vocabulary id by id,
+the refusal to skip an unknown shape, the nine-cell tripwire, and the
+key's absence from `src/`), the archive under `content/omib-source/`, and
+the two built files. **What is NOT built:** anything a user can see. The
+screen waits on visual request 13, which waits on a design.

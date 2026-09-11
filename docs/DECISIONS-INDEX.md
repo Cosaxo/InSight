@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 480 lines instead of
-49,860. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 481 lines instead of
+49,935. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -46,7 +46,7 @@ detect it.
 |  | ↳ *amendment 2026-08-06* — [Identity verification (passport / driver's licence class) recorded as a possible future requirement](DECISIONS.md#d28-amendment-2026-08-06--identity-verification-passport--drivers-licence-class-recorded-as-a-possible-future-requirement) | — | 5082 |
 | **D29** | [Device-bound activation: one counted account per device per month, silently](DECISIONS.md#d29--device-bound-activation-one-counted-account-per-device-per-month-silently) | D414 (+11) | 2396 |
 | **D30** | [Farm questions may graduate to the live seed; the deck gets an epoch](DECISIONS.md#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) | D444 (+16) | 2598 |
-| **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D402 (+3) | 2663 |
+| **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D451 (+4) | 2663 |
 | **D32** | [Learn's crowd stat is measured — first attempts only, estimates labeled](DECISIONS.md#d32--learns-crowd-stat-is-measured--first-attempts-only-estimates-labeled) | D402 (+19) | 2734 |
 | **D33** | [The farm gets eyes and a faster clock: the scorecard, and daily runs](DECISIONS.md#d33--the-farm-gets-eyes-and-a-faster-clock-the-scorecard-and-daily-runs) | D424 (+13) | 2807 |
 |  | ↳ *amendment 2026-08-06* — [Ordinal splits are measured on their axis](DECISIONS.md#d33-amendment-2026-08-06--ordinal-splits-are-measured-on-their-axis) | — | 6200 |
@@ -494,3 +494,4 @@ detect it.
 | **D449** | [The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on](DECISIONS.md#d449--the-2026-09-10-night-review-two-shifts-merged-as-one-tree--60-commits-kept-nine-files-touched-by-both-and-three-prose-defects-where-the-merge-had-nothing-to-stop-it-on) | D450 | 49369 |
 | **D450** | [The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on](DECISIONS.md#d450--the-2026-09-11-night-review-two-shifts-merged-as-one-tree--63-commits-kept-thirteen-files-touched-by-both-and-the-first-night-the-merge-had-something-to-stop-on) | — | 49524 |
 | **D451** | [The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding](DECISIONS.md#d451--the-logic-tests-items-come-from-the-open-matrices-item-bank--and-the-licence-sweep-is-the-finding) | — | 49764 |
+|  | ↳ *amendment 2026-09-11, the same evening* — [The archive read: the bank is a vocabulary, not artwork — and its answer key is public](DECISIONS.md#d451-amendment-2026-09-11-the-same-evening--the-archive-read-the-bank-is-a-vocabulary-not-artwork--and-its-answer-key-is-public) | — | 49861 |
