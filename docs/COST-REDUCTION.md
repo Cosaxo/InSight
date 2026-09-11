@@ -154,22 +154,54 @@ A plan that fixes only one of those fixes the app at only one size.
 `[C]` client · `[P]` product · `[A]` architecture. Percentage off the
 total bill at that size:
 
+**Re-printed from the model 2026-09-11 — every figure below moved, and
+three rows stopped being levers at all.** The numbers this table carried
+until then were computed before D129, D397 and DATA-EFFICIENCY-RUNBOOK
+2.2/2.3/3.5 shipped, and `npm run costs:levers` — the script whose whole
+job is re-printing them — had been **dead on `main` since 580f388**
+(2026-09-09): a `TypeError` two sections in, so the run that would have
+caught the drift could not finish. Fixed and given the suite it never had
+(`scripts/cost-levers.test.mjs`, in `npm run test:scripts`). This is the
+folklore the script's own header says it exists to prevent, and it got in
+through the one door nothing was watching.
+
 | Lever | 500 | 5 k | 50 k | 500 k |
 | --- | ---: | ---: | ---: | ---: |
-| `[C]` Single-region database | −50% | −44% | −37% | −35% |
-| `[C]` Stream today only (7 listeners → 1) | −10% | −4% | −1.0% | −0.1% |
-| `[C]` Persist the name cache across sessions | −41% | −16% | −4% | −0.5% |
-| `[P]` Kindred walks 4 lists, not 12 | −39% | −15% | −4% | −0.5% |
-| `[P]` Who-voted pages at 50, not 200 | −62% | −24% | −6% | −0.7% |
-| `[P]` Circle reads 100 answers/member, not 300 | −0.0% | −13% | −3% | −0.4% |
-| `[A]` Batch the mirror publish (×5) | −5% | −26% | −65% | −78% |
-| `[A]` Serve the bank off Hosting | −1% | −0.4% | −0.1% | −0.0% |
-| `[A]` **Poll instead of stream** | −17% | −36% | **−82%** | **−98%** |
+| `[C]` Single-region database [TAKEN — D165] | −39% | −46% | −46% | −46% |
+| `[P]` Kindred walks 4 lists, not 12 | −0.1% | −0.2% | −0.2% | −0.2% |
+| `[P]` Who-voted pages at 50 | −9% | −12% | −12% | −13% |
+| `[A]` Batch the mirror publish (×5) † | −0.0% | −0.0% | −0.0% | −0.0% |
+| `[A]` Serve the bank off Hosting | −0.8% | −1% | −1% | −1% |
+| `[A]` **[SHIPPED D129] Poll instead of stream** | −14% | −52% | −91% | −99.1% |
 
-The shape of that table is the finding. **The social levers matter most on
-the left and are nearly worthless on the right; the fan-out levers are the
-reverse.** Cutting `VOTER_FETCH_CAP` to 50 removes 62% of the bill at 500
-DAU and 0.7% at 500 k. Polling removes 98% at 500 k and 17% at 500.
+† Worth nothing against the app **as built**, and that is a fact about the
+app rather than about the lever: `publishEvery` divides the fan-out term
+only on the streaming branch (`cost-arith.mjs:937`), and since D129 nothing
+streams, so there is nothing to batch. It stays listed because it becomes
+the largest architectural saving again the moment anything re-attaches a
+listener to an aggregate. The suite now fails on any UNMARKED lever that
+saves ~nothing at every size — a lever whose `opts` the model has stopped
+reading prints `−0.0%` exactly like a measured nothing, which is how a
+plan quietly acquires a dead entry.
+
+**Three rows left this table**, because the changes they proposed shipped
+and the levers were removed from the script: *Stream today only* and
+*Persist the name cache* (D129), and *Circle reads 100 answers/member*
+(runbook 3.5 — `cost-arith.mjs:818`, the Circle term is now one document
+per member, so `CIRCLE_ANSWER_CAP` no longer prices a stop open). The
+third is the one that broke the run: it left `LEVERS` and stayed in three
+`PATHS` entries.
+
+The shape of that table is still the finding, and **the shape has moved
+with it**: the social levers are no longer nearly worthless on the right —
+capping who-voted pages is −9% at 500 DAU and −13% at 500 k, a nearly flat
+line where it used to fall from −62% to −0.7%. That is what shipping the
+sample read did (D397): the social term stopped scaling with the crowd, so
+what is left of it is flat, and the remaining spread across sizes belongs
+almost entirely to fan-out. Polling removes 99.1% at 500 k and 14% at 500.
+**Whether that changes the plan is the owner's read, not this page's** —
+the two-regime argument above is unchanged in direction and weaker in
+degree, and nothing here re-decides it.
 
 Two notes on individual rows:
 

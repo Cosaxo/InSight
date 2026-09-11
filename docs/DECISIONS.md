@@ -49541,7 +49541,7 @@ to say so.
 `main` took twenty-seven commits during the night: twenty-one console and
 pulse rows, and six content-lane merges (#479–#484, the lanes that
 self-merge on green under D212). No decision number moved. Neither shift
-claimed one; the tree sat at D449. This record is D450.
+claimed one; the tree sat at D449. This record is D451.
 
 **THIRTEEN FILES WERE TOUCHED BY BOTH** — `CLAUDE.md`, `README.md`,
 `docs/DATA-EFFICIENCY-RUNBOOK.md`, `docs/LOCAL-TESTING.md`,
@@ -49760,12 +49760,127 @@ owner's. A independently closed the adjacent hole in the same night at the
 rules layer: a profile write that simply omitted `consent` deleted the
 consent record, which would have left the published coordinate standing
 while its consent read back as "never asked".
+## D451 · The database had no copy of itself — the backup lane, and the printer that had stopped printing
 
-## D451 · A whole-app audit, adversarially verified — and the half of it main reached first
+**2026-09-11.** Two things, found by rating the tree against its own
+claims rather than by working on either.
+
+### 1. There were no backups and no point-in-time recovery
+
+Not misconfigured — absent, and known only as two lines in
+`docs/COST-EXPOSURE.md` §7, under the heading *"What this page could not
+verify from here"*, as a COST footnote: *"whether point-in-time recovery
+or scheduled backups are on — both bill as storage and neither has free
+usage."* A tree-wide grep for `pitr|point-in-time|scheduled backup|gcloud
+firestore backups` returned those two hits and nothing else. No script, no
+workflow, no runbook step, no reading.
+
+**Why that is the sharpest edge here rather than a missing ops chore.**
+D290's invariant is that the answer document is the source of truth and
+every aggregate is a projection rebuilt from it. Both repair paths obey
+it: `scripts/rebuild-aggregate.mjs` and `functions/src/replay.ts` rebuild
+aggregates **out of** `v2_users/{uid}/answers`. Neither is a backup. If
+the answers go — a bad backfill, a `deleteAccount` defect, a rules
+mistake, a console delete — the repair tooling has nothing to read. Every
+one of the 449 decisions before this one is a decision about data held in
+exactly one place.
+
+**The arithmetic, which is the argument for doing it now.** Both bill as
+storage against a database currently holding **107 answers** (the pulse
+trail, 37 rows, 2026-08-04→09-10). Backup storage and PITR storage are
+per-GiB-month on a database that is cents in size and will be cents in
+size for a long time. The cheapest day to start keeping copies is the day
+there is almost nothing to copy; the expensive day is the one where the
+decision gets made during an incident.
+
+**What was built,** in `monitoring.yml`'s shape one API over, for D300's
+reason: a console-only step is one nobody can run from a phone, prove
+after the fact, or diff — and `apply-monitoring.mjs` sat unrunnable for
+two days needing a `gcloud` login nobody had, while production held zero
+policies.
+
+- `scripts/backups.mjs` — Firestore Admin API over the same
+  FIREBASE_SERVICE_ACCOUNT, dry-run by default. PITR first (7 days, and it
+  is the only one that recovers from "the backfill ran with the wrong
+  predicate at 02:00" — a daily snapshot either predates that and loses a
+  day, or postdates it and contains the damage), then a daily schedule at
+  7-day retention, then a weekly at 14 weeks, because this repo's failure
+  mode is quiet rather than loud.
+- `.github/workflows/backups.yml` — dispatch-only, `environment:
+  production`, `apply` off unless asked, `concurrency` without
+  cancel-in-progress. **Not on the deploy path and it must not become
+  one**: a pipeline that can create a backup schedule can delete one, in a
+  deploy that was about something else.
+- `scripts/observe.mjs` reads `backups.pitr` and the schedules, so *"is
+  there a restorable copy"* is answerable by instrument. It could not be
+  asked at all before today.
+- `scripts/backups.test.mjs`, 13 cases, all three silent failures
+  mutation-checked: backing up `(default)` instead of `insight` (a 404
+  here reads as "enable the API", so the operator fixes the wrong thing
+  and then believes the wrong database is protected); a whole-object PATCH
+  instead of `?updateMask=`, which would rewrite delete protection and
+  concurrency mode as a side effect; and losing the recurrence match,
+  which creates a duplicate schedule that doubles the storage bill
+  silently and forever.
+
+**Stated, not hidden: a schedule is not a restore.** Nothing here has
+been restored into a scratch database and read back. Until that has
+happened once, recovery is a well-evidenced belief. That is the next row,
+not this one.
+
+### 2. `npm run costs:levers` had been dead on `main` since 580f388
+
+A `TypeError` two sections in, after two healthy-looking tables had
+printed. 580f388 removed the "Circle reads 100 answers/member" lever —
+correctly, because runbook 3.5 shipped it and `cost-arith.mjs`'s `circle`
+term is now one document per member — and left three `PATHS` entries
+naming it. Nothing went red: the script has no suite, and its own header
+says why — *"a printer, not a gate. It asserts nothing and is not wired
+into CI."*
+
+That is the D179/D197/D275 class one step along, in a script that REPORTS
+rather than CHECKS, and it cost the same thing more slowly.
+`docs/COST-REDUCTION.md` could not be re-printed, so it stopped tracking
+the model: **every figure in its lever table had moved and three rows had
+stopped being levers at all.** The page the script exists to keep out of
+folklore had become folklore.
+
+**The second finding is the one worth keeping.** "Batch the mirror publish
+(×5)" prices at **−0.0% at every size**, and that is correct:
+`publishEvery` divides the fan-out term only on the streaming branch
+(`cost-arith.mjs:937`), and nothing has streamed since D129. The table had
+billed it at −26%/−65%/−78%, the largest architectural saving on the page.
+A lever the model has stopped reading prints an indistinguishable zero, so
+restoring the Circle cap "correctly" would have been **worse than the
+crash** — a plan with a dead entry the reader cannot see. So
+`scripts/cost-levers.test.mjs` holds every UNMARKED lever to a non-zero
+saving somewhere, and a lever that is genuinely worth nothing today
+declares `supersededBy` with the reason.
+
+**The shape finding moved and the page says so without re-deciding it.**
+Capping who-voted pages is now −9% at 500 DAU and −13% at 500 k, a nearly
+flat line where the page had it falling from −62% to −0.7%: D397's sample
+read stopped the social term scaling with the crowd. The two-regime
+argument holds in direction and is weaker in degree. Whether that changes
+the plan is the owner's read.
+
+### Measured
+
+`test:scripts` 81 files / 1345 tests green, plus the two new suites (6 and
+13 cases) with every rule mutation-checked in-tree. `check:docs`,
+`check:figures`, `eslint --max-warnings 0` green. `check:figures` earned
+its keep mid-change: `backups.yml` made `environment: production` eleven
+jobs and the gate named the stale sentence in `docs/DEPLOYMENT.md` in the
+same commit that caused it. Fixing it found that the table under that
+sentence had been missing `apply-bigquery.yml` and `backfill-log.yml`
+since the day they were counted — the gate holds the COUNT, and nothing
+holds the ROWS.
+
+## D452 · A whole-app audit, adversarially verified — and the half of it main reached first
 
 **2026-09-09, merged forward 2026-09-11.** **Status: Proposed** — the
-owner's tick on `MERGE-LIST.md` is the decision. Numbered D451 because
-D440–D450 were taken on `main` in the two days this branch sat. Asked for in one sentence (*"go through
+owner's tick on `MERGE-LIST.md` is the decision. Numbered D452 because
+D440–D451 were taken on `main` in the two days this branch sat. Asked for in one sentence (*"go through
 this app and look for improvments optemzations and clean up and
 maitance"*), so the subject is the whole tree rather than one surface.
 

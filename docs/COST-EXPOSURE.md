@@ -494,9 +494,16 @@ default to the billing account's admins and users. Both are §6 O4.
 Console-only facts, listed so they are read rather than assumed:
 
 - The Firestore edition of `insight` (Standard is assumed and priced;
-  Enterprise bills in different units), and whether point-in-time
-  recovery or scheduled backups are on — both bill as storage and neither
-  has free usage.
+  Enterprise bills in different units). ~~and whether point-in-time
+  recovery or scheduled backups are on~~ — **readable since 2026-09-11
+  (D451)**: `npm run observe` reports `backups.pitr` and both schedules,
+  and `npm run backups` (Actions → *Backups*) puts them in place. They do
+  still bill as storage with no free usage, against a database holding
+  107 answers — which is the argument for arming them now rather than at
+  the load where the bill would be noticeable. Listing this as
+  unverifiable was how the tree came to have no copy of its only asset:
+  the fact sat under a COST heading, so it read as an unpriced line rather
+  than as an unprotected database.
 - Artifact Registry's repository size and cleanup policy; Cloud Build
   minutes used in August and September.
 - Whether `ANTHROPIC_API_KEY` and the two Stripe secrets are set in the

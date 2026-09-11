@@ -40,12 +40,13 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T16:40:27Z -->
+<!-- console:generated 2026-09-11T17:46:32Z -->
 
 ## Open
 
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 28 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 297 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#486** · a session · *what:* Asked for in one sentence — *"go through this app and look for improvments optemzations and clean up and maitance"* — so the subject is the whole tree rather than one surface. · *how:* `docs/DECISIONS.md` D451** is the record. · CI green (10) · 6 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 35 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 304 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
 
@@ -63,6 +64,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#487** · The database had no copy of itself — the backup lane, and the printer that had stopped printing (D451) · merged 2026-09-11
 - **#485** · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, five conflicts, and the sweep neither shift finished (D450) · merged 2026-09-11
 - **#484** · Now 2026-09-11: the ranking or the trophy, and orbit from home soil · merged 2026-09-11
 - **#483** · Duel 2026-09-11: two new packs, ten 1v1, and the romantic pool reaches its while-dark cap · merged 2026-09-11
@@ -117,4 +119,3 @@ merge shift like any other PR.
 - **#443** · The taxonomy grows like Reddit: rooms born with a handful, coverage-steered, learn's cap tripled, and a path out (D427, D428) · merged 2026-09-08
 - **#442** · Rounds replace the day on 1v1 and group: the volley, its notifications, world questions as duel content, and the card from the owner's canvas (D426) · merged 2026-09-08
 - **#441** · The lanes grow the taxonomy: subtopics first, new topics into the Map's fixed ring (D424, D425) · merged 2026-09-08
-- **#440** · The catalogue pictures land: 2,651 across five domains, and the three things that stood between a correct builder and a picture on disk (D423) · merged 2026-09-08
