@@ -8027,6 +8027,12 @@ const LIVE = {
     // still exists in this process: one line later `state.votes[qid]` is
     // the new one.
     const from = state.votes[qid];
+    // …AND WHETHER THE CROWD HOLDS IT, which is the whole premise of the
+    // subtraction below and is exactly what this flag denies: an id
+    // already marked unaggregated is one the trigger has NOT folded, so
+    // there is nothing of this device's in the published counts to take
+    // back out. Read before the mark is overwritten, one line down.
+    const wasFolded = !(qid in state.unaggregated);
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     // The new option is not in the public agg yet — same display flag as a
@@ -8037,7 +8043,15 @@ const LIVE = {
     // option read one high AND the total read one high, which put every
     // share on the card over a denominator that did not exist.
     state.unaggregated[qid] = optionIdx;
-    if (from !== undefined && from !== optionId) state.unaggregatedFrom[qid] = from;
+    // ONLY IF THE CROWD ACTUALLY HOLDS IT. An edit that follows a create
+    // the trigger has not folded yet — answer, then nudge the dial again,
+    // which every re-pick on the daily and the feed routes through here —
+    // would otherwise name an option the aggregate holds this device at
+    // nowhere, and the subtraction would take a vote out of a crowd that
+    // never had it: the same total-off-by-one this arm was added to
+    // close, with the sign reversed. A second edit keeps the FIRST
+    // origin, which is right: the crowd still holds the original.
+    if (wasFolded && from !== undefined && from !== optionId) state.unaggregatedFrom[qid] = from;
     markPending(qid, optionId, true);
     notify();
     void (async () => {
