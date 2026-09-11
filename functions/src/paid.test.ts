@@ -825,7 +825,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
    *  a transaction that re-reads it, and a record of what was written.
    *  `reads` lets a case change the status BETWEEN the outer read and the
    *  transaction's, which is the race the second guard exists for. */
-  function fakeDb(statuses: string[], payload: Record<string, unknown> = BOOKING as Record<string, unknown>) {
+  function fakeDb(statuses: string[], payload: Record<string, unknown> = BOOKING as unknown as Record<string, unknown>) {
     const writes: Record<string, unknown>[] = [];
     // Reads are counted because the OUTER guard's whole job is to spend
     // nothing on a booking that is not in review: without it the function
@@ -881,13 +881,16 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
     // under a paid band. Holding leaves it in `review`, which is the
     // queue the Routine reads.
     const was = process.env.ANTHROPIC_API_KEY;
+    const wasEmu = process.env.FUNCTIONS_EMULATOR;
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.FUNCTIONS_EMULATOR;
     try {
       const f = fakeDb(["review", "review"]);
       await reviewBooking(f.db, "b1");
       expect(f.writes, "a deployment with no reviewer settled a booking anyway").toEqual([]);
     } finally {
       if (was !== undefined) process.env.ANTHROPIC_API_KEY = was;
+      if (wasEmu !== undefined) process.env.FUNCTIONS_EMULATOR = wasEmu;
     }
   });
 
@@ -898,7 +901,9 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
     // deployment after three hours — well inside the window the Routine
     // is expected to answer in.
     const was = process.env.ANTHROPIC_API_KEY;
+    const wasEmu = process.env.FUNCTIONS_EMULATOR;
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.FUNCTIONS_EMULATOR;
     try {
       const f = fakeDb(["review", "review"]);
       await reviewBooking(f.db, "b1");
@@ -906,6 +911,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
       expect(counted, "waiting for the Routine burned an attempt").toBe(false);
     } finally {
       if (was !== undefined) process.env.ANTHROPIC_API_KEY = was;
+      if (wasEmu !== undefined) process.env.FUNCTIONS_EMULATOR = wasEmu;
     }
   });
 
@@ -1111,6 +1117,7 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
       // is untouched. This read `gates-only` and asserted an APPROVE until
       // then — the budget half was right and the verdict half was the bug.
       delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.FUNCTIONS_EMULATOR;
       await expect(runReviewVerdict(BOOKING, null, refuse)).rejects.toBeInstanceOf(ReviewDeferred);
       expect(taken).toBe(0);
       // A gated decline never reaches the budget either.

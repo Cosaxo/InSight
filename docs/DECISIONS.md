@@ -50364,7 +50364,21 @@ publishing unreviewed content to strangers is not a degradation, it is
 the absence of the feature while the UI says otherwise.
 
 It now throws `ReviewDeferred`: the booking stays in `review`, **which is
-the Routine's queue**. No attempt is counted, because
+the Routine's queue**.
+
+**The emulator is the one exception, and CI is what found it.** The first
+version deferred everywhere, and `e2e-v2-loop.mjs` went red: that suite
+walks book → review → pay → live, and a held booking never settles, so
+deferring in the emulator would not have tested the hold — it would have
+deleted the only end-to-end coverage the paid loop has. So the emulator
+keeps the old gates-only approve. The danger of that line is a real
+buyer's words reaching a real audience, and an emulator has neither; the
+production behaviour is covered by `paid.test.ts` instead, whose cases
+delete `FUNCTIONS_EMULATOR` first for exactly this reason. Keyed on the
+variable the emulator sets and nothing can set into a deployed runtime,
+which is `ENFORCE_APP_CHECK`'s own shape one file over.
+
+No attempt is counted, because
 `MAX_REVIEW_ATTEMPTS` exists for a booking the reviewer cannot settle and
 this one has not been looked at once — counting would stall every booking
 after six sweeps, three hours, well inside the window a Routine answers

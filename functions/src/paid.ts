@@ -544,6 +544,24 @@ export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string 
     // Holding leaves `status: "review"`, which is precisely the queue the
     // Routine reads. The booking waits for a reviewer instead of walking
     // past the place one should have been.
+    //
+    // THE EMULATOR IS THE EXCEPTION, and it is a deliberate split rather
+    // than a hole. `e2e-v2-loop.mjs` walks book → review → pay → live, and
+    // a held booking never settles, so deferring there would not test the
+    // hold — it would delete the only end-to-end coverage the paid loop
+    // has. The danger of "gates-only → approve" is a real buyer's words
+    // reaching a real audience, and the emulator has neither. Keyed on
+    // FUNCTIONS_EMULATOR, which the emulator sets and nothing can set into
+    // a deployed runtime (ops.ts's own ENFORCE_APP_CHECK shape).
+    //
+    // What covers the production behaviour instead is paid.test.ts, whose
+    // cases delete FUNCTIONS_EMULATOR first for exactly this reason.
+    if (process.env.FUNCTIONS_EMULATOR === "true") {
+      logger.warn("[paid] emulator: no API key, approving on gates alone", {
+        metric: "paid_review_gates_only",
+      });
+      return { verdict: "approve", reason: null, by: "gates-only" };
+    }
     throw new ReviewDeferred();
   }
   if (takeCall) await takeCall();
