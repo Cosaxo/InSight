@@ -882,7 +882,15 @@
       b.addEventListener("click", function () {
         st.cur = code;
         drawCurrencies();
-        drawScope();
+        // THE WHOLE COMPOSER, not just the scope line. This called
+        // `drawScope()` alone, so after tapping NOK the three menu prices
+        // and the four budget chips stayed in euro while the rate line
+        // directly above them switched to kroner — "€50" sitting over
+        // "≈ 0.23 kr an answer" on the one screen a buyer most wants in
+        // their own currency (D369 §3 moved the switch out of the
+        // composer for exactly that reason). It self-corrected on the
+        // next tap of anything, which is what kept it out of sight.
+        draw();
         if (st.panel) showPanel(st.panel);
       });
       box.appendChild(b);

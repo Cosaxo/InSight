@@ -184,6 +184,32 @@ describe("the currency switch and the amount actually charged", () => {
     nok.click();
   };
 
+  it("switches the WHOLE composer, not just the line beside the chip", () => {
+    // The chip handler called `drawScope()` alone, so after tapping NOK
+    // the three menu prices and the four budget chips stayed in euro
+    // while the rate directly above them became kroner — "€50" over
+    // "≈ 0.23 kr an answer", on the one screen D369 §3 moved this switch
+    // out of the composer to get right. It self-corrected on the next tap
+    // of anything, which is what kept it out of sight.
+    const menuPrices = () => [...document.querySelectorAll("#menuCard button, #menuCard [data-price]")]
+      .map((b) => sp(b.textContent)).join(" | ");
+    const budgetChips = () => [...document.querySelectorAll("#budgets button")]
+      .map((b) => sp(b.textContent)).join(" | ");
+    const before = menuPrices() + " ‖ " + budgetChips();
+    expect(before.indexOf("€"), "the fixture is not in euro to begin with").toBeGreaterThanOrEqual(0);
+
+    toNOK();
+    const after = menuPrices() + " ‖ " + budgetChips();
+    expect(
+      after,
+      "the currency switch left the menu and the budget chips in euro while the rate beside them moved",
+    ).not.toBe(before);
+    expect(
+      after.indexOf("€"),
+      "a euro price survived the switch: " + after,
+    ).toBe(-1);
+  });
+
   const quoteIt = () => {
     $("prompt").value = "Should the harbour bath stay open all winter?";
     $("prompt").dispatchEvent(new Event("input"));
