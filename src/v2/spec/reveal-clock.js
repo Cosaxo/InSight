@@ -34,14 +34,31 @@ function fmt(ms) {
   const h = Math.floor(m / 60);
   return h > 0 ? h + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm';
 }
-// Converted off the shared-global bridge (D39, "convert on touch"): every
-// consumer imports this by name — `duo-daily.jsx`, `group-daily.jsx` and
-// `ui/LiveDuelPanel.tsx`, which is all three of them.
+// Converted off the shared-global bridge (D39, "convert on touch"), and now
+// with NO CONSUMER AT ALL. This paragraph named three — `duo-daily.jsx`,
+// `group-daily.jsx` and `ui/LiveDuelPanel.tsx`, "which is all three of them"
+// — and every one of them left on 2026-09-09 (D434–D437): the two spec
+// modules count with `DUELS.fmtLeft`, and `LiveDuelPanel` grew its own
+// `useLeft`, whose comment says it is "the same move reveal-clock.js made".
+//
+// The file is KEPT rather than deleted, deliberately and with the arithmetic:
+// it is ~2 KB in the eager graph, which has 4 KB of headroom against
+// `MAX_EAGER_KB`, and two open plans still name this component as the one
+// their build will use — `docs/ROUNDS-PLAN.md` §, on a group counting to its
+// deadline through `until`, and `docs/VISION-2026-09-07.md` §, on the First
+// Day port. Deleting it would answer a design question on a cleanup's
+// authority, which is not this file's to answer. If those plans are settled
+// against it, the deletion is `spec-index.js`'s line 65 and this file
+// together, plus both plan sentences and CLAUDE.md's off-the-bridge figure,
+// which `check:figures` will print.
+//
+// No gate can say any of this: `check:globals` rule 7 fires on a module that
+// neither exports nor publishes, and this one exports.
 //
 // The `window.RevealClock` mirror that used to sit at the bottom of this
-// file is gone with them. Its comment said it stayed "for the consumers
-// that have not moved", and there were none: the publication reached
-// nobody from the day the third consumer converted.
+// file is gone. Its comment said it stayed "for the consumers that have not
+// moved", and there were none: the publication reached nobody from the day
+// the third consumer converted.
 //
 // `check:globals` rule 5 could not see it, and this is the exact blind
 // spot D280 wrote down — the rule asks whether the name appears ANYWHERE

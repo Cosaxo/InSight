@@ -40,14 +40,26 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T16:40:27Z -->
+<!-- console:generated 2026-09-11T18:10:51Z -->
 
 ## Open
 
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 28 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 297 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 17 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 53 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 322 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
+
+**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
+
+- [ ] **#496** · dependabot · *what:* Build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 1 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (1 pending) · 1 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 1 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 1 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 1 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 2 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 2 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 2 behind main · opened 2026-09-11 · stage **new**
 
 ## In the shift
 
@@ -63,6 +75,8 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#486** · A whole-app audit, adversarially verified: 36 findings taken, 27 written down (D452) · merged 2026-09-11
+- **#487** · The database had no copy of itself — the backup lane, and the printer that had stopped printing (D451) · merged 2026-09-11
 - **#485** · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, five conflicts, and the sweep neither shift finished (D450) · merged 2026-09-11
 - **#484** · Now 2026-09-11: the ranking or the trophy, and orbit from home soil · merged 2026-09-11
 - **#483** · Duel 2026-09-11: two new packs, ten 1v1, and the romantic pool reaches its while-dark cap · merged 2026-09-11
@@ -116,5 +130,3 @@ merge shift like any other PR.
 - **#445** · The learn lane runs daily, and its Routine is swapped for the prompt that can open a field (D428 amendment) · merged 2026-09-08
 - **#443** · The taxonomy grows like Reddit: rooms born with a handful, coverage-steered, learn's cap tripled, and a path out (D427, D428) · merged 2026-09-08
 - **#442** · Rounds replace the day on 1v1 and group: the volley, its notifications, world questions as duel content, and the card from the owner's canvas (D426) · merged 2026-09-08
-- **#441** · The lanes grow the taxonomy: subtopics first, new topics into the Map's fixed ring (D424, D425) · merged 2026-09-08
-- **#440** · The catalogue pictures land: 2,651 across five domains, and the three things that stood between a correct builder and a picture on disk (D423) · merged 2026-09-08

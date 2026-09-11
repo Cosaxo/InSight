@@ -118,6 +118,20 @@ const LEVERS = [
     effort: "days — a trigger change",
     risk: "medium",
     notices: "the live count steps in fives; no privacy claim attached (D98 retired that)",
+    // Worth NOTHING against the app as built, and that is a fact about the
+    // app rather than about the lever. `publishEvery` divides the fan-out
+    // term only on cost-arith's `streamAggs` branch (cost-arith.mjs:937):
+    // batching a publish saves the deliveries it would have caused, and
+    // since D129 shipped polling there are no deliveries. The lever stays
+    // listed because it becomes the largest architectural saving again the
+    // moment anything re-attaches a listener to an aggregate — which is
+    // also why it must not be silently dropped the way the Circle cap was.
+    //
+    // docs/COST-REDUCTION.md billed this at -26%/-65%/-78% for a year. Those
+    // figures were computed pre-D129 and were never re-printed, because the
+    // script that prints them died at 580f388 and nothing ran it. That is
+    // the exact folklore this file's header says it exists to prevent.
+    supersededBy: "D129 — nothing streams, so there is nothing to batch",
   },
   {
     band: "architecture",
@@ -176,7 +190,16 @@ for (const L of LEVERS) {
   const saved = SIZES.map((s) => (L.shipped
     ? cut(evaluate(s.dau, s.mature, L.opts), evaluate(s.dau, s.mature))
     : cut(evaluate(s.dau, s.mature), evaluate(s.dau, s.mature, L.opts))));
-  console.log(`[${L.band[0].toUpperCase()}] ${L.name}`.padEnd(46) + saved.map((v) => v.padStart(11)).join(""));
+  // A superseded lever prints its zeros with a marker rather than silently,
+  // because an unmarked row of -0.0% reads as "measured and worthless" when
+  // it means "the baseline moved out from under it". The suite holds every
+  // UNMARKED lever to a non-zero saving somewhere, so an opt the model stops
+  // reading fails there instead of printing a quiet zero here.
+  const mark = L.supersededBy ? " †" : "";
+  console.log(`[${L.band[0].toUpperCase()}] ${L.name}${mark}`.padEnd(46) + saved.map((v) => v.padStart(11)).join(""));
+}
+for (const L of LEVERS.filter((x) => x.supersededBy)) {
+  console.log(`  † ${L.name} — ${L.supersededBy}`);
 }
 console.log("\n  Percentages, not dollars, because the dollars differ by four orders of");
 console.log("  magnitude across this row and the SHAPE is the thing to read: the social");
@@ -212,7 +235,26 @@ console.log("  is `fanOut` — quadratic in DAU, moved only by publishing or lis
 // whether other people's votes land on the card while you watch — and that
 // one property is worth 98% of the bill at 500 k DAU. A and B differ from
 // them by whether the caps a Mirror stop reads are allowed to move.
-const pick = (...names) => merge(...names.map((n) => LEVERS.find((L) => L.name === n).opts));
+// Named, not `undefined.opts`. A lever that LEAVES this file — because it
+// shipped, like "Refresh only today on foreground" and the Circle read cap —
+// leaves a PATHS entry pointing at nothing, and the bare `.opts` reported
+// that as a TypeError two sections into the output, after the run had
+// already printed two tables that looked fine. That is the shape a printer
+// fails in when nothing runs it: `npm run costs:levers` was dead on main
+// from 580f388 until 2026-09-11 and no gate could say so. The message names
+// the lever so the next removal is a sentence rather than a stack trace.
+const pick = (...names) => merge(...names.map((n) => {
+  const L = LEVERS.find((L) => L.name === n);
+  if (!L) {
+    throw new Error(
+      `cost-levers: PATHS asks for the lever "${n}", which LEVERS no longer defines.\n`
+      + "  A lever that shipped should leave BOTH lists — drop the name from the path\n"
+      + "  and say why in a comment there, the way the two before it did.\n"
+      + `  Defined today: ${LEVERS.map((x) => `"${x.name}"`).join(", ")}`,
+    );
+  }
+  return L.opts;
+}));
 
 const PATHS = [
   // Z first, because it is the one that answers "will this remove
@@ -237,21 +279,28 @@ const PATHS = [
   },
   {
     name: "A · Keep it live",
+    // "Circle reads 100 answers/member" was a lever here until runbook 3.5
+    // shipped the change it proposed: cost-arith's `circle` term is now
+    // `circleOpens × circleFollows` — ONE document per member — so
+    // CIRCLE_ANSWER_CAP no longer prices a Circle stop open and
+    // `socialTerms` does not read a `circleAnswerCap` opt at all. Removed
+    // from LEVERS at 580f388; these three paths kept asking for it, which
+    // is what killed the run. Restoring it would be worse than the crash —
+    // a lever the model cannot act on saves a silent 0%.
     opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Batch the mirror publish (x5)",
-      "Serve the bank off Hosting"),
+      "Batch the mirror publish (x5)", "Serve the bank off Hosting"),
     note: "the cap trims on top of what shipped — the product-degrading path",
   },
   {
     name: "B · Go polled",
     opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
+      "Serve the bank off Hosting"),
     note: "same as A without the publish batching",
   },
   {
     name: "C · B + single region",
     opts: merge(pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
+      "Serve the bank off Hosting"),
     { regional: true }),
     note: "the same, on a single-region database — decide before the seed",
   },

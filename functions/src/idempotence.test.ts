@@ -469,6 +469,54 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       "an honest answer was rewritten for nothing").toBe(false);
   });
 
+  // ── the CATALOG arm, which had none of this until 2026-09-09 ──────────
+  //
+  // The three cases above are the vote arm's, and for as long as they have
+  // existed the catalog arm folded `snap.get("anchors")` — the raw claim —
+  // straight into `entBy`, published it as `by`, and never read the profile
+  // at all. D410 binds "the fold … which builds the published aggregate
+  // every Mirror cut is drawn from" and never scoped this arm out; it was
+  // simply a second fold nobody went back for, on 24 shipped pick questions.
+  //
+  // It is not an invisible cell either: `pickSegs`/`pickSeg` in live.ts read
+  // this `by` map to draw the pick card's segment chips and that segment's
+  // ordering of the board, so an invented city was a chip and a ranking.
+  it("folds the profile's cohort on the CATALOG arm too", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-pick-lie", {
+      surface: "daily", entity: 25,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.country.NO, "the profile's country took the pick").toEqual({ "25": 1 });
+    expect(by.country.JP, "the claimed country got a segment anyway").toBeUndefined();
+    expect(by.ageBand["25-34"]).toEqual({ "25": 1 });
+    expect(by.ageBand["55-64"]).toBeUndefined();
+    // …and the row, for the reason the vote arm's case gives: answers are
+    // public, so the invention stays readable until the document moves.
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the catalog answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes nothing on the CATALOG arm when the claim is honest", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-pick-true", {
+      surface: "daily", entity: 25,
+      anchors: { ageBand: "25-34", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest pick was rewritten for nothing").toBe(false);
+    // The vacuity guard: the fold has to have HAPPENED for the absence of a
+    // correction to mean anything.
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.country.NO).toEqual({ "25": 1 });
+  });
+
   it("keeps a WITHHELD anchor withheld rather than filling it in", async () => {
     // answerAnchors(rates) blanks the city on a question that rates one when
     // the city is unconfirmed. Filling it back in from the profile would

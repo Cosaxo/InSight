@@ -907,6 +907,15 @@ function loadPending(uid: string): Record<string, PendingAnswer> {
 const restoredPending = new Set<string>();
 // Back into memory as the state they died in: voted, unconfirmed, and
 // not yet in the public aggregate (the display flag every create sets).
+// A duel answer's id (`g_{gid}_r{n}` / the day-keyed shape before D426).
+// Two things in the pending machinery are about the WORLD aggregate and
+// have nothing to answer for a duel: `unaggregated`, which is cleared by
+// the aggregate re-read, and `scheduleAggRefresh`, which would put a
+// non-qid into a `v2_question_aggs` `in` query and spend a read on a
+// document that does not exist. The seal itself is mirrored like any other
+// answer; only these two are skipped.
+const isDuelAid = (aid: string): boolean => aid.startsWith("g_");
+
 function restorePending(uid: string): void {
   for (const [aid, p] of Object.entries(loadPending(uid))) {
     // On a re-run hydrate (a wake after a failed boot) the file also
@@ -917,8 +926,10 @@ function restorePending(uid: string): void {
     if (aid in state.inflight && !restoredPending.has(aid)) continue;
     state.votes[aid] = p.v;
     state.inflight[aid] = true;
-    const n = Number(p.v);
-    state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    if (!isDuelAid(aid)) {
+      const n = Number(p.v);
+      state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    }
     restoredPending.add(aid);
   }
 }
@@ -961,7 +972,7 @@ function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: s
     }
     if (q.surface === "test") LIVE.syncPassiveResults();
   }
-  scheduleAggRefresh(db, aid);
+  if (!isDuelAid(aid)) scheduleAggRefresh(db, aid);
 }
 /** The mark and the edit's origin index go together, always. */
 function clearUnaggregated(id: string): void {
@@ -1190,9 +1201,26 @@ let profileCacheTimer: ReturnType<typeof setTimeout> | null = null;
 // actually expires.
 const profileSeen = new Map<string, number>();
 
+// Which uid's cache is already in `state`. Two call sites reach this —
+// `warmFromDisk`'s warm-paint branch and `hydrate` — and on a warm boot both
+// run, so the same blob was JSON.parsed and walked twice, up to
+// PROFILE_CACHE_CAP = 800 entries each carrying a nested score map, for
+// byte-identical results. Neither call site should have to know about the
+// other, so the guard lives here.
+//
+// Keyed on the uid rather than a boolean: the anonymous → linked upgrade
+// changes `state.uid`, and that boot must load the new owner's cache. Reset
+// in `resetForNewUid` beside `profileSeen.clear()`, where this class of
+// module state already resets.
+let profileCacheLoadedFor: string | null = null;
+
 function loadProfileCache(): void {
+  if (profileCacheLoadedFor === state.uid) return;
   try {
     const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    // NOT marked loaded on this arm, deliberately: a boot that read nothing
+    // (no blob yet, or another owner's) must not suppress a later legitimate
+    // load for the same uid.
     if (!raw || raw.owner !== state.uid || !raw.e) return;
     const now = Date.now();
     for (const [uid, v] of Object.entries(raw.e as Record<string, {
@@ -1218,6 +1246,9 @@ function loadProfileCache(): void {
       // of a removal being immediate everywhere.
       profileSeen.set(uid, v.t);
     }
+    // At the END of a successful walk, so a throw part-way through is retried
+    // rather than remembered as done.
+    profileCacheLoadedFor = state.uid;
   } catch {
     /* corrupt or unavailable — treat as empty */
   }
@@ -3277,12 +3308,26 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     surface: string,
     qids: string[],
   ): Promise<Array<QuestionDoc & { id: string }>> => {
+    // CONCURRENT chunks, the shape every other `in`-chunk read in this file
+    // already uses — this was the last one still awaiting inside the loop, so
+    // a heal of N ids cost ceil(N/30) serial round trips instead of one.
+    //
+    // It is also the one that runs at the worst moment: a `contentRev` bump
+    // writes the bank with `clearFirst: true`, which drops every paged learn
+    // and tail row, so the next boot's need list is the whole paged
+    // remainder rather than a handful. Order does not matter — both call
+    // sites re-sort by `seq` and merge by id.
+    //
+    // The three SURFACE blocks below stay sequential on purpose: they are
+    // separately try/caught so "each surface fails alone" holds, and running
+    // them together would trade that property for much less than this.
+    const chunks: string[][] = [];
+    for (let i = 0; i < qids.length; i += 30) chunks.push(qids.slice(i, i + 30));
+    const snaps = await Promise.all(chunks.map((chunk) => getDocs(
+      query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+    )));
     const out: Array<QuestionDoc & { id: string }> = [];
-    for (let i = 0; i < qids.length; i += 30) {
-      const chunk = qids.slice(i, i + 30);
-      const snap = await getDocs(
-        query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
-      );
+    for (const snap of snaps) {
       for (const d of snap.docs) {
         const row = d.data() as QuestionDoc & { updatedAt?: unknown };
         delete row.updatedAt;
@@ -4323,6 +4368,17 @@ const SOCIAL = {
     state.inflight[aid] = true;
     markPending(aid, String(optionIdx));
     if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
+    // THE DISK MIRROR (D357), which this path did without. `cacheVote` is
+    // ack-only by contract, so between the tap and the server's ack the
+    // seal lived in this process's memory alone — and a relaunch before the
+    // queue drained lost it. `roundsOf` then found no vote for the round
+    // and offered it again, and the second seal is a `setDoc` onto an
+    // existing document: `firestore.rules` restricts `allow update` to
+    // daily/feed/test, so a group or duo answer can never be updated. The
+    // round was spent, unanswerable, and the reveal showed nothing from
+    // this account. The other five optimistic write paths have carried
+    // this since D357.
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4354,7 +4410,8 @@ const SOCIAL = {
       } catch (err) {
         // Through the same helper the five paths use, so the mirror is
         // cleared with the vote rather than left behind to be restored
-        // on the next boot as an answer the server refused.
+        // on the next boot as an answer the server refused. `duelCalls` is
+        // this path's own and is not something rollbackPending knows about.
         rollbackPending(aid);
         delete state.duelCalls[aid];
         notify();
@@ -8206,6 +8263,8 @@ function resetForNewUid(uid: string): void {
   // arbitrary amount. Cancel the queued write for the same reason
   // cancelAggCache is called: it would re-create the key just removed.
   profileSeen.clear();
+  // …and the once-per-uid guard on loadProfileCache, for the same reason.
+  profileCacheLoadedFor = null;
   if (profileCacheTimer) {
     clearTimeout(profileCacheTimer);
     profileCacheTimer = null;

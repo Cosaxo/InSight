@@ -1860,8 +1860,18 @@ const isEntry = process.argv[1]
 
 export { FIGURES };
 
+// The tree's own figures, printed WHETHER OR NOT anything drifted (D460's
+// merge found out why). They used to ride the OK line alone, so a reader —
+// and this script's own test, which reads the bank count back out of the
+// output — lost them the moment any unrelated figure moved. A drift report
+// that names them is also the more useful one: the first question about a
+// mismatch is what the tree actually holds.
+const figuresLine = `(rules tests: ${rulesTests}; questions: ${seededQuestions}, `
+  + `${dailyQuestions} daily)`;
+
 if (isEntry && errors.length) {
   console.error("\ncheck-figures: documented figures no longer match the tree:\n");
+  console.error(`  the tree ${figuresLine}\n`);
   for (const e of errors) console.error(`  ${e}\n`);
   console.error(
     "  Nothing is broken in the code — this is documentation quoting a number\n"
@@ -1873,7 +1883,5 @@ if (isEntry && errors.length) {
 
 if (isEntry) console.log(
   `check-figures OK — ${FIGURES.length} documented figures across `
-  + `${sources.size} files match the tree `
-  + `(rules tests: ${rulesTests}; questions: ${seededQuestions}, `
-  + `${dailyQuestions} daily).`,
+  + `${sources.size} files match the tree ${figuresLine}.`,
 );

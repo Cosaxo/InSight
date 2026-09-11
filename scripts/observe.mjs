@@ -64,6 +64,11 @@ const JSON_OUT = (() => {
   return i >= 0 ? argv[i + 1] : null;
 })();
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
+// `insight`, not `(default)` — functions/src/db.ts:29. Reading the wrong
+// database would 404, and a 404 on a project path reads here as "enable the
+// API", which is a different and much more alarming fix than "you asked
+// about a database that does not exist".
+const DB_ID = process.env.FIRESTORE_DB_ID || "insight";
 
 // ABOVE the REGION block on purpose: `die`'s only remaining call site is
 // INSIDE that IIFE, which runs during module evaluation, and a `const` is
@@ -284,6 +289,38 @@ const results = await Promise.all([
     "roles/billing.viewer",
     (b) => ({ enabled: b.billingEnabled === true, account: b.billingAccountName || null }),
   ),
+  // WHETHER THE ONLY ASSET SURVIVES A BAD AFTERNOON. Nothing in this
+  // repository could answer that before 2026-09-11 — `docs/COST-EXPOSURE.md`
+  // §7 listed backups and PITR among the facts it "could not verify from
+  // here", which was true and was also the whole of what was known.
+  //
+  // It reads the DATABASE, not the schedules, for `pitr`: the schedules are
+  // a promise about tomorrow and PITR is a property of the thing itself.
+  // `scripts/backups.mjs` is what puts them in place.
+  probe(
+    "backups",
+    api("firestore.googleapis.com", `/v1/projects/${PROJECT}/databases/${DB_ID}`),
+    "roles/datastore.viewer",
+    (b) => ({ pitr: b.pointInTimeRecoveryEnablement === "POINT_IN_TIME_RECOVERY_ENABLED" }),
+  ),
+  probe(
+    "backupSchedules",
+    api("firestore.googleapis.com", `/v1/projects/${PROJECT}/databases/${DB_ID}/backupSchedules`),
+    "roles/datastore.viewer",
+    (b) => {
+      const all = b.backupSchedules || [];
+      return {
+        count: all.length,
+        daily: all.some((x) => x.dailyRecurrence),
+        weekly: all.some((x) => x.weeklyRecurrence),
+        // Retention read back rather than assumed: a schedule created with
+        // the wrong duration is accepted, listed, and quietly keeps three
+        // hours of history. "A schedule exists" is not the reading anybody
+        // wants; "how far back can I go" is.
+        retention: all.map((x) => x.retention || "?"),
+      };
+    },
+  ),
 ]);
 
 const metricReadings = METRICS ? await metricResources() : null;
@@ -337,6 +374,15 @@ if (AS_JSON) {
       }
     } else if (r.name === "billing") {
       console.log(`  ✓ billing        enabled=${r.enabled} account=${r.account ?? "-"}`);
+    } else if (r.name === "backups") {
+      console.log(`  ✓ backups        point-in-time recovery: ${r.pitr ? "ON" : "**OFF**"}`);
+    } else if (r.name === "backupSchedules") {
+      console.log(`  ✓ backupSched.   ${r.count} schedule(s) — daily=${r.daily} weekly=${r.weekly}`
+        + (r.retention.length ? ` retention=${r.retention.join(",")}` : ""));
+      if (!r.daily || !r.weekly) {
+        console.log("      Actions → Backups (apply off first). A database with no schedule");
+        console.log("      has no copy, and D290 makes the answers the only source there is.");
+      }
     }
   }
   if (metricReadings) {

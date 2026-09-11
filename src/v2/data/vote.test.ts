@@ -881,6 +881,49 @@ describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
     expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
   });
 
+  // ── the disk mirror the duel paths did without (D357) ───────────────
+  //
+  // Every other optimistic write path has marked `insight.pendingAnswers.v1`
+  // since D357; voteDuel and voteLate did not. `cacheVote` is ack-only by
+  // contract, so between the tap and the server's ack the seal lived in this
+  // process's memory alone — and a relaunch before the queue drained lost
+  // it. `roundsOf` then found no vote for that round and offered it again,
+  // and the second seal is a `setDoc` onto an existing document, which
+  // `firestore.rules` refuses: `allow update` is daily/feed/test only. The
+  // round was spent and the reveal showed nothing from this account.
+  const PENDING_LS = "insight.pendingAnswers.v1";
+  const pendingFile = () => JSON.parse(storage.getItem(PENDING_LS) || "null");
+
+  it("mirrors an unacknowledged duel seal to disk, and clears it on the ack", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
+    // The write is parked, so this is the offline state exactly: handed to
+    // the SDK, not acknowledged.
+    const parked: Array<() => void> = [];
+    h.setDocImpl = () => new Promise<void>((res) => { parked.push(res); });
+    const inflight = LIVE.social.voteDuel("g1", 1);
+    // The mark is synchronous with the tap, before `getDb()` is even
+    // awaited — which is the point: it has to survive a process that dies
+    // between the tap and the ack.
+    expect(pendingFile(), "an unacked duel seal is on disk nowhere")
+      .toEqual({ uid: "uid_test", e: { g_g1_r3: { v: "1" } } });
+    await vi.waitFor(() => { expect(parked.length).toBe(1); });
+    expect(pendingFile(), "the mirror went before the write was acknowledged")
+      .toEqual({ uid: "uid_test", e: { g_g1_r3: { v: "1" } } });
+    parked.forEach((r) => r());
+    await inflight;
+    expect(pendingFile(), "the mirror outlived the ack").toBeNull();
+  });
+
+  it("mirrors a late answer too, and rolls the mirror back when the write is refused", async () => {
+    const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 9, played: {} });
+    h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
+    await expect(LIVE.social.voteLate("g1", 5, 0, "duo-t1")).rejects.toThrow();
+    // A refused write leaves neither the vote nor the mirror behind — the
+    // round has to stay answerable.
+    expect(pendingFile(), "a refused late answer left a mirror to restore").toBeNull();
+    expect(LIVE.myVotes(), "a refused late answer stayed on screen").not.toHaveProperty("g_g1_r5");
+  });
+
   it("refuses past the lead rather than writing an answer nothing will accept", async () => {
     const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 1, played: {} });
     const info = LIVE.social.roundInfo("g1")!;

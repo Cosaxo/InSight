@@ -136,8 +136,7 @@ import './spec/read-run.jsx';
 // user"). An offline cold start on a shipped app takes that arm. It is
 // safe now because daily-split React.lazies the module instead of reading
 // `window.DuoBody` at render time — the move is what makes the claim true
-// rather than the claim making the move safe. group-daily.jsx
-// stays, because GDAv is read from the Mirror (group-mirror, group-role-map).
+// rather than the claim making the move safe.
 // place-stats.js and place-stats.jsx are gone from this list too, and they
 // were the last pair. The .js was eager because the pool concatenated
 // window.PLACE_RATE_QS at module scope; the .jsx was eager because the .js

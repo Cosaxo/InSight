@@ -43,7 +43,7 @@ import LiveForesightLens from "./LiveForesightLens";
 
 export default function LiveReadGame(): React.ReactElement | null {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
-  React.useEffect(() => LIVE.subscribe?.(bump), []);
+  React.useEffect(() => LIVE.subscribe(bump), []);
 
   if (!LIVE.enabled || !LIVE.aggregated) return null;
   const sources = readSourcesFrom(LIVE.aggregated(), (qid) => LIVE.aggFor(qid));

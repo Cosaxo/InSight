@@ -153,21 +153,21 @@ const COLORS = makeCatalog("colors.txt");
 // like COUNTRIES, export-only: its consumers import it.
 const LANGUAGES = makeCatalog("languages.txt");
 
-declare global {
-  interface Window {
-    FILMS?: Catalog;
-    ARTISTS?: Catalog;
-    EMOJI?: Catalog;
-  }
-}
-
-// Render-time lookup bridge for the spec layer (world-feed.jsx), the
-// places.ts Object.assign form — the three LEGACY stores only.
-// COUNTRIES is deliberately absent: its consumers import it (world-feed's
-// pickStore, PickSearch), and a publication nothing reads by name is
-// exactly what check:globals rule 5 exists to delete.
-Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
-
+// There used to be a render-time lookup bridge here — a `declare global`
+// Window widening plus `Object.assign(globalThis, { FILMS, ARTISTS, EMOJI })`
+// — for the spec layer, in the places.ts form, on the three LEGACY stores.
+// Its own comment stated the rule that removed it: COUNTRIES was deliberately
+// absent because its consumers import it, "and a publication nothing reads by
+// name is exactly what check:globals rule 5 exists to delete". The three
+// legacy stores reached that state too — `world-feed.jsx:29` imports all five
+// and `ui/pickDomains.ts` imports all nine — so the bridge was writing names
+// nobody looked up.
+//
+// It survived rule 5 for the reason D280 wrote down: the rule asks whether a
+// name appears ANYWHERE outside its publisher, and `import { FILMS }` in the
+// spec layer satisfies it while reaching nobody. Checked the D280 way before
+// deleting — every `FILMS`/`ARTISTS`/`EMOJI` occurrence in the tree is an
+// import, a definition, or was this line; there is no `window.X` reader.
 export { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };
 
 /**

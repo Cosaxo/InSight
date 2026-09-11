@@ -748,7 +748,7 @@ export const PULSE = {
   ensureToday, ensureTrend, ensureLive,
   subscribe(f: () => void): () => void {
     subs.add(f);
-    const un = LIVE.enabled ? LIVE.subscribe?.(f) : undefined;
+    const un = LIVE.enabled ? LIVE.subscribe(f) : undefined;
     return () => { subs.delete(f); if (un) un(); };
   },
 };

@@ -148,7 +148,7 @@ export default function LiveRolesPanel(): React.ReactElement {
         if (live) bump((x) => x + 1);
       }
     })();
-    const un = LIVE.subscribe?.(() => bump((x) => x + 1));
+    const un = LIVE.subscribe(() => bump((x) => x + 1));
     return () => { live = false; if (un) un(); };
   }, [roomIds, S, uid]);
 
