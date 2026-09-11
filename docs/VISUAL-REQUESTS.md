@@ -577,7 +577,7 @@ _(none — 5 and 6 were built at D437 and moved below)_
   corpus and every catalogue pick is invisible on the Map today, and
   the owner's own example — *Pikachu and strawberries* — cannot be
   drawn until this exists.
-- **status** — `built` 2026-09-11 (D461). **The canvas:**
+- **status** — `built` 2026-09-11 (D464). **The canvas:**
   <https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523>,
   drafted 2026-09-10 and **accepted by the owner 2026-09-11** — *"its fine
   how it is now"* — with the same word telling the session to build it. The
@@ -606,7 +606,7 @@ design, and it costs no new arithmetic and no new read:
 | scale · rating · dial | one (`ord`) | one | the question; low↔high is one axis |
 | choice (3–4 options) | one per option (`opt`) | one per option, a bead group | *picked this* |
 | catalogue pick | one per popular entity (`pick`, ≤ 10) | one per popular entity, a bead group | *picked this one* |
-| profile value (D455) | one per value (`anc`) | one, on the You arc | *is this* |
+| profile value (D458) | one per value (`anc`) | one, on the You arc | *is this* |
 
 **Bead groups.** The dots of one question sit together on the rim, in
 their topic's arc, with a hairline tick between groups and a plain gap
@@ -645,7 +645,7 @@ ties (`nearOf` over rows, as today).
   *usually 61%* · *of the 143 in both samples*.
 - choice or catalogue bead: the same 2×2 with *picked this* as the
   side: *Pick Pikachu here — and 64% pick Tea on "…"* — the samples
-  carry the entity since D456 (`e` rows), so the count is the same
+  carry the entity since D459 (`e` rows), so the count is the same
   fetch the pair card already shares. The chip row above the ties
   restates the group's beads; tapping a chip re-reads the ties for that
   answer.
@@ -661,7 +661,7 @@ ties (`nearOf` over rows, as today).
 
 **The hub** keeps counting QUESTIONS answered of the pool, not beads.
 
-**The dot budget (D458) with beads.** Beads count as dots. Over
+**The dot budget (D461) with beads.** Beads count as dots. Over
 `MAP_DOT_BUDGET` each topic keeps its strongest hubs in proportion,
 and a bead group is trimmed AS A GROUP: its strongest bead stays and a
 small *+3* sits at the group's place; tap opens the whole group in the
@@ -670,7 +670,7 @@ card. The sentence under the field says *300 of 885 drawn*. Under
 which for a catalogue card is the one entity they picked.
 
 **States.** Idle: the ring with the strongest ten chords. A topic: that
-topic's beads only (D458). You off: no arc; on: the arc with the
+topic's beads only (D461). You off: no arc; on: the arc with the
 viewer's values solid. A bead tapped: its ties, the chip row, the
 card. A catalogue group with no entity above the floor: the card says
 *no pick is common enough to say anything yet*. Demo: never — live

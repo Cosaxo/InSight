@@ -36,7 +36,7 @@ export interface LiveQuestion {
   sub?: string;
   type?: string;
   /** The catalogue a `catalog` question draws from (D14) — what the
-   * Map's card names and pictures a bead from (D461). */
+   * Map's card names and pictures a bead from (D464). */
   domain?: string | null;
   // The bank's short label, and which place a question RATES (D187).
   // `rates` is what makes the Scores card a scorecard of its stop rather

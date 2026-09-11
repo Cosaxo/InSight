@@ -922,7 +922,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // trip MEANS: no question lane can cause one — check:eager-content's
 // allowlist is down to three demo archives, none of which grows when a lane
 // writes — so this ceiling is measuring code in first paint and nothing else.
-// 552 → 553 (2026-09-11, D461): ninety-five bytes, and the argument for
+// 552 → 553 (2026-09-11, D464): ninety-five bytes, and the argument for
 // them is worth more than they are.
 //
 // THE BYTES, measured against origin/main (565,245 → 565,340; 552 KB is

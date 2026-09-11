@@ -351,12 +351,12 @@ describe("the lists on this tree", () => {
     // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D437): both
     // were built the same day, on the owner's answers to that plan's
     // questions, and moved under Built with their status lines saying so.
-    // Drafted 1 since 2026-09-10 (D454–D459's branch): a node with more
+    // Drafted 1 since 2026-09-10 (D457–D462's branch): a node with more
     // than two answers on the Map ring (item 13) was filed 2026-09-09,
     // planned on the owner's brief — one rule: a dot is an answer-axis —
     // and drafted the same day, its canvas link on the row. It is the
     // first row § Drafted has ever held, and § Planned is empty again.
-    // Built 7 since 2026-09-11 (D461): the owner accepted that canvas —
+    // Built 7 since 2026-09-11 (D464): the owner accepted that canvas —
     // "its fine how it is now" — and the ring drawing every kind of dot
     // was built the same day, so item 13 crossed two sections in two days
     // and § Drafted is empty again.

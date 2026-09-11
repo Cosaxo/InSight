@@ -48,13 +48,13 @@ vi.mock("../data/patterns", () => ({
     // D396: the viewer's evidence and the published ridge, read by the
     // People lens's own solve — empty and the shipped value here
     evidence: () => [],
-    // D455: the anchor rows the People fold reads — none published here
+    // D458: the anchor rows the People fold reads — none published here
     anchorRows: () => [],
     lambdaU: () => 0.5,
     ready: () => h.ready,
     hasLoadings: () => h.hasLoadings,
     pool: () => h.pool,
-    // D461: the Map draws a dot per published ROW. These fixtures are
+    // D464: the Map draws a dot per published ROW. These fixtures are
     // about the tab's ruler rather than the ring, so the rows are the
     // pool's own two-option questions in the row shape — one dot each,
     // which is what the pool used to mean.

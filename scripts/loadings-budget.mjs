@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // loadings-budget.mjs — what one publication of the Patterns fit costs the
-// document that carries it, by Firestore's own two ceilings (D458,
+// document that carries it, by Firestore's own two ceilings (D461,
 // PATTERNS-PLAN.md §7.1).
 //
 // WHY THIS EXISTS. `v2_patterns/loadings` is ONE document, read whole,
 // and it grows with the corpus: a row per fitted item (D395), a row per
-// profile value the crowd carries (D455), a row per popular catalogue
-// pick (D456), the benched engine's block beside the engine's, and a
+// profile value the crowd carries (D458), a row per popular catalogue
+// pick (D459), the benched engine's block beside the engine's, and a
 // scorecard per question. Firestore stops accepting a document at 1 MiB
 // of storage, and — the wall nobody had counted — at 40,000 index
 // entries, which every field of a document costs by default: two per
@@ -128,7 +128,7 @@ export function rowsAt(limit = DOC_BYTES_LIMIT, opts = {}) {
 
 /** Today's shape, from the figures the records carry: 545 item rows
  * measured 2026-09-06 (ALGORITHM-REFLECTION §3), about 100 anchor rows
- * (D455's budget) and up to 240 pick rows (D456's cap: ten per card,
+ * (D458's budget) and up to 240 pick rows (D459's cap: ten per card,
  * twenty-four cards). Stated, not read — the instrument is about shape. */
 export const TODAY_ROWS = 545 + 100 + 240;
 

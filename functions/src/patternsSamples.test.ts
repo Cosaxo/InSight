@@ -195,7 +195,7 @@ describe("sampleAdditions", () => {
 
   it("attaches the person's stamp for the day to every addition of theirs", () => {
     const stamp = { n: "Ola", s: null, l: 12 };
-    // picks fourth since D456, stamps fifth
+    // picks fourth since D459, stamps fifth
     const adds = sampleAdditions("2026-09-05", new Map([["u1", { qa: 0, qb: 1 }]]), new Map(), new Map(), new Map([["u1", stamp]]));
     expect(adds.get("qa")![0].stamp).toEqual(stamp);
     expect(adds.get("qb")![0].stamp).toEqual(stamp);

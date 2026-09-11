@@ -175,7 +175,7 @@ export { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, L
  *
  * The feed's `pickStore` has been the only resolver since the first
  * catalogue question, and it is a method on a spec-layer component, so
- * nothing typed could reach it — D461 gave the Map a catalogue bead to
+ * nothing typed could reach it — D464 gave the Map a catalogue bead to
  * name, one shelf away from that method. These two functions are that
  * reach: everything the Map needs (the name, and a kick to load the
  * list), and nothing else, so the stores' different entry shapes —

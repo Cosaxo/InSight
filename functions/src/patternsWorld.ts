@@ -1,4 +1,4 @@
-// The whole-world People map: one published position per person (D459).
+// The whole-world People map: one published position per person (D462).
 //
 // WHAT THIS IS FOR. The People lens places a stranger from the answers
 // you and they have BOTH given — the twelve bounded voter samples the
@@ -97,7 +97,7 @@ export const roundPos = (v: number): number => {
  * PUBLISHED rows, whichever engine owns them tonight.
  *
  * The ALS engine publishes its item metadata, so the anchor and pick rows
- * (D455, D456) are solvable and a person's demographics count toward
+ * (D458, D459) are solvable and a person's demographics count toward
  * where they stand — exactly as they do in the device's own fold. The
  * online engine publishes bin rows keyed by qid and no metadata, so the
  * items are synthesised here, which is what the device does with the same

@@ -202,7 +202,7 @@ export function mostInformative(invA: readonly number[][], candidates: readonly 
 
 /** The sealed guess: P(option 0), from the question's own marginal plus
  * what the viewer's other answers predict, the lean scaled by the link's
- * slope `tau` the fit's scorecard chose (D457; 1 is the shipped link).
+ * slope `tau` the fit's scorecard chose (D460; 1 is the shipped link).
  * Clamped to [0.05, 0.95] — the prototype's cap, so twenty weak signals
  * cannot fake certainty. */
 export function oracleGuess(
@@ -239,7 +239,7 @@ export const ASK_LEARN_SHARE = 0.5;
 export const ASK_LEARN_EVERY = 4;
 
 /**
- * Learn first, then call (D457 — the schedule on the owner's rule of
+ * Learn first, then call (D460 — the schedule on the owner's rule of
  * D396). While the viewer's vector is still undetermined along some
  * candidate's loading, ask the informative question — the one it learns
  * most from, which is what makes the Oracle look worst while it learns

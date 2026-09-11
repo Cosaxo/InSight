@@ -44,7 +44,7 @@ merge shift like any other PR.
 
 ## Open
 
-- [ ] **#500** · a session · *what:* The Patterns plan (`docs/PATTERNS-PLAN.md`), built in the order it set out, on the owner's instruction at each step. · *how:* Eight records, D453–D460. · CI red (1 of 11) · 4 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#500** · a session · *what:* The Patterns plan (`docs/PATTERNS-PLAN.md`), built in the order it set out, on the owner's instruction at each step. · *how:* Eight records, D453–D463. · CI red (1 of 11) · 4 behind main · opened 2026-09-11 · stage **new**
 - [ ] **#498** · a session · *what:* The owner asked whether Stripe and BigQuery were set up. · *how:* Neither was, and the answer to "is it" turned out to be the more interesting half: nobody could tell. · CI running (1 pending) · 4 behind main · opened 2026-09-11 · stage **new**
 - [ ] **#497** · a session · *what:* Why.** Phase D of the log-first structure (D447) moves every nightly fold onto BigQuery, and nothing in the tree said whether the queries it will run reproduce what the Firestore… · *how:* LOG-FIRST-RUNBOOK A.7 asked for a shadow: one query per fold, compared with the fold's own result, logged as a diff, so that a week of zero diffs licenses phase D. · CI green (9) · 4 behind main · opened 2026-09-11 · stage **new**
 - [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 22 behind main · opened 2026-09-11 · stage **new**

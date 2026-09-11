@@ -576,7 +576,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // jsdom), so fixture feed questions here would be furniture nothing
     // reads.
     coreFeedAggregated: () => [],
-    // D461: the Map's catalogue beads; the fixture publishes none
+    // D464: the Map's catalogue beads; the fixture publishes none
     catalogCards: () => [],
     // The Scores lens's ask rows (D307). Empty by default: the fixture
     // deck's one rating question already carries a vote in most cases,

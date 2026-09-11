@@ -7167,7 +7167,7 @@ const LIVE = {
    * the feed card that displayed it, so this is no new read.
    */
   /**
-   * The catalogue cards, as much of one as a Map BEAD needs (D461): the
+   * The catalogue cards, as much of one as a Map BEAD needs (D464): the
    * id, the prompt, the topic and the domain its entities are named from.
    *
    * Not a `LiveQuestion` and not through `buildS`, which maps `q.options`
@@ -7183,7 +7183,7 @@ const LIVE = {
     const now = new Date();
     return state.feedBank
       // EVERY OPTION-SHAPED THING THE FIT FOLDS, not two options alone
-      // (D461): the Map draws a dot per published row now, so a
+      // (D464): the Map draws a dot per published row now, so a
       // three-option choice and a scale have beads to place, and both are
       // core feed questions the nightly fitted. `pool()` keeps its own
       // two-option filter, so the Oracle and the People lens are unmoved —

@@ -398,7 +398,7 @@ export const deleteAccount = onCall(
       for (let i = 0; i < ids.length; i += 300) {
         await scrub(await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id))));
       }
-      // 1a″. THE WORLD MAP'S POSITIONS (D459) — `people-{country}` and
+      // 1a″. THE WORLD MAP'S POSITIONS (D462) — `people-{country}` and
       //      `people-world`, the same `rows` shape keyed by uid, so the
       //      same field delete reaches them. The privacy page promises
       //      this account's position is removed AT ONCE, not merely that

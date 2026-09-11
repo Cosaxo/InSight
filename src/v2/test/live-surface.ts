@@ -29,9 +29,9 @@ export const LIVE_MEMBERS = [
   "aggregated",
   // The core feed questions with aggregates, same view models — the
   // Patterns pool's other half (v28 §2). Core only, D161's sample-bias
-  // rule; OPTION-SHAPED only since D461 (two or more): the Map draws a
+  // rule; OPTION-SHAPED only since D464 (two or more): the Map draws a
   "coreFeedAggregated",
-  // The catalogue cards, as much of one as a Map bead needs (D461) — id,
+  // The catalogue cards, as much of one as a Map bead needs (D464) — id,
   // prompt, topic, domain. Not a view model: `buildS` maps `q.options`
   // and a catalogue question has none.
   "catalogCards",

@@ -1,6 +1,6 @@
 # The Patterns plan — three lenses widened, and the walls before they bind
 
-**Status: mixed — steps 1 to 5 (§3–§7) are BUILT at D454–D458 over 2026-09-09 and 2026-09-10; step 0 (§2) is the owner's console read and is not a build.** Written
+**Status: mixed — steps 1 to 5 (§3–§7) are BUILT at D457–D461 over 2026-09-09 and 2026-09-10; step 0 (§2) is the owner's console read and is not a build.** Written
 for the owner's ask of that day (*"make a plan for implementing it"*),
 after the same session's reading of the three lenses against the tree.
 Every *exists today* claim in §1 names the file it was read in; every
@@ -138,7 +138,7 @@ working panel read *thin* on exactly the questions with the most
 answers. Steps 3 and 4 both draw sentences from those samples; seeded,
 they say something on the first day.
 
-## 3 · Step 1 — a cohort prior for the Oracle, on the device — **BUILT (D454, 2026-09-09)**
+## 3 · Step 1 — a cohort prior for the Oracle, on the device — **BUILT (D457, 2026-09-09)**
 
 *As built, where it differs from the paragraphs below:* one `priorOf`
 became three helpers by row kind (`binCentre`, `ordCentre`,
@@ -150,7 +150,7 @@ the same answer, so the meter (`PATTERNS.meter()`: `cohortBits`,
 brings step 4's `m0` forward, since the base rate is stored at seal
 time; `ORACLE_CENTRE` picks the live variant and every record carries
 the centre it was sealed under; the People lens keeps the world centre
-for the viewer's own dot. D454 has the reasoning.
+for the viewer's own dot. D457 has the reasoning.
 
 
 **The change.** Today the guess is `marginal_world + θ·L`. Proposed:
@@ -193,7 +193,7 @@ publishes, so this is not a D334 ask.
 the world's, which the `by` cells state per question; on a question
 everyone answers alike it is the world marginal again.
 
-## 4 · Step 2 — anchors as items in the fit — **BUILT (D455, 2026-09-09)**
+## 4 · Step 2 — anchors as items in the fit — **BUILT (D458, 2026-09-09)**
 
 *As built, where it differs from the paragraphs below:* the items are
 compiled from the scanned PEOPLE each night (`compileAnchorItems`,
@@ -203,11 +203,11 @@ without it and a person outside it is already said by the −1s; the
 person's newest anchors ride the state document as `an`, a snapshot
 replaced whole; the scorecard reads a newcomer's anchors off their
 first entries of the day, since the profile precedes the vote; on the
-device the anchors are evidence under the WORLD centre only, so D454's
+device the anchors are evidence under the WORLD centre only, so D457's
 two sealed variants are two clean answers — the cells or the rows — and
 the meter decides; the People fold takes the rows through
 `anchorRows`. The Map draws nothing until the owner's tick and request
-13. D455 has the reasoning.
+13. D458 has the reasoning.
 
 
 **The change.** Each anchor value becomes a one-hot pseudo-item with its
@@ -263,7 +263,7 @@ ask in the exposure sense; the owner row is about the picture.
 anchors (`functions/src/patterns.test.ts`), the device solve with anchor
 observations (`patterns.test.ts`), and the scorecard's own verdict.
 
-## 5 · Step 3 — catalogue picks — **BUILT (D456, 2026-09-09)**
+## 5 · Step 3 — catalogue picks — **BUILT (D459, 2026-09-09)**
 
 *As built, where it differs from the paragraphs below — and one finding
 first:* the catalogue questions are NOT core. All 24 are feed cards
@@ -272,7 +272,7 @@ own *core only* clause would have kept them out; they enter on the
 owner's instruction to build this step, the fit's rule for catalogue
 questions is now stated as its own (`PICK_QIDS`, gated on the type),
 the Mirror's corpus is untouched, and whether the cards should be
-SERVED as core is the owner-list row D456 filed. Then the deviations:
+SERVED as core is the owner-list row D459 filed. Then the deviations:
 the items are compiled from the scanned people like the anchors,
 capped at the board's own `CANON_TOP_N` (moved into `pure.ts` so the
 trigger and the fit share it) with no *rest* row; the state document
@@ -283,9 +283,9 @@ and cut to the board, so no cohort prior folds off them cheaply);
 strangers' picks do not reach the People fold, because their rows are
 not among the twelve lists the lens fetches; and nothing is drawn until
 request 13. §9's line on the corpus rule is corrected below. *And corrected
-again 2026-09-10 (D459): the pick cards were tail on PURPOSE — the
+again 2026-09-10 (D462): the pick cards were tail on PURPOSE — the
 generator's own comment said an entity answer has no option share for
-a cohort fold — not unclassified as D456 read it; on the owner's word
+a cohort fold — not unclassified as D459 read it; on the owner's word
 they are core now, shipped whole to every device, and the caveat about
 interest-selected answerers retires with that.*
 
@@ -332,7 +332,7 @@ for the popular picks. The card must say so — *six of 1,025 are common
 enough to say anything; the rest are "everyone else"* — and never name
 a pick that is in the rest row.
 
-## 6 · Step 4 — calibration and the meter — **BUILT (D457, 2026-09-10)**
+## 6 · Step 4 — calibration and the meter — **BUILT (D460, 2026-09-10)**
 
 *As built, where it differs from the paragraphs below:* the slope is
 swept on a (ridge, slope) grid rather than as a second one-dimensional
@@ -376,7 +376,7 @@ unanswered) with one pick in four still informative so it keeps
 learning. This changes the feel of the rule the owner chose, so it is a
 line on that owner-list row, not a build.
 
-## 7 · Step 5 — the walls — **BUILT (D458, 2026-09-10)**
+## 7 · Step 5 — the walls — **BUILT (D461, 2026-09-10)**
 
 *As built, where it differs from the paragraphs below:* the estimate in
 §7.1 was wrong by half — the instrument (`npm run budget:loadings`)
@@ -481,8 +481,8 @@ the meter is recorded as tried, not merged as an improvement.
 - **Drawing without a design.** The multi-answer node (request 13) and
   the anchor node (the owner's tick) wait; the folds do not.
 - **Changing the corpus rule.** D161 stands for the Mirror: core only.
-  The fit's own clause had one recorded exception at D456 — the
-  catalogue picks, then tail by the flag — which closed at D459 when the
+  The fit's own clause had one recorded exception at D459 — the
+  catalogue picks, then tail by the flag — which closed at D462 when the
   owner made them core; `PICK_QIDS` stays gated on the type, since a
   pick is never option-shaped.
 

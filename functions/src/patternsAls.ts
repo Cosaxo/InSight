@@ -38,7 +38,7 @@
 //         (choice · vote · …)    that option was picked, −1 if not, each
 //                                centred by its own share
 //   pick  a catalogue pick       one pseudo-item PER ENTITY enough people
-//         (D456)                 picked — `pick-pk01~25` — x = +1 for a
+//         (D459)                 picked — `pick-pk01~25` — x = +1 for a
 //                                person who picked it, −1 for one who
 //                                picked another entity on that question,
 //                                nothing for one who never answered it.
@@ -50,7 +50,7 @@
 //                                about the rest — which is all it can
 //                                honestly say (PATTERNS-PLAN.md §5)
 //   anc   a profile anchor       one pseudo-item PER VALUE the crowd
-//         (D455)                 carries — `anchor~gender~Woman` — x = +1
+//         (D458)                 carries — `anchor~gender~Woman` — x = +1
 //                                for a person whose frozen anchors carry
 //                                that value, −1 for one whose anchors
 //                                carry the dim with another value, no
@@ -105,17 +105,17 @@ export interface ItemSpec {
   /** The breakdown dim and the value this item stands for — anc only. */
   dim?: string;
   bucket?: string;
-  /** The catalogue entity this item stands for — pick only (D456). */
+  /** The catalogue entity this item stands for — pick only (D459). */
   entity?: string;
 }
 
-/** A person's catalogue picks as the compaction keeps them (D456): the
+/** A person's catalogue picks as the compaction keeps them (D459): the
  * catalogue question's id → the canonical entity key the trigger
  * validated against the committed catalogue. */
 export type PickMap = Record<string, string>;
 
 /** What else is known about a person beside their answer map — the
- * anchors (D455) and the picks (D456) — for the folds that solve a
+ * anchors (D458) and the picks (D459) — for the folds that solve a
  * vector: the fit, the scorecard, the device's own read. */
 export interface PersonKnown {
   an?: AnchorMap;
@@ -361,11 +361,11 @@ export interface ItemMeta {
   opt?: number;
   nOptions: number;
   /** anc only: the dim and the value, so a device can encode its own
-   * anchors against the row (D455). */
+   * anchors against the row (D458). */
   dim?: string;
   bucket?: string;
   /** pick only: the entity, so a device can encode its own pick against
-   * the row (D456). */
+   * the row (D459). */
   entity?: string;
 }
 
@@ -389,7 +389,7 @@ export const ALS_SWEEPS = 3;
  * assuming 0.5 (ALGORITHM-REFLECTION §2.3). 0.5 first, because it is the
  * shipped value and the comparison should include it. */
 export const ALS_LAMBDAS_U: readonly number[] = [0.5, 1, 2, 4];
-/** The link's slope the candidate is scored under (D457): a guess is
+/** The link's slope the candidate is scored under (D460): a guess is
  * `marginal + tau·θ·L`, and the sweep publishes the tau that scored best
  * beside the ridge, so the phone reads both rather than assuming the
  * shipped link. 1 is the shipped link and is in the sweep so the
@@ -554,9 +554,9 @@ export interface ItemIndex {
   byKey: Map<string, ItemSpec>;
   /** Every item a question answers into — one for bin/ord, one per option for opt. */
   byQid: Map<string, ItemSpec[]>;
-  /** Every anchor item a dim's value answers into (D455). */
+  /** Every anchor item a dim's value answers into (D458). */
   byDim: Map<string, ItemSpec[]>;
-  /** Every pick item a catalogue question's pick answers into (D456). */
+  /** Every pick item a catalogue question's pick answers into (D459). */
   byPick: Map<string, ItemSpec[]>;
 }
 
@@ -618,7 +618,7 @@ function encodedOf(index: ItemIndex, person: { a: AnswerMap } & PersonKnown, ski
 
 /** Per-item sufficient statistics over the people: the basis, and the
  * mean and sd of the raw encoded value — answers under the question
- * items, anchors under the anchor items (D455). */
+ * items, anchors under the anchor items (D458). */
 export function itemStats(index: ItemIndex, people: Iterable<{ a: AnswerMap } & PersonKnown>): Record<string, { n: number; sum: number; sumSq: number }> {
   const out: Record<string, { n: number; sum: number; sumSq: number }> = {};
   for (const p of people) {
@@ -667,8 +667,8 @@ export function residualOf(item: { kind: ItemKind }, row: { n: number; sum: numb
 }
 
 /** A person's observations under a model: every item their answers reach,
- * every anchor item their anchors reach (D455), every pick item their
- * picks reach (D456). */
+ * every anchor item their anchors reach (D458), every pick item their
+ * picks reach (D459). */
 export function observationsOf(model: AlsModel, person: { a: AnswerMap } & PersonKnown, index: ItemIndex, skipQid?: string): { L: readonly number[]; r: number }[] {
   const obs: { L: readonly number[]; r: number }[] = [];
   for (const { key, x } of encodedOf(index, person, skipQid)) {
@@ -781,7 +781,7 @@ export function alsFit(
 
 /** Visit every fitted person once, in a stable order. The callback takes
  * the whole person, not the answer map alone: the anchor and pick items
- * (D455, D456) are compiled from the population, and the population is
+ * (D458, D459) are compiled from the population, and the population is
  * exactly what a scan walks. */
 export type PeopleScan = (each: (uid: string, person: { a: AnswerMap } & PersonKnown) => void) => Promise<void>;
 
@@ -811,7 +811,7 @@ export async function alsFitStreamed(
   // Pass 0: the item statistics — counts, recomputed from the maps every
   // night, exactly as the buffered fit computes them.
   //
-  // The anchor and pick items (D455, D456) are compiled HERE rather than
+  // The anchor and pick items (D458, D459) are compiled HERE rather than
   // by the caller, which is the one place the streamed shape differs from
   // the buffered one: their floors and caps are counts over the whole
   // population, and a scan is the only thing that has seen it. The counts
@@ -982,8 +982,8 @@ export function alsScoreDay(
         if (!th) {
           // the person's anchors are known before their answer is — the
           // profile precedes the vote — so they are evidence one step
-          // ahead exactly as their earlier answers are (D455); their
-          // picks from before the day the same (D456)
+          // ahead exactly as their earlier answers are (D458); their
+          // picks from before the day the same (D459)
           th = ridgeTheta(observationsOf(model, { a: history.get(e.uid) ?? {}, ...(known?.get(e.uid) ?? {}) }, index), model.k, lambdaU);
           thetaCache.set(e.uid, th);
         }

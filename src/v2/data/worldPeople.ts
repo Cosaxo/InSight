@@ -1,8 +1,8 @@
-// The whole-world map's published positions, read (D459).
+// The whole-world map's published positions, read (D462).
 //
 // The People lens places a stranger from the answers you and they have
 // both given — which is bounded by overlap, and thins as the bank grows
-// (PATTERNS-PLAN.md §7.4). Since D459 the nightly fit publishes one
+// (PATTERNS-PLAN.md §7.4). Since D462 the nightly fit publishes one
 // position per person: two rounded numbers and their answer count, in the
 // same space the published rows draw, so a person is placeable whether or
 // not they have answered anything you have.

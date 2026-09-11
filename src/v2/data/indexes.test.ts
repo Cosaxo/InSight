@@ -505,14 +505,14 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
   });
 });
 
-describe("v2_patterns: the whole collection group is exempt from single-field indexing (D458)", () => {
+describe("v2_patterns: the whole collection group is exempt from single-field indexing (D461)", () => {
   // Nothing queries INSIDE the loadings document or a voter sample: both
   // are read by id (`getDoc` in data/patterns.ts and data/voters.ts, the
   // admin SDK's `get`/`listDocuments` in functions/). Left indexed, every
   // row of the loadings document — eight vector elements, a basis, a sum,
   // an sd, and the item metadata beside it — counts toward Firestore's
-  // 40,000 index entries per document, a wall the fit's own growth (D455's
-  // anchor rows, D456's pick rows, the second engine's block) walks
+  // 40,000 index entries per document, a wall the fit's own growth (D458's
+  // anchor rows, D459's pick rows, the second engine's block) walks
   // toward with no query to show for it. The wildcard exemption is the
   // collection-group form the Firestore docs give for "index nothing
   // here"; scripts/loadings-budget.mjs is the arithmetic.

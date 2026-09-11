@@ -50186,7 +50186,7 @@ before the reset fails the sixth.
 `lint`, `tsc -b`, `test:unit`, `test:scripts`, `build` +
 `check:bundle` (eager graph unmoved at its ceiling), `check:globals`,
 `check:purge`, `check:figures`.
-## D454 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
+## D457 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
 
 **2026-09-09.** **Status:** binding. Step 1 of `PATTERNS-PLAN.md` (§3),
 built on the owner's *"ok start building step 1"* the same day the plan
@@ -50278,15 +50278,15 @@ sources; a claim moved, none was deleted (D146, COPY.md §3).
 (the shrink, the naïve-Bayes combination, the nesting rule, the clamp,
 three options); `src/v2/data/patterns.test.ts` pins the seal with its
 shadow, the evidence centring, the grade of all three, the meter, the
-working's rows and floors, and that a pre-D454 record still grades.
+working's rows and floors, and that a pre-D457 record still grades.
 `PatternsOracle.test.tsx` renders the panel unchanged. `tsc -b`, eslint,
 `check:globals`, `check:public-copy` and the unit suite were green at
 the commit.
 
-## D455 · Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it
+## D458 · Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it
 
 **2026-09-09.** **Status:** binding. Step 2 of `PATTERNS-PLAN.md` (§4),
-built on the owner's *"ok build step 2"* the same day as step 1 (D454).
+built on the owner's *"ok build step 2"* the same day as step 1 (D457).
 The first half of the owner-list row that asks whether the fit may fold
 the anchors and whether the Map may draw them: the fold is this record,
 and the picture waits on the tick and on request 13.
@@ -50328,7 +50328,7 @@ above the marginal from their anchors alone.
 - **The Oracle** encodes the viewer's own anchors against the rows as
   evidence, under the WORLD centre only. There the demographics enter
   through the model, as they do for everyone the People lens places;
-  under the cohort centre they already entered through D454's prior,
+  under the cohort centre they already entered through D457's prior,
   and twice is twice. So the two guesses sealed on every record are now
   two clean answers to one question — the cells or the rows — and
   `meter()` decides between them on each device's own record. Nothing
@@ -50373,11 +50373,11 @@ newcomers above the marginal from their anchors). On the device,
 their dot and never their counts. Both packages' suites, `tsc`, eslint
 and the check gates were green at the commit.
 
-## D456 · Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag
+## D459 · Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag
 
 **2026-09-09.** **Status:** binding. Step 3 of `PATTERNS-PLAN.md` (§5),
 built on the owner's *"ok build step 3"* the same day as steps 1 and 2
-(D454, D455). The fold is this record; the picture — a dot with more
+(D457, D458). The fold is this record; the picture — a dot with more
 than two answers on the Map — is request 13 and waits on its design.
 
 ### The finding first: the pick questions are not core
@@ -50434,7 +50434,7 @@ its cost.
   another entity on that card, nothing for a card never answered. The
   one walk `encodedOf` feeds the statistics, the fit and the
   observations; the scorecard solves a person from their picks from
-  before the day (`PersonKnown`, which replaced D455's anchors-only
+  before the day (`PersonKnown`, which replaced D458's anchors-only
   parameter). `binRows` and the mount gate never see one.
 - **The samples carry it.** A catalogue question's sample row is
   `{e, a, d}` where a vote's is `{o, a, d}`; `fetchVoterSample` reads
@@ -50461,7 +50461,7 @@ holds by construction: a favourite spread over a thousand species
 names its popular picks and nothing else, and a person's rare pick is
 said only as *neither of these*. Not built, each with its reason: the
 *rest* row the plan sketched (the cap bounds the rows and the −1s
-already say the rest, D455's argument); strangers' picks in the People
+already say the rest, D458's argument); strangers' picks in the People
 fold (their rows are not among the twelve lists the lens fetches, and
 displacing a two-option list would cost `shared` counts to buy a
 refinement); and any drawing (request 13).
@@ -50481,12 +50481,12 @@ fitted from picks alone across two nights. On the device,
 pick, and `votersSample.test.ts` the sample reader. Both packages'
 suites, `tsc`, eslint and the check gates were green at the commit.
 
-## D456 amendment (2026-09-11) · The items are compiled inside the streamed fit
+## D459 amendment (2026-09-11) · The items are compiled inside the streamed fit
 
 **Written on the merge that brought `main` under this branch, because the
 resolution changed code neither side wrote.**
 
-D455 and D456 compiled the anchor and pick items from `people` — the crowd
+D458 and D459 compiled the anchor and pick items from `people` — the crowd
 the buffered `alsFit` already held in memory — and handed the fit an index
 that carried them. `main` replaced that driver the same week
 (DATA-EFFICIENCY-RUNBOOK 4.3, `alsFitStreamed`): the crowd is no longer
@@ -50516,13 +50516,13 @@ their people-shaped form for the callers that do have the crowd (the
 scorecard, the tests); the counts→specs half is split out rather than
 copied, so the floor, the cap and the tie order are written once. The
 floors, the caps, the keys, the device's reading and every published shape
-are D455's and D456's, untouched.
+are D458's and D459's, untouched.
 
-## D457 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
+## D460 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
 
 **2026-09-10.** **Status:** binding. Step 4 of `PATTERNS-PLAN.md` (§6),
 built on the owner's *"do the 2 last once"* — the last two steps of the
-plan, this and D458 — the day after steps 1–3.
+plan, this and D461 — the day after steps 1–3.
 
 ### The slope
 
@@ -50545,7 +50545,7 @@ measured to help at one ridge and hurt at another for the same reason.
 
 ### The meter
 
-Seal-time stores the base rate since D454 (`m0`), so every graded record
+Seal-time stores the base rate since D457 (`m0`), so every graded record
 has its surprisal under plain guessing. `meter()` now says `skill` —
 `1 − bits/baseBits` over the records that stored a base rate, the same
 figure the fit publishes for the crowd, read off one person's record —
@@ -50587,7 +50587,7 @@ exactly; `patterns.test.ts` (functions) that the publication carries the
 slope and its sweep beside the ridge. Both suites, `tsc`, eslint and the
 gates green at the commit.
 
-## D458 · The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map
+## D461 · The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map
 
 **2026-09-10.** **Status:** binding. Step 5 of `PATTERNS-PLAN.md` (§7),
 the second half of the owner's *"do the 2 last once"*.
@@ -50642,7 +50642,7 @@ on the owner list and is not built.
 
 ### The gate counts answers
 
-D455 and D456 put the viewer's anchors and picks into the vector; the
+D458 and D459 put the viewer's anchors and picks into the vector; the
 tab is earned by answers, and `patternsEligible` refuses a catalogue
 card and anything without two options by shape, which
 `patternsReady.test.ts` now pins so a tab earned by filling in a form
@@ -50655,15 +50655,15 @@ budget prints how far off it is, and the reader already joins rows to
 the bank by id. The all-pairs pass is not a wall until thousands of rows
 (§7.3 of the plan).
 
-## D459 · The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot
+## D462 · The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot
 
 **2026-09-10.** **Status:** binding. The owner read the five rows the
 plan had filed (`OWNER-LIST.md`) and answered each in one line. This
-record is what each answer changed, and one correction to D456.
+record is what each answer changed, and one correction to D459.
 
 ### 1 · Profile values on the map — *"yes"*
 
-The anchor rows (D455) will be drawn: a *You* arc outside the topics,
+The anchor rows (D458) will be drawn: a *You* arc outside the topics,
 one bead per value the crowd carries, the viewer's own values solid,
 behind a toggle in the topic control that is off by default — the map
 is a map of questions until asked. It is part of request 13's plan
@@ -50685,11 +50685,11 @@ first (D183), and `check:policy-claims` holds it.
 
 ### 3 · The question rule — *"sound good"*
 
-Kept as built at D457. The tick is the owner's.
+Kept as built at D460. The tick is the owner's.
 
 ### 4 · The pick cards — *"i thought it already was served to everyone"*
 
-They were not, and D456's finding needs a correction. D456 read the
+They were not, and D459's finding needs a correction. D459 read the
 absent `core` flag as the pick file having never been classified. The
 generator's own comment says otherwise: *"No `core` flag ever: an
 entity answer has no option share for a cohort fold to read, so a pick
@@ -50709,7 +50709,7 @@ bias D161 names, and not every card reached every person.
 The owner's expectation is the intended state, so the generator emits
 `core: true` for every pick card: they ship at boot to every device
 with the rest of the core, the answerers stop being interest-selected,
-and the caveat D456 recorded retires. What does not change: the Mirror
+and the caveat D459 recorded retires. What does not change: the Mirror
 (nothing on it reads a pick), the fit's eligibility (`PICK_QIDS` is
 gated on the type; `itemEligible` still wants two options), the
 readiness gate, and the tail's paging. The cost is the 24 documents a
@@ -50725,7 +50725,7 @@ is a bead group of its popular picks; a profile value is a bead on the
 You arc. The chords are the cosines the Map already draws, over rows
 instead of questions; every card sentence is an exact count with its
 basis, from the samples the pair card already shares (the entity rides
-them since D456) or the cube's cells for a You bead; the dot budget
+them since D459) or the cube's cells for a You bead; the dot budget
 trims a bead group as a group. Efficient because nothing new is read
 or computed beyond what the loadings document and the samples already
 hold; smart because one rule covers every kind, including the ones the
@@ -50740,10 +50740,10 @@ canvas: the You arc inside the rim, pictures on the tapped card's chips
 and not on the rim, a trimmed group folded into a* +n *at its place,
 groups parted by a hairline tick. The owner refines it there.*
 
-## D460 · The whole-world People map is built: a rounded position per account, one document per country
+## D463 · The whole-world People map is built: a rounded position per account, one document per country
 
 **Decided and built 2026-09-11**, on the owner's ruling of 2026-09-10
-(*"i dont see why thats a privacy concern"*, D459 §2) and their
+(*"i dont see why thats a privacy concern"*, D462 §2) and their
 instruction to build it. The ask was `PEOPLE-MAP.md` §7's, filed as a
 D334 privacy ask on `OWNER-LIST.md`; this is the build.
 
@@ -50819,7 +50819,7 @@ range (`people-` ≤ id < `people.`) rather than the account's own country
 chip, because a chip that changed would leave a row under the old one.
 The erasure e2e asserts the row is gone and the other person's stands.
 
-## D461 · A dot is a row: every kind of answer on the Map ring
+## D464 · A dot is a row: every kind of answer on the Map ring
 
 **Decided and built 2026-09-11**, on the owner's acceptance of request
 13's canvas (*"its fine how it is now"*) and their instruction to build
@@ -50847,7 +50847,7 @@ new arithmetic and no new read:
 | profile value | one per value (`anc`) | a bead on the You arc | *carries this* |
 
 Before this, half the core corpus and every catalogue pick was invisible
-on the Map: the fit folded them (D455, D456) and nothing drew them.
+on the Map: the fit folded them (D458, D459) and nothing drew them.
 
 ### What it took
 
@@ -50888,7 +50888,7 @@ pictures ride the tapped card's chips, never the rim; a trimmed group's
 rest folds into a `+n` at its place; groups are parted by a tick rather
 than a gap, because a gap is what parts topics and two silences of
 different sizes read as one hierarchy. **The You arc is off by default** —
-the owner said profile values MAY be drawn (D459 §1), and a reader who has
+the owner said profile values MAY be drawn (D462 §1), and a reader who has
 not asked for their demographics on the picture should not find them
 there. A build whose fit folds no anchor rows shows no toggle at all.
 

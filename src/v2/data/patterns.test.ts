@@ -36,7 +36,7 @@ const live = vi.hoisted(() => {
     answeredIndex: vi.fn((): Record<string, number> => Object.fromEntries(
       Object.entries(l.myVotes()).map(([qid, id]) => [qid, Number(String(id).split(":").pop())]),
     )),
-    // The cohort prior's two inputs (D454): the viewer's own anchors and
+    // The cohort prior's two inputs (D457): the viewer's own anchors and
     // a question's aggregate with its `by` cells. Empty and absent by
     // default, so every case above this block seals from the world exactly.
     anchors: vi.fn((): Record<string, string> => ({})),
@@ -58,7 +58,7 @@ const remote = vi.hoisted(() => ({
     q: Record<string, { v: number[]; n: number; sum: number; sd?: number }>;
   },
   /** The voter samples by document id (D397) — the pair card reads them
-   *  itself since D461, so the mock answers per id rather than handing
+   *  itself since D464, so the mock answers per id rather than handing
    *  every read the loadings document. */
   samples: {} as Record<string, Record<string, { o?: number; e?: string; a?: Record<string, string> }>>,
 }));
@@ -97,7 +97,7 @@ vi.mock("./voters", () => ({
   fetchVoters: voters.fetchVoters,
   fetchVoterSample: voters.fetchVoterSample,
   VOTER_FETCH_CAP: 200,
-  // D461: the pair card reads the sample document itself now — the shared
+  // D464: the pair card reads the sample document itself now — the shared
   // reader drops a catalogue pick's row, and teaching it to keep one put
   // bytes in the first-paint graph for the benefit of one lazy caller.
   worldSampleId: (qid: string) => `sample-${qid}`,
@@ -565,7 +565,7 @@ describe("the purge", () => {
   });
 });
 
-describe("the cohort prior (D454)", () => {
+describe("the cohort prior (D457)", () => {
   /** An aggregate whose cells split by the viewer's groups: on qb the
    * viewer's age band leans hard to option 0, their gender is split
    * evenly, and the world (the row's sum) is a coin. */
@@ -707,7 +707,7 @@ describe("the cohort prior (D454)", () => {
   });
 });
 
-describe("anchor rows (D455)", () => {
+describe("anchor rows (D458)", () => {
   /** The candidate's document with two gender rows and one age row that
    * has no basis yet. */
   const publishAnchored = () => {
@@ -780,7 +780,7 @@ describe("anchor rows (D455)", () => {
   });
 });
 
-describe("pick rows (D456)", () => {
+describe("pick rows (D459)", () => {
   /** The candidate's document with a catalogue question's two popular
    * entities as rows, beside a two-option question. */
   const publishPicks = () => {
@@ -828,7 +828,7 @@ describe("pick rows (D456)", () => {
   });
 });
 
-describe("the slope and the schedule on the store (D457)", () => {
+describe("the slope and the schedule on the store (D460)", () => {
   it("reads tau off the document — 1 when absent — and seals with it", async () => {
     publishFixture();
     live.myVotes.mockReturnValue({ qa: "qa:0" });

@@ -13,7 +13,7 @@ vi.mock("./live", () => ({ default: live }));
 
 import { parseWorldDoc, resetWorldPositions, worldDocId, worldPositions } from "./worldPeople";
 
-describe("the world map's document id (D459)", () => {
+describe("the world map's document id (D462)", () => {
   it("names the world's own and one per country code", () => {
     expect(worldDocId(null)).toBe("people-world");
     expect(worldDocId("NO")).toBe("people-NO");
