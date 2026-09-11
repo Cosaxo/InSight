@@ -13688,6 +13688,45 @@ const BANK_3: V2SeedQuestion[] = [
   ]
  },
  {
+  "id": "feed-n20",
+  "surface": "feed",
+  "seq": 515,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The gate greeting returns: passes to meet a landing, or wave someone off. Would you use one?",
+  "options": [
+   "For every landing I love",
+   "To wave someone off",
+   "For the airport food, honestly",
+   "The kerb was fine"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-10",
+  "until": "2026-09-17",
+  "bg": "Gateside by TSA PreCheck, launched this week: PreCheck members at 13 US airports can apply for a free pass through security without a ticket — the first general gate access for non-flyers since 2001, with more airports to follow."
+ },
+ {
+  "id": "feed-n21",
+  "surface": "feed",
+  "seq": 516,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A new study says the universe may not be accelerating after all. A textbook fact in review: thrilling, or unsettling?",
+  "options": [
+   "Thrilling — that IS science",
+   "Unsettling — I liked the map",
+   "Wake me when it’s settled"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-10",
+  "until": "2026-09-18",
+  "bg": "An analysis of over 1,700 supernovae, from the Tata Institute and Oxford, suggests cosmic expansion may be slowing — challenging the dark-energy consensus. Most cosmologists are unconvinced; the Rubin Observatory’s coming survey of hundreds of thousands of supernovae is expected to settle it."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -16157,7 +16196,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-079",
   "surface": "duo",
@@ -16191,9 +16232,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-081",
   "surface": "duo",
@@ -19778,7 +19817,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "mode",
   "test": null
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "lq-thinking-1",
   "surface": "test",
@@ -19814,9 +19855,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "update",
   "test": null
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "lq-thinking-3",
   "surface": "test",
@@ -23731,7 +23770,9 @@ const BANK_5: V2SeedQuestion[] = [
   "t": 1,
   "p": 88,
   "k": "Jupiter is largest"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "learn-sol6",
   "surface": "learn",
@@ -23774,9 +23815,7 @@ const BANK_5: V2SeedQuestion[] = [
   "p": 29,
   "k": "Venus: year < day",
   "w": "Venus turns so slowly that one rotation takes longer than one trip round the Sun."
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol8",
   "surface": "learn",
@@ -28063,7 +28102,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 64,
   "k": "the banana overlap",
   "w": "Basic cell machinery is ancient and shared; the often-quoted figure counts genes with a recognisable banana counterpart."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-gene21",
   "surface": "learn",
@@ -28107,9 +28148,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 54,
   "k": "Pan’s sudden fear",
   "w": "The god Pan’s shout scattered flocks and armies; groundless, spreading terror kept his name."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-org19",
   "surface": "learn",

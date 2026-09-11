@@ -681,16 +681,24 @@ and releases it when the next month's first notification arrives under
 the line. A level set by hand is never touched. It never detaches
 billing (that hard stop is the owner's, on `OWNER-LIST.md`).
 
-- **Standing it up, once, in this order:** the deploy that carries the
-  function creates the topic; then dispatch *Arm budget* (dry, then
-  `apply`), which attaches the topic to the budget and prints the one
-  grant the API cannot make; then run that grant in Cloud Shell — the
-  budget's service agent must be allowed to publish:
+- **Standing it up, once:** the deploy that carries the function creates
+  the topic; attaching it to the budget is the console's click — Billing →
+  Budgets & alerts → "InSight" → Manage notifications → *Connect a Pub/Sub
+  topic to this budget* → `budget-alerts` — which attaches AND grants the
+  budget's service agent Publisher in the same action. *Arm budget*
+  (`scripts/apply-budget.mjs`) attaches the same topic over the API, and
+  its dry run is the standing check ("exists and matches" once the click
+  is made); its `apply` cannot make the attach from the deploy credential,
+  because the Budgets API demands `pubsub.topics.setIamPolicy` on the
+  topic of whoever attaches one and project Editor does not carry it —
+  measured 2026-09-10 (run 34477868495), a 403 the script's own message
+  first misread as the billing-account role. Without the console: grant
+  the credential `roles/pubsub.admin` on the topic once and re-dispatch.
+  If no `budget_message` arrives within an hour of the attach, the
+  publisher grant is the thing to check:
   `gcloud pubsub topics add-iam-policy-binding budget-alerts --project
   prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com
-  --role roles/pubsub.publisher`. Until the grant, the budget's publishes
-  are refused and the function sees nothing; the console's budget page
-  (*Connect a Pub/Sub topic*) makes the same grant with a click.
+  --role roles/pubsub.publisher`.
 - **Reading it:** `budget_message` (an info line per notification, the
   level as it stands), `budget_mode_set` (a warning with `level` 1 or 0
   when the breaker moved — the line to page on), `budget_message_unreadable`

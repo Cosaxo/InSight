@@ -6,7 +6,7 @@ cannot go stale in the way a hand-written summary does — it can only be
 out of date, which the stamp below says. It holds no reasoning of its own;
 where it and a source disagree, the source is right.
 
-Generated **2026-09-10**.
+Generated **2026-09-11**.
 
 ## The two bills
 
@@ -16,7 +16,7 @@ used to have an instrument (D-2026-09-09f).
 | | Figure | Basis |
 | --- | ---: | --- |
 | Running the app (modelled) | $28.66 / month | 2 measured actives, 2026-08-25 |
-| Building the app (measured) | $390 / day | measured 2026-09-03, 7 days ago |
+| Building the app (measured) | $390 / day | measured 2026-09-03, 8 days ago |
 | Usage guard | stale | allowance $50/month |
 | Program guard | ok | allowance $450/day |
 
@@ -26,8 +26,8 @@ Largest single line: **InSight night worker** — $2,325.68 in the measured wind
 
 | | Count |
 | --- | ---: |
-| Questions in the bank | 1,415 |
-| Daily deck runway | 100 days |
+| Questions in the bank | 1,417 |
+| Daily deck runway | 99 days |
 | Answers counted | 107 |
 | Unpromoted | 38 |
 
@@ -40,7 +40,7 @@ produced.
 | List | Open | Ticked |
 | --- | ---: | ---: |
 | [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 138 | 3 |
-| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 2 | 0 |
+| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 4 | 0 |
 | [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 20 | 39 |
 
 A tick is the mechanism the program runs on (`PROGRAM-PLAN.md` §2.4), so

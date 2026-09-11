@@ -9817,6 +9817,51 @@
         "old friends",
         "new finds"
       ]
+    },
+    {
+      "id": "n20",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "The gate greeting returns: passes to meet a landing, or wave someone off. Would you use one?",
+      "bg": "Gateside by TSA PreCheck, launched this week: PreCheck members at 13 US airports can apply for a free pass through security without a ticket — the first general gate access for non-flyers since 2001, with more airports to follow.",
+      "from": "2026-09-10",
+      "until": "2026-09-17",
+      "options": [
+        {
+          "label": "For every landing I love"
+        },
+        {
+          "label": "To wave someone off"
+        },
+        {
+          "label": "For the airport food, honestly"
+        },
+        {
+          "label": "The kerb was fine"
+        }
+      ]
+    },
+    {
+      "id": "n21",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A new study says the universe may not be accelerating after all. A textbook fact in review: thrilling, or unsettling?",
+      "bg": "An analysis of over 1,700 supernovae, from the Tata Institute and Oxford, suggests cosmic expansion may be slowing — challenging the dark-energy consensus. Most cosmologists are unconvinced; the Rubin Observatory’s coming survey of hundreds of thousands of supernovae is expected to settle it.",
+      "from": "2026-09-10",
+      "until": "2026-09-18",
+      "options": [
+        {
+          "label": "Thrilling — that IS science"
+        },
+        {
+          "label": "Unsettling — I liked the map"
+        },
+        {
+          "label": "Wake me when it’s settled"
+        }
+      ]
     }
   ]
 }

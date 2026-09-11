@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 486 lines instead of
-49,907. Do not hand-edit; `npm run check:docs` fails when this
+49,951. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -491,12 +491,12 @@ detect it.
 | **D447** | [The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore](DECISIONS.md#d447--the-log-first-structure-hundreds-of-answers-a-day-and-millions-of-users-are-the-design-target-and-the-per-answer-path-leaves-firestore) | D448 | 49148 |
 |  | ↳ *amendment 2026-09-09, the same evening* — [Adopted on the owner's word, and phase A built](DECISIONS.md#d447-amendment-2026-09-09-the-same-evening--adopted-on-the-owners-word-and-phase-a-built) | — | 49204 |
 | **D448** | [The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on](DECISIONS.md#d448--the-exposure-pages-re-read-what-the-days-own-work-could-have-billed-bounded-the-same-evening--the-budget-acts-and-the-model-prices-the-database-it-is-on) | D449 | 49232 |
-| **D449** | [The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on](DECISIONS.md#d449--the-2026-09-10-night-review-two-shifts-merged-as-one-tree--60-commits-kept-nine-files-touched-by-both-and-three-prose-defects-where-the-merge-had-nothing-to-stop-it-on) | D-2026-09-09e | 49325 |
-| **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 49479 |
-| **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 49544 |
-| **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 49621 |
-| **D-2026-09-09d** | [The tests are tested: a nightly mutation lane, and the ratchet it starts at](DECISIONS.md#d-2026-09-09d--the-tests-are-tested-a-nightly-mutation-lane-and-the-ratchet-it-starts-at) | — | 49681 |
-| **D-2026-09-09e** | [The decision number stops being a global lock](DECISIONS.md#d-2026-09-09e--the-decision-number-stops-being-a-global-lock) | — | 49733 |
-| **D-2026-09-09f** | [The cost alarm learns about the other bill](DECISIONS.md#d-2026-09-09f--the-cost-alarm-learns-about-the-other-bill) | — | 49771 |
-| **D-2026-09-09g** | [One generated page that says where the project is](DECISIONS.md#d-2026-09-09g--one-generated-page-that-says-where-the-project-is) | — | 49819 |
-| **D-2026-09-09h** | [The first slice leaves live.ts, and a meter goes on the file](DECISIONS.md#d-2026-09-09h--the-first-slice-leaves-livets-and-a-meter-goes-on-the-file) | — | 49856 |
+| **D449** | [The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on](DECISIONS.md#d449--the-2026-09-10-night-review-two-shifts-merged-as-one-tree--60-commits-kept-nine-files-touched-by-both-and-three-prose-defects-where-the-merge-had-nothing-to-stop-it-on) | D-2026-09-09e | 49369 |
+| **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 49523 |
+| **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 49588 |
+| **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 49665 |
+| **D-2026-09-09d** | [The tests are tested: a nightly mutation lane, and the ratchet it starts at](DECISIONS.md#d-2026-09-09d--the-tests-are-tested-a-nightly-mutation-lane-and-the-ratchet-it-starts-at) | — | 49725 |
+| **D-2026-09-09e** | [The decision number stops being a global lock](DECISIONS.md#d-2026-09-09e--the-decision-number-stops-being-a-global-lock) | — | 49777 |
+| **D-2026-09-09f** | [The cost alarm learns about the other bill](DECISIONS.md#d-2026-09-09f--the-cost-alarm-learns-about-the-other-bill) | — | 49815 |
+| **D-2026-09-09g** | [One generated page that says where the project is](DECISIONS.md#d-2026-09-09g--one-generated-page-that-says-where-the-project-is) | — | 49863 |
+| **D-2026-09-09h** | [The first slice leaves live.ts, and a meter goes on the file](DECISIONS.md#d-2026-09-09h--the-first-slice-leaves-livets-and-a-meter-goes-on-the-file) | — | 49900 |
