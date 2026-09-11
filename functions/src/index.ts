@@ -30,7 +30,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
-import { citySampleId } from "./patternsSamples";
+import { citySampleId, WORLD_SAMPLE_PAGE } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
 import { rateLimitLedgers } from "./exportAccount";
 import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
@@ -370,11 +370,23 @@ export const deleteAccount = onCall(
       if (ops) await batch.commit();
     };
     try {
-      const world = await db.collection("v2_patterns")
+      // PAGED (WORLD_SAMPLE_PAGE) — this was `.get()` on the whole family,
+      // which at the corpus of 2026-09-11 retained 233 MiB inside a 256
+      // MiB function. The constant carries the measurement. Each page is
+      // scrubbed and released before the next is asked for; the scrub
+      // needs one row per document and never two documents at once.
+      let world = db.collection("v2_patterns")
         .where(FieldPath.documentId(), ">=", "sample-")
         .where(FieldPath.documentId(), "<", "sample.")
-        .get();
-      await scrub(world.docs);
+        .orderBy(FieldPath.documentId())
+        .limit(WORLD_SAMPLE_PAGE);
+      for (;;) {
+        const page = await world.get();
+        if (page.empty) break;
+        await scrub(page.docs);
+        if (page.size < WORLD_SAMPLE_PAGE) break;
+        world = world.startAfter(page.docs[page.size - 1]);
+      }
       // The city samples this account can be in are named by its OWN
       // answers — the frozen `anchors.city` on each (D8), which is the
       // same chip the nightly keyed the row under — so the reach is
