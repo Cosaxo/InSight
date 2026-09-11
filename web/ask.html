@@ -806,7 +806,8 @@
     // button does what it says and a paragraph explaining that it does not
     // would be the page contradicting itself.
     $("payNote").textContent =
-      (state === "quoted" || state === "paying") && !cfgReady() ? PAY_NOTE : "";
+      (state === "quoted" || state === "paying") && !(cfgReady() && paymentsOpen())
+        ? PAY_NOTE : "";
     $("panel").scrollIntoView({ block: "nearest" });
   }
 
@@ -938,6 +939,26 @@
 
   function cfgReady() {
     return !!(st.cfg && st.cfg.apiKey && st.cfg.project && st.cfg.region);
+  }
+
+  /** Whether a card can actually be charged on this deployment.
+   *
+   *  SEPARATE FROM cfgReady() BECAUSE THEY ARE SEPARATE KEYS, and reading
+   *  one for the other walked a buyer to a dead end: the Firebase web key
+   *  makes the backend reachable, the Stripe secret makes checkout work,
+   *  and a deployment can have the first without the second (the deploy
+   *  warns about exactly that). The page then hid its "payment is not
+   *  open" note, took the question, booked it, sent it to a reviewer who
+   *  read it — and answered the pay tap with the server's own sentence
+   *  about a deployment. Nothing was charged, but a person had written a
+   *  question and waited for a verdict that could never be spent.
+   *
+   *  ABSENT IS OPEN, not closed: a config written by a deploy from before
+   *  this field existed says nothing about Stripe, and reading silence as
+   *  "closed" would shut a working door until the next deploy. Only an
+   *  explicit false closes it. */
+  function paymentsOpen() {
+    return !(st.cfg && st.cfg.payments === false);
   }
 
   /** The callable base. Read from config rather than built from a guess:
@@ -1142,7 +1163,7 @@
 
   function startPurchase() {
     if (st.busy) return;
-    if (!cfgReady()) { showPanel("paying"); return; }
+    if (!cfgReady() || !paymentsOpen()) { showPanel("paying"); return; }
     // The place is needed to BOOK, not to be quoted: "your city" costs
     // what it costs whichever city it is, and gating the price on the
     // picker would open this page with its main button disabled and no

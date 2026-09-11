@@ -393,6 +393,37 @@ describe("the pay tap with keys", () => {
     expect(paid, "a declined booking was sent to checkout anyway").toBe(false);
   });
 
+  it("says payment is not open when the deployment has no Stripe keys, and books nothing", async () => {
+    // The Firebase key is present, so the backend is reachable and the
+    // old check read the door as open. Nothing can be charged, so the
+    // buyer must be told BEFORE the question is written down and sent to
+    // a reviewer — not after the verdict, in the server's own words.
+    const { fn } = wire();
+    await mount(pricing, { cfg: { ...CFG, payments: false }, fn });
+    pickCity();
+    compose();
+    const before = globalThis.fetch.mock.calls.length;
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).toMatch(/Card payment is not open yet/);
+    expect(globalThis.fetch.mock.calls.length, "it booked a question it cannot sell")
+      .toBe(before);
+  });
+
+  it("still sells when the config predates the payments field", async () => {
+    // The control. A config written by an older deploy says nothing about
+    // Stripe, and silence must not shut a door that works.
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).not.toMatch(/Card payment is not open yet/);
+    const co = globalThis.fetch.mock.calls.some((c) => String(c[0]).indexOf("createPaidCheckoutV2") >= 0);
+    expect(co, "a working door refused to sell").toBe(true);
+  });
+
   it("falls back to its own sentence when the decline carries no note", async () => {
     // The control for the case above: the page's civic-authority text is
     // right for a decline with nothing written on it, and wrong for every
