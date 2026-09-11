@@ -23,7 +23,11 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const GATE = join(root, "scripts", "check-deploy-targets.mjs");
+// The gate and every local module it imports. The fixture is a tree, not
+// a clone, so a dependency left out of this list fails as an import error
+// in all six cases at once rather than as the refusal under test — which
+// is exactly what happened when the scanner moved into its own file.
+const GATE_FILES = ["check-deploy-targets.mjs", "workflow-expressions.mjs"];
 
 /** A minimal tree the gate is happy with, with `steps` spliced into it. */
 function workflowWith(steps) {
@@ -48,7 +52,7 @@ function runWith(steps) {
     mkdirSync(join(dir, "scripts"), { recursive: true });
     mkdirSync(join(dir, "functions", "src"), { recursive: true });
     mkdirSync(join(dir, ".github", "workflows"), { recursive: true });
-    copyFileSync(GATE, join(dir, "scripts", "check-deploy-targets.mjs"));
+    for (const f of GATE_FILES) copyFileSync(join(root, "scripts", f), join(dir, "scripts", f));
     writeFileSync(
       join(dir, "functions", "src", "index.ts"),
       "export const helloV2 = onCall(async () => {});\n",

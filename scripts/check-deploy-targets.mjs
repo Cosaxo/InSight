@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expressionFaults } from "./workflow-expressions.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -78,86 +79,22 @@ const workflow = readFileSync(resolve(root, WORKFLOW), "utf8");
 //
 // Everything below asks whether the deploy list is right. This asks the
 // prior question, which nothing asked until it had already cost a night:
-// whether this workflow parses. GitHub substitutes `${{ … }}` textually
-// across the whole file before anything runs, INCLUDING inside a `run:`
-// body — where a `#` is shell, not YAML, and GitHub has no idea it is
-// looking at a comment. So prose ABOUT an expression is an expression.
+// whether this workflow parses. The scanner is shared with
+// check:workflows, which runs the same refusals over all 25 workflow files
+// in ci — see workflow-expressions.mjs for what they are and why prose
+// about an expression IS an expression.
 //
-// D455's step wrote the sentence "`${{ }}` is a textual substitution" as
-// a shell comment inside its own run body. Empty is not a parsable
-// expression, so the file failed to LOAD — and a load failure is worse
-// than anything else this script catches. No job runs, so there is no
-// log; the `on:` filters live in the file GitHub could not read, so every
-// push to EVERY branch produced a failed run named
-// `.github/workflows/firebase-deploy.yml` rather than "Deploy Firebase
-// backend"; and across 33 such runs over two days nothing deployed at
-// all — the buy door in the very commit that broke it included.
-//
-// WHERE THE TEXT SITS IS THE WHOLE QUESTION, which is why this walks the
-// file rather than grepping it. The identical sentence is safe in
-// auth-config.yml and fatal here: there it is a YAML comment, which YAML
-// strips before GitHub sees anything, and here it was inside a block
-// scalar, which YAML hands over verbatim. A grep cannot tell those apart,
-// and the first cut of this check failed on its own explanation — the
-// same trap the comment-stripping directly below exists to avoid, except
-// that strip must NOT happen up here, because not stripping is precisely
-// what GitHub does inside a run body.
-//
-// Scoped to this one workflow, the file this script already owns, rather
-// than to all of .github/workflows: check:deploy-targets runs on the
-// deploy path, and CLAUDE.md's rule is that nothing which cannot speak to
-// whether a rules fix is safe may block one. This clears that bar the
-// short way — a firebase-deploy.yml that cannot load has already blocked
-// every deploy, so failing here only ever pre-empts a worse outcome and
-// can never stop a deploy that would otherwise have worked.
-const exprFaults = [];
-{
-  const lines = workflow.split("\n");
-  // Indentation of the key that opened the block scalar we are inside,
-  // or -1 for "not in one". Content belongs to the block while it stays
-  // indented past that key.
-  let blockIndent = -1;
-  const OPENS_BLOCK = /^(\s*)(?:-\s+)?[A-Za-z_][\w.-]*:\s*[|>][-+]?[0-9]*\s*$/;
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    const indent = line.search(/\S/);
-
-    if (blockIndent >= 0 && indent !== -1 && indent <= blockIndent) {
-      blockIndent = -1; // dedented out of the block scalar
-    }
-    const inBlock = blockIndent >= 0;
-    // Outside a block scalar a leading `#` is a real YAML comment: YAML
-    // drops it and GitHub never sees it. Inside one it is script text.
-    const isYamlComment = !inBlock && indent !== -1 && line.trimStart().startsWith("#");
-
-    if (!isYamlComment) {
-      if (inBlock && line.trimStart().startsWith("#") && line.includes("${{")) {
-        // Prose about an expression, in a place GitHub substitutes. Fatal
-        // whether or not it is empty — and a NON-empty one is worse than
-        // the bug this was written for, since `${{ secrets.X }}` written
-        // as an aside pastes the secret into the script.
-        exprFaults.push(
-          `${WORKFLOW}:${i + 1}: \`\${{\` inside a shell comment in a \`run:\``
-          + " body — GitHub substitutes it before bash ever sees the `#`."
-          + " Move the sentence to a YAML comment outside the body, as"
-          + " auth-config.yml does.",
-        );
-      } else if (/\$\{\{\s*\}\}/.test(line)) {
-        exprFaults.push(
-          `${WORKFLOW}:${i + 1}: an EMPTY \`\${{ }}\` where GitHub reads it —`
-          + " not a parsable expression, so the whole file fails to load.",
-        );
-      }
-    }
-
-    if (blockIndent < 0) {
-      const open = OPENS_BLOCK.exec(line);
-      if (open) blockIndent = open[1].length;
-    }
-  }
-}
-
+// REPEATED HERE, on the deploy path, rather than left to that ci gate:
+// this is the file whose failure to load stops every deploy, and it stops
+// it silently. check:deploy-targets runs on the deploy path, where
+// CLAUDE.md's rule is that nothing which cannot speak to whether a rules
+// fix is safe may block one — and this clears that bar the short way
+// rather than by exemption. A firebase-deploy.yml that cannot load has
+// already blocked every deploy, so failing here only ever pre-empts a
+// worse outcome and can never stop a deploy that would otherwise have
+// worked. The 24 other workflows do not clear it, which is exactly why
+// their copy of this check is ci-only.
+const exprFaults = expressionFaults(workflow, WORKFLOW);
 if (exprFaults.length) {
   console.error(
     `check-deploy-targets: ${WORKFLOW} would not load.\n`

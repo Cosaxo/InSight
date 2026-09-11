@@ -51418,23 +51418,55 @@ directly beneath it exists to avoid. Note the inversion: that strip must
 *not* happen up here, because not stripping is precisely what GitHub does
 inside a block scalar.
 
-**Scoped to this one workflow**, the file the script already owns, rather
-than to all 25. `check:deploy-targets` runs on the deploy path, and
-CLAUDE.md's rule is that nothing which cannot speak to whether a rules fix
-is safe may block one. This clears that bar the short way rather than by
-exemption: a `firebase-deploy.yml` that cannot load has already blocked
-every deploy, so failing here only ever pre-empts a worse outcome and can
-never stop a deploy that would otherwise have worked. The same mistake in
-the other 24 workflows is still uncaught, and a repo-wide version is a
-question of placement for the owner, not a rider on this fix.
+### Where it runs, which is the only interesting part
+
+The refusals live once, in `scripts/workflow-expressions.mjs`, and two
+gates ask them. One copy on purpose: D197 is the record of a bank parser
+living in three, where the copy with a `try/catch` reported an invented
+figure instead of failing, and a scanner whose whole subject is *prose
+that looks like code* is the last thing to keep three versions of.
+
+**`check:deploy-targets` asks it of `firebase-deploy.yml`, on the deploy
+path.** That path's rule is that nothing which cannot speak to whether a
+rules fix is safe may block one — and this one file clears that bar the
+short way rather than by exemption: a `firebase-deploy.yml` that cannot
+load has *already* blocked every deploy, so failing early only ever
+pre-empts a worse outcome and can never stop a deploy that would
+otherwise have worked.
+
+**`check:workflows` asks it of all 25, in ci only** — first in the lint
+job, because it is the only gate there whose subject is that job's own
+kind. The other 24 do **not** clear the bar above, and that is the whole
+reason for the split rather than a wider first gate: a prose mistake in
+`ios-release.yml` must never stand between an emergency rules fix and
+production, which is the trade CLAUDE.md names at length and refuses. The
+overlap on `firebase-deploy.yml` is deliberate and costs nothing — a gate
+that carved out the one file another gate happens to cover would be one
+reorganisation away from covering nothing.
+
+It is **not** a workflow linter, and should not grow into one. It asks the
+single question whose failure is silent. A wrong `runs-on` or a bad action
+SHA fails loudly, in a job, with a log; this class fails with no job, no
+log, and a run named after the file's own path on every branch at once.
+`check:workflows` also refuses an empty workflow directory, because a
+scanner that reads nothing and reports success is the D179/D197 shape and
+this gate's own glob is the thing that could go stale.
 
 Proved by running, both directions: the restored bug fails at
 `firebase-deploy.yml:246` naming the run body; the fixed file passes with
-46 exported functions matched. `scripts/check-deploy-targets.test.mjs` is
-new and pins six cases, the discriminating one being the third — the same
-sentence as a YAML comment must PASS. `test:scripts` 85 files / 1427
-tests, `test:unit` 217 files / 3205 tests, `check:figures`, `check:docs`
-and eslint all green.
+46 exported functions matched. Two new suites pin thirteen cases between them
+(`check-deploy-targets.test.mjs`, `check-workflows.test.mjs`), and in both
+the discriminating case is the same sentence as a YAML comment, which must
+PASS. One of them earned its place immediately: moving the scanner into
+its own module broke all six of the first suite's cases at once, because
+the fixture copied the gate and not its new import — so the fixture now
+carries a named dependency list, and a missing one fails as an import
+error rather than as a refusal under test.
+
+`test:scripts` 86 files / 1434 tests, `test:unit` 217 files / 3205 tests,
+`check:figures`, `check:docs` (52 gates now), `check:globals`,
+`check:public-copy`, `check:policy-claims` and eslint all green, plus
+`actionlint` clean across all 25 workflows.
 
 ### The other five failures, since the question was about all of them
 
