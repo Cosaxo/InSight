@@ -765,8 +765,10 @@ export async function runVelocityScan(
   // "what share of real votes would this refuse", and they should not
   // have to do the subtraction while deciding.
   // NARROWED TO WHAT WAS ASKED. The Auth loop above stops on the pass's
-  // clock, and the uids it reached are its first `scanned` in the same
-  // sorted order — so everything after that point is an account nobody
+  // clock, and the uids it reached are its first `scanned` in THIS
+  // list's order — the ledger fold's insertion order, not a sort; which
+  // accounts a short night reaches is therefore stable only within one
+  // run — so everything after that point is an account nobody
   // asked about, which `bindCoverage` would otherwise tally at L0 and
   // report as unbound. On a night that stopped early, that is the number
   // an operator reads before flipping enforcement, overstating what it

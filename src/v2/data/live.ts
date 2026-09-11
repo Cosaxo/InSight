@@ -7696,10 +7696,14 @@ const LIVE = {
         // drains, and pulse aggregates are fetched by `data/pulse`
         // instead. So a refused write left the mark set for the session
         // and the reveal added a vote nobody cast, to an option nobody
-        // chose. The extra deletes are no-ops here (this path never sets
-        // `inflight`, and a pulse id is not in the feed mirror), which is
-        // the argument for using the shared copy rather than curating a
-        // second list of what to undo.
+        // chose. Using the shared copy rather than curating a second list
+        // of what to undo is the argument — and the same commit that
+        // added the mark made it load-bearing rather than spare:
+        // `votePulse` sets `inflight` now, so `rollbackPending`'s delete
+        // of it is work this path needs. (A pulse id is still not in the
+        // feed mirror, so that one really is a no-op.) This read "the
+        // extra deletes are no-ops here — this path never sets
+        // `inflight`", which its own commit falsified thirty lines up.
         rollbackPending(aid);
         notify();
         reportError(err, { where: "votePulse", qid: aid });
