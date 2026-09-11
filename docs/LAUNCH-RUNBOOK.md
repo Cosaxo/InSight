@@ -1106,7 +1106,9 @@ start.
       Test **duels first**: they work at N=2, need no crowd, and are the
       most distinctive surface in the product. Two phones exercise
       everything that needs more than one person — the sealed duel and
-      its next-day reveal, cross-device push, a second name in the
+      its round reveal, which on a 1v1 lands the moment the second phone
+      answers rather than the next day (D426/D437), cross-device push, a
+      second name in the
       who-voted sheet. Add testers to widen device and iOS coverage,
       which is a real reason; do not wait on a headcount to start.
       `SHIP-CHECKLIST §3`.

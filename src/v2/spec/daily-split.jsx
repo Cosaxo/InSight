@@ -165,9 +165,11 @@ import ReactDOM from 'react-dom';
 import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
-// see how the crowd & every kind of person split), Group (one question a day
-// for your circle; yesterday revealed with names — see group-daily.jsx) and
-// 1v1 (answer + guess what they answered; next-day reveal — see duo-daily.jsx).
+// see how the crowd & every kind of person split), Group (a question a round
+// for your circle; revealed with names when the room has played or the round's
+// deadline lands — see group-daily.jsx) and 1v1 (answer + guess what they
+// answered; revealed when your partner answers — see duo-daily.jsx). Rounds,
+// not days, since D426/D437.
 // Keeps the chunky card language but speaks the app's tokens (Hanken Grotesk,
 // surface/ink, oklch accents) so it sits with the other tabs and follows dark mode.
 
