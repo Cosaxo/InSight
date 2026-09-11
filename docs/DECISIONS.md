@@ -49742,3 +49742,122 @@ the moment nothing holds it.
 **Still the owner's, and the only thing left:** runbook 5.14's five keys.
 Nothing here can create a Stripe account or a reCAPTCHA site.
 
+
+## D452 · The buy door's gate comes off and the reviewer becomes a Routine: a buyer's humanity is not worth proving, and "no reviewer" must mean hold rather than approve
+
+**2026-09-11.** **Status:** binding. Two owner rulings in one sentence —
+*"routine is fine, if the reCAPTCHA is only for limitin pepole that buys
+that dosent matter if they are real or not that only matters for the
+votes and ais can beat reCAPTCHA now so is pretty useless"* — taken
+whole, and the second one uncovered a line far more dangerous than the
+gate it removed.
+
+### The distinction the owner drew, and why it is right
+
+D451 put a server-verified reCAPTCHA in front of the two buy-door
+callables because App Check could not reach a browser. The owner's
+objection is that it answers a question nobody needs answered: **a
+buyer's humanity does not matter, a voter's does.** That is exactly the
+product's own line. A vote is the raw material every aggregate in this
+app is folded from, and a fake one corrupts the picture; a purchase is
+filtered by €320 changing hands.
+
+The arithmetic holds. `goLive` runs on the PAYMENT webhook, so an unpaid
+booking is an invisible document that never becomes a question anyone
+sees. And the thing reCAPTCHA was actually protecting was the per-review
+model spend — which the same sentence abolished. The owner's other half
+(reCAPTCHA v3 is weak against current solvers) is true, and means the
+removal is less a downgrade than the retirement of a porous gate guarding
+something that had moved away.
+
+**Every vote path still enforces App Check** — 20 callables, unchanged.
+That is the owner's distinction drawn in code, and `check:appcheck` is
+where it can be read.
+
+### What guards the two callables now
+
+`assertBookingBudget` (five a rolling day per account) on the booking, and
+`assertOwnApprovedBooking` on the checkout — the latter extracted from
+three inline `if`s for this record, because `check-appcheck.mjs` proves a
+callable calls the guard its exemption NAMES, and a reason pointing at
+inline code is a reason nothing can hold. That script's own header
+records the same failure about `seedContentV2`.
+
+### The line this uncovered, which is the real finding
+
+With `ANTHROPIC_API_KEY` unset, `runReviewVerdict` returned
+**`{ verdict: "approve", by: "gates-only" }`**.
+
+`reviewGates` checks three things: the payload parses, no two options are
+identical, and the prompt contains two alphanumerics. **It never reads the
+words.** So on a deployment without that key, a submission naming a
+private person, carrying a slur, or linking to a gambling site was
+approved automatically, could be paid for, and would publish to the
+chosen audience under a paid disclosure band.
+
+That was survivable while two premises held: production was expected to
+carry the key, and the door was shut to browsers. This session retired
+both — the owner's ruling makes "no key" the *expected* production state,
+and D451 opened the door. Fail-open on a path where the failure is
+publishing unreviewed content to strangers is not a degradation, it is
+the absence of the feature while the UI says otherwise.
+
+It now throws `ReviewDeferred`: the booking stays in `review`, **which is
+the Routine's queue**. No attempt is counted, because
+`MAX_REVIEW_ATTEMPTS` exists for a booking the reviewer cannot settle and
+this one has not been looked at once — counting would stall every booking
+after six sweeps, three hours, well inside the window a Routine answers
+in.
+
+### The Routine
+
+`scripts/paid-review.mjs`, on `observe.mjs`'s pattern: the deploy
+credential and plain REST, rather than two new operator callables needing
+deploy targets, exemptions, rules and tests to do what that credential
+already does.
+
+**The reviewer is the SESSION, not the script.** `--list` prints the
+submissions and the guidelines — read out of `paid.ts`, so they cannot
+drift from the ones the server-side path used — and the Routine's own
+Claude judges them. The script holds no heuristic of its own, because one
+there would be a second, weaker reviewer that the real one could not see
+it was disagreeing with.
+
+It refuses to settle a booking that has moved on, reads before it writes,
+and sends an `updateMask` — a PATCH without one REPLACES a document in
+Firestore's REST API, which would blank the quote and leave checkout
+unable to find one.
+
+**Chartered, not created** (`ROUTINES.md` §10): there is nothing to
+review until the Stripe keys exist, and an hourly Routine firing at an
+empty queue for a week is one somebody learns to ignore before it
+matters. No trigger id is written, because inventing one is the failure
+that file's §7 is about.
+
+### The cost that replaced the one removed
+
+An unpaid booking was the only thing an unguarded caller could leave
+behind, and bookings carried **no expiry at all** — an approved,
+never-paid document sat forever. `BOOKING_TTL_DAYS` (60) now stamps
+`expireAt`, and `goLive` **deletes** it on the paying webhook, because the
+closer reads that record months later to compute a refund and there is no
+right later date for a sold campaign. The TTL policy itself is one
+console command, runbook 5.1b — a fourth collection group, not covered by
+5.1's ticked box, since a policy is per collection group.
+
+### What the buyer is told
+
+The wait is now hours, not seconds, so the held copy stopped saying *"the
+reviewer is not answering right now"* — on this deployment it usually is
+not answering **yet**, which is a different sentence. It says the price is
+held and nothing is lost by closing the page, and names no cadence, per
+`CLAUDE.md`'s rule about sentences with expiry dates.
+
+### What did not change
+
+The privacy page lost the reCAPTCHA disclosure **in the same commit as the
+two `check:policy-claims` rows that held it** — a page that keeps
+promising what it no longer does is the failure D183 exists to stop,
+pointed the other way. The page still loads no external script, which is
+what it was before D451 and what its one-inline-script design is for.
+

@@ -43,13 +43,29 @@
     a dead form, so the gate is the only thing standing between an edit
     here and a silent outage.
 
-    THE PAY TAP IS NOT OPEN YET, and the block is App Check, not code.
-    `bookPaidQuestionV2` and `createPaidCheckoutV2` both demand App Check
-    attestation, and D337 declined to provision the web reCAPTCHA
-    provider on the stated grounds that "there is no public web client".
-    This page is one. Until the owner rules (OWNER-LIST.md), the pay tap
-    reports the door as closed rather than throwing a raw 403 at a buyer
-    — everything up to and including the quote is live and correct.
+    THE PAY TAP IS WIRED (D451), and this paragraph said the opposite for
+    a day after it stopped being true — it read "the pay tap is not open
+    yet, and the block is App Check, not code", which was the state until
+    the door was built and is the exact drift this file's own gate exists
+    to stop one layer down. Kept as a note rather than deleted, because a
+    header describing a page it no longer describes is the cheapest
+    possible lie and the hardest to notice.
+
+    What the tap does now: anonymous sign-in, book, poll the buyer's own
+    booking document for the reviewer's verdict, then Stripe. Plain
+    `fetch` throughout — no SDK, no framework, no CDN, which is what lets
+    the one-inline-script rule above survive a money path.
+
+    WHAT GUARDS IT, since it cannot be App Check: the per-account booking
+    budget, and the payment itself. D451 briefly put a server-verified
+    reCAPTCHA in front as well; D452 removed it on the owner's ruling that
+    a BUYER's humanity is not worth proving — the €320 is the filter, an
+    unpaid booking is an invisible document, and the place it does matter
+    is VOTING, where every path still attests.
+
+    A DEPLOYMENT WITH NO KEYS still ships this page and still shows the
+    honest "payment is not open yet" note. That is chosen by cfgReady(),
+    so it is a statement about the build rather than a claim about code.
   -->
   <style>
     :root {
@@ -748,9 +764,9 @@
 
     $("heldReason").hidden = state !== "held";
     $("heldReason").textContent =
-      "The reviewer is not answering right now, so your question is held rather "
-      + "than declined. It is checked again every half hour and you are not "
-      + "charged until it clears. Nothing is lost by closing this page.";
+      "Your question is with the reviewer. You are not charged until it "
+      + "clears, and nothing is lost by closing this page — come back to "
+      + "this address and the price you were quoted is the price you pay.";
 
     $("payBtn").hidden = state !== "quoted";
     $("backBtn").textContent = state === "declined" ? "Rewrite it" : "Change it";
@@ -887,13 +903,15 @@
   // `default-src 'none'`: a bundled SDK would be a second script, a CDN
   // and a re-write of the policy this page is pinned by.
   //
-  // The one external script is reCAPTCHA, which is what stands in for App
-  // Check here — a browser cannot produce App Check attestation without a
-  // provider (D337/D451), and the two callables verify the token
-  // server-side for success, action and score.
+  // NO external script at all, since D452 removed the reCAPTCHA that had
+  // briefly been one. The two callables this reaches cannot enforce App
+  // Check (a browser cannot produce it) and are gated on the per-account
+  // booking budget instead, with the payment itself as the real filter —
+  // the owner's ruling that a BUYER's humanity does not need proving,
+  // where a VOTER's does. Every vote path still attests.
 
   function cfgReady() {
-    return !!(st.cfg && st.cfg.apiKey && st.cfg.recaptchaSiteKey && st.cfg.project && st.cfg.region);
+    return !!(st.cfg && st.cfg.apiKey && st.cfg.project && st.cfg.region);
   }
 
   /** The callable base. Read from config rather than built from a guess:
@@ -1002,7 +1020,7 @@
   }
 
   /** The booking payload, in the shape validatePaidBooking accepts. */
-  function bookingPayload(token) {
+  function bookingPayload() {
     var T = typeDef();
     var d = {
       kind: "question",
@@ -1013,22 +1031,11 @@
       dims: {},
       wearName: false,
       budgetEur: st.budget == null ? null : st.budget,
-      link: st.link.trim(),
-      recaptchaToken: token
+      link: st.link.trim()
     };
     if (st.place && st.place.city) d.dims.city = st.place.city;
     if (st.place && st.place.country) d.dims.country = st.place.country;
     return d;
-  }
-
-  function recaptcha(action) {
-    return new Promise(function (resolve, reject) {
-      var g = window.grecaptcha;
-      if (!g || !g.ready) return reject(new Error("recaptcha-missing"));
-      g.ready(function () {
-        g.execute(st.cfg.recaptchaSiteKey, { action: action }).then(resolve, reject);
-      });
-    });
   }
 
   function signIn() {
@@ -1081,6 +1088,13 @@
           if (status && status !== "review") {
             return { status: status, reason: f.declineReason && f.declineReason.stringValue };
           }
+          // TWENTY TRIES IS THIRTY SECONDS, and since D452 the reviewer is
+          // a Routine on a schedule rather than a model call inside the
+          // request — so the ordinary outcome of this loop is now `held`,
+          // not `approved`. That is why the held copy no longer says "the
+          // reviewer is not answering right now": on this deployment it
+          // usually is not answering YET, which is a different sentence
+          // and the one a buyer is owed.
           if (tries >= 20) return { status: "held" };
           return new Promise(function (res) { setTimeout(res, 1500); }).then(poll);
         });
@@ -1117,12 +1131,11 @@
     $("payNote").textContent = "Checking, then opening the payment page…";
     var idToken = null;
     signIn()
-      .then(function (t) { idToken = t; return recaptcha("book"); })
-      .then(function (rt) { return callFn("bookPaidQuestionV2", idToken, bookingPayload(rt)); })
+      .then(function (t) { idToken = t; return callFn("bookPaidQuestionV2", idToken, bookingPayload()); })
       .then(function (res) {
         st.bid = res && res.id;
         if (!st.bid) throw new Error("no booking id");
-        $("payNote").textContent = "Your question is with the reviewer — this takes a few seconds.";
+        $("payNote").textContent = "Checking your question…";
         return awaitVerdict(idToken, st.bid);
       })
       .then(function (v) {
@@ -1139,9 +1152,7 @@
           showPanel("held");
           return null;
         }
-        return recaptcha("checkout").then(function (rt) {
-          return callFn("createPaidCheckoutV2", idToken, { id: st.bid, recaptchaToken: rt });
-        });
+        return callFn("createPaidCheckoutV2", idToken, { id: st.bid });
       })
       .then(function (out) {
         if (!out) return;
@@ -1152,11 +1163,9 @@
       .catch(function (err) {
         var m = String((err && err.message) || err);
         payFail(
-          m === "recaptcha-missing"
-            ? "The human check didn't load — reload the page and try again."
-            : /^signin-/.test(m)
-              ? "Couldn't start a session. Reload and try again."
-              : m.slice(0, 200) || "Something went wrong. Nothing has been charged."
+          /^signin-/.test(m)
+            ? "Couldn't start a session. Reload and try again."
+            : m.slice(0, 200) || "Something went wrong. Nothing has been charged."
         );
       });
   }
@@ -1171,11 +1180,6 @@
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (c) {
       st.cfg = c;
-      if (!cfgReady()) return;
-      var sc = document.createElement("script");
-      sc.src = "https://www.google.com/recaptcha/api.js?render=" + encodeURIComponent(c.recaptchaSiteKey);
-      sc.async = true;
-      document.head.appendChild(sc);
     })
     .catch(function () { st.cfg = null; });
 

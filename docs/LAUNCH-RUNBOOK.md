@@ -1553,6 +1553,29 @@ That is a tester-count problem, not a workflow problem.
       whether one is enabled, so the verification above lives in D333
       rather than in a gate.
 
+- [ ] **5.1b A FOURTH collection group stamps `expireAt` — `v2_paid_bookings`
+      (D452).** One command, the same shape as 5.1's, and it is not
+      covered by that ticked box: a TTL policy is per collection group, so
+      the three that are `ACTIVE` say nothing about this one.
+
+      ```bash
+      gcloud firestore fields ttls update expireAt \
+        --collection-group=v2_paid_bookings --enable-ttl --project=prvfire33 \
+        --database=insight
+      ```
+
+      **Why it appeared.** A booking never expired. That was survivable
+      while the door demanded App Check from an attested app; D451 opened
+      it to a browser and D452 removed the reCAPTCHA in front of it, so an
+      unpaid booking is now the only thing an unguarded caller can leave
+      behind. `bookPaidQuestionV2` stamps 60 days, and `goLive` DELETES the
+      field on the paying webhook so a sold campaign is never swept — the
+      closer computes its refund off that record months later.
+
+      Until this is run the field is inert, exactly as 5.1 says: the
+      documents accumulate and nothing sweeps them. Nothing costly happens
+      meanwhile, which is why it is a box rather than a blocker.
+
       This step named `v2_agg_events` alone until 2026-08-26, which
       under-counted the console work by two and left out the half with a
       promise attached:
@@ -2316,36 +2339,40 @@ That is a tester-count problem, not a workflow problem.
       **THE APP CHECK BLOCKER IS GONE, and it was the bigger half.**
       This step used to end by saying the secrets alone would not produce
       a sale, because both callables demanded App Check and a browser
-      cannot produce it. D451 replaced that with a gate a browser CAN
-      pass — a reCAPTCHA v3 token verified server-side for success,
-      action and score — and wired the page, which until then made no
-      backend call at all. So this step is now the whole of it, and it
-      is five keys rather than three.
+      cannot produce it. D451 opened the door and wired the page; D452
+      settled what guards it — the per-account booking budget, owning the
+      booking, and the payment itself — on the owner's ruling that a
+      BUYER's humanity needs no proving where a VOTER's does.
+
+      **It is TWO keys now, not five.** D452 removed the reCAPTCHA pair
+      and moved the question review to a Claude Code Routine, which is
+      what retires `ANTHROPIC_API_KEY`.
 
       **The order, and every step is yours:**
 
       1. **Stripe account** (`stripe.com`). Test keys work the moment the
          account exists; live keys wait on business verification, which
          in Norway wants an organisation number. Rehearse on `sk_test_`.
-      2. **reCAPTCHA v3** at `google.com/recaptcha/admin` — pick **v3**,
-         not v2 and not Enterprise, and add the hosting domain. You get a
-         SITE key and a SECRET key.
-      3. **Anthropic API key** (`console.anthropic.com`) for the review.
-      4. **GitHub → Settings → Environments → `production`.** Secrets:
-         `STRIPE_SECRET_KEY`, `RECAPTCHA_SECRET_KEY`, `ANTHROPIC_API_KEY`.
-         Variables: `RECAPTCHA_SITE_KEY` (public by design — it is read by
-         every visitor).
-      5. **Run Deploy Firebase backend.** Nothing reaches the runtime
+      2. **GitHub → Settings → Environments → `production`.** Secrets:
+         `STRIPE_SECRET_KEY` for now; `STRIPE_WEBHOOK_SECRET` at step 5.
+         Variable: `VITE_FIREBASE_API_KEY`, if it is not already set —
+         the buy page needs it to sign a buyer in, and it is public by
+         design.
+      3. **Run Deploy Firebase backend.** Nothing reaches the runtime
          until a deploy writes the dotenv; the run warns for each key it
          did not get.
-      6. **Actions → Observe production**, and read `stripeWebhookV2`'s
+      4. **Actions → Observe production**, and read `stripeWebhookV2`'s
          URL off the summary.
-      7. **Stripe dashboard → Webhooks**, endpoint at that URL, **three**
+      5. **Stripe dashboard → Webhooks**, endpoint at that URL, **three**
          events (below). Store the `whsec_…` as `STRIPE_WEBHOOK_SECRET`.
-      8. **Deploy again** — the value only reaches the runtime through the
+      6. **Deploy again** — the value only reaches the runtime through the
          dotenv the deploy writes.
-      9. **Observe production again**: it should say *A sale can complete
+      7. **Observe production again**: it should say *A sale can complete
          today: YES*. Then buy something with a Stripe test card.
+
+      **Also yours, once:** 5.1b's TTL command, and the review Routine in
+      `docs/ROUTINES.md`. Neither blocks a sale; the first bounds junk
+      bookings and the second is what answers a buyer at all.
 
       **What is no longer on this list, because it is built:** the page
       itself. It signs in anonymously, mints a token, books, waits for the

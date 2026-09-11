@@ -223,9 +223,13 @@ describe("the pay tap on a deployment with NO keys", () => {
 // fail expensively and silently: a booking whose `dims.city` is not the
 // catalogue key an answer's anchor holds is a campaign that charges €320
 // and reaches nobody.
+//
+// D452 took the reCAPTCHA hop out of all of this — the page loads no
+// external script at all now, and the two callables are gated on the
+// per-account booking budget with the payment as the real filter.
 describe("the pay tap with keys", () => {
   const CFG = {
-    apiKey: "AIza-test", recaptchaSiteKey: "site-test",
+    apiKey: "AIza-test",
     project: "prvfire33", region: "europe-west1", dbId: "insight",
   };
 
@@ -256,20 +260,6 @@ describe("the pay tap with keys", () => {
     };
     return { calls, fn };
   }
-
-  const actions = [];
-  beforeEach(() => {
-    actions.length = 0;
-    // The one external script this page loads. Stubbed rather than
-    // fetched: the assertion worth making is that the ACTION differs
-    // between the two hops, which is the half of a reCAPTCHA check that
-    // is usually dropped and the half the server verifies.
-    globalThis.grecaptcha = {
-      ready: (cb) => cb(),
-      execute: async (_key, o) => { actions.push(o.action); return "RC-" + o.action; },
-    };
-  });
-  afterEach(() => { delete globalThis.grecaptcha; });
 
   /** Compose a quotable question and open the panel. */
   function compose() {
@@ -319,16 +309,6 @@ describe("the pay tap with keys", () => {
     expect(sp(text())).toMatch(/Pick the city first/);
   });
 
-  it("mints a DIFFERENT reCAPTCHA action for each hop", async () => {
-    const { fn } = wire();
-    await mount(pricing, { cfg: CFG, fn });
-    pickCity();
-    compose();
-    $("payBtn").click();
-    await settle();
-    expect(actions).toEqual(["book", "checkout"]);
-  });
-
   it("shows the reviewer's own words on a decline, and never reaches checkout", async () => {
     const { fn } = wire({
       verdict: {
@@ -362,7 +342,6 @@ describe("the pay tap with keys", () => {
     expect(co, "the door never reached checkout").toBeTruthy();
     const sent = JSON.parse(co[1].body).data;
     expect(sent.id).toBe("uid_abc");
-    expect(sent.recaptchaToken).toBe("RC-checkout");
   });
 
   it("drops NO honest note when the door is open", async () => {

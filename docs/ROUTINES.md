@@ -837,6 +837,55 @@ owners' to write.
 
 ---
 
+## 10 · The paid-question review — chartered 2026-09-11 (D452), NOT created
+
+**No trigger id, because no Routine exists.** This section is a charter,
+not a row: `list_triggers` would not return one, and writing a row with
+an invented id is the failure §7 is about. It becomes a §2–§4 row on the
+account that creates it, in the same PR.
+
+**Why it is chartered rather than created.** The owner ruled that a
+Claude Code Routine should review paid-question bookings instead of a
+per-request `ANTHROPIC_API_KEY` — *"routine is fine"* — accepting that a
+buyer waits for the next firing rather than a few seconds. What stops it
+being created today is that there is nothing for it to review: the money
+path's Stripe keys are unset (runbook 5.14), so no booking can exist. A
+Routine firing hourly against an empty queue for a week is a Routine
+somebody learns to ignore before it ever matters.
+
+**Create it when the first key is set**, not before.
+
+| | |
+| --- | --- |
+| Schedule | hourly is the shape the buyer's wait is written against (`web/ask.html`'s held copy promises no cadence, deliberately — D452 kept it to *"come back to this address"*) |
+| Binding | a fresh session per firing: it carries no state between runs and the queue is the state |
+| Needs | `FIREBASE_SERVICE_ACCOUNT` on the `production` environment — the same secret `observe.yml` and `seed-content.yml` use |
+| Writes | `v2_paid_bookings` only, and only the `status`/`review`/`note` fields, under an `updateMask`. No branch, no PR |
+
+**The prompt, which is the whole of it:**
+
+> Run `node scripts/paid-review.mjs --list`. For each booking it prints,
+> judge it against the guidelines the script printed above them — they are
+> read out of `functions/src/paid.ts`, so they are the same rules the
+> server-side reviewer used. Then call
+> `node scripts/paid-review.mjs --verdict <bid> approve` or
+> `… decline --reason "<one or two sentences, shown to the buyer
+> verbatim, saying what to change>"`. If the list is empty, stop and say
+> nothing. Do not edit any file, do not open a pull request, and do not
+> approve anything the guidelines decline — a buyer is charged for what
+> you approve.
+
+**THE REVIEWER IS THE SESSION, NOT THE SCRIPT**, and that is why the
+script contains no judgement of its own: a heuristic in it would be a
+second, weaker reviewer that the real one could not see it was
+disagreeing with.
+
+**What settles a booking nobody reviews:** nothing, and that is the
+design. `functions/src/paid.ts` HOLDS a booking it cannot review rather
+than approving it (D452 — the line that used to approve is the most
+dangerous this repository has carried), so a queue nobody reads is a
+buyer who is never charged, never a question published unreviewed.
+
 ## 9 · The cost hunt — chartered 2026-09-06, not yet created on any account
 
 **Proposed, and this block says so** (rule 1 is why it is not a numbered

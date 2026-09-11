@@ -70,102 +70,19 @@ const REGION = FUNCTIONS_REGION;
 const stripeKey = () => process.env.STRIPE_SECRET_KEY || "";
 const stripeWebhookSecret = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 const anthropicKey = () => process.env.ANTHROPIC_API_KEY || "";
-const recaptchaSecret = () => process.env.RECAPTCHA_SECRET_KEY || "";
-
-/** The score below which reCAPTCHA v3 says "probably a script". Google's
- *  own default threshold, and deliberately not tuned before a single real
- *  buyer has been scored: a number picked from imagination here would be
- *  indistinguishable from a measured one later. */
-export const RECAPTCHA_MIN_SCORE = 0.5;
-
 /**
- * The web door's stand-in for App Check, and the reason it exists.
+ * How long an unpaid booking lives (D452, COST-EXPOSURE C10). A booking
+ * carried no expiry at all, so one abandoned between approval and payment
+ * stayed forever — survivable while the door demanded App Check from an
+ * attested app, and the only remaining cost of a junk booking now that the
+ * door is open to a browser and gated on the budget alone.
  *
- * Every other callable in this project is attested by App Check, which a
- * NATIVE app can do and a browser cannot without a provider. D337 declined
- * to provision one on the stated ground that "there is no public web
- * client" — and D368's shape A then created one, so that premise expired
- * rather than being wrong. This is the replacement, and it is checked HERE
- * rather than at the edge because a token the server never verifies is
- * decoration: `check-appcheck.mjs` exempts these two callables naming this
- * function as their gate, and asserts their bodies actually call it, so
- * the substitute cannot quietly stop being one.
- *
- * WHY SERVER-VERIFIED reCAPTCHA AND NOT APP CHECK'S OWN reCAPTCHA BRIDGE.
- * Two reasons, one practical and one about strength. The practical one:
- * App Check's browser flow ends in a token exchange whose request shape
- * this session could not read from any source it had — and a hand-written
- * call to an unverified endpoint fails SILENTLY as a pay button that does
- * nothing, which is the exact failure mode `check:csp-hashes` exists for
- * one file over. The one about strength: siteverify returns a score and
- * the action the token was minted for, per request, checked on our side;
- * an App Check token is a yes/no that is replayable for its whole TTL.
- * The abuse this is actually against is somebody spending our Anthropic
- * budget five reviews at a time from unlimited free anonymous accounts,
- * and a score beats a yes.
- *
- * UNSET IS CLOSED, not open, and that is the opposite of the other three
- * credentials in this file. They degrade honestly because their absence
- * costs a FEATURE; this one's absence would cost the budget it protects,
- * so a deployment without the secret refuses the door rather than opening
- * it to everyone. The emulator sets `RECAPTCHA_BYPASS` instead — the e2e
- * has no browser to mint a token from.
+ * Deliberately far longer than a buyer could plausibly take: the quote
+ * promises a 29-day serving window, and someone who books, thinks about
+ * it over a holiday and pays a fortnight later must not find their quote
+ * swept. This bounds ACCUMULATION, not patience.
  */
-export async function assertRecaptcha(token: unknown, action: string): Promise<number | null> {
-  // The e2e, the rules claim path and dev-in-a-browser: no browser to mint
-  // a token from and no site key to mint it with. The emulator arm is
-  // deviceBind.ts's idiom one file over and ENFORCE_APP_CHECK's own shape
-  // — FUNCTIONS_EMULATOR is set BY the emulator and cannot be set into a
-  // deployed runtime, so it is not a switch anybody can flip in
-  // production. The explicit variable is the second arm, for a local
-  // process that is not the emulator; NODE_ENV is deliberately not
-  // consulted, because a runtime started oddly must not fall into this.
-  if (process.env.FUNCTIONS_EMULATOR === "true") return null;
-  if (process.env.RECAPTCHA_BYPASS === "1") return null;
-  const secret = recaptchaSecret();
-  if (!secret) {
-    logger.error("[paid] RECAPTCHA_SECRET_KEY unset — the web door is closed (runbook 5.14)");
-    throw new HttpsError("failed-precondition", "the buy door is not open on this deployment yet");
-  }
-  const t = typeof token === "string" ? token.trim() : "";
-  if (!t || t.length > 4096) throw new HttpsError("invalid-argument", "human check missing");
-  let body: {
-    success?: boolean; score?: number; action?: string; "error-codes"?: string[];
-  };
-  try {
-    // application/x-www-form-urlencoded, which is what this endpoint takes
-    // — it predates every JSON convention around it and has never moved.
-    const res = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ secret, response: t }).toString(),
-    });
-    body = (await res.json()) as typeof body;
-  } catch (err) {
-    // Google being unreachable is OUR outage, not the buyer's fraud. Held,
-    // not declined — the same call paid.ts's reviewer makes when Anthropic
-    // is down, and for the same reason.
-    logger.error(`[paid] siteverify unreachable: ${String(err).slice(0, 200)}`);
-    throw new HttpsError("unavailable", "could not run the human check just now — try again shortly");
-  }
-  if (!body.success) {
-    logger.warn(`[paid] recaptcha refused: ${(body["error-codes"] || []).join(",")}`);
-    throw new HttpsError("permission-denied", "the human check did not pass");
-  }
-  // The ACTION is half the value and the half that is usually dropped. A
-  // token minted on some other page of some other site scores fine; it is
-  // the action that says it was minted for THIS button.
-  if (body.action && body.action !== action) {
-    logger.warn(`[paid] recaptcha action mismatch: ${body.action} != ${action}`);
-    throw new HttpsError("permission-denied", "the human check did not pass");
-  }
-  const score = typeof body.score === "number" ? body.score : 0;
-  if (score < RECAPTCHA_MIN_SCORE) {
-    logger.warn(`[paid] recaptcha score ${score} below ${RECAPTCHA_MIN_SCORE}`);
-    throw new HttpsError("permission-denied", "the human check did not pass");
-  }
-  return score;
-}
+export const BOOKING_TTL_DAYS = 60;
 
 /** Bookings one account may open per rolling day. Looser than the old
  * suggestion budget's 3 (review capacity was the binding constraint there
@@ -588,17 +505,46 @@ export const REVIEW_MODEL = "claude-opus-5";
  * — a gates-only deploy spends nothing — and injectable so the test can
  * refuse it. EXPORTED for that test.
  */
+/**
+ * "There is no automatic reviewer on this deployment — leave it queued."
+ *
+ * Modelled on ReviewBudgetHeld and held the same way: no attempt counted,
+ * status untouched, the sweep free to come back. The difference is that
+ * nothing here is going to clear on its own — the Routine
+ * (`scripts/paid-review.mjs`, `docs/ROUTINES.md`) is what settles these,
+ * and a booking sitting in `review` IS its queue.
+ */
+export class ReviewDeferred extends Error {
+  constructor() {
+    super("no ANTHROPIC_API_KEY on this deployment — queued for the review Routine");
+    this.name = "ReviewDeferred";
+  }
+}
+
 export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null, takeCall?: () => Promise<void>): Promise<ReviewVerdict> {
   const gate = reviewGates(b);
   if (gate) return { verdict: "decline", reason: gate, by: "gates" };
   const key = anthropicKey();
   if (!key) {
-    // Emulator / unconfigured deploy: gates-only, said loudly. Production
-    // is expected to carry the secret; docs/DEPLOYMENT.md lists it.
-    logger.warn("[paid] ANTHROPIC_API_KEY not set — review ran on gates alone", {
-      metric: "paid_review_gates_only",
-    });
-    return { verdict: "approve", reason: null, by: "gates-only" };
+    // NO KEY MEANS HOLD, NOT APPROVE — and until D452 it meant approve,
+    // which is the most dangerous line this file has ever carried.
+    //
+    // `reviewGates` checks three things: the payload parses, no two
+    // options are identical, and the prompt contains two alphanumerics.
+    // It does not read the WORDS. So "gates-only → approve" meant that on
+    // a deployment without the key, a submission naming a private person,
+    // carrying a slur, or linking to a gambling site was approved
+    // automatically and could be paid for and published under a paid
+    // band. That was survivable exactly while the key was expected to be
+    // set in production and the door was shut to browsers. D452 retires
+    // both premises at once: the review moves to a Claude Code Routine
+    // (the owner's call — no per-request key), so production is now
+    // EXPECTED to have no key, and the door is open.
+    //
+    // Holding leaves `status: "review"`, which is precisely the queue the
+    // Routine reads. The booking waits for a reviewer instead of walking
+    // past the place one should have been.
+    throw new ReviewDeferred();
   }
   if (takeCall) await takeCall();
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -733,6 +679,19 @@ export async function reviewBooking(db: Firestore, bid: string, takeCall: () => 
   try {
     verdict = await runReviewVerdict(payload, buyerName, takeCall);
   } catch (err) {
+    if (err instanceof ReviewDeferred) {
+      // No attempt counted, deliberately: MAX_REVIEW_ATTEMPTS exists to
+      // stop a booking the reviewer cannot settle from being retried
+      // forever, and this booking has not been looked at once. Counting
+      // here would stall every booking on a Routine-reviewed deployment
+      // after six sweeps — six half-hours — which is well inside the
+      // window the Routine is expected to answer in.
+      logger.info(`[paid] ${bid} queued for the review Routine (no API key on this deployment)`, {
+        metric: "paid_review_deferred",
+        bid,
+      });
+      return;
+    }
     if (err instanceof ReviewBudgetHeld) {
       // The project's day of calls is spent: hold WITHOUT an attempt —
       // the ceiling is for a booking that cannot be reviewed, not for a
@@ -813,22 +772,19 @@ async function assertBookingBudget(uid: string): Promise<void> {
  * a model. Returns { id } — the client watches its own row.
  */
 export const bookPaidQuestionV2 = onCall(
-  // NO enforceAppCheck, and that is a substitution rather than a removal:
-  // the caller is a BROWSER (web/ask.html), which cannot produce App Check
-  // attestation without a provider, and the body's first act is
-  // assertRecaptcha. check-appcheck.mjs holds both halves — it fails if
-  // this option comes back while the exemption stands, and it fails if the
-  // assertRecaptcha call leaves the body while it does. See D451.
+  // NO enforceAppCheck: the caller is a BROWSER (web/ask.html), which
+  // cannot produce App Check attestation without a provider. What guards
+  // it is `assertBookingBudget` — five a day per account — plus the
+  // owner's ruling (D452) that a BUYER's humanity is not worth a gate of
+  // its own: the €320 is the filter, and an unpaid booking is an
+  // invisible document that never becomes a question anyone sees. Vote
+  // paths are untouched and still attest, which is where the owner does
+  // want to know a person is real. check-appcheck.mjs names that budget
+  // as this callable's gate and asserts the body calls it.
   { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
-    // BEFORE the shape check, the budget and every write. A script that
-    // cannot pass this never reaches the rate limiter, so it cannot spend
-    // an anonymous account's five bookings to find out what the validator
-    // accepts — and never reaches the Claude review the budget is really
-    // protecting.
-    const recaptchaScore = await assertRecaptcha(request.data?.recaptchaToken, "book");
     const checked = validatePaidBooking(request.data);
     if ("error" in checked) throw new HttpsError("invalid-argument", checked.error);
     const b = checked.ok;
@@ -861,11 +817,13 @@ export const bookPaidQuestionV2 = onCall(
       buyerName,
       status: "review",
       reviewAttempts: 0,
-      // web/privacy.html says "we keep the score with the booking", so it
-      // is kept. Null on the emulator path, where there is no browser to
-      // mint a token from and nothing was scored.
-      recaptchaScore,
       createdAt: FieldValue.serverTimestamp(),
+      // Swept by Firestore's TTL unless the paying webhook clears it.
+      // A field, not a scheduled scan: the sweep is free and cannot fail
+      // quietly, where a twelfth nightly function would bill every night
+      // to find nothing (the sweep's own LIGHT_UNBOUNDED note, one
+      // function over, is that arithmetic).
+      expireAt: new Date(Date.now() + BOOKING_TTL_DAYS * 86400000),
     });
     logger.info(`[paid] booking ${ref.id} opened (${b.scope}, ${b.type})`);
     return { id: ref.id };
@@ -1148,30 +1106,48 @@ export async function expirePriorSession(
   }
 }
 
+/**
+ * The checkout hop's own gate, extracted so `check-appcheck.mjs` can name
+ * it and then PROVE the body calls it (D452). It was three inline `if`s
+ * doing exactly this; an exemption whose reason points at inline code is
+ * a reason nothing can hold, which is the failure that script's header
+ * records about `seedContentV2`.
+ *
+ * Three refusals, and the order matters: not yours reads as `not-found`
+ * rather than `permission-denied`, so that probing booking ids cannot
+ * tell an id that exists from one that does not.
+ */
+async function assertOwnApprovedBooking(
+  db: Firestore,
+  uid: string,
+  bid: string,
+): Promise<FirebaseFirestore.DocumentSnapshot> {
+  const snap = await db.collection("v2_paid_bookings").doc(bid).get();
+  if (!snap.exists || snap.get("uid") !== uid) {
+    throw new HttpsError("not-found", "no such booking");
+  }
+  if (snap.get("status") === "live") {
+    throw new HttpsError("failed-precondition", "already paid — the question is live or about to be");
+  }
+  if (snap.get("status") !== "approved") {
+    throw new HttpsError("failed-precondition", "the booking isn't approved yet");
+  }
+  return snap;
+}
+
 export const createPaidCheckoutV2 = onCall(
-  // Same substitution as bookPaidQuestionV2 above, same gate holding it.
+  // Same as bookPaidQuestionV2 above, and this one adds nothing of its
+  // own to guard: it can act only on a booking that already exists, is
+  // already the caller's, and is already approved — so the budget that
+  // bounded the booking bounds this too.
   { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
-    // Gated too, and not only because the gate's exemption names it: this
-    // is the call that opens a Stripe session, and a booking id is
-    // guessable enough (`uid_<base36 ms>`) that leaving the second door
-    // unlatched would undo the first.
-    await assertRecaptcha(request.data?.recaptchaToken, "checkout");
     const bid = String(request.data?.id || "");
     if (!bid) throw new HttpsError("invalid-argument", "id required");
     const db = firestore();
-    const snap = await db.collection("v2_paid_bookings").doc(bid).get();
-    if (!snap.exists || snap.get("uid") !== uid) {
-      throw new HttpsError("not-found", "no such booking");
-    }
-    if (snap.get("status") === "live") {
-      throw new HttpsError("failed-precondition", "already paid — the question is live or about to be");
-    }
-    if (snap.get("status") !== "approved") {
-      throw new HttpsError("failed-precondition", "the booking isn't approved yet");
-    }
+    const snap = await assertOwnApprovedBooking(db, uid, bid);
     const key = stripeKey();
     if (!key) {
       throw new HttpsError("unavailable", "payments aren't configured on this deployment");
@@ -1405,6 +1381,13 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       qid,
       window: { start, until },
       paidAt: Timestamp.now(),
+      // THE SOLD BOOKING STOPS EXPIRING. `expireAt` bounds abandoned
+      // documents (D452, C10); this one is a paid record with a refund
+      // owed against it when the window closes, and the closer reads it.
+      // Deleting a purchase record 60 days on would erase the arithmetic
+      // the refund is computed from — so the field is removed rather than
+      // extended, because there is no right later date for it.
+      expireAt: FieldValue.delete(),
       ...(paymentIntentId ? { stripePaymentIntent: paymentIntentId } : {}),
     });
     return true;

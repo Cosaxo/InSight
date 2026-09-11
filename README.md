@@ -225,8 +225,9 @@ Local:
   attestation or is named with the reason it cannot (decision D36). The
   twelve that cannot are the operator and moderator instruments, gated on
   uid allowlists instead, plus the web buy door's two, which a BROWSER
-  cannot attest and which are gated on a server-verified reCAPTCHA score
-  and action instead (D451). Each entry names the guard its reason claims
+  cannot attest and which are gated on the per-account booking budget and
+  on owning the booking, with the payment as the real filter (D452). Each
+  entry names the guard its reason claims
   and the run asserts the callable's body really calls it, so a substitute
   cannot decay into a hole; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.

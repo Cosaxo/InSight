@@ -4,7 +4,7 @@
 // emulator cannot prove — that the question doc the webhook writes wears
 // exactly the shape the client's bank fetch and the answer rules expect.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +35,7 @@ import {
   runReviewVerdict,
   takeReviewCall,
   ReviewBudgetHeld,
+  ReviewDeferred,
   REVIEW_CALLS_PER_DAY,
   REVIEW_MAX_TOKENS,
   goLive,
@@ -44,8 +45,6 @@ import {
   type PaidBookingPayload,
   validatePaidLink,
   PAID_LINK_MAX,
-  assertRecaptcha,
-  RECAPTCHA_MIN_SCORE,
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
@@ -810,7 +809,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
    *  a transaction that re-reads it, and a record of what was written.
    *  `reads` lets a case change the status BETWEEN the outer read and the
    *  transaction's, which is the race the second guard exists for. */
-  function fakeDb(statuses: string[]) {
+  function fakeDb(statuses: string[], payload: Record<string, unknown> = BOOKING as Record<string, unknown>) {
     const writes: Record<string, unknown>[] = [];
     // Reads are counted because the OUTER guard's whole job is to spend
     // nothing on a booking that is not in review: without it the function
@@ -824,7 +823,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
       reads.push(status);
       return {
         exists: true,
-        get: (k: string) => (k === "status" ? status : (BOOKING as Record<string, unknown>)[k]),
+        get: (k: string) => (k === "status" ? status : payload[k]),
       };
     };
     const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };
@@ -842,10 +841,56 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
   }
 
   it("writes a verdict for a booking that is still in review — the control", async () => {
-    const f = fakeDb(["review", "review"]);
+    // A GATED decline, which is a verdict reached without any model call
+    // — this case is the control for its three siblings, which assert
+    // that a live/declined/missing booking is written NOTHING, so what it
+    // has to show is that a review-status booking is written something.
+    //
+    // It used to take the no-key path and assert an APPROVE. That stopped
+    // being available at D452, for the reason the two cases below give:
+    // no reviewer now means HOLD, so a control resting on it would have
+    // been asserting that a deployment without a reviewer approves.
+    const f = fakeDb(["review", "review"], { ...BOOKING, prompt: "???" });
     await reviewBooking(f.db, "b1");
     expect(f.writes, "the ordinary path stopped writing a verdict").toHaveLength(1);
-    expect(f.writes[0].status).toBe("approved");
+    expect(f.writes[0].status).toBe("declined");
+  });
+
+  it("HOLDS rather than approves when no reviewer is configured", async () => {
+    // The line D452 changed, and the most dangerous one this file has
+    // carried. reviewGates reads the SHAPE — payload parses, no duplicate
+    // options, two alphanumerics — and never the words. So "no key →
+    // approve" meant a submission naming a private person or carrying a
+    // slur was approved automatically and could be paid for and published
+    // under a paid band. Holding leaves it in `review`, which is the
+    // queue the Routine reads.
+    const was = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const f = fakeDb(["review", "review"]);
+      await reviewBooking(f.db, "b1");
+      expect(f.writes, "a deployment with no reviewer settled a booking anyway").toEqual([]);
+    } finally {
+      if (was !== undefined) process.env.ANTHROPIC_API_KEY = was;
+    }
+  });
+
+  it("does not count an ATTEMPT while it waits for the Routine", async () => {
+    // MAX_REVIEW_ATTEMPTS (6) exists to stop a booking the reviewer cannot
+    // settle from retrying forever. The sweep runs every half hour, so
+    // counting here would stall every booking on a Routine-reviewed
+    // deployment after three hours — well inside the window the Routine
+    // is expected to answer in.
+    const was = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const f = fakeDb(["review", "review"]);
+      await reviewBooking(f.db, "b1");
+      const counted = f.writes.some((w) => "reviewAttempts" in w);
+      expect(counted, "waiting for the Routine burned an attempt").toBe(false);
+    } finally {
+      if (was !== undefined) process.env.ANTHROPIC_API_KEY = was;
+    }
   });
 
   it("writes nothing for a booking that is already LIVE — it has been paid for", async () => {
@@ -1046,9 +1091,11 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
     let taken = 0;
     const refuse = async () => { taken += 1; throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); };
     try {
-      // No key: gates-only, and the budget is untouched.
+      // No key: DEFERRED to the review Routine since D452, and the budget
+      // is untouched. This read `gates-only` and asserted an APPROVE until
+      // then — the budget half was right and the verdict half was the bug.
       delete process.env.ANTHROPIC_API_KEY;
-      expect((await runReviewVerdict(BOOKING, null, refuse)).by).toBe("gates-only");
+      await expect(runReviewVerdict(BOOKING, null, refuse)).rejects.toBeInstanceOf(ReviewDeferred);
       expect(taken).toBe(0);
       // A gated decline never reaches the budget either.
       process.env.ANTHROPIC_API_KEY = "test-key";
@@ -1083,141 +1130,3 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
 });
 
 // ── D451's gate, appended after main's review-budget suite ──────────
-// ── The web door's stand-in for App Check (D451) ────────────────────────
-//
-// The two callables the buy page reaches no longer enforce App Check —
-// a browser cannot produce it — and call assertRecaptcha instead.
-// check-appcheck.mjs holds that the SUBSTITUTION is real (the exemption
-// names the gate and the body calls it); these hold that the gate itself
-// refuses what it is supposed to refuse.
-describe("assertRecaptcha — the web buy door's gate", () => {
-  const realFetch = globalThis.fetch;
-  const siteverify = (body: unknown, ok = true) => {
-    globalThis.fetch = vi.fn(async () => ({
-      ok, json: async () => body,
-    })) as unknown as typeof fetch;
-  };
-
-  // EVERY runner sets FUNCTIONS_EMULATOR=true (ops.test.ts's own note), and
-  // the emulator arm returns null before anything else runs — so without
-  // deleting it here every case below would pass by taking the bypass, and
-  // this suite would prove nothing at all.
-  const saved = process.env.FUNCTIONS_EMULATOR;
-  beforeEach(() => {
-    delete process.env.FUNCTIONS_EMULATOR;
-    process.env.RECAPTCHA_SECRET_KEY = "test-secret";
-    delete process.env.RECAPTCHA_BYPASS;
-  });
-  afterEach(() => {
-    globalThis.fetch = realFetch;
-    if (saved === undefined) delete process.env.FUNCTIONS_EMULATOR;
-    else process.env.FUNCTIONS_EMULATOR = saved;
-    delete process.env.RECAPTCHA_SECRET_KEY;
-    delete process.env.RECAPTCHA_BYPASS;
-  });
-
-  it("CLOSES the door when the secret is unset, rather than opening it", async () => {
-    // The opposite of the other three credentials in paid.ts, deliberately.
-    // Their absence costs a feature; this one's absence would cost the
-    // budget it protects — so unset must refuse, not wave through. A
-    // fail-open here is the whole abuse: unlimited free anonymous accounts
-    // spending five Claude reviews each.
-    delete process.env.RECAPTCHA_SECRET_KEY;
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
-      code: "failed-precondition",
-    });
-  });
-
-  it("passes a good token and returns its score", async () => {
-    siteverify({ success: true, score: 0.9, action: "book" });
-    await expect(assertRecaptcha("tok", "book")).resolves.toBe(0.9);
-  });
-
-  it("refuses a token minted for a DIFFERENT action", async () => {
-    // The half usually dropped. A token minted on some other page scores
-    // fine; the action is what says it was minted for this button.
-    siteverify({ success: true, score: 0.9, action: "somethingelse" });
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
-      code: "permission-denied",
-    });
-  });
-
-  it("refuses a score below the threshold", async () => {
-    siteverify({ success: true, score: RECAPTCHA_MIN_SCORE - 0.01, action: "book" });
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
-      code: "permission-denied",
-    });
-  });
-
-  it("treats a MISSING score as zero, not as a pass", async () => {
-    // `score < MIN` on an undefined score is false, so a response without
-    // one would sail through a naive check — and a malformed response is
-    // exactly when you want the door shut.
-    siteverify({ success: true, action: "book" });
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
-      code: "permission-denied",
-    });
-  });
-
-  it("refuses when Google says the token failed", async () => {
-    siteverify({ success: false, "error-codes": ["timeout-or-duplicate"] });
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
-      code: "permission-denied",
-    });
-  });
-
-  it("HOLDS rather than declines when Google is unreachable", async () => {
-    // Our outage, not the buyer's fraud — the same call the reviewer makes
-    // when Anthropic is down. `unavailable` is retryable; permission-denied
-    // reads to a buyer as an accusation.
-    globalThis.fetch = vi.fn(async () => { throw new Error("ECONNREFUSED"); }) as unknown as typeof fetch;
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({
-      code: "unavailable",
-    });
-  });
-
-  it("refuses an empty or oversized token without calling Google", async () => {
-    const spy = vi.fn();
-    globalThis.fetch = spy as unknown as typeof fetch;
-    await expect(assertRecaptcha("", "book")).rejects.toMatchObject({ code: "invalid-argument" });
-    await expect(assertRecaptcha("x".repeat(4097), "book")).rejects.toMatchObject({ code: "invalid-argument" });
-    await expect(assertRecaptcha(undefined, "book")).rejects.toMatchObject({ code: "invalid-argument" });
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("bypasses on the emulator, which is what keeps the e2e's paid leg green", async () => {
-    process.env.FUNCTIONS_EMULATOR = "true";
-    const spy = vi.fn();
-    globalThis.fetch = spy as unknown as typeof fetch;
-    await expect(assertRecaptcha(undefined, "book")).resolves.toBeNull();
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("bypasses on the explicit variable too, and on nothing else", async () => {
-    process.env.RECAPTCHA_BYPASS = "1";
-    const spy = vi.fn();
-    globalThis.fetch = spy as unknown as typeof fetch;
-    await expect(assertRecaptcha(undefined, "book")).resolves.toBeNull();
-    expect(spy).not.toHaveBeenCalled();
-    // NODE_ENV is not a bypass, deliberately.
-    delete process.env.RECAPTCHA_BYPASS;
-    process.env.NODE_ENV = "test";
-    siteverify({ success: false });
-    await expect(assertRecaptcha("tok", "book")).rejects.toMatchObject({ code: "permission-denied" });
-  });
-
-  it("posts form-encoded to siteverify, which is the shape that endpoint takes", async () => {
-    let seen: { url?: string; init?: RequestInit } = {};
-    globalThis.fetch = vi.fn(async (url: string, init: RequestInit) => {
-      seen = { url, init };
-      return { ok: true, json: async () => ({ success: true, score: 1, action: "book" }) };
-    }) as unknown as typeof fetch;
-    await assertRecaptcha("tok", "book");
-    expect(seen.url).toBe("https://www.google.com/recaptcha/api/siteverify");
-    expect(String((seen.init?.headers as Record<string, string>)["content-type"]))
-      .toContain("application/x-www-form-urlencoded");
-    expect(String(seen.init?.body)).toContain("response=tok");
-    // The secret must never travel in the URL, where it would land in logs.
-    expect(seen.url).not.toContain("test-secret");
-  });
-});

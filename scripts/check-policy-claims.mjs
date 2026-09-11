@@ -324,18 +324,6 @@ export const CLAIMS = [
     /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
   ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
     /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
-  // D451 · the buy page loads Google reCAPTCHA, which is the first third
-  // party this product puts on a page a user reads. D183's rule is that the
-  // page moves FIRST, and these two rows are what stop it moving back: the
-  // disclosure must say WHO gets what, and it must say where it does NOT
-  // run. The second half matters more than it looks — a reader who learns
-  // the app loads Google's anti-bot script will reasonably assume it loads
-  // everywhere, and the true answer (one page, only if you open it) is the
-  // one that stops being written down the moment nothing holds it.
-  ["D451 · the buy page's reCAPTCHA is disclosed, with what Google receives",
-    /reCAPTCHA[\s\S]{0,400}?IP\s+address[\s\S]{0,200}?score\s+we\s+check\s+on\s+our\s+server/i],
-  ["D451 · and that it runs on that page ALONE — not in the app, not elsewhere",
-    /that\s+page\s+alone[\s\S]{0,200}?not\s+in\s+the\s+app[\s\S]{0,700}?never\s+open\s+the\s+buy\s+page,\s+reCAPTCHA\s+never\s+loads/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

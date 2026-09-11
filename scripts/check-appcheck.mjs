@@ -143,37 +143,41 @@ const EXEMPT = {
       "moderator callable, invoked by the out-of-app moderation Routine; "
       + "gated on MOD_UIDS",
   },
-  // ── The web buy door (D451) ───────────────────────────────────────────
-  // These two are NOT unattested. They are attested by something a browser
-  // can actually produce: a reCAPTCHA v3 token, verified server-side for
-  // success, action and score before either callable does any work
-  // (functions/src/paid.ts → assertRecaptcha).
+  // ── The web buy door (D451, re-gated at D452) ────────────────────────
   //
-  // D337 declined to provision the web App Check provider because "there is
-  // no public web client". D368's shape A built one — the ask page — so the
-  // premise expired rather than being wrong, and the choice became WHICH
-  // browser attestation, not whether. Server-verified reCAPTCHA was taken
-  // over App Check's own bridge because it is checked on our side per
-  // request and carries a score and an action, where an App Check token is
-  // a replayable yes for its TTL. The abuse in question is somebody
-  // spending the Anthropic budget five Claude reviews at a time from
-  // unlimited free anonymous accounts, and a score beats a yes.
+  // A browser cannot produce App Check attestation without a provider, so
+  // these two cannot enforce it. What they are gated on is
+  // `assertBookingBudget` — five bookings a rolling day per account.
   //
-  // The `gate` below is the whole point of this entry: this script asserts
-  // the callable's body really calls it, so the substitute cannot decay
-  // into a hole the way a reason-only exemption can.
+  // D451 put a server-verified reCAPTCHA in front of that, and D452 took
+  // it back out on the owner's ruling. The reasoning is worth keeping
+  // because it is about what a gate is FOR: reCAPTCHA was protecting the
+  // per-review Anthropic spend, and once the review moved to a Routine
+  // there was no per-request model call left to protect. What remains of
+  // a junk booking is one small Firestore document that never becomes a
+  // question anyone sees, because `goLive` runs on the PAYMENT webhook —
+  // so the €320 is the filter, and the owner's words are that a buyer's
+  // humanity "dosent matter… that only matters for the votes". Every vote
+  // path in this table still enforces App Check, which is exactly that
+  // distinction drawn in code.
+  //
+  // The owner's other half — that reCAPTCHA v3 is weak against current
+  // automated solvers — is true, and is the reason the swap is not a
+  // downgrade so much as the removal of a gate that was already porous
+  // guarding something that had moved away.
   bookPaidQuestionV2: {
-    gate: "assertRecaptcha",
+    gate: "assertBookingBudget",
     reason:
       "the web buy door (web/ask.html) — a browser cannot produce App Check "
-      + "attestation without a provider; gated on a server-verified "
-      + "reCAPTCHA v3 score and action instead (D451)",
+      + "attestation without a provider; gated on the per-account booking "
+      + "budget, with payment as the real filter (D451, D452)",
   },
   createPaidCheckoutV2: {
-    gate: "assertRecaptcha",
+    gate: "assertOwnApprovedBooking",
     reason:
-      "the web buy door's second hop, which opens the Stripe session — same "
-      + "caller and same substitute as bookPaidQuestionV2 (D451)",
+      "the web buy door's second hop — acts only on a booking that is "
+      + "already the caller's own and already approved, which it checks "
+      + "before opening any Stripe session (D451, D452)",
   },
 };
 
