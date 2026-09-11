@@ -49760,3 +49760,100 @@ owner's. A independently closed the adjacent hole in the same night at the
 rules layer: a profile write that simply omitted `consent` deleted the
 consent record, which would have left the published coordinate standing
 while its consent read back as "never asked".
+
+## D451 · The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding
+
+**Date:** 2026-09-11 · **Status:** adopted by the owner (four options put,
+*Use OMIB* chosen), **not yet built** — one dependency is outside the tree
+and two questions are on `OWNER-LIST.md`.
+
+**The ask.** The owner, on the v4 instrument: *"the logic test is not as
+good as a real ravens matric test, how could we get some real test
+insted?"* — then, on the options: *"i think we should use these … as they
+have to be correct from the start."* That second sentence is the binding
+one. It rules out the design the session recommended first (ship the
+generator, calibrate it on our own players as they arrive), because that
+design is a test which is not yet valid on the day it launches. Items
+whose difficulty is measured BEFORE the first user is the requirement.
+
+**A correction on the record, because the owner decided on it.** The
+session's first answer told the owner MaRs-IB was *"free to use
+commercially"*. **It is not.** The bank's own paper says the items are
+"freely available for **non-commercial** use", and the lab's page adds the
+sentence that settles it: the task "is not intended to be used to determine
+someone's intelligence or cognitive ability in, for example, educational,
+clinical or **commercial** contexts" — which is this app, described. The
+error was reading the ARTICLE's CC BY licence (which is real, and covers
+the paper) as the ITEMS' licence (which is separate, and is not CC BY).
+
+**The sweep, which is the part that took the work.** Every openly
+published matrix bank was held to one question: may a paid app ship it?
+
+| Bank | Items | Validated on | Licence as published | Usable here |
+| --- | --- | --- | --- | --- |
+| Raven's SPM · APM · Raven's 2 | 60 · 36 | the reference standard | Pearson; qualification-gated, per-administration | no |
+| MaRs-IB | 80 + clones | N = 659, then IRT at N = 1,501 | items non-commercial; ability judgement in commercial contexts named and excluded | no |
+| ICAR (matrix reasoning) | 11 | large SAPA samples | public domain **for non-commercial research** | no |
+| Sandia Matrices | 1,685 stimulus files + the 2010 norming data | Matzen et al. 2010 | **no LICENSE file at all** | no |
+| UCMRT | 23 × 3 forms | correlates with APM about as well as APM does with itself | "freely available for researchers" | no |
+| **OMIB** | **220** | **N = 2,572, IRT-calibrated** | **GPLv3** | **yes** |
+
+Sandia's row was **verified rather than read about**: the repository was
+cloned and it carries no licence file, only a README asking to be cited in
+research. A citation request is not a grant, and a public repository with
+no licence is all rights reserved. Every other row is from the banks' own
+published statements.
+
+The pattern is not an accident and is worth stating plainly: the
+restriction these labs write is aimed at precisely the use this app makes
+— an application telling a person how clever they are.
+
+**Why OMIB clears it.** 220 items (2.75× MaRs-IB), each one's difficulty
+measured on 2,572 people before we ship a line; 1 to 5 rules applied
+row-wise; and a licence its authors chose deliberately to make it the
+royalty-free bank the field did not have. It is the only bank in the sweep
+that survives the question, and it also happens to be the best-powered
+calibration of the six.
+
+**What it costs — both real, neither hidden.**
+
+1. **The answer is BUILT, not picked.** An OMIB taker constructs the
+   missing cell by selecting a subset of 20 figural elements. The overlay's
+   six raised tiles and their single tap do not survive that, so this is a
+   new screen and a new interaction — a **visual request (#13)** under
+   D352's rule, not a build. The return is arithmetic: the present form's
+   six options put ~4.2 of 25 in the guessing floor (`logic-score.ts`'s own
+   chance figure), and a constructed response puts it at approximately
+   zero, which hands back the bottom of the scale that D53's curve had to
+   model its way around.
+2. **GPLv3 is a software licence carried on pictures.** Commercial use is
+   unambiguous — that is the whole reason this row clears. Whether shipping
+   the items inside a closed app raises a source obligation is not a
+   question a session answers, and it is in the class `CLAUDE.md` keeps
+   OUTSIDE D334's ask: a licence is met by complying with it, never by
+   deciding it away. On `OWNER-LIST.md` for a real answer before anything
+   ships.
+
+**What does not change, and is the reason this is affordable.** The server
+holds the key (D57): an OMIB item would be served and scored on exactly
+the path a generated one is, so no part of the anti-cheat posture moves.
+And the era stamp already written (D61's `items`, D402's `gv`) is the
+mechanism that keeps an OMIB score from ever mixing into a generated
+population — a bank change is an era change under a rule that exists.
+
+**The generator is not deleted, and here is the arithmetic for keeping
+it.** 220 fixed items is an answer key with a slower leak than 80, not the
+absence of one, and the app permits three starts a day
+(`LOGIC_MAX_STARTS_PER_DAY`). Two things follow, each its own decision once
+OMIB is in: adaptive administration over a calibrated bank spreads exposure
+(a taker meets ~15–20 of 220 rather than a fixed 25), and the generator
+remains the only source that can mint a fresh item at a target difficulty
+for as long as the app runs. D62's ledger keeps folding either way, and
+under the era stamp the two banks' ledgers cannot contaminate each other.
+
+**Blocked, and where.** The session that recorded this could not fetch the
+bank: this environment's egress reaches neither `osf.io` (where OMIB
+lives) nor any mirror of it — probed, not assumed; `github.com` is the only
+research host that answers. The 220 items and their published item
+parameters have to arrive by another route before any of this is built.
+On `OWNER-LIST.md`.

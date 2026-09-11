@@ -438,6 +438,55 @@ that lets a buyer read them.
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
 - **status** — `requested`.
+### 13 · The logic test's answer, built rather than picked — OMIB's construction format
+
+- **title · asked by** — *Build the missing cell* · the owner, 2026-09-11,
+  choosing the Open Matrices Item Bank over three alternatives (D451),
+  on the requirement that the items be *"correct from the start"*.
+- **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), the ITEM
+  screen: today a 3×3 matrix above a row of six raised option tiles,
+  answered with one tap. OMIB's items are not answered that way — the
+  taker constructs the missing cell by selecting a subset of **20 figural
+  elements**. The tiles and their single tap do not survive the change.
+  Request 8 (the worked example) sits directly upstream and should be
+  designed against THIS format, not the retiring one; if both are drafted,
+  draft them together or 8 will teach a screen that no longer exists.
+- **data and basis** — one OMIB item: its eight visible cells, its element
+  palette, and its published difficulty. Nothing live, no aggregate, no
+  read. The answer key never reaches the device — the server mints the
+  form and scores the picks (D57), so what the screen holds is a
+  SELECTION, not a judgement about it. D1's empty state does not arise.
+- **states** — **untouched** (goal cell empty) · **partial** (some elements
+  placed — a state the tile pick never had, and the one that decides
+  whether this screen is legible) · **complete** · **submitted**. Over all
+  four: the per-item clock and the attempt deadline the overlay already
+  runs, and the verified path's server deadline.
+- **interaction** — the centre of this request, because the tile pick has
+  no answer to any of it: placing an element, REMOVING one, and knowing
+  when you are finished. Tap-to-toggle on the palette with the goal cell
+  composing live is the cheapest shape; drag-and-drop is the other, and
+  costs more on a phone. Whatever it is, "I am done" must never be
+  ambiguous — there is no Next until the taker says so, and a mis-tap must
+  be undoable without losing the rest of the cell.
+- **vocabulary** — the overlay's own tiles and accent (`LOGIC_COL`), the
+  standalone family in `design/standalone-2026-08-20/`, the two palettes
+  of D302, the copy rule D182. The hard part: OMIB items are **pictures**,
+  not `Prim` glyphs, so for the first time this overlay draws artwork it
+  did not compose. The palette, the goal cell and the imported matrix have
+  to read as one screen rather than as two applications.
+- **constraints** — 220 items of imported artwork is the binding one.
+  `check:eager-content` forbids question content in the first-paint graph
+  and `check:bundle` holds the app's ceiling, so the items are **fetched,
+  never bundled**; the overlay's lazy chunk carries the frame alone. Tap
+  targets per `check:tap-targets` with twenty elements on a 402px screen —
+  the request should say what happens when they do not fit rather than
+  leave it to the build. GPLv3 attribution has to live somewhere a reader
+  can reach it.
+- **why** — D451: the items are calibrated before launch, which is what
+  the owner asked for, and the construction format is the price the bank
+  charges. The return is on the scale itself — six options put ~4.2 of 25
+  in the guessing floor, and a constructed answer puts it near zero.
+- **status** — `requested`.
 ### 9 · The front door — one screen, three ways in
 
 - **asked by** — the owner, 2026-09-07: *"i think this app defenenetly

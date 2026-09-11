@@ -155,6 +155,8 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 - [ ] **Put `FIREBASE_API_KEY` in the routine environment's configuration**, so the scorecard refreshes inside a run. *Source:* run log #31; `PERMISSIONS.md`. Since D439 (Status: Proposed) the same fetch is what populates the fit scorecard's `fit` block on `content/scorecard.json` — the theory lanes' `measured` rung waits on this key (the axiom builder, 2026-09-03).
 - [ ] **Confirm the paid loop's three secrets are in the deploy's dotenv** — `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY` (`DEPLOYMENT.md` § Runtime environment). Without the first two nothing can be bought at all: checkout answers *"payments aren't configured on this deployment"* and the webhook answers 503; without the third every ask is reviewed on the deterministic gates alone. A session cannot read the deployed environment, so whether a sale can go through TODAY is a fact only you can check — and D374 was built on the sentence *"they don't work out of the gate"*, which this is the other half of. *Source:* D374 §3; `DEPLOYMENT.md`.
 
+- [ ] **Get the Open Matrices Item Bank into the tree — this session could not.** D451 chose OMIB as the logic test's item source on your *"they have to be correct from the start"*; the bank lives at `https://osf.io/4km79/` (220 items, their published item parameters, GPLv3) and **this environment's egress reaches neither `osf.io` nor any mirror** — probed host by host, not assumed; `github.com` is the only research host that answers here. Nothing about the new test can be built until the files exist somewhere a session can read: download the bank and commit it (or put it anywhere reachable and say where). Two things to bring back, not one — the **items** and the **item parameters**, because the parameters are the entire reason this bank was chosen over the generator. *Source:* D451.
+
 ## Designs
 
 - [ ] **The pictures on the pick tiles and the reveal** — `VISUAL-REQUESTS.md` § Built, item 11 (D421). Built 2026-09-07 on your direct ask without the canvas step; the picture sits inside the face D308 drew and the reveal's 92 px box, and the credits door is a text line. A canvas would decide the poster aspect on the reveal (a landscape box crops a portrait poster to its middle third) and the credits sheet's shape. Optional: tick, or leave it.
@@ -165,6 +167,8 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 - [ ] **Trait-axis directions on the patterns Map** — `VISUAL-REQUESTS.md` § Requested, item 1. Waits for a plan, then a draft, then you.
 - [ ] **The corner doors for earned axes** — item 2 there; the grammar is prototyped in a design before it is ported (AXES-PLAN §5.3).
 - [ ] **The fit scorecard's reader** — item 3 there; the retro's highest-leverage item, an [ask] on the worklist because its shape is a design question.
+
+- [ ] **The logic test's answer, built rather than picked** — `VISUAL-REQUESTS.md` § Requested, item 13, filed 2026-09-11 from D451. OMIB's taker constructs the missing cell out of twenty elements instead of tapping one of six tiles, so the item screen is a new interaction, not a new control. Item 8 (the worked example) is upstream of it and should be drafted in the same pass or it will teach a screen that no longer exists. Waits for a plan, then a draft, then you.
 
 ## Approvals
 
@@ -213,5 +217,7 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
       (D414)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 <!-- console:end -->
+
+- [ ] **Does GPLv3 artwork inside a closed app create a source obligation?** OMIB's 220 items are licensed GPLv3 — a SOFTWARE licence carried on pictures. Commercial use is unambiguous and is the whole reason the bank cleared the sweep where MaRs-IB, ICAR, Sandia and UCMRT did not (D451's table). What is not a session's to answer is whether shipping the items inside the app reaches the app's own source. The likely reading is mere aggregation — the items are data the app displays, not code linked into it — but *likely* is not the standard for a thing that ships. This is in the class `CLAUDE.md` keeps outside D334's ask: a licence is met by complying with it, never by deciding it away. Needs a real answer before any OMIB item ships, plus wherever the attribution has to be visible. *Source:* D451.
 
 ## Done
