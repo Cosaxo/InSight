@@ -70,6 +70,16 @@ jobs:
       # scorecard path renders. The console's own operator gate (`pulse
       # --check`) is a different thing and is on a schedule, not here (D47).
       - run: npm run test:scripts
+      # THE SERVER HALF'S DEPENDENCIES, and this job is the only one that
+      # needs them named. `npm ci` above installs the root package only,
+      # and `cache: npm` restores `~/.npm` rather than `node_modules`, so
+      # `functions/node_modules` does not exist here — the gate below
+      # typechecks files that import `firebase-admin` and
+      # `firebase-functions`, which without this step is a hundred
+      # `TS2307`s and a red lint job on every PR. It passed locally
+      # because the e2e runs had already put them there; the job the gate
+      # was deliberately placed in is the one job without them.
+      - run: npm ci --prefix functions
       # THE TYPE GATE THE SERVER'S TEST FILES NEVER HAD.
       # functions/tsconfig.json excludes `src/**/*.test.ts` — correctly, it
       # is the build that ships to Cloud Functions — and the root `tsc -b`
