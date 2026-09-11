@@ -48,9 +48,10 @@ promises review, never removal — what happens next is the verdict's to
 say, under enforcement as it was under advisory.
 
 **Circle takes mount on the reveal, and only there.** `LdReveal` renders
-the panel against yesterday's revealed question; today's card never gets
-one. Today's answer is sealed until tomorrow, and free text beside a
-sealed answer is the leak the seal exists to prevent — "obviously B"
+the panel against the last revealed round's question; the open round's
+card never gets one. An open round's answer is sealed until that round
+reveals, and free text beside a sealed answer is the leak the seal exists
+to prevent — "obviously B"
 under a question nobody has answered yet *is* the vote, in prose. Once
 names are on the answers there is nothing left to give away, which is
 also the first moment a circle has something to discuss. A split day

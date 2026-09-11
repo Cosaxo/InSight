@@ -125,8 +125,13 @@ Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
-Duel answers stay sealed until the next-day reveal, enforced as a
-`surface` test: that is game timing, not privacy.
+Duel answers stay sealed until their ROUND reveals, enforced as a
+`surface` test: that is game timing, not privacy. Not a day — D426
+replaced the calendar day with a round and D437 gave it a 48-hour
+deadline, so a 1v1 can open a second after the partner answers and a
+circle can stay sealed for two days. This paragraph said "the next-day
+reveal" until 2026-09-11, which is the cadence the copy rule four
+sections down forbids naming, in the file that states the rule.
 
 **A privacy constraint is an ASK, not a stop (D334).** Where a privacy
 argument is the only thing standing between a proposal and the tree — a
