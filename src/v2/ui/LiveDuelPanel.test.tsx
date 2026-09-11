@@ -59,7 +59,12 @@ const LIVE = vi.hoisted(() => {
     // for both — empty by default, because every case below is about one
     // day and a seeded history would put dots under all of them.
     revealHistory: () => [] as Array<Record<string, unknown>>,
-    loadRevealHistory: async (gid: string) => { void gid; },
+    // ANSWERS, not throws: `RevealHistoryRead` is "ok" | "failed" | "busy"
+    // (live.ts), and the panel reads that word. The stub declared
+    // `Promise<void>`, which is why a case could not hand it a "failed"
+    // without tsc refusing the assignment — and why nothing here had ever
+    // tried, which is how the voided read stayed unnoticed.
+    loadRevealHistory: async (gid: string): Promise<"ok" | "failed" | "busy"> => { void gid; return "ok"; },
     // The create-or-join pair. Both take the display name as an OPTIONAL
     // third argument since D190 — the screen sends one only when it had to
     // ask, and the callable reads the profile otherwise.
@@ -1272,7 +1277,7 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     // REVEAL_HIST_CAP doc reads per circle per session, on the app's FIRST
     // screen. Anyone with three circles would pay for forty documents to
     // look at today's question.
-    const load = vi.fn(async (gid: string) => { void gid; });
+    const load = vi.fn(async (gid: string) => { void gid; return "ok" as const; });
     LIVE.social.loadRevealHistory = load;
     LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
     render(<LiveDuelPanel mode="duo" />);
@@ -1280,7 +1285,7 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
   });
 
   it("fetches them on the tap that asks for them", async () => {
-    const load = vi.fn(async (gid: string) => { void gid; });
+    const load = vi.fn(async (gid: string) => { void gid; return "ok" as const; });
     LIVE.social.loadRevealHistory = load;
     LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
     render(<LiveDuelPanel mode="duo" />);
