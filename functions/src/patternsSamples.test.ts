@@ -136,7 +136,13 @@ describe("the stamp on a row (DATA-EFFICIENCY-RUNBOOK 2.2)", () => {
 
 describe("sampleAdditions", () => {
   it("groups a day's compacted answers by question, people in uid order, chips attached where the entry had them", () => {
-    const byUid = new Map([
+    // ANNOTATED, because inference reads the two literals as different
+    // shapes and the union it builds is not an AnswerMap — `qb` comes out
+    // optional, which is the one thing a map of qid → optionIdx may not
+    // be. The fold reads every value as a number; a fixture whose type
+    // says "possibly undefined" is a fixture the real caller could never
+    // hand it.
+    const byUid = new Map<string, Record<string, number>>([
       ["u2", { qa: 1, qb: 0 }],
       ["u1", { qa: 0 }],
     ]);

@@ -1026,7 +1026,7 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
     } as unknown as Parameters<typeof firestoreAttentionStore>[0];
 
     const store = firestoreAttentionStore(db);
-    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: 3 }, q: {}, qOther: 0 }, ["shard1"]);
+    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: { reach: 3, est: 3 } }, q: {}, qOther: 0 }, ["shard1"]);
     expect(calls[0].data.attn.s, "the guard removed a real counter map").toBeTruthy();
   });
 
@@ -1087,7 +1087,7 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
       day: "2026-08-25", actives: 3, firstTime: 1, votes: 4, events: 5,
       bySurface: { daily: 3 },
       returned: {
-        d1: { of: 2, came: 1 }, d7: { of: 0, came: 0 }, d30: { of: 0, came: 0 },
+        d1: { of: 2, returned: 1 }, d7: { of: 0, returned: 0 }, d30: { of: 0, returned: 0 },
       },
       streaksBroken: 0,
     });
@@ -1197,7 +1197,7 @@ describe("the digest's ledger read (D399)", () => {
   // built with, which in production is the night's shared memo.
   it("ledgerDay is the reader the store was built with (D399: one read a night, three folds)", async () => {
     const asked: string[] = [];
-    const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
+    const reader = async (day: string) => { asked.push(day); return [{ id: "ev1", at: 1_756_000_000_000, uid: "u1", qid: "daily-000" }]; };
     const db = {
       // firestoreEngagementStore takes a metaRef off its first collection
       // before returning; ledgerDay never touches it.
@@ -1205,7 +1205,7 @@ describe("the digest's ledger read (D399)", () => {
     } as unknown as Parameters<typeof firestoreEngagementStore>[0];
     const rows = await firestoreEngagementStore(db, reader).ledgerDay("2026-08-25");
     expect(asked).toEqual(["2026-08-25"]);
-    expect(rows).toEqual([{ uid: "u1", qid: "daily-000" }]);
+    expect(rows).toEqual([{ id: "ev1", at: 1_756_000_000_000, uid: "u1", qid: "daily-000" }]);
   });
 });
 

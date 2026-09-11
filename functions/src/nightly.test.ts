@@ -94,7 +94,7 @@ describe("runNightlyPass", () => {
     const start = 1_000_000;
     let now = start;
     const base = r.velocity;
-    r.velocity = async () => { now += 200_000; return base(); };
+    r.velocity = async (deadlineAt: number) => { now += 200_000; return base(deadlineAt); };
     await runNightlyPass(r, recorder().log, () => now);
     expect(r.deadlineOf.fanout, "a late start erased the fold's slice").toBe(now + FANOUT_HEAL_SLICE_MS);
     expect(r.deadlineOf.fanout).toBeGreaterThan(now);
@@ -111,7 +111,7 @@ describe("runNightlyPass", () => {
     const start = 1_000_000;
     let now = start;
     const base = r.velocity;
-    r.velocity = async () => { now += 300_000; return base(); };
+    r.velocity = async (deadlineAt: number) => { now += 300_000; return base(deadlineAt); };
     await runNightlyPass(r, recorder().log, () => now);
     const ceiling = start + PASS_CEILING_MS - PASS_TAIL_MS;
     expect(r.deadlineOf.rollup, "the last fold was allowed past the kill").toBe(ceiling);
