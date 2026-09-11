@@ -124,6 +124,55 @@ describe("the link (D378) and the quote", () => {
 //
 // Nothing pinned any of it: erasing the notice outright left all of
 // test:scripts green, because no case here had ever tapped Pay.
+describe("the currency switch and the amount actually charged", () => {
+  const toNOK = () => {
+    const chips = [...document.querySelectorAll("#currencies button")];
+    const nok = chips.find((b) => b.textContent === "NOK");
+    expect(nok, "the page offers no NOK chip — the fixture, not the subject").toBeTruthy();
+    nok.click();
+  };
+
+  const quoteIt = () => {
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+  };
+
+  it("names the charge in euro, exactly, whatever currency the page is showing", () => {
+    // Stripe charges `Math.round(capEur * 100)` cents in EUR whatever this
+    // page displays (paid.ts's checkoutLineItem), so the two sites that
+    // name the CHARGE are not conversions. They printed one: with the €5
+    // budget in NOK the cap read "60 kr" — fmtWhole's round-to-ten band
+    // over a true 58 — above a debit of €5.00.
+    //
+    // The app settled this one surface over and said why: "converting here
+    // would put an approximation on the one number that is exact"
+    // (data/pricing.ts's fmtExact). quote-copy.test.mjs pins that for the
+    // in-app control and lists no page under web/, which is how the page
+    // that takes the money became the one surface not held to the rule.
+    toNOK();
+    quoteIt();
+    expect(sp($("qCap").textContent), "the charge was converted").toBe("€5");
+    expect(sp($("refundLine").textContent)).toMatch(/charged €5 now/);
+  });
+
+  it("marks every figure the fx table converted, and marks none in euro", () => {
+    // The table is committed and dated — a convenience, not the contract —
+    // and the page printed converted figures as if they were exact.
+    toNOK();
+    expect(sp($("scopeRate").textContent), "a converted rate was printed as exact").toMatch(/^≈ /);
+    quoteIt();
+    expect(sp($("qRate").textContent)).toMatch(/^≈ /);
+    // …and the euro path carries no mark at all.
+    const eur = [...document.querySelectorAll("#currencies button")].find((b) => b.textContent === "EUR");
+    eur.click();
+    expect(sp($("scopeRate").textContent), "euro was marked as an approximation").not.toMatch(/≈/);
+  });
+});
+
 describe("what the quote promises about its own price", () => {
   it("does not call the quote locked before the question is approved", () => {
     // The page prices off the COMMITTED card; the server re-reads demand

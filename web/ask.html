@@ -391,9 +391,35 @@
     else if (v >= 10) v = Math.round(v);
     else v = Math.round(v * 100) / 100;
     var s = v >= 10 ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : v.toFixed(2);
-    return c.pre ? c.sym + s : s + " " + c.sym;
+    return approx(c, c.pre ? c.sym + s : s + " " + c.sym);
   }
   function n(v) { return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  // THE AMOUNT ACTUALLY DEBITED, and it is never converted. Stripe charges
+  // `Math.round(capEur * 100)` cents in EUR (functions/src/paid.ts's
+  // checkoutLineItem) whatever currency this page is showing, so the two
+  // sites that name the charge print euro, exactly. The app settled this
+  // one surface over and wrote down why: "the charge is in euro whatever
+  // currency the card elsewhere is showing, so converting here would put
+  // an approximation on the one number that is exact" (data/pricing.ts's
+  // `fmtExact`, pinned for the in-app control by scripts/quote-copy.test.mjs
+  // — which lists no page under web/, which is how the page that takes the
+  // money became the one surface not held to the rule).
+  //
+  // Measured 2026-09-11: a 10 euro budget in NOK printed "Charged now:
+  // 120 kr" and "You are charged 120 kr now." The card's own rate is 11.6,
+  // so 10 euro is 116 kr — overstated 3.4% by fmtWhole's round-to-ten
+  // band — and the debit was 10.00 euro either way.
+  function fmtEur(eur) {
+    var cents = Math.round(eur * 100);
+    var whole = Math.trunc(cents / 100);
+    var rest = Math.abs(cents % 100);
+    var body = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, "\u2009");
+    return "\u20ac" + (rest ? body + "." + String(rest).padStart(2, "0") : body);
+  }
+  // "\u2248" on anything the fx table converted, nothing on euro. The table is
+  // committed and dated — a convenience, not the contract — and this page
+  // printed every converted figure as if it were exact.
+  function approx(c, out) { return c.rate === 1 ? out : "\u2248 " + out; }
   // A budget is a whole-euro figure and prints as one — "€5", never
   // "€5.00" beside "€10": the cents band in fmt is for the per-answer
   // line, where the cents are the price.
@@ -404,7 +430,7 @@
     else if (v >= 100) v = Math.round(v / 10) * 10;
     else v = Math.round(v);
     var out = n(v);
-    return c.pre ? c.sym + out : out + " " + c.sym;
+    return approx(c, c.pre ? c.sym + out : out + " " + c.sym);
   }
 
   function cohort() { return st.P.cohorts[st.scope]; }
@@ -694,7 +720,7 @@
     $("quotePrompt").textContent = st.prompt;
     $("qAudience").textContent = P.cohorts[st.scope].label;
     $("qRate").textContent = fmt(r);
-    $("qCap").textContent = fmtWhole(budget());
+    $("qCap").textContent = fmtEur(budget());
     $("qAnswers").textContent = "up to " + n(a);
     var dom = linkDomain(st.link.trim());
     $("qLinkLabel").hidden = !dom;
@@ -703,10 +729,10 @@
 
     $("refundLine").hidden = state === "declined";
     $("refundLine").textContent =
-      "You are charged " + fmtWhole(budget()) + " now. The question runs for "
+      "You are charged " + fmtEur(budget()) + " now. The question runs for "
       + P.refundDays + " days; if it is answered " + n(served) + " times instead of "
       + n(a) + ", the " + n(a - served) + " unserved answers come back to you as "
-      + fmt((a - served) * r) + ". Nobody has to ask.";
+      + fmtEur((a - served) * r) + ". Nobody has to ask.";
 
     $("declineReason").hidden = state !== "declined";
     $("declineReason").textContent =
