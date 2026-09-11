@@ -564,7 +564,23 @@ if (AS_JSON) {
     console.log(`    A sale can complete today: ${paidPath.canSell ? "YES" : "NO"}`
       + (paidPath.canSell ? "" : " — checkout answers `unavailable` and the webhook 503s,"));
     if (!paidPath.canSell) console.log("      so a buyer reaches an approved quote and a dead end, and nothing pages.");
-    console.log(`    Reviews use Claude's judgement: ${paidPath.reviewJudged ? "YES" : "NO — deterministic gates alone (paid_review_gates_only)"}`);
+    // WHAT "NO KEY" MEANS CHANGED THE SAME DAY THIS LINE WAS WRITTEN. D454
+    // printed "deterministic gates alone (paid_review_gates_only)", which
+    // was the behaviour until D456: the gates never read the WORDS, so a
+    // keyless deployment approved whatever arrived. D456 made a keyless
+    // runtime DEFER instead — the booking stays in `review`, which is the
+    // Routine's queue — and kept gates-only for the emulator alone, keyed
+    // on FUNCTIONS_EMULATOR, which nothing can set into a deployed
+    // runtime. So `paid_review_gates_only` can no longer appear in the
+    // runtime this script reads, and the old sentence told an operator
+    // that unreviewed questions were going out when the truth is the
+    // opposite and quieter: a queue nobody is emptying.
+    console.log(`    Reviews settle inside the request: ${paidPath.reviewJudged
+      ? "YES — Claude's judgement"
+      : "NO — every booking is HELD for the review Routine (paid_review_deferred)"}`);
+    if (!paidPath.reviewJudged) {
+      console.log("      Nothing publishes until that queue is emptied: `node scripts/paid-review.mjs --list`.");
+    }
   }
   if (paidPath.status === "ok" && paidPath.webhookUrl) {
     console.log(`\n    stripeWebhookV2 → ${paidPath.webhookUrl}`);

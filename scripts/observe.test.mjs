@@ -400,10 +400,13 @@ describe("the money path, read from the deployment", () => {
   });
 
   it("answers CAN A SALE COMPLETE on the two that stop one, not on all three", async () => {
-    // ANTHROPIC_API_KEY unset removes the judgement half of the review and
-    // stops nothing, so folding it into the verdict would report a working
-    // loop as broken. Runbook 5.14 names it as the one to check rather than
-    // assume, which is a separate line, not a separate outcome.
+    // ANTHROPIC_API_KEY unset does not stop a sale, so folding it into the
+    // verdict would report a working loop as broken. Runbook 5.14 names it
+    // as the one to check rather than assume, which is a separate line, not
+    // a separate outcome. What that line SAYS moved at D456: a keyless
+    // deployed runtime defers the booking to the review Routine rather than
+    // approving it on gates that never read the words, and this assertion
+    // pinned the retired sentence.
     reply["cloudfunctions.googleapis.com"] = paidFns({
       STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x",
     });
@@ -412,7 +415,10 @@ describe("the money path, read from the deployment", () => {
     expect(j.paidPath.reviewJudged).toBe(false);
     const out = await observe();
     expect(out).toContain("A sale can complete today: YES");
-    expect(out).toContain("deterministic gates alone");
+    expect(out).toContain("HELD for the review Routine");
+    expect(out).toContain("paid_review_deferred");
+    expect(out, "the retired gates-only posture is still being reported")
+      .not.toContain("paid_review_gates_only");
   });
 
   it("says NO when the two that stop a sale are unset", async () => {
