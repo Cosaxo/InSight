@@ -1504,6 +1504,13 @@ export type CanonCounts = Record<string, number>;
 //
 // It can no longer return null: there is nothing left that can suppress
 // every row, so an empty board is just an empty catalogue question.
+/** The published board's size — the CANON_TOP_N biggest entities, the
+ * rest folded into one bucket (D14). Here rather than in v2.ts (which
+ * re-exports it) since D459, because the Patterns fit caps a catalogue
+ * question's items at the same number, and pure.ts is the one module
+ * both may import. */
+export const CANON_TOP_N = 10;
+
 export function canonTopN(
   ent: CanonCounts,
   topN: number,

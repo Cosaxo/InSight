@@ -42,6 +42,7 @@
 import React from "react";
 import LIVE from "../data/live";
 import PATTERNS, { type OracleRecord, type PoolItem, type Working } from "../data/patterns";
+import { DIM_LABEL } from "../data/cohort";
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
@@ -56,6 +57,21 @@ const OR_CAP_BITS = 2.6; // a mark this surprising is full height
 const OR_MASS_FULL = 0.5;
 const OR_MASS_GAMMA = 0.62; // compresses the per-question jitter in that ramp
 const OR_LAND_MS = 780; // travel + settle, when the verdict glyph resolves
+// The record says how it is doing against plain guessing once it holds
+// this many graded answers with a base rate (D460) — the server
+// scorecard's own floor (PATTERNS_QUALITY_FLOOR), so a person's number
+// is held to the same basis the crowd's is. Under it the sentence is not
+// printed: two answers is a coin's run, not a reading.
+const OR_SKILL_BASIS = 8;
+/** The record's one number, in words with its basis: the share of plain
+ * guessing's surprisal the Oracle removed — or added — over the answers
+ * that stored a base rate. A claim with its basis (D146), outside the
+ * field (no percentage is printed IN the field, 2026-09-06). */
+function orSkillLine(m: { skill: number; based: number }): string | null {
+  if (m.based < OR_SKILL_BASIS) return null;
+  const pct = Math.round(Math.abs(m.skill) * 100);
+  return `${pct}% ${m.skill >= 0 ? "better" : "worse"} than plain guessing · ${m.based} answers`;
+}
 
 interface Topic { id: string; label: string; color: string }
 const orTopic = (cat: string | null | undefined): Topic | undefined =>
@@ -186,10 +202,13 @@ function OrLedger({ log, qOf, sel, onPick, group, topIx }: {
 // the retrospective: the record re-laid as the reading. The strip below
 // IS the per-topic breakdown (grouped, hue = topic); the sentence above
 // names its tallest mark. No second axis, no rows that hold one mark.
-function OrDone({ log, qOf, anyOpen }: {
+function OrDone({ log, qOf, anyOpen, skill }: {
   log: readonly OracleRecord[];
   qOf: (qid: string) => PoolItem | undefined;
   anyOpen: boolean;
+  /** The meter's verdict on this viewer (D460), printed with its basis
+   * once it has one. */
+  skill?: string | null;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<number | null>(null);
   // the record's one mark worth naming: your biggest break — or, when it
@@ -217,6 +236,9 @@ function OrDone({ log, qOf, anyOpen }: {
           </div>
         )}
         <OrLedger log={log} qOf={qOf} sel={sel} onPick={setSel} group={true} topIx={topIx}></OrLedger>
+        {skill && (
+          <div className="or-skill" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--accent-ink)", textAlign: "center", marginTop: 8 }}>{skill}</div>
+        )}
         {log.length > 0 && (
           <div className="or-cap" aria-hidden="true">
             <i className="or-cap-up"></i><span>you broke its guess</span>
@@ -261,7 +283,11 @@ export default function PatternsOracle({ items, guide = false }: {
   );
   const curItem = rec ? qOf(rec.qid) : PATTERNS.nextAsk() ?? undefined;
   const curId = curItem?.q.id ?? null;
-  const log = PATTERNS.meter().records;
+  const meter = PATTERNS.meter();
+  const log = meter.records;
+  // the meter's fields are optional at the seam so an older stand-in of
+  // the store (the tab's tests) reads as "no basis yet"
+  const skillLine = orSkillLine({ skill: meter.skill ?? 0, based: meter.based ?? 0 });
 
   // the sealed reading, taken once per question so the disc does not
   // resize under you at the reveal — and the gate on every tap below:
@@ -317,7 +343,7 @@ export default function PatternsOracle({ items, guide = false }: {
         </div>
       );
     }
-    return <OrDone log={log} qOf={qOf} anyOpen={anyOpen} />;
+    return <OrDone log={log} qOf={qOf} anyOpen={anyOpen} skill={skillLine} />;
   }
 
   const q = curItem.q;
@@ -514,22 +540,48 @@ export default function PatternsOracle({ items, guide = false }: {
             <span className="or-proof-kick">its working</span>
             {work === "pending" ? (
               <span className="or-ev-none">Reading the crowd…</span>
-            ) : work && work.rows.length ? work.rows.map((r, k) => {
-              const evq = qOf(r.evId);
-              if (!evq) return null;
-              const wmax = work.rows[0].w || 1;
+            ) : work && (work.rows.length || (work.prior ?? []).length) ? (() => {
               const evFill = th != null ? `oklch(0.78 0.07 ${th})` : "color-mix(in oklab, var(--ink), var(--surface-2) 35%)";
+              const wmax = work.rows[0]?.w || 1;
+              const called = q.options[rec.pred]?.label;
               return (
-                <div className="or-ev" key={r.evId} style={{ animationDelay: `${k * 80}ms` }}>
-                  <span className="or-ev-q">You said <b>{evq.q.options[r.side]?.label}</b>{" — "}{"“" + evq.q.text + "”"}</span>
-                  <span className="or-ev-row">
-                    <span className="or-ev-bar"><i style={{ width: `${Math.round(r.share * 100)}%`, background: evFill, opacity: 0.55 + 0.45 * Math.min(1, r.w / wmax) }}></i><em></em></span>
-                    <span className="or-ev-word">{orWord(r.share)} pick <b>{q.options[rec.pred]?.label}</b> · {r.n} in both samples</span>
-                  </span>
-                </div>
+                <>
+                  {work.rows.map((r, k) => {
+                    const evq = qOf(r.evId);
+                    if (!evq) return null;
+                    return (
+                      <div className="or-ev" key={r.evId} style={{ animationDelay: `${k * 80}ms` }}>
+                        <span className="or-ev-q">You said <b>{evq.q.options[r.side]?.label}</b>{" — "}{"“" + evq.q.text + "”"}</span>
+                        <span className="or-ev-row">
+                          <span className="or-ev-bar"><i style={{ width: `${Math.round(r.share * 100)}%`, background: evFill, opacity: 0.55 + 0.45 * Math.min(1, r.w / wmax) }}></i><em></em></span>
+                          <span className="or-ev-word">{orWord(r.share)} pick <b>{called}</b> · {r.n} in both samples</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {/* the groups that carried the call (D457): the viewer's
+                      own bucket in a dim, and of that cell's answers on this
+                      question how many took the called side — the seal's
+                      starting point, shown with its basis like the answers
+                      above it */}
+                  {(work.prior ?? []).map((r, k) => (
+                    <div className="or-ev" key={"prior:" + r.dim} style={{ animationDelay: `${(work.rows.length + k) * 80}ms` }}>
+                      <span className="or-ev-q">{DIM_LABEL[r.dim] ?? r.dim} <b>{r.bucket}</b>{" — "}how your group splits here</span>
+                      <span className="or-ev-row">
+                        <span className="or-ev-bar"><i style={{ width: `${Math.round(r.share * 100)}%`, background: evFill, opacity: 0.55 }}></i><em></em></span>
+                        <span className="or-ev-word">{orWord(r.share)} pick <b>{called}</b> · {r.n} answers from that group</span>
+                      </span>
+                    </div>
+                  ))}
+                </>
               );
-            }) : work && !work.hadEv ? (
+            })() : work && !work.hadEv && !work.hadPrior ? (
               <span className="or-ev-none">Nothing in your answers pointed either way here — the call is the crowd’s own lean, and the faint ink says so.</span>
+            ) : work && !work.hadEv ? (
+              // groups spoke at the seal but none leaned far enough to show
+              // as a row, and no answer moved it: the call is that lean,
+              // which is close to the crowd's — not the crowd's own
+              <span className="or-ev-none">Your groups split much as the crowd does here, and nothing in your answers pointed either way — the call is that lean.</span>
             ) : work && work.failed ? (
               // Not a fact about the crowd. This used to print the sample
               // sentence, so a refused read read as a thin one.
@@ -541,7 +593,7 @@ export default function PatternsOracle({ items, guide = false }: {
             ) : (
               <span className="or-ev-none">The answers that moved it don’t have enough shared voters to count in the open — under 12 in both samples.</span>
             )}
-            <span className="or-proof-base">sealed before your tap · counted only from answers you’d already given · the mark is the coin</span>
+            <span className="or-proof-base">sealed before your tap · counted from answers you’d already given and how your groups split · the mark is the coin</span>
           </div>
         )}
         {/* the record; its key joins the guide (2026-09-06) — the counts
@@ -549,6 +601,9 @@ export default function PatternsOracle({ items, guide = false }: {
         <div style={{ flex: "none", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--rule)" }}>
           <div className="pt-kick">
             Your record · {log.length} answer{log.length === 1 ? "" : "s"}
+            {/* the verdict, once the record has a basis (D460): outside
+                the field, with its count, the reading of the marks */}
+            {skillLine && <>{" · "}<span style={{ textTransform: "none", letterSpacing: 0 }}>{skillLine}</span></>}
             {guide && <>
               {" · "}
               <span style={{ fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>up = you broke it, tick = it had you</span>

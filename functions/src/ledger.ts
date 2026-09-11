@@ -37,9 +37,13 @@ export interface LedgerDayEntry {
    *  Its absence is what marks an entry as a first answer. */
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the nightly voter samples
-   *  (D397). Absent on entries written before the field, and on catalog
-   *  entries. */
+   *  (D397). Absent on entries written before the field; on catalog
+   *  entries since D459. */
   anchors?: Record<string, string>;
+  /** A catalogue pick's canonical entity key (D459) — the fit's own
+   *  reading of a `pick` answer, the way `optionIdx` is of a vote. Absent
+   *  on every other arm, and on catalog entries written before it. */
+  entity?: string;
   /** The author's display name as the create trigger read it off the
    *  profile (DATA-EFFICIENCY-RUNBOOK 2.1) — present only on a stamped
    *  entry, "" for an account with no name. The sample row copies it. */
@@ -140,7 +144,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     // undefined at every reader — no error, no log, just a fold that
     // quietly stops distinguishing an edit from a first answer. Pinned in
     // ledger.test.ts against the interface itself.
-    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "n", "s", "l", "at")
+    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "entity", "n", "s", "l", "at")
     .limit(PAGE);
   for (;;) {
     const snap = await query.get();
@@ -156,6 +160,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
           : rawAt instanceof Date ? rawAt.getTime() : 0,
         ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
         ...(d.get("anchors") ? { anchors: d.get("anchors") as Record<string, string> } : {}),
+        ...(typeof d.get("entity") === "string" ? { entity: d.get("entity") as string } : {}),
         // The stamp travels as a unit: `n` present means the entry was
         // stamped, and then `s` and `l` are what was read (null included).
         ...(typeof d.get("n") === "string"

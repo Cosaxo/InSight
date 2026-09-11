@@ -7179,11 +7179,37 @@ const LIVE = {
    * Same walk as aggregated(): every aggregate here is already cached for
    * the feed card that displayed it, so this is no new read.
    */
+  /**
+   * The catalogue cards, as much of one as a Map BEAD needs (D464): the
+   * id, the prompt, the topic and the domain its entities are named from.
+   *
+   * Not a `LiveQuestion` and not through `buildS`, which maps `q.options`
+   * — a catalogue question has none, and the board it does have is the
+   * feed's own surface. The Patterns tab joins this against the published
+   * pick rows; nothing here reads an aggregate, so it costs no read.
+   */
+  catalogCards: perRev((): { id: string; text: string; cat: string | null; domain: string | null }[] =>
+    state.feedBank
+      .filter((q) => q.type === "catalog" && q.active !== false)
+      .map((q) => ({ id: q.id, text: q.prompt, cat: q.topic ?? null, domain: q.domain ?? null }))),
   coreFeedAggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.feedBank
+      // EVERY OPTION-SHAPED THING THE FIT FOLDS, not two options alone
+      // (D464): the Map draws a dot per published row now, so a
+      // three-option choice and a scale have beads to place, and both are
+      // core feed questions the nightly fitted. `pool()` keeps its own
+      // two-option filter, so the Oracle and the People lens are unmoved —
+      // this widens what is AVAILABLE, not what they read.
+      //
+      // NOT catalogue cards, which have no `options` at all: `buildS` maps
+      // that array. The first draft admitted them here and threw inside
+      // the boot's own wake, which `vote.test.ts` caught two files away as
+      // a live build that stayed disabled. `catalogCards` below is their
+      // way through, and it builds what a bead needs rather than a card.
       .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
-        && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
+        && (q.options || []).length >= 2
+        && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   }),
   /**

@@ -10,6 +10,7 @@ import {
   foldPeople,
   peopleFetchSet,
   PEOPLE_ALIKE,
+  PEOPLE_RMAX,
   PEOPLE_MIN_SHARED,
   PEOPLE_QUESTIONS,
   PEOPLE_C,
@@ -85,6 +86,22 @@ describe("the basis the card states", () => {
   });
 });
 
+describe("the fetch set (D461)", () => {
+  it("asks for the daily's lists first, then the strongest basis, then by id", () => {
+    const items: PeopleItem[] = [
+      item("feed-big", { surface: "feed", n: 500 }),
+      item("daily-small", { surface: "daily", n: 20 }),
+      item("daily-mid", { surface: "daily", n: 60 }),
+      item("feed-mid", { surface: "feed", n: 60 }),
+      item("open", { surface: "daily", n: 900, mine: null }),
+    ];
+    expect(peopleFetchSet(items)).toEqual(["daily-mid", "daily-small", "feed-big", "feed-mid"]);
+    expect(peopleFetchSet(items, 2)).toEqual(["daily-mid", "daily-small"]);
+    // an item that names no surface sorts with the feed, by basis
+    expect(peopleFetchSet([item("a", { n: 10 }), item("b", { surface: "daily", n: 5 })])).toEqual(["b", "a"]);
+  });
+});
+
 describe("foldPeople", () => {
   const field = foldPeople(ITEMS, FETCHED, rowsOf);
   const by = new Map(field.placed.map((p) => [p.uid, p]));
@@ -133,6 +150,29 @@ describe("foldPeople", () => {
     expect(wide.answered).toBe(base.answered);
     // an empty list means "solve me like everyone else"
     expect(foldPeople(ITEMS, FETCHED, rowsOf, { viewerObs: [] }).me).toEqual(base.me);
+  });
+
+  it("solves a stranger from their frozen chips against the fit's anchor rows (D458), and counts nothing extra", () => {
+    const base = foldPeople(ITEMS, FETCHED, rowsOf);
+    const pyOf = (f: ReturnType<typeof foldPeople>, uid: string) => f.placed.find((p) => p.uid === uid)!.py;
+    // an Oslo row along axis 1: everyone in this crowd is from Oslo, so
+    // every dot leans further that way than it did — and the counts
+    // beside the names do not move
+    const oslo = foldPeople(ITEMS, FETCHED, rowsOf, { anchorRows: [{ dim: "city", bucket: "Oslo, NO", L: [0, 1], marginal: 0 }] });
+    expect(oslo.placed.map((p) => p.uid)).toEqual(base.placed.map((p) => p.uid));
+    expect(oslo.placed.every((p) => p.py > pyOf(base, p.uid))).toBe(true);
+    expect(oslo.placed.map((p) => [p.agree, p.shared])).toEqual(base.placed.map((p) => [p.agree, p.shared]));
+    // a Bergen row: everyone carries the dim with another value, −1, and
+    // leans the other way
+    const bergen = foldPeople(ITEMS, FETCHED, rowsOf, { anchorRows: [{ dim: "city", bucket: "Bergen, NO", L: [0, 1], marginal: 0 }] });
+    expect(bergen.placed.every((p) => p.py < pyOf(base, p.uid))).toBe(true);
+    // a dim nobody filled in is no observation at all
+    const gender = foldPeople(ITEMS, FETCHED, rowsOf, { anchorRows: [{ dim: "gender", bucket: "Woman", L: [0, 1], marginal: 0 }] });
+    expect(gender.placed.map((p) => [p.px, p.py])).toEqual(base.placed.map((p) => [p.px, p.py]));
+    // the card's own count is still the viewer's two-option answers (the
+    // viewer's DRAWN spot can shift a pixel or two — the de-overlap pass
+    // nudges every dot against the crowd, and the crowd moved)
+    expect(oslo.answered).toBe(base.answered);
   });
 
   it("names the tie by the RAREST shared answer, with its crowd share", () => {
@@ -316,5 +356,69 @@ describe("the rows that say most like you", () => {
       .toBeLessThan(dist(byName.XENA));
     // …so the rows must lead with the one who agrees, not the one nearby.
     expect(f.alike[0].name, "the rows crowned the person who agrees least").toBe("XENA");
+  });
+});
+
+describe("the published crowd (D462)", () => {
+  // Five questions (so the sample floor of four is clearable), a crowd of
+  // two in the samples, and a nightly document that also carries two
+  // people who share nothing with the viewer.
+  const QS = ["q0", "q1", "q2", "q3", "q4"];
+  const items = QS.map((qid, i) => ({
+    qid,
+    L: i % 2 === 0 ? [1, 0] : [0, 1],
+    marginal: 0,
+    mine: 1,
+    optionLabels: ["Yes", "No"],
+    n: 40,
+    surface: "daily" as const,
+  }));
+  const rows = (qid: string) => ([
+    { uid: "me", optionIdx: 0, name: "Me", anchors: {}, isMe: true },
+    { uid: "a", optionIdx: 0, name: "Ada", anchors: {}, isMe: false },
+    { uid: "b", optionIdx: qid === "q0" ? 1 : 0, name: "Bo", anchors: {}, isMe: false },
+  ]);
+  const world = [
+    { uid: "a", x: 0.9, y: 0.1, n: 55 },     // already in the samples
+    { uid: "w1", x: -0.8, y: 0.2, n: 31 },
+    { uid: "w2", x: 0.3, y: -0.7, n: 12 },
+    { uid: "me", x: 0, y: 0, n: 99 },        // the viewer's own row
+  ];
+
+  it("places people the samples never saw, and never twice", () => {
+    const f = foldPeople(items, QS, rows, { world });
+    expect(f.placed.map((p) => p.uid).sort(), "the viewer is their own dot, not one of the crowd")
+      .toEqual(["a", "b", "w1", "w2"]);
+    const a = f.placed.find((p) => p.uid === "a")!;
+    expect(a.from, "a person in both is drawn from the answers, which carry the counts").toBe("solved");
+    expect(a.shared).toBe(5);
+    expect(a.answers, "…and the published row still lends its answer count").toBe(55);
+    const w1 = f.placed.find((p) => p.uid === "w1")!;
+    expect(w1.from).toBe("published");
+    expect(w1.shared, "a position is not evidence — nothing is claimed").toBe(0);
+    expect(w1.agree).toBe(0);
+    expect(w1.tie).toBeNull();
+    expect(w1.answers).toBe(31);
+    expect(w1.px).toBe(-0.8);
+    expect(w1.py).toBe(0.2);
+  });
+
+  it("no floor applies to a published dot — that is the whole feature", () => {
+    // one fetched question, so nobody clears the sample floor of four;
+    // the published three draw anyway, which is what the document is for
+    const f = foldPeople(items, ["q0"], rows, { world });
+    expect(f.placed.every((p) => p.from === "published")).toBe(true);
+    expect(f.placed.map((p) => p.uid).sort()).toEqual(["a", "w1", "w2"]);
+    expect(f.minShared, "the sample floor is unchanged, and still stated").toBe(PEOPLE_MIN_SHARED);
+  });
+
+  it("frames the disc around the published crowd too", () => {
+    const near = foldPeople(items, QS, rows, {});
+    const far = foldPeople(items, QS, rows, { world: [{ uid: "w9", x: 1, y: 0, n: 20 }] });
+    const w9 = far.placed.find((p) => p.uid === "w9")!;
+    expect(Math.hypot(w9.x - PEOPLE_C, w9.y - PEOPLE_C)).toBeLessThanOrEqual(PEOPLE_RMAX + 0.01);
+    const beforeA = near.placed.find((p) => p.uid === "a")!;
+    const afterA = far.placed.find((p) => p.uid === "a")!;
+    expect(afterA.px, "position is the data — only the framing moved").toBe(beforeA.px);
   });
 });
