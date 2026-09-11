@@ -1067,7 +1067,16 @@
     var d = {
       kind: "question",
       prompt: st.prompt.trim(),
-      type: st.type,
+      // THROUGH wireType(), which existed for exactly this and was never
+      // called. `st.type` is the COMPOSER's name for the control — it
+      // starts at "pick" (TYPES[0], selected on first paint) — and the
+      // server's PAID_TYPES is `binary · choice · scale · rating ·
+      // dilemma`. So the flagship 2-4 option form, the one a buyer lands
+      // on, was refused by validatePaidBooking with "pick one of the
+      // question forms", printed under the button to someone looking at a
+      // pressed "Pick one" chip. Its two siblings happen to share a name
+      // with the wire, which is why this looked like it worked.
+      type: wireType(),
       options: T.max ? st.opts.map(function (o) { return o.trim(); }).filter(Boolean) : [],
       scope: scopeKey(),
       dims: {},

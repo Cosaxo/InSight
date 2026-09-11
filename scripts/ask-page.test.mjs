@@ -385,6 +385,44 @@ describe("the pay tap with keys", () => {
     expect(calls.some((u) => u.indexOf("accounts:signUp") >= 0)).toBe(true);
   });
 
+  it("sends a question form the SERVER accepts, on the form it opens on", async () => {
+    // `st.type` is the COMPOSER's name for the control and starts at
+    // "pick" — TYPES[0], selected on first paint. The server's
+    // PAID_TYPES has no "pick". `wireType()` exists to map it to
+    // binary/choice by option count and had ZERO call sites, so the
+    // flagship form refused every booking with "pick one of the question
+    // forms", printed under the button to a buyer looking at a pressed
+    // "Pick one" chip. Its two siblings happen to share a name with the
+    // wire, which is why this looked like it worked.
+    //
+    // The accepted set is READ OUT OF THE SERVER rather than copied here:
+    // a literal list would agree with the page the day it was written and
+    // drift the day PAID_TYPES changes, which is the same shape of
+    // mistake as the one under test.
+    const src = readFileSync(join(ROOT, "functions", "src", "paid.ts"), "utf8");
+    const m = /export const PAID_TYPES = new Set\(\[([^\]]*)\]\)/.exec(src);
+    expect(m, "could not read PAID_TYPES out of functions/src/paid.ts — has it been renamed?").toBeTruthy();
+    const accepted = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    expect(accepted.length, "PAID_TYPES parsed empty").toBeGreaterThan(2);
+
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();               // two options, the default form, nothing else touched
+    $("payBtn").click();
+    await settle();
+    const book = globalThis.fetch.mock.calls.find((c) => String(c[0]).indexOf("bookPaidQuestionV2") >= 0);
+    expect(book, "the door never called bookPaidQuestionV2").toBeTruthy();
+    const sent = JSON.parse(book[1].body).data;
+    expect(
+      accepted,
+      "the page's default form is not one the server sells: it sent " + JSON.stringify(sent.type),
+    ).toContain(sent.type);
+    // Two options is `binary`; the mapping itself is worth pinning, or
+    // "accepted" could be satisfied by sending a constant.
+    expect(sent.type).toBe("binary");
+  });
+
   it("sends the budget the page SHOWED, on a booking where no chip was tapped", async () => {
     // THE TEN-TIMES BUG. `st.budget` is null until a budget chip is
     // tapped, and the wire used to send that null — while everything on
