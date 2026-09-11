@@ -617,6 +617,31 @@
       "collectionGroup": "v2_agg_events",
       "fieldPath": "l",
       "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "by",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "counts",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "edits",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "total",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "s",
+      "indexes": []
     }
   ]
 }

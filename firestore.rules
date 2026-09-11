@@ -154,6 +154,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The daily lane's counter shards (phase B, D458): the answer trigger's
+    // blind increments for a question the daily bank names, `{qid}-{s}` by
+    // person hash plus a `{qid}-base` the compactor migrates the published
+    // document into. Working state, not a reading — the compactor sums
+    // them into v2_question_aggs above once a minute, which is what every
+    // client reads — so nobody reads them and nothing but the Admin SDK
+    // writes them. No uid, no timing: counts, uncapped.
+    match /v2_agg_shards/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
     // sponsored questions. An ad is a CARD: text, an advertiser, a window.
     // It takes no answer, so there is no answer arm anywhere in this file

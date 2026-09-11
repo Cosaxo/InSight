@@ -1045,15 +1045,22 @@ export type OnBucketCap = (
 // (v2.ts), so an eviction's victim moves without its shard being read.
 export const OVERFLOW_SHARDS = 8;
 
-/** FNV-1a, 32-bit, over UTF-16 code units — the same function
- * src/v2/data/overflow.ts computes, mod the shard count. */
-export function overflowShard(bucket: string): number {
+/** FNV-1a, 32-bit, over UTF-16 code units — the one hash this file
+ * shards by: the tail's shard of a bucket below, and the counter shard
+ * of a person (aggShards.ts). src/v2/data/overflow.ts computes the same
+ * function for the tail, with the vectors pinned on both sides. */
+export function fnv1a32(s: string): number {
   let h = 0x811c9dc5;
-  for (let i = 0; i < bucket.length; i++) {
-    h ^= bucket.charCodeAt(i);
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
     h = Math.imul(h, 0x01000193) >>> 0;
   }
-  return h % OVERFLOW_SHARDS;
+  return h;
+}
+
+/** The tail shard a bucket lives in: `fnv1a32` mod the shard count. */
+export function overflowShard(bucket: string): number {
+  return fnv1a32(bucket) % OVERFLOW_SHARDS;
 }
 
 export const overflowDocId = (qid: string, shard: number): string => `${qid}-${shard}`;

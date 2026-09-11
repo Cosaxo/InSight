@@ -563,3 +563,79 @@ describe("the answer log mirrors the ledger, once per commit (D447 phase A)", ()
     }
   });
 });
+
+// ── the sharded lane (aggShards.ts, phase B / D458) ─────────────
+//
+// A question the daily bank names takes the other path: no read of the
+// published document, no write to it — a blind increment on the person's
+// counter shard, in the same transaction as the ledger mark and the map,
+// so the idempotence above holds for it by the same mark. The qid is a
+// REAL daily id off the compiled bank, because that is what decides the
+// path (never the answer's own `surface` claim).
+const { V2_QUESTIONS } = await import("./v2content");
+const { shardOf, AGG_SHARDS_COLLECTION } = await import("./aggShards");
+const { FieldValue } = await import("firebase-admin/firestore");
+const DAILY = V2_QUESTIONS.find((q) => q.surface === "daily")!.id;
+const SHARD = `${AGG_SHARDS_COLLECTION}/${DAILY}-${shardOf("u1")}`;
+
+async function deliverDaily(id: string, data: Doc) {
+  await (onV2AnswerCreated as unknown as { run: (e: unknown) => Promise<void> }).run({
+    id, params: { uid: "u1", qid: DAILY },
+    data: { exists: true, ref: ref(`v2_users/u1/answers/${DAILY}`), get: (f: string) => data[f] },
+  });
+}
+async function deliverDailyEdit(id: string, from: number, to: number, anchors: Doc) {
+  const doc = (optionIdx: number) => ({ exists: true, get: (f: string) => ({ surface: "daily", optionIdx, anchors } as Doc)[f] });
+  await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
+    id, params: { uid: "u1", qid: DAILY }, data: { before: doc(from), after: doc(to) },
+  });
+}
+const inc = (v: unknown, n: number) => v instanceof FieldValue && v.isEqual(FieldValue.increment(n));
+
+describe("the sharded lane: a daily answer never touches the published document", () => {
+  it("a first answer is one blind increment on the person's shard, with the ledger mark and the map", async () => {
+    const rows = fakeLog();
+    await deliverDaily("evt-s1", vote);
+    expect(store.has(`v2_question_aggs/${DAILY}`), "the published document was written on the hot path").toBe(false);
+    const shard = store.get(SHARD)!;
+    expect(shard).toMatchObject({ qid: DAILY, s: shardOf("u1") });
+    expect(inc(shard.total, 1)).toBe(true);
+    expect(inc((shard.counts as Doc)["1"], 1)).toBe(true);
+    expect(inc(((shard.by as Doc).ageBand as Doc)["25-34"] && (((shard.by as Doc).ageBand as Doc)["25-34"] as Doc)["1"], 1)).toBe(true);
+    expect(typeof shard.dirtyAt).toBe("number");
+    expect(store.has("v2_agg_events/evt-s1")).toBe(true);
+    expect((store.get("v2_users/u1/public/answers")?.a as Doc)[DAILY]).toBe(1);
+    expect(rows.map((r) => r.qid)).toEqual([DAILY]);
+  });
+
+  it("a redelivery writes nothing — the ledger mark turns it away before the shard", async () => {
+    const rows = fakeLog();
+    await deliverDaily("evt-s2", vote);
+    const first = JSON.stringify(store.get(SHARD));
+    store.set(SHARD, { ...store.get(SHARD)!, total: "sentinel" }); // any second write would replace this
+    await deliverDaily("evt-s2", vote);
+    expect(store.get(SHARD)!.total).toBe("sentinel");
+    expect(rows).toHaveLength(1);
+    expect(first).toContain(DAILY);
+  });
+
+  it("an edit is -old/+new on the shard with the total untouched, and no refusal when it lands before its create", async () => {
+    // No create delivered at all: the hot path would throw and retry
+    // (retargetCounts); the shard takes the move and the sum absorbs it.
+    await deliverDailyEdit("evt-s3", 1, 0, { country: "NO" });
+    const shard = store.get(SHARD)!;
+    expect(inc((shard.counts as Doc)["1"], -1)).toBe(true);
+    expect(inc((shard.counts as Doc)["0"], 1)).toBe(true);
+    expect(inc((((shard.by as Doc).country as Doc).NO as Doc)["0"], 1)).toBe(true);
+    expect(inc(((shard.edits as Doc)["1"] as Doc)["0"], 1)).toBe(true);
+    expect("total" in shard).toBe(false);
+    expect(store.has(`v2_question_aggs/${DAILY}`)).toBe(false);
+    expect((store.get("v2_users/u1/public/answers")?.a as Doc)[DAILY]).toBe(0);
+  });
+
+  it("the hot path is untouched for a question the daily bank does not name — the control", async () => {
+    await deliver("evt-s4", vote);
+    expect(store.get(AGG)?.total).toBe(1);
+    expect([...store.keys()].some((k) => k.startsWith(`${AGG_SHARDS_COLLECTION}/`))).toBe(false);
+  });
+});

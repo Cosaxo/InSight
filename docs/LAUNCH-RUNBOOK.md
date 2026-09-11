@@ -1710,7 +1710,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+- [ ] **5.5b Apply the eleven monitoring alerts — nine are armed (5.5); the
       TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
       committed and not applied.** The breakdown cap's `agg_evict`
       metric and its policy landed after run 16 verified the nine, so

@@ -352,6 +352,10 @@ describe("v2 questions + aggregates", () => {
       await setDoc(doc(db, "v2_agg_overflow", "daily-000-5"), {
         city: { "Tail01, NO": { "0": 1 } },
       });
+      // A counter shard (phase B, D458): the trigger's working state.
+      await setDoc(doc(db, "v2_agg_shards", "daily-000-3"), {
+        qid: "daily-000", s: 3, counts: { "0": 2 }, total: 2, dirtyAt: 1,
+      });
     });
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_questions", "daily-000")));
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000")));
@@ -360,6 +364,11 @@ describe("v2 questions + aggregates", () => {
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_agg_overflow", "daily-000-5")));
     await refused(getDoc(doc(asSignedOut(), "v2_agg_overflow", "daily-000-5")));
     await refused(setDoc(doc(asUser(OWNER), "v2_agg_overflow", "daily-000-5"), { city: {} }));
+    // The counter shards are nobody's to read and nobody's to write: the
+    // compactor's sum in v2_question_aggs is the reading.
+    await refused(getDoc(doc(asUser(OWNER), "v2_agg_shards", "daily-000-3")));
+    await refused(getDoc(doc(asSignedOut(), "v2_agg_shards", "daily-000-3")));
+    await refused(setDoc(doc(asUser(OWNER), "v2_agg_shards", "daily-000-3"), { total: 999 }));
     await refused(getDoc(doc(asSignedOut(), "v2_questions", "daily-000")));
     await refused(setDoc(doc(asUser(OWNER), "v2_questions", "daily-000"), { prompt: "x" }));
     await refused(setDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000"), { total: 999 }));

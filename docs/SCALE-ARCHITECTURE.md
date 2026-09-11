@@ -397,7 +397,12 @@ runbook: S an afternoon, M a few days, L a week or more.
   aggregate; the contention wall and the trigger's ceiling go. **This
   supersedes Phase 5 of the efficiency runbook** — the same compactor
   idea, a cheaper counter store, and no shard documents to fold. Needs
-  the owner's word on D98's sentence (§7).
+  the owner's word on D98's sentence (§7). **Built 2026-09-11 (D458) on
+  Firestore shards rather than Redis** — the compactor as this page
+  designs it, the counter store the one that bills per operation, so
+  nothing is a fixed line at two users; §3.2's Redis is the swap of that
+  one store when the per-answer trigger line says so.
+  `LOG-FIRST-RUNBOOK.md` phase B has the as-built.
 - **C · Batches** (M–L). The day document, the batch trigger, the
   offline queue, the day-document readers; per-answer documents stop for
   new answers; the rule read, the three trigger reads and two of the

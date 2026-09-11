@@ -275,8 +275,14 @@ taken down and built.
    **Done — D312**, ahead of both planned triggers on the owner's
    direction. Purge and `check:purge` extended in the same change; the
    feed mirror's stay-behind is the recorded deviation.
-3. **Sharding stays shelved, buildable (§4).** Build on the alert. The
-   COSTS.md line lands with the build, not before.
+3. ~~**Sharding stays shelved, buildable (§4).**~~ **Built 2026-09-11
+   (D458)** — on the owner's word rather than the alert, as
+   `LOG-FIRST-RUNBOOK.md` phase B: §4's design with DATA-EFFICIENCY §3's
+   correction (the compactor re-caps the union) and one more — the daily
+   bank's questions are sharded by construction, off the compiled
+   content, rather than named hot per qid, since the lane is the wall.
+   The COSTS.md line landed with it. Original: *Build on the alert. The
+   COSTS.md line lands with the build, not before.*
 4. **The patterns fold folds each ledger PAGE as it arrives** instead of
    buffering the day — `velocity.ts`'s `foldInto` shape, adopted from
    `patterns.ts`' own header so it is indexed here rather than only in a

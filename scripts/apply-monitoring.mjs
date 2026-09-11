@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// apply-monitoring.mjs — put the ten alert policies in place, in one command.
+// apply-monitoring.mjs — put the eleven alert policies in place, in one command.
 //
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
 //
 // WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
-// steps: a notification channel, eight log-based metrics, and ten policies
+// steps: a notification channel, nine log-based metrics, and eleven policies
 // that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
@@ -120,6 +120,14 @@ const METRICS = [
     filter: 'jsonPayload.metric="velocity_scan"',
   },
   {
+    // The aggregate compactor's heartbeat (aggShards.ts, phase B / D458):
+    // every minute, idle runs included, because for a sharded question
+    // this run is the only writer of the document every client reads.
+    name: "agg_compact",
+    description: "compactAggShardsV2 completed a run — the daily's published aggregate is written by this schedule and nothing else since phase B",
+    filter: 'jsonPayload.metric="agg_compact"',
+  },
+  {
     name: "engagement_digest",
     description: "digestEngagementV2 completed the nightly engagement pipeline (02:23 UTC; the same pass carries the Patterns fit and the taste fold since D399)",
     filter: 'jsonPayload.metric="engagement_digest"',
@@ -154,6 +162,7 @@ const POLICIES = [
   "monitoring/fitPatternsV2-silent.json",
   "monitoring/ledgerVelocityScan-silent.json",
   "monitoring/digestEngagementV2-silent.json",
+  "monitoring/compactAggShardsV2-silent.json",
   // The odd one out, and deliberately so: the three above watch something
   // breaking, this one watches the app working expensively. It reads a
   // BUILT-IN Firestore metric rather than a log-based one, so it needs no

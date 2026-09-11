@@ -1,0 +1,31 @@
+{
+  "displayName": "compactAggShardsV2 has gone quiet",
+  "documentation": {
+    "content": "The aggregate compactor (functions/src/aggShards.ts, phase B / D458) has not reported a run in ten minutes.\n\nWHY THIS POLICY EXISTS. Since phase B the daily question's published document \u2014 v2_question_aggs/{qid}, what every client reads at its poll \u2014 is written by this minutely schedule from the counter shards the answer trigger increments, and by nothing else. A compactor that stops is a count that stops moving for everyone while every answer still lands: the trigger keeps folding, the shards keep growing, and no error is raised anywhere, because the failure is an absence. The same shape scheduledDuelReveals-silent.json and digestEngagementV2-silent.json exist for, one minute rather than one day.\n\nWHAT IT WATCHES. The log-based metric `agg_compact`, emitted on EVERY run \u2014 an idle minute included, so a quiet night beats too and only a missing minute is a missing run. Summed over a trailing ten minutes; a healthy compactor puts ten there, and the condition fires when five minutes pass with the sum under one.\n\nWHAT A FIRE COSTS IF IGNORED. Stale counts on the daily card for everyone, growing by the minute; nothing is lost \u2014 the shards hold every answer and the next run publishes them all \u2014 but D447's amendment of D98 (exact, and never more than a poll behind) is not being kept while this is red.\n\nFIRST RESPONSE. Cloud Scheduler for the job's last execution and status, then the function's own logs. A run that started and threw is in the errors, not here; this is for the run that never began \u2014 a paused job, a deploy that dropped the schedule, a quota block. `compactAggShardsNowV2` (operator callable) publishes everything dirtied in the last day at once, so the counts are current the moment the cause is found, whatever it was.\n\nWHY A THRESHOLD OVER A WINDOW. The same arithmetic as the digest's policy, at a shorter scale: ALIGN_SUM over 600s, COMPARISON_LT 1, held 300s, with EVALUATION_MISSING_DATA_ACTIVE so a series that stops emitting entirely \u2014 the function deleted, the schedule dropped \u2014 is the condition being met rather than nothing to evaluate.\n",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "no compactAggShardsV2 run in ten minutes",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/agg_compact\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_LT",
+        "thresholdValue": 1,
+        "duration": "300s",
+        "evaluationMissingData": "EVALUATION_MISSING_DATA_ACTIVE",
+        "aggregations": [
+          {
+            "alignmentPeriod": "600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}
