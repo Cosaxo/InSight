@@ -8548,6 +8548,24 @@ export function refreshLive(): Promise<void> {
 // attached or the deck has aged out.
 function wake(): void {
   if (torndown) return;
+  // NOT WHILE THE APP IS HIDDEN, and `online` is why this line exists.
+  // Two events reach this handler: the app coming to the foreground, and
+  // the network coming back. The second can fire with the app
+  // BACKGROUNDED — a phone changing between wifi and cellular in a
+  // pocket, a tunnel ending — and everything below it undoes the idle
+  // detach: `cancelIdleDetach` drops the armed timer and
+  // `resubscribeForToday` re-attaches the reveal listeners and restarts
+  // the deck poll. Nothing re-arms either, because the only thing that
+  // does is a visibilitychange to HIDDEN and the app is already there —
+  // so one network blip in a pocket bought back the whole listener bill
+  // IDLE_DETACH_MS exists to bound, for the rest of the background
+  // period.
+  //
+  // Returning costs nothing: the timer stays armed, the detach happens on
+  // schedule, and the next foreground calls this again through the
+  // visibility handler — which is the path that has always done the
+  // re-attaching.
+  if (typeof document !== "undefined" && document.hidden) return;
   cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   // `attached`, not `ready` (D356): a warm-painted session whose network
