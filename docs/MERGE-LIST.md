@@ -40,15 +40,21 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T18:02:01Z -->
+<!-- console:generated 2026-09-11T18:04:10Z -->
 
 ## Open
 
-- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI running (1 pending) · 14 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 50 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 319 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 15 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 51 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 320 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
+
+**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
+
+- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (2 of 9) · current with main · opened 2026-09-11 · stage **new**
+- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (6 pending) · current with main · opened 2026-09-11 · stage **new**
+- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI running (5 pending) · current with main · opened 2026-09-11 · stage **new**
 
 ## In the shift
 
