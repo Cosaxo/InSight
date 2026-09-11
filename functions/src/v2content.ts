@@ -2978,6 +2978,42 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-140",
+  "surface": "daily",
+  "seq": 140,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Naps: a superpower, or a trap?",
+  "options": [
+   "A superpower",
+   "A trap"
+  ],
+  "topic": "light",
+  "branch": "Body",
+  "sub": "Sleep",
+  "tag": "Naps",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-141",
+  "surface": "daily",
+  "seq": 141,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Showing someone your favourite film: the joy, or the pressure?",
+  "options": [
+   "The joy",
+   "The pressure"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Sharing",
+  "tag": "The screening",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3975,7 +4011,9 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s03",
   "surface": "feed",
@@ -4009,9 +4047,7 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null,
   "bg": "Open-water rules commonly mandate wetsuits in cold water and forbid them in warm — World Triathlon draws its lines around 16°C and the low twenties. Ice swimmers race skin in water near freezing.",
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s05",
   "surface": "feed",
@@ -8159,7 +8195,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "books"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl37",
   "surface": "feed",
@@ -8215,9 +8253,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 5,
   "hi": 50,
   "unit": "yrs"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl39",
   "surface": "feed",
@@ -12514,7 +12550,9 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "feed-f320",
   "surface": "feed",
@@ -12560,9 +12598,7 @@ const BANK_2: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 24,
   "unit": "creators"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-fd26",
   "surface": "feed",
@@ -16162,7 +16198,9 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "day",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-077",
   "surface": "duo",
@@ -16196,9 +16234,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-079",
   "surface": "duo",
@@ -19781,7 +19817,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "selfdef",
   "test": null
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "lq-humor-4",
   "surface": "test",
@@ -19817,9 +19855,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "mode",
   "test": null
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "lq-thinking-1",
   "surface": "test",
@@ -23728,7 +23764,9 @@ const BANK_5: V2SeedQuestion[] = [
   "t": 1,
   "p": 44,
   "k": "Mars has two moons"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "learn-sol4",
   "surface": "learn",
@@ -23770,9 +23808,7 @@ const BANK_5: V2SeedQuestion[] = [
   "t": 1,
   "p": 88,
   "k": "Jupiter is largest"
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol6",
   "surface": "learn",
@@ -28058,7 +28094,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 46,
   "k": "twins, different fingerprints",
   "w": "Ridge detail sets in womb currents and touch, not in the genome — no two prints repeat, twins included."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-gene19",
   "surface": "learn",
@@ -28102,9 +28140,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 64,
   "k": "the banana overlap",
   "w": "Basic cell machinery is ancient and shared; the often-quoted figure counts genes with a recognisable banana counterpart."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-gene21",
   "surface": "learn",
