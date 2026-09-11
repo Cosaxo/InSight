@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 494 lines instead of
-51,319. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 495 lines instead of
+51,461. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -198,7 +198,7 @@ detect it.
 | **D176** | [Near becomes a room, and the phone says what it is](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is) | D177 | 17384 |
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17514 |
 | **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D421 (+8) | 17662 |
-| **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D454 (+9) | 17795 |
+| **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D465 (+10) | 17795 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17883 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18113 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18218 |
@@ -216,7 +216,7 @@ detect it.
 | **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D258 (+7) | 19927 |
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D377 (+12) | 20100 |
 | **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D341 (+4) | 20213 |
-| **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D452 (+17) | 20321 |
+| **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D465 (+18) | 20321 |
 | **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D381 (+6) | 20470 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20666 |
 | **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D442 (+5) | 20748 |
@@ -495,9 +495,9 @@ detect it.
 | **D450** | [The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on](DECISIONS.md#d450--the-2026-09-11-night-review-two-shifts-merged-as-one-tree--63-commits-kept-thirteen-files-touched-by-both-and-the-first-night-the-merge-had-something-to-stop-on) | — | 49524 |
 | **D451** | [The database had no copy of itself — the backup lane, and the printer that had stopped printing](DECISIONS.md#d451--the-database-had-no-copy-of-itself--the-backup-lane-and-the-printer-that-had-stopped-printing) | D456 (+1) | 49763 |
 | **D452** | [A whole-app audit, adversarially verified — and the half of it main reached first](DECISIONS.md#d452--a-whole-app-audit-adversarially-verified--and-the-half-of-it-main-reached-first) | — | 49879 |
-| **D453** | [The sign-in wall stopped waiting for auth to speak: the warm boot's own treatment, one surface over](DECISIONS.md#d453--the-sign-in-wall-stopped-waiting-for-auth-to-speak-the-warm-boots-own-treatment-one-surface-over) | — | 50085 |
-| **D454** | [The money path and the two BigQuery steps become readings: whether a sale can complete today is an API call, and had been all along](DECISIONS.md#d454--the-money-path-and-the-two-bigquery-steps-become-readings-whether-a-sale-can-complete-today-is-an-api-call-and-had-been-all-along) | — | 50190 |
-| **D455** | [The web buy door opens: a gate a browser can pass, a page that actually calls the backend, and a city picker that is the difference between a campaign and a refund](DECISIONS.md#d455--the-web-buy-door-opens-a-gate-a-browser-can-pass-a-page-that-actually-calls-the-backend-and-a-city-picker-that-is-the-difference-between-a-campaign-and-a-refund) | — | 50290 |
+| **D453** | [The sign-in wall stopped waiting for auth to speak: the warm boot's own treatment, one surface over](DECISIONS.md#d453--the-sign-in-wall-stopped-waiting-for-auth-to-speak-the-warm-boots-own-treatment-one-surface-over) | D465 | 50085 |
+| **D454** | [The money path and the two BigQuery steps become readings: whether a sale can complete today is an API call, and had been all along](DECISIONS.md#d454--the-money-path-and-the-two-bigquery-steps-become-readings-whether-a-sale-can-complete-today-is-an-api-call-and-had-been-all-along) | D465 | 50190 |
+| **D455** | [The web buy door opens: a gate a browser can pass, a page that actually calls the backend, and a city picker that is the difference between a campaign and a refund](DECISIONS.md#d455--the-web-buy-door-opens-a-gate-a-browser-can-pass-a-page-that-actually-calls-the-backend-and-a-city-picker-that-is-the-difference-between-a-campaign-and-a-refund) | D465 | 50290 |
 | **D456** | [The buy door's gate comes off and the reviewer becomes a Routine: a buyer's humanity is not worth proving, and "no reviewer" must mean hold rather than approve](DECISIONS.md#d456--the-buy-doors-gate-comes-off-and-the-reviewer-becomes-a-routine-a-buyers-humanity-is-not-worth-proving-and-no-reviewer-must-mean-hold-rather-than-approve) | — | 50412 |
 | **D457** | [The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow](DECISIONS.md#d457--the-oracle-starts-from-your-own-groups-split-a-cohort-prior-on-the-device-with-the-worlds-guess-sealed-beside-it-as-the-shadow) | D460 (+2) | 50544 |
 | **D458** | [Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it](DECISIONS.md#d458--anchors-as-items-in-the-fit-the-candidate-engine-learns-a-vector-per-profile-value-and-every-lens-that-solves-a-vector-reads-it) | D464 (+3) | 50641 |
@@ -507,4 +507,5 @@ detect it.
 | **D461** | [The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map](DECISIONS.md#d461--the-walls-measured-and-moved-the-loadings-document-exempt-from-indexing-the-ring-the-topics-own-the-dailys-lists-first-for-the-people-map) | — | 50945 |
 | **D462** | [The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot](DECISIONS.md#d462--the-owners-five-answers-on-the-patterns-plans-rows-the-you-arc-the-whole-world-map-ruled-the-question-rule-kept-the-pick-cards-core-and-one-rule-for-every-kind-of-dot) | D464 (+1) | 51013 |
 | **D463** | [The whole-world People map is built: a rounded position per account, one document per country](DECISIONS.md#d463--the-whole-world-people-map-is-built-a-rounded-position-per-account-one-document-per-country) | — | 51098 |
-| **D464** | [A dot is a row: every kind of answer on the Map ring](DECISIONS.md#d464--a-dot-is-a-row-every-kind-of-answer-on-the-map-ring) | — | 51177 |
+| **D464** | [A dot is a row: every kind of answer on the Map ring](DECISIONS.md#d464--a-dot-is-a-row-every-kind-of-answer-on-the-map-ring) | D465 | 51177 |
+| **D465** | [The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads](DECISIONS.md#d465--the-workflow-github-could-not-read-a-sentence-about---inside-a-run-body-and-the-gate-that-now-asks-whether-the-file-loads) | — | 51321 |

@@ -51316,3 +51316,145 @@ it statically, while all ~30 of its uses are in methods that run long
 after first paint. Deferring it as D122's handles and invitations are
 deferred, one file over, is the next change to that graph — its own
 change, not a rider on a feature.
+
+
+## D465 · The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads
+
+**Found and fixed 2026-09-11**, from the owner's question about their own
+inbox — *"Should all these runs fail?"* — over four screenshots of
+`[Cosaxo/InSight] Run failed: .github/workflows/fireb…`. No. 33 of the 38
+failures in the window were one mistake, and the subject line was the
+whole diagnosis, unread: **a run named after a workflow's PATH is a run
+GitHub could not name**, because it could not parse the file that holds
+the name.
+
+### What broke
+
+D455's step (`0a8994a`, PR #498) wrote this as a shell comment inside its
+own `run:` body:
+
+```
+# THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+# is a textual substitution GitHub performs before bash sees
+```
+
+The sentence is true, and being true is what made it fatal. GitHub
+substitutes `${{ … }}` textually across the whole file before anything
+runs, `run:` bodies included — where a `#` is shell, not YAML, and GitHub
+has no idea it is looking at a comment. So prose ABOUT an expression was
+an expression; `${{ }}` is empty; empty is not parsable; the file failed
+to **load**.
+
+The identical sentence sits in `auth-config.yml` and in
+`play-release.yml` and is harmless in both, because in both it is a YAML
+comment — stripped before GitHub sees anything. Where the text sits is
+the entire difference between documentation and an outage.
+
+### Why a load failure is worse than a failing job
+
+It is not a red job. It is a run with no jobs at all, and every channel
+that would normally tell you what happened is inside the file that did
+not parse:
+
+- **No log.** Nothing executed; the logs endpoint 404s.
+- **No name.** `name:` is in that file, so all 33 runs were titled
+  `.github/workflows/firebase-deploy.yml`.
+- **No `on:` filter.** `branches: [main]` is in that file too, so it was
+  never applied: every push to **every** branch produced a failed run —
+  `nightb-20260912` (11), `night-20260912` (8),
+  `claude/compassionate-sagan-uuenlz` (6), `main` (2),
+  `claude/category-images-voting-specificity-vm3olr` (2),
+  `claude/epic-fermi-p14ur0` (2), `claude/sharp-heisenberg-n7kuas` (1),
+  `claude/project-review-em3c5r` (1). Eight branches, none of which this
+  workflow is supposed to run on at all.
+- **No deploy.** The last one ran 2026-09-11T18:01Z. Both pushes to
+  `main` after the break deployed nothing — including, precisely, the
+  commit that broke it. **D455's buy door has never reached production**,
+  and the step written to configure it is the step that stopped it.
+
+The spread is the tell, and it is worth keeping: a mistake that reds one
+branch is a bug in a job; a mistake that reds *every* branch at once is a
+mistake in what GitHub reads before it reads anything else. It was
+visible for 31 hours — from 2026-09-10T14:28Z on a feature branch — and
+read as ordinary CI noise the whole time, because at a glance that is
+exactly what it looks like.
+
+### Why none of the 51 gates saw it
+
+Every gate reads the repository. None asked whether GitHub can load a
+workflow, and each tool that could have spoken was looking one layer off:
+
+- **`check:deploy-targets` reads this exact file** and went green
+  throughout — it validated the `--only` list of a workflow that never
+  ran. A correct answer about a dead file.
+- **YAML parsers accept it.** The file is valid YAML; `${{ }}` is a
+  plain string to YAML, and the fault is in GitHub's expression layer
+  *above* it. So "it parses" was true and useless.
+- **eslint parses no YAML**, the same blind spot D454 recorded for HTML.
+
+The class is the one D179 and D197 are about — a checker that cannot fail
+— pointed at the workflows instead of the scripts.
+
+### The fix, and the guard
+
+The sentence moved to YAML-comment level inside the step's `env:` block,
+where `auth-config.yml` has kept it safely all along. The `run:` body now
+holds no `${{` at all, which is the property `auth-config.yml`'s own
+comment names as the goal: *"the next input added here is then safe by the
+shape of the step rather than by someone remembering."*
+
+`check-deploy-targets.mjs` gained the prior question, ahead of everything
+it already asks: **does this file load?** Two refusals, on the raw text —
+
+1. `${{` inside a shell comment in a `run:` body. Fatal empty or not, and
+   a non-empty one is *worse* than this bug: `${{ secrets.X }}` written
+   as an aside pastes the secret into the script.
+2. An empty `${{ }}` anywhere GitHub actually reads it.
+
+It walks the file rather than grepping it, because where the text sits is
+the whole question — and the first cut of the check proved the point by
+failing on its own explanation, the same trap the comment-stripping
+directly beneath it exists to avoid. Note the inversion: that strip must
+*not* happen up here, because not stripping is precisely what GitHub does
+inside a block scalar.
+
+**Scoped to this one workflow**, the file the script already owns, rather
+than to all 25. `check:deploy-targets` runs on the deploy path, and
+CLAUDE.md's rule is that nothing which cannot speak to whether a rules fix
+is safe may block one. This clears that bar the short way rather than by
+exemption: a `firebase-deploy.yml` that cannot load has already blocked
+every deploy, so failing here only ever pre-empts a worse outcome and can
+never stop a deploy that would otherwise have worked. The same mistake in
+the other 24 workflows is still uncaught, and a repo-wide version is a
+question of placement for the owner, not a rider on this fix.
+
+Proved by running, both directions: the restored bug fails at
+`firebase-deploy.yml:246` naming the run body; the fixed file passes with
+46 exported functions matched. `scripts/check-deploy-targets.test.mjs` is
+new and pins six cases, the discriminating one being the third — the same
+sentence as a YAML comment must PASS. `test:scripts` 85 files / 1427
+tests, `test:unit` 217 files / 3205 tests, `check:figures`, `check:docs`
+and eslint all green.
+
+### The other five failures, since the question was about all of them
+
+Two are real and neither is this:
+
+- **Pulse** fails on a true tripwire: `monitoring/engagement.json` only
+  moves when something fetches it, and nothing schedules that, so the
+  7-day engagement average is averaging days that have all left the
+  window — a guard that passes while measuring nothing. Its own message
+  names the fix (`npm run scorecard -- --fetch`). Untouched here; it is
+  its own change.
+- **CI** failed once on `main` (#1305, `1b2477308`, D453's sign-in wall)
+  on `vote.test.ts`'s "a wake while offline does not retry", 1 of 3160.
+  The two `main` commits after it passed, and the full suite is green
+  here. Worth naming rather than filing as noise: D464 found that same
+  test failing one run in three on the Patterns branch from a getter spy
+  leaking across a worker's files — a different cause, since
+  `worldPeople.test.ts` did not exist in `1b2477308`'s tree. So the
+  `main` occurrence is unexplained, not explained-and-fixed, and a second
+  sighting should be read as a real defect in the negative assertion
+  rather than as the leak D464 closed.
+
+The remaining CI failures are on other lanes' PR branches and are theirs.
