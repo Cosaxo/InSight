@@ -870,7 +870,21 @@ export function App() {
               overlay and opening a city sheet that nothing could ask for.
               If city hits are ever added, this is the line they need
               back. */}
-          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} />}
+          {/* `!liveOn && !LIVE.demoInProd`, NOT `!liveOn`. `LIVE.enabled` is
+              false for two different reasons and only one of them is a demo
+              build: `demoInProd` is a LIVE build whose boot has not attached
+              — an offline cold start, a lost 2500ms race, a misconfigured
+              key. `search-overlay.jsx` states the contract this broke in as
+              many words: "In a live build the section renders empty instead
+              (samplePeople is false there), and a real user reading an
+              invented sister into their search is the D1 fabrication this
+              store predates." Measured 2026-09-11 with `demoInProd` true:
+              the overlay drew "91% match", "86% match", "sister" and
+              "since birth" to a real account. The header Search button is on
+              screen from first paint, so it is one tap from a cold start.
+              This is the third site in this family; the daily's demo sheets
+              and the Mirror's preview tag already ask both halves. */}
+          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn && !LIVE.demoInProd} onPerson={(p) => { setOv(null); setPerson(p); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {/* The one overlay here NOT read off window, though its module is
               deferred like the rest (D200). Reachable only from the embedded

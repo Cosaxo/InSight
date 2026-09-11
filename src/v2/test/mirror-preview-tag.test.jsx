@@ -22,7 +22,7 @@
 // does not mean "demo build" on a live build that failed to connect.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, within } from "@testing-library/react";
-import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { mountApp, openHeaderOverlay, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -48,6 +48,41 @@ async function openMirror(stop) {
   }
   await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
 }
+
+// …AND THE SAME BRANCH, ONE OVERLAY OVER. The general shape this file's
+// header names — "a guard written as 'not live' does not mean 'demo build'
+// on a live build that failed to connect" — had a third site, and it is
+// the one reachable soonest: the header's Search button is on screen from
+// first paint, so this is one tap from a cold start rather than several
+// taps into the Mirror.
+//
+// `app-shell.jsx` passed `samplePeople={!liveOn}`. `search-overlay.jsx`
+// states the contract that broke in as many words: "In a live build the
+// section renders empty instead (samplePeople is false there), and a real
+// user reading an invented sister into their search is the D1 fabrication
+// this store predates."
+describe("the search overlay on a live build that did not attach", () => {
+  it("offers no invented people", async () => {
+    await mountApp();
+    stickOnFallback();
+    await openHeaderOverlay("search");
+    const text = document.body.textContent || "";
+    expect(text, "a seeded relationship was offered to a real account")
+      .not.toMatch(/\bsister\b|\bsince birth\b/i);
+    expect(text, "an invented match percentage was drawn for a real account")
+      .not.toMatch(/\d+% match/);
+  });
+
+  it("…and still offers them on a real demo build", async () => {
+    // The control, and it is the half that makes the fix a narrowing rather
+    // than a deletion: with no `demoInProd` override the mount IS the demo
+    // build, and the sample section is what that build is for.
+    await mountApp();
+    await openHeaderOverlay("search");
+    expect(document.body.textContent, "the demo build lost its sample people")
+      .toMatch(/\d+% match/);
+  });
+});
 
 describe("the Mirror's preview tag on a live build that did not attach", () => {
   it("labels the You stop, which drew the sample persona unlabelled", async () => {
