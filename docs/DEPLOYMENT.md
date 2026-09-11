@@ -168,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Eleven jobs — verified rather than assumed,
+**What the environment gates.** Twelve jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -180,8 +180,9 @@ the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
 same way and in the same commit — and the ninth and tenth,
 `apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09, and the
-eleventh, `backups.yml`, on 2026-09-11.) **The table below had drifted the
-other way** — it is supposed to be the list, and it was missing
+eleventh, `delete-retired-functions.yml`, on 2026-09-10, and the twelfth,
+`backups.yml`, on 2026-09-11.) **The table below had drifted the other
+way** — it is supposed to be the list, and it was missing
 `apply-bigquery.yml` and `backfill-log.yml` from the day they were counted
 in the prose above, because `check:figures` holds the COUNT and nothing
 holds the ROWS. Both added 2026-09-11 with `backups.yml`.
@@ -198,7 +199,8 @@ holds the ROWS. Both added 2026-09-11 with `backups.yml`.
 | `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
 | `apply-bigquery.yml` | `apply` | creating the BigQuery dataset and tables the answer log writes to |
 | `backfill-log.yml` | `backfill` | replaying existing answers into the log — once, dry then `apply` |
-| `backups.yml` | `arm` | point-in-time recovery and the two backup schedules — the only copy of the answers there is (D450) |
+| `delete-retired-functions.yml` | `delete` | removing a deployed function the tree no longer exports |
+| `backups.yml` | `arm` | point-in-time recovery and the two backup schedules — the only copy of the answers there is (D451) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -487,7 +489,7 @@ ledger says the work was done. `## Correcting aggregates after a
 fake-account ring (D28)` below is the closest thing to a repair path, and
 it is a rebuild rather than an undo.
 
-## Backups and point-in-time recovery (D450)
+## Backups and point-in-time recovery (D451)
 
 **Rolling back a deploy is not the same as getting the data back, and
 until 2026-09-11 this document only had the first.** There were no
@@ -744,16 +746,24 @@ and releases it when the next month's first notification arrives under
 the line. A level set by hand is never touched. It never detaches
 billing (that hard stop is the owner's, on `OWNER-LIST.md`).
 
-- **Standing it up, once, in this order:** the deploy that carries the
-  function creates the topic; then dispatch *Arm budget* (dry, then
-  `apply`), which attaches the topic to the budget and prints the one
-  grant the API cannot make; then run that grant in Cloud Shell — the
-  budget's service agent must be allowed to publish:
+- **Standing it up, once:** the deploy that carries the function creates
+  the topic; attaching it to the budget is the console's click — Billing →
+  Budgets & alerts → "InSight" → Manage notifications → *Connect a Pub/Sub
+  topic to this budget* → `budget-alerts` — which attaches AND grants the
+  budget's service agent Publisher in the same action. *Arm budget*
+  (`scripts/apply-budget.mjs`) attaches the same topic over the API, and
+  its dry run is the standing check ("exists and matches" once the click
+  is made); its `apply` cannot make the attach from the deploy credential,
+  because the Budgets API demands `pubsub.topics.setIamPolicy` on the
+  topic of whoever attaches one and project Editor does not carry it —
+  measured 2026-09-10 (run 34477868495), a 403 the script's own message
+  first misread as the billing-account role. Without the console: grant
+  the credential `roles/pubsub.admin` on the topic once and re-dispatch.
+  If no `budget_message` arrives within an hour of the attach, the
+  publisher grant is the thing to check:
   `gcloud pubsub topics add-iam-policy-binding budget-alerts --project
   prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com
-  --role roles/pubsub.publisher`. Until the grant, the budget's publishes
-  are refused and the function sees nothing; the console's budget page
-  (*Connect a Pub/Sub topic*) makes the same grant with a click.
+  --role roles/pubsub.publisher`.
 - **Reading it:** `budget_message` (an info line per notification, the
   level as it stands), `budget_mode_set` (a warning with `level` 1 or 0
   when the breaker moved — the line to page on), `budget_message_unreadable`

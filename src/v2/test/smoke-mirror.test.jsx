@@ -126,9 +126,25 @@ describe("the mirror tab and the header's overlays", () => {
     // The control for smoke-live's "none of the demo scenes field" case: with
     // LIVE off the section must still render, or the live assertion passes for
     // a section that broke for any reason at all.
+    //
+    // ASSERTED ON THE BODY, NOT THE HEADING, and that is the whole of the
+    // control. `profile-general.jsx` renders `Scenes you follow` in BOTH
+    // arms — the demo's `MirrorFieldBody` and live's `LiveScenesCard` sit
+    // under the same `<Chapter>` — so the heading alone was a string every
+    // branch prints, and deleting the demo body left this green while
+    // smoke-live's three `.toBeNull()` assertions went on passing for a
+    // section that had stopped rendering. Its comment claims "the pair
+    // pins the swap both ways"; this is the line that makes that true.
+    //
+    // ONE of the live case's three, measured rather than copied: of the
+    // strings it asserts are absent, only this caption is actually drawn
+    // by the demo body here — `in your circles` and `22k people` are
+    // absent in BOTH modes on this screen, so they pin nothing from this
+    // side and are not worth asserting from it.
     mountApp();
     await openHeaderOverlay("profile");
     expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
+    expect(screen.getByText(/closer = members more like you/i)).toBeTruthy();
   });
 
   it("lists the seeded friends in the search overlay (demo keeps them)", async () => {

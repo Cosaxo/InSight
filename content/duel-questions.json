@@ -34,6 +34,16 @@
       "id": "band",
       "label": "The Band",
       "hue": 190
+    },
+    {
+      "id": "wedding",
+      "label": "The Wedding",
+      "hue": 105
+    },
+    {
+      "id": "crew",
+      "label": "The Space Crew",
+      "hue": 255
     }
   ],
   "group": [
@@ -790,6 +800,114 @@
         "The same five",
         "Always new"
       ]
+    },
+    {
+      "id": "gr26",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "planner",
+        "label": "the planner",
+        "seat": "engine"
+      },
+      "prompt": "Who has the day planned to the minute?"
+    },
+    {
+      "id": "gr27",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "fixer",
+        "label": "the crisis fixer",
+        "seat": "hands"
+      },
+      "prompt": "Who handles the cake disaster?"
+    },
+    {
+      "id": "gr28",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "speech",
+        "label": "the tearful speech",
+        "seat": "heart"
+      },
+      "prompt": "Whose speech has everyone in tears?"
+    },
+    {
+      "id": "gr29",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "dancefloor",
+        "label": "first on the dancefloor",
+        "seat": "wild"
+      },
+      "prompt": "Who is first on the dancefloor?"
+    },
+    {
+      "id": "gr30",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "captain",
+        "label": "the captain",
+        "seat": "engine"
+      },
+      "prompt": "Whose orders would you actually follow?"
+    },
+    {
+      "id": "gr31",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "engineer",
+        "label": "the engineer",
+        "seat": "hands"
+      },
+      "prompt": "Who fixes it with tape and nerve?"
+    },
+    {
+      "id": "gr32",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "steady",
+        "label": "the steady voice",
+        "seat": "heart"
+      },
+      "prompt": "Who stays calm when the alarms go off?"
+    },
+    {
+      "id": "gr33",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "button",
+        "label": "the big red button",
+        "seat": "wild"
+      },
+      "prompt": "Who presses the big red button?"
+    },
+    {
+      "id": "gs14",
+      "kind": "rate",
+      "dim": "luck",
+      "prompt": "The luck we carry is…",
+      "poles": [
+        "Cursed",
+        "Charmed"
+      ]
+    },
+    {
+      "id": "gs15",
+      "kind": "rate",
+      "dim": "photos",
+      "prompt": "The photos of this group are…",
+      "poles": [
+        "Posed",
+        "Blurry"
+      ]
     }
   ],
   "oneVsOne": [
@@ -1301,6 +1419,110 @@
         "Controlling",
         "Only if they know you"
       ]
+    },
+    {
+      "id": "092",
+      "d": "day",
+      "prompt": "Umbrella, or hood up and run?",
+      "options": [
+        "Umbrella",
+        "Hood up and run",
+        "Neither — wait it out"
+      ]
+    },
+    {
+      "id": "093",
+      "d": "day",
+      "prompt": "Hotel, or tent?",
+      "options": [
+        "Hotel",
+        "Tent",
+        "Cabin — split the difference"
+      ]
+    },
+    {
+      "id": "094",
+      "d": "day",
+      "prompt": "New phone: day one, or when the old one dies?",
+      "options": [
+        "Day one",
+        "When it dies",
+        "When it embarrasses me"
+      ]
+    },
+    {
+      "id": "095",
+      "d": "mirror",
+      "prompt": "A spider appears. They…",
+      "options": [
+        "Rescue it, cup and paper",
+        "No survivors",
+        "Call for backup",
+        "Name it"
+      ]
+    },
+    {
+      "id": "096",
+      "d": "mirror",
+      "prompt": "Their driving is…",
+      "options": [
+        "Serene",
+        "Spirited",
+        "A running commentary",
+        "Backseat only"
+      ]
+    },
+    {
+      "id": "097",
+      "d": "mirror",
+      "prompt": "Their signature dish:",
+      "options": [
+        "One perfect thing",
+        "Fridge roulette",
+        "A rotation of three",
+        "Toast"
+      ]
+    },
+    {
+      "id": "098",
+      "d": "mirror",
+      "prompt": "Their pub-quiz round:",
+      "options": [
+        "Sport",
+        "Music",
+        "Maps and flags",
+        "The picture round"
+      ]
+    },
+    {
+      "id": "099",
+      "d": "heat",
+      "prompt": "Reclining your plane seat: your right, or just rude?",
+      "options": [
+        "My right",
+        "Just rude",
+        "Night flights only"
+      ]
+    },
+    {
+      "id": "100",
+      "d": "heat",
+      "prompt": "Re-gifting: fair game, or never?",
+      "options": [
+        "Fair game",
+        "Never",
+        "Only across friend groups"
+      ]
+    },
+    {
+      "id": "101",
+      "d": "heat",
+      "prompt": "Being a regular somewhere: the dream, or a rut?",
+      "options": [
+        "The dream",
+        "A rut",
+        "Both, happily"
+      ]
     }
   ],
   "romantic": [
@@ -1798,6 +2020,62 @@
         "Holds hands in queues",
         "Runs the garden",
         "Knows everyone’s news"
+      ],
+      "active": false
+    },
+    {
+      "id": "102",
+      "d": "day",
+      "prompt": "Pet names: constantly, or never?",
+      "options": [
+        "Constantly",
+        "Only in private",
+        "Real names only"
+      ],
+      "active": false
+    },
+    {
+      "id": "103",
+      "d": "day",
+      "prompt": "Their side of the bed: sacred, or negotiable?",
+      "options": [
+        "Sacred",
+        "Negotiable",
+        "There are no sides"
+      ],
+      "active": false
+    },
+    {
+      "id": "104",
+      "d": "heat",
+      "prompt": "Phones unlocked for each other: obviously, or a boundary?",
+      "options": [
+        "Obviously",
+        "A boundary",
+        "It’s never come up"
+      ],
+      "active": false
+    },
+    {
+      "id": "105",
+      "d": "heat",
+      "prompt": "Keeping score: poison, or how it stays fair?",
+      "options": [
+        "Poison",
+        "How it stays fair",
+        "We both know who’s ahead"
+      ],
+      "active": false
+    },
+    {
+      "id": "106",
+      "d": "ahead",
+      "prompt": "The other life we joke about:",
+      "options": [
+        "The farm",
+        "The beach bar",
+        "The band",
+        "We’re living it"
       ],
       "active": false
     }

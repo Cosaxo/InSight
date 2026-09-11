@@ -1244,7 +1244,7 @@ describe("seedDocMatches — the seed's write skip", () => {
     });
 
     it("catches an edit anywhere in the tree", () => {
-      const changed = (nodes) => seedDocMatches({ ...withStory, nodes }, withStory);
+      const changed = (nodes: Record<string, unknown>) => seedDocMatches({ ...withStory, nodes }, withStory);
       // a reworded fork…
       expect(changed({ "": { q: "A DIFFERENT fork", a: [{ t: "left" }, { t: "right" }] } })).toBe(false);
       // …a reworded choice…

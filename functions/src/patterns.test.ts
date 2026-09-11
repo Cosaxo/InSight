@@ -1141,7 +1141,17 @@ describe("the voter samples the sweep publishes", () => {
     expect(JSON.stringify(state.samples.get(CORE_A))).toBe(before);
   });
 
-  it("copies the person's stamp onto the row, and refreshes the rows of a person who answered elsewhere today (runbook 2.2)", async () => {
+  // WAS "…and refreshes the rows of a person who answered elsewhere
+  // today". That half is gone, and it was the defect rather than the
+  // feature: the day's stamp map is built from the day's LEDGER entries,
+  // so it is the profile as of when the person answered, while
+  // `profileFanout.restampSamples` writes the same three fields with the
+  // profile as it stands now. Reaching every row the merge rewrote wrote
+  // the older copy back over the fan-out's — nightly, on a world-readable
+  // document, including republishing a political coordinate whose consent
+  // had been withdrawn. What this case pins now is the half that is
+  // sound: the day's OWN rows take the day's stamp.
+  it("copies the person's stamp onto the row, and leaves rows the day did not write to the fan-out (runbook 2.2)", async () => {
     const d2 = utcDay(NOW, -2);
     const { store, state } = memoryStore({
       [d2]: [
@@ -1149,8 +1159,9 @@ describe("the voter samples the sweep publishes", () => {
         { uid: "u2", qid: CORE_A, optionIdx: 1 }, // an entry from before the stamp existed
       ],
       [yesterday]: [
-        // u1 answered a DIFFERENT question today under a new name; u2's
-        // addition rewrites CORE_A's sample, so u1's row there refreshes
+        // u1 answered a DIFFERENT question today under a new name. CORE_A's
+        // sample is rewritten for u2's addition — but u1 did not answer
+        // CORE_A today, so their row there is not this pass's to restamp.
         { uid: "u1", qid: TEST_ITEM, optionIdx: 2, n: "Olaf T", s: { big5: { O: 71 } }, l: 56 },
         { uid: "u2", qid: CORE_A, optionIdx: 1, fromIdx: 1 },
         { uid: "u3", qid: CORE_A, optionIdx: 0, n: "", s: null, l: null },
@@ -1162,9 +1173,12 @@ describe("the voter samples the sweep publishes", () => {
     expect(before.rows.u2).toEqual({ o: 1, a: {}, d: d2 });
     await runPatternsFit(store, NOW);
     const after = state.samples.get(CORE_A)!;
-    expect(after.rows.u1, "the newer stamp did not reach a row the merge rewrote anyway")
-      .toEqual({ o: 0, a: {}, d: d2, n: "Olaf T", s: { big5: { O: 71 } }, l: 56 });
+    expect(after.rows.u1, "the pass restamped a row whose question the person did not answer today")
+      .toEqual({ o: 0, a: {}, d: d2, n: "Olaf", s: { big5: { O: 70 } }, l: 55 });
     expect(after.rows.u3, "a stamp of nothing is still a stamp").toEqual({ o: 0, a: {}, d: yesterday, n: "", s: null, l: null });
+    // …and the question they DID answer today carries the new name, which
+    // is the half that must survive the narrowing: that row is the day's
+    // own, and the stamp riding it is today's.
     expect(state.samples.get(TEST_ITEM)!.rows.u1.n).toBe("Olaf T");
   });
 

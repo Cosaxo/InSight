@@ -389,6 +389,25 @@ service cloud.firestore {
         // the coordinate is never COMPUTED without it (data/live.ts), and
         // that is a client decision about a client-derived value either
         // way. A rule here would be theatre.
+        //
+        // ABSENCE IS NOT A FREE PASS — the third clause in this rule to
+        // learn it, after `handle` (below) and `testResults` (2026-09-10),
+        // and the one where it costs the most. Written as `!("consent" in
+        // …) || …`, a NON-merge write that simply omitted the key deleted
+        // the record. `testResults` is frozen to the client now, so the
+        // published `testResults.political` coordinate would STAY while
+        // its consent went — read back as "never asked"
+        // (`readPoliticalConsent` returns null), which is exactly the
+        // state D331 couples the two writes to make impossible.
+        //
+        // Nothing legitimate omits it: `request.resource.data` is the
+        // RESULTING document, so a merge that never mentions consent
+        // still presents the stored one, and a withdrawal is a server
+        // write (`saveTestResultV2`, admin SDK) that does not pass
+        // through here at all.
+        && (("consent" in request.resource.data)
+          || resource == null
+          || !("consent" in resource.data))
         && (!("consent" in request.resource.data)
           || (request.resource.data.consent is map
             && request.resource.data.consent.keys().hasOnly(["political"])

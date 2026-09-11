@@ -122,7 +122,7 @@ describe("a refusal is a result, not a crash", () => {
   });
 });
 
-describe("the backup reading, which nothing could answer before D450", () => {
+describe("the backup reading, which nothing could answer before D451", () => {
   it("reports PITR off and no schedules when there are none — the tree's own state", async () => {
     const j = await asJson();
     expect(j.readings.backups.pitr).toBe(false);

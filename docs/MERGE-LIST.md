@@ -40,13 +40,14 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-10T11:19:09Z -->
+<!-- console:generated 2026-09-11T16:40:27Z -->
 
 ## Open
 
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 253 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 28 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 297 behind main · opened 2026-09-01 · stage **new**
 
-**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · and 10 more.
+**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
 
 ## In the shift
 
@@ -62,6 +63,16 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#485** · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, five conflicts, and the sweep neither shift finished (D450) · merged 2026-09-11
+- **#484** · Now 2026-09-11: the ranking or the trophy, and orbit from home soil · merged 2026-09-11
+- **#483** · Duel 2026-09-11: two new packs, ten 1v1, and the romantic pool reaches its while-dark cap · merged 2026-09-11
+- **#482** · Feed 2026-09-11: sixty at the wall — five rooms, thirteen twins that fit, and the first paths since pt7 · merged 2026-09-11
+- **#481** · Learn: Space missions born, 24 levelled across six fields · merged 2026-09-11
+- **#480** · Catalog card pk41: the athlete you'd want beside you · merged 2026-09-11
+- **#479** · Question farm: 8 for Morals, Music, Skills, Sport, Story, Travel, Values, Body — plus two promoted · merged 2026-09-11
+- **#476** · The 2026-09-10 clicks: the budget's wire is one console click, the deletion's listing must see the nightly pass, and the record of what each turned out to be · merged 2026-09-10
+- **#477** · Now 2026-09-10: the gate greeting returns, and the universe on review · merged 2026-09-10
+- **#475** · A dispatch-only workflow deletes the three retired nightly functions from the deploy credential · merged 2026-09-10
 - **#473** · The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, three prose defects fixed (D449) · merged 2026-09-10
 - **#472** · Duel: The Band takes the stage — a seventh pack, four ratings, eight 1v1s, nine dark romantic · merged 2026-09-10
 - **#471** · Feed 2026-09-10: sixty levelled and five rooms born — horror, live music, creators, AI, are-we-alone · merged 2026-09-10
@@ -107,14 +118,3 @@ merge shift like any other PR.
 - **#442** · Rounds replace the day on 1v1 and group: the volley, its notifications, world questions as duel content, and the card from the owner's canvas (D426) · merged 2026-09-08
 - **#441** · The lanes grow the taxonomy: subtopics first, new topics into the Map's fixed ring (D424, D425) · merged 2026-09-08
 - **#440** · The catalogue pictures land: 2,651 across five domains, and the three things that stood between a correct builder and a picture on disk (D423) · merged 2026-09-08
-- **#439** · The duel lane runs daily for the bank burst — re-paced 2026-09-08, registered · merged 2026-09-08
-- **#431** · Feed 2026-09-07: sixty levelled — six per topic, written fresh against a deep bank · merged 2026-09-08
-- **#438** · The bank stopped compiling at 1145, and the content lanes were dark all day · merged 2026-09-08
-- **#426** · Question farm: 8 questions for Skills, Sport, Story, Travel, Body, Film, Food, Goals — plus two promoted · merged 2026-09-08
-- **#430** · Learn: ten cards to the floor — five cell biology, five commonly-confused · merged 2026-09-08
-- **#428** · Catalog card pk38: the game the hours actually went into · merged 2026-09-08
-- **#437** · The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created (D420) · merged 2026-09-08
-- **#436** · Build 33, the store copy that still promised no sign-up wall, and the wall's two console steps as one workflow (D414 amendment 2) · merged 2026-09-07
-- **#411** · The feed and duel lanes leave first paint too — and three stale notes are why they were still there (D418) · merged 2026-09-07
-- **#435** · The 2026-09-07 vision: the instruments in depth, planned and ruled on, and the facet and position items in the bank (D415–D417) · merged 2026-09-07
-- **#434** · The account wall goes up: three doors, address verification, the designed gate, and the records (D414) · merged 2026-09-07

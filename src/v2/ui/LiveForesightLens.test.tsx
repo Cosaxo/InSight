@@ -73,6 +73,18 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
+describe("LiveForesightLens · the read it opens on", () => {
+  it("asks the store for the log on mount", () => {
+    // The lens fetches its own log when it opens — nothing else does —
+    // and the fixture answers `foresightLog()` fully populated whether or
+    // not the loader ran, so deleting that effect left every case here
+    // green while the real lens showed an empty log to somebody with a
+    // history in it.
+    render(<LiveForesightLens qs={[]} />);
+    expect(LIVE.loadForesight, "the lens no longer fetches the log it draws").toHaveBeenCalled();
+  });
+});
+
 describe("the card", () => {
   it("asks about a named slice and offers the question's options", () => {
     render(<LiveForesightLens qs={[Q]} />);

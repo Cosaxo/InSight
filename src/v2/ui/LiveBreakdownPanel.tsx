@@ -739,7 +739,29 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
           // the second one is permanent. Under the breaker (D332) the
           // fetch was refused, so "Reading…" would describe a read that
           // is not happening.
-          ? <LbNote>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Reading who answered…"}</LbNote>
+          //
+          // …AND `split === null` IS THREE FACTS, NOT TWO. It is also a
+          // read that LANDED and failed: `loadVoters` swallows the error,
+          // leaves the cache absent so a later open retries, and drops its
+          // loading flag — so this note used to say "Reading who
+          // answered…" for the life of the open panel, about a read that
+          // was over. Nothing retries while the chip stays open (the
+          // loader effect is keyed `[typeOpen, logicOpen, qid]`).
+          //
+          // `LbFriends` in this same file, waiting on the SAME voter list,
+          // has always had the third arm — `followsLoading() ||
+          // votersLoading(qid)` and then "Could not load how your friends
+          // answered." This is that ladder, in the same order: in flight,
+          // then refused by the breaker, then failed.
+          ? (
+            <LbNote>{
+              LIVE.votersLoading(qid)
+                ? "Reading who answered…"
+                : LIVE.budgetPaused
+                  ? BUDGET_PAUSED_BODY
+                  : "Could not read who answered."
+            }</LbNote>
+          )
           : !typeRows.length
             ? (
               <LbNote>
@@ -767,7 +789,17 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
 
       {logicOpen && (
         lsplit === null
-          ? <LbNote>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Reading who answered…"}</LbNote>
+          // The same three facts and the same ladder as the Big Five cut
+          // above — this one waits on the same voter list.
+          ? (
+            <LbNote>{
+              LIVE.votersLoading(qid)
+                ? "Reading who answered…"
+                : LIVE.budgetPaused
+                  ? BUDGET_PAUSED_BODY
+                  : "Could not read who answered."
+            }</LbNote>
+          )
           : !logicRows.length
             ? (
               <LbNote>

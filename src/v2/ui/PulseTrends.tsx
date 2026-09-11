@@ -171,8 +171,14 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
           so "10 days in — not a trend yet. Answer again tomorrow" was
           told to somebody who had answered every one of those ten. */}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+        {/* …AND NOT "TOMORROW", which is the cadence half the correction
+            above never considered. `dueOn` makes weekly = Sundays and
+            often = Mon/Wed/Fri, so for both of those the next ask is
+            never tomorrow — and a weekly reading can only be OPENED on
+            the day it asks, which makes it wrong every time it is seen.
+            "Next time it asks" is true on all three cadences. */}
         {answered.length < 3
-          ? "Answer again tomorrow and the line starts."
+          ? "Answer again next time it asks and the line starts."
           : comparable.length === 0
             ? "No day has " + PULSE.THIN + " answers behind it yet — the line starts when the crowd fills in."
             : "Only " + comparable.length + " of them " + (comparable.length === 1 ? "has" : "have")
@@ -202,7 +208,22 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
       <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: d.v != null ? HUE : "transparent", boxShadow: d.v != null ? "none" : "inset 0 0 0 1px color-mix(in oklab, " + HUE + " 50%, var(--surface-2))" }}></span>
-          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(id, d.v) : "you skipped"}</span>
+          {/* THE SAME RULE `skipped` USES, sixty lines up, applied where the
+              number is actually read. That line is `d.scheduled && d.v ==
+              null && !d.today` and its comment states D203's fourth honesty
+              rule outright — "an unscheduled day is absent, not missed…on a
+              weekly cadence that was eighteen of twenty-one days". This
+              readout asked only `d.v == null`, so it said "you skipped"
+              about days the pulse never asked on, and about TODAY on the
+              very screen you opened from the still-open ask. Three of the
+              five pulses default to weekly, so for those it was wrong on
+              eighteen columns out of twenty-one. */}
+          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{
+            d.v != null ? PULSE.word(id, d.v)
+              : !d.scheduled ? "not asked"
+                : d.today ? "not yet"
+                  : "you skipped"
+          }</span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 10, height: 2, borderRadius: 1, background: grey, opacity: 0.55 }}></span>
@@ -265,7 +286,14 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
     answered.length < 2 && {
       key: "you",
       mark: <span style={{ width: 8, height: 8, borderRadius: "50%", boxShadow: "inset 0 0 0 1px " + HUE }}></span>,
-      text: answered.length === 1 ? "your side is 1 day of " + N + " — a line needs at least two" : "your side is empty — one tap a day",
+      // AGAINST `askedN`, NOT THE WINDOW. `N` is the 21-day window; the
+      // days this pulse actually asked on is what the reader could have
+      // answered, and the footer three lines down already uses it. "1 day
+      // of 21" told a weekly answerer they had missed twenty, and "one tap
+      // a day" names a cadence two of the three do not have.
+      text: answered.length === 1
+        ? "your side is 1 day of " + askedN + " asked — a line needs at least two"
+        : "your side is empty — one tap each time it asks",
     },
     answered.length >= 2 && skipped > 0 && {
       key: "skip",

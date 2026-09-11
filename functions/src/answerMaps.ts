@@ -36,13 +36,45 @@
 // never overwrites: the map is the newer truth (an edit made after the
 // healed day is in the map and not in that day's ledger).
 //
-// THE BOUND is the bank, not time. One answer per question (the document
-// id IS the question id, create-only), so a map holds at most as many
-// entries as there are questions — ~20 bytes each, ~23 KB at today's bank
-// and the 1 MiB document ceiling somewhere past 40,000 questions. That is
-// SCALE-PLAN's unbounded feed's number to watch, and a per-surface split is
-// the remedy if it is ever reached; no guard here, because a guard on a
-// bound nothing approaches is a branch nothing tests.
+// THE BOUND IS THE BANK FOR FIVE OF THE SIX SURFACES, AND TIME FOR PULSE.
+// This paragraph used to say "the bank, not time" flat, and that was the
+// sentence licensing the absence of a guard. It is false for `pulse`.
+//
+// The static five (daily, feed, test, learn, call) are one answer per
+// question — the answer document's id IS the question id, create-only — so
+// their half of the map holds at most one entry per question: ~20 bytes
+// each, ~23 KB at today's bank, the 1 MiB ceiling past 40,000 questions.
+// That half is SCALE-PLAN's unbounded feed's number to watch and a
+// per-surface split is its remedy.
+//
+// A PULSE ANSWER'S QID IS THE COMPOSITE `{qid}_{day}` — replay.ts says so
+// where it refuses to address one by bank id, live.ts says so where the
+// day-docs crowd a page, and replay.test.ts pins it. The trigger merges
+// `{ [qid]: optionIdx }` with whatever qid the answer document carries
+// (v2.ts), so a pulse answer adds a NEW key every day and never revisits
+// one. Five templates today (content/pulse-questions.json), which is five
+// keys a day for as long as the account is active:
+//
+//   `pace_2026-09-10` is 15 bytes + 1 for the name, + 8 for the integer
+//   = 24 bytes an entry · 5/day · 365 = ~43 KB per year of daily use.
+//
+// So the DOCUMENT ceiling is still distant — ~43,700 entries, about
+// twenty-four years at five a day — and it is not the part that bites. The
+// READ is: `fetchAnswersOf` (src/v2/data/circle.ts) takes the whole
+// document with no field mask, for up to `FOLLOW_CAP` = 50 members on one
+// Circle open, so ten years of pulse is ~50 × 440 KB on a tap. Group and
+// duo answers never reach here (the trigger returns before the vote
+// branch) and catalog and rank carry no option index, so pulse is the only
+// surface that does this.
+//
+// NO GUARD YET, and that is now a deferral with arithmetic rather than a
+// bound nothing approaches. The two obvious remedies both cost more than
+// this file: dropping `pulse` from `WORLD_SURFACES` is a two-package change
+// (answerMaps.test.ts pins that list equal to voters.ts's
+// `WORLD_ANSWER_SURFACES`, which is what the device queries), and keying a
+// pulse entry by its base qid would collide with a real qid and with the
+// other five surfaces' entries. Whoever reaches for one should read this
+// arithmetic first, and the runbook's 3.2 carries the same correction.
 //
 // THE BACKFILL folds the answers that exist into maps once, through an
 // operator callable driven by scripts/backfill-answer-maps.mjs from the
@@ -138,6 +170,16 @@ export interface AnswerMapStore {
   putMaps(entries: Map<string, Record<string, number>>): Promise<void>;
 }
 
+/** How long one night may spend healing yesterday's maps before it hands
+ *  the rest back — a SLICE, which `runNightlyPass` turns into an instant
+ *  the same way it does the rollup's and the fan-out's (see
+ *  FANOUT_HEAL_SLICE_MS for why a fold-local stopwatch cannot hold the
+ *  promise). Sixty seconds is thousands of accounts at 300 a round trip;
+ *  a night that wants more than that is a night the trigger missed
+ *  writes at a scale worth looking at, not a night that wants a longer
+ *  fold. */
+export const ANSWER_MAP_HEAL_SLICE_MS = 60_000;
+
 export interface AnswerMapHealSummary {
   day: string;
   /** People the day's ledger named with a usable answer. */
@@ -146,6 +188,16 @@ export interface AnswerMapHealSummary {
   healed: number;
   /** Entries written. */
   entries: number;
+  /** True when the deadline ended the run with people unreached. Not the
+   *  same kind of leftover the fan-out's is: this heal reads YESTERDAY
+   *  and nothing else, so the people it did not reach are not first in
+   *  tomorrow's queue — tomorrow heals tomorrow's yesterday. The header
+   *  already accepts that shape for a night that THROWS ("a night that
+   *  fails leaves one day unhealed"); stopping makes it partial instead
+   *  of total, and says so out loud so a repeat is visible. */
+  stopped: boolean;
+  /** People the deadline left unread, when it stopped; 0 otherwise. */
+  unreached: number;
 }
 
 /**
@@ -155,13 +207,27 @@ export interface AnswerMapHealSummary {
  * trigger is the writer; the heal is what makes a missed write a day's
  * lag rather than a permanent hole.
  */
-export async function runAnswerMapHeal(store: AnswerMapStore, nowMs: number): Promise<AnswerMapHealSummary> {
+export async function runAnswerMapHeal(
+  store: AnswerMapStore,
+  nowMs: number,
+  // An absolute instant on the pass's clock, handed down by
+  // `runNightlyPass`; `clock` is separate from `nowMs` because that one
+  // names the DAY and is deliberately one fixed reading for the night.
+  opts: { deadlineAt?: number; clock?: () => number } = {},
+): Promise<AnswerMapHealSummary> {
+  const clock = opts.clock ?? Date.now;
   const day = utcDay(nowMs, -1);
   const byUid = foldAnswerMaps(await store.ledgerDay(day));
   const uids = [...byUid.keys()].sort();
   let healed = 0;
   let entries = 0;
+  let stopped = false;
+  let done = 0;
   for (let i = 0; i < uids.length; i += 300) {
+    // BEFORE the round trip, not after it: the check is about whether to
+    // START another read, and one taken past the deadline is the one that
+    // takes the folds behind this with it.
+    if (opts.deadlineAt != null && clock() >= opts.deadlineAt) { stopped = true; break; }
     const chunk = uids.slice(i, i + 300);
     const maps = await store.getMaps(chunk);
     const write = new Map<string, Record<string, number>>();
@@ -174,8 +240,9 @@ export async function runAnswerMapHeal(store: AnswerMapStore, nowMs: number): Pr
       entries += n;
     }
     if (write.size) await store.putMaps(write);
+    done += chunk.length;
   }
-  return { day, people: uids.length, healed, entries };
+  return { day, people: uids.length, healed, entries, stopped, unreached: stopped ? uids.length - done : 0 };
 }
 
 export function firestoreAnswerMapStore(db: Firestore, ledgerDay: LedgerDayReader): AnswerMapStore {

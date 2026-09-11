@@ -96,6 +96,11 @@
       "id": "medieval",
       "subject": "history",
       "label": "The Middle Ages"
+    },
+    {
+      "id": "missions",
+      "subject": "space",
+      "label": "Space missions"
     }
   ],
   "cards": [
@@ -1164,6 +1169,86 @@
       "p": 60,
       "k": "the flat-earth myth",
       "w": "Columbus’s critics doubted his distances, not the globe. The medieval-flat-earth story was largely invented in the 1800s."
+    },
+    {
+      "id": "mis1",
+      "f": "missions",
+      "q": "Voyager 1, launched in 1977, is now…",
+      "a": [
+        "The farthest human-made object",
+        "Back in a museum",
+        "Orbiting Neptune",
+        "Lost with its signal"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 35,
+      "k": "Voyager, still going",
+      "w": "In interstellar space since 2012, still calling home on power dimmer than a fridge bulb — the farthest thing we have ever thrown."
+    },
+    {
+      "id": "mis2",
+      "f": "missions",
+      "q": "The Golden Record aboard both Voyagers carries…",
+      "a": [
+        "Mission blueprints",
+        "Sounds and music of Earth",
+        "Star maps only",
+        "Nothing — it’s decorative"
+      ],
+      "c": 1,
+      "t": 2,
+      "p": 45,
+      "k": "Earth’s mixtape",
+      "w": "Greetings in 55 languages, whale song, Bach and Chuck Berry — a message for any finder, chosen by Carl Sagan’s committee."
+    },
+    {
+      "id": "mis3",
+      "f": "missions",
+      "q": "Apollo 13’s famous line, as actually spoken:",
+      "a": [
+        "“Houston, we have a problem”",
+        "“Houston, we’ve had a problem”",
+        "“Houston, help us”",
+        "“Mayday, mayday”"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "we’ve HAD a problem",
+      "w": "Jack Swigert’s real words were past tense; the film smoothed them. The crew flew around the Moon and made it home."
+    },
+    {
+      "id": "mis4",
+      "f": "missions",
+      "q": "The Hubble telescope’s first images were blurry because…",
+      "a": [
+        "Dust on the lens",
+        "Earth’s atmosphere",
+        "Its mirror was ground wrong",
+        "Software bugs"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 62,
+      "k": "Hubble’s flawed mirror",
+      "w": "Ground to the wrong shape by microns; astronauts fitted corrective optics in orbit in 1993 — glasses for a telescope."
+    },
+    {
+      "id": "mis5",
+      "f": "missions",
+      "q": "The International Space Station circles Earth about every…",
+      "a": [
+        "90 minutes",
+        "24 hours",
+        "8 hours",
+        "A week"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 38,
+      "k": "sixteen sunrises a day",
+      "w": "At 28,000 km/h an orbit takes an hour and a half — the crew sees sixteen sunrises every day."
     }
   ]
 }

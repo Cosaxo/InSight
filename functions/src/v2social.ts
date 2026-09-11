@@ -2,9 +2,16 @@
 // server-materialized reveals (decision D5).
 //
 // A duo IS a group with mode "duo" and a 2-member cap — one collection,
-// one reveal pipeline, two reveal conditions:
-//   group  · next UTC day, if at least one member answered
-//   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
+// one reveal pipeline, and ONE reveal condition since D426/D437 (this
+// listed two calendar-day conditions until 2026-09-11, nine lines above
+// its own correct sentence about rounds):
+//   `roundReveals` (pure.ts) — an answer in it, AND complete, due or
+//   forced. Complete is both for a duo and all for a group; due is the
+//   48-hour `ROUND_DEADLINE_MS`, at which it reveals for whoever played.
+// The old "duo · ONLY if both played (else no reveal, streak 0)" is the
+// both-or-nothing 1v1 pure.ts says it retired in as many words: "a
+// partner who stops playing used to seal the other's answer with no
+// reveal, ever".
 //
 // Sealed answers live under composite ids (g_{gid}_r{n} — one per ROUND,
 // ROUNDS-PLAN / D426). Since D98 a
@@ -893,6 +900,11 @@ export async function revealRound(
   // Who the NEXT round waits for once this one is out — the push below
   // says so to them, and nobody else (ROUNDS-PLAN §7.4).
   let waitingNext: string[] = [];
+  // The roster the TRANSACTION read, carried out to the push fan-out
+  // below — see the hoist inside it. `waitingNext` was already computed
+  // from it; `told` was not, and that was the one roster use left on the
+  // page's copy.
+  let pushRoster: string[] = [];
   await db.runTransaction(async (tx) => {
     // Reset per attempt: a transaction callback can run more than once,
     // and a retry that bails early must not inherit the previous try's
@@ -902,6 +914,7 @@ export async function revealRound(
     aggQid = null;
     aggVotes = [];
     waitingNext = [];
+    pushRoster = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
       revealRef,
       group.ref,
@@ -968,6 +981,11 @@ export async function revealRound(
     // update and u3 in the reveal's `members` and `names`, for a member
     // who never answered the round.
     const freshRoster: string[] = Array.isArray(gsnap.get("memberUids")) ? gsnap.get("memberUids") : members;
+    // …and out to the push fan-out, which is the one roster use left on
+    // the page's copy. NOT the union `revealRoster` below: that exists so
+    // an erasure can still reach a published vote, and a departed voter
+    // is exactly who must not be notified.
+    pushRoster = freshRoster;
 
     // WHO THE REVEAL SAYS WAS THERE — who was in the group when this round
     // opened, plus anyone who played it — computed once and used twice: as
@@ -1114,7 +1132,18 @@ export async function revealRound(
   const title = group.get("name") || (mode === "duo" ? "Your 1v1" : "Your group");
   const out = mode === "duo" ? "Your answers are out" : `Round ${round} is out`;
   const waiting = new Set(waitingNext);
-  const told = members.filter((u) => !waiting.has(u));
+  // THE TRANSACTION'S ROSTER HERE TOO, and this was the last use reading
+  // the page's. The hoist inside the transaction names the cost of the
+  // page roster in as many words — "a notification sent to a group they
+  // are no longer in" — and then closed it for the ledger, the reveal's
+  // `members`, the names and the next-round stamp, while the push that
+  // says the round is out went on being addressed from the stale list. A
+  // member who left in the window between the two reads is absent from
+  // `waitingNext` precisely BECAUSE they are off the document, so the
+  // filter below put them in `told`: the one list a departure moved them
+  // INTO. (An erased account's token doc is gone, so that arm was inert;
+  // a member who merely left still has tokens.)
+  const told = (pushRoster.length ? pushRoster : members).filter((u) => !waiting.has(u));
   await sendPushToUids(
     db,
     waitingNext,

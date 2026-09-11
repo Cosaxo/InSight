@@ -25,8 +25,8 @@ still excuses it for an iOS build. **For an iOS launch the count is
 zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 140
-questions of 1415 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 142
+questions of 1536 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1415 questions land in `v2_questions` — idempotent and, since D34,
+      1536 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1415** after the K=5 test expansion, D103's
+      and the bank is **1536** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1106,7 +1106,9 @@ start.
       Test **duels first**: they work at N=2, need no crowd, and are the
       most distinctive surface in the product. Two phones exercise
       everything that needs more than one person — the sealed duel and
-      its next-day reveal, cross-device push, a second name in the
+      its round reveal, which on a 1v1 lands the moment the second phone
+      answers rather than the next day (D426/D437), cross-device push, a
+      second name in the
       who-voted sheet. Add testers to widen device and iOS coverage,
       which is a real reason; do not wait on a headcount to start.
       `SHIP-CHECKLIST §3`.
@@ -1144,7 +1146,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1415 seeded questions are live regardless.
+      working, not a leak — the 1536 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -2373,18 +2375,20 @@ That is a tester-count problem, not a workflow problem.
       before submitting: type a wrong address, create, and check that the
       doors come back.
 
-- [ ] **5.17 Stand the budget's wire up — two clicks after the deploy
-      (`COST-EXPOSURE.md` §6 C4, 2026-09-09).** `functions/src/budget.ts`
+- [ ] **5.17 Stand the budget's wire up — one click after the deploy
+      (`COST-EXPOSURE.md` §6 C4, 2026-09-10).** `functions/src/budget.ts`
       sets the D332 read breaker when the month's spend reaches the
-      budget; the deploy creates its topic. Then: GitHub → Actions → **Arm
-      budget** → dry, then `apply` (it attaches `budget-alerts` to the
-      budget and prints the grant); then in Cloud Shell the grant the API
-      cannot make —
-      `gcloud pubsub topics add-iam-policy-binding budget-alerts --project prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com --role roles/pubsub.publisher`.
-      Proof: within half an hour a `budget_message` line on
-      `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The budget's wire).
-      What it does not do: detach billing — that is the owner's row on
-      `OWNER-LIST.md`, with the arithmetic.
+      budget; the deploy creates its topic. Then, in the console: Billing
+      → Budgets & alerts → "InSight" → Manage notifications → *Connect a
+      Pub/Sub topic to this budget* → `budget-alerts` → Save — the one
+      action that attaches the topic and grants its service agent
+      Publisher. The API path (*Arm budget* with `apply`) is refused from
+      the deploy credential, which lacks `pubsub.topics.setIamPolicy` on
+      the topic (measured 2026-09-10); its dry run is the check afterwards
+      ("exists and matches"). Proof: within half an hour a `budget_message`
+      line on `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The
+      budget's wire). What it does not do: detach billing — that is the
+      owner's row on `OWNER-LIST.md`, with the arithmetic.
 
 ## Phase 6 — Submit
 

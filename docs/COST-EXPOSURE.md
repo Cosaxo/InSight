@@ -65,8 +65,8 @@ Everything in this table was read, not derived.
 | Billing | enabled, on the account the observer names | *Observe production*, 2026-09-07 |
 | Cloud Billing budget | "InSight", **500 NOK/month**, thresholds 50/90/100/150 %, live since 2026-08-27 | D332 §3; `budget.yml`'s dry run |
 | Alert policies | **9 live and enabled of 10 committed**, email channel *InSight oncall*; the breakdown-cap evictions policy is not armed | *Observe production*, 2026-09-07; `LAUNCH-RUNBOOK.md` 5.5 / 5.5b |
-| Functions deployed | **52**: 51 in `europe-west1` — the 41 the deploy names, the two retired nightly functions D399 left standing, and eight more the deploy list does not name — plus one Python `processBatch` in `europe-north1` that is not this repository's code | *Observe production*; D399; D333 |
-| Cloud Scheduler jobs | 8 in the source, plus the two zombies' schedules; **3 are free per billing account** | `functions/src/*.ts` `onSchedule` sites; Google's scheduler pricing |
+| Functions deployed | **55** since 2026-09-10: 54 in `europe-west1` — the 46 the deploy names, and the eight of an Algolia search extension the deploy list does not name — plus one Python `processBatch` in `europe-north1` that is not this repository's code. It was 58 until run 34479295825 deleted the three retired nightly functions D399 and runbook 4.4 had left standing | `functions:list` in run 34479117495, then the delete; D399; D333 |
+| Cloud Scheduler jobs | **7**, all in the source, since the three retired functions' schedules went with them on 2026-09-10 (ten before); **3 are free per billing account** | `functions/src/*.ts` `onSchedule` sites, counted by `scripts/cost-arith.mjs`; Google's scheduler pricing |
 | Auth edition | **Firebase Authentication, the free one** — answered 2026-08-27 off the Identity Toolkit config | `LAUNCH-RUNBOOK.md` 5.2 (D333). `COSTS.md` finding 3 still asks the question |
 | Database | `insight`, `europe-west1`, priced as Standard edition; `(default)` deleted 2026-08-27 | `functions/src/db.ts`; D333 |
 | Firestore TTLs | ACTIVE on `v2_agg_events`, `engagement`, `v2_ratelimits` | D333 item 3 |
@@ -274,11 +274,12 @@ stands meanwhile.
   dangerous;
   invisible to the model; and the trigger is broad — a push touching
   only `web/` runs the same functions step. §6 C7 scopes it.
-- **Artifact Registry.** 52 functions' container images, **0.5 GiB free
+- **Artifact Registry.** 55 functions' container images, **0.5 GiB free
   then $0.10 per GiB-month**, and the deploy log shows no cleanup-policy
   line either way. Whether a policy exists is a console read (§6 O6).
-- **Cloud Scheduler.** Ten jobs against three free: **~$0.70 a month**,
-  which is most of the invoiced dollar.
+- **Cloud Scheduler.** Seven jobs against three free since 2026-09-10 —
+  ten until the three retired functions were deleted (run 34479295825):
+  **~$0.40 a month**, where ~$0.70 was most of the invoiced dollar.
 - **What the jobs run on.** The functions line on the Sep 1–8 console
   (kr2.58 of kr2.86) is these jobs' instance-seconds, and memory is what
   an instance-second costs: `sweepPaidReviewsV2` runs 48 times a day and
@@ -396,12 +397,12 @@ default to the billing account's admins and users. Both are §6 O4.
 
 | # | Gap | If it bites | Fix | Who | 2026-09-09 |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); two clicks after the deploy; the detach is an owner row |
+| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); the attach is the owner's console click (2026-09-10); the detach is an owner row |
 | 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code | **code done** (C3: 50 calls a day, 1,024 tokens); O1 still the owner's |
 | 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code | done |
 | 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code | **done** (C1) |
 | 5 | Deploy-rate costs: Cloud Build and image storage | tens of dollars a month at ten deploys a day | cleanup policy; scope the functions step to `functions/**` | owner check + code | open (C7, O5) |
-| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner | open (O2; three now — `ledgerVelocityScan` retired at runbook 4.4) |
+| 6 | Zombie functions, foreign residue | one night's data loss; cents | delete | owner | **the three deleted 2026-09-10** (run 34479295825, O2); the foreign residue is still the owner's |
 | 7 | Alert notes on the `nam5` sheet; evictions policy unarmed | the wrong number at 3 am; a blind spot | edit the JSON; dispatch *Arm monitoring* | code + owner | open (C5) |
 | 8 | No billing export to BigQuery | no invoice to diff the model against | console toggle | owner | open (O4) |
 | 9 | Pulse guard blind on a stale fold | the early warning is silent | schedule the fetch | code | open (C6) |
@@ -419,7 +420,7 @@ default to the billing account's admins and users. Both are §6 O4.
   Anthropic console at a figure you would not mind losing, and confirm
   whether `ANTHROPIC_API_KEY` is set in the production environment at
   all (`OWNER-LIST.md`'s three-secrets row).
-- **O2 · Delete the residue.** `firebase functions:delete fitPatternsV2
+- **O2 · Delete the residue.** *Done for the three on 2026-09-10 through the *Delete retired functions* workflow (run 34479295825); what follows is the row as it stood, and the foreign residue it also names is still yours.* `firebase functions:delete fitPatternsV2
   fitTasteV2 --project prvfire33 --region europe-west1 --force` (the row
   is already on `OWNER-LIST.md`); then `processBatch` and the four
   extension instances D333 listed.
@@ -459,8 +460,9 @@ default to the billing account's admins and users. Both are §6 O4.
   daily counter in `v2_ratelimits` beside the per-account one, `max_tokens`
   sized to the verdict, and a `paid_review_call` log metric with a policy
   under `monitoring/` on calls a day; `check:monitoring` holds the chain.
-- **C4 · The budget acts** — **built 2026-09-09**, two clicks after the
-  deploy (§8.1); the detach is not built and is an owner row.
+- **C4 · The budget acts** — **built 2026-09-09**; the attach is one
+  click of the owner's, in the console (§8.1, measured 2026-09-10); the
+  detach is not built and is an owner row.
   `scripts/apply-budget.mjs` adds a
   `notificationsRule.pubsubTopic`; a Pub/Sub-triggered function sets
   `budgetMode` to 1 at the 100 % message (one merged field write, D332's
@@ -494,7 +496,7 @@ Console-only facts, listed so they are read rather than assumed:
 - The Firestore edition of `insight` (Standard is assumed and priced;
   Enterprise bills in different units). ~~and whether point-in-time
   recovery or scheduled backups are on~~ — **readable since 2026-09-11
-  (D450)**: `npm run observe` reports `backups.pitr` and both schedules,
+  (D451)**: `npm run observe` reports `backups.pitr` and both schedules,
   and `npm run backups` (Actions → *Backups*) puts them in place. They do
   still bill as storage with no free usage, against a database holding
   107 answers — which is the argument for arming them now rather than at
@@ -541,11 +543,16 @@ none is typed.
   100 % of the budget from the budget's own Pub/Sub notification, in the
   fields `scripts/budget-mode.mjs` reads and releases, and releases only
   what it set and only when the next month arrives under the line.
-  `scripts/apply-budget.mjs` attaches the topic. **Two clicks after the
-  deploy** (`OWNER-LIST.md`): dispatch *Arm budget* again, then grant the
-  budget's service agent Publisher on the topic — the one grant the
-  Budgets API cannot make for itself. Until the grant the function sees
-  nothing, and the mail is still the backstop. The billing detach is not
+  `scripts/apply-budget.mjs` attaches the topic over the API — and from
+  the deploy credential that PATCH is refused (2026-09-10, run
+  34477868495): the Budgets API demands `pubsub.topics.setIamPolicy` on
+  the topic of whoever attaches one, which project Editor lacks, and the
+  script's message first misread the 403 as the billing-account role.
+  **One click after the deploy** (`OWNER-LIST.md`): the console's
+  *Connect a Pub/Sub topic to this budget*, which attaches and grants the
+  service agent Publisher in the same action; the dry dispatch then reads
+  "exists and matches". Until the click the function sees nothing, and
+  the mail is still the backstop. The billing detach is not
   built; its arithmetic is the owner's row.
 - **C3, the ceiling.** `REVIEW_CALLS_PER_DAY` (50) bounds the model calls
   the whole project makes in a day; a refused slot holds the booking
@@ -638,11 +645,11 @@ what stands in the way of each:
 | --- | --- | --- |
 | Reads nobody in the app issued | closed by App Check enforcement (§3.A) | the switch, the owner's, 2026-09-08 |
 | A real device driving the app's own queries and writes | the app's per-session shape (§3.G), the fan-out's hourly budget (8.2) | the caps, each read by the model from source |
-| The hours between a budget mail and a person | the read breaker sets itself at 100 % (C4) | two clicks; then the budget's own 20–30 minute cadence is the delay |
+| The hours between a budget mail and a person | the read breaker sets itself at 100 % (C4) | one console click; then the budget's own 20–30 minute cadence is the delay |
 | The paid review's model calls | 50 a day project-wide, 1,024 tokens a call (C3) | the workspace spend limit (O1) holds whatever the code does |
 | Deploy-rate costs | ~40–60 build-minutes a deploy against 2,500 free (§3.E) | nothing yet — C7 is the fix, tens of dollars a month at the current merge rate |
 | The log's erasure, ingest and phase B's counters | one pass a night, the kilobyte priced, a start condition (8.2) | nothing more today; two owner sentences at scale |
-| The three retired nightly functions | cents, and a night's data loss if one writes | the delete (O2) |
+| The three retired nightly functions | cents, and a night's data loss if one writes | deleted 2026-09-10 (O2, run 34479295825) |
 
 The hard stop — detaching billing from the same notification at a higher
 threshold — is still not built, still Google's documented shape, and
