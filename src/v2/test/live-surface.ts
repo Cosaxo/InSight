@@ -147,6 +147,11 @@ export const LIVE_MEMBERS = [
   // screen drives these three. `abandonSignIn` is the way out of a typo.
   "abandonSignIn", "accountEmail",
   "needsEmailVerify", "refreshVerification", "sendVerification",
+  // The wall's verdict as one boolean (D453) — `ui/SignInGate`'s only
+  // read, and the one member here whose answer is PROVISIONAL before the
+  // auth observer speaks. Listed beside the two flags it composes
+  // because a change to either has to be a change to it.
+  "wallPass",
   "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",

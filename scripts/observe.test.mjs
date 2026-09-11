@@ -107,7 +107,7 @@ describe("a refusal is a result, not a crash", () => {
   it("reports EVERY refusal in one run, not just the first", async () => {
     for (const h of Object.keys(reply)) reply[h] = { status: 403, body: { error: { message: "denied" } } };
     const j = await asJson();
-    // Seven probes now: the original four, D453's bigquery and D454's two
+    // Seven probes now: the original four, D454's bigquery and D455's two
     // backup readings. The count is the assertion — a run that quietly
     // stopped making one would otherwise still look green here.
     expect(j.blocked).toHaveLength(7);
@@ -345,7 +345,7 @@ describe("--json-out, for the workflow reader", () => {
 });
 
 // The paid loop's three secrets, the webhook's URL, and the two BigQuery
-// steps — the readings D453 added, and the reason they were added:
+// steps — the readings D454 added, and the reason they were added:
 // `OWNER-LIST.md` carried "a session cannot read the deployed environment,
 // so whether a sale can go through TODAY is a fact only you can check".
 // It was an ordinary API call the whole time.

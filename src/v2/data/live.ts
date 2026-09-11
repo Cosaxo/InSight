@@ -290,6 +290,12 @@ const state = {
   uid: null as string | null,
   linked: false,
   needsEmailVerify: false,
+  // Whether the auth observer has spoken this session (D453). Until it
+  // has, `linked` and `needsEmailVerify` are merely the values they were
+  // initialised to — false, and indistinguishable from an anonymous
+  // session auth has confirmed. Only the wall cares about the
+  // difference, and only at boot: see AUTH_MIRROR_LS and `wallPass`.
+  authKnown: false,
   // The address the account signs in with, so the verify screen can name
   // it after a relaunch — by then the component's own field is empty and
   // "we sent a link to your address" is the sentence a stuck user least
@@ -2012,6 +2018,64 @@ function endProvisional(): void {
 function failProvisional(err: unknown): void {
   failAuth(err);
   armAuthGate();
+}
+
+// ── the wall's opening posture, mirrored (D453) ──────────────────────
+//
+// The account wall (D134, D414) is decided from `linked` and
+// `needsEmailVerify`, and BOTH ARE FALSE UNTIL THE AUTH OBSERVER HAS
+// SPOKEN — which is after the ~400 KB Auth/Firestore import and the auth
+// restore's own IndexedDB read, the longest local wait a warm boot has
+// left. D356 took that wait off the DECK and painted it off this device's
+// own caches; the wall never got the same treatment, so every returning
+// signed-in user was shown the sign-in screen for the length of the
+// restore and then watched it vanish. Reported from a device, 2026-09-11:
+// "even when you are signed in the sign in page will show for a brief
+// while before it realises you are signed in".
+//
+// So the wall gets the mirror every other warm surface already has: the
+// verdict auth last handed this device, written when the observer speaks
+// and read while it has not. Same trade D356 priced, and the same
+// exposure — what a wrongly-open frame can show is this device's own
+// cached deck for the account the mirror names, which is the account
+// whose session was lost. Nothing of anyone else's is on disk to draw.
+//
+// FAIL-SAFE IN THE DIRECTION THAT MATTERS: absent, unreadable or
+// anything but the written string reads as WALLED, so a device that has
+// never passed the wall waits for auth exactly as it did before. The key
+// is inside the `insight.` namespace purgeLocalTrace sweeps, so a
+// deleted account leaves no open door for the next one — that sweep is
+// the only thing here that must not be forgotten, and it is why the key
+// is spelled with the prefix rather than as `authMirror.v1`.
+const AUTH_MIRROR_LS = "insight.authMirror.v1";
+
+// Read rather than cached in module scope, and the render cost is what
+// makes that safe: the only reader is `LIVE.wallPass`, which stops
+// consulting the mirror the instant `authKnown` flips — so this runs a
+// handful of times at boot and never again. A cached copy would also
+// have to hear the purge (check:purge's whole subject), for a read that
+// is already one synchronous map lookup.
+function readAuthMirror(): boolean {
+  try {
+    return localStorage.getItem(AUTH_MIRROR_LS) === "1";
+  } catch {
+    return false;
+  }
+}
+
+// Written from the two places the verdict can move: the auth observer,
+// and the verify poll that clears `needsEmailVerify` without the
+// observer's help (LIVE.refreshVerification says why it writes the flag
+// itself). Missing the second would re-flash the wall at the next launch
+// for exactly the person who just confirmed their address.
+function syncAuthMirror(): void {
+  const pass = state.linked && !state.needsEmailVerify;
+  try {
+    if (pass) lsSet(AUTH_MIRROR_LS, "1");
+    else localStorage.removeItem(AUTH_MIRROR_LS);
+  } catch {
+    /* best-effort: the next launch waits for auth, which is the old behaviour */
+  }
 }
 
 function saveOwnProfile(): void {
@@ -7447,6 +7511,28 @@ const LIVE = {
   get needsEmailVerify() {
     return state.needsEmailVerify;
   },
+  // …and the single boolean anyway, for the ONE caller that is not a
+  // screen (D453). `ui/SignInGate` asks only whether the wall is up, and
+  // it has to ask something that can answer BEFORE auth has spoken —
+  // composing the two flags itself put the sign-in screen in front of
+  // every returning signed-in user for the length of the auth restore.
+  // So the composition lives here, where the mirror is: auth's word once
+  // there is one, this device's last verdict until then.
+  //
+  // TWO CONDITIONS, NOT ONE, and the second is not a formality. An
+  // account created at the email door exists the moment Firebase accepts
+  // the password — `linked` is already true — and nothing has yet shown
+  // that the address belongs to whoever typed it. Passing on `linked`
+  // alone would let a typo'd or borrowed address through with a full
+  // account behind it, and the reset mail that is the only way back into
+  // such an account goes to the wrong inbox. Apple and Google hand over
+  // an address they have already verified, so they never meet this arm
+  // (the observer in initLive has the precise rule).
+  get wallPass(): boolean {
+    return state.authKnown
+      ? state.linked && !state.needsEmailVerify
+      : readAuthMirror();
+  },
   get accountEmail() {
     return state.accountEmail;
   },
@@ -7463,6 +7549,10 @@ const LIVE = {
     const verified = await refreshVerification();
     if (verified && state.needsEmailVerify) {
       state.needsEmailVerify = false;
+      // The wall's verdict just moved without the observer (D453) — the
+      // sentence above is the whole reason this path writes the flag
+      // itself, and the mirror is part of the flag now.
+      syncAuthMirror();
       notify();
     }
     return verified;
@@ -8824,7 +8914,17 @@ export function _idleDetachForTest(): { pending: boolean; run: () => void } {
 
 export async function initLive(timeoutMs = 2500): Promise<void> {
   const flag = import.meta.env.VITE_V2_LIVE === "true";
-  if (!flag || !firebaseEnabled) return;
+  if (!flag || !firebaseEnabled) {
+    // NOTHING WILL EVER OBSERVE AUTH IN THIS BUILD, so say so rather than
+    // leaving the wall waiting for a word that is not coming (D453). It
+    // matters for exactly one combination — a build with the wall on and
+    // no Firebase behind it, which is misconfigured either way — and the
+    // answer it produces is the pre-D453 one: `linked` is false, so the
+    // wall is up, and a mirror left by a build that DID have Firebase
+    // cannot open it.
+    state.authKnown = true;
+    return;
+  }
   const boot = refreshLive();
 
   // R2/D270: arm the anonymous feature tally. The writer is the ordinary
@@ -8908,19 +9008,37 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       && !user.emailVerified
       && user.providerData.some((p) => p.providerId === "password");
     state.accountEmail = (user && !user.isAnonymous && user.email) || null;
-    const linkedChanged = state.linked !== wasLinked
-      || state.needsEmailVerify !== wasNeeds;
+    // AUTH HAS SPOKEN, and both halves of that matter (D453). The mirror
+    // records the verdict for the next launch's wall — and the FIRST
+    // observation is a change in its own right even when neither flag
+    // moved, because that is exactly the case the mirror creates: a
+    // device whose mirror opened the wall, for a session auth then
+    // reports as anonymous, moves nothing here. Without the `!wasKnown`
+    // arm nothing would be announced and the wall would never go back
+    // up.
+    const wasKnown = state.authKnown;
+    state.authKnown = true;
+    syncAuthMirror();
+    const authChanged = state.linked !== wasLinked
+      || state.needsEmailVerify !== wasNeeds
+      || !wasKnown;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);
+      // AFTER the reset, because it purges the `insight.` namespace and
+      // the sync above wrote into it (D453). The verdict is the NEW
+      // account's — nothing in the reset touches the two flags — so
+      // writing it here is what keeps a switch INTO a linked account
+      // from costing that account a flash on its next launch.
+      syncAuthMirror();
       return;
     }
     if (next && !state.uid) {
       state.uid = next;
-      if (linkedChanged) notify();
+      if (authChanged) notify();
       return;
     }
-    if (linkedChanged) notify();
+    if (authChanged) notify();
     // While the uid is the mirror's (D356), a null state is the SDK
     // reporting "no restored session yet" on the way to refreshLive's own
     // sign-in — the recovery below would start a SECOND anonymous sign-in

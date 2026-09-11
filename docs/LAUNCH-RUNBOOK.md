@@ -1556,7 +1556,7 @@ That is a tester-count problem, not a workflow problem.
       rather than in a gate.
 
 - [ ] **5.1b A FOURTH collection group stamps `expireAt` — `v2_paid_bookings`
-      (D455).** One command, the same shape as 5.1's, and it is not
+      (D456).** One command, the same shape as 5.1's, and it is not
       covered by that ticked box: a TTL policy is per collection group, so
       the three that are `ACTIVE` say nothing about this one.
 
@@ -1567,8 +1567,8 @@ That is a tester-count problem, not a workflow problem.
       ```
 
       **Why it appeared.** A booking never expired. That was survivable
-      while the door demanded App Check from an attested app; D454 opened
-      it to a browser and D455 removed the reCAPTCHA in front of it, so an
+      while the door demanded App Check from an attested app; D455 opened
+      it to a browser and D456 removed the reCAPTCHA in front of it, so an
       unpaid booking is now the only thing an unguarded caller can leave
       behind. `bookPaidQuestionV2` stamps 60 days, and `goLive` DELETES the
       field on the paying webhook so a sold campaign is never swept — the
@@ -2341,12 +2341,12 @@ That is a tester-count problem, not a workflow problem.
       **THE APP CHECK BLOCKER IS GONE, and it was the bigger half.**
       This step used to end by saying the secrets alone would not produce
       a sale, because both callables demanded App Check and a browser
-      cannot produce it. D454 opened the door and wired the page; D455
+      cannot produce it. D455 opened the door and wired the page; D456
       settled what guards it — the per-account booking budget, owning the
       booking, and the payment itself — on the owner's ruling that a
       BUYER's humanity needs no proving where a VOTER's does.
 
-      **It is TWO keys now, not five.** D455 removed the reCAPTCHA pair
+      **It is TWO keys now, not five.** D456 removed the reCAPTCHA pair
       and moved the question review to a Claude Code Routine, which is
       what retires `ANTHROPIC_API_KEY`.
 

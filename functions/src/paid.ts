@@ -71,7 +71,7 @@ const stripeKey = () => process.env.STRIPE_SECRET_KEY || "";
 const stripeWebhookSecret = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 const anthropicKey = () => process.env.ANTHROPIC_API_KEY || "";
 /**
- * How long an unpaid booking lives (D455, COST-EXPOSURE C10). A booking
+ * How long an unpaid booking lives (D456, COST-EXPOSURE C10). A booking
  * carried no expiry at all, so one abandoned between approval and payment
  * stayed forever — survivable while the door demanded App Check from an
  * attested app, and the only remaining cost of a junk booking now that the
@@ -526,7 +526,7 @@ export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string 
   if (gate) return { verdict: "decline", reason: gate, by: "gates" };
   const key = anthropicKey();
   if (!key) {
-    // NO KEY MEANS HOLD, NOT APPROVE — and until D455 it meant approve,
+    // NO KEY MEANS HOLD, NOT APPROVE — and until D456 it meant approve,
     // which is the most dangerous line this file has ever carried.
     //
     // `reviewGates` checks three things: the payload parses, no two
@@ -536,7 +536,7 @@ export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string 
     // carrying a slur, or linking to a gambling site was approved
     // automatically and could be paid for and published under a paid
     // band. That was survivable exactly while the key was expected to be
-    // set in production and the door was shut to browsers. D455 retires
+    // set in production and the door was shut to browsers. D456 retires
     // both premises at once: the review moves to a Claude Code Routine
     // (the owner's call — no per-request key), so production is now
     // EXPECTED to have no key, and the door is open.
@@ -793,7 +793,7 @@ export const bookPaidQuestionV2 = onCall(
   // NO enforceAppCheck: the caller is a BROWSER (web/ask.html), which
   // cannot produce App Check attestation without a provider. What guards
   // it is `assertBookingBudget` — five a day per account — plus the
-  // owner's ruling (D455) that a BUYER's humanity is not worth a gate of
+  // owner's ruling (D456) that a BUYER's humanity is not worth a gate of
   // its own: the €320 is the filter, and an unpaid booking is an
   // invisible document that never becomes a question anyone sees. Vote
   // paths are untouched and still attest, which is where the owner does
@@ -1126,7 +1126,7 @@ export async function expirePriorSession(
 
 /**
  * The checkout hop's own gate, extracted so `check-appcheck.mjs` can name
- * it and then PROVE the body calls it (D455). It was three inline `if`s
+ * it and then PROVE the body calls it (D456). It was three inline `if`s
  * doing exactly this; an exemption whose reason points at inline code is
  * a reason nothing can hold, which is the failure that script's header
  * records about `seedContentV2`.
@@ -1409,7 +1409,7 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       window: { start, until },
       paidAt: Timestamp.now(),
       // THE SOLD BOOKING STOPS EXPIRING. `expireAt` bounds abandoned
-      // documents (D455, C10); this one is a paid record with a refund
+      // documents (D456, C10); this one is a paid record with a refund
       // owed against it when the window closes, and the closer reads it.
       // Deleting a purchase record 60 days on would erase the arithmetic
       // the refund is computed from — so the field is removed rather than

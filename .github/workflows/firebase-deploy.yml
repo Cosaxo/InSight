@@ -137,11 +137,11 @@ jobs:
           # no STRIPE keys → approved bookings cannot be paid and closed
           # campaigns cannot refund.
           #
-          # ANTHROPIC_API_KEY is EXPECTED to be empty since D455 — the
+          # ANTHROPIC_API_KEY is EXPECTED to be empty since D456 — the
           # owner moved the review to a Claude Code Routine. Empty is no
           # longer a degradation and no longer a warning; what it means is
           # that a booking stays in `review` for the Routine to settle.
-          # Until D455 this line said reviews "run on gates alone", which
+          # Until D456 this line said reviews "run on gates alone", which
           # was true and was the dangerous half: the gates never read the
           # words, so that path APPROVED whatever it was given.
           if [ -n "$ANTHROPIC_API_KEY" ]; then
@@ -224,8 +224,8 @@ jobs:
       # is: nothing about static HTML should be able to abort — or worse,
       # half-abort — a Firestore-rules or functions deploy. Check this
       # step's outcome before assuming the policy URL is live.
-      # THE BUY PAGE'S PUBLIC CONFIG (D454; the reCAPTCHA half removed at
-      # D455). The Firebase web API key is public by design — it ships in
+      # THE BUY PAGE'S PUBLIC CONFIG (D455; the reCAPTCHA half removed at
+      # D456). The Firebase web API key is public by design — it ships in
       # every app build — so it is a VARIABLE, written here rather than
       # committed so a fork or a preview deploy does not inherit
       # production's project.

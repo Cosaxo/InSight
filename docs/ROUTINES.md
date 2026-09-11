@@ -837,7 +837,7 @@ owners' to write.
 
 ---
 
-## 10 · The paid-question review — chartered 2026-09-11 (D455), NOT created
+## 10 · The paid-question review — chartered 2026-09-11 (D456), NOT created
 
 **No trigger id, because no Routine exists.** This section is a charter,
 not a row: `list_triggers` would not return one, and writing a row with
@@ -857,7 +857,7 @@ somebody learns to ignore before it ever matters.
 
 | | |
 | --- | --- |
-| Schedule | hourly is the shape the buyer's wait is written against (`web/ask.html`'s held copy promises no cadence, deliberately — D455 kept it to *"come back to this address"*) |
+| Schedule | hourly is the shape the buyer's wait is written against (`web/ask.html`'s held copy promises no cadence, deliberately — D456 kept it to *"come back to this address"*) |
 | Binding | a fresh session per firing: it carries no state between runs and the queue is the state |
 | Needs | `FIREBASE_SERVICE_ACCOUNT` on the `production` environment — the same secret `observe.yml` and `seed-content.yml` use |
 | Writes | `v2_paid_bookings` only, and only the `status`/`review`/`note` fields, under an `updateMask`. No branch, no PR |
@@ -882,7 +882,7 @@ disagreeing with.
 
 **What settles a booking nobody reviews:** nothing, and that is the
 design. `functions/src/paid.ts` HOLDS a booking it cannot review rather
-than approving it (D455 — the line that used to approve is the most
+than approving it (D456 — the line that used to approve is the most
 dangerous this repository has carried), so a queue nobody reads is a
 buyer who is never charged, never a question published unreviewed.
 

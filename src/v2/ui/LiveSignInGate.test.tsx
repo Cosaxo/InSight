@@ -93,6 +93,12 @@ beforeEach(() => {
   stub("enabled", true);
   stub("linked", false);
   stub("needsEmailVerify", false);
+  // The wrapper's own read since D453 — the store composes the two flags
+  // above into it, and answers off this device's last verdict until the
+  // auth observer has spoken. Stubbed explicitly so no case here depends
+  // on what jsdom's localStorage happens to hold; the composition itself
+  // is pinned against real store state in `data/warm-boot.test.ts`.
+  stub("wallPass", false);
   stub("accountEmail", null);
   stub("bootError", "");
 });
@@ -140,8 +146,9 @@ describe("with the flag on", () => {
     expect(screen.getByText("Sign in with Apple")).toBeTruthy();
   });
 
-  it("lets a linked session straight through, with no chunk to wait for", () => {
+  it("lets a passed session straight through, with no chunk to wait for", () => {
     stub("linked", true);
+    stub("wallPass", true);
     gate();
     expect(screen.getByText("the app")).toBeTruthy();
   });
@@ -501,8 +508,13 @@ describe("the email door", () => {
   it("a confirmed account walks straight through", async () => {
     // The other side of the same rule, and the one that would strand every
     // Apple and Google account if `needsEmailVerify` were ever over-broad.
+    // The rule itself moved into the store at D453 (`LIVE.wallPass`), and
+    // is pinned there over real state — both arms, including the one this
+    // case is named for, in `data/warm-boot.test.ts`. What stays here is
+    // the wiring: a passed verdict reaches the app without the screen.
     stub("linked", true);
     stub("needsEmailVerify", false);
+    stub("wallPass", true);
     gate();
     expect(screen.getByText("the app")).toBeTruthy();
   });
