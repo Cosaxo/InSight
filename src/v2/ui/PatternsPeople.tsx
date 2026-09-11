@@ -79,7 +79,7 @@ const AGREE_COL = {
   no: "oklch(0.58 0.11 35)",
 } as const;
 /** Mostly agrees · split · mostly disagrees, counted over what you share.
- * A dot placed from the nightly position alone (D456) shares nothing to
+ * A dot placed from the nightly position alone (D458) shares nothing to
  * count, so it lands in the split ink — the step that claims least — and
  * its card states the answer count instead of an agreement. */
 const stepOf = (p: { agree: number; shared: number }): keyof typeof AGREE_COL => {
@@ -146,7 +146,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   );
   const myCo = countryOf(LIVE.anchors().city);
 
-  // ── the published crowd (D456) ──────────────────────────────────
+  // ── the published crowd (D458) ──────────────────────────────────
   //
   // One document per population: the world's, or your country's. Circle
   // reads none — a published position carries no membership, and the
@@ -168,7 +168,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
     // and pick items included (D396) — under the ridge the fit published
     viewerObs: PATTERNS.evidence(),
     // and every stranger from their frozen chips against the fit's anchor
-    // rows (D452) — the same evidence the fit solved them with
+    // rows (D454) — the same evidence the fit solved them with
     anchorRows: PATTERNS.anchorRows(),
     lambda: PATTERNS.lambdaU(),
     circle: circleSet,
@@ -358,7 +358,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
             <span><i className="k-dot" style={{ background: AGREE_COL.no }}></i>mostly disagrees</span>
             <span>bigger dot = more answers in common</span>
             <span>tap anyone to see what you share</span>
-            {/* D456: two crowds in one picture, so the sentence names
+            {/* D458: two crowds in one picture, so the sentence names
                 both — the people the nightly placed, and the ones the
                 fetched lists put here. The cap is stated where it bites
                 ("600 of 18,400"), because a picture of a sample that
@@ -411,7 +411,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
             <span style={{ fontFamily: SANS, fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{selP.name || "Someone"}</span>
             {selP.chips.map((c, k) => <span key={k} style={chipStyle}>{c}</span>)}
           </div>
-          {/* D456: a person drawn from the published position has no
+          {/* D458: a person drawn from the published position has no
               shared answers to count, and the card says so rather than
               printing "0 of 0" — the same rule D146 holds the pair card
               to, pointed at a person instead of a pair. The position is

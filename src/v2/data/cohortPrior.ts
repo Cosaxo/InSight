@@ -1,4 +1,4 @@
-// cohortPrior.ts — the Oracle's prior from the viewer's own groups (D451,
+// cohortPrior.ts — the Oracle's prior from the viewer's own groups (D453,
 // PATTERNS-PLAN.md §3).
 //
 // WHY. The fit centres every question on the WORLD's split and the

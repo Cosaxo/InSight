@@ -394,14 +394,14 @@ export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onD
   }
 
   const items = PATTERNS.pool();
-  // The Map draws a dot per published ROW since D458 — a choice's options,
+  // The Map draws a dot per published ROW since D460 — a choice's options,
   // a catalogue's picks, a profile value — where the Oracle and the People
   // lens still read the two-option pool, which is the shape their own
   // arithmetic is written in.
   const mapRows = PATTERNS.rows();
   // only topics that actually have questions in the pool
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
-  // …plus the ring of the viewer's own answers (D455), which is not a
+  // …plus the ring of the viewer's own answers (D457), which is not a
   // topic but rings like one
   const chips = [{ id: "all", label: "All topics" }, { id: "answered", label: "Answered" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
   // The population roster (D216) — the standalone's own: Circle · your

@@ -163,7 +163,7 @@ await adb.doc(CITY_SAMPLE).set({
   },
   n: 2,
 });
-// …and the world map's position documents (D456): the country's and the
+// …and the world map's position documents (D458): the country's and the
 // world's, the same rows-keyed-by-uid shape, reached by the id range
 // rather than by this account's own chip.
 const WORLD_DOCS = ["v2_patterns/people-NO", "v2_patterns/people-world"];
@@ -832,7 +832,7 @@ for (const path of WORLD_DOCS) {
   if (!after.exists)
     fail(`${path} was deleted outright — it is everyone else's map`);
   if (after.get("rows")?.[uid] !== undefined)
-    fail(`the erased account's position survived in ${path} (D456)`);
+    fail(`the erased account's position survived in ${path} (D458)`);
   if (after.get("rows")?.[OTHER]?.n !== 12)
     fail(`the position scrub removed more than the one row in ${path}`);
   if (after.get("n") !== 1)

@@ -61,7 +61,7 @@ function memoryStore(
     samples,
     /** The per-city samples, by document id (runbook 2.5). */
     citySamples,
-    /** The world map's position documents, by id (D456). */
+    /** The world map's position documents, by id (D458). */
     worldMaps,
     /** Every seed query the run paid for, in order (D442). */
     seedCalls: [] as string[],
@@ -902,7 +902,7 @@ describe("the candidate engine (D395)", () => {
     expect(cand.streak).toBe(0);
     expect(ALS_LAMBDAS_U).toContain(cand.lambdaU);
     expect(Object.keys(cand.lambdaSweep ?? {})).toHaveLength(ALS_LAMBDAS_U.length);
-    // and the link's slope beside the ridge (D454): swept on the same
+    // and the link's slope beside the ridge (D456): swept on the same
     // days, published for the phone, the online engine's the shipped 1
     expect(ALS_TAUS).toContain(cand.tau);
     expect(Object.keys(cand.tauSweep ?? {})).toHaveLength(ALS_TAUS.length);
@@ -1233,7 +1233,7 @@ describe("the voter samples the sweep publishes", () => {
   });
 });
 
-describe("anchors as items (D452)", () => {
+describe("anchors as items (D454)", () => {
   const DAY = 24 * 3600 * 1000;
   const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
   const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;
@@ -1313,7 +1313,7 @@ describe("anchors as items (D452)", () => {
   });
 });
 
-describe("the whole-world map's positions (D456)", () => {
+describe("the whole-world map's positions (D458)", () => {
   const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
 
   it("publishes a rounded position and an answer count per person, by country", async () => {
@@ -1394,7 +1394,7 @@ describe("the whole-world map's positions (D456)", () => {
   });
 });
 
-describe("catalogue picks as items (D453)", () => {
+describe("catalogue picks as items (D455)", () => {
   const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
   const PICK = [...PICK_QIDS][0];
 

@@ -307,7 +307,7 @@ catalogue is stale, not a prompt to collect strings.
   `PLACES.countryName` pattern: store the key, display the name).
 - A possible later surface, in the place-scorecard mold: "the crowd's
   canon" — the standing top-10 per domain. Out of scope for v1.
-- Since D453 the picks feed the Patterns fit: the canonical key rides
+- Since D455 the picks feed the Patterns fit: the canonical key rides
   the answer's ledger entry, the nightly compaction keeps each person's
   picks beside their answer map, and every entity at least eight people
   picked — at most `CANON_TOP_N` per card, the board's own size — is an

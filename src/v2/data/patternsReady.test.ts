@@ -121,8 +121,8 @@ describe("patternsEligible", () => {
   });
 });
 
-describe("the viewer's own count is answers to two-option core questions, and nothing else (D455)", () => {
-  // D452 and D453 put the viewer's anchors and catalogue picks into the
+describe("the viewer's own count is answers to two-option core questions, and nothing else (D457)", () => {
+  // D454 and D455 put the viewer's anchors and catalogue picks into the
   // vector; the tab is earned by ANSWERS, so neither may count toward
   // PATTERNS_MIN_MINE — a tab earned by filling in a form is the tab D265
   // refused. A catalogue card has no options and an anchor is no question

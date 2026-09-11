@@ -372,7 +372,7 @@ for (const q of entries) {
     else if (!existsSync(join(root, "public", file))) {
       errors.push(`${q.id}: domain ${q.domain} has no committed catalogue (public/${file}) — the picker would open into its error state`);
     }
-    // CORE, since D456 (2026-09-10, the owner's word). This rule used to
+    // CORE, since D458 (2026-09-10, the owner's word). This rule used to
     // refuse the flag — "an entity answer has no option share for a cohort
     // fold to read (D161)" — which was true of the Mirror's fold and said
     // nothing about serving: the flag is ALSO what ships a card whole to
@@ -380,12 +380,12 @@ for (const q of entries) {
     // page of the fav topic's tail, sized by interest, so who answered
     // "Favourite Pokémon?" was interest-selected — D161's own bias. The
     // Mirror never reads a pick (its readers walk the daily archive), the
-    // fit reads picks since D453, and the owner expected every card to
+    // fit reads picks since D455, and the owner expected every card to
     // reach every person. So the generator sets the flag and this rule
     // holds it the other way: a pick card that fell out of the core would
     // be a card some people never see, silently.
     if (q.core !== true) {
-      errors.push(`${q.id}: a catalog question is core (D456) — it ships whole to every device; the Mirror never folds it and its readers never see it, so the flag is the serving rule alone`);
+      errors.push(`${q.id}: a catalog question is core (D458) — it ships whole to every device; the Mirror never folds it and its readers never see it, so the flag is the serving rule alone`);
     }
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);

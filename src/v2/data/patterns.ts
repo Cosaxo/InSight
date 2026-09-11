@@ -19,7 +19,7 @@
 // The estimate never leaves the phone: theta is a K×K ridge solve over
 // loadings and answers the device already holds.
 //
-// THE GUESS STARTS FROM THE VIEWER'S OWN GROUPS (D451, PATTERNS-PLAN.md
+// THE GUESS STARTS FROM THE VIEWER'S OWN GROUPS (D453, PATTERNS-PLAN.md
 // §3). The fit centres every row on the world's split; the seal instead
 // starts from how the viewer's age band, gender, country and the rest
 // split on the question — the `by` cells the Mirror already reads,
@@ -32,7 +32,7 @@
 // is the one word that flips which variant is live. Nothing new is read
 // and nothing leaves the phone.
 //
-// AND THE FIT KNOWS THE ANCHORS TOO (D452). The candidate engine publishes
+// AND THE FIT KNOWS THE ANCHORS TOO (D454). The candidate engine publishes
 // an item per profile value the crowd carries — `anchor~gender~Woman`,
 // a row like any pick's — and the viewer's own anchors are encoded
 // against those rows as evidence, under the WORLD centre: there the
@@ -42,7 +42,7 @@
 // sealed variants are two clean answers to one question, and the meter
 // decides between the cells and the rows.
 //
-// AND THE PICKS (D453): a catalogue question's popular entities are rows
+// AND THE PICKS (D455): a catalogue question's popular entities are rows
 // too — `pick-pk01~25` — and the viewer's own pick, which the vote mirror
 // holds as the entity's digits, is encoded against them under BOTH
 // centres: a pick is an answer, not a group. Its centre is the world's
@@ -82,7 +82,7 @@ const LS = "insight.patterns.oracle.v1";
 export interface PoolItem {
   q: LiveQuestion;
   /** Which corpus the question came from — the daily archive or the core
-   * feed (D455: the People lens fetches the daily's lists first, since
+   * feed (D457: the People lens fetches the daily's lists first, since
    * everyone answers the same daily). */
   surface: "daily" | "feed";
   L: number[];
@@ -95,7 +95,7 @@ export interface PoolItem {
 }
 
 /** Which split a guess starts from and its evidence is centred by
- * (D451): the world's, or the viewer's own groups'. */
+ * (D453): the world's, or the viewer's own groups'. */
 export type OracleCentre = "world" | "cohort";
 /** The centre the SEALED guess is drawn from. The other variant is sealed
  * beside it as the shadow and graded on the same answer, so the record
@@ -124,7 +124,7 @@ export interface OracleRecord {
   bits?: number;
   /** The answered questions that carried the guess — ids, strongest first. */
   ev?: string[];
-  /** The centre `p0` was sealed under (D451). Absent on a record sealed
+  /** The centre `p0` was sealed under (D453). Absent on a record sealed
    * before it existed, which was the world's. */
   centre?: OracleCentre;
   /** The world's marginal of the encoded answer at seal time — the base
@@ -174,7 +174,7 @@ interface RowSide {
   test: (r: SayRow) => boolean;
 }
 
-/** The counted sentence between two DOTS (D458) — the pair card's own
+/** The counted sentence between two DOTS (D460) — the pair card's own
  * 2×2, generalised from two-option questions to any two published rows.
  * The shape says what it counted and over whom, because every kind ends
  * up in the same sentence and only the basis tells them apart. */
@@ -222,7 +222,7 @@ export interface WorkingRow {
   /** The answer's pull on the call, for ink weight only — never printed. */
   w: number;
 }
-/** One group in the working (D451): the viewer's bucket, and of the
+/** One group in the working (D453): the viewer's bucket, and of the
  * answers in that cell how many took the CALLED side, basis stated. */
 export interface WorkingPriorRow {
   dim: CohortDim;
@@ -273,10 +273,10 @@ interface LoadingsItem {
   qid: string;
   opt?: number;
   nOptions: number;
-  /** anc only (D452): the breakdown dim and the value the row stands for. */
+  /** anc only (D454): the breakdown dim and the value the row stands for. */
   dim?: string;
   bucket?: string;
-  /** pick only (D453): the catalogue entity the row stands for. */
+  /** pick only (D455): the catalogue entity the row stands for. */
   entity?: string;
 }
 interface LoadingsDoc {
@@ -285,7 +285,7 @@ interface LoadingsDoc {
   items?: Record<string, LoadingsItem>;
   /** The device ridge the engine's scorecard was measured at (D395). */
   lambdaU?: number;
-  /** The link's slope it was measured at (D454); 1 on a document before it. */
+  /** The link's slope it was measured at (D456); 1 on a document before it. */
   tau?: number;
   engine?: "sgd" | "als";
 }
@@ -310,9 +310,9 @@ const tellSessionCache = new Map<string, TellShare | null>();
 // and thrown away. `fetchVoterPicks` is the same query without the second
 // one.
 // The row type carries what the SAMPLE carries: a vote's option index, a
-// catalogue pick's entity (D453), and the answer's frozen chips (D8) —
+// catalogue pick's entity (D455), and the answer's frozen chips (D8) —
 // which is what lets a You bead be counted against a question inside that
-// question's own sample, with no second list (D458).
+// question's own sample, with no second list (D460).
 type SayRow = { uid: string; optionIdx: number; entity?: string; anchors?: Readonly<Record<string, string>> };
 const sayRowCache = new Map<string, Promise<SayRow[]>>();
 function sayRows(qid: string): Promise<SayRow[]> {
@@ -531,7 +531,7 @@ function pool(): PoolItem[] {
   return out;
 }
 
-/** One DOT on the Map (D458): a published row, which is one axis people
+/** One DOT on the Map (D460): a published row, which is one axis people
  * can lean along. A two-option question and a scale are one row each and
  * so one dot; a choice is one row per option, a catalogue card one per
  * popular pick, a profile value one of its own — bead groups, drawn
@@ -569,7 +569,7 @@ export interface MapRow {
    * they have not answered (or, for an anchor, left the dim empty). */
   mine: number | null;
   /** Both option labels, where the row IS a two-option question — its
-   * two sides are the sentence's candidate picks (D458's `sidesOf`). */
+   * two sides are the sentence's candidate picks (D460's `sidesOf`). */
   optionLabels?: [string, string];
   /** The question's own options, where it has them — what the card's
    * ballot votes with, and what a chip row is named from. Absent on an
@@ -584,7 +584,7 @@ export interface MapRow {
 }
 
 /**
- * Every published row the bank can NAME, grouped by question (D458).
+ * Every published row the bank can NAME, grouped by question (D460).
  *
  * The join is the pool's, one shelf wider: the loadings document's rows
  * against the two corpora the fit folds, plus the anchor rows, which name
@@ -699,13 +699,13 @@ function lambdaU(): number {
   return loadings?.lambdaU ?? DEFAULT_LAMBDA_U;
 }
 
-/** The link's slope (D454), read off the doc like the ridge; the shipped
+/** The link's slope (D456), read off the doc like the ridge; the shipped
  * link for a document that predates the field. */
 function tau(): number {
   return loadings?.tau ?? 1;
 }
 
-// ── the cohort prior (D451) ─────────────────────────────────────────────
+// ── the cohort prior (D453) ─────────────────────────────────────────────
 
 /** The viewer's groups' prior on a question, over the world shares the
  * fit centres by — or null where no group can speak (no `by` cells in
@@ -771,7 +771,7 @@ function pickPrior(qid: string, meta: NonNullable<LoadingsDoc["items"]>, centre:
  * are cached here. `excludeQid` keeps a target's own answer out of the
  * solve that guesses it.
  *
- * `centre` (D451) is what each residual is measured FROM: the world's
+ * `centre` (D453) is what each residual is measured FROM: the world's
  * split, or the viewer's own groups'. The People lens keeps the world —
  * the crowd it places is centred by the world, and a viewer centred
  * differently would drift off their own crowd — and the seal uses the
@@ -814,7 +814,7 @@ function evidence(excludeQid?: string, centre: OracleCentre = "world"): { L: rea
       }
     }
   }
-  // The viewer's own catalogue picks against the pick rows (D453), under
+  // The viewer's own catalogue picks against the pick rows (D455), under
   // both centres — a pick is an answer. The vote mirror holds a pick as
   // the entity's digits under the catalogue question's id (votePick), so
   // the row's question names it directly; an unanswered card is nothing.
@@ -829,7 +829,7 @@ function evidence(excludeQid?: string, centre: OracleCentre = "world"): { L: rea
       out.push({ L: row.v, r: (v === m.entity ? 1 : -1) - row.sum / row.n });
     }
   }
-  // The viewer's own anchors against the anchor rows (D452), under the
+  // The viewer's own anchors against the anchor rows (D454), under the
   // world centre only — see the header. Encoded exactly as the fit
   // encodes everyone else's: +1 carrying the value, −1 carrying the dim
   // with another value, nothing for a dim left empty.
@@ -854,7 +854,7 @@ export const PATTERNS = {
   hasLoadings(): boolean { return !!loadings && Object.keys(loadings.q).length > 0; },
   pool,
   /** Every published row the bank can name, grouped by question — what
-   * the Map draws a dot per since D458. */
+   * the Map draws a dot per since D460. */
   rows,
   /** The pool item the Oracle asks next: among the unanswered questions
    * with enough basis to guess against — reading a vector fitted on a
@@ -870,7 +870,7 @@ export const PATTERNS = {
     const t = tau();
     // what the answers have pinned — the precision is centre-agnostic —
     // and, for the call, the live centre's own lean on each candidate
-    // (D454: learn first, then call; patternsMap.nextToAsk)
+    // (D456: learn first, then call; patternsMap.nextToAsk)
     const { invA } = ridgeSolve(evidence(), loadings.k, lam);
     const theta = ridgeSolve(evidence(undefined, ORACLE_CENTRE), loadings.k, lam).theta;
     const rows = loadings.q;
@@ -885,13 +885,13 @@ export const PATTERNS = {
     const i = nextToAsk(invA, withLean, lam, turn);
     return cands[i] ?? null;
   },
-  /** The link's slope the fit chose (D454), for a reader that guesses
+  /** The link's slope the fit chose (D456), for a reader that guesses
    * itself. */
   tau,
   /** The viewer's evidence, for a fold that solves them itself (the
    * People lens's own dot). */
   evidence,
-  /** The anchor rows the fit published (D452), for a fold that solves
+  /** The anchor rows the fit published (D454), for a fold that solves
    * strangers from their frozen chips — the People lens's. Rows with a
    * basis only; never a pool item, since no bank question names them. */
   anchorRows(): { key: string; dim: string; bucket: string; L: readonly number[]; marginal: number }[] {
@@ -917,7 +917,7 @@ export const PATTERNS = {
     if (!target || !loadings) return null;
     // the viewer's vector from everything they have answered — every kind
     // the rows can encode — minus the target itself, under the ridge the
-    // fit's scorecard was measured at. TWICE (D451): once centred by the
+    // fit's scorecard was measured at. TWICE (D453): once centred by the
     // world, once by the viewer's own groups, each guess starting from
     // its own centre. One is the seal, the other its shadow; both are
     // graded on the same answer, and the record says which was which.
@@ -965,7 +965,7 @@ export const PATTERNS = {
     const mine: 0 | 1 = target.mine === 1 ? 0 : 1;
     rec.mine = mine;
     rec.bits = Math.round(surprisalBits(rec.p0, mine) * 100) / 100;
-    // the shadow and the base rate, on the same answer (D451) — a record
+    // the shadow and the base rate, on the same answer (D453) — a record
     // sealed before they existed carries neither and grades as it did
     if (rec.alt) rec.alt.bits = Math.round(surprisalBits(rec.alt.p0, mine) * 100) / 100;
     if (rec.m0 != null) rec.baseBits = Math.round(surprisalBits((1 + rec.m0) / 2, mine) * 100) / 100;
@@ -991,7 +991,7 @@ export const PATTERNS = {
     return rec;
   },
   /** The score strip: every graded record, oldest first — and, since
-   * D451, the two centres side by side over the records that carry both
+   * D453, the two centres side by side over the records that carry both
    * (`compared`), plus the base rate's own bits over the records that
    * stored it. Mean bits per graded answer, lower is better; `cohortBits`
    * against `worldBits` is the verdict on the prior for THIS viewer, and
@@ -1010,7 +1010,7 @@ export const PATTERNS = {
      * measured on — so `skill` compares like with like. */
     basedBits: number;
     /** 1 − basedBits/baseBits over the records that stored a base rate
-     * (D454): the share of plain guessing's surprisal the Oracle removed
+     * (D456): the share of plain guessing's surprisal the Oracle removed
      * for this viewer. 0 with nothing to compare; negative is honest. */
     skill: number;
   } {
@@ -1089,7 +1089,7 @@ export const PATTERNS = {
     return best;
   },
   /**
-   * The same table between two DOTS (D458) — what the Map's card says
+   * The same table between two DOTS (D460) — what the Map's card says
    * once a dot can be an option, a catalogue pick, a scale or a profile
    * value rather than only a two-option question.
    *
@@ -1145,7 +1145,7 @@ export const PATTERNS = {
   async working(qid: string): Promise<Working | null> {
     const rec = logSaved().find((r) => r.qid === qid);
     if (!rec || rec.mine == null || !loadings) return null;
-    // The groups the seal recorded (D451), read off the record rather
+    // The groups the seal recorded (D453), read off the record rather
     // than re-folded — they are what actually carried the call — kept on
     // the same two floors as the evidence rows: twelve answers in the
     // cell, and a lean of 0.54 toward the called side.

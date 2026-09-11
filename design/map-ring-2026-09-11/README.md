@@ -1,8 +1,8 @@
-# The Map ring, every kind of dot — the accepted canvas (D458)
+# The Map ring, every kind of dot — the accepted canvas (D460)
 
 **Request 13 of `docs/VISUAL-REQUESTS.md`**, drafted on a Claude Design
 canvas 2026-09-10 and **accepted by the owner 2026-09-11** (*"its fine how
-it is now"*). Built the same day; D458 records what shipped.
+it is now"*). Built the same day; D460 records what shipped.
 
 The canvas itself is
 <https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523> —

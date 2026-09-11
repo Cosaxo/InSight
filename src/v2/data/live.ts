@@ -7048,7 +7048,7 @@ const LIVE = {
   coreFeedAggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.feedBank
-      // EVERY SHAPE THE FIT FOLDS, not two options alone (D458): the Map
+      // EVERY SHAPE THE FIT FOLDS, not two options alone (D460): the Map
       // draws a row per published loading now, so a three-option choice, a
       // scale and a catalogue card each have dots to place — and each is a
       // core feed question the nightly fitted. `pool()` keeps its own

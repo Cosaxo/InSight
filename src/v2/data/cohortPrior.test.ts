@@ -1,4 +1,4 @@
-// The cohort prior's arithmetic (D451), pinned without a device:
+// The cohort prior's arithmetic (D453), pinned without a device:
 //
 //   1. No group, no move — the prior IS the world, and says so with an
 //      empty row list so the caller can fall back to the row exactly.

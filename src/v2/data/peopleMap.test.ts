@@ -86,7 +86,7 @@ describe("the basis the card states", () => {
   });
 });
 
-describe("the fetch set (D455)", () => {
+describe("the fetch set (D457)", () => {
   it("asks for the daily's lists first, then the strongest basis, then by id", () => {
     const items: PeopleItem[] = [
       item("feed-big", { surface: "feed", n: 500 }),
@@ -152,7 +152,7 @@ describe("foldPeople", () => {
     expect(foldPeople(ITEMS, FETCHED, rowsOf, { viewerObs: [] }).me).toEqual(base.me);
   });
 
-  it("solves a stranger from their frozen chips against the fit's anchor rows (D452), and counts nothing extra", () => {
+  it("solves a stranger from their frozen chips against the fit's anchor rows (D454), and counts nothing extra", () => {
     const base = foldPeople(ITEMS, FETCHED, rowsOf);
     const pyOf = (f: ReturnType<typeof foldPeople>, uid: string) => f.placed.find((p) => p.uid === uid)!.py;
     // an Oslo row along axis 1: everyone in this crowd is from Oslo, so
@@ -359,7 +359,7 @@ describe("the rows that say most like you", () => {
   });
 });
 
-describe("the published crowd (D456)", () => {
+describe("the published crowd (D458)", () => {
   // Five questions (so the sample floor of four is clearable), a crowd of
   // two in the samples, and a nightly document that also carries two
   // people who share nothing with the viewer.

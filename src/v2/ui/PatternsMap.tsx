@@ -1,4 +1,4 @@
-// The Map lens (D215, redrawn 2026-09-02; every kind of dot since D458) —
+// The Map lens (D215, redrawn 2026-09-02; every kind of dot since D460) —
 // every published ROW is one dot on a RING, grouped by topic, and a tie
 // between two rows is a chord through the middle.
 //
@@ -64,14 +64,14 @@ import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
 const S = 352, C = 176, R = 131, RA = 142, RL = 158;
 const GAP = 2.6;   // the silence between two topic groups, in dot-steps
 const FIG_N = 10;  // how many ties speak at rest
-/** The most dots one ring draws (D455): a rim of radius 131 is about 820
+/** The most dots one ring draws (D457): a rim of radius 131 is about 820
  * px around, and past three hundred dots it is a line. Above the budget
  * each topic keeps its strongest hubs, in proportion, and the sentence
  * under the field says how many of the pool are drawn. */
 export const MAP_DOT_BUDGET = 300;
-/** The pseudo-topic that rings the viewer's own answers (D455). */
+/** The pseudo-topic that rings the viewer's own answers (D457). */
 export const MAP_TOPIC_ANSWERED = "answered";
-/** The You arc's radius — inside the rim, clear of the hub (D458). The
+/** The You arc's radius — inside the rim, clear of the hub (D460). The
  * canvas put it inside rather than outside: the rim stays a ring of
  * questions, and an arc within it reads as who gives them. */
 const YOU_R = 92;
@@ -106,7 +106,7 @@ const arcThrough = (pts: readonly { x: number; y: number }[]): string => {
 };
 
 interface RimPoint { i: number; a: number; x: number; y: number }
-/** The hairline between two bead groups inside one topic (D458). */
+/** The hairline between two bead groups inside one topic (D460). */
 interface RimTick { x0: number; y0: number; x1: number; y1: number; h: number }
 /** What the ring needs of a row: its group, its place in it, and the
  * topic arc it sits under. `bead` orders a question's own beads. */
@@ -128,7 +128,7 @@ interface RimLabel {
  * the ring's identity and nothing else — never on answers — so a vote
  * landing never moves a dot.
  *
- * A QUESTION'S BEADS STAY TOGETHER (D458). Rows carry their `qid`, and
+ * A QUESTION'S BEADS STAY TOGETHER (D460). Rows carry their `qid`, and
  * the layout keeps a question's rows adjacent inside its topic with a
  * hairline TICK between one question and the next — a tick rather than a
  * gap, because a gap is what separates TOPICS and two silences of
@@ -288,7 +288,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   // deps, which is the stale-by-one-notify shape this replaces.
   const [selQ, setSelQ] = React.useState<string | null>(null);
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
-  // THE YOU ARC IS OFF BY DEFAULT (D458, the owner's yes of 2026-09-10).
+  // THE YOU ARC IS OFF BY DEFAULT (D460, the owner's yes of 2026-09-10).
   // With it off the Map is a map of QUESTIONS, which is what it has always
   // been and what its every sentence is written against; with it on, the
   // arc inside the rim is who gives the answers — age, gender, country,
@@ -296,11 +296,11 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   // because a reader who has not asked for their demographics on the
   // picture should not find them there.
   const [showYou, setShowYou] = React.useState(false);
-  // a chosen topic re-rings the field (D455), so a selection made on one
+  // a chosen topic re-rings the field (D457), so a selection made on one
   // ring does not carry to the next
   React.useEffect(() => { setSelQ(null); }, [topic]);
 
-  // THE RING IS THE TOPIC'S OWN (D455). The chip used to dim the other
+  // THE RING IS THE TOPIC'S OWN (D457). The chip used to dim the other
   // topics and leave every dot on the rim, which at a few hundred core
   // questions is a rim of touching dots whatever is chosen. Now the ring
   // holds the chosen topic's questions alone — or, under "answered", the
@@ -333,7 +333,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
         const quota = Math.min(idx.length, Math.ceil((MAP_DOT_BUDGET * idx.length) / inRing.length));
         [...idx].sort((a, b) => hubAll[b] - hubAll[a] || a - b).slice(0, quota).forEach((i) => keep.add(i));
       }
-      // A GROUP IS TRIMMED AS A GROUP (D458). The quota is blind to bead
+      // A GROUP IS TRIMMED AS A GROUP (D460). The quota is blind to bead
       // groups, so on its own it would leave a question with its second
       // and fifth options on the rim and nothing to say that the other
       // three exist. Instead each question keeps its STRONGEST surviving
@@ -359,8 +359,8 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
     return { drawn, onRing: inRing.length, U, hub, edges, folded, ring: ringOf(ringRows) };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the pool's identity (see above)
   }, [version, topic]);
-  // THE YOU ARC (D458, the owner's yes). The anchor rows the fit folds
-  // (D452) are not questions and do not belong on a rim of questions, so
+  // THE YOU ARC (D460, the owner's yes). The anchor rows the fit folds
+  // (D454) are not questions and do not belong on a rim of questions, so
   // they are their own short arc INSIDE it, labelled YOU: age, gender,
   // country, work — solid where you carry the value. The arc is drawn
   // only while the toggle is on, and it never takes a topic's place.
@@ -380,7 +380,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   const RG = geo.ring;
   const D = geo.drawn; // every index below is an index into the ring's own items
   // …which is what the selected question resolves against: the ring is the
-  // topic's since D455, so a question off the ring is no selection at all.
+  // topic's since D457, so a question off the ring is no selection at all.
   const selIdx = selQ == null ? -1 : D.findIndex((p) => p.key === selQ);
   const sel = selIdx >= 0 ? selIdx : null;
 
@@ -388,7 +388,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   // `geo` is memoised on `version` while `sel` is derived from `D`, so the
   // row guard is the belt for the invariant that memo's eslint-disable
   // asserts: if the two ever disagree, this draws nothing instead of
-  // throwing. (`inTopic` went with D455: the ring holds the topic's own
+  // throwing. (`inTopic` went with D457: the ring holds the topic's own
   // questions now, so there is nothing on it to dim.)
   const nb = sel == null || !geo.U[sel] ? null : nearOf(geo.U, sel, 3);
   const near = nb ? new Set(nb.map((x) => x.j)) : null;
@@ -449,7 +449,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
 
   const pick = (i: number) => { const id = D[i]?.key ?? null; setSelQ((s) => (s === id ? null : id)); };
 
-  // A CATALOGUE'S NAMES ARE FETCHED ON THE TAP, never for the rim (D458):
+  // A CATALOGUE'S NAMES ARE FETCHED ON THE TAP, never for the rim (D460):
   // a bead is 3 px and carries no text, so the thousand-name list the
   // pokédex or the film catalogue is stays unfetched until a card wants
   // to name something. One kick per domain per session (the store's own
@@ -523,7 +523,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
             pill all retired (2026-09-06): the sentence lives in the guide
             legend below, the strongest link is said once under the field,
             and the card lost its box — the field sits on the page */}
-        {/* the You toggle (D458): off by default, and absent entirely on a
+        {/* the You toggle (D460): off by default, and absent entirely on a
             build whose fit folds no profile values — a control for
             something that is not there is worse than no control */}
         {items.some((r) => r.kind === "anc") && (
@@ -586,7 +586,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
                 const i = p.i;
                 const answered = D[i].mine != null;
                 if (i === nxt) return null; // the beacon draws it on the top layer
-                // at rest nothing dims: the ring is the topic's own (D455)
+                // at rest nothing dims: the ring is the topic's own (D457)
                 const dim = sel != null ? i !== sel && !(near?.has(i) ?? false) : false;
                 const col = dotCol(catHue(i));
                 return (
@@ -608,7 +608,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
                       stroke={answered ? "none" : col} strokeWidth={answered ? 0 : 1.3}
                       opacity={dim ? 0.22 : answered ? 1 : 0.8}></circle>
                     {/* the rest of a trimmed group, folded into a count at
-                        its own place (D458) — the bead that survived is the
+                        its own place (D460) — the bead that survived is the
                         group's strongest, and the +n says the others exist
                         rather than letting the rim imply they do not */}
                     {(geo.folded.get(D[i].key) ?? 0) > 0 && (
@@ -623,7 +623,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
               })}
             </g>
             {/* the hairlines between one question's beads and the next's
-                (D458) — a tick, not a gap: a gap is what parts TOPICS, and
+                (D460) — a tick, not a gap: a gap is what parts TOPICS, and
                 two silences of different sizes read as one hierarchy */}
             <g>
               {RG.ticks.map((t, k) => (
@@ -631,7 +631,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
                   stroke={arcCol(t.h)} strokeWidth="0.7" opacity="0.5"></line>
               ))}
             </g>
-            {/* the You arc, inside the rim and only while it is on (D458) */}
+            {/* the You arc, inside the rim and only while it is on (D460) */}
             {you.length > 0 && (
               <g className="qm-ink">
                 <path d={arcThrough(you)} fill="none" stroke="var(--ln-beacon)" strokeWidth="1.2" opacity="0.5"></path>
@@ -697,7 +697,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
             )}
           </div>
           <div className="qm-prompt">{q.title}</div>
-          {/* THE CHIP ROW (D458). A question with several answers first has
+          {/* THE CHIP ROW (D460). A question with several answers first has
               to say WHICH answer its ties are about, so a bead group's card
               opens on the tapped bead and the row switches between its
               siblings — the ties are re-read on the chip, because a chord's
@@ -760,7 +760,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
               const to = D[j];
               return (
                 <div className="qm-say" key={k}>
-                  {/* THE SENTENCE IS THE SAME SHAPE FOR EVERY KIND (D458),
+                  {/* THE SENTENCE IS THE SAME SHAPE FOR EVERY KIND (D460),
                       because the count is: "pick this here — and N% pick
                       that there". What changes is the words for a side —
                       an option's label, a catalogue name, "high" on a
@@ -780,7 +780,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
                     <span style={{ left: `${Math.max(12, Math.min(86, s.base))}%` }}>usually {s.base}%</span>
                   </span>
                   {/* the stated basis — the D146 rule the prototype had no
-                      data to need, and since D458 it also says WHICH
+                      data to need, and since D460 it also says WHICH
                       population: two samples intersected, or one
                       question's sample cut by the chips it carries */}
                   <span className="qm-foot">{s.over === "one"

@@ -2629,7 +2629,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // but this pin would notice one moving alone: the board would just
     // quietly show a different depth than the aggregate carries.
     it("CANON_BOARD_N matches the server's CANON_TOP_N", () => {
-      // In pure.ts since D453 — the Patterns fit caps a catalogue
+      // In pure.ts since D455 — the Patterns fit caps a catalogue
       // question's items at the board's size, and pure.ts is the one
       // module the trigger and the fit both import; v2.ts re-exports it.
       const serverSrc = readFileSync(
