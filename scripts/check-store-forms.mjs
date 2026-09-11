@@ -350,6 +350,59 @@ if (reduced === "false") {
   }
 }
 
+// ── 4b. THE INVENTORY'S OWN STORE-FORM CITATIONS ────────────────────
+//
+// `docs/data-inventory.md` calls itself "the source for the App Store
+// Privacy Nutrition Label / Play Data Safety answers", both gates' headers
+// say so, `app-privacy.json`'s own `$comment` says so, and CLAUDE.md says
+// so — and until this rule the ONLY thing here that read it was the
+// Location paragraph above. `check-data-inventory.mjs` never opens the
+// store forms at all. Measured 2026-09-11: deleting PHOTOS_OR_VIDEOS from
+// app-privacy.json AND its row from §3 left check:store-forms,
+// check:data-inventory, check:policy-claims, check:public-copy and
+// check:docs all green, while the inventory still declared the avatar
+// collection world-readable.
+//
+// A FULL join is not what this is. Mapping every inventory row to a store
+// category needs judgement nobody has written down, and inventing it in a
+// gate would make the gate a second source of truth — the thing this file
+// exists to prevent. What IS available with no judgement at all is the
+// inventory's own citations: where that file states what a form answers,
+// the form has to answer it. Today there is one (the pulse row, on Apple's
+// Health row, which exists because two pulses ask about sleep and energy).
+// The rule is written generically so the next one is held for free, and so
+// a citation whose form answer moves cannot quietly become fiction.
+{
+  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
+  // The shape it is written in today, and the shape a new citation should
+  // follow: "…STORE-FORMS.md` answers Apple's **Health** row YES…"
+  const cites = [...inv.matchAll(
+    /answers Apple's\s+\*\*([A-Za-z ]+)\*\*\s+row\s+(YES|NO)/g,
+  )];
+  if (!cites.length) {
+    errors.push(
+      "docs/data-inventory.md no longer contains a store-form citation this can\n"
+      + "    read (\"answers Apple's **X** row YES/NO\"). It had one — the pulse row on\n"
+      + "    Apple's Health row. Either the sentence was reworded, in which case fix\n"
+      + "    this pattern, or the claim was dropped, in which case the inventory has\n"
+      + "    stopped saying what the forms answer and this rule has nothing to hold.",
+    );
+  }
+  for (const [, label, want] of cites) {
+    const type = label.trim().toUpperCase().replace(/\s+/g, "_");
+    const has = jsonTypes.has(norm(type));
+    if (has !== (want === "YES")) {
+      errors.push(
+        `docs/data-inventory.md says STORE-FORMS.md answers Apple's ${label.trim()} row\n`
+        + `    ${want}, and app-privacy.json ${has ? "declares" : "does not declare"} ${type}\n`
+        + "    collected. The inventory is the audited source the forms are answered\n"
+        + "    FROM, so when the two disagree the form is what moved — and an\n"
+        + "    under-declared row is what gets an app pulled.",
+      );
+    }
+  }
+}
+
 if (privacy.tracking?.used !== false) {
   errors.push(
     "app-privacy.json has tracking.used !== false.\n"
