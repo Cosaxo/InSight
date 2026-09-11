@@ -51463,7 +51463,7 @@ the fixture copied the gate and not its new import — so the fixture now
 carries a named dependency list, and a missing one fails as an import
 error rather than as a refusal under test.
 
-`test:scripts` 86 files / 1434 tests, `test:unit` 217 files / 3205 tests,
+`test:scripts` 86 files / 1435 tests, `test:unit` 217 files / 3205 tests,
 `check:figures`, `check:docs` (52 gates now), `check:globals`,
 `check:public-copy`, `check:policy-claims` and eslint all green, plus
 `actionlint` clean across all 25 workflows.
@@ -51472,12 +51472,58 @@ error rather than as a refusal under test.
 
 Two are real and neither is this:
 
-- **Pulse** fails on a true tripwire: `monitoring/engagement.json` only
-  moves when something fetches it, and nothing schedules that, so the
-  7-day engagement average is averaging days that have all left the
-  window — a guard that passes while measuring nothing. Its own message
-  names the fix (`npm run scorecard -- --fetch`). Untouched here; it is
-  its own change.
+- **Pulse** was failing on a true tripwire, and it is fixed here rather
+  than deferred, because the diagnosis turned out to be the same one:
+  **nothing was on the clock.** The usage guard (D332) prices the
+  population out of `monitoring/engagement.json`, and that file only ever
+  moved when a person ran `npm run scorecard -- --fetch` by hand. Measured
+  on 2026-09-11: the committed trail's newest day was **2026-08-25**, 17
+  days old, so the guard's 7-day window was averaging days that had every
+  one left it — `pulse.mjs`'s own words, "a confident pass while measuring
+  nothing". The gate had been reporting it correctly every morning, naming
+  the fix, to an inbox with nobody in it.
+
+  So the fetch went on the clock beside the check that reads it, in
+  `pulse.yml`. Three things made that cheap and one made it safe:
+  `question-scorecard.mjs` is Node stdlib plus global `fetch`, so the job
+  keeps its no-`npm ci` property (which that file's comment calls
+  load-bearing, not a speed trick — a console that says the ground moved
+  must not be able to fail because a registry did); the only input is the
+  PUBLIC web API key, since `v2_engagement_daily` is world-readable
+  anonymous counts; and the step is `continue-on-error`, so a failed fetch
+  leaves the trail as it was and the gate reports the staleness it was
+  always going to report. The signal degrades to today's behaviour and
+  never inverts.
+
+  **It commits `engagement.json` and not `content/scorecard.json`**, which
+  the same fetch writes. That file is the question farm's, and the farm
+  lane moved it on 2026-09-11 without touching this trail — so the two
+  already travel separately, and this job drops the side effect rather
+  than racing for it. `pulse.yml`'s "WHAT IT COMMITS" contract moved with
+  the code: the trail qualifies under that paragraph's own stated reason,
+  being the one output that is fetched and so the one thing regenerating
+  cannot recover. For the same reason the fetched file is re-applied
+  *inside* the commit loop, because the reset-and-regenerate retry
+  destroys it rather than recomputing it.
+
+  **And an existing gate caught this change being wrong**, which is worth
+  more than the change. `workflow-pipefail.test.mjs` refused a
+  `continue-on-error` step with no `id:` that nothing reads: a failed
+  fetch would have left a green run and an unmoved trail — this bug
+  wearing a green tick. The step now has an id and a readback, and the
+  readback earns its place twice over, because it answers what
+  `pulse.mjs` structurally cannot: a stale guard has two causes, the fetch
+  not running or `digestEngagementV2` stopping, and from the tree they are
+  indistinguishable, which is why the message names both. From inside the
+  job it is decidable, and the annotation says which.
+
+  What is NOT claimed: this has not been observed fetching. The key is a
+  production variable and the trail's 8 days are contiguous up to the last
+  fetch (`2026-08-18`…`2026-08-25`, `fetchedOn: 2026-08-26`), which is
+  good evidence the digest was healthy and the fetch alone stopped — but
+  the first scheduled run on `main` is what proves it, and if the guard
+  stays stale after a successful refresh then the second cause is live and
+  `digestEngagementV2` is the place to look.
 - **CI** failed once on `main` (#1305, `1b2477308`, D453's sign-in wall)
   on `vote.test.ts`'s "a wake while offline does not retry", 1 of 3160.
   The two `main` commits after it passed, and the full suite is green
