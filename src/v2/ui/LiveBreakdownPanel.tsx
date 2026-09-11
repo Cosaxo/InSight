@@ -116,7 +116,10 @@ export interface CohortPick {
   n: number;
 }
 
-function LbChip({ on, onTap, children }: {
+/** Shared with LivePickBreakdown (the catalogue's own sheet): the two
+ *  chrome pieces of this sheet, so a board's cohort row and an option
+ *  question's cannot drift into two chip styles. */
+export function LbChip({ on, onTap, children }: {
   on: boolean; onTap: () => void; children: React.ReactNode;
 }) {
   return (
@@ -134,7 +137,7 @@ function LbChip({ on, onTap, children }: {
   );
 }
 
-function LbNote({ children }: { children: React.ReactNode }) {
+export function LbNote({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "6px 2px" }}>
       {children}

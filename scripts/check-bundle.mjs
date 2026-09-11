@@ -922,7 +922,46 @@ const MAX_TOTAL_JS_KB = 2440;
 // trip MEANS: no question lane can cause one — check:eager-content's
 // allowlist is down to three demo archives, none of which grows when a lane
 // writes — so this ceiling is measuring code in first paint and nothing else.
-const MAX_EAGER_KB = 552;
+//
+// 552 → 553 (2026-09-11): the catalogue's who-picked-what sheet. THE BAND
+// SET ON 09-06 IS GONE — five days of ordinary drift ate all eleven
+// kilobytes of it, and this change arrived to find 49 BYTES of headroom
+// and needed 112.
+//
+// What the 112 bytes are, because a raise that does not say is the thing
+// every entry above refuses: 95 in data/voters.ts, where the voter query
+// stopped DROPPING catalogue answers (it skipped any row without an
+// `optionIdx`, which is every pick, so a catalogue question was the one
+// kind in the app with no answer to "who picked what" — six months after
+// D98 made answers public so it could be asked); 10 in data/live.ts, where
+// Kindred now reads a pick's entity instead of its permanent -1; and 12 in
+// the cohort chunk. Nothing new joined the eager graph: no new module, no
+// new preload, 44 files before and after. The panel itself, its folds and
+// its catalogue reads are all behind the feed chunk.
+//
+// So this is NOT the raise the entries above refuse. Those were asked to
+// fit a SCREEN into first paint and the answer was to defer the screen.
+// There is nothing here to defer: the bytes are a field on a row inside a
+// query function that data/live.ts calls, and live.ts is eager by
+// construction (it is the store the first frame reads).
+//
+// WHAT THE NEXT PERSON SHOULD DO INSTEAD OF RAISING THIS AGAIN, because
+// the drift is the real finding and this change only tripped over it:
+// data/voters.ts is 7.9 KB of the eager graph and its query half —
+// fetchVoters, fetchVoterSample, fetchVoterTail, fetchSampleDoc,
+// resolveNames — is called only from live.ts's own async loaders, on a tap.
+// Split the pure helpers (the row type, chunkUids, groupByOption,
+// sortVoters, unionVoters, the caps) into their own module and import the
+// queries dynamically, and first paint gets ~6 KB back — sixty times what
+// this raise takes. The 40 KB of demo sample-data.js in the same graph
+// (app-shell.jsx + spec-index.js, both static) is the bigger one again.
+//
+// +1 KB rather than a fresh 11 KB band, deliberately: the band is what a
+// SWEEP re-sets after freeing room, and nothing was freed here. An alarm
+// rearmed a kilobyte from the wall is the failure mode the 2230 entry
+// named — and that is the correct state for this number to be in, because
+// the next feature SHOULD have to read this note.
+const MAX_EAGER_KB = 553;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

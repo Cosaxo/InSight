@@ -103,6 +103,13 @@ import { pickHead, pickLoad } from '../ui/pickDomains';
 // image over the reveal's two faces, and the credits door the licence
 // requires beside every surface that draws one.
 import PickArt from '../ui/PickArt.tsx';
+// …and, since 2026-09-11, the catalogue's own who-picked-what sheet — the
+// cohort-first reading (D125) every other live card has had for a year,
+// and the names D98 exists for. The card's door carries its finding.
+import LivePickBreakdown from '../ui/LivePickBreakdown.tsx';
+import { bestPickTilt } from '../data/pickCohort.ts';
+import { byOf, COHORT_DIMS } from '../data/cohort.ts';
+import { bucketLabel } from '../data/cohortLabels.ts';
 import PickCredits from '../ui/PickCredits.tsx';
 import { PASSIVE } from './passive-progress.js';
 // Crossroads (D136). Imported, not read off window — rule 4 refuses new
@@ -175,6 +182,15 @@ const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 const WF_PAGE = 8;
 const WF_STEP = 4;
 const WF_REACH = 2200;
+
+// The floor under the catalogue card's finding line (renderPickDoor).
+//
+// feed-read.js's MIN_CELL, and the same KIND of floor: an honesty floor,
+// not a privacy one — D98 left no cell suppressed, and this is only about
+// what a cohort is big enough to be described as. One answer makes any
+// entity that cohort's unanimous favourite, so without a floor the line
+// would be led forever by cohorts of one saying nothing.
+const PICK_TILT_MIN = 3;
 
 // Know answers do NOT persist in WF_LS (D95). Their cross-session record is
 // LEARN's own store — state, streaks, positions — and LEARN_FEED re-serves a
@@ -1949,7 +1965,24 @@ class WorldFeed extends React.Component {
         )}
         {/* the credits, under the two faces that may carry a picture */}
         {!seg && leader && !notListed && <PickCredits domain={q.domain} accent={T.color} />}
-        {segs.length > 0 && (
+        {/* THE SEGMENT CHIPS ARE THE DEMO CARD'S ALONE SINCE 2026-09-11.
+            D17's row put every published bucket of every dimension in one
+            flat line — "man", "190 cm or taller", "no", "asker, no",
+            "25-34" — each silently reordering the board, none of them
+            naming which dimension it belongs to, and the raw storage keys
+            going to the reader. That is the pre-D125 way of answering "who
+            voted what", and a live card is the one place it mattered: it
+            was the only question type in the app still using it. A live
+            card's reading is the sheet below (renderPickLiveStats), which
+            is the cohort-first one every other live question has had since
+            D125, plus the names D98 exists for.
+
+            The demo keeps the chips because it has no sheet to open: the
+            panel is live-only by construction (it folds published
+            aggregates), and a door onto an empty sheet is worse than the
+            row it replaced. Same branch the dial, the field and the stats
+            sheet all already make on `q.live`. */}
+        {!q.live && segs.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {chip('everyone', !sel, () => setSeg(null))}
             {segs.map((s) => chip(s.bucket.toLowerCase(), !!(sel && sel.dim === s.dim && sel.bucket === s.bucket), () => setSeg(s)))}
@@ -2015,6 +2048,12 @@ class WorldFeed extends React.Component {
         {!seg && rows.length < TOPN && (
           <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{rows.length} of {TOPN} spots on the board claimed{q.live ? '' : ' — a spot needs 5 votes'}</span>
         )}
+        {/* the way into the who-picked-what sheet, carrying the finding it
+            opens on — the same shape the options-shaped cards use, where
+            the surprise line IS the door (renderEngage: "the insight line
+            is itself the way into the breakdown, so the bar-chart button
+            would be a second door to the same room"). */}
+        {q.live && this.renderPickDoor(q, T, c)}
         {/* the below-floor case now lives in the ghost row above */}
         {(notListed || inTop) && (
           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
@@ -2024,6 +2063,61 @@ class WorldFeed extends React.Component {
           </span>
         )}
       </div>
+    );
+  }
+
+  // ── the catalogue's finding, and the door it opens ────────────────
+  //
+  // The same instrument the options-shaped cards carry (feed-read.js's
+  // `feedInsight`), expressed for a board: the cut that puts someone else
+  // first, and where everyone puts that. Not a points gap per entity —
+  // over a thousand-entry catalogue every entity is a rounding error away
+  // from every other, and the gap would be noise with a percent sign on
+  // it (pickCohort.ts's header).
+  //
+  // The floor is feed-read.js's MIN_CELL and is the same KIND of floor —
+  // an honesty floor, not a privacy one (D98 left no cell suppressed).
+  // One answer makes any entity a cohort's unanimous favourite, and a
+  // finding line led forever by cohorts of one says nothing.
+  renderPickDoor(q, T, c) {
+    const best = bestPickTilt(byOf(LIVE.aggFor(q.id)), COHORT_DIMS, c.top, PICK_TILT_MIN);
+    const open = () => this.setState({
+      sheet: { q, T, panel: 'stats', pickCut: best ? { dim: best.dim, bucket: best.tilt.bucket } : null },
+      sideFilter: null, replyTo: null,
+    });
+    const name = best ? this.pickName(best.tilt.entity, q.domain) : null;
+    // A finding whose entity name has not resolved yet is not a finding —
+    // "25-34 put … first" is a sentence about nothing. The plain door
+    // stands in until the catalogue lands, and the card re-renders when it
+    // does (pickName kicks the load).
+    const found = best && name;
+    return (
+      <button className="press" onClick={open} aria-label="Who picked what"
+        style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left', border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', cursor: 'pointer', WebkitAppearance: 'none' }}>
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: T.color }}></span>
+        <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', textWrap: 'pretty' }}>
+          {found ? bucketLabel(best.dim, best.tilt.bucket) + ' put ' + name + ' first' : 'Who picked what'}
+        </span>
+        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+          {found ? (best.tilt.rank ? '#' + best.tilt.rank : '\u2192') : '\u2192'}
+        </span>
+      </button>
+    );
+  }
+
+  // The sheet itself. Live only, and the guard is structural rather than
+  // defensive: the panel folds published aggregates, so a demo card has
+  // nothing for it to read — which is why the demo keeps the segment chips
+  // above rather than a door onto an empty room.
+  renderPickLiveStats(q, T) {
+    const v = this.pickVal(q);
+    return (
+      <LivePickBreakdown
+        qid={q.id}
+        mine={v ? v.entity : -1}
+        nameOf={(ent) => this.pickName(ent, q.domain) || ''}
+        openAt={(this.state.sheet && this.state.sheet.pickCut) || null}
+      />
     );
   }
 
@@ -3888,6 +3982,12 @@ class WorldFeed extends React.Component {
     // them answered "who is in this crowd" — none answered "what does this
     // question look like from where they are standing", which is the
     // reading a breakdown is for.
+    // A live CATALOGUE card first, and not only for the reading: the
+    // panel below maps `q.options`, which a pick question does not have,
+    // so a live pick reaching that branch is a TypeError. It never has,
+    // because nothing opened this sheet for a pick card — the door
+    // arrived with the panel (renderPickDoor).
+    if (q.live && q.type === 'pick') return this.renderPickLiveStats(q, T);
     if (q.live) {
       return (
         <LiveBreakdownPanel

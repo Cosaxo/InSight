@@ -50081,3 +50081,155 @@ code it pins), `test:scripts` (74 / 1,288), `test --prefix functions`
 (39 / 839), `test:rules` (214, coverage and budget ratchets at baseline),
 `test:e2e:all`, `build` + `check:bundle`, and every static gate the
 changed files touch. The counts are in the PR body.
+
+---
+
+## D453 · Three device reports, three surfaces that had stopped agreeing with the app around them
+
+**Decided:** 2026-09-11 · **Status:** binding
+
+The owner sent four findings off a device in one message. Three are here;
+the fourth (questions that name a category where a concrete entity would
+be sharper) is D454. They are unrelated in code and identical in shape:
+each is a rule that was right for the thing it was written for, still
+running over a thing it was not.
+
+### 1 · The catalogue picture was cropped to a face built for patterns
+
+`.wf-tileimg` carries one crop rule for every photograph in the app —
+`object-fit: cover`, written for the duel tile, where a scene loses some
+sky and the tile is still the picture. A catalogue picture (D421) is a
+SUBJECT: one Pokémon, one poster, one face, and
+`scripts/catalog-art-lib.mjs` has already fitted it inside a 184 px
+square. Cover-cropping that into the reveal's 2:1 face removes half its
+height from the middle, which is where the subject is. The report was
+Deoxys with its arms and no head.
+
+So catalogue art fits inside its face (`.is-fit`) and the generated
+pattern frames the remainder — the pattern's documented job, not a
+placeholder (PickArt's header). One box then survives every catalogue
+shape: a square Pokémon, a 2:3 poster, a 3:2 flag. The reveal's faces
+went 92 px → 4:3 with it, because a fitted square inside a 2:1 box is
+mostly gutter. The browse row's 92×74 face is unchanged; only its crop
+rule moved. The duel tile keeps `cover`.
+
+### 2 · Near refused a fix it had, and sent the reader outside
+
+`locateCell` refuses a reading wider than the presence cell (D175, and
+the refusal is right: folding a kilometre into a 222 m square publishes a
+room nobody is standing in). It refused **after one sample** — the sample
+a cold phone is least able to make, while the radios are still on the
+wifi estimate and the GNSS fix is seconds from landing — and reported it
+as `unavailable`, which the card renders as *"No location fix — try again
+outside."*
+
+Both halves were wrong for the phone that hit it. A coarse reading now
+buys two more samples, forbidden from the cache (`maximumAge: 0`, so a
+retry is a second measurement rather than the same one again) and inside
+the existing 30 s wall-clock deadline; a first-sample failure still fails
+immediately, because that is the attempt carrying the permission prompt
+and the real refusals. A reading that stays wide is refused as
+**`imprecise`** — its own word, its own sentence, naming the switch in
+the OS that changes it. Going outside is not the remedy for an
+approximate grant.
+
+`imprecise` is on a cell-only failure type rather than on `LocateFail`:
+`locateCity` reads accuracy and deliberately ignores it, so a sentence
+for it in the CityPicker would be copy for a state that cannot happen —
+and the compiler holds that, because `CP_FAIL` is a `Record<LocateFail,
+string>`.
+
+### 3 · The catalogue still answered "who voted what" the way the app did before D125
+
+Every other live question in the app answers it the way D125 settled:
+pick a cohort, and everything below becomes that cohort's reading of this
+one question, with the Friends cut naming people underneath (D98/D149).
+A catalogue card had **none of it**. It had D17's segment chips: one flat
+row holding every published bucket of every dimension at once — *man ·
+190 cm or taller · vocational or trade · no · asker, no · partnered ·
+25-34* — each silently reordering the board, no dimension named, no scale
+to read a bucket against, the raw storage keys at the reader, and a
+caption reading *"the crowd's board, as 2 no answers order it"*.
+
+D17 is not reversed: its arithmetic (each segment orders the published
+board, never a board of its own) is exactly what the new sheet reads.
+What is retired is the flat chip row as the WAY that reading is offered,
+on live cards. The demo keeps the chips, because the panel folds
+published aggregates and a demo build has none — a door onto an empty
+room is worse than the row it replaced, and it is the same `q.live`
+branch the dial, the field and the stats sheet already make.
+
+Three things are new, and the third is the one that made the first two
+possible:
+
+- **`data/pickCohort.ts`** — cohort.ts one shape over. The same `by` map,
+  the same "an absent cell is zero" rule, keyed by catalogue key instead
+  of option index. cohort.ts could not serve it: every fold there returns
+  an array dense to the option count, and a Pokédex board is keyed
+  1..1025 with ten of them present. Not generalised there either —
+  cohort.ts is read by eight surfaces on a hot path, and a key-mapping
+  parameter for one caller is the wrong trade.
+- **A catalogue divergence is not a points gap.** For four options the
+  reading is per-option percentage points; over a thousand entities every
+  entity is a rounding error away from every other, and the gap would be
+  noise with a percent sign on it. So the finding is the sentence the
+  card's own surprise line already made: **what this cohort puts first,
+  and where everyone puts that** — ranked by how far down everyone's
+  board the cohort's favourite sits, with a pick nobody else has ranking
+  above all of them. A cohort that leads with everyone's leader says so
+  and is never offered as a finding. The floor is feed-read.js's
+  `MIN_CELL` (3) and the same KIND of floor: honesty, not disclosure —
+  one answer makes any entity a cohort's unanimous favourite.
+- **`data/voters.ts` stopped dropping catalogue answers.** The voter
+  query skipped every row without a numeric `optionIdx`, which is every
+  pick — so the catalogue was the one kind of question in the app where
+  "who picked what" could not be asked at all, six months after D98 made
+  answers public so that it could. Catalogue rows now ride as the
+  catalogue KEY with an out-of-range index (-1), never coerced into an
+  option column: every existing fold already bounds-checks `optionIdx >=
+  0`, so they fall out of an options-shaped reading by arithmetic rather
+  than by each caller remembering to ask.
+
+**The consequence nobody would have seen.** Kindred keys the viewer's own
+catalogue answer by its entity (`state.votes` stores the key), and read
+every other person's through `optionIdx`. Carrying catalogue rows without
+touching it would have scored every catalogue question as a disagreement
+between two people who may well have picked the same thing. It reads the
+entity now, so catalogue picks start counting toward likeness — which is
+what the app is for, and was silently absent.
+
+**Two costs, and one of them needed a ceiling moved.** The sheet itself
+costs no read: its cohorts are folds over `v2_question_aggs.by`, the same
+document the board is drawn from. The Friends cut pays the bounded voter
+query every other sheet pays, on the tap that asks for it.
+
+The eager graph is the other one. `check:bundle`'s `MAX_EAGER_KB` had
+**49 bytes** of headroom — the 11 KB band set on 09-06 had been eaten by
+five days of ordinary drift — and this needed 112: 95 in `voters.ts` for
+the catalogue row, 10 in `live.ts` for Kindred, 12 in the cohort chunk.
+Nothing new joined first paint (44 preloads before and after; the panel,
+its folds and its catalogue reads are all behind the feed chunk), and
+there is nothing here to defer — the bytes are a field on a row inside a
+query function that `live.ts` calls. So the ceiling went 552 → 553, +1 KB
+rather than a fresh band, deliberately, so the next feature has to read
+the note. The note names the real fix and this record repeats it:
+`voters.ts` is 7.9 KB of first paint whose query half is only ever called
+on a tap, and splitting it would return ~6 KB — sixty times what this
+raise took. The 40 KB of demo `sample-data.js` in the same graph is the
+bigger one again.
+
+**Is the sheet a "visual" under D352?** It is a replacement for a sheet
+that exists, in the visual language of the sheet it is the twin of —
+`LbChip` and `LbNote` are imported from `LiveBreakdownPanel` rather than
+re-drawn, precisely so the two cannot drift into two chip styles, and the
+board rows are the card's own row shape. No new visual language, so no
+request. Flagged to the owner with the rest.
+
+**Measured:** `test:unit` (218 files / 3,197 tests — 22 new cases across
+`data/pickCohort.test.ts`, `ui/LivePickBreakdown.test.tsx`,
+`data/locate.test.ts`, `ui/NearLiveBody.test.tsx`, `ui/PickArt.test.tsx`
+and two mount suites), `test:scripts` (82 / 1,380), `lint`, `tsc -b`,
+`check:globals` (coupling baseline unmoved at 27), `check:panel-suites`
+(50/50), `check:figures`, `check:a11y`, `check:tap-targets`,
+`check:public-copy`, `check:data-inventory`, `check:eager-content`,
+`build` + `check:bundle`.
