@@ -511,8 +511,25 @@ Console-only facts, listed so they are read rather than assumed:
 - The Anthropic workspace's spend limit; GitHub's Actions spending limit.
 - The budget's actual recipients, and whether any page has ever been
   delivered.
-- App Check's enforcement state on the Firestore and Storage APIs, which
-  the owner reports done and no instrument here reads.
+- ~~App Check's enforcement state on the Firestore and Storage APIs, which
+  the owner reports done and no instrument here reads.~~ **MEASURED
+  2026-09-11 (D452), and it was not done.** Actions → *App Check* →
+  `report` prints the live mode per service, and every one of the five
+  reads **UNENFORCED**: `firestore.googleapis.com`,
+  `firebasestorage.googleapis.com`, `identitytoolkit.googleapis.com`,
+  `firebasedatabase.googleapis.com` (unset) and `oauth2.googleapis.com`.
+  D388 was right and this line was wrong. The reading cost one dispatch
+  and changed nothing — which is the argument against ever writing
+  "the owner reports" into a page that cannot check.
+
+  Two consequences. `COSTS.md` §2 calls the Firestore toggle **the kill
+  switch** for unmetered reads: it is not on, so that control is not in
+  place, and the `v2_attention` shard-flooding row on `OWNER-LIST.md`
+  recommends the same toggle for a correctness reason. And the debug
+  tokens runbook 1.4 asks for are **already registered** (`CI` and
+  `Owner browser`, on the web app) — so the only thing still standing
+  between here and the flip is D388's soak, which needs the first build
+  carrying #414's bridge on real phones.
 - The names of the eight `europe-west1` functions the deploy list does
   not name — `npm run observe -- --functions` prints them with their
   triggers, which is what decides whether any of them bills.

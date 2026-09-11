@@ -62,6 +62,7 @@ const CHANNEL_ID = "projects/prvfire33/notificationChannels/9001";
 // happened, so the stub cannot key on host alone the way observe's does.
 let reply;
 let tokenReply;
+let onPolicyPost;
 let calls;
 let server, base;
 
@@ -87,7 +88,12 @@ beforeAll(async () => {
         auth: req.headers.authorization || null,
         body: raw ? JSON.parse(raw) : null,
       });
-      const r = reply[key(req.method, req.url)] || { status: 200, body: {} };
+      // A POST to the policies collection may need to answer DIFFERENTLY on
+      // each call — the propagation cases below refuse twice and then
+      // succeed — which a static `reply` map cannot express.
+      const r = (onPolicyPost && req.method === "POST" && req.url === POLICIES)
+        ? onPolicyPost()
+        : reply[key(req.method, req.url)] || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
     });
@@ -127,6 +133,7 @@ const APPLIED_POLICIES = [
 
 beforeEach(() => {
   calls = [];
+  onPolicyPost = null;
   tokenReply = { status: 200, contentType: "application/json", raw: JSON.stringify({ access_token: "TOK" }) };
   reply = {
     [key("GET", CHANNELS)]: { status: 200, body: { notificationChannels: [] } },
@@ -147,6 +154,9 @@ const apply = async (args = []) => {
       ...process.env,
       FIREBASE_SERVICE_ACCOUNT: SA,
       GOOGLE_API_BASE: base,
+      // The real schedule is 15s/30s/60s/120s. Four minutes of real sleeping
+      // would make this suite one nobody runs, so the waits are a seam.
+      MONITORING_RETRY_MS: "20,20,20,20",
       // PINNED, not inherited. The script resolves
       // `--project || FIREBASE_PROJECT_ID || "prvfire33"`, and every stub
       // key below hard-codes the prvfire33 path — so a developer or a
@@ -168,6 +178,9 @@ const applyFails = async (args = []) => {
       ...process.env,
       FIREBASE_SERVICE_ACCOUNT: SA,
       GOOGLE_API_BASE: base,
+      // The real schedule is 15s/30s/60s/120s. Four minutes of real sleeping
+      // would make this suite one nobody runs, so the waits are a seam.
+      MONITORING_RETRY_MS: "20,20,20,20",
       // PINNED, not inherited. The script resolves
       // `--project || FIREBASE_PROJECT_ID || "prvfire33"`, and every stub
       // key below hard-codes the prvfire33 path — so a developer or a
@@ -337,6 +350,45 @@ describe("a refusal", () => {
     expect(stderr).toContain("API is not enabled");
     expect(stderr).not.toContain("Grant roles/");
   });
+});
+
+describe("the metric this run just created, which the alerting API cannot see yet", () => {
+  // MEASURED, NOT IMAGINED (2026-09-11, D452). Arming `agg_evict` and the
+  // breakdown-cap policy against real production failed exactly here: the
+  // metric was created by that run and the policy POST seconds later took
+  //
+  //   404: Cannot find metric(s) that match type =
+  //   "logging.googleapis.com/user/agg_evict". If a metric was created
+  //   recently, it could take up to 10 minutes to become available.
+  //
+  // The run went red having created the metric and not the policy — half an
+  // alert chain, which is the failure `must()` exists to prevent, arriving
+  // through the one door it did not watch. Ordering metrics before policies
+  // was never the issue; VISIBILITY was.
+  const notReady = {
+    status: 404,
+    body: { error: { message: 'Cannot find metric(s) that match type = "logging.googleapis.com/user/agg_evict".' } },
+  };
+
+  it("retries instead of failing, and succeeds when the metric lands", async () => {
+    let refusals = 2;
+    // The stub answers the POST from a counter, so the retry is what makes
+    // the difference rather than the ordering: without it the first 404 is
+    // fatal and no policy is ever created.
+    onPolicyPost = () => (refusals-- > 0 ? notReady : { status: 200, body: {} });
+    const out = await apply(["--apply"]);
+    expect(posts().filter((c) => c.url === POLICIES).length).toBeGreaterThan(2);
+    expect(out).toContain("not published yet");
+  }, 90_000);
+
+  it("blames the propagation window, never the API being disabled", async () => {
+    onPolicyPost = () => notReady;
+    const { stderr } = await applyFails(["--apply"]);
+    // The old hint sent the operator to enable an API that was already on.
+    expect(stderr).not.toContain("API is not enabled");
+    expect(stderr).toContain("created by this run");
+    expect(stderr).toContain("Re-dispatch");
+  }, 120_000);
 });
 
 describe("the channel that points somewhere else", () => {
